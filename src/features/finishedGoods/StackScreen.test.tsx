@@ -17,13 +17,14 @@ import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { openSelect } from "@tests/fixtures/select-control";
+import { clearCursorPositions } from "@/hooks/useCursorPagination";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
-  query: vi.fn<(name: string) => unknown>(),
+  query: vi.fn<(name: string, args: Record<string, unknown>) => unknown>(),
   write:
     vi.fn<
       (name: string, args: unknown) => Promise<ReturnType<typeof writeSuccess>>
@@ -53,7 +54,9 @@ vi.mock("convex/react", () => ({
     (ref: Parameters<typeof getFunctionName>[0]) => (args: unknown) =>
       mocks.write(getFunctionName(ref), args),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
-    args === "skip" ? undefined : mocks.query(getFunctionName(ref)),
+    args === "skip"
+      ? undefined
+      : mocks.query(getFunctionName(ref), args as Record<string, unknown>),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
@@ -74,7 +77,31 @@ import {
   writeSuccess as success,
 } from "@tests/fixtures/finished-goods-ui";
 import { StackScreen } from "./StackScreen";
-let data: NonNullable<RefValue<typeof fgRefs.stackOptions>>;
+type Choice = NonNullable<RefValue<typeof fgRefs.stackPreview>>["upper"] & {};
+let data: Omit<NonNullable<RefValue<typeof fgRefs.stackPreview>>, "upper"> & {
+  pallets: Choice[];
+};
+/** Choices are paged separately; the preview resolves the chosen ID. */
+function respond(name: string, args: Record<string, unknown>) {
+  if (name.endsWith(":stackChoices"))
+    return querySuccess({
+      status: "ready",
+      items: data.pallets,
+      isDone: true,
+      continueCursor: "",
+      scanned: data.pallets.length,
+    });
+  if (name.endsWith(":stackPreview")) {
+    const { pallets, ...preview } = data;
+    const upper = pallets.find((p) => p._id === args["upperPalletId"]) ?? null;
+    return querySuccess({
+      ...preview,
+      upper,
+      candidate: upper ? preview.candidate : null,
+    });
+  }
+  return querySuccess(data);
+}
 function mount() {
   return render(
     <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
@@ -91,6 +118,8 @@ function chooseUpperPallet(label = "2. Upper pallet") {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  // Choice pages remembered by an earlier test must not leak into the next.
+  clearCursorPositions();
   mocks.canManage = true;
   const lower = {
     ...measuredPalletDetail.pallet,
@@ -125,7 +154,7 @@ beforeEach(() => {
       },
     },
   };
-  mocks.query.mockImplementation(() => querySuccess(data));
+  mocks.query.mockImplementation(respond);
   mocks.write.mockResolvedValue(success("placement-stack"));
 });
 it("keeps reservation disabled until an upper pallet is chosen", () => {
@@ -296,4 +325,112 @@ it("ignores a stacking reservation that resolves after unmount", async () => {
   // persisted request id (which would otherwise drop idempotent replay).
   expect(mocks.push).not.toHaveBeenCalled();
   expect(localStorage.length).toBe(persisted);
+});
+
+it("pages upper pallet choices and keeps the chosen pallet selectable", async () => {
+  const third = { ...data.pallets[0]!, _id: "third", code: "P-003" };
+  const calls: Record<string, unknown>[] = [];
+  mocks.query.mockImplementation((name, args) => {
+    if (!name.endsWith(":stackChoices")) {
+      const { pallets, ...preview } = data;
+      const upper =
+        [...pallets, third].find((p) => p._id === args["upperPalletId"]) ??
+        null;
+      return name.endsWith(":stackPreview")
+        ? querySuccess({ ...preview, upper })
+        : undefined;
+    }
+    calls.push(args);
+    const second = args["cursor"] === "choices-2";
+    return querySuccess({
+      status: "ready",
+      items: second ? [third] : data.pallets,
+      isDone: second,
+      continueCursor: second ? "" : "choices-2",
+      scanned: 1,
+    });
+  });
+  mount();
+  chooseUpperPallet();
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+  expect(calls.at(-1)).toMatchObject({ cursor: "choices-2", pageSize: 20 });
+  // The chosen pallet is off this page but remains the reserved choice.
+  expect(
+    screen.getByRole("button", { name: "Reserve stack and verify" }),
+  ).toBeEnabled();
+  const select = openSelect("2. Upper pallet");
+  expect(
+    within(select).getByRole("option", { name: /^P-002/ }),
+  ).toBeInTheDocument();
+  expect(
+    within(select).getByRole("option", { name: /^P-003/ }),
+  ).toBeInTheDocument();
+});
+
+it("searches eligible choices on the server after typing settles", async () => {
+  const calls: Record<string, unknown>[] = [];
+  mocks.query.mockImplementation((name, args) => {
+    if (name.endsWith(":stackChoices")) calls.push(args);
+    return respond(name, args);
+  });
+  mount();
+  fireEvent.change(
+    screen.getByRole("searchbox", { name: "Search upper pallets by code" }),
+    { target: { value: "p-00" } },
+  );
+  expect(screen.getByText("Finding eligible pallets…")).toBeVisible();
+  await waitFor(() =>
+    expect(calls.at(-1)).toMatchObject({ search: "p-00", cursor: null }),
+  );
+  expect(calls.some((args) => args["search"] === "p-0")).toBe(false);
+});
+
+it("retries refused stack choices with a new subscription identity", async () => {
+  const calls: Record<string, unknown>[] = [];
+  mocks.query.mockImplementation((name, args) => {
+    if (!name.endsWith(":stackChoices")) return respond(name, args);
+    calls.push(args);
+    // Depends on arguments only, like a Convex subscription.
+    return args["attempt"] === 1
+      ? respond(name, args)
+      : querySuccess({
+          status: "reset",
+          items: [],
+          isDone: true,
+          continueCursor: "",
+          scanned: 0,
+        });
+  });
+  mount();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Pallet choices could not be loaded.",
+  );
+  expect(new Set(calls.map((args) => JSON.stringify(args))).size).toBe(1);
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(calls.at(-1)).toMatchObject({ attempt: 1 }));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  chooseUpperPallet();
+});
+
+it("stops following a stack choice scan that makes no progress", async () => {
+  const calls: Record<string, unknown>[] = [];
+  mocks.query.mockImplementation((name, args) => {
+    if (!name.endsWith(":stackChoices")) return respond(name, args);
+    calls.push(args);
+    return querySuccess({
+      status: "scanning",
+      items: [],
+      isDone: false,
+      continueCursor: "",
+      scanCursor: "stuck",
+      scanned: 100,
+    });
+  });
+  mount();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Pallet choices could not be loaded.",
+  );
+  expect(
+    new Set(calls.map((args) => args["scanCursor"])).size,
+  ).toBeLessThanOrEqual(2);
 });

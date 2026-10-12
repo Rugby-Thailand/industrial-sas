@@ -281,7 +281,12 @@ function UsageReport({
               </p>
             ) : null}
           </div>
-          <UsageBreakdown report={data} featureLabel={label} format={format} />
+          <UsageBreakdown
+            report={data}
+            criteria={JSON.stringify({ ...args, refreshKey: undefined })}
+            featureLabel={label}
+            format={format}
+          />
           <RecentActivity
             args={args}
             signature={JSON.stringify(data.byFeature)}

@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Search, Trash2 } from "lucide-react";
+import { LoaderCircle, Search, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { QueryGate } from "@/components/system/QueryGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
+import { useDraftKey } from "@/hooks/useDraftKey";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
+import { useScanRecovery } from "@/hooks/useScanRecovery";
 import { Button } from "@/components/ui/button";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import {
@@ -21,9 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/ui/Notice";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Panel } from "@/components/ui/Panel";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
+import type { RefValue } from "@/lib/convex/clientRef";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { cn } from "@/lib/utils";
 import {
@@ -37,25 +42,44 @@ import {
 import { JobScanRecordRow } from "./JobScanRecordRow";
 import { pickedLocationPayload } from "./ticketDraft";
 import { LocationPicker } from "./LocationPicker";
+import { useJobScanRecordState } from "./useJobScanRecordState";
 
-type Filter = "ALL" | "UNMAPPED" | "MAPPED";
+const hasRecordRows = (value: object) =>
+  "items" in value && Array.isArray(value.items) && value.items.length > 0;
 
 export function JobScanRecordsScreen() {
+  const viewScope = useDraftKey("job-scan-records");
+  if (!viewScope) return <Loading />;
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId) => <Records key={warehouseId} warehouseId={warehouseId} />}
+      {(warehouseId) => (
+        <Records
+          key={`${viewScope}:${warehouseId}`}
+          warehouseId={warehouseId}
+          viewKey={`${viewScope}:${warehouseId}`}
+        />
+      )}
     </QueryGate>
   );
 }
 
-function Records({ warehouseId }: { warehouseId: string }) {
+type RecordPage = RefValue<typeof fgRefs.listJobScans>;
+
+function Records({
+  warehouseId,
+  viewKey,
+}: {
+  warehouseId: string;
+  viewKey: string;
+}) {
   const t = useTranslations("JobScan");
   const canManage = useCanManage();
   const operation = useOperation();
   const assign = useMutation(fgRefs.assignJobScanLocation);
   const deleteScans = useMutation(fgRefs.deleteJobScans);
-  const [filter, setFilter] = useState<Filter>("UNMAPPED");
-  const [search, setSearch] = useState("");
+  const { state: criteria, update: updateCriteria } =
+    useJobScanRecordState(viewKey);
+  const { filter, search } = criteria;
   const [selection, setSelection] = useState<{
     scope: string;
     ids: string[];
@@ -73,19 +97,85 @@ function Records({ warehouseId }: { warehouseId: string }) {
     requestId: string;
   } | null>(null);
   const locale = useLocale();
-  const settledSearch = useDebouncedSearch(search.trim());
+  const typedSearch = search.trim();
+  const settledSearch = useDebouncedSearch(typedSearch);
+  const settled = typedSearch === settledSearch;
   const paging = useCursorPagination({
-    scope: `job-scans:${warehouseId}`,
-    criteria: { filter, search: settledSearch },
+    scope: `job-scans:${viewKey}`,
+    criteria: { filter, search: typedSearch },
   });
-  const outcome = useQuery(fgRefs.listJobScans, {
-    warehouseId,
+  const requestKey = JSON.stringify([
     filter,
-    ...(settledSearch ? { search: settledSearch } : {}),
-    cursor: paging.cursor,
-    pageSize: paging.pageSize,
+    settledSearch,
+    paging.cursor,
+    paging.pageSize,
+  ]);
+  const recovery = useScanRecovery(requestKey);
+  // Rows answer only the settled criteria: obsolete pages are never shown.
+  const outcome = useQuery(
+    fgRefs.listJobScans,
+    settled
+      ? {
+          warehouseId,
+          filter,
+          ...(settledSearch ? { search: settledSearch } : {}),
+          cursor: paging.cursor,
+          pageSize: paging.pageSize,
+          progressive: true,
+          ...(recovery.cursor ? { scanCursor: recovery.cursor } : {}),
+          ...(recovery.attempt ? { attempt: recovery.attempt } : {}),
+        }
+      : "skip",
+  );
+  const tracked = recovery.track(outcome);
+  useCatalogueSync({
+    outcome: tracked.outcome,
+    continuation: tracked.continuation,
+    paging,
+    resetKey: recovery.key,
+    hasRows: hasRecordRows,
   });
-  const result = outcome?.ok ? outcome.value : undefined;
+  // Keep rows already found for this page visible while its scan continues.
+  // Those retained rows are read-only until the next answer arrives: their
+  // membership may have changed, so no action may target them.
+  const [shown, setShown] = useState<{
+    key: string;
+    progress: string;
+    value: RecordPage;
+  } | null>(null);
+  const latest = outcome?.ok ? outcome.value : undefined;
+  const progress = latest
+    ? JSON.stringify([
+        latest.status,
+        latest.scanned,
+        latest.continueCursor,
+        latest.items.length,
+      ])
+    : "";
+  if (
+    settled &&
+    latest &&
+    (shown?.key !== recovery.key || shown.progress !== progress)
+  )
+    setShown({ key: recovery.key, progress, value: latest });
+  const current =
+    !settled || (outcome && !outcome.ok)
+      ? undefined
+      : (latest ?? (shown?.key === recovery.key ? shown.value : undefined));
+  // Rows from the current subscription's own answer, not a retained one.
+  const fresh = Boolean(settled && latest);
+  const scanning = current?.status === "scanning";
+  const checked = current?.status === "scanning" ? current.scanned : 0;
+  const failed = current?.status === "reset";
+  const retry = () => {
+    paging.reset();
+    // Same-page retries need new arguments, hence a fresh subscription.
+    recovery.retry();
+  };
+  const ready = current?.status === "ready" ? current : undefined;
+  const result = current && current.status !== "reset" ? current : undefined;
+  // Every mutation entry point requires fresh rows and an idle operation.
+  const actionable = canManage && fresh && !operation.busy;
   const records = result?.items;
   const visibleIds = records?.map((record) => record.id) ?? [];
   const visibleIdSet = new Set(visibleIds);
@@ -139,10 +229,12 @@ function Records({ warehouseId }: { warehouseId: string }) {
     }));
   }
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    if (!actionable) return;
     updateSelection((ids) =>
       ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id],
     );
+  };
 
   function clearSelection() {
     updateSelection(() => []);
@@ -151,7 +243,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
   }
 
   function openLocationPicker(ids: string[]) {
-    if (!canManage || operation.busy || !ids.length) return;
+    if (!actionable || !ids.length) return;
     updateSelection(() => ids);
     setLocationSelection({ scope: selectionScope, ids: [...ids] });
     operation.setError("");
@@ -159,13 +251,14 @@ function Records({ warehouseId }: { warehouseId: string }) {
   }
 
   const confirmDelete = (ids: string[]) => {
-    if (!canManage || operation.busy || !ids.length) return;
+    if (!actionable || !ids.length) return;
     operation.setError("");
     setDeletion({ ids: [...ids], requestId: crypto.randomUUID() });
   };
 
   async function onDelete() {
-    if (!deletion || !canManage) return;
+    // A confirmation opened on fresh rows waits while they are being updated.
+    if (!deletion || !actionable) return;
     await operation.run(
       async () => written(await deleteScans({ warehouseId, ...deletion })),
       () => {
@@ -189,6 +282,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
       <div className="space-y-3">
         <div
           role="group"
+          aria-label={t("recordList.status")}
           className="grid grid-cols-3 border-b border-border sm:flex"
         >
           {(["UNMAPPED", "MAPPED", "ALL"] as const).map((value) => (
@@ -198,7 +292,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
               aria-pressed={filter === value}
               disabled={operation.busy}
               onClick={() => {
-                setFilter(value);
+                updateCriteria({ filter: value });
                 clearSelection();
               }}
               className={cn(
@@ -225,8 +319,9 @@ function Records({ warehouseId }: { warehouseId: string }) {
           <Input
             value={search}
             disabled={operation.busy}
+            maxLength={200}
             onChange={(event) => {
-              setSearch(event.target.value);
+              updateCriteria({ search: event.target.value });
               clearSelection();
             }}
             placeholder={t("search")}
@@ -245,31 +340,41 @@ function Records({ warehouseId }: { warehouseId: string }) {
           <Panel className="space-y-3">
             <fieldset disabled={operation.busy} className="space-y-3">
               <h2 className="text-lg font-semibold">{t("selectLocation")}</h2>
-              <LocationPicker
-                warehouseId={warehouseId}
-                allowUnmapped={false}
-                canReadImage={canManage}
-                browseWithoutSearch
-                onPick={async (location) => {
-                  const mapped = pickedLocationPayload(location);
-                  if (!canManage || !mapped || operation.busy) return;
-                  const target = { ids: picking.ids, location: mapped };
-                  await operation.run(
-                    async () =>
-                      written(
-                        await assign({
-                          warehouseId,
-                          requestId: operation.request(JSON.stringify(target)),
-                          ...target,
-                        }),
-                      ),
-                    () => {
-                      clearSelection();
-                      operation.clearRequests();
-                    },
-                  );
-                }}
-              />
+              {!fresh && (
+                <p role="status" className="text-sm text-muted">
+                  {t("recordList.actionsWait")}
+                </p>
+              )}
+              <fieldset disabled={!fresh} className="contents">
+                <LocationPicker
+                  warehouseId={warehouseId}
+                  allowUnmapped={false}
+                  canReadImage={canManage}
+                  browseWithoutSearch
+                  onPick={async (location) => {
+                    const mapped = pickedLocationPayload(location);
+                    // The chosen records must still be current when assigning.
+                    if (!actionable || !mapped) return;
+                    const target = { ids: picking.ids, location: mapped };
+                    await operation.run(
+                      async () =>
+                        written(
+                          await assign({
+                            warehouseId,
+                            requestId: operation.request(
+                              JSON.stringify(target),
+                            ),
+                            ...target,
+                          }),
+                        ),
+                      () => {
+                        clearSelection();
+                        operation.clearRequests();
+                      },
+                    );
+                  }}
+                />
+              </fieldset>
               <Button
                 variant="outline"
                 className="w-full"
@@ -294,10 +399,13 @@ function Records({ warehouseId }: { warehouseId: string }) {
                     input.indeterminate =
                       someVisibleSelected && !allVisibleSelected;
                 }}
-                disabled={operation.busy || isPicking}
-                onChange={() =>
-                  updateSelection(() => (allVisibleSelected ? [] : visibleIds))
-                }
+                disabled={!actionable || isPicking}
+                onChange={() => {
+                  if (actionable)
+                    updateSelection(() =>
+                      allVisibleSelected ? [] : visibleIds,
+                    );
+                }}
               />
               <span aria-live="polite">
                 {selected.length
@@ -310,7 +418,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
                 variant="destructive"
                 className="bg-danger text-destructive-foreground hover:bg-danger/90"
                 aria-label={t("deleteSelected", { count: selected.length })}
-                disabled={operation.busy || isPicking}
+                disabled={!actionable || isPicking}
                 onClick={() => confirmDelete(selected)}
               >
                 <Trash2 aria-hidden="true" className="size-5" />
@@ -323,28 +431,110 @@ function Records({ warehouseId }: { warehouseId: string }) {
           <LedgerPanelStatus
             state={{ kind: "DENIED", requestId: outcome.requestId }}
           />
+        ) : failed ? (
+          <Notice tone="danger" role="alert" title={t("recordList.loadFailed")}>
+            <Button variant="outline" className="mt-3" onClick={retry}>
+              {t("recordList.retry")}
+            </Button>
+          </Notice>
         ) : !records ? (
-          <Loading />
-        ) : !records.length ? (
-          <EmptyState title={t("empty")} />
-        ) : (
-          <ul className="divide-y divide-border border-b border-border">
-            {records.map((record) => (
-              <JobScanRecordRow
-                key={record.id}
-                record={record}
-                canManage={canManage}
-                selected={selected.includes(record.id)}
-                disabled={operation.busy || picking !== null}
-                onToggle={() => toggle(record.id)}
-                onChangeLocation={() => openLocationPicker([record.id])}
-                onDelete={() => confirmDelete([record.id])}
+          typedSearch ? (
+            <p
+              role="status"
+              className="flex min-h-12 items-center gap-2 text-sm text-muted"
+            >
+              <LoaderCircle
+                aria-hidden="true"
+                className="size-4 animate-spin motion-reduce:animate-none"
               />
-            ))}
-          </ul>
+              {t("recordList.searching")}
+            </p>
+          ) : (
+            <Loading />
+          )
+        ) : !records.length && !scanning ? (
+          typedSearch ? (
+            <EmptyState
+              title={t("recordList.noMatches", { search: typedSearch })}
+              body={t("recordList.noMatchesHint")}
+              action={
+                <Button
+                  variant="outline"
+                  disabled={operation.busy}
+                  onClick={() => {
+                    updateCriteria({ search: "" });
+                    clearSelection();
+                  }}
+                >
+                  {t("recordList.clearSearch")}
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState title={t("empty")} />
+          )
+        ) : (
+          <>
+            {tracked.stalled && (
+              <Notice
+                tone="danger"
+                role="alert"
+                title={t("recordList.stalled")}
+                className="mb-3"
+              >
+                <Button variant="outline" className="mt-3" onClick={retry}>
+                  {t("recordList.retry")}
+                </Button>
+              </Notice>
+            )}
+            {records.length > 0 && (
+              <ul
+                aria-busy={scanning}
+                className="divide-y divide-border border-b border-border"
+              >
+                {records.map((record) => (
+                  <JobScanRecordRow
+                    key={record.id}
+                    record={record}
+                    canManage={canManage}
+                    selected={selected.includes(record.id)}
+                    disabled={!actionable || picking !== null}
+                    onToggle={() => toggle(record.id)}
+                    onChangeLocation={() => openLocationPicker([record.id])}
+                    onDelete={() => confirmDelete([record.id])}
+                  />
+                ))}
+              </ul>
+            )}
+            {tracked.paused ? (
+              <div className="flex flex-wrap items-center gap-3 py-3 text-sm text-muted">
+                <p role="status">
+                  {t("recordList.paused", { count: checked })}
+                </p>
+                <Button variant="outline" onClick={recovery.resume}>
+                  {t("recordList.continue")}
+                </Button>
+              </div>
+            ) : (
+              scanning &&
+              !tracked.stalled && (
+                <p
+                  role="status"
+                  className="flex min-h-12 items-center gap-2 text-sm text-muted"
+                >
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-4 animate-spin motion-reduce:animate-none"
+                  />
+                  {t("recordList.searchProgress", { count: checked })}
+                  {!fresh ? ` ${t("recordList.actionsWait")}` : ""}
+                </p>
+              )
+            )}
+          </>
         )}
       </div>
-      {(paging.canPrevious || (result && !result.isDone)) && (
+      {result && (paging.canPrevious || !result.isDone) && (
         <CursorPagination
           onFirst={paging.reset}
           historyTruncated={paging.historyTruncated}
@@ -353,11 +543,11 @@ function Records({ warehouseId }: { warehouseId: string }) {
           onPageSizeChange={paging.setPageSize}
           onPrevious={paging.previous}
           onNext={() => {
-            if (result) paging.next(result.continueCursor);
+            if (ready && !ready.isDone) paging.next(ready.continueCursor);
           }}
           canPrevious={paging.canPrevious}
-          canNext={Boolean(result && !result.isDone)}
-          loading={outcome === undefined || operation.busy}
+          canNext={Boolean(ready && !ready.isDone)}
+          loading={!ready || operation.busy}
           locale={locale}
         />
       )}
@@ -383,6 +573,11 @@ function Records({ warehouseId }: { warehouseId: string }) {
               <DialogDescription>{t("deleteDescription")}</DialogDescription>
             </DialogHeader>
             <ErrorNotice message={operation.error} />
+            {!fresh && (
+              <p role="status" className="text-sm text-muted">
+                {t("recordList.actionsWait")}
+              </p>
+            )}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -393,7 +588,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
               </Button>
               <Button
                 variant="destructive"
-                disabled={operation.busy}
+                disabled={!actionable}
                 onClick={onDelete}
               >
                 <Trash2 aria-hidden="true" />
@@ -409,7 +604,7 @@ function Records({ warehouseId }: { warehouseId: string }) {
           <div className="mx-auto max-w-3xl">
             <Button
               className="w-full whitespace-normal"
-              disabled={operation.busy}
+              disabled={!actionable}
               onClick={() => openLocationPicker(selected)}
             >
               {t("mapSelected", { count: selected.length })}

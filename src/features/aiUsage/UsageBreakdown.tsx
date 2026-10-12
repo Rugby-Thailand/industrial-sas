@@ -1,24 +1,74 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+
+import { PaginationFooter } from "@/components/system/PaginationFooter";
+import {
+  LOCAL_PAGE_SIZES,
+  PageSizeSelect,
+} from "@/components/system/PageSizeSelect";
 
 import type { Feature } from "../../../convex/model/aiUsage/usage";
 import type { UsageFormat } from "./format";
+import { useDimensionLabels } from "./DimensionFilter";
 import { costState, type Report } from "./report";
 import { CELL, NUMERIC, UsageTable } from "./UsageTable";
 
 /** Contribution of each user, warehouse and model; the feature is row detail. */
 export function UsageBreakdown({
   report,
+  criteria: filters = "",
   featureLabel,
   format,
 }: {
   readonly report: Report;
+  /** The selected period and filters; a change starts at page one. */
+  readonly criteria?: string;
   readonly featureLabel: (feature: Feature) => string;
   readonly format: UsageFormat;
 }) {
   const t = useTranslations("AiUsage");
   const { num, usd, thb } = format;
+  // The aggregate is computed once for the whole range; pages only bound how
+  // many groups render. A new range or filter starts again at page one.
+  const criteria = JSON.stringify([filters, report.range]);
+  const [stored, setView] = useState<{
+    criteria: string;
+    page: number;
+    size: (typeof LOCAL_PAGE_SIZES)[number];
+  }>({ criteria, page: 1, size: LOCAL_PAGE_SIZES[0] });
+  // Changed criteria restart at page one and forget the earlier position,
+  // so returning to previous criteria does not resurrect its old page.
+  const view =
+    stored.criteria === criteria ? stored : { ...stored, criteria, page: 1 };
+  if (view !== stored) setView(view);
+  const size = view.size;
+  const pages = Math.max(1, Math.ceil(report.breakdown.length / size));
+  const page = Math.min(view.page, pages);
+  const first = (page - 1) * size;
+  const rows = report.breakdown.slice(first, first + size);
+  // The report labels at most its first 200 actors and 100 warehouses; the
+  // displayed page resolves any others by ID.
+  const labels = useDimensionLabels(
+    rows
+      .map((row) => row.actorUserId)
+      .filter((id) => !report.users.some((u) => u.id === id)),
+    rows.flatMap((row) =>
+      row.warehouseId &&
+      !report.warehouses.some((w) => w.id === row.warehouseId)
+        ? [row.warehouseId]
+        : [],
+    ),
+  );
+  const userName = (id: string) =>
+    report.users.find((u) => u.id === id)?.name ??
+    labels.user(id) ??
+    (labels.loading ? "…" : t("unknownUser"));
+  const warehouseName = (id: string) =>
+    report.warehouses.find((w) => w.id === id)?.name ??
+    labels.warehouse(id) ??
+    (labels.loading ? "…" : t("unknownWarehouse"));
   const columns = [
     { key: "user", label: t("colUser") },
     { key: "warehouse", label: t("warehouse") },
@@ -47,15 +97,17 @@ export function UsageBreakdown({
         minWidth="min-w-[720px]"
         {...(report.breakdown.length ? {} : { empty: t("breakdownEmpty") })}
       >
-        {report.breakdown.map((row, i) => {
+        {rows.map((row, i) => {
           const unconfirmed = costState(row.metrics) === "UNCONFIRMED";
           const m = row.metrics;
           return (
-            <tr key={i} className="border-b border-border last:border-b-0">
+            <tr
+              key={first + i}
+              className="border-b border-border last:border-b-0"
+            >
               <th scope="row" className={`${CELL} text-left font-medium`}>
                 <span className="block break-words">
-                  {report.users.find((u) => u.id === row.actorUserId)?.name ??
-                    t("unknownUser")}
+                  {userName(row.actorUserId)}
                 </span>
                 <span className="block text-xs font-normal text-muted">
                   {featureLabel(row.feature)}
@@ -64,8 +116,7 @@ export function UsageBreakdown({
               <td className={`${CELL} break-words`}>
                 {row.warehouseId === undefined
                   ? t("noWarehouse")
-                  : (report.warehouses.find((w) => w.id === row.warehouseId)
-                      ?.name ?? t("unknownWarehouse"))}
+                  : warehouseName(row.warehouseId)}
               </td>
               <td className={`${CELL} max-w-56`}>
                 <span className="block break-words">{row.requestedModel}</span>
@@ -111,6 +162,32 @@ export function UsageBreakdown({
           );
         })}
       </UsageTable>
+      {report.breakdown.length > LOCAL_PAGE_SIZES[0] && (
+        <PaginationFooter
+          label={t("breakdownPages")}
+          pageSizeControl={
+            <PageSizeSelect
+              label={t("breakdownPerPage")}
+              value={size}
+              sizes={LOCAL_PAGE_SIZES}
+              onValueChange={(next) =>
+                setView({ criteria, page: 1, size: next })
+              }
+            />
+          }
+          status={t("breakdownRange", {
+            from: first + 1,
+            to: first + rows.length,
+            total: report.breakdown.length,
+          })}
+          previousLabel={t("breakdownPrevious")}
+          nextLabel={t("breakdownNext")}
+          canPrevious={page > 1}
+          canNext={page < pages}
+          onPrevious={() => setView({ criteria, page: page - 1, size })}
+          onNext={() => setView({ criteria, page: page + 1, size })}
+        />
+      )}
     </section>
   );
 }

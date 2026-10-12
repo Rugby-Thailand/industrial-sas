@@ -15,6 +15,7 @@ import {
   compact,
   created,
   failure,
+  heldPlacements,
   nextCode,
   productOf,
   rows,
@@ -43,37 +44,41 @@ async function unitState(
   ctx: TenantFunctionContext,
   unit: Doc<"finishedGoodsPallets">,
 ) {
+  // Only held placements and active moves decide the lock; released
+  // placements and finished moves are history and are not read here.
   const [placements, children, moves] = await Promise.all([
-    rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_palletId",
-      [{ field: "palletId", value: unit._id }],
-    ),
-    rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_supportPalletId",
-      [{ field: "supportPalletId", value: unit._id }],
-    ),
-    rows<Doc<"finishedGoodsMoves">>(
-      ctx,
-      "finishedGoodsMoves",
-      "by_orgId_palletId",
-      [{ field: "palletId", value: unit._id }],
+    heldPlacements(ctx, "by_orgId_palletId_status", {
+      field: "palletId",
+      value: unit._id,
+    }),
+    heldPlacements(ctx, "by_orgId_supportPalletId_status", {
+      field: "supportPalletId",
+      value: unit._id,
+    }),
+    Promise.all(
+      (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
+        rows<Doc<"finishedGoodsMoves">>(
+          ctx,
+          "finishedGoodsMoves",
+          "by_orgId_palletId_status",
+          [
+            { field: "palletId", value: unit._id },
+            { field: "status", value: status },
+          ],
+        ),
+      ),
+    ).then((active) =>
+      active.flat().sort((a, b) => a._creationTime - b._creationTime),
     ),
   ]);
-  const move = moves.find(
-    (m) => m.status === "RESERVED" || m.status === "IN_TRANSIT",
-  );
-  const reason = children.some((p) => p.status !== "RELEASED")
+  const move = moves[0];
+  const reason = children.length
     ? "SUPPORTING"
     : move
       ? "MOVING"
       : unit.status === "STORED"
         ? "STORED"
-        : unit.status === "RESERVED" ||
-            placements.some((p) => p.status !== "RELEASED")
+        : unit.status === "RESERVED" || placements.length
           ? "RESERVED"
           : null;
   return {

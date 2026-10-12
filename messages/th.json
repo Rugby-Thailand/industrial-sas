@@ -1298,6 +1298,23 @@
       "awaiting-placement": "รอเลือกจุดจัดเก็บ",
       "reserved-awaiting-storage": "จองแล้ว · รอจัดเก็บ",
       "storage-unit-ced501": "หน่วยจัดเก็บ"
+    },
+    "paging": {
+      "historyPages": "หน้าประวัติการย้าย",
+      "historyFailed": "โหลดประวัติการย้ายไม่สำเร็จ",
+      "stackSearch": "ค้นหาพาเลทด้านบนด้วยรหัส",
+      "stackPages": "หน้ารายการพาเลทด้านบน",
+      "stackSearching": "กำลังหาพาเลทที่เลือกได้…",
+      "stackNoMatches": "ไม่พบพาเลทที่เลือกได้ซึ่งตรงกับรหัสนี้",
+      "stackChoicesFailed": "โหลดรายการพาเลทไม่สำเร็จ",
+      "destinationPages": "หน้ารายการตำแหน่ง",
+      "perPage": "ต่อหน้า",
+      "range": "{from}–{to} จาก {total}",
+      "previous": "หน้าก่อนหน้า",
+      "next": "หน้าถัดไป",
+      "otherPage": "จากหน้าอื่น",
+      "retry": "ลองอีกครั้ง",
+      "continue": "โหลดต่อ"
     }
   },
   "JobScan": {
@@ -1500,7 +1517,21 @@
     "barcodeImagePIXELS": "เลือกภาพความละเอียดไม่เกิน 16 ล้านพิกเซล",
     "barcodeImageIMAGE": "เปิดภาพนี้ไม่ได้",
     "barcodeImageDECODER": "โหลดตัวอ่านบาร์โค้ดไม่ได้ ลองอีกครั้ง",
-    "barcodeImageUNAVAILABLE": "เบราว์เซอร์นี้ไม่รองรับการอ่านภาพ ใช้กล้องหรือกรอกรหัสแทน"
+    "barcodeImageUNAVAILABLE": "เบราว์เซอร์นี้ไม่รองรับการอ่านภาพ ใช้กล้องหรือกรอกรหัสแทน",
+    "recordList": {
+      "status": "สถานะรายการ",
+      "searching": "กำลังค้นหารายการที่บันทึกไว้…",
+      "searchProgress": "กำลังค้นหา… ตรวจแล้ว {count, plural, other {# รายการ}}",
+      "noMatches": "ไม่พบรายการที่ตรงกับ “{search}”",
+      "noMatchesHint": "การค้นหาจะตรวจเลขที่งาน บาร์โค้ด ชิ้นงาน ลูกค้า ตำแหน่ง และอาคารของทุกรายการที่บันทึกไว้ในมุมมองนี้",
+      "clearSearch": "ล้างการค้นหา",
+      "loadFailed": "โหลดรายการไม่สำเร็จ",
+      "retry": "ลองอีกครั้ง",
+      "actionsWait": "ใช้งานคำสั่งได้เมื่อหน้านี้อัปเดตเสร็จ",
+      "stalled": "การค้นหาหยุดคืบหน้า",
+      "paused": "ยังค้นหาอยู่: ตรวจแล้ว {count, plural, other {# รายการ}} สำหรับหน้านี้",
+      "continue": "ค้นหาต่อ"
+    }
   },
   "Hr": {
     "duration": "{hours} ชม. {minutes} น.",
@@ -2887,6 +2918,20 @@
     "scrollTable": "{name} (ตารางเลื่อนได้)",
     "summaryShort": "ภาพรวมการใช้งานและค่าใช้จ่าย",
     "exportShort": "ส่งออก",
-    "estimateFeeIncluded": "รวมค่าธรรมเนียมประมาณ {percent}%"
+    "estimateFeeIncluded": "รวมค่าธรรมเนียมประมาณ {percent}%",
+    "breakdownPages": "หน้าการแยกการใช้งาน",
+    "breakdownPerPage": "แถวต่อหน้า",
+    "breakdownRange": "{from}–{to} จาก {total} กลุ่ม",
+    "breakdownPrevious": "หน้าก่อนหน้า",
+    "breakdownNext": "หน้าถัดไป",
+    "searchUsers": "ค้นหาผู้ใช้",
+    "searchWarehouses": "ค้นหาคลังสินค้า",
+    "userPages": "หน้ารายการผู้ใช้",
+    "warehousePages": "หน้ารายการคลังสินค้า",
+    "optionsPage": "หน้า {page}",
+    "optionsNoMatch": "ไม่พบรายการที่ตรงกัน ลองชื่ออื่น",
+    "optionsFailed": "โหลดตัวเลือกไม่สำเร็จ",
+    "optionsRetry": "ลองอีกครั้ง",
+    "optionsContinue": "ค้นหาต่อ"
   }
 }

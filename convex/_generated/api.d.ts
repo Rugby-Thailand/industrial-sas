@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiUsage_dimensions from "../aiUsage/dimensions.js";
 import type * as aiUsage_generation from "../aiUsage/generation.js";
 import type * as aiUsage_internal from "../aiUsage/internal.js";
 import type * as aiUsage_projection from "../aiUsage/projection.js";
@@ -20,6 +21,7 @@ import type * as finishedGoods_batchManagement from "../finishedGoods/batchManag
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
 import type * as finishedGoods_catalogueFilters from "../finishedGoods/catalogueFilters.js";
+import type * as finishedGoods_history from "../finishedGoods/history.js";
 import type * as finishedGoods_jobScanLocations from "../finishedGoods/jobScanLocations.js";
 import type * as finishedGoods_jobScans from "../finishedGoods/jobScans.js";
 import type * as finishedGoods_locationImage from "../finishedGoods/locationImage.js";
@@ -50,6 +52,7 @@ import type * as lib_aiUsage from "../lib/aiUsage.js";
 import type * as lib_authorization from "../lib/authorization.js";
 import type * as lib_authorizationLookupsConvex from "../lib/authorizationLookupsConvex.js";
 import type * as lib_authorizationSeedConvex from "../lib/authorizationSeedConvex.js";
+import type * as lib_boundedRecordPage from "../lib/boundedRecordPage.js";
 import type * as lib_cataloguePagination from "../lib/cataloguePagination.js";
 import type * as lib_clerkWebhook from "../lib/clerkWebhook.js";
 import type * as lib_clerkWebhookNormalizer from "../lib/clerkWebhookNormalizer.js";
@@ -139,6 +142,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "aiUsage/dimensions": typeof aiUsage_dimensions;
   "aiUsage/generation": typeof aiUsage_generation;
   "aiUsage/internal": typeof aiUsage_internal;
   "aiUsage/projection": typeof aiUsage_projection;
@@ -151,6 +155,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
   "finishedGoods/catalogueFilters": typeof finishedGoods_catalogueFilters;
+  "finishedGoods/history": typeof finishedGoods_history;
   "finishedGoods/jobScanLocations": typeof finishedGoods_jobScanLocations;
   "finishedGoods/jobScans": typeof finishedGoods_jobScans;
   "finishedGoods/locationImage": typeof finishedGoods_locationImage;
@@ -181,6 +186,7 @@ declare const fullApi: ApiFromModules<{
   "lib/authorization": typeof lib_authorization;
   "lib/authorizationLookupsConvex": typeof lib_authorizationLookupsConvex;
   "lib/authorizationSeedConvex": typeof lib_authorizationSeedConvex;
+  "lib/boundedRecordPage": typeof lib_boundedRecordPage;
   "lib/cataloguePagination": typeof lib_cataloguePagination;
   "lib/clerkWebhook": typeof lib_clerkWebhook;
   "lib/clerkWebhookNormalizer": typeof lib_clerkWebhookNormalizer;

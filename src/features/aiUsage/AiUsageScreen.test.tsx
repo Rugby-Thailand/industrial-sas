@@ -9,7 +9,7 @@ import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption } from "@tests/fixtures/select-control";
+import { chooseOption, selectedLabel } from "@tests/fixtures/select-control";
 
 const state = vi.hoisted(() => ({
   access: { status: "READY", permissions: ["aiUsage.read"] } as {
@@ -18,6 +18,9 @@ const state = vi.hoisted(() => ({
   },
   summary: undefined as unknown,
   summaryArgs: [] as unknown[],
+  /** Answers the paged filter option and label queries. */
+  dimension: (_name: string, _args: Record<string, unknown>): unknown =>
+    undefined,
   query: vi.fn(),
   refresh: vi.fn(),
   client: null as unknown,
@@ -29,8 +32,13 @@ vi.mock("convex/react", async () => {
   const { getFunctionName: name } = await import("convex/server");
   return {
     useQuery: (reference: Parameters<typeof name>[0], args: unknown) => {
-      if (args === "skip" || name(reference) !== "aiUsage/reports:summary")
-        return undefined;
+      if (args === "skip") return undefined;
+      if (name(reference).startsWith("aiUsage/dimensions:"))
+        return state.dimension(
+          name(reference),
+          args as Record<string, unknown>,
+        );
+      if (name(reference) !== "aiUsage/reports:summary") return undefined;
       state.summaryArgs.push(args);
       return state.summary;
     },
@@ -62,6 +70,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
 
 import { AiUsageScreen as Screen } from "./AiUsageScreen";
 import { RecentActivity } from "./RecentActivity";
+import { UsageBreakdown } from "./UsageBreakdown";
 import type { UsageEstimate } from "@/lib/aiUsage/estimateSources";
 
 const LOADED = Date.parse("2026-10-11T07:00:00Z");
@@ -435,6 +444,38 @@ describe("AiUsageScreen statement and feature strip", () => {
     ).toBeInTheDocument();
     expect(total.getByText("1 operation pending")).toBeInTheDocument();
     expect(await total.findAllByText("≈ ฿0.0000")).toHaveLength(2);
+  });
+
+  it("pages a long breakdown without dropping or recomputing groups", async () => {
+    withReport({
+      users: Array.from({ length: 60 }, (_, n) => ({
+        id: `user-${n}`,
+        name: `Operator ${String(n).padStart(2, "0")}`,
+      })),
+      breakdown: Array.from({ length: 60 }, (_, n) => ({
+        feature: "JOB_TICKET_SCAN",
+        actorUserId: `user-${n}`,
+        requestedModel: "fixture-model",
+        environment: "local",
+        metrics: metrics({ operationCount: 1, attemptCount: 1 }),
+      })),
+    });
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    await screen.findByTestId("usage-estimate");
+    const rows = () => breakdown().getAllByRole("rowheader");
+    expect(rows()).toHaveLength(25);
+    expect(screen.getByText("1–25 of 60 groups")).toBeInTheDocument();
+    const pager = screen.getByRole("navigation", {
+      name: "Usage breakdown pages",
+    });
+    fireEvent.click(within(pager).getByRole("button", { name: "Next page" }));
+    fireEvent.click(within(pager).getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("51–60 of 60 groups")).toBeInTheDocument();
+    expect(rows()).toHaveLength(10);
+    expect(rows()[9]).toHaveTextContent("Operator 59");
+    expect(
+      within(pager).getByRole("button", { name: "Next page" }),
+    ).toBeDisabled();
   });
 
   it.each([[null], [estimateOf(40, 5)]])(
@@ -911,4 +952,187 @@ describe("AiUsageScreen CSV export lifecycle", () => {
 it("queries the registered recent-history function", async () => {
   const { recentRef } = await import("./RecentActivity");
   expect(getFunctionName(recentRef)).toBe("aiUsage/reports:recent");
+});
+
+describe("AI usage dimensions beyond the report's label lookup", () => {
+  const ok = (value: unknown) => ({ ok: true, requestId: "q", value });
+  const operators = (from: number, count: number) =>
+    Array.from({ length: count }, (_, n) => ({
+      id: `user-${from + n}`,
+      name: `Operator ${from + n}`,
+    }));
+  beforeEach(() => {
+    state.summaryArgs = [];
+    state.summary = ok(report);
+    state.dimension = () => undefined;
+  });
+  afterEach(() => {
+    state.dimension = () => undefined;
+  });
+
+  it("pages and searches every member as a user filter and keeps the chosen name", async () => {
+    const calls: Record<string, unknown>[] = [];
+    state.dimension = (name, args) => {
+      if (name.endsWith(":labels"))
+        return ok({
+          users: (args["actorIds"] as string[]).map((id) => ({
+            id,
+            name: `Operator ${id.slice(5)}`,
+          })),
+          warehouses: [],
+        });
+      if (!name.endsWith(":actorOptions"))
+        return ok({
+          status: "ready",
+          items: [],
+          isDone: true,
+          continueCursor: "",
+          scanned: 0,
+        });
+      calls.push(args);
+      const second = args["cursor"] === "users-2";
+      return ok({
+        status: "ready",
+        items: args["search"]
+          ? operators(240, 1)
+          : second
+            ? operators(220, 20)
+            : operators(200, 20),
+        isDone: second || Boolean(args["search"]),
+        continueCursor: second || args["search"] ? "" : "users-2",
+        scanned: 20,
+      });
+    };
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    fireEvent.click(await screen.findByRole("button", { name: "Filters" }));
+    const pages = await screen.findByRole("navigation", {
+      name: "User choice pages",
+    });
+    fireEvent.click(within(pages).getByRole("button", { name: "Next page" }));
+    expect(calls.at(-1)).toMatchObject({ cursor: "users-2" });
+    chooseOption("User", "Operator 235");
+    expect(state.summaryArgs.at(-1)).toMatchObject({
+      actorUserId: "user-235",
+    });
+    // Back on the first page the chosen user is still the selection.
+    fireEvent.click(
+      within(
+        screen.getByRole("navigation", { name: "User choice pages" }),
+      ).getByRole("button", { name: "Previous page" }),
+    );
+    expect(selectedLabel("User")).toContain("Operator 235");
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search users" }), {
+      target: { value: "240" },
+    });
+    await waitFor(() =>
+      expect(calls.at(-1)).toMatchObject({ search: "240", cursor: null }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Filtered by Operator 235")).toBeVisible();
+  });
+
+  it("names breakdown actors the report did not label", () => {
+    state.dimension = (name, args) =>
+      name.endsWith(":labels")
+        ? ok({
+            users: (args["actorIds"] as string[]).map((id) => ({
+              id,
+              name: "Operator 260",
+            })),
+            warehouses: [],
+          })
+        : undefined;
+    renderWithIntl(
+      <UsageBreakdown
+        report={
+          {
+            ...report,
+            breakdown: [
+              {
+                feature: "JOB_TICKET_SCAN",
+                actorUserId: "user-260",
+                requestedModel: "fixture-model",
+                environment: "local",
+                metrics: metrics({ operationCount: 1, attemptCount: 1 }),
+              },
+            ],
+          } as never
+        }
+        featureLabel={(kind) => kind}
+        format={{ num: String, usd: String, thb: () => null } as never}
+      />,
+      { locale: "en" },
+    );
+    expect(screen.getByText("Operator 260")).toBeInTheDocument();
+  });
+
+  it("starts at page one whenever criteria change, including a return to earlier criteria", () => {
+    const long = {
+      ...report,
+      users: operators(0, 30),
+      breakdown: operators(0, 30).map((user) => ({
+        feature: "JOB_TICKET_SCAN",
+        actorUserId: user.id,
+        requestedModel: "fixture-model",
+        environment: "local",
+        metrics: metrics({ operationCount: 1, attemptCount: 1 }),
+      })),
+    } as never;
+    const props = {
+      report: long,
+      featureLabel: (kind: string) => kind,
+      format: { num: String, usd: String, thb: () => null } as never,
+    };
+    const view = renderWithIntl(<UsageBreakdown {...props} criteria="A" />, {
+      locale: "en",
+      preserveProviders: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("26–30 of 30 groups")).toBeInTheDocument();
+    view.rerender(<UsageBreakdown {...props} criteria="B" />);
+    expect(screen.getByText("1–25 of 30 groups")).toBeInTheDocument();
+    view.rerender(<UsageBreakdown {...props} criteria="A" />);
+    expect(screen.getByText("1–25 of 30 groups")).toBeInTheDocument();
+  });
+
+  it("retries refused filter choices with a new subscription identity", async () => {
+    const calls: Record<string, unknown>[] = [];
+    state.dimension = (name, args) => {
+      if (name.endsWith(":labels")) return ok({ users: [], warehouses: [] });
+      if (!name.endsWith(":warehouseOptions"))
+        return ok({
+          status: "ready",
+          items: [],
+          isDone: true,
+          continueCursor: "",
+          scanned: 0,
+        });
+      calls.push(args);
+      return args["attempt"] === 1
+        ? ok({
+            status: "ready",
+            items: [{ id: "wh-late", name: "Warehouse Late", code: "W999" }],
+            isDone: true,
+            continueCursor: "",
+            scanned: 1,
+          })
+        : ok({
+            status: "reset",
+            items: [],
+            isDone: true,
+            continueCursor: "",
+            scanned: 0,
+          });
+    };
+    renderWithIntl(<AiUsageScreen />, { locale: "en" });
+    fireEvent.click(await screen.findByRole("button", { name: "Filters" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Choices could not be loaded.");
+    expect(new Set(calls.map((args) => JSON.stringify(args))).size).toBe(1);
+    fireEvent.click(within(alert).getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(calls.at(-1)).toMatchObject({ attempt: 1 }));
+    chooseOption("Warehouse", "Warehouse Late · W999");
+    expect(state.summaryArgs.at(-1)).toMatchObject({ warehouseId: "wh-late" });
+  });
 });

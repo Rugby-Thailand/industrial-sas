@@ -1298,6 +1298,23 @@
       "awaiting-placement": "Awaiting placement",
       "reserved-awaiting-storage": "Reserved · Awaiting storage",
       "storage-unit-ced501": "Storage unit"
+    },
+    "paging": {
+      "historyPages": "Movement history pages",
+      "historyFailed": "Movement history could not be loaded.",
+      "stackSearch": "Search upper pallets by code",
+      "stackPages": "Upper pallet pages",
+      "stackSearching": "Finding eligible pallets…",
+      "stackNoMatches": "No eligible pallet matches this code.",
+      "stackChoicesFailed": "Pallet choices could not be loaded.",
+      "destinationPages": "Location choice pages",
+      "perPage": "Per page",
+      "range": "{from}–{to} of {total}",
+      "previous": "Previous page",
+      "next": "Next page",
+      "otherPage": "From another page",
+      "retry": "Try again",
+      "continue": "Continue loading"
     }
   },
   "JobScan": {
@@ -1500,7 +1517,21 @@
     "barcodeImagePIXELS": "Choose an image up to 16 megapixels",
     "barcodeImageIMAGE": "Could not open this image",
     "barcodeImageDECODER": "Could not load the barcode reader. Try again.",
-    "barcodeImageUNAVAILABLE": "Image scanning is unavailable in this browser. Use the camera or type the code."
+    "barcodeImageUNAVAILABLE": "Image scanning is unavailable in this browser. Use the camera or type the code.",
+    "recordList": {
+      "status": "Record status",
+      "searching": "Searching saved records…",
+      "searchProgress": "Searching… {count, plural, one {# record} other {# records}} checked so far",
+      "noMatches": "No records match “{search}”.",
+      "noMatchesHint": "Search checks the Job No., barcode, part, customer, location and building of every saved record in this view.",
+      "clearSearch": "Clear search",
+      "loadFailed": "Records could not be loaded.",
+      "retry": "Try again",
+      "actionsWait": "Actions are available once this page is up to date.",
+      "stalled": "The search stopped making progress.",
+      "paused": "Still searching: {count, plural, one {# record} other {# records}} checked for this page.",
+      "continue": "Keep searching"
+    }
   },
   "Hr": {
     "duration": "{hours} h {minutes} min",
@@ -2887,6 +2918,20 @@
     "scrollTable": "{name} (scrollable table)",
     "summaryShort": "Usage and cost overview",
     "exportShort": "Export",
-    "estimateFeeIncluded": "Includes {percent}% fee estimate"
+    "estimateFeeIncluded": "Includes {percent}% fee estimate",
+    "breakdownPages": "Usage breakdown pages",
+    "breakdownPerPage": "Rows per page",
+    "breakdownRange": "{from}–{to} of {total} groups",
+    "breakdownPrevious": "Previous page",
+    "breakdownNext": "Next page",
+    "searchUsers": "Search users",
+    "searchWarehouses": "Search warehouses",
+    "userPages": "User choice pages",
+    "warehousePages": "Warehouse choice pages",
+    "optionsPage": "Page {page}",
+    "optionsNoMatch": "No matches. Try another name.",
+    "optionsFailed": "Choices could not be loaded.",
+    "optionsRetry": "Try again",
+    "optionsContinue": "Keep searching"
   }
 }

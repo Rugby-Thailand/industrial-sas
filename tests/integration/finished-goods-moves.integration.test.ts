@@ -2,6 +2,8 @@ import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 import * as workflow from "../../convex/finishedGoods/workflow";
+import * as history from "../../convex/finishedGoods/history";
+import { trackDocumentReads } from "../fixtures/document-reads";
 import type { DataModel } from "../../convex/schema";
 import {
   createConvexTenantWorld,
@@ -781,5 +783,192 @@ describe("stored pallet moves", () => {
     );
     expect(result).toMatchObject({ ok: false });
     expect((await placementState(w)).move?.status).toBe("RESERVED");
+  });
+});
+
+describe("paged movement history", () => {
+  type HistoryPage = {
+    status: string;
+    items: { _id: string; status: string; reason?: string }[];
+    isDone: boolean;
+    continueCursor: string;
+    scanCursor?: string;
+  };
+  /** Seed finished moves directly: the history is read-only presentation. */
+  async function withHistory(count: number) {
+    const w = await storedWorld();
+    const ids = await w.t.run(async (ctx) => {
+      const pallet = (await ctx.db.get(
+        w.palletId as Id<"finishedGoodsPallets">,
+      ))!;
+      const source = w.sourcePlacementId as Id<"finishedGoodsPlacements">;
+      const ids: string[] = [];
+      for (let n = 0; n < count; n++)
+        ids.push(
+          await ctx.db.insert("finishedGoodsMoves", {
+            orgId: w.orgA,
+            warehouseId: w.warehouseId,
+            palletId: pallet._id,
+            sourcePlacementId: source,
+            targetPlacementId: source,
+            sourceUpdatedAt: 0,
+            palletUpdatedAt: 0,
+            targetUpdatedAt: 0,
+            ownerUserId: w.userA,
+            status: n % 3 ? "COMPLETED" : "CANCELLED",
+            reason: `history-${n}`,
+            createdAt: n,
+            createdByUserId: w.userA,
+            updatedAt: n,
+            updatedByUserId: w.userA,
+          }),
+        );
+      return ids;
+    });
+    return { w, ids };
+  }
+  async function measured(
+    w: Awaited<ReturnType<typeof storedWorld>>,
+    fn: unknown,
+    args: Record<string, unknown>,
+  ) {
+    const paginated: number[] = [];
+    let moveReads = 0;
+    const result = await w.t.withIdentity(identity).run(async (ctx) => {
+      const tracked = trackDocumentReads(ctx.db);
+      const db = new Proxy(tracked.db, {
+        get(target, key, receiver) {
+          const member = Reflect.get(target, key, receiver);
+          if (key === "query")
+            return (table: string) => {
+              const query = Reflect.apply(member, target, [table]) as object;
+              const wrap = (q: object): object =>
+                new Proxy(q, {
+                  get(t, k, r) {
+                    const m = Reflect.get(t, k, r);
+                    if (typeof m !== "function") return m;
+                    return (...input: unknown[]) => {
+                      if (k === "paginate")
+                        paginated.push(
+                          (input[0] as { numItems: number }).numItems,
+                        );
+                      if (
+                        table === "finishedGoodsMoves" &&
+                        (k === "take" || k === "collect")
+                      )
+                        moveReads += 1;
+                      const out = Reflect.apply(m, t, input);
+                      return out &&
+                        typeof out === "object" &&
+                        !(out instanceof Promise)
+                        ? wrap(out)
+                        : out;
+                    };
+                  },
+                });
+              return wrap(query);
+            };
+          return typeof member === "function" ? member.bind(target) : member;
+        },
+      });
+      return (fn as RuntimeFunction)._handler(
+        { ...ctx, db } as GenericMutationCtx<DataModel>,
+        args,
+      );
+    });
+    return { result: result as Record<string, unknown>, paginated, moveReads };
+  }
+
+  it.each([20, 50])(
+    "pages every finished move newest first at page size %i, excluding the active move",
+    async (pageSize) => {
+      const { w, ids } = await withHistory(121);
+      const active = id(await call(w, workflow.reserveMove, w.prepare));
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      let requests = 0;
+      for (let page = 0; page < 20; page++) {
+        let scanCursor: string | undefined;
+        let body: HistoryPage;
+        do {
+          const step = await measured(w, history.palletMoveHistory, {
+            ...w.base,
+            pageSize,
+            cursor,
+            ...(scanCursor ? { scanCursor } : {}),
+          });
+          requests++;
+          expect(step.paginated.length).toBeLessThanOrEqual(1);
+          expect(step.paginated.every((n) => n <= pageSize + 1)).toBe(true);
+          body = value(step.result) as unknown as HistoryPage;
+          scanCursor = body.scanCursor;
+        } while (body.status === "scanning");
+        expect(body.status).toBe("ready");
+        seen.push(...body.items.map((item) => item._id));
+        if (body.isDone) break;
+        cursor = body.continueCursor;
+      }
+      expect(seen).toEqual([...ids].reverse());
+      expect(seen).not.toContain(active);
+      expect(requests).toBeLessThanOrEqual(Math.ceil(121 / pageSize) + 2);
+    },
+  );
+
+  it("keeps the old 20-move preview bounded and lets current clients skip it", async () => {
+    const { w, ids } = await withHistory(45);
+    const legacy = await measured(w, workflow.getPallet, w.base);
+    const detail = value(legacy.result) as {
+      moveHistory: { _id: string }[];
+    };
+    expect(detail.moveHistory.map((move) => move._id)).toEqual(
+      [...ids].reverse().slice(0, 20),
+    );
+    const current = await measured(w, workflow.getPallet, {
+      ...w.base,
+      includeMoveHistory: false,
+    });
+    expect(value(current.result)).not.toHaveProperty("moveHistory");
+    // Only the two active-status lookups touch the move table.
+    expect(current.moveReads).toBe(2);
+  });
+
+  it("refuses foreign pallets, unsupported sizes and another pallet's cursor", async () => {
+    const { w } = await withHistory(30);
+    const first = value(
+      await call(w, history.palletMoveHistory, { ...w.base, pageSize: 20 }),
+    ) as unknown as HistoryPage;
+    expect(first).toMatchObject({ status: "ready", isDone: false });
+    expect(
+      value(
+        await call(w, history.palletMoveHistory, { ...w.base, pageSize: 25 }),
+      ),
+    ).toBeNull();
+    const other = await w.t.run(async (ctx) => {
+      const pallet = (await ctx.db.get(
+        w.palletId as Id<"finishedGoodsPallets">,
+      ))!;
+      const { _id, _creationTime, ...fields } = pallet;
+      void _id;
+      void _creationTime;
+      return ctx.db.insert("finishedGoodsPallets", { ...fields, code: "P-X" });
+    });
+    expect(
+      value(
+        await call(w, history.palletMoveHistory, {
+          ...w.base,
+          palletId: other,
+          pageSize: 20,
+          cursor: first.continueCursor,
+        }),
+      ),
+    ).toMatchObject({ status: "reset", items: [] });
+    // Warehouse scope is enforced before any history is read.
+    await expect(
+      call(w, history.palletMoveHistory, {
+        warehouseId: w.warehouses.bravoA,
+        palletId: w.palletId,
+        pageSize: 20,
+      }),
+    ).rejects.toThrow(/WAREHOUSE_OUT_OF_SCOPE/);
   });
 });

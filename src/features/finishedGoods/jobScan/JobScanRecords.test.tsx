@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type * as ClerkModule from "@clerk/nextjs";
 import { getFunctionName } from "convex/server";
 import { axe } from "jest-axe";
 import type { ComponentProps, ReactNode } from "react";
@@ -52,6 +53,9 @@ const mocks = vi.hoisted(() => ({
     >(),
   assign: vi.fn(),
   resolveLocation: vi.fn(),
+  /** Overrides the saved-record query for search and scan tests. */
+  listJobScans: null as null | ((args: Record<string, unknown>) => unknown),
+  listCalls: [] as Record<string, unknown>[],
 }));
 const originalRecords = [...mocks.records];
 
@@ -75,17 +79,25 @@ vi.mock("convex/react", () => ({
         isDone: true,
       });
     if (mocks.denied) return { ok: false, requestId: "denied-query" };
+    mocks.listCalls.push(args);
+    if (mocks.listJobScans) return mocks.listJobScans(args);
     const items = mocks.records.filter(
       (record) =>
         args.filter === "ALL" || record.mapped === (args.filter === "MAPPED"),
     );
     const offset = Number(args.cursor ?? 0);
     return querySuccess({
+      status: "ready",
+      scanned: items.length,
       items: mocks.paginated ? items.slice(offset, offset + 1) : items,
       isDone: !mocks.paginated || offset + 1 >= items.length,
       continueCursor: String(offset + 1),
     });
   },
+}));
+vi.mock("@clerk/nextjs", async (importOriginal) => ({
+  ...(await importOriginal<typeof ClerkModule>()),
+  useAuth: () => ({ isLoaded: true, userId: "user-a" }),
 }));
 vi.mock("@/hooks/useCanManage", () => ({
   useCanManage: () => mocks.canManage,
@@ -112,6 +124,10 @@ beforeEach(() => {
   mocks.canManage = true;
   mocks.paginated = false;
   mocks.denied = false;
+  mocks.listJobScans = null;
+  mocks.listCalls = [];
+  window.localStorage.clear();
+  window.history.replaceState(null, "", "/en/finished-goods/scan/records");
   mocks.assign.mockResolvedValue(writeSuccess("scan-a"));
   mocks.records = [...originalRecords];
   mocks.deleteScans.mockImplementation(async ({ ids }) => {
@@ -520,5 +536,360 @@ describe("scanned record deletion", () => {
       screen.queryByRole("button", { name: /ลบรายการ/ }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("saved record search and paging", () => {
+  const record = (id: string, factoryOrder: string) => ({
+    ...originalRecords[0]!,
+    id,
+    factoryOrder,
+  });
+
+  it("shows rows found so far while a bounded search continues, then settles", async () => {
+    const user = userEvent.setup();
+    const pending = new Set<string>();
+    mocks.listJobScans = (args) => {
+      if (!args["search"])
+        return querySuccess({
+          status: "ready",
+          items: [record("scan-a", "FO001")],
+          isDone: true,
+          continueCursor: "",
+          scanned: 1,
+        });
+      if (!args["scanCursor"])
+        return querySuccess({
+          status: "scanning",
+          items: [record("scan-x", "TRAY-1")],
+          isDone: false,
+          continueCursor: "",
+          scanCursor: "scan-1",
+          scanned: 100,
+        });
+      // The continuation is in flight until the test releases it.
+      if (pending.has("hold")) return undefined;
+      return querySuccess({
+        status: "ready",
+        items: [record("scan-x", "TRAY-1"), record("scan-y", "TRAY-2")],
+        isDone: false,
+        continueCursor: "page-2",
+        scanned: 140,
+      });
+    };
+    pending.add("hold");
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    await user.type(
+      screen.getByRole("textbox", { name: /Search Job No/ }),
+      "tray",
+    );
+    // No request for partial keystrokes; feedback starts immediately.
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Searching saved records…",
+    );
+    expect(mocks.listCalls.some((args) => args["search"] === "tr")).toBe(false);
+    expect(await screen.findByText("TRAY-1")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Searching… 100 records checked so far/),
+    ).toHaveTextContent("Actions are available once this page is up to date.");
+    // Retained rows are read-only while their continuation is unresolved.
+    expect(
+      screen.getByRole("checkbox", { name: "Select TRAY-1" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("list")).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText("No records match “tray”.")).toBeNull();
+    // Current clients opt into progressive scanning of one logical page.
+    expect(mocks.listCalls.at(-1)).toMatchObject({
+      search: "tray",
+      scanCursor: "scan-1",
+      cursor: null,
+      progressive: true,
+    });
+    // A pager cannot advance from an unfinished page.
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    pending.clear();
+    view.rerender(<JobScanRecordsScreen />);
+    expect(await screen.findByText("TRAY-2")).toBeInTheDocument();
+    expect(screen.queryByText(/checked so far/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    // The new page starts fresh: an earlier page's continuation is not reused.
+    const nextPage = mocks.listCalls.find(
+      (args) => args["cursor"] === "page-2",
+    );
+    expect(nextPage).toMatchObject({ search: "tray" });
+    expect(nextPage).not.toHaveProperty("scanCursor");
+  });
+
+  it("separates a settled no-match result from an unfinished search", async () => {
+    const user = userEvent.setup();
+    mocks.listJobScans = (args) =>
+      querySuccess({
+        status: "ready",
+        items: args["search"] ? [] : [record("scan-a", "FO001")],
+        isDone: true,
+        continueCursor: "",
+        scanned: 1000,
+      });
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    await user.type(
+      screen.getByRole("textbox", { name: /Search Job No/ }),
+      "zzz",
+    );
+    expect(
+      await screen.findByText("No records match “zzz”."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(await screen.findByText("FO001")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Search Job No/ })).toHaveValue(
+      "",
+    );
+  });
+
+  it("restores status and search from the URL after Back or refresh", async () => {
+    const user = userEvent.setup();
+    const view = renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    await user.click(screen.getByRole("button", { name: "All" }));
+    await user.type(
+      screen.getByRole("textbox", { name: /Search Job No/ }),
+      "FO00",
+    );
+    await waitFor(() =>
+      expect(new URLSearchParams(window.location.search).get("scans")).toBe(
+        JSON.stringify({ filter: "ALL", search: "FO00" }),
+      ),
+    );
+    view.unmount();
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("textbox", { name: /Search Job No/ })).toHaveValue(
+      "FO00",
+    );
+    await waitFor(() =>
+      expect(mocks.listCalls.at(-1)).toMatchObject({
+        filter: "ALL",
+        search: "FO00",
+      }),
+    );
+  });
+
+  it("retries a refused first page with a new subscription identity", async () => {
+    const user = userEvent.setup();
+    // Answers depend on arguments only, as a Convex subscription does.
+    mocks.listJobScans = (args) =>
+      args["attempt"] === 1
+        ? querySuccess({
+            status: "ready",
+            items: [record("scan-a", "FO001")],
+            isDone: true,
+            continueCursor: "",
+            scanned: 1,
+          })
+        : querySuccess({
+            status: "reset",
+            items: [],
+            isDone: true,
+            continueCursor: "",
+            scanned: 0,
+          });
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "th",
+      workspace: false,
+    });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("โหลดรายการไม่สำเร็จ");
+    const distinct = () =>
+      new Set(mocks.listCalls.map((args) => JSON.stringify(args)));
+    expect(distinct().size).toBe(1);
+    await user.click(screen.getByRole("button", { name: "ลองอีกครั้ง" }));
+    expect(distinct().size).toBe(2);
+    expect(mocks.listCalls.at(-1)).toMatchObject({
+      cursor: null,
+      attempt: 1,
+    });
+    expect(await screen.findByText("FO001")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("retained rows and scan recovery", () => {
+  const row = { ...originalRecords[0]! };
+  const scanning = (scanCursor: string | undefined, scanned = 100) =>
+    querySuccess({
+      status: "scanning",
+      items: [row],
+      isDone: false,
+      continueCursor: "",
+      ...(scanCursor === undefined ? {} : { scanCursor }),
+      scanned,
+    });
+  const ready = querySuccess({
+    status: "ready",
+    items: [row],
+    isDone: true,
+    continueCursor: "",
+    scanned: 1,
+  });
+  const render = () =>
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+
+  it("keeps retained rows readable but blocks every action while the continuation is pending", async () => {
+    const user = userEvent.setup();
+    // The audit's probe: the continuation answer never arrives.
+    mocks.listJobScans = (args) =>
+      args["scanCursor"] ? undefined : scanning("scan-in-flight");
+    render();
+    await waitFor(() =>
+      expect(mocks.listCalls.at(-1)).toMatchObject({
+        scanCursor: "scan-in-flight",
+      }),
+    );
+    expect(screen.getByText("FO001")).toBeInTheDocument();
+    expect(screen.getByRole("list")).toHaveAttribute("aria-busy", "true");
+    const checkbox = screen.getByRole("checkbox", { name: "Select FO001" });
+    expect(checkbox).toBeDisabled();
+    expect(
+      screen.getByRole("checkbox", { name: "Select all on this page" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Delete record FO001" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Actions for record FO001" }),
+    ).toBeDisabled();
+    await user.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+    expect(
+      screen.queryByRole("button", { name: /selected record/ }),
+    ).toBeNull();
+    expect(mocks.deleteScans).not.toHaveBeenCalled();
+  });
+
+  it("holds an open deletion confirmation while its rows are being updated", async () => {
+    const user = userEvent.setup();
+    let phase: "ready" | "updating" = "ready";
+    mocks.listJobScans = (args) =>
+      phase === "ready"
+        ? ready
+        : args["scanCursor"]
+          ? undefined
+          : scanning("scan-next");
+    const view = render();
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Delete 1 selected record" }),
+    );
+    const dialog = screen.getByRole("dialog");
+    // A live update makes this page continue scanning behind the dialog.
+    phase = "updating";
+    view.rerender(<JobScanRecordsScreen />);
+    await waitFor(() =>
+      expect(mocks.listCalls.at(-1)).toMatchObject({ scanCursor: "scan-next" }),
+    );
+    const confirm = within(dialog).getByRole("button", { name: "Delete" });
+    expect(confirm).toBeDisabled();
+    expect(dialog).toHaveTextContent(
+      "Actions are available once this page is up to date.",
+    );
+    await user.click(confirm);
+    expect(mocks.deleteScans).not.toHaveBeenCalled();
+    // Cancelling is still possible.
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("holds an open location assignment while its rows are being updated", async () => {
+    const user = userEvent.setup();
+    let phase: "ready" | "updating" = "ready";
+    mocks.listJobScans = (args) =>
+      phase === "ready"
+        ? ready
+        : args["scanCursor"]
+          ? undefined
+          : scanning("scan-next");
+    const view = render();
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Set location for 1 record" }),
+    );
+    const location = screen.getByRole("button", { name: /ZONE-A/ });
+    phase = "updating";
+    view.rerender(<JobScanRecordsScreen />);
+    await waitFor(() => expect(location).toBeDisabled());
+    await user.click(location);
+    expect(mocks.assign).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it.each([
+    [
+      "repeats the cursor it was sent",
+      (cursor: unknown) => scanning(String(cursor)),
+    ],
+    ["omits its continuation cursor", () => scanning(undefined)],
+  ])(
+    "stops automatic continuation when a scanning answer %s",
+    async (_label, answer) => {
+      const user = userEvent.setup();
+      mocks.listJobScans = (args) =>
+        args["attempt"] === 1
+          ? ready
+          : args["scanCursor"]
+            ? answer(args["scanCursor"])
+            : scanning("scan-1");
+      render();
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("The search stopped making progress.");
+      const distinct = new Set(
+        mocks.listCalls.map((args) => JSON.stringify(args)),
+      );
+      expect(distinct.size).toBeLessThanOrEqual(2);
+      // The fresh partial rows of the stalled answer stay actionable.
+      expect(screen.getByText("FO001")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Try again" }));
+      expect(mocks.listCalls.at(-1)).toMatchObject({ attempt: 1 });
+      await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    },
+  );
+
+  it("pauses a long search after its automatic budget and resumes on request", async () => {
+    const user = userEvent.setup();
+    mocks.listJobScans = (args) => {
+      const step = Number(String(args["scanCursor"] ?? "scan-0").slice(5));
+      return scanning(`scan-${step + 1}`, (step + 1) * 100);
+    };
+    render();
+    expect(
+      await screen.findByText(
+        "Still searching: 5,100 records checked for this page.",
+      ),
+    ).toBeInTheDocument();
+    const requested = () =>
+      new Set(mocks.listCalls.map((args) => args["scanCursor"])).size;
+    expect(requested()).toBe(51);
+    await user.click(screen.getByRole("button", { name: "Keep searching" }));
+    await screen.findByText(
+      "Still searching: 10,100 records checked for this page.",
+    );
+    expect(requested()).toBe(101);
   });
 });

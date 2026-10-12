@@ -189,6 +189,7 @@ function example<K extends Kind>(
 // cannot silently be omitted. This is representative coverage, not every API.
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("aiUsage/reports:summary", "query", () => ({})),
+  example("aiUsage/dimensions:warehouseOptions", "query", () => ({})),
   example("hr/access:current", "query", () => ({})),
   example("hr/navigationIntent:interpret", "action", () => ({
     query: "",
@@ -214,6 +215,11 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("finishedGoods/batches:getBatch", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     batchId: w.batchId,
+  })),
+  example("finishedGoods/history:palletMoveHistory", "query", (w) => ({
+    warehouseId: w.warehouses.alphaA,
+    palletId: w.palletId,
+    pageSize: 20,
   })),
   example("finishedGoods/batchManagement:get", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
