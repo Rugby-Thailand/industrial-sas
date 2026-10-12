@@ -817,6 +817,22 @@ describe("retained rows and scan recovery", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it("dismisses deletion when a live result removes its target from the page", async () => {
+    const user = userEvent.setup();
+    const view = render();
+    await user.click(
+      screen.getByRole("button", { name: "Delete record FO001" }),
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // The record now fails this page's filter; another fresh result arrives.
+    mocks.records = originalRecords.filter((record) => record.id !== "scan-a");
+    view.rerender(<JobScanRecordsScreen />);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByText("FO001")).toBeNull();
+    expect(screen.getByText("FO003")).toBeInTheDocument();
+    expect(mocks.deleteScans).not.toHaveBeenCalled();
+  });
+
   it("holds an open location assignment while its rows are being updated", async () => {
     const user = userEvent.setup();
     let phase: "ready" | "updating" = "ready";

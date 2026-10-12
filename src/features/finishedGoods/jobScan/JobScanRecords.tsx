@@ -179,6 +179,10 @@ function Records({
   const records = result?.items;
   const visibleIds = records?.map((record) => record.id) ?? [];
   const visibleIdSet = new Set(visibleIds);
+  const deletionVisible =
+    deletion !== null && deletion.ids.every((id) => visibleIdSet.has(id));
+  if (deletion && fresh && !operation.busy && !deletionVisible)
+    setDeletion(null);
   const selectionScope = JSON.stringify([
     filter,
     settledSearch,
@@ -258,7 +262,7 @@ function Records({
 
   async function onDelete() {
     // A confirmation opened on fresh rows waits while they are being updated.
-    if (!deletion || !actionable) return;
+    if (!deletion || !actionable || !deletionVisible) return;
     await operation.run(
       async () => written(await deleteScans({ warehouseId, ...deletion })),
       () => {
