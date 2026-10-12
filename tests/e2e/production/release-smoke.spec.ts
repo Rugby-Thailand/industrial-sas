@@ -8,6 +8,7 @@ import {
   clientScriptUrls,
   clientIdentityConfiguration,
 } from "../support/release-env";
+import { waitForReleasedResponse } from "../support/release-readiness";
 
 /**
  * @prod-safe release checks for a production candidate (`SMOKE_PHASE=candidate`,
@@ -42,7 +43,11 @@ function inputs() {
 test.describe("@prod-safe release smoke", () => {
   test("serves the exact released commit", async ({ request }) => {
     const { expectedSha } = inputs();
-    const response = await request.get("/th/sign-in");
+    const response = await waitForReleasedResponse(
+      request,
+      "/th/sign-in",
+      expectedSha,
+    );
     expect(response.status()).toBe(200);
     expect(response.headers()["x-release-sha"]).toBe(expectedSha);
   });
