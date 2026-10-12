@@ -324,6 +324,29 @@ describe("sidebar hierarchy", () => {
     expect(screen.getByRole("link", { name: "Review leave" })).toBeVisible();
   });
 
+  it("names each destination list by its section and nests submenus as lists", () => {
+    renderShell();
+    const people = screen.getByRole("list", { name: "People" });
+    const toggle = within(people).getByRole("button", { name: "Leave" });
+    const leave = document.getElementById(
+      toggle.getAttribute("aria-controls")!,
+    );
+    expect(leave).not.toBeVisible();
+    fireEvent.click(toggle);
+    expect(within(people).getByRole("list", { name: "Leave" })).toBe(leave);
+    expect(within(leave!).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("hands focus to the warehouse selector when the rail warehouse expands the sidebar", () => {
+    renderShell();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    fireEvent.click(screen.getByTestId("sidebar-warehouse-rail"));
+    expect(
+      screen.getByRole("button", { name: "Collapse sidebar" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("warehouse-select")).toHaveFocus();
+  });
+
   it("keeps search in the sidebar on the AI usage page as well", () => {
     state.pathname = "/ai-usage";
     const header = renderShell();

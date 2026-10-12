@@ -4,6 +4,7 @@ import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 
+import { sidebarRowClassName } from "@/components/shell/sidebarRow";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -48,7 +49,10 @@ export function SidebarSearchTriggers({
           aria-label={searchLabel}
           aria-haspopup="dialog"
           {...(collapsed ? { tooltip: searchLabel } : {})}
-          className={`min-h-touch gap-3 border border-transparent bg-raised text-sm text-muted group-data-[collapsible=icon]:justify-center dense:min-h-control ${collapsed ? "justify-center" : "px-3"}`}
+          className={sidebarRowClassName(
+            collapsed,
+            "border border-sidebar-border/60 bg-raised text-muted",
+          )}
           data-testid="sidebar-search"
         >
           <Search aria-hidden="true" className="size-4" />
