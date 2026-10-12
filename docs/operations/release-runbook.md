@@ -140,6 +140,15 @@ The sanitized release report retains fixed `SMOKE_RELEASE_*` and
 distinguished from a request failure or unsupported runtime. Response bodies,
 observed SHA values and provider error strings are never included.
 
+The staging sign-out check records the exact active synthetic session before
+revocation. It requires a cleared Clerk user/session, a fresh private-route
+redirect to sign-in, and a visible sign-in widget. Only after those assertions
+pass may the page fixture accept a matching native console error for an
+observed HTTP 401 on that same session's ordinary or Convex token endpoint.
+Other sessions, endpoints, origins, statuses, missing response evidence,
+unconfirmed revocation and unrelated console/page errors retain their failure
+verdict. The session ID is cleared with the fixture and never enters reports.
+
 To re-run a release, dispatch `Planner quality` on `main`. Fresh CI runs
 first, and the release can only use the current `main` SHA. Dispatching
 another branch runs CI only. A passing staging job is verification, not a
