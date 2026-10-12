@@ -29,7 +29,6 @@ export async function waitForReleasedResponse(
     throw new Error("SMOKE_RELEASE_READINESS_INPUT_INVALID");
   }
   const deadline = performance.now() + timeoutMs;
-  let sawDifferentCommit = false;
   for (;;) {
     const remaining = deadline - performance.now();
     if (remaining <= 0) throw new Error("SMOKE_RELEASE_SHA_MISMATCH");
@@ -49,11 +48,7 @@ export async function waitForReleasedResponse(
         ].includes(error.message)
       )
         throw error;
-      throw new Error(
-        sawDifferentCommit && performance.now() >= deadline
-          ? "SMOKE_RELEASE_SHA_MISMATCH"
-          : "SMOKE_RELEASE_REQUEST_FAILED",
-      );
+      throw new Error("SMOKE_RELEASE_REQUEST_FAILED");
     }
     if (response.status() !== 200) {
       await response.dispose();
@@ -65,10 +60,14 @@ export async function waitForReleasedResponse(
       throw new Error("SMOKE_RELEASE_SHA_MISSING_OR_INVALID");
     }
     if (observedSha === expectedSha) return response;
-    sawDifferentCommit = true;
     await response.dispose();
-    const delay = Math.min(intervalMs, deadline - performance.now());
+    const remainingAfterResponse = deadline - performance.now();
+    const delay = Math.min(intervalMs, remainingAfterResponse);
     if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+    // If the next scheduled poll is outside the budget, finish from the last
+    // completed response. Do not start a fractional-time request at the edge.
+    if (remainingAfterResponse <= intervalMs)
+      throw new Error("SMOKE_RELEASE_SHA_MISMATCH");
   }
 }
 

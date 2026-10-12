@@ -87,12 +87,12 @@ describe("release HTTP readiness", () => {
       const start = performance.now();
       await expect(
         waitForReleasedResponse(context, "/api/runtime", SHA, {
-          timeoutMs: 100,
-          intervalMs: 5,
+          timeoutMs: 1_000,
+          intervalMs: 100,
         }),
       ).rejects.toThrow("SMOKE_RELEASE_SHA_MISMATCH");
       expect(paths.length).toBeGreaterThan(1);
-      expect(performance.now() - start).toBeLessThan(2_000);
+      expect(performance.now() - start).toBeLessThan(5_000);
     });
   });
 
@@ -142,6 +142,18 @@ describe("release HTTP readiness", () => {
   it("fails a transport error during propagation instead of retrying it", async () => {
     await withProbe(
       [{ sha: PREVIOUS }, { disconnect: true }],
+      async (context, paths) => {
+        await expect(
+          waitForReleasedResponse(context, "/api/runtime", SHA, fast),
+        ).rejects.toThrow("SMOKE_RELEASE_REQUEST_FAILED");
+        expect(paths).toEqual(["GET /api/runtime", "GET /api/runtime"]);
+      },
+    );
+  });
+
+  it("distinguishes a final hanging request from a persistent commit mismatch", async () => {
+    await withProbe(
+      [{ sha: PREVIOUS }, { hang: true }],
       async (context, paths) => {
         await expect(
           waitForReleasedResponse(context, "/api/runtime", SHA, fast),
