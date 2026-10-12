@@ -58,14 +58,12 @@ it("keeps committed query and scope during traversal then notices a metadata-onl
   }
 });
 it("keeps a stable snapshot for equivalent cloned state without retaining router trees", () => {
-  const spy = vi
-    .spyOn(history, "state", "get")
-    .mockImplementation(() => ({
-      scope: "a",
-      __NA: true,
-      __PRIVATE_NEXTJS_INTERNALS_TREE: { fresh: [] },
-      cataloguePagination: { cursors: [null] },
-    }));
+  const spy = vi.spyOn(history, "state", "get").mockImplementation(() => ({
+    scope: "a",
+    __NA: true,
+    __PRIVATE_NEXTJS_INTERNALS_TREE: { fresh: [] },
+    cataloguePagination: { cursors: [null] },
+  }));
   try {
     const hook = renderHook(useBrowserQuery);
     const initial = hook.result.current;

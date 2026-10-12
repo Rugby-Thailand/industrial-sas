@@ -216,6 +216,17 @@ export function NavigationGuardProvider({
 /* History buffer state machine ------------------------------------------ */
 
 /**
+ * The same document route. Query-only replacements (e.g. a presentation
+ * panel) may change the buffer entry's search after it duplicated its base;
+ * the base keeps the route and the committed depth that identify it.
+ */
+function samePage(a: string, b: string): boolean {
+  const left = new URL(a);
+  const right = new URL(b);
+  return left.origin === right.origin && left.pathname === right.pathname;
+}
+
+/**
  * Buffer markers whose removal was still in flight when their owner
  * unmounted. A successor must not adopt them: the queued traversal would look
  * like a user's Back.
@@ -549,7 +560,7 @@ function createGuardMachine(deps: MachineDeps) {
       left !== null &&
       orphan === null &&
       window.history.state?.[GUARD_HISTORY_KEY] !== left.marker &&
-      window.location.href === left.href &&
+      samePage(window.location.href, left.href) &&
       appHistoryIndex() === left.index
     ) {
       event.stopImmediatePropagation();

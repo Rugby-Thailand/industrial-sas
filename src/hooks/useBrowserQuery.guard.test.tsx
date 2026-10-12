@@ -37,11 +37,12 @@ function Workspace() {
     discard: () => setDraft(""),
   });
   const query = useWorkspaceQuery();
-  const { view } = useFloorWorkspaceView();
+  const { view, setView } = useFloorWorkspaceView();
   return (
     <>
       <output aria-label="Query">{query}</output>
       <output aria-label="Panel">{view}</output>
+      <button onClick={() => setView("map")}>Show map</button>
       <input
         aria-label="Draft"
         value={draft}
@@ -251,6 +252,36 @@ it("skips a clean reload buffer at app depth zero on the first Back to an unmana
   expect(screen.getByLabelText("Query")).toHaveTextContent(
     "?return=before-app",
   );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  back.mockRestore();
+});
+
+it("takes the first Back past a clean reload buffer whose view setter replaced its query", async () => {
+  const first = render(
+    <NavigationGuardProvider>
+      <Workspace />
+    </NavigationGuardProvider>,
+  );
+  // The real presentation setter replaces the buffer entry's query only.
+  fireEvent.click(screen.getByRole("button", { name: "Show map" }));
+  expect(location.search).toBe("?floor=2");
+  expect(history.state.appNavigationIndex).toBe(1);
+  expect(history.state[GUARD_HISTORY_KEY]).toBeDefined();
+  // A reload drops the React-only draft while keeping the current entry.
+  first.unmount();
+  const back = vi.spyOn(history, "back");
+  render(
+    <NavigationGuardProvider>
+      <CleanWorkspace />
+    </NavigationGuardProvider>,
+  );
+  expect(back).not.toHaveBeenCalled();
+  act(() => history.back());
+  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
+  expect(screen.getByLabelText("Query")).toHaveTextContent(
+    "?panel=map&floor=1",
+  );
+  expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   back.mockRestore();
 });
