@@ -36,6 +36,7 @@ import {
   WriteFeedback,
 } from "./HrShared";
 import { useHrWrite } from "./useHrWrite";
+import { HrStackFirst, useHrCursorStack } from "./HrPagedList";
 
 type SelfLeave = Extract<RefValue<typeof hrRefs.leaveSelf>, { ok: true }>;
 export type LeaveRequest = SelfLeave["requests"][number];
@@ -632,7 +633,7 @@ function LeaveHistory({
   readonly close: () => void;
 }) {
   const t = useTranslations("Hr.leave");
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, , nav] = useHrCursorStack("leave-history");
   const outcome = useQuery(hrRefs.leaveHistory, {
     paginationOpts: { numItems: 50, cursor: cursors.at(-1) ?? null },
   });
@@ -659,14 +660,11 @@ function LeaveHistory({
                   ))}
                 </ul>
                 <div className="flex flex-wrap gap-3">
+                  <HrStackFirst nav={nav} guard={guardedNavigate} />
                   <Button
                     variant="outline"
-                    disabled={cursors.length === 0}
-                    onClick={() =>
-                      guardedNavigate(() =>
-                        setCursors((previous) => previous.slice(0, -1)),
-                      )
-                    }
+                    disabled={!nav.canPrevious}
+                    onClick={() => guardedNavigate(() => nav.previous())}
                   >
                     {t("previous")}
                   </Button>
@@ -676,9 +674,7 @@ function LeaveHistory({
                     onClick={() => {
                       if (outcome.value.ok) {
                         const cursor = outcome.value.continueCursor;
-                        guardedNavigate(() =>
-                          setCursors((previous) => [...previous, cursor]),
-                        );
+                        guardedNavigate(() => nav.next(cursor));
                       }
                     }}
                   >

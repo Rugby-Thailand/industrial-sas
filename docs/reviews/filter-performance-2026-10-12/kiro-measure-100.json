@@ -1,0 +1,79 @@
+{
+  "picker blank browse": {
+    "requests": 1,
+    "rows": 20,
+    "status": "ready",
+    "isDone": false,
+    "scanned": 20,
+    "gets": 102,
+    "queries": 51,
+    "maxPerRequest": { "get": 102, "query": 51 },
+    "harnessMs": 14
+  },
+  "picker sparse 'NEEDLE'": {
+    "requests": 5,
+    "rows": 1,
+    "status": "ready",
+    "isDone": true,
+    "scanned": 100,
+    "gets": 510,
+    "queries": 285,
+    "maxPerRequest": { "get": 102, "query": 57 },
+    "harnessMs": 38
+  },
+  "picker no match": {
+    "requests": 5,
+    "rows": 0,
+    "status": "ready",
+    "isDone": true,
+    "scanned": 100,
+    "gets": 510,
+    "queries": 285,
+    "maxPerRequest": { "get": 102, "query": 57 },
+    "harnessMs": 34
+  },
+  "catalogue blank": {
+    "requests": 1,
+    "rows": 20,
+    "status": "ready",
+    "isDone": false,
+    "scanned": 20,
+    "gets": 4,
+    "queries": 12,
+    "maxPerRequest": { "get": 4, "query": 12 },
+    "harnessMs": 2
+  },
+  "catalogue sparse 'needle'": {
+    "requests": 200,
+    "rows": 1,
+    "status": "ready",
+    "isDone": true,
+    "scanned": 1,
+    "gets": 700,
+    "queries": 2399,
+    "maxPerRequest": { "get": 5, "query": 12 },
+    "harnessMs": 142
+  },
+  "catalogue empty building filter": {
+    "requests": 5,
+    "rows": 0,
+    "status": "ready",
+    "isDone": true,
+    "scanned": 100,
+    "gets": 20,
+    "queries": 60,
+    "maxPerRequest": { "get": 4, "query": 12 },
+    "harnessMs": 6
+  },
+  "picker blank browse, building DRAFT": {
+    "requests": 5,
+    "rows": 0,
+    "status": "ready",
+    "isDone": true,
+    "scanned": 100,
+    "gets": 510,
+    "queries": 255,
+    "maxPerRequest": { "get": 102, "query": 51 },
+    "harnessMs": 24
+  }
+}

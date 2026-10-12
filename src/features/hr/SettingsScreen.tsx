@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { CalendarDays, ShieldCheck, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
-import { SelectControl } from "@/components/ui/SelectControl";
+import { HrSiteSelect } from "./HrSiteSelect";
 import { hrRefs } from "@/lib/convex/hrApi";
 import {
   useDeepLinkFocus,
@@ -38,10 +38,16 @@ import {
   Facts,
   HrGate,
   HrInlineError,
-  HrQueryState,
   useHrBack,
   WriteFeedback,
 } from "./HrShared";
+import { useHrListCriteria, navigationKey } from "./HrListCriteria";
+import {
+  HrPagedState,
+  HrPager,
+  HrSearchField,
+  useHrPagedQuery,
+} from "./HrPagedList";
 import { HrDisclosure } from "./HrUi";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
@@ -62,19 +68,24 @@ export function HrSettingsScreen() {
 }
 
 /** `?section=holidays|access|policy` moves to that panel once access settles. */
+const LIST_DEFAULTS = { hsite: "", hyear: "", mq: "" } as const;
+const LIST_KEYS = Object.keys(LIST_DEFAULTS);
+
 function SettingsSections() {
   const params = useQueryParams();
   const section = readSettingsSection(params);
+  // List filters live in the URL too; typing in them is not a navigation.
+  const token = navigationKey(params, LIST_KEYS);
   useDeepLinkFocus(
     section === null ? null : FOCUS_TARGET_IDS[section],
     true,
-    params.toString(),
+    token,
   );
   // Policy detail is closed until asked for; a link to it opens it in the
   // same render, so the section is open before focus moves there (on load,
   // reload and Back/Forward alike).
   const [policyOpen, setPolicyOpen] = useUrlBackedState(
-    params.toString(),
+    token,
     section === "policy",
   );
   return (
@@ -119,7 +130,20 @@ function HolidaysPanel() {
   const t = useTranslations("Hr.settings");
   const access = useHrAccess();
   const id = useId();
-  const [site, setSite] = useState(access.sites[0]?.id ?? "");
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "settings",
+  );
+  // With a complete site list an unknown site falls back to the first one;
+  // beyond the preloaded list the URL's site is used and the server
+  // authorizes it (an unavailable site is refused visibly).
+  const site =
+    access.sites.some((option) => option.id === criteria.hsite) ||
+    (access.sitesComplete === false && criteria.hsite !== "")
+      ? criteria.hsite
+      : (access.sites[0]?.id ?? "");
+  const setSite = (next: string) =>
+    setCriteria({ hsite: next === access.sites[0]?.id ? "" : next, hyear: "" });
   return (
     <Panel
       id={FOCUS_TARGET_IDS.holidays}
@@ -138,32 +162,65 @@ function HolidaysPanel() {
         <>
           <div className="grid gap-2 sm:max-w-sm">
             <Label htmlFor={`${id}-site`}>{t("site")}</Label>
-            <SelectControl
+            <HrSiteSelect
               id={`${id}-site`}
+              surface="settings-holidays"
               value={site}
               // Another site remounts the holiday form; an unsent holiday
               // asks first instead of disappearing.
-              onValueChange={(next) => guardedNavigate(() => setSite(next))}
+              onChange={(next) => guardedNavigate(() => setSite(next))}
               placeholder={t("site")}
               emptyLabel={t("noSites")}
-              options={access.sites.map((option) => ({
-                value: option.id,
-                label: `${option.code} · ${option.name}`,
-              }))}
             />
           </div>
-          {site === "" ? null : <SiteHolidays key={site} warehouseId={site} />}
+          {site === "" ? null : (
+            <SiteHolidays
+              key={site}
+              warehouseId={site}
+              year={criteria.hyear}
+              entry={entry}
+              onYear={(hyear) => setCriteria({ hyear }, true)}
+            />
+          )}
         </>
       )}
     </Panel>
   );
 }
 
-function SiteHolidays({ warehouseId }: { readonly warehouseId: string }) {
+function SiteHolidays({
+  warehouseId,
+  year,
+  entry,
+  onYear,
+}: {
+  readonly warehouseId: string;
+  readonly year: string;
+  readonly entry: string | null;
+  readonly onYear: (year: string) => void;
+}) {
   const t = useTranslations("Hr.settings");
   const form = useTranslations("Hr.form");
+  const locale = useLocale();
   const id = useId();
-  const outcome = useQuery(hrRefs.listHolidays, { warehouseId });
+  // Years are entered as shown in the locale (Buddhist era in Thai).
+  const yearOffset = locale === "th" ? 543 : 0;
+  const yearValid =
+    year === "" ||
+    (/^\d{4}$/.test(year) &&
+      Number(year) - yearOffset >= 1900 &&
+      Number(year) - yearOffset <= 2200);
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.holidaysPage,
+    yearValid
+      ? {
+          warehouseId,
+          ...(year === "" ? {} : { year: Number(year) - yearOffset }),
+        }
+      : "skip",
+    "settings-holidays",
+    entry,
+  );
   const save = useMutation(hrRefs.saveHoliday);
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
@@ -265,29 +322,57 @@ function SiteHolidays({ warehouseId }: { readonly warehouseId: string }) {
         state={adding.state}
         onRetry={() => void adding.retry().then(cleared)}
       />
-      <HrQueryState outcome={outcome}>
-        {() => {
-          if (!outcome?.ok) return null;
-          const result = outcome.value;
-          if (!result.ok) return <HrInlineError code={result.code} />;
-          if (result.items.length === 0)
-            return <p className="text-sm text-muted">{t("noHolidays")}</p>;
-          return (
-            <>
-              {result.complete ? null : (
-                <p role="status" className="text-sm font-semibold text-warning">
-                  {t("holidaysIncomplete", { count: result.items.length })}
-                </p>
-              )}
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {result.items.map((holiday) => (
-                  <HolidayRow key={holiday.id} holiday={holiday} />
-                ))}
-              </ul>
-            </>
-          );
-        }}
-      </HrQueryState>
+      <div className="space-y-3 border-t border-border pt-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <FormField
+            id={`${id}-year`}
+            label={t("holidayYear")}
+            hint={t("holidayYearHint")}
+            error={yearValid ? undefined : t("holidayYearInvalid")}
+          >
+            {(field) => (
+              <Input
+                {...field}
+                type="number"
+                inputMode="numeric"
+                min={1900 + yearOffset}
+                max={2200 + yearOffset}
+                value={year}
+                onChange={(event) => onYear(event.target.value)}
+                className="sm:w-32"
+              />
+            )}
+          </FormField>
+          {year === "" ? null : (
+            <Button type="button" variant="ghost" onClick={() => onYear("")}>
+              {t("allYears")}
+            </Button>
+          )}
+        </div>
+        {yearValid ? (
+          <>
+            <HrPagedState
+              view={view}
+              refused={(code) => <HrInlineError code={code} />}
+            >
+              {(_value, items) =>
+                items.length === 0 ? (
+                  <p className="text-sm text-muted">
+                    {t(year === "" ? "noHolidays" : "noHolidaysInYear")}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-lg border border-border">
+                    {items.map((holiday) => (
+                      <HolidayRow key={holiday.id} holiday={holiday} />
+                    ))}
+                  </ul>
+                )
+              }
+            </HrPagedState>
+            <HrPager paging={paging} label={t("holidayPagination")} />
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -340,7 +425,16 @@ function HolidayRow({
 function AccessPanel() {
   const t = useTranslations("Hr.settings");
   const id = useId();
-  const outcome = useQuery(hrRefs.accessMembers, {});
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "settings",
+  );
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.accessMembersPage,
+    criteria.mq === "" ? {} : { search: criteria.mq },
+    "settings-access",
+    entry,
+  );
   return (
     <Panel
       id={FOCUS_TARGET_IDS.access}
@@ -353,28 +447,38 @@ function AccessPanel() {
         title={t("access")}
         description={t("accessIntro")}
       />
-      <HrQueryState outcome={outcome}>
-        {() => {
-          if (!outcome?.ok) return null;
-          const result = outcome.value;
-          if (!result.ok) return <HrInlineError code={result.code} />;
-          if (!result.provisioned)
-            return (
-              <Notice
-                tone="warning"
-                title={t("notProvisioned")}
-                body={t("notProvisionedHint")}
-              />
-            );
-          return (
+      <HrSearchField
+        id={`${id}-search`}
+        label={t("memberSearch")}
+        placeholder={t("memberSearchHint")}
+        value={criteria.mq}
+        onSettled={(mq) => setCriteria({ mq }, true)}
+      />
+      <HrPagedState
+        view={view}
+        refused={(code) => <HrInlineError code={code} />}
+      >
+        {(result, items) =>
+          !result.provisioned ? (
+            <Notice
+              tone="warning"
+              title={t("notProvisioned")}
+              body={t("notProvisionedHint")}
+            />
+          ) : items.length === 0 ? (
+            <p className="text-sm text-muted">
+              {t(criteria.mq === "" ? "noMembers" : "noMemberMatches")}
+            </p>
+          ) : (
             <ul className="divide-y divide-border rounded-lg border border-border">
-              {result.items.map((member) => (
+              {items.map((member) => (
                 <MemberAccessRow key={member.userId} member={member} />
               ))}
             </ul>
-          );
-        }}
-      </HrQueryState>
+          )
+        }
+      </HrPagedState>
+      <HrPager paging={paging} label={t("memberPagination")} />
     </Panel>
   );
 }

@@ -59,6 +59,13 @@ import {
   WriteFeedback,
   useHrError,
 } from "./HrShared";
+import {
+  HrLocalPager,
+  HrPagedState,
+  HrPager,
+  useHrLocalPage,
+  useHrPagedQuery,
+} from "./HrPagedList";
 import { HrDisclosure, HrStatStrip, HrStateChip, type HrStat } from "./HrUi";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
@@ -271,6 +278,8 @@ function PeriodView({
       ? !shown.closed
       : shown.closed && shown.version === period.latestClosedVersion;
   const rows = view.kind === "DRAFT" || view.kind === "CLOSED" ? view.rows : [];
+  // Each shown version keeps its own list positions.
+  const listScope = `hr-period:${period.id}:${shown.closed ? `v${shown.version}` : `draft${shown.version}`}`;
   const hasVersions = versionOptions.length > 1 || !preview.versionsComplete;
   // A linked version, or a draft that cannot be shown, opens the list (the
   // other versions are where to go next); it follows Back/Forward too.
@@ -399,6 +408,14 @@ function PeriodView({
                     onOpen={onVersion}
                   />
                 )}
+                {preview.versionsComplete ? null : (
+                  <AllVersions
+                    periodId={period.id}
+                    timezone={period.timezone}
+                    shown={view.kind === "CLOSED" ? view.version : undefined}
+                    onOpen={onVersion}
+                  />
+                )}
               </div>
             ) : null}
           </HrDisclosure>
@@ -425,11 +442,11 @@ function PeriodView({
       ) : null}
 
       {/* Days still open are the work list of a blocked draft: shown. */}
-      <ExceptionList rows={rows} />
+      <ExceptionList rows={rows} scope={listScope} />
       {rows.length > 0 ? (
         <Panel className="py-1">
           <HrDisclosure label={t("byEmployee")} testId="hr-period-breakdown">
-            <EmployeeTable rows={rows} />
+            <EmployeeTable rows={rows} scope={listScope} />
           </HrDisclosure>
         </Panel>
       ) : null}
@@ -438,6 +455,97 @@ function PeriodView({
 }
 
 /** Opens any closed version by number when more exist than the list shows. */
+/**
+ * Every closed version, newest first, a page at a time, so versions older
+ * than the selector's newest ones are discoverable, not only by number.
+ */
+function AllVersions({
+  periodId,
+  timezone,
+  shown,
+  onOpen,
+}: {
+  readonly periodId: string;
+  readonly timezone: string;
+  readonly shown: number | undefined;
+  readonly onOpen: (version: number) => void;
+}) {
+  const t = useTranslations("Hr.period");
+  const locale = useLocale();
+  const [open, setOpen] = useState(false);
+  return (
+    <HrDisclosure
+      label={t("allVersions")}
+      open={open}
+      onToggle={setOpen}
+      className="w-full"
+      contentClassName="space-y-3"
+      testId="hr-period-all-versions"
+    >
+      {open ? (
+        <AllVersionsList
+          periodId={periodId}
+          timezone={timezone}
+          shown={shown}
+          onOpen={onOpen}
+          locale={locale}
+        />
+      ) : null}
+    </HrDisclosure>
+  );
+}
+
+function AllVersionsList({
+  periodId,
+  timezone,
+  shown,
+  onOpen,
+  locale,
+}: {
+  readonly periodId: string;
+  readonly timezone: string;
+  readonly shown: number | undefined;
+  readonly onOpen: (version: number) => void;
+  readonly locale: string;
+}) {
+  const t = useTranslations("Hr.period");
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.periodVersionsPage,
+    { periodId },
+    `period-versions:${periodId}`,
+  );
+  return (
+    <>
+      <HrPagedState<typeof hrRefs.periodVersionsPage>
+        view={view}
+        refused={(code) => <HrInlineError code={code} />}
+      >
+        {(_value, rows, { busy }) => (
+          <ul className="space-y-1">
+            {rows.map((version) => (
+              <li key={version.id}>
+                <Button
+                  type="button"
+                  variant={version.version === shown ? "active" : "ghost"}
+                  aria-pressed={version.version === shown}
+                  disabled={busy}
+                  onClick={() => onOpen(version.version)}
+                >
+                  {t("closedOption", {
+                    version: version.version,
+                    at: formatDateTime(version.closedAt, locale, timezone),
+                  })}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HrPagedState>
+      <HrPager paging={paging} label={t("allVersionsPagination")} />
+    </>
+  );
+}
+
 function VersionNumberPicker({
   latest,
   listed,
@@ -793,9 +901,17 @@ function ClosedControls({
   );
 }
 
-function EmployeeTable({ rows }: { readonly rows: readonly Row[] }) {
+function EmployeeTable({
+  rows,
+  scope,
+}: {
+  readonly rows: readonly Row[];
+  readonly scope: string;
+}) {
   const t = useTranslations("Hr.period");
   const summaries = useMemo(() => summarize(rows), [rows]);
+  // Totals below always cover every employee; paging only limits rows shown.
+  const local = useHrLocalPage(`${scope}:employees`, summaries.length);
   const total = summaries.reduce(
     (sum, item) => ({
       worked: sum.worked + item.worked,
@@ -818,7 +934,7 @@ function EmployeeTable({ rows }: { readonly rows: readonly Row[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {summaries.map((item) => (
+            {summaries.slice(local.start, local.end).map((item) => (
               <TableRow key={item.employeeId}>
                 <TableCell>
                   <span className="block font-semibold text-text">
@@ -866,24 +982,40 @@ function EmployeeTable({ rows }: { readonly rows: readonly Row[] }) {
           </TableFooter>
         </Table>
       </TableScroller>
+      <HrLocalPager local={local} label={t("employeePagination")} />
       <p className="mt-2 text-xs text-muted">{t("outsideNote")}</p>
     </section>
   );
 }
 
-function ExceptionList({ rows }: { readonly rows: readonly Row[] }) {
+function ExceptionList({
+  rows,
+  scope,
+}: {
+  readonly rows: readonly Row[];
+  readonly scope: string;
+}) {
   const t = useTranslations("Hr.period");
   const locale = useLocale();
   const canReview = useHrCan(HR_CODES.review);
-  const open = rows.filter((row) => row.status !== "READY");
+  const open = useMemo(
+    () => rows.filter((row) => row.status !== "READY"),
+    [rows],
+  );
+  // Every open day is reachable: the preview holds all of them (bounded by
+  // 50 employees × 31 days); paging only limits how many are rendered.
+  const local = useHrLocalPage(`${scope}:open`, open.length);
   if (open.length === 0) return null;
   return (
-    <section aria-labelledby="hr-period-open">
+    <section aria-labelledby="hr-period-open" className="space-y-2">
       <SectionTitle>
         <span id="hr-period-open">{t("openDays")}</span>
       </SectionTitle>
+      <p className="text-sm text-muted" role="status">
+        {t("openCount", { count: open.length })}
+      </p>
       <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
-        {open.slice(0, 200).map((row) => {
+        {open.slice(local.start, local.end).map((row) => {
           const content = (
             <>
               <span className="min-w-0">
@@ -924,6 +1056,7 @@ function ExceptionList({ rows }: { readonly rows: readonly Row[] }) {
           );
         })}
       </ul>
+      <HrLocalPager local={local} label={t("openPagination")} />
     </section>
   );
 }

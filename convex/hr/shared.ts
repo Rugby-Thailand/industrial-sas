@@ -28,6 +28,7 @@ import {
 import { compareDates } from "../model/hr/calendar";
 import type { RecordedDay } from "../model/hr/period";
 import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
+import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
 export type Employee = Doc<"hrEmployees">;
 export type AttendanceDay = Doc<"hrAttendanceDays">;
@@ -119,8 +120,45 @@ export async function siteScope(
   };
 }
 
+/**
+ * Synchronous check against the preloaded scope. For a warehouse-scoped
+ * membership with more than `MAX_SCOPE_SITES` grants this conservatively
+ * denies the later grants; use `siteAllowed` where a record must resolve.
+ */
 export const inScope = (scope: SiteScope, warehouseId: string): boolean =>
   scope.all || scope.ids.has(warehouseId);
+
+/**
+ * Whether the actor's HR site scope includes this site, exactly: grants
+ * beyond the preloaded first `MAX_SCOPE_SITES` are confirmed by one exact
+ * grant lookup, so an authorized site is never unreachable and a revoked
+ * grant is denied at once. Pass a per-request `cache` when checking many
+ * rows.
+ */
+export async function siteAllowed(
+  ctx: TenantFunctionContext,
+  scope: SiteScope,
+  warehouseId: string,
+  cache?: Map<string, Promise<boolean>>,
+): Promise<boolean> {
+  if (scope.all || scope.ids.has(warehouseId)) return true;
+  if (scope.complete) return false;
+  const cached = cache?.get(warehouseId);
+  if (cached !== undefined) return await cached;
+  const lookup = ctx.tenantDb
+    .byIndex<Doc<"membershipWarehouses">>(
+      "membershipWarehouses",
+      "by_orgId_membershipId_warehouseId",
+      [
+        { field: "membershipId", value: ctx.tenant.membership._id },
+        { field: "warehouseId", value: warehouseId },
+      ],
+    )
+    .unique()
+    .then((grant) => grant !== null);
+  cache?.set(warehouseId, lookup);
+  return await lookup;
+}
 
 /** A bounded site list; `complete: false` means more sites exist than shown. */
 export interface SiteList {
@@ -170,12 +208,197 @@ export const scopedSitesAnyStatus = (
   scope: SiteScope,
 ) => listSites(ctx, scope, false);
 
+/**
+ * A per-request resolver of authorized sites: the site when the actor's
+ * scope includes it exactly (`siteAllowed`, so grants beyond the preloaded
+ * bound resolve and a revoked grant does not) and it has the wanted status.
+ * Cached per site, so checking many rows costs one lookup per site.
+ */
+export function siteResolver(
+  ctx: TenantFunctionContext,
+  scope: SiteScope,
+  activeOnly: boolean,
+): (warehouseId: string) => Promise<Doc<"warehouses"> | null> {
+  const grants = new Map<string, Promise<boolean>>();
+  const sites = new Map<string, Promise<Doc<"warehouses"> | null>>();
+  return (warehouseId) => {
+    let entry = sites.get(warehouseId);
+    if (entry === undefined) {
+      entry = (async () => {
+        if (!(await siteAllowed(ctx, scope, warehouseId, grants))) return null;
+        const site = await ctx.tenantDb.get<Doc<"warehouses">>(
+          "warehouses",
+          warehouseId,
+        );
+        return site !== null && (!activeOnly || site.status === "ACTIVE")
+          ? site
+          : null;
+      })();
+      sites.set(warehouseId, entry);
+    }
+    return entry;
+  };
+}
+
+/** How a list orders authorized sites (part of every cursor binding). */
+export type SiteOrder = "code" | "grant";
+
+/**
+ * Every authorized site as an incrementally read, ordered lane source, so a
+ * list reaches the 51st and later sites without loading them all.
+ *
+ * - Organization-wide: the organization's site index in code order (ties
+ *   in creation order); each lane is re-resolved by its site ID, and a site
+ *   whose code changed or that no longer qualifies resets the cursor.
+ * - Warehouse-scoped with a complete preloaded scope: those sites in code
+ *   order, as before.
+ * - Warehouse-scoped beyond the preload bound: the actor's grants in site
+ *   ID order (`order: "grant"`); a revoked grant no longer resolves.
+ *
+ * `lane` describes the record range inside one site.
+ */
+export async function authorizedSiteLanes(
+  ctx: TenantFunctionContext,
+  scope: SiteScope,
+  options: {
+    readonly activeOnly: boolean;
+    readonly lane: (site: Doc<"warehouses">) => Omit<HrLane, "key">;
+  },
+): Promise<{ readonly source: HrLaneSource; readonly order: SiteOrder }> {
+  const resolveSite = siteResolver(ctx, scope, options.activeOnly);
+  const laneOf = (key: string, site: Doc<"warehouses">): HrLane => ({
+    ...options.lane(site),
+    key,
+  });
+  if (scope.all) {
+    const index = options.activeOnly ? "by_orgId_status_code" : "by_orgId_code";
+    const prefix = options.activeOnly
+      ? [{ field: "status", value: "ACTIVE" }]
+      : [];
+    const keyOf = (site: Doc<"warehouses">) =>
+      JSON.stringify([site.code, site._creationTime, site._id]);
+    const parse = (key: string) => {
+      try {
+        const value: unknown = JSON.parse(key);
+        return Array.isArray(value) &&
+          value.length === 3 &&
+          typeof value[0] === "string" &&
+          typeof value[1] === "number" &&
+          typeof value[2] === "string"
+          ? { code: value[0], at: value[1], id: value[2] }
+          : null;
+      } catch {
+        return null;
+      }
+    };
+    return {
+      order: "code",
+      source: {
+        resolve: async (key) => {
+          const parsed = parse(key);
+          if (parsed === null) return null;
+          const site = await resolveSite(parsed.id);
+          return site !== null && keyOf(site) === key
+            ? laneOf(key, site)
+            : null;
+        },
+        after: async (key, limit) => {
+          const sites: Doc<"warehouses">[] = [];
+          const parsed = key === null ? null : parse(key);
+          if (key !== null && parsed === null) return [];
+          if (parsed !== null) {
+            // Later sites with the same code, then later codes.
+            sites.push(
+              ...(await ctx.tenantDb
+                .byIndex<Doc<"warehouses">>(
+                  "warehouses",
+                  index,
+                  [...prefix, { field: "code", value: parsed.code }],
+                  {
+                    field: "_creationTime",
+                    lower: { value: parsed.at, inclusive: false },
+                  },
+                )
+                .take(limit)),
+            );
+          }
+          if (sites.length < limit)
+            sites.push(
+              ...(await ctx.tenantDb
+                .byIndex<Doc<"warehouses">>(
+                  "warehouses",
+                  index,
+                  prefix,
+                  parsed === null
+                    ? undefined
+                    : {
+                        field: "code",
+                        lower: { value: parsed.code, inclusive: false },
+                      },
+                )
+                .take(limit - sites.length)),
+            );
+          return sites.map((site) => laneOf(keyOf(site), site));
+        },
+      },
+    };
+  }
+  if (scope.complete) {
+    const { sites } = await listSites(ctx, scope, options.activeOnly);
+    return {
+      order: "code",
+      source: staticLanes(sites.map((site) => laneOf(site._id, site))),
+    };
+  }
+  const membershipId = ctx.tenant.membership._id;
+  return {
+    order: "grant",
+    source: {
+      resolve: async (key) => {
+        const site = await resolveSite(key);
+        return site === null ? null : laneOf(key, site);
+      },
+      after: async (key, limit) => {
+        const grants = await ctx.tenantDb
+          .byIndex<Doc<"membershipWarehouses">>(
+            "membershipWarehouses",
+            "by_orgId_membershipId_warehouseId",
+            [{ field: "membershipId", value: membershipId }],
+            key === null
+              ? undefined
+              : {
+                  field: "warehouseId",
+                  lower: { value: key, inclusive: false },
+                },
+          )
+          .take(limit);
+        const lanes: HrLane[] = [];
+        for (const grant of grants) {
+          const site = await resolveSite(grant.warehouseId);
+          // A closed site keeps its position but holds nothing to show.
+          lanes.push(
+            site === null
+              ? {
+                  key: grant.warehouseId,
+                  index: "by_orgId_code",
+                  equality: [],
+                  skip: true,
+                }
+              : laneOf(grant.warehouseId, site),
+          );
+        }
+        return lanes;
+      },
+    },
+  };
+}
+
 export async function siteOf(
   ctx: TenantFunctionContext,
   scope: SiteScope,
   warehouseId: string,
 ): Promise<Doc<"warehouses"> | null> {
-  if (!inScope(scope, warehouseId)) return null;
+  if (!(await siteAllowed(ctx, scope, warehouseId))) return null;
   const site = await ctx.tenantDb.get<Doc<"warehouses">>(
     "warehouses",
     warehouseId,
@@ -211,6 +434,25 @@ export function reviewBlocker(
   if (employee.userId !== undefined && employee.userId === scope.actorUserId)
     return "SELF_REVIEW";
   if (!inScope(scope.sites, employee.warehouseId)) return "NOT_FOUND";
+  if (scope.admin) return null;
+  return employee.supervisorUserId === scope.actorUserId ? null : "NOT_FOUND";
+}
+
+/**
+ * `reviewBlocker` with exact site authorization (see `siteAllowed`), so an
+ * employee at an authorized site beyond the preloaded scope stays
+ * reviewable, and one at a revoked site is not.
+ */
+export async function reviewAccess(
+  ctx: TenantFunctionContext,
+  scope: ReviewScope,
+  employee: Employee,
+  cache?: Map<string, Promise<boolean>>,
+): Promise<"SELF_REVIEW" | "NOT_FOUND" | null> {
+  if (employee.userId !== undefined && employee.userId === scope.actorUserId)
+    return "SELF_REVIEW";
+  if (!(await siteAllowed(ctx, scope.sites, employee.warehouseId, cache)))
+    return "NOT_FOUND";
   if (scope.admin) return null;
   return employee.supervisorUserId === scope.actorUserId ? null : "NOT_FOUND";
 }

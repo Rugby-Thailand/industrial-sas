@@ -258,10 +258,17 @@ it("retries a lost leave submission with the same request ID and payload", async
   expect(state.mutation.mock.calls[1]).toEqual(command);
   await waitFor(() => expect(screen.getByLabelText(/Reason/)).toHaveValue(""));
 });
+/** One ready page of the paged leave review queue. */
+const queuePage = (page: readonly unknown[]) => ({
+  ok: true,
+  status: "ready",
+  page,
+  isDone: true,
+  continueCursor: "",
+  scanned: page.length,
+});
 it("requires a reason for a returned annual request and cannot return statutory sick leave", () => {
-  state.query.mockReturnValue(
-    envelope({ ok: true, items: [request()], complete: true }),
-  );
+  state.query.mockReturnValue(envelope(queuePage([request()])));
   const view = renderWithIntl(<HrLeaveReviewScreen />, {
     locale: "en",
     preserveProviders: true,
@@ -275,9 +282,7 @@ it("requires a reason for a returned annual request and cannot return statutory 
   expect(
     screen.getByRole("button", { name: "Return with reason" }),
   ).toBeEnabled();
-  state.query.mockReturnValue(
-    envelope({ ok: true, items: [request("SICK")], complete: true }),
-  );
+  state.query.mockReturnValue(envelope(queuePage([request("SICK")])));
   view.rerender(<HrLeaveReviewScreen />);
   expect(
     screen.getByRole("button", { name: "Return with reason" }),

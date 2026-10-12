@@ -1,0 +1,9 @@
+
+> storage-planner@0.0.0 audit:prod /Users/macbook/Development/industrial-sas-filter-implementation
+> pnpm audit --prod --audit-level high
+
+No known vulnerabilities found
+
+Dependency audit passed (app); exact-chain exceptions checked against their expiry. Unpatched risk remains documented in docs/operations/dependency-exceptions.md.
+
+Dependency audit passed (release); exact-chain exceptions checked against their expiry. Unpatched risk remains documented in docs/operations/dependency-exceptions.md.

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiUsage_dimensions from "../aiUsage/dimensions.js";
 import type * as aiUsage_generation from "../aiUsage/generation.js";
 import type * as aiUsage_internal from "../aiUsage/internal.js";
 import type * as aiUsage_projection from "../aiUsage/projection.js";
@@ -20,6 +21,7 @@ import type * as finishedGoods_batchManagement from "../finishedGoods/batchManag
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
 import type * as finishedGoods_catalogueFilters from "../finishedGoods/catalogueFilters.js";
+import type * as finishedGoods_history from "../finishedGoods/history.js";
 import type * as finishedGoods_jobScanLocations from "../finishedGoods/jobScanLocations.js";
 import type * as finishedGoods_jobScans from "../finishedGoods/jobScans.js";
 import type * as finishedGoods_locationImage from "../finishedGoods/locationImage.js";
@@ -33,6 +35,7 @@ import type * as hr_dayDetail from "../hr/dayDetail.js";
 import type * as hr_leave from "../hr/leave.js";
 import type * as hr_navigationIntent from "../hr/navigationIntent.js";
 import type * as hr_notifications from "../hr/notifications.js";
+import type * as hr_pagination from "../hr/pagination.js";
 import type * as hr_payslips from "../hr/payslips.js";
 import type * as hr_periods from "../hr/periods.js";
 import type * as hr_policies from "../hr/policies.js";
@@ -50,6 +53,7 @@ import type * as lib_aiUsage from "../lib/aiUsage.js";
 import type * as lib_authorization from "../lib/authorization.js";
 import type * as lib_authorizationLookupsConvex from "../lib/authorizationLookupsConvex.js";
 import type * as lib_authorizationSeedConvex from "../lib/authorizationSeedConvex.js";
+import type * as lib_boundedRecordPage from "../lib/boundedRecordPage.js";
 import type * as lib_cataloguePagination from "../lib/cataloguePagination.js";
 import type * as lib_clerkWebhook from "../lib/clerkWebhook.js";
 import type * as lib_clerkWebhookNormalizer from "../lib/clerkWebhookNormalizer.js";
@@ -58,6 +62,7 @@ import type * as lib_idempotency from "../lib/idempotency.js";
 import type * as lib_identityMirrorConvex from "../lib/identityMirrorConvex.js";
 import type * as lib_identityWebhook from "../lib/identityWebhook.js";
 import type * as lib_imageProvider from "../lib/imageProvider.js";
+import type * as lib_keysetScan from "../lib/keysetScan.js";
 import type * as lib_masterDataStore from "../lib/masterDataStore.js";
 import type * as lib_memberDirectory from "../lib/memberDirectory.js";
 import type * as lib_navigationGrants from "../lib/navigationGrants.js";
@@ -120,6 +125,7 @@ import type * as staging_annexDemo from "../staging/annexDemo.js";
 import type * as staging_e2eFixture from "../staging/e2eFixture.js";
 import type * as staging_hrDemo from "../staging/hrDemo.js";
 import type * as staging_jobScanDemo from "../staging/jobScanDemo.js";
+import type * as staging_locationBuildingBackfill from "../staging/locationBuildingBackfill.js";
 import type * as staging_paginationDemo from "../staging/paginationDemo.js";
 import type * as staging_storageLayoutUiDemo from "../staging/storageLayoutUiDemo.js";
 import type * as staging_summaryBackfill from "../staging/summaryBackfill.js";
@@ -139,6 +145,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "aiUsage/dimensions": typeof aiUsage_dimensions;
   "aiUsage/generation": typeof aiUsage_generation;
   "aiUsage/internal": typeof aiUsage_internal;
   "aiUsage/projection": typeof aiUsage_projection;
@@ -151,6 +158,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;
   "finishedGoods/catalogueFilters": typeof finishedGoods_catalogueFilters;
+  "finishedGoods/history": typeof finishedGoods_history;
   "finishedGoods/jobScanLocations": typeof finishedGoods_jobScanLocations;
   "finishedGoods/jobScans": typeof finishedGoods_jobScans;
   "finishedGoods/locationImage": typeof finishedGoods_locationImage;
@@ -164,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   "hr/leave": typeof hr_leave;
   "hr/navigationIntent": typeof hr_navigationIntent;
   "hr/notifications": typeof hr_notifications;
+  "hr/pagination": typeof hr_pagination;
   "hr/payslips": typeof hr_payslips;
   "hr/periods": typeof hr_periods;
   "hr/policies": typeof hr_policies;
@@ -181,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   "lib/authorization": typeof lib_authorization;
   "lib/authorizationLookupsConvex": typeof lib_authorizationLookupsConvex;
   "lib/authorizationSeedConvex": typeof lib_authorizationSeedConvex;
+  "lib/boundedRecordPage": typeof lib_boundedRecordPage;
   "lib/cataloguePagination": typeof lib_cataloguePagination;
   "lib/clerkWebhook": typeof lib_clerkWebhook;
   "lib/clerkWebhookNormalizer": typeof lib_clerkWebhookNormalizer;
@@ -189,6 +199,7 @@ declare const fullApi: ApiFromModules<{
   "lib/identityMirrorConvex": typeof lib_identityMirrorConvex;
   "lib/identityWebhook": typeof lib_identityWebhook;
   "lib/imageProvider": typeof lib_imageProvider;
+  "lib/keysetScan": typeof lib_keysetScan;
   "lib/masterDataStore": typeof lib_masterDataStore;
   "lib/memberDirectory": typeof lib_memberDirectory;
   "lib/navigationGrants": typeof lib_navigationGrants;
@@ -251,6 +262,7 @@ declare const fullApi: ApiFromModules<{
   "staging/e2eFixture": typeof staging_e2eFixture;
   "staging/hrDemo": typeof staging_hrDemo;
   "staging/jobScanDemo": typeof staging_jobScanDemo;
+  "staging/locationBuildingBackfill": typeof staging_locationBuildingBackfill;
   "staging/paginationDemo": typeof staging_paginationDemo;
   "staging/storageLayoutUiDemo": typeof staging_storageLayoutUiDemo;
   "staging/summaryBackfill": typeof staging_summaryBackfill;

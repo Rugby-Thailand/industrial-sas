@@ -1249,3 +1249,166 @@ describe("server charge preview and retained returned resubmission", () => {
     expect(await account(world)).toMatchObject({ reserved: 1 });
   });
 });
+
+describe("paged leave review queue", () => {
+  it("reaches every reviewable request beyond the former 500 refusal", async () => {
+    const { world, employeeId } = await fixture();
+    await activate(world, employeeId);
+    const created = written(await submit(world));
+    const foreignEmployee = await world.t.run(async (ctx) => {
+      const row = await ctx.db.get(created.documentId as Id<"hrLeaveRequests">);
+      const employee = await ctx.db.get(employeeId);
+      if (!row || !employee) throw new Error("Missing fixture request");
+      const { _id: _rid, _creationTime: _rat, ...fields } = row;
+      for (let index = 1; index <= 510; index++)
+        await ctx.db.insert("hrLeaveRequests", {
+          ...fields,
+          submittedAt: row.submittedAt + index,
+        });
+      for (let index = 1; index <= 12; index++)
+        await ctx.db.insert("hrLeaveRequests", {
+          ...fields,
+          submittedAt: row.submittedAt + 1000 + index,
+          status: "CANCELLATION_REQUESTED",
+        });
+      // Decided requests are not part of the queue.
+      await ctx.db.insert("hrLeaveRequests", { ...fields, status: "APPROVED" });
+      const { _id: _eid, _creationTime: _eat, ...employeeFields } = employee;
+      // The reviewer's own request is never reviewable by them.
+      const own = await ctx.db.insert("hrEmployees", {
+        ...employeeFields,
+        code: "SELF",
+        userId: world.userA,
+      });
+      await ctx.db.insert("hrLeaveRequests", { ...fields, employeeId: own });
+      return own;
+    });
+    // The former queue fails outright beyond its bounded complete read.
+    await expect(call(world, leave.queue, {})).rejects.toThrow(
+      /CAPACITY_DATA_LIMIT/,
+    );
+
+    const seen: any[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 100; guard += 1) {
+      let scanCursor: string | undefined;
+      let page: any;
+      do {
+        page = result(
+          await call(world, leave.queuePage, {
+            pageSize: 50,
+            ...(cursor ? { cursor } : {}),
+            ...(scanCursor ? { scanCursor } : {}),
+          }),
+        );
+        scanCursor = page.scanCursor;
+      } while (page.status === "scanning");
+      expect(page.status).toBe("ready");
+      expect(page.page.length).toBeLessThanOrEqual(50);
+      seen.push(...page.page);
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+    expect(seen).toHaveLength(523);
+    expect(new Set(seen.map((item) => item._id)).size).toBe(523);
+    expect(seen.every((item) => item.employeeId === employeeId)).toBe(true);
+    expect(seen.some((item) => item.employeeId === foreignEmployee)).toBe(
+      false,
+    );
+    // Pending first, then cancellation requests, newest first in each.
+    const statuses = seen.map((item) => item.status);
+    expect(statuses.indexOf("CANCELLATION_REQUESTED")).toBe(511);
+    expect(seen[0].submittedAt).toBeGreaterThan(seen[510].submittedAt);
+    expect(seen[0]).toMatchObject({
+      employeeName: "Employee 1",
+      employeeCode: "EMP1",
+    });
+    expect(
+      result(await call(world, leave.queuePage, { pageSize: 100 })),
+    ).toEqual({ ok: false, code: "PAGE_SIZE_INVALID" });
+  });
+
+  it("reaches a request at a warehouse grant beyond the first 50 and drops it on revocation", async () => {
+    const { world, employeeId } = await fixture();
+    await activate(world, employeeId);
+    const created = written(await submit(world));
+    // The reviewer is warehouse-scoped with 55 grants; the employee's site
+    // is one of them, wherever it sorts. The former queue refused outright.
+    const late = await world.t.run(async (ctx) => {
+      const membership = await ctx.db
+        .query("memberships")
+        .withIndex("by_orgId_userId", (q) =>
+          q.eq("orgId", world.orgA).eq("userId", world.userA),
+        )
+        .unique();
+      await ctx.db.patch("memberships", membership!._id, {
+        scopeMode: "WAREHOUSE_SCOPED",
+      });
+      const sites = [];
+      for (let index = 0; index < 55; index += 1) {
+        const site = await ctx.db.insert("warehouses", {
+          orgId: world.orgA,
+          code: `G-${String(index).padStart(2, "0")}`,
+          name: `Granted ${index}`,
+          status: "ACTIVE",
+        });
+        sites.push(site);
+        await ctx.db.insert("membershipWarehouses", {
+          orgId: world.orgA,
+          membershipId: membership!._id,
+          warehouseId: site,
+        });
+      }
+      const [first] = await ctx.db
+        .query("membershipWarehouses")
+        .withIndex("by_orgId_membershipId_warehouseId", (q) =>
+          q.eq("orgId", world.orgA).eq("membershipId", membership!._id),
+        )
+        .collect()
+        .then((rows) => rows.slice(-1));
+      await ctx.db.patch("hrEmployees", employeeId, {
+        warehouseId: first!.warehouseId,
+      });
+      await ctx.db.patch(
+        "hrLeaveRequests",
+        created.documentId as Id<"hrLeaveRequests">,
+        { warehouseId: first!.warehouseId },
+      );
+      return { grant: first!._id, sites };
+    });
+    expect(late.sites).toHaveLength(55);
+    const read = async () => {
+      let scanCursor: string | undefined;
+      let page: any;
+      do {
+        page = result(
+          await call(world, leave.queuePage, {
+            ...(scanCursor ? { scanCursor } : {}),
+          }),
+        );
+        scanCursor = page.scanCursor;
+      } while (page.status === "scanning");
+      return page;
+    };
+    expect((await read()).page.map((row: any) => row._id)).toEqual([
+      created.documentId,
+    ]);
+    expect(
+      result(
+        await call(world, leave.detail, {
+          leaveRequestId: created.documentId,
+        }),
+      ),
+    ).toMatchObject({ ok: true });
+
+    await world.t.run((ctx) => ctx.db.delete(late.grant));
+    expect((await read()).page).toEqual([]);
+    expect(
+      result(
+        await call(world, leave.detail, {
+          leaveRequestId: created.documentId,
+        }),
+      ),
+    ).toEqual({ ok: false, code: "NOT_FOUND" });
+  });
+});

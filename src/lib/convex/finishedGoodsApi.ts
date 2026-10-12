@@ -9,6 +9,9 @@ export const fgRefs = Object.freeze({
   resolveJobScanLocation: clientRef(api.finishedGoods.jobScanLocations.resolve),
   createJobScanLocation: clientRef(api.finishedGoods.jobScanLocations.create),
   jobScanLocationOptions: clientRef(api.finishedGoods.jobScanLocations.options),
+  jobScanBuildingOptions: clientRef(
+    api.finishedGoods.jobScanLocations.buildingOptions,
+  ),
   searchJobScanLocations: clientRef(
     api.finishedGoods.jobScanLocations.searchPage,
   ),
@@ -36,10 +39,13 @@ export const fgRefs = Object.freeze({
   listProductBatches: clientRef(api.finishedGoods.batches.listProductBatches),
   cancelLegacyUnit: clientRef(api.finishedGoods.batches.cancelLegacyUnit),
   stackOptions: clientRef(api.finishedGoods.workflow.stackOptions),
+  stackPreview: clientRef(api.finishedGoods.workflow.stackPreview),
+  stackChoices: clientRef(api.finishedGoods.workflow.stackChoices),
   saveStackingLimits: clientRef(api.finishedGoods.workflow.saveStackingLimits),
   list: clientRef(api.finishedGoods.workflow.list),
   getProduct: clientRef(api.finishedGoods.workflow.getProduct),
   getPallet: clientRef(api.finishedGoods.workflow.getPallet),
+  palletMoveHistory: clientRef(api.finishedGoods.history.palletMoveHistory),
   recommend: clientRef(api.finishedGoods.workflow.recommend),
   recommendMove: clientRef(api.finishedGoods.workflow.recommendMove),
   reserveMove: clientRef(api.finishedGoods.workflow.reserveMove),

@@ -1,6 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { CursorPagination } from "@/components/system/CursorPagination";
+import { Input } from "@/components/ui/input";
+import { useCatalogueSync } from "@/hooks/useCatalogueSync";
+import { useCursorPagination } from "@/hooks/useCursorPagination";
+import { useDebouncedSearch } from "@/hooks/useScanContinuation";
+import { useScanRecovery } from "@/hooks/useScanRecovery";
 import { Layers3, RotateCw, LockKeyhole, CheckCircle2 } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
@@ -148,14 +154,19 @@ function StackLoader({
   const [lowerDirty, setLowerDirty] = useState(false);
   const [upperDirty, setUpperDirty] = useState(false);
   const [rotation, setRotation] = useState<0 | 90>(0);
-  const detail = useQuery(fgRefs.getPallet, { warehouseId, palletId });
+  const detail = useQuery(fgRefs.getPallet, {
+    warehouseId,
+    palletId,
+    includeMoveHistory: false,
+  });
   const crumbs = usePalletTrail(detail?.ok ? detail.value : undefined);
-  const result = useQuery(fgRefs.stackOptions, {
+  const result = useQuery(fgRefs.stackPreview, {
     warehouseId,
     palletId,
     rotation,
     ...(upperId ? { upperPalletId: upperId } : {}),
   });
+  const choices = useStackChoices(warehouseId, palletId);
   const reserve = useMutation(fgRefs.reserve);
   const reserveMove = useMutation(fgRefs.reserveMove);
   if (detail?.ok && detail.value?.placement?.mode === "LOCATION_ONLY")
@@ -176,14 +187,23 @@ function StackLoader({
   if (!result.ok || !result.value) return <Missing />;
   const {
     lower,
-    pallets,
     candidate,
     error,
     children,
     lowerSettingsLocked,
     upperSettingsLocked,
   } = result.value;
-  const upper = pallets.find((p) => p._id === upperId);
+  const upper =
+    result.value.upper && result.value.upper._id === upperId
+      ? result.value.upper
+      : undefined;
+  // The chosen pallet stays selectable after paging or searching elsewhere.
+  const options = [
+    ...(upper && !choices.items.some((p) => p._id === upper._id)
+      ? [upper]
+      : []),
+    ...choices.items,
+  ];
   const supportLocked =
     Boolean(lower.placementId && children.length) ||
     Boolean(lower.status === "RESERVED");
@@ -384,7 +404,7 @@ function StackLoader({
                     value: "",
                     label: t("copy.choose-a-measured-pallet"),
                   },
-                  ...pallets.map((p) => ({
+                  ...options.map((p) => ({
                     value: p._id,
                     label: `${p.code} · ${p.quantity} · ${
                       p.status === "STORED"
@@ -397,13 +417,10 @@ function StackLoader({
                 emptyLabel={t("copy.no-measured-pallets-available")}
               />
             </div>
-            {!pallets.length ? (
-              <p className="text-sm text-muted">
-                {t(
-                  "copy.no-measured-pallets-are-available-create-and-measure-a-pallet-first",
-                )}
-              </p>
-            ) : null}
+            <StackChoiceControls
+              choices={choices}
+              disabled={lowerDirty || upperDirty || op.busy}
+            />
             {upper ? (
               <Limits
                 key={upper._id}
@@ -439,6 +456,145 @@ function StackLoader({
             : t("copy.reserve-stack-and-verify")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+const hasChoiceRows = (value: object) =>
+  "items" in value && Array.isArray(value.items) && value.items.length > 0;
+
+/** Eligible upper pallets in server pages; selection is resolved by ID. */
+function useStackChoices(warehouseId: string, palletId: string) {
+  const [search, setSearch] = useState("");
+  const typed = search.trim();
+  const settled = useDebouncedSearch(typed);
+  const paging = useCursorPagination({
+    scope: `stack-choices:${warehouseId}:${palletId}`,
+    criteria: { search: typed },
+  });
+  const requestKey = JSON.stringify([settled, paging.cursor, paging.pageSize]);
+  const recovery = useScanRecovery(requestKey);
+  const outcome = useQuery(
+    fgRefs.stackChoices,
+    typed === settled
+      ? {
+          warehouseId,
+          palletId,
+          ...(settled ? { search: settled } : {}),
+          cursor: paging.cursor,
+          pageSize: paging.pageSize,
+          ...(recovery.cursor ? { scanCursor: recovery.cursor } : {}),
+          ...(recovery.attempt ? { attempt: recovery.attempt } : {}),
+        }
+      : "skip",
+  );
+  const tracked = recovery.track(
+    outcome === undefined
+      ? undefined
+      : outcome.ok && outcome.value
+        ? { ok: true, value: outcome.value }
+        : { ok: false },
+  );
+  useCatalogueSync({
+    outcome: tracked.outcome,
+    continuation: tracked.continuation,
+    paging,
+    resetKey: recovery.key,
+    hasRows: hasChoiceRows,
+  });
+  const value = outcome?.ok ? outcome.value : undefined;
+  const ready = value?.status === "ready" ? value : undefined;
+  return {
+    search,
+    setSearch,
+    filtered: Boolean(typed),
+    paging,
+    ready,
+    failed: Boolean(
+      (outcome && (!outcome.ok || !outcome.value)) ||
+      value?.status === "reset" ||
+      tracked.stalled,
+    ),
+    paused: tracked.paused,
+    resume: recovery.resume,
+    // A same-page retry needs new arguments, hence a fresh subscription.
+    retry: () => {
+      paging.reset();
+      recovery.retry();
+    },
+    items: ready?.items ?? [],
+  };
+}
+
+function StackChoiceControls({
+  choices,
+  disabled,
+}: {
+  choices: ReturnType<typeof useStackChoices>;
+  disabled: boolean;
+}) {
+  const { t, locale } = useFGText();
+  const { ready, paging } = choices;
+  return (
+    <div className="space-y-3">
+      <Input
+        type="search"
+        aria-label={t("paging.stackSearch")}
+        placeholder={t("paging.stackSearch")}
+        value={choices.search}
+        disabled={disabled}
+        onChange={(event) => choices.setSearch(event.target.value)}
+      />
+      {choices.failed ? (
+        <Notice
+          tone="danger"
+          role="alert"
+          title={t("paging.stackChoicesFailed")}
+        >
+          <Button
+            variant="outline"
+            className="mt-3"
+            disabled={disabled}
+            onClick={choices.retry}
+          >
+            {t("paging.retry")}
+          </Button>
+        </Notice>
+      ) : choices.paused ? (
+        <Button variant="outline" disabled={disabled} onClick={choices.resume}>
+          {t("paging.continue")}
+        </Button>
+      ) : !ready ? (
+        <p role="status" className="text-sm text-muted">
+          {t("paging.stackSearching")}
+        </p>
+      ) : !ready.items.length && !paging.canPrevious ? (
+        <p role="status" className="text-sm text-muted">
+          {choices.filtered
+            ? t("paging.stackNoMatches")
+            : t(
+                "copy.no-measured-pallets-are-available-create-and-measure-a-pallet-first",
+              )}
+        </p>
+      ) : null}
+      {(paging.canPrevious || (ready && !ready.isDone)) && (
+        <CursorPagination
+          label={t("paging.stackPages")}
+          onFirst={paging.reset}
+          historyTruncated={paging.historyTruncated}
+          page={paging.page}
+          pageSize={paging.pageSize}
+          onPageSizeChange={paging.setPageSize}
+          onPrevious={paging.previous}
+          onNext={() => {
+            if (ready && !ready.isDone) paging.next(ready.continueCursor);
+          }}
+          canPrevious={paging.canPrevious && !disabled}
+          canNext={Boolean(ready && !ready.isDone) && !disabled}
+          loading={!ready}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }

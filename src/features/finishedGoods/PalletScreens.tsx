@@ -42,6 +42,7 @@ export {
 import { PalletScene } from "./PalletScene";
 import { usePreviewState } from "./usePreviewState";
 import { DestinationScanner } from "./DestinationScanner";
+import { MoveHistory } from "./MoveHistory";
 import { DestinationPicker, destinationKey } from "./DestinationPicker";
 export { destinationKey } from "./DestinationPicker";
 import {
@@ -104,7 +105,11 @@ function PalletLoader({
   view: "measure" | "storage" | "detail";
 }) {
   const canManage = useCanManage();
-  const result = useQuery(fgRefs.getPallet, { warehouseId, palletId });
+  const result = useQuery(fgRefs.getPallet, {
+    warehouseId,
+    palletId,
+    includeMoveHistory: false,
+  });
   if (!result) return <Loading />;
   if (!result.ok && result.denial.kind === "AUTHORIZATION_DENIED")
     return (
@@ -1389,64 +1394,7 @@ function PalletDetailScreen({
   );
 }
 
-export function MoveHistory({ detail }: { detail: PalletDetail }) {
-  const { tr, locale } = useUnitText(
-    detail.pallet.storageFormat ?? detail.product?.storageFormat,
-  );
-  if (!detail.moveHistory?.length) return null;
-  return (
-    <section className={`${panel} mt-5 space-y-3`}>
-      <h2 className="text-lg leading-7 font-semibold">
-        {tr("Movement history", "ประวัติการย้าย")}
-      </h2>
-      <ul className="space-y-3">
-        {detail.moveHistory.map((move) => (
-          <li key={move._id} className="border-t border-border pt-3 text-sm">
-            <p className="font-medium">
-              {move.sourceDestination
-                ? `${move.sourceDestination.buildingCode} · ${tr("Floor", "ชั้น")} ${move.sourceDestination.floorNumber} · ${move.sourceDestination.locationName}`
-                : "—"}{" "}
-              →{" "}
-              {move.targetDestination
-                ? `${move.targetDestination.buildingCode} · ${tr("Floor", "ชั้น")} ${move.targetDestination.floorNumber} · ${move.targetDestination.locationName}`
-                : "—"}
-            </p>
-            <p className="mt-1 text-muted">
-              {move.status === "COMPLETED"
-                ? tr("Completed", "เสร็จสิ้น")
-                : move.status === "RETURNED"
-                  ? tr("Returned to source", "คืนต้นทางแล้ว")
-                  : move.status === "CANCELLED"
-                    ? tr("Cancelled", "ยกเลิกแล้ว")
-                    : move.status === "IN_TRANSIT"
-                      ? tr("In transit", "อยู่ระหว่างย้าย")
-                      : tr("Prepared", "เตรียมย้ายแล้ว")}{" "}
-              · {new Date(move.createdAt).toLocaleString(locale)}
-            </p>
-            {move.sourcePlacement &&
-            move.sourcePlacement.mode !== "LOCATION_ONLY" &&
-            move.targetPlacement &&
-            move.targetPlacement.mode !== "LOCATION_ONLY" ? (
-              <p className="mt-1 font-mono text-xs break-words text-muted">
-                {move.sourcePlacement.positionCode}: X{" "}
-                {mmText(move.sourcePlacement.xMm)} · Y{" "}
-                {mmText(move.sourcePlacement.yMm)} · Z{" "}
-                {mmText(move.sourcePlacement.zMm)} ·{" "}
-                {move.sourcePlacement.rotation}° →{" "}
-                {move.targetPlacement.positionCode}: X{" "}
-                {mmText(move.targetPlacement.xMm)} · Y{" "}
-                {mmText(move.targetPlacement.yMm)} · Z{" "}
-                {mmText(move.targetPlacement.zMm)} ·{" "}
-                {move.targetPlacement.rotation}°
-              </p>
-            ) : null}
-            {move.reason ? <p className="mt-1">{move.reason}</p> : null}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
+export { MoveHistory };
 
 function LocationOnlyPalletDetail({
   warehouseId,

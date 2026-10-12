@@ -10,7 +10,9 @@ import {
   TENANT_INDEX_MAX_PAGE_SIZE,
   TenantDbError,
   assertTenantTableName,
+  checkedTenantIndexRange,
   type TenantIndexEquality,
+  type TenantIndexRange,
   type TenantStorageDocument,
   type TenantStoragePort,
   type TenantTableName,
@@ -51,6 +53,10 @@ export interface TenantQueryStoragePort extends TenantStoragePort {
 
 interface ConvexIndexRangeBuilder {
   eq: (field: string, value: unknown) => ConvexIndexRangeBuilder;
+  gt?: (field: string, value: unknown) => ConvexIndexRangeBuilder;
+  gte?: (field: string, value: unknown) => ConvexIndexRangeBuilder;
+  lt?: (field: string, value: unknown) => ConvexIndexRangeBuilder;
+  lte?: (field: string, value: unknown) => ConvexIndexRangeBuilder;
 }
 
 interface ConvexBoundedQuery {
@@ -154,6 +160,14 @@ function createReads(
       const field: unknown = record.field;
       if (typeof field !== "string") throw invalidQuery();
       if (field !== facts.fields[position]) throw invalidQuery();
+      if (record.missing === true) {
+        // An explicit "field omitted" term; the tenant field is never optional.
+        if (field === TENANT_DISCRIMINATOR || record.value !== undefined)
+          throw invalidQuery();
+        terms.push({ field, value: undefined });
+        continue;
+      }
+      if (record.missing !== undefined) throw invalidQuery();
       if (!Object.hasOwn(record, "value")) throw invalidQuery();
 
       const value: unknown = record.value;
@@ -166,6 +180,40 @@ function createReads(
     }
 
     return terms;
+  };
+
+  const checkedRange = (
+    facts: TenantIndexFacts,
+    terms: readonly unknown[],
+    supplied: TenantIndexRange | undefined,
+  ): TenantIndexRange | undefined => {
+    // Terms include orgId here; the shared check counts fields after it.
+    const range = checkedTenantIndexRange(
+      facts.fields.slice(1),
+      terms.length - 1,
+      supplied,
+    );
+    if (range === null) throw invalidQuery();
+    return range;
+  };
+
+  const applyRange = (
+    builder: ConvexIndexRangeBuilder,
+    range: TenantIndexRange | undefined,
+  ): ConvexIndexRangeBuilder => {
+    if (!range) return builder;
+    let next = builder;
+    if (range.lower) {
+      const method = range.lower.inclusive ? next.gte : next.gt;
+      if (!method) throw invalidQuery();
+      next = method.call(next, range.field, range.lower.value);
+    }
+    if (range.upper) {
+      const method = range.upper.inclusive ? next.lte : next.lt;
+      if (!method) throw invalidQuery();
+      next = method.call(next, range.field, range.upper.value);
+    }
+    return next;
   };
 
   const checkedLimit = (limit: number): number => {
@@ -220,6 +268,7 @@ function createReads(
       readonly endCursor?: string | null;
       readonly nativePage?: boolean;
     },
+    suppliedRange?: TenantIndexRange,
   ): Promise<unknown> => {
     const name = checkedTable(table);
 
@@ -227,6 +276,7 @@ function createReads(
     if (facts === undefined) throw invalidQuery();
 
     const terms = checkedTerms(facts, equality);
+    const checkedBounds = checkedRange(facts, terms, suppliedRange);
 
     if (page === null || typeof page !== "object") throw invalidQuery();
     const limit = checkedLimit(page.limit);
@@ -244,7 +294,7 @@ function createReads(
         for (const term of terms) {
           range = range.eq(term.field, term.value);
         }
-        return range;
+        return applyRange(range, checkedBounds);
       });
       return page.order ? query.order(page.order) : query;
     };
@@ -313,11 +363,13 @@ function createReads(
     index: string,
     equality: TenantIndexEquality,
     limit: number,
+    suppliedRange?: TenantIndexRange,
   ): Promise<unknown> => {
     const name = checkedTable(table);
     const facts = describeTenantIndex(name, index);
     if (!facts) throw invalidQuery();
     const terms = checkedTerms(facts, equality);
+    const checkedBounds = checkedRange(facts, terms, suppliedRange);
     if (
       !Number.isSafeInteger(limit) ||
       limit < 1 ||
@@ -329,7 +381,7 @@ function createReads(
       .withIndex(facts.name, (builder) => {
         let range = builder;
         for (const term of terms) range = range.eq(term.field, term.value);
-        return range;
+        return applyRange(range, checkedBounds);
       })
       .take(limit + 1);
     if (!Array.isArray(answer)) throw invalidResult();

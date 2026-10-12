@@ -870,3 +870,190 @@ describe("a query context", () => {
     expect(true).toBe(true);
   });
 });
+
+describe("a checked index range", () => {
+  const access = (
+    world: ConvexTenantWorld,
+    ctx: Parameters<Parameters<ConvexTenantWorld["t"]["run"]>[0]>[0],
+  ) =>
+    createTenantDocumentAccess(
+      { orgId: world.orgA, requestId: REQUEST_ID },
+      createMutationTenantStorage(ctx, REQUEST_ID),
+    );
+
+  it("narrows the field after the equality prefix, never beyond the tenant", async () => {
+    const world = await createConvexTenantWorld();
+    const read = await world.t.run(async (ctx) => {
+      const db = access(world, ctx);
+      const codes = async (range: Parameters<typeof db.byIndex>[3]) =>
+        (
+          await db
+            .byIndex<WarehouseLike>(TABLE, BY_CODE, [], range)
+            .take(TENANT_INDEX_MAX_PAGE_SIZE)
+        ).map((row) => row.code);
+      return {
+        between: await codes({
+          field: "code",
+          lower: { value: "BRAVO", inclusive: true },
+          upper: { value: "DELTA", inclusive: false },
+        }),
+        exclusive: await codes({
+          field: "code",
+          lower: { value: "BRAVO", inclusive: false },
+          upper: { value: "DELTA", inclusive: true },
+        }),
+        // A range covering every string still stays inside orgA's prefix.
+        everything: await codes({
+          field: "code",
+          lower: { value: "", inclusive: true },
+          upper: { value: "\u{10FFFF}", inclusive: true },
+        }),
+        afterOnTiebreaker: (
+          await db
+            .byIndex<WarehouseLike>(
+              TABLE,
+              BY_CODE,
+              [{ field: "code", value: "ALPHA" }],
+              {
+                field: "_creationTime",
+                lower: { value: 0, inclusive: false },
+              },
+            )
+            .take(5)
+        ).map((row) => row.code),
+      };
+    });
+    expect(read.between).toEqual(["BRAVO", "CHARLIE"]);
+    expect(read.exclusive).toEqual(["CHARLIE", "DELTA"]);
+    expect(read.everything).toEqual(["ALPHA", "BRAVO", "CHARLIE", "DELTA"]);
+    expect(read.afterOnTiebreaker).toEqual(["ALPHA"]);
+  });
+
+  it("refuses ranges on other fields, without bounds, or with unusable values", async () => {
+    const world = await createConvexTenantWorld();
+    const ranges: unknown[] = [
+      null,
+      { field: "orgId", lower: { value: "a", inclusive: true } },
+      { field: "status", lower: { value: "A", inclusive: true } },
+      { field: "code" },
+      { field: "code", lower: { value: "A" } },
+      { field: "code", lower: { value: Number.NaN, inclusive: true } },
+      { field: "code", lower: { value: { $gt: "" }, inclusive: true } },
+      {
+        field: "code",
+        lower: { value: "A", inclusive: true },
+        upper: { value: 9, inclusive: true },
+      },
+      // The tiebreaker is only reachable once every declared field is fixed.
+      { field: "_creationTime", lower: { value: 0, inclusive: true } },
+    ];
+    await world.t.run(async (ctx) => {
+      for (const range of ranges) {
+        const error = await denial(async () =>
+          access(world, ctx)
+            .byIndex(TABLE, BY_CODE, [], range as never)
+            .take(1),
+        );
+        expect(error.code, JSON.stringify(range)).toBe("INVALID_INDEX_QUERY");
+      }
+      // The port re-checks ranges it receives directly.
+      const port = createMutationTenantStorage(ctx, REQUEST_ID);
+      for (const range of ranges.slice(1)) {
+        const error = await denial(async () =>
+          port.indexedPage(
+            TABLE,
+            BY_CODE,
+            [{ field: "orgId", value: world.orgA }],
+            { limit: 1, cursor: null },
+            range as never,
+          ),
+        );
+        expect(error.code).toBe("INVALID_INDEX_QUERY");
+      }
+    });
+  });
+
+  it("matches an omitted optional field only through an explicit missing term", async () => {
+    const world = await createConvexTenantWorld();
+    const warehouseId = world.warehouses.alphaA;
+    const result = await world.t.run(async (ctx) => {
+      const buildingId = await ctx.db.insert("storageBuildings", {
+        orgId: world.orgA,
+        warehouseId,
+        code: "B",
+        name: "B",
+        widthMm: 1,
+        depthMm: 1,
+        defaultFloorHeightMm: 1,
+        floorCount: 1,
+        totalHeightMm: 1,
+        grossAreaSqMm: 1,
+        reservedAreaSqMm: 0,
+        usableAreaSqMm: 1,
+        status: "ACTIVE",
+        version: 1,
+        createdAt: 1,
+        createdByUserId: world.userA,
+        updatedAt: 1,
+        updatedByUserId: world.userA,
+      });
+      for (const [code, withBuilding] of [
+        ["L-1", true],
+        ["L-2", false],
+      ] as const)
+        await ctx.db.insert("locations", {
+          orgId: world.orgA,
+          warehouseId,
+          code,
+          status: "ACTIVE",
+          locationType: "FLOOR_BLOCK",
+          ...(withBuilding ? { buildingId } : {}),
+        });
+      const db = access(world, ctx);
+      const index = "by_orgId_warehouseId_status_buildingId_code";
+      const prefix = [
+        { field: "warehouseId", value: warehouseId },
+        { field: "status", value: "ACTIVE" },
+      ];
+      const missing = await db
+        .byIndex<WarehouseLike>("locations", index, [
+          ...prefix,
+          { field: "buildingId", value: undefined, missing: true },
+        ])
+        .take(10);
+      const refused = [];
+      for (const term of [
+        { field: "buildingId", value: undefined },
+        { field: "buildingId", value: buildingId, missing: true },
+      ])
+        refused.push(
+          (
+            await denial(async () =>
+              db
+                .byIndex("locations", index, [...prefix, term as never])
+                .take(1),
+            )
+          ).code,
+        );
+      const portRefusal = await denial(async () =>
+        createMutationTenantStorage(ctx, REQUEST_ID).indexedPage(
+          TABLE,
+          BY_CODE,
+          [{ field: "orgId", value: undefined, missing: true }],
+          { limit: 1, cursor: null },
+        ),
+      );
+      return {
+        missing: missing.map((row) => row.code),
+        refused,
+        port: portRefusal.code,
+      };
+    });
+    expect(result.missing).toEqual(["L-2"]);
+    expect(result.refused).toEqual([
+      "INVALID_INDEX_QUERY",
+      "INVALID_INDEX_QUERY",
+    ]);
+    expect(result.port).toBe("INVALID_INDEX_QUERY");
+  });
+});

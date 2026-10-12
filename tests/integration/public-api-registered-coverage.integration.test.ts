@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(31);
+    expect(coveredModules).toHaveLength(33);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 32 representative functions, not every public export
+    // The inventory covers 38 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(32);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(38);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -192,11 +192,38 @@ describe("representative registered payloads and safe HR capability gates", () =
         permissions: expect.any(Array),
         timezoneSupported: true,
       },
+      "hr/access:sitesPage": {
+        ok: true,
+        status: "ready",
+        isDone: true,
+        selected: null,
+      },
       "hr/periods:list": { items: [], complete: true },
+      "hr/periods:listPage": {
+        ok: true,
+        status: "ready",
+        page: [],
+        isDone: true,
+        sitesComplete: true,
+      },
       "hr/review:queue": { ok: true, complete: true, items: [] },
+      "hr/review:queuePage": {
+        ok: true,
+        status: "ready",
+        page: [],
+        isDone: true,
+        tab: "OPEN",
+      },
       "hr/search:adminEmployees": { items: [], complete: true },
       "hr/self:profile": { linked: false },
       "hr/setup:listEmployees": { items: [], complete: true },
+      "hr/setup:employeesPage": {
+        ok: true,
+        status: "ready",
+        page: [],
+        isDone: true,
+        sitesComplete: true,
+      },
       "hr/preferences:current": { ok: false, code: "HR_NOT_LINKED" },
       "hr/policies:current": { ok: false, code: "POLICY_ORG_SCOPE_REQUIRED" },
       "hr/leave:self": { ok: false, code: "HR_NOT_LINKED" },
@@ -215,6 +242,17 @@ describe("representative registered payloads and safe HR capability gates", () =
         batch: { _id: world.batchId, status: "DRAFT", revision: 1 },
         product: { _id: world.productId, sku: "PUBLIC-1" },
         units: [],
+      },
+      "aiUsage/dimensions:warehouseOptions": {
+        status: "ready",
+        isDone: true,
+        continueCursor: "",
+      },
+      "finishedGoods/history:palletMoveHistory": {
+        status: "ready",
+        items: [],
+        isDone: true,
+        continueCursor: "",
       },
       "finishedGoods/catalogue:findSku": {
         _id: world.productId,

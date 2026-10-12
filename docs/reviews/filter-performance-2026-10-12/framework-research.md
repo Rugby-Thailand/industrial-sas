@@ -1,0 +1,50 @@
+# Framework facts for the filter/pagination plan
+
+Verified 2026-10-12 against the installed package documentation, current official Convex documentation, and this repository's source. Package versions in this snapshot: Next16.3.8, Convex1.46.0, React19.2.8. These are design constraints, not measured application speedups.
+
+## Index before filtering, and measure candidates examined
+
+Convex explicitly requires `withIndex` to use a database index. Equality/range constraints narrow the index range; a subsequent `.filter()` still examines candidates in that range. Compound index field order governs which prefixes/ranges are available. Consequently, paginating a warehouse range and filtering building/code afterward bounds individual requests but not the number of requests required to expose a useful page. [Official index performance explanation](https://docs.convex.dev/database/reading-data/indexes/indexes-and-query-perf), [official index reference](https://docs.convex.dev/database/reading-data/indexes/).
+
+**Repository implication:** add building/status/code access paths that match real user criteria. The current [tenant DB adapter](../../../convex/lib/tenantStorage.ts):243 supports equality terms only and deliberately checks an index policy. Prefix/date-range queries therefore require a tested tenant-safe range capability; full-text needs an equivalent safe search capability. Do not bypass the wrapper with unrestricted raw reads to get a faster prototype.
+
+## Pagination is a database and live-update contract
+
+Convex uses opaque continuation cursors. Its pagination options can bound rows/bytes read, and bounds may require page splitting. Reactive pages may grow or shrink after inserts/deletes. Returned pages may be transformed, but transforming a page is different from selecting a globally filtered/sorted result set. [Official pagination guide](https://docs.convex.dev/database/pagination).
+
+**Repository implication:** retain range-split handling and stable identity behavior in [cataloguePagination](../../../convex/lib/cataloguePagination.ts), or prove equivalent behavior for a replacement. Current UI controls already exist, so migration should improve query access paths behind those controls. Do not truncate a growing native page and reuse a cursor beyond discarded rows. Keep criteria, tenant, actor and page size bound into reusable cursor state. The wrapper's `.all(n)` detects capacity overflow rather than silently returning a partial collection.
+
+## Full-text search changes matching semantics
+
+Convex full-text search has one searchable string field and optional equality filter fields, supports pagination, and returns relevance order. Its tokenizer splits on whitespace and punctuation, lowercases tokens, and works best for Latin-script text. Only the final query term supports prefix matching; it has no typo tolerance. It is not arbitrary substring search. The documented search-query scan ceiling is1024 results, and search `collect()` over its limit throws. [Official full-text search guide](https://docs.convex.dev/search/text-search).
+
+**Repository implication:** do not assume it preserves existing Thai names, industrial identifiers such as `F1-L30-16`, inner-code fragments, exact QR values, or browser-style joined descendant text. Build a semantic test matrix first. Prefer an exact normalized-code index and a measured prefix path for code lookup; evaluate full-text for natural language separately. Any normalized projection needs migration/backfill readiness, update/delete consistency, tenant-safe filter fields, and a bounded fallback. Decide explicitly which existing substring behaviors must remain supported.
+
+## Next history and query state
+
+The installed Next16.3.8 [linking/navigation guide](../../../node_modules/next/dist/docs/01-app/01-getting-started/04-linking-and-navigating.md):343 documents native `pushState`/`replaceState` integration with `usePathname` and `useSearchParams`. The installed [useSearchParams guide](../../../node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-search-params.md):75–181 describes read-only parameters and the Suspense requirement for statically rendered client consumers. Shared layouts do not receive updated page search parameters.
+
+**Repository implication:** preserve existing [browser history utilities](../../../src/lib/browser/history.ts), URL-backed state, unknown query parameters, draft guards, locale, and Next-owned history metadata. Use a new history step for a meaningful filter/view change and replacement for a typing burst, as [useQueryHistoryWriter](../../../src/hooks/useQueryHistoryWriter.ts) already does. Validate a production build when moving URL state across server/client boundaries; dev rendering can hide missing Suspense boundaries.
+
+## What to test before selecting an implementation
+
+1. Empty browse and exact/code-prefix/substring/Thai search at1,000 and10,000 records; a match at the very end; zero matches; one-character queries; punctuation/case/whitespace and scanner payload normalization.
+2. Complete traversal at20/50/100 page sizes with no duplicates or omissions; selective building/status filters; off-page selected values; native split/growing/shrinking pages; deletes on the last page.
+3. Read count, hydration count, response bytes, number of client/server continuations, input-to-first-useful-result and settled-to-ready latency. A low per-request row count does not prove a fast interactive search.
+4. Query/filter/page-size changes, Back/Forward, detail-and-return, permission revocation, actor/org/warehouse switches, altered cursor criteria, and malformed/expired cursors.
+5. Preserve HR rules: frozen period totals/versions, no hidden review blockers, employee scope, direct edit links, and incomplete-search signaling. Preserve geometric recommendation eligibility when adding destination-result pagination.
+
+The companion [surface inventory](./surface-inventory.md) maps these requirements to concrete routes and records the local baseline tests.
+
+## Concrete location-search proposal
+
+This is a recommended design to prototype and measure, not an implemented change.
+
+1. **Immediate exact result:** keep the existing authoritative exact resolver. Render its eligible match as soon as it resolves, without waiting for the general result page. Deduplicate by canonical `locationId` when later results arrive. Respect selected building scope; when a scanned exact code is outside that filter, explain the mismatch and offer clearing the filter rather than silently widening results. Distinguish “this exact code is not registered” from “no matching locations.”
+2. **Indexed code-prefix results:** normalize codes with the same tested rules as the current exact matcher. Query a tenant/warehouse/eligibility/code index, plus a building-scoped variant when selected. Use an inclusive lower bound and exclusive prefix successor on normalized code. Define/test successor behavior for the supported identifier alphabet; do not assume appending an arbitrary Unicode sentinel handles every name. Return a small useful page directly, with its cursor.
+3. **Preserved contains matching:** after exact/prefix results, continue the existing substring semantics over lightweight projected fields within the authorized scope. Clearly expose that broader matching is still running. Cancel/reset that continuation when text or filters change; retain already useful current-query results. Provide an explicit continuation if the search exceeds the interactive work budget. Never present an incomplete fallback as a definitive no-match or enable creation solely because that fallback has not finished. Prefix and fallback lanes must exclude each other's identities deterministically so their combined traversal is complete and duplicate-free.
+4. **One location-choice projection per selectable identity:** include canonical `locationId`, organization, warehouse, building/floor, location type, normalized code/name, compact display labels and selectability state. Preserve both named and physical locations. Physical eligibility depends on the source location, parent position/zone, building and floor relationship; projection readers must retain authoritative tenant/site checks and selection must revalidate current eligibility. Project only fields required by that surface's actual match contract. Scan selection currently searches code/name; storage catalogue additionally searches parent/descendant text, so a shared implementation must not silently erase or add those semantics.
+5. **Migration and freshness:** implement dual writes/update hooks before a bounded resumable backfill, with per-scope readiness/coverage and reconciliation. Building status/name changes, zone/position changes and deletions must update or invalidate affected choices. Before readiness, use a complete bounded fallback and expose its loading state; do not serve a partial projection as the full catalogue. Do not invalidate every location search for unrelated finished-goods summary changes. Backfill/update/read scopes require cross-tenant tests.
+6. **Tenant adapter work is required:** `TenantIndexEquality` and `tenantStorage.indexedPage` currently express equality-prefix constraints only. Add explicit checked lower/upper bounds on the next permitted index field while injecting `orgId`; forbid arbitrary fields, invalid combinations and foreign scopes. Extend the index-policy checks, test range boundaries and cursor reuse, and retain row/byte/split controls. Native search indexes, if later chosen for natural language, likewise need a scoped adapter rather than a raw `db` escape.
+
+For the first rollout, keep broader contains fallback even if its worst-case completion remains proportional to collection size. Report exact/prefix latency separately from complete contains latency. If measured demand requires consistently fast arbitrary substrings at much larger scale, evaluate a normalized n-gram/posting projection with proven update and intersection costs as a separate phase. Full-text token search is not a drop-in substitute.

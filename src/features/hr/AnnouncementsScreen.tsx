@@ -3,7 +3,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { ArrowLeft, ArrowRight, Megaphone } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
 import { useHrAccess, useHrCan } from "@/components/providers/HrAccessProvider";
 import { usePendingGuard } from "@/components/providers/draftGuard";
 import { OutcomeGate } from "@/components/system/DataGate";
@@ -23,6 +22,12 @@ import { HrGate, HrInlineError, useHrBack, WriteFeedback } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
 import { HrToolbar } from "./HrUi";
 import { useHrWrite } from "./useHrWrite";
+import { useHrListCriteria } from "./HrListCriteria";
+import {
+  HrStackFirst,
+  useHrCursorStack,
+  type HrCursorNav,
+} from "./HrPagedList";
 
 export interface AnnouncementRow {
   readonly _id: string;
@@ -55,33 +60,32 @@ interface AnnouncementItem {
   readonly authorName: string | null;
 }
 export function AnnouncementPager({
-  cursors,
+  nav,
   nextCursor,
-  setCursors,
 }: {
-  readonly cursors: readonly string[];
+  readonly nav: HrCursorNav;
   readonly nextCursor: string | null;
-  readonly setCursors: (value: string[]) => void;
 }) {
   const t = useTranslations("Hr.announcements");
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <Button
-        variant="outline"
-        disabled={cursors.length === 0}
-        onClick={() => setCursors(cursors.slice(0, -1))}
-      >
-        <ArrowLeft aria-hidden="true" />
-        {t("previous")}
-      </Button>
-      <p className="text-sm text-muted">
-        {t("page", { page: cursors.length + 1 })}
-      </p>
+      <div className="flex flex-wrap gap-2">
+        <HrStackFirst nav={nav} />
+        <Button
+          variant="outline"
+          disabled={!nav.canPrevious}
+          onClick={nav.previous}
+        >
+          <ArrowLeft aria-hidden="true" />
+          {t("previous")}
+        </Button>
+      </div>
+      <p className="text-sm text-muted">{t("page", { page: nav.page })}</p>
       <Button
         variant="outline"
         disabled={!nextCursor}
         onClick={() => {
-          if (nextCursor) setCursors([...cursors, nextCursor]);
+          if (nextCursor) nav.next(nextCursor);
         }}
       >
         {t("next")}
@@ -129,8 +133,17 @@ export function HrAnnouncementsScreen() {
 }
 function AnnouncementsFeed() {
   const t = useTranslations("Hr.announcements");
-  const [pinnedOnly, setPinnedOnly] = useState(false);
-  const [cursors, setCursors] = useState<string[]>([]);
+  // The filter lives in the URL, so Back, reload and returning from an
+  // announcement restore it together with its page.
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    { pinned: "" },
+    "announcements",
+  );
+  const pinnedOnly = criteria.pinned === "1";
+  const [cursors, , nav] = useHrCursorStack("announcements", {
+    pinnedOnly,
+    entry,
+  });
   const cursor = cursors.at(-1);
   const outcome = useQuery(hrRefs.announcements, {
     limit: 20,
@@ -143,20 +156,15 @@ function AnnouncementsFeed() {
         <CheckboxField
           label={t("pinnedOnly")}
           checked={pinnedOnly}
-          onChange={(event) => {
-            setPinnedOnly(event.target.checked);
-            setCursors([]);
-          }}
+          onChange={(event) =>
+            setCriteria({ pinned: event.target.checked ? "1" : "" })
+          }
         />
       </HrToolbar>
       <OutcomeGate outcome={outcome}>
         {({ value }) =>
           value.ok ? (
-            <AnnouncementFeedPage
-              result={value}
-              cursors={cursors}
-              setCursors={setCursors}
-            />
+            <AnnouncementFeedPage result={value} nav={nav} />
           ) : (
             <HrInlineError code={value.code} />
           )
@@ -167,16 +175,14 @@ function AnnouncementsFeed() {
 }
 function AnnouncementFeedPage({
   result,
-  cursors,
-  setCursors,
+  nav,
 }: {
   readonly result: {
     readonly items: readonly AnnouncementItem[];
     readonly nextCursor: string | null;
     readonly gate: string | null;
   };
-  readonly cursors: readonly string[];
-  readonly setCursors: (value: string[]) => void;
+  readonly nav: HrCursorNav;
 }) {
   const t = useTranslations("Hr.announcements");
   return (
@@ -225,11 +231,7 @@ function AnnouncementFeedPage({
           body={t("emptyHint")}
         />
       )}
-      <AnnouncementPager
-        cursors={cursors}
-        nextCursor={result.nextCursor}
-        setCursors={setCursors}
-      />
+      <AnnouncementPager nav={nav} nextCursor={result.nextCursor} />
     </>
   );
 }

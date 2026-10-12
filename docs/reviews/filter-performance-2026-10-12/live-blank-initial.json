@@ -1,0 +1,27 @@
+{
+  "current": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location",
+  "events": [
+    {
+      "at": 612417,
+      "input": "F1-L30-16",
+      "reason": "initial",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nF1-L30-16\nอาคาร F1 + F2 · Floor 1 · F1-L30-16"
+    },
+    {
+      "at": 612504,
+      "input": "",
+      "reason": "input",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nF1-L30-16\nอาคาร F1 + F2 · Floor 1 · F1-L30-16"
+    },
+    {
+      "at": 612505,
+      "input": "",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    }
+  ],
+  "now": 618788
+}

@@ -1,0 +1,5 @@
+Command: pnpm exec tsc --noEmit --incremental false
+Working directory: /Users/macbook/Development/industrial-sas-filter-research
+Exit status: 0
+Compiler output: none
+Completed after the disposable Kiro integration harness was removed.

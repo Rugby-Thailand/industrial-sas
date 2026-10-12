@@ -1,0 +1,339 @@
+/** Research-only calls through actual authorized Convex handlers, with local DB operation counts. */
+import { expect, it } from "vitest";
+import type { GenericMutationCtx } from "convex/server";
+import type { DataModel } from "../../../convex/schema";
+import * as locations from "../../../convex/finishedGoods/jobScanLocations";
+import {
+  createConvexTenantWorld,
+  seedConvexAuthorization,
+  type ConvexTenantWorld,
+} from "../../../tests/fixtures/convex-tenant-world";
+
+type Runtime = {
+  _handler: (
+    ctx: GenericMutationCtx<DataModel>,
+    args: unknown,
+  ) => Promise<unknown>;
+};
+type Page = {
+  status: string;
+  items: { code: string; buildingId: string; locationId: string }[];
+  page: unknown[];
+  isDone: boolean;
+  scanCursor?: string;
+  continueCursor: string;
+  scanned: number;
+};
+type Measure = {
+  gets: number;
+  terminals: number;
+  returnedIndexRows: number;
+  byTable: Record<string, number>;
+};
+
+async function invoke<T>(world: ConvexTenantWorld, fn: unknown, args: unknown) {
+  const measure: Measure = {
+    gets: 0,
+    terminals: 0,
+    returnedIndexRows: 0,
+    byTable: {},
+  };
+  const started = performance.now();
+  const result = (await world.t
+    .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+    .run(async (ctx) => {
+      function wrapQuery<T extends object>(query: T, table: string): T {
+        return new Proxy(query, {
+          get(target, property, receiver) {
+            const member = Reflect.get(target, property, receiver);
+            if (typeof member !== "function") return member;
+            return (...params: unknown[]) => {
+              const value = Reflect.apply(member, target, params);
+              if (
+                ["paginate", "take", "first", "collect", "unique"].includes(
+                  String(property),
+                )
+              ) {
+                measure.terminals++;
+                return Promise.resolve(value).then((rows) => {
+                  const count = Array.isArray(rows)
+                    ? rows.length
+                    : rows?.page
+                      ? rows.page.length
+                      : rows
+                        ? 1
+                        : 0;
+                  measure.returnedIndexRows += count;
+                  measure.byTable[table] =
+                    (measure.byTable[table] ?? 0) + count;
+                  return rows;
+                });
+              }
+              return value && typeof value === "object"
+                ? wrapQuery(value, table)
+                : value;
+            };
+          },
+        });
+      }
+      const db = new Proxy(ctx.db, {
+        get(target, property, receiver) {
+          const member = Reflect.get(target, property, receiver);
+          if (property === "get")
+            return (...params: unknown[]) => {
+              measure.gets++;
+              return Reflect.apply(member, target, params);
+            };
+          if (property === "query")
+            return (table: string) => {
+              const query = Reflect.apply(member, target, [table]);
+              if (!query || typeof query !== "object")
+                throw new Error("Missing query object");
+              return wrapQuery(query, table);
+            };
+          return typeof member === "function" ? member.bind(target) : member;
+        },
+      });
+      return (fn as Runtime)._handler(
+        { ...ctx, db } as GenericMutationCtx<DataModel>,
+        args,
+      );
+    })) as { ok: boolean; value: T };
+  expect(result.ok).toBe(true);
+  return {
+    value: result.value,
+    measure,
+    localMs: +(performance.now() - started).toFixed(2),
+  };
+}
+
+async function setup(
+  count: number,
+  kind: "named" | "physical" = "named",
+  hiddenLeading = false,
+) {
+  const world = await createConvexTenantWorld();
+  await seedConvexAuthorization(world, { roleA: "ORG_ADMIN" });
+  const warehouseId = world.warehouses.alphaA;
+  const created = await world.t.run(async (ctx) => {
+    const stamps = {
+      createdAt: 1,
+      updatedAt: 1,
+      createdByUserId: world.userA,
+      updatedByUserId: world.userA,
+    };
+    const building = {
+      orgId: world.orgA,
+      warehouseId,
+      code: "BUILDING-A",
+      name: "Building A",
+      widthMm: 10000,
+      depthMm: 10000,
+      defaultFloorHeightMm: 3000,
+      floorCount: 1,
+      totalHeightMm: 3000,
+      grossAreaSqMm: 100000000,
+      reservedAreaSqMm: 0,
+      usableAreaSqMm: 100000000,
+      status: "ACTIVE" as const,
+      version: 1,
+      ...stamps,
+    };
+    const buildingId = await ctx.db.insert("storageBuildings", building);
+    const otherBuildingId = await ctx.db.insert("storageBuildings", {
+      ...building,
+      code: "BUILDING-B",
+      name: "Building B",
+      status: hiddenLeading ? "DRAFT" : "ACTIVE",
+    });
+    const floorId = await ctx.db.insert("storageFloors", {
+      orgId: world.orgA,
+      warehouseId,
+      buildingId,
+      floorNumber: 1,
+      widthMm: 10000,
+      depthMm: 10000,
+      heightMm: 3000,
+      grossAreaSqMm: 100000000,
+      reservedAreaSqMm: 0,
+      usableAreaSqMm: 100000000,
+      version: 1,
+      updatedAt: 1,
+      updatedByUserId: world.userA,
+    });
+    for (let index = 0; index < count; index++) {
+      const code =
+        index === count - 1
+          ? "F1-L30-16"
+          : `A-${String(index).padStart(5, "0")}`;
+      const locationId = await ctx.db.insert("locations", {
+        orgId: world.orgA,
+        warehouseId,
+        code,
+        status: "ACTIVE",
+        locationType: kind === "named" ? "NAMED_STORAGE" : "FLOOR_BLOCK",
+        ...(kind === "named"
+          ? {
+              buildingId:
+                hiddenLeading && index < count - 1
+                  ? otherBuildingId
+                  : buildingId,
+              ...(hiddenLeading && index < count - 1 ? {} : { floorId }),
+            }
+          : {}),
+      });
+      if (kind === "physical")
+        await ctx.db.insert("storageZones", {
+          orgId: world.orgA,
+          warehouseId,
+          buildingId,
+          floorId,
+          locationId,
+          code,
+          label: `Shelf ${index}`,
+          qrValue: `ISAS:LOCATION:1:${locationId}`,
+          xMm: 0,
+          yMm: 0,
+          widthMm: 1000,
+          depthMm: 1000,
+          maxStackHeightMm: 3000,
+          status: "ACTIVE",
+          ...stamps,
+        });
+    }
+    return { buildingId, otherBuildingId, floorId };
+  });
+  return { ...world, warehouseId, ...created };
+}
+
+async function finish(
+  world: Awaited<ReturnType<typeof setup>>,
+  text: string,
+  pageSize = 20,
+  cursor?: string,
+) {
+  let scanCursor: string | undefined;
+  const trace = [];
+  for (let request = 1; request <= 100; request++) {
+    const response = await invoke<Page>(world, locations.searchPage, {
+      warehouseId: world.warehouseId,
+      text,
+      pageSize,
+      cursor,
+      scanCursor,
+    });
+    trace.push({
+      request,
+      status: response.value.status,
+      shown: response.value.items.length,
+      scanned: response.value.scanned,
+      ...response.measure,
+      localMs: response.localMs,
+    });
+    if (response.value.status === "ready")
+      return { page: response.value, trace };
+    if (response.value.status !== "scanning")
+      throw new Error(`Unexpected ${response.value.status}`);
+    scanCursor = response.value.scanCursor;
+  }
+  throw new Error("Did not finish after 100 requests");
+}
+
+it("desired: exact code search returns its known destination in the first request at 121 locations", async () => {
+  const world = await setup(121);
+  const first = await invoke<Page>(world, locations.searchPage, {
+    warehouseId: world.warehouseId,
+    text: "F1-L30-16",
+    pageSize: 20,
+  });
+  expect(first.value.items.map((row) => row.code)).toContain("F1-L30-16");
+});
+
+it.each(["named", "physical"] as const)(
+  "measures %s exact, prefix, blank and no-match searches at 121 locations",
+  async (kind) => {
+    const world = await setup(121, kind);
+    for (const text of ["", "F1-L30-16", "F1-L30", "MISSING"]) {
+      const result = await finish(world, text);
+      console.log(JSON.stringify({ kind, text, trace: result.trace }));
+      expect(result.page.items.length).toBe(
+        text === "" ? 20 : text === "MISSING" ? 0 : 1,
+      );
+      if (text === "") expect(result.trace).toHaveLength(1);
+    }
+    const exact = await invoke<{ ok: boolean }>(world, locations.resolve, {
+      warehouseId: world.warehouseId,
+      code: "F1-L30-16",
+    });
+    console.log(JSON.stringify({ kind, resolveExact: exact }));
+    expect(exact.value.ok).toBe(true);
+  },
+);
+
+it("measures blank search with 120 active locations below an ineligible building before one valid location", async () => {
+  const world = await setup(121, "named", true);
+  const result = await finish(world, "");
+  console.log(
+    JSON.stringify({
+      kind: "named-hidden-leading",
+      text: "",
+      trace: result.trace,
+    }),
+  );
+  expect(result.page.items.map((row) => row.code)).toEqual(["F1-L30-16"]);
+});
+
+it("traverses all 121 locations at 20, 50 and 100 rows without gaps or duplicates", async () => {
+  const world = await setup(121);
+  for (const size of [20, 50, 100]) {
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    let requests = 0;
+    for (let page = 0; page < 10; page++) {
+      const result = await finish(world, "", size, cursor);
+      requests += result.trace.length;
+      expect(result.page.items.length).toBeLessThanOrEqual(size);
+      ids.push(...result.page.items.map((item) => item.locationId));
+      if (result.page.isDone) break;
+      cursor = result.page.continueCursor;
+    }
+    console.log(
+      JSON.stringify({ traversal: size, rows: ids.length, requests }),
+    );
+    expect(ids).toHaveLength(121);
+    expect(new Set(ids).size).toBe(121);
+  }
+});
+
+it("enforces tenant and warehouse scope and rejects cursors after query criteria change", async () => {
+  const world = await setup(21);
+  for (const warehouseId of [
+    world.warehouses.bravoA,
+    world.warehouses.alphaB,
+  ]) {
+    await expect(
+      invoke(world, locations.searchPage, {
+        warehouseId,
+        text: "",
+        pageSize: 20,
+      }),
+    ).rejects.toThrow(/WAREHOUSE_OUT_OF_SCOPE|WAREHOUSE_UNKNOWN/);
+  }
+  const first = await finish(world, "");
+  const changed = await invoke<Page>(world, locations.searchPage, {
+    warehouseId: world.warehouseId,
+    text: "F1-L30",
+    pageSize: 20,
+    cursor: first.page.continueCursor,
+  });
+  expect(changed.value.status).toBe("reset");
+  const filtered = await invoke<{
+    status: string;
+    page: { location: { buildingId: string } }[];
+  }>(world, locations.page, {
+    warehouseId: world.warehouseId,
+    buildingId: world.otherBuildingId,
+    pageSize: 20,
+  });
+  expect(filtered.value.page).toHaveLength(0);
+});

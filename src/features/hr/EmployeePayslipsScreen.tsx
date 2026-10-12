@@ -33,6 +33,7 @@ import {
   payslipReverificationHint,
   requirePayslipOutcome,
 } from "./payslipClient";
+import { HrStackFirst, useHrCursorStack } from "./HrPagedList";
 
 type List = Extract<RefValue<typeof hrRefs.payslips>, { ok: true }>;
 type Metadata = List["items"][number];
@@ -74,7 +75,7 @@ function ExactPayslip({ rowId }: { readonly rowId: string }) {
 }
 function PayslipList() {
   const t = useTranslations("Hr.payslips");
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, , nav] = useHrCursorStack("payslips");
   const cursor = cursors.at(-1);
   const outcome = useQuery(hrRefs.payslips, cursor ? { cursor } : {});
   return (
@@ -97,14 +98,11 @@ function PayslipList() {
                 <EmptyState title={t("empty")} />
               )}
               <div className="flex flex-wrap gap-3">
+                <HrStackFirst nav={nav} guard={guardedNavigate} />
                 <Button
                   variant="outline"
-                  disabled={cursors.length === 0}
-                  onClick={() =>
-                    guardedNavigate(() =>
-                      setCursors((previous) => previous.slice(0, -1)),
-                    )
-                  }
+                  disabled={!nav.canPrevious}
+                  onClick={() => guardedNavigate(() => nav.previous())}
                 >
                   {t("previous")}
                 </Button>
@@ -114,9 +112,7 @@ function PayslipList() {
                   onClick={() => {
                     if (outcome.value.ok) {
                       const next = outcome.value.continueCursor;
-                      guardedNavigate(() =>
-                        setCursors((previous) => [...previous, next]),
-                      );
+                      guardedNavigate(() => nav.next(next));
                     }
                   }}
                 >

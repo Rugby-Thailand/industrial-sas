@@ -129,25 +129,44 @@ export const resolvePackageCode = queryWithOrg({
   },
 });
 
+/**
+ * Parent readers for one authorized snapshot. List queries pass caching
+ * readers so a page shares building, floor and location reads; mutations use
+ * the default direct reads.
+ */
+export type LayoutParentReads = {
+  building: (id: string) => Promise<Doc<"storageBuildings"> | null>;
+  floor: (id: string) => Promise<Doc<"storageFloors"> | null>;
+  location: (id: string) => Promise<Doc<"locations"> | null>;
+};
+
+function directParentReads(ctx: TenantFunctionContext): LayoutParentReads {
+  return {
+    building: (id) =>
+      ctx.tenantDb.get<Doc<"storageBuildings">>("storageBuildings", id),
+    floor: (id) => ctx.tenantDb.get<Doc<"storageFloors">>("storageFloors", id),
+    location: (id) => ctx.tenantDb.get<Doc<"locations">>("locations", id),
+  };
+}
+
 export async function targetContext(
   ctx: TenantFunctionContext,
   warehouseId: Id<"warehouses">,
   zone: Doc<"storageZones">,
   position?: Doc<"storagePositions">,
+  reads: LayoutParentReads = directParentReads(ctx),
 ) {
   if (zone.warehouseId !== warehouseId || zone.status !== "ACTIVE") return null;
-  const [building, floor, zoneLocation, location] = await Promise.all([
-    ctx.tenantDb.get<Doc<"storageBuildings">>(
-      "storageBuildings",
-      zone.buildingId,
-    ),
-    ctx.tenantDb.get<Doc<"storageFloors">>("storageFloors", zone.floorId),
-    ctx.tenantDb.get<Doc<"locations">>("locations", zone.locationId),
-    ctx.tenantDb.get<Doc<"locations">>(
-      "locations",
-      position?.locationId ?? zone.locationId,
-    ),
+  const locationId = position?.locationId ?? zone.locationId;
+  // An ordinary zone and its default position share one ledger row: read it once.
+  const [building, floor, zoneLocation, positionLocation] = await Promise.all([
+    reads.building(zone.buildingId),
+    reads.floor(zone.floorId),
+    reads.location(zone.locationId),
+    locationId === zone.locationId ? null : reads.location(locationId),
   ]);
+  const location =
+    locationId === zone.locationId ? zoneLocation : positionLocation;
   if (
     !building ||
     building.status !== "ACTIVE" ||

@@ -154,7 +154,9 @@ function ProductLoader({
   const result = useQuery(fgRefs.getProduct, { warehouseId, productId });
   const resume = useQuery(
     fgRefs.getPallet,
-    resumePalletId ? { warehouseId, palletId: resumePalletId } : "skip",
+    resumePalletId
+      ? { warehouseId, palletId: resumePalletId, includeMoveHistory: false }
+      : "skip",
   );
   if (!result || (resumePalletId && !resume)) return <Loading />;
   if (!result.ok) {

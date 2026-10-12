@@ -19,6 +19,7 @@ import { FOCUS_TARGET_IDS, type ReviewFocus } from "@/lib/navigation";
 import { ReasonField } from "./CorrectionForm";
 import {
   DayCertification,
+  DayCorrectionItem,
   DayEvents,
   DayHeading,
   DayPriorDecisions,
@@ -34,6 +35,7 @@ import {
   TimeText,
   WriteFeedback,
 } from "./HrShared";
+import { HrPagedState, HrPager, useHrPagedQuery } from "./HrPagedList";
 import { HrDisclosure } from "./HrUi";
 import {
   EMPTY_SIDE,
@@ -166,7 +168,17 @@ export function ReviewDetail({
                 <DayEvents detail={detail} timezone={timezone} />
               </section>
               <section aria-labelledby="hr-day-requests">
-                <DayRequests detail={detail} timezone={timezone} />
+                <DayRequests
+                  detail={detail}
+                  timezone={timezone}
+                  older={
+                    <AllDayCorrections
+                      employeeId={detail.employeeId}
+                      businessDate={detail.businessDate}
+                      timezone={timezone}
+                    />
+                  }
+                />
               </section>
             </HrDisclosure>
           </Panel>
@@ -624,5 +636,81 @@ function DispositionForm({
       </Button>
       <WriteFeedback state={write.state} onRetry={() => void write.retry()} />
     </form>
+  );
+}
+
+/**
+ * Every correction request of the reviewed day, a page at a time; mounted
+ * only when opened, since the day detail already shows the newest ones.
+ */
+function AllDayCorrections({
+  employeeId,
+  businessDate,
+  timezone,
+}: {
+  readonly employeeId: string;
+  readonly businessDate: string;
+  readonly timezone: string;
+}) {
+  const t = useTranslations("Hr.day");
+  const [open, setOpen] = useState(false);
+  return (
+    <HrDisclosure
+      label={t("allRequestsShow")}
+      open={open}
+      onToggle={setOpen}
+      contentClassName="space-y-3"
+      testId="hr-corrections-all"
+    >
+      {open ? (
+        <AllDayCorrectionsList
+          employeeId={employeeId}
+          businessDate={businessDate}
+          timezone={timezone}
+        />
+      ) : null}
+    </HrDisclosure>
+  );
+}
+
+function AllDayCorrectionsList({
+  employeeId,
+  businessDate,
+  timezone,
+}: {
+  readonly employeeId: string;
+  readonly businessDate: string;
+  readonly timezone: string;
+}) {
+  const t = useTranslations("Hr.day");
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.dayCorrectionsPage,
+    { employeeId, businessDate },
+    "day-corrections",
+  );
+  return (
+    <>
+      <HrPagedState<typeof hrRefs.dayCorrectionsPage>
+        view={view}
+        refused={(code) => <HrInlineError code={code} />}
+      >
+        {(_value, rows) =>
+          rows.length === 0 ? (
+            <p className="text-sm text-muted">{t("noRequests")}</p>
+          ) : (
+            <ul className="space-y-4">
+              {rows.map((correction) => (
+                <DayCorrectionItem
+                  key={correction.id}
+                  correction={correction}
+                  timezone={timezone}
+                />
+              ))}
+            </ul>
+          )
+        }
+      </HrPagedState>
+      <HrPager paging={paging} label={t("allRequestsPagination")} />
+    </>
   );
 }

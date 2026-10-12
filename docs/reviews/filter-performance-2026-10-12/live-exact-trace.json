@@ -1,0 +1,498 @@
+{
+  "current": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nF1-L30-16\nอาคาร F1 + F2 · Floor 1 · F1-L30-16",
+  "elapsedMs": 27794.600000023842,
+  "events": [
+    {
+      "at": 646250,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 646540,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 646541,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 646889,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 646890,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 647270,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 647271,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 647572,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 647573,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 647988,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 647989,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 648283,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 648283,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 648577,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 648578,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 648872,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 648873,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 649166,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 649168,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 649509,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 649511,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 649805,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 649806,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 650101,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 650102,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 650393,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 650394,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 650685,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 650686,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 650977,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 650978,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 651271,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 651272,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 651607,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 651608,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 651902,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 651902,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 652198,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 652199,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 652501,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 652502,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 652797,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 652798,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 653090,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 653091,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 653470,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 653471,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 653763,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 653764,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 654054,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 654055,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 654345,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 654346,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 654636,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 654637,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 654928,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 654928,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 655278,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 655279,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 655572,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 655573,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 655894,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 655895,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 656186,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 656187,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 656478,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 656479,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 656851,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nNo matching location.\n\nChecking location…"
+    },
+    {
+      "at": 656852,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 0,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location"
+    },
+    {
+      "at": 657149,
+      "input": "F1-L30-16",
+      "reason": "render",
+      "rows": 1,
+      "text": "Where are we?\n\nSearch for a location or read its label.\n\nSearch location\nF1-L30-16\nอาคาร F1 + F2 · Floor 1 · F1-L30-16"
+    }
+  ],
+  "startedAt": "2026-10-12T16:54:26.263Z",
+  "timeToResultMs": 14115
+}

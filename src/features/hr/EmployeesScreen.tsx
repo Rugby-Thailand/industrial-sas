@@ -3,13 +3,16 @@
 import { useQuery } from "convex/react";
 import { Pencil, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useId } from "react";
 import { flushSync } from "react-dom";
 
 import { useHrAccess, useHrCan } from "@/components/providers/HrAccessProvider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SelectControl } from "@/components/ui/SelectControl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   Table,
@@ -46,7 +49,19 @@ import {
   PlanText,
   useHrBack,
 } from "./HrShared";
-import { HrInitials } from "./HrUi";
+import {
+  navigationKey,
+  useCarriedListState,
+  useHrListCriteria,
+} from "./HrListCriteria";
+import {
+  HrPagedState,
+  HrPager,
+  HrSearchField,
+  useHrPagedQuery,
+} from "./HrPagedList";
+import { HrSiteSelect } from "./HrSiteSelect";
+import { HrInitials, HrToolbar } from "./HrUi";
 
 type EmployeeRow = {
   readonly id: string;
@@ -73,25 +88,42 @@ export function HrEmployeesScreen() {
   // The open editor follows the URL (`?employee=<id>&mode=edit`), so a link
   // opens any employee by ID, beyond the bounded registry list.
   const [editing, setEditing] = useUrlBackedState<Editing | undefined>(
-    params.toString(),
+    navigationKey(params, LIST_KEYS),
     url.mode === "LIST" ? undefined : url,
   );
-  const open = (next: Editing) =>
-    navigate(
+  // The list criteria travel with the editor URL, so closing or Back
+  // returns to the same filtered list.
+  const listCriteria = {
+    q: params.get("q") ?? "",
+    site: params.get("site") ?? "",
+    status: params.get("status") ?? "",
+  };
+  // The router starts each entry without the list's page metadata; carry
+  // it into the editor entry and back into the list entry on Close, so a
+  // reload of either keeps the list's page.
+  const carry = useCarriedListState();
+  const open = (next: Editing, criteria: ListCriteria = listCriteria) => {
+    const href = withCriteria(
       next.mode === "NEW"
         ? `${ROUTES.hrEmployees}?mode=new`
         : (destinationHref({
             key: "hr.employeeEdit",
             employeeId: next.employeeId,
           }) ?? ROUTES.hrEmployees),
-      () => setEditing(next),
+      criteria,
     );
+    navigate(href, () => {
+      carry(href);
+      setEditing(next);
+    });
+  };
   // Closing unmounts the form first (Cancel deliberately discards its draft;
   // a save has already persisted it), so leaving the editor URL afterwards
   // passes the unsaved-work guard without a prompt.
-  const close = () => {
+  const close = (criteria: ListCriteria = listCriteria) => {
     flushSync(() => setEditing(undefined));
-    navigate(ROUTES.hrEmployees, undefined, "replace");
+    const href = listHref(criteria);
+    navigate(href, () => carry(href), "replace");
   };
   return (
     <>
@@ -115,13 +147,38 @@ export function HrEmployeesScreen() {
           linkFocus={
             url.mode === "EDIT" && url.focus !== undefined ? url.focus : null
           }
-          linkToken={params.toString()}
-          onEdit={(employeeId) => open({ mode: "EDIT", employeeId })}
+          linkToken={navigationKey(params, LIST_KEYS)}
+          onEdit={(employeeId, criteria) =>
+            open({ mode: "EDIT", employeeId }, criteria)
+          }
           onClose={close}
         />
       </HrGate>
     </>
   );
+}
+
+const LIST_DEFAULTS = { q: "", site: "", status: "" } as const;
+const LIST_KEYS = Object.keys(LIST_DEFAULTS);
+type ListCriteria = Readonly<Record<keyof typeof LIST_DEFAULTS, string>>;
+
+/** The list URL with its criteria, without an open editor. */
+function listHref(criteria: ListCriteria): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(criteria))
+    if (value !== "") query.set(key, value);
+  const text = query.toString();
+  return text === "" ? ROUTES.hrEmployees : `${ROUTES.hrEmployees}?${text}`;
+}
+
+/** Another HR URL carrying the list criteria, so reload and Back keep them. */
+function withCriteria(href: string, criteria: ListCriteria): string {
+  const [path, search = ""] = href.split("?");
+  const query = new URLSearchParams(search);
+  for (const [key, value] of Object.entries(criteria))
+    if (value !== "") query.set(key, value);
+  const text = query.toString();
+  return text === "" ? path! : `${path}?${text}`;
 }
 
 function EmployeesContent({
@@ -136,12 +193,33 @@ function EmployeesContent({
   readonly invalidLink: boolean;
   readonly linkFocus: "schedule" | "details" | null;
   readonly linkToken: string;
-  readonly onEdit: (employeeId: string) => void;
-  readonly onClose: () => void;
+  readonly onEdit: (employeeId: string, criteria: ListCriteria) => void;
+  readonly onClose: (criteria: ListCriteria) => void;
 }) {
   const t = useTranslations("Hr.employees");
   const access = useHrAccess();
-  const outcome = useQuery(hrRefs.listEmployees, {});
+  const id = useId();
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "employees",
+  );
+  const status =
+    criteria.status === "ACTIVE" || criteria.status === "INACTIVE"
+      ? criteria.status
+      : undefined;
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.employeesPage,
+    {
+      ...(criteria.q === "" ? {} : { search: criteria.q }),
+      ...(criteria.site === "" ? {} : { warehouseId: criteria.site }),
+      ...(status === undefined ? {} : { status }),
+    },
+    "employees",
+    entry,
+  );
+  const filtered =
+    criteria.q !== "" || criteria.site !== "" || status !== undefined;
+  const clear = () => setCriteria(LIST_DEFAULTS);
 
   return (
     <div className="space-y-6">
@@ -151,100 +229,186 @@ function EmployeesContent({
           key="new"
           sites={access.sites}
           today={access.today ?? ""}
-          onDone={onClose}
+          onDone={() => onClose(criteria)}
         />
       ) : (
         <EmployeeEditor
           employeeId={editing.employeeId}
           focus={linkFocus}
           token={linkToken}
-          onDone={onClose}
+          onDone={() => onClose(criteria)}
         />
       )}
-      <HrQueryState outcome={outcome}>
-        {() => {
-          if (!outcome?.ok) return null;
-          const { items, complete } = outcome.value;
-          if (access.sites.length === 0)
-            return (
-              <Notice
-                tone="warning"
-                title={t("noSites")}
-                body={t("noSitesHint")}
-              />
-            );
-          if (items.length === 0)
-            return <EmptyState title={t("empty")} body={t("emptyHint")} />;
-          const edit = (employee: EmployeeRow) => onEdit(employee.id);
-          return (
-            <div className="space-y-3">
-              {complete ? null : (
-                <Notice tone="warning" role="alert" title={t("incomplete")} />
-              )}
-              <p className="text-sm text-muted" role="status">
-                {t("count", { count: items.length })}
-              </p>
-              <div className="hidden lg:block">
-                <EmployeeTable
-                  items={items}
-                  onEdit={edit}
-                  disabled={editing !== undefined}
+      {access.sites.length === 0 ? (
+        <Notice tone="warning" title={t("noSites")} body={t("noSitesHint")} />
+      ) : (
+        <section aria-label={t("tableLabel")} className="space-y-3">
+          <HrToolbar label={t("filters")}>
+            <HrSearchField
+              id={`${id}-search`}
+              label={t("search")}
+              placeholder={t("searchHint")}
+              value={criteria.q}
+              onSettled={(q) => setCriteria({ q }, true)}
+            />
+            {access.sites.length > 1 ? (
+              <div className="grid w-full gap-2 sm:w-56">
+                <Label htmlFor={`${id}-site`}>{t("site")}</Label>
+                <HrSiteSelect
+                  id={`${id}-site`}
+                  surface="employees-filter"
+                  value={criteria.site}
+                  onChange={(site) => setCriteria({ site })}
+                  placeholder={t("allSites")}
+                  emptyLabel={t("allSites")}
+                  allLabel={t("allSites")}
                 />
               </div>
-              <ul className="space-y-3 lg:hidden" aria-label={t("tableLabel")}>
-                {items.map((employee) => (
-                  <li
-                    key={employee.id}
-                    className="space-y-3 rounded-xl border border-border bg-surface p-4"
-                  >
-                    <div className="flex items-start gap-3">
-                      <HrInitials name={employee.displayName} />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold break-words text-text">
-                          {employee.displayName}
-                        </p>
-                        <p className="text-xs text-muted">
-                          {employee.code} · {employee.siteCode}
-                        </p>
-                      </div>
-                      <EmployeeStatus status={employee.status} />
-                    </div>
-                    <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-                      <div>
-                        <dt className="text-xs text-muted">{t("account")}</dt>
-                        <dd>
-                          <AccountCell employee={employee} />
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted">
-                          {t("supervisor")}
-                        </dt>
-                        <dd className="text-text">
-                          {employee.supervisorName ?? "—"}
-                        </dd>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs text-muted">{t("schedule")}</dt>
-                        <dd>
-                          <ScheduleCell employee={employee} />
-                        </dd>
-                      </div>
-                    </dl>
-                    <EditButton
-                      employee={employee}
-                      onEdit={edit}
-                      disabled={editing !== undefined}
-                      className="w-full sm:w-auto"
-                    />
-                  </li>
-                ))}
-              </ul>
+            ) : null}
+            <div className="grid w-full gap-2 sm:w-44">
+              <Label htmlFor={`${id}-status`}>{t("status")}</Label>
+              <SelectControl
+                id={`${id}-status`}
+                value={criteria.status}
+                onValueChange={(next) => setCriteria({ status: next })}
+                placeholder={t("allStatuses")}
+                emptyLabel={t("allStatuses")}
+                options={[
+                  { value: "", label: t("allStatuses") },
+                  { value: "ACTIVE", label: t("active") },
+                  { value: "INACTIVE", label: t("inactive") },
+                ]}
+              />
             </div>
-          );
-        }}
-      </HrQueryState>
+            {filtered ? (
+              <Button type="button" variant="ghost" onClick={clear}>
+                {t("clearFilters")}
+              </Button>
+            ) : null}
+          </HrToolbar>
+          <HrPagedState
+            view={view}
+            refused={(code) => <HrInlineError code={code} />}
+          >
+            {(value, items, { busy }) => {
+              const edit = (employee: EmployeeRow) =>
+                onEdit(employee.id, criteria);
+              // Rows of the previous page are inert while the next loads.
+              const locked = editing !== undefined || busy;
+              return (
+                <div className="space-y-3">
+                  {value.sitesComplete ? null : (
+                    <Notice
+                      tone="warning"
+                      role="alert"
+                      title={t("sitesIncomplete")}
+                    />
+                  )}
+                  {items.length === 0 ? (
+                    filtered ? (
+                      <EmptyState
+                        title={t("noMatches")}
+                        body={t("noMatchesHint")}
+                        action={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={clear}
+                          >
+                            {t("clearFilters")}
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState title={t("empty")} body={t("emptyHint")} />
+                    )
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted" role="status">
+                        {t("pageCount", { count: items.length })}
+                      </p>
+                      <div className="hidden lg:block">
+                        <EmployeeTable
+                          items={items}
+                          onEdit={edit}
+                          disabled={locked}
+                        />
+                      </div>
+                      <ul
+                        className="space-y-3 lg:hidden"
+                        aria-label={t("tableLabel")}
+                      >
+                        {items.map((employee) => (
+                          <EmployeeCard
+                            key={employee.id}
+                            employee={employee}
+                            onEdit={edit}
+                            disabled={locked}
+                          />
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              );
+            }}
+          </HrPagedState>
+          <HrPager paging={paging} label={t("pagination")} />
+        </section>
+      )}
     </div>
+  );
+}
+
+function EmployeeCard({
+  employee,
+  onEdit,
+  disabled,
+}: {
+  readonly employee: EmployeeRow;
+  readonly onEdit: (employee: EmployeeRow) => void;
+  readonly disabled: boolean;
+}) {
+  const t = useTranslations("Hr.employees");
+  return (
+    <li className="space-y-3 rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-start gap-3">
+        <HrInitials name={employee.displayName} />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold break-words text-text">
+            {employee.displayName}
+          </p>
+          <p className="text-xs text-muted">
+            {employee.code} · {employee.siteCode}
+          </p>
+        </div>
+        <EmployeeStatus status={employee.status} />
+      </div>
+      <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted">{t("account")}</dt>
+          <dd>
+            <AccountCell employee={employee} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted">{t("supervisor")}</dt>
+          <dd className="text-text">{employee.supervisorName ?? "—"}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs text-muted">{t("schedule")}</dt>
+          <dd>
+            <ScheduleCell employee={employee} />
+          </dd>
+        </div>
+      </dl>
+      <EditButton
+        employee={employee}
+        onEdit={onEdit}
+        disabled={disabled}
+        className="w-full sm:w-auto"
+      />
+    </li>
   );
 }
 

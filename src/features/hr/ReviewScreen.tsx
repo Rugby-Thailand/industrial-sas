@@ -10,9 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { SelectControl } from "@/components/ui/SelectControl";
 import { Notice } from "@/components/ui/Notice";
-import type { RefValue } from "@/lib/convex/clientRef";
 import { hrRefs } from "@/lib/convex/hrApi";
 import {
   useGuardedUrl,
@@ -29,13 +27,16 @@ import {
 import { addDays, formatBusinessDate } from "./format";
 import { compareDates } from "../../../convex/model/hr/calendar";
 import { DateRangeFields } from "./HistoryScreen";
+import { DayStatusBadge, HrGate, HrInlineError, useHrBack } from "./HrShared";
+import { useHrListCriteria } from "./HrListCriteria";
 import {
-  DayStatusBadge,
-  HrGate,
-  HrInlineError,
-  HrQueryState,
-  useHrBack,
-} from "./HrShared";
+  HrPagedState,
+  HrPager,
+  HrSearchField,
+  useHrPagedQuery,
+  type HrPageRow,
+} from "./HrPagedList";
+import { HrSiteSelect } from "./HrSiteSelect";
 import { HrInitials, HrToolbar } from "./HrUi";
 import { ReviewDetail } from "./ReviewDetail";
 
@@ -52,12 +53,18 @@ export function HrReviewScreen() {
   );
 }
 
-type Queue = RefValue<typeof hrRefs.queue>;
-type QueueItem = Extract<Queue, { ok: true }>["items"][number];
+type QueueGroup = HrPageRow<typeof hrRefs.queuePage>;
+type QueueItem = QueueGroup["items"][number] & {
+  readonly employeeId: string;
+  readonly employeeCode: string;
+  readonly employeeName: string;
+  readonly siteCode: string;
+};
 
 type Selection = { employeeId: string; businessDate: string };
 
 const DEFAULT_DAYS = 14;
+const LIST_DEFAULTS = { from: "", to: "", site: "", q: "" } as const;
 
 /**
  * The default two-week window, moved back to contain an earlier linked
@@ -77,6 +84,8 @@ export function rangeFor(today: string, date: string | undefined) {
   return { from: date, to: compareDates(end, today) > 0 ? today : end };
 }
 
+const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
 function ReviewContent() {
   const t = useTranslations("Hr.review");
   const access = useHrAccess();
@@ -85,9 +94,15 @@ function ReviewContent() {
   const params = useQueryParams();
   const url = readReviewUrl(params);
   const navigate = useGuardedUrl();
+  // Range, site and search follow the URL as well, so Back from another
+  // page, a reload or Back/Forward return to the same filtered queue page.
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "review",
+  );
   // The selected day, tab and range follow the URL so a link, reload or
   // Back/Forward opens the same record; the detail loads by itself, so a
-  // day outside the listed window or tab still opens.
+  // day outside the listed window, tab or page still opens.
   const urlKey = params.toString();
   const [selected, setSelected] = useUrlBackedState<Selection | undefined>(
     urlKey,
@@ -103,7 +118,21 @@ function ReviewContent() {
     url.tab,
   );
   const linkedDate = url.selection?.date;
-  const [range, setRange] = useState(() => rangeFor(today, linkedDate));
+  const urlRange =
+    isDate(criteria.from) && isDate(criteria.to)
+      ? { from: criteria.from, to: criteria.to }
+      : null;
+  const [range, setRangeState] = useUrlBackedState(
+    `${criteria.from}:${criteria.to}`,
+    urlRange ?? rangeFor(today, linkedDate),
+  );
+  const setRange = (next: { from: string; to: string }) => {
+    setRangeState(next);
+    // A half-typed date stays local (the queue reports the invalid range)
+    // instead of snapping the field back to the default window.
+    if (isDate(next.from) && isDate(next.to))
+      setCriteria({ from: next.from, to: next.to }, true);
+  };
   // A newly linked day outside the shown window moves the window to it;
   // a date the user can already see leaves their chosen range alone.
   const [rangeDate, setRangeDate] = useState(linkedDate);
@@ -114,59 +143,81 @@ function ReviewContent() {
       (compareDates(linkedDate, range.from) < 0 ||
         compareDates(linkedDate, range.to) > 0)
     )
-      setRange(rangeFor(today, linkedDate));
+      setRangeState(rangeFor(today, linkedDate));
   }
-  const [site, setSite] = useState("");
-  const outcome = useQuery(hrRefs.queue, {
-    ...range,
-    ...(site === "" ? {} : { warehouseId: site }),
-  });
-
-  const allItems = outcome?.ok && outcome.value.ok ? outcome.value.items : [];
-  const loaded = outcome?.ok === true && outcome.value.ok;
-  const inTab = (value: "OPEN" | "CERTIFIED", item: QueueItem) =>
-    value === "OPEN" ? item.status === "EXCEPTION" : item.certified;
+  // The open day's own detail (shared with the detail pane's query) tells
+  // which tab it belongs to, independently of the page being listed.
+  const detail = useQuery(
+    hrRefs.reviewDayDetail,
+    selected === undefined
+      ? "skip"
+      : {
+          employeeId: selected.employeeId,
+          businessDate: selected.businessDate,
+        },
+  );
+  const selectedTab: ReviewTab | undefined =
+    detail?.ok && detail.value.ok
+      ? detail.value.detail.status === "EXCEPTION"
+        ? "OPEN"
+        : detail.value.detail.certification?.current
+          ? "CERTIFIED"
+          : undefined
+      : undefined;
+  // A linked certified day opens in the Certified tab unless one was chosen.
+  const tab: ReviewTab = chosenTab ?? selectedTab ?? "OPEN";
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.queuePage,
+    {
+      from: range.from,
+      to: range.to,
+      tab,
+      ...(criteria.site === "" ? {} : { warehouseId: criteria.site }),
+      ...(criteria.q === "" ? {} : { search: criteria.q }),
+    },
+    "review-queue",
+    entry,
+  );
+  const items: readonly QueueItem[] =
+    view.kind === "ready"
+      ? view.rows.flatMap((group) =>
+          group.items.map((item) => ({
+            ...item,
+            employeeId: group.employeeId,
+            employeeCode: group.employeeCode,
+            employeeName: group.employeeName,
+            siteCode: group.siteCode,
+          })),
+        )
+      : [];
   const isSelected = (item: QueueItem) =>
     selected !== undefined &&
     item.employeeId === selected.employeeId &&
     item.businessDate === selected.businessDate;
-  const selectedItem = allItems.find(isSelected);
-  // A linked certified day opens in the Certified tab unless one was chosen.
-  const tab: ReviewTab =
-    chosenTab ??
-    (selectedItem !== undefined && !inTab("OPEN", selectedItem)
-      ? "CERTIFIED"
-      : "OPEN");
-  const certifiedCount = loaded
-    ? allItems.filter((item) => inTab("CERTIFIED", item)).length
-    : undefined;
-  const openCount = loaded
-    ? allItems.filter((item) => inTab("OPEN", item)).length
-    : undefined;
   const select = (next: Selection | undefined, nextTab: ReviewTab = tab) =>
     navigate(
-      hrReviewPath({
-        ...(next === undefined
-          ? {}
-          : { employeeId: next.employeeId, date: next.businessDate }),
-        tab: nextTab,
-      }),
+      withListCriteria(
+        hrReviewPath({
+          ...(next === undefined
+            ? {}
+            : { employeeId: next.employeeId, date: next.businessDate }),
+          tab: nextTab,
+        }),
+        criteria,
+      ),
       () => {
         setSelected(next);
         setChosenTab(nextTab);
       },
     );
   // Switching tabs keeps the open detail only if that record is in the new tab.
-  const switchTab = (value: "OPEN" | "CERTIFIED") =>
-    select(
-      selected !== undefined &&
-        allItems.some((item) => inTab(value, item) && isSelected(item))
-        ? selected
-        : undefined,
-      value,
-    );
+  const switchTab = (value: ReviewTab) =>
+    select(selectedTab === value ? selected : undefined, value);
   const outsideList =
-    loaded && selected !== undefined && selectedItem === undefined;
+    view.kind === "ready" &&
+    !view.updating &&
+    selected !== undefined &&
+    !items.some(isSelected);
 
   // The queue sits beside the open record whenever this pane (not the
   // window) is wide enough, so it stays usable next to the app sidebar.
@@ -179,86 +230,82 @@ function ReviewContent() {
         {access.sites.length > 1 ? (
           <div className="grid w-full gap-2 sm:w-56">
             <Label htmlFor={`${id}-site`}>{t("site")}</Label>
-            <SelectControl
+            <HrSiteSelect
               id={`${id}-site`}
-              value={site}
-              onValueChange={setSite}
+              surface="review-filter"
+              value={criteria.site}
+              onChange={(site) => setCriteria({ site })}
               placeholder={t("allSites")}
               emptyLabel={t("allSites")}
-              options={[
-                { value: "", label: t("allSites") },
-                ...access.sites.map((option) => ({
-                  value: option.id,
-                  label: `${option.code} · ${option.name}`,
-                })),
-              ]}
+              allLabel={t("allSites")}
             />
           </div>
         ) : null}
+        <HrSearchField
+          id={`${id}-search`}
+          label={t("search")}
+          placeholder={t("searchHint")}
+          value={criteria.q}
+          onSettled={(q) => setCriteria({ q }, true)}
+          className="grid w-full gap-2 sm:w-56"
+        />
         <div
           role="group"
           aria-label={t("tabs")}
           className="flex w-full gap-1 rounded-lg border border-border bg-raised p-1 sm:ml-auto sm:w-auto"
         >
-          {(["OPEN", "CERTIFIED"] as const).map((value) => {
-            const count = value === "OPEN" ? openCount : certifiedCount;
-            return (
-              <Button
-                key={value}
-                type="button"
-                variant={tab === value ? "active" : "ghost"}
-                aria-pressed={tab === value}
-                onClick={() => switchTab(value)}
-                className="flex-1 sm:flex-none"
-              >
-                {t(value === "OPEN" ? "tabOpen" : "tabCertified")}
-                {count === undefined ? null : (
-                  <span className="rounded-full bg-surface px-2 text-xs text-muted tabular-nums">
-                    {count}
-                  </span>
-                )}
-              </Button>
-            );
-          })}
+          {(["OPEN", "CERTIFIED"] as const).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              variant={tab === value ? "active" : "ghost"}
+              aria-pressed={tab === value}
+              onClick={() => switchTab(value)}
+              className="flex-1 sm:flex-none"
+            >
+              {t(value === "OPEN" ? "tabOpen" : "tabCertified")}
+            </Button>
+          ))}
         </div>
       </HrToolbar>
 
       <div className="grid items-start gap-4 @3xl:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)]">
         <div
           className={
-            selected === undefined ? "min-w-0" : "hidden min-w-0 @3xl:block"
+            selected === undefined
+              ? "min-w-0 space-y-3"
+              : "hidden min-w-0 space-y-3 @3xl:block"
           }
         >
-          <HrQueryState outcome={outcome}>
-            {() => {
-              if (!outcome?.ok) return null;
-              const queue = outcome.value;
-              if (!queue.ok) return <HrInlineError code={queue.code} />;
-              const items = queue.items.filter((item) => inTab(tab, item));
-              return (
-                <div className="space-y-3">
-                  {outsideList ? (
-                    <Notice
-                      tone="neutral"
-                      title={t("selectedOutsideList")}
-                      testId="hr-review-outside-list"
-                    />
-                  ) : null}
-                  <QueueList
-                    items={items}
-                    tab={tab}
-                    selected={selected}
-                    onSelect={(item) =>
-                      select({
-                        employeeId: item.employeeId,
-                        businessDate: item.businessDate,
-                      })
-                    }
+          <HrPagedState
+            view={view}
+            refused={(code) => <HrInlineError code={code} />}
+          >
+            {(_value, _rows, { busy }) => (
+              <div className="space-y-3">
+                {outsideList ? (
+                  <Notice
+                    tone="neutral"
+                    title={t("selectedOutsideList")}
+                    testId="hr-review-outside-list"
                   />
-                </div>
-              );
-            }}
-          </HrQueryState>
+                ) : null}
+                <QueueList
+                  items={items}
+                  tab={tab}
+                  selected={selected}
+                  busy={busy}
+                  onSelect={(item) =>
+                    select({
+                      employeeId: item.employeeId,
+                      businessDate: item.businessDate,
+                    })
+                  }
+                />
+              </div>
+            )}
+          </HrPagedState>
+          <HrPager paging={paging} label={t("pagination")} />
         </div>
         <div className="min-w-0 @3xl:sticky @3xl:top-0 @3xl:max-h-[calc(100dvh-9rem)] @3xl:overflow-y-auto @3xl:pr-1">
           {selected === undefined && url.invalid ? (
@@ -301,14 +348,30 @@ function ReviewContent() {
   );
 }
 
+/** A review URL that keeps the queue's range, site and search. */
+function withListCriteria(
+  href: string,
+  criteria: Readonly<Record<keyof typeof LIST_DEFAULTS, string>>,
+): string {
+  const [path, search = ""] = href.split("?");
+  const query = new URLSearchParams(search);
+  for (const [key, value] of Object.entries(criteria))
+    if (value !== "") query.set(key, value);
+  const text = query.toString();
+  return text === "" ? path! : `${path}?${text}`;
+}
+
 function QueueList({
   items,
   tab,
   selected,
+  busy,
   onSelect,
 }: {
   readonly items: readonly QueueItem[];
   readonly tab: "OPEN" | "CERTIFIED";
+  /** Rows of a previous page while the next loads: not selectable. */
+  readonly busy: boolean;
   readonly selected: { employeeId: string; businessDate: string } | undefined;
   readonly onSelect: (item: {
     employeeId: string;
@@ -322,7 +385,7 @@ function QueueList({
   return (
     <section aria-label={t("queueLabel")} className="space-y-2">
       <p className="px-1 text-sm text-muted" role="status">
-        {t(tab === "OPEN" ? "openCount" : "certifiedCount", {
+        {t(tab === "OPEN" ? "openOnPage" : "certifiedOnPage", {
           count: items.length,
         })}
       </p>
@@ -339,6 +402,7 @@ function QueueList({
               <button
                 type="button"
                 onClick={() => onSelect(item)}
+                disabled={busy}
                 aria-pressed={active}
                 className={`grid min-h-touch w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring @md:grid-cols-[auto_minmax(0,1fr)_auto] @md:items-center ${
                   active

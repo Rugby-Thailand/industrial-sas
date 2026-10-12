@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
@@ -31,11 +31,15 @@ import { addDays, formatBusinessDate } from "./format";
 import { DateRangeFields } from "./HistoryScreen";
 import {
   HrGate,
-  HrQueryState,
+  HrInlineError,
   SectionTitle,
   useHrBack,
   WriteFeedback,
 } from "./HrShared";
+import { useHrListCriteria } from "./HrListCriteria";
+import { HrPagedState, HrPager, useHrPagedQuery } from "./HrPagedList";
+import { HrSiteSelect } from "./HrSiteSelect";
+import { HrToolbar } from "./HrUi";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
 export function HrPeriodsScreen() {
@@ -69,6 +73,8 @@ export function HrPeriodsScreen() {
   );
 }
 
+const LIST_DEFAULTS = { site: "", status: "" } as const;
+
 function PeriodsContent({
   creating,
   onCancel,
@@ -78,90 +84,159 @@ function PeriodsContent({
 }) {
   const t = useTranslations("Hr.periods");
   const locale = useLocale();
-  const outcome = useQuery(hrRefs.periods, {});
-  const live = useHrAccess().timezoneSupported;
+  const id = useId();
+  const access = useHrAccess();
+  const live = access.timezoneSupported;
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "periods",
+  );
+  const status =
+    criteria.status === "DRAFT" || criteria.status === "CLOSED"
+      ? criteria.status
+      : undefined;
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.periodsPage,
+    {
+      ...(criteria.site === "" ? {} : { warehouseId: criteria.site }),
+      ...(status === undefined ? {} : { status }),
+    },
+    "periods",
+    entry,
+  );
+  const filtered = criteria.site !== "" || status !== undefined;
+  const clear = () => setCriteria(LIST_DEFAULTS);
   return (
     <div className="space-y-6">
       {creating && live ? <CreatePeriodForm onCancel={onCancel} /> : null}
-      <HrQueryState outcome={outcome}>
-        {() => {
-          if (!outcome?.ok) return null;
-          const { items, complete } = outcome.value;
-          if (items.length === 0)
-            return <EmptyState title={t("empty")} body={t("emptyHint")} />;
-          return (
+      <section aria-label={t("tableLabel")} className="space-y-3">
+        <HrToolbar label={t("filters")}>
+          <div className="grid w-full gap-2 sm:w-56">
+            <Label htmlFor={`${id}-site`}>{t("site")}</Label>
+            <HrSiteSelect
+              id={`${id}-site`}
+              surface="periods-filter"
+              value={criteria.site}
+              onChange={(site) => setCriteria({ site })}
+              placeholder={t("allSites")}
+              emptyLabel={t("allSites")}
+              allLabel={t("allSites")}
+              includeInactive
+            />
+          </div>
+          <div className="grid w-full gap-2 sm:w-44">
+            <Label htmlFor={`${id}-status`}>{t("status")}</Label>
+            <SelectControl
+              id={`${id}-status`}
+              value={criteria.status}
+              onValueChange={(next) => setCriteria({ status: next })}
+              placeholder={t("allStatuses")}
+              emptyLabel={t("allStatuses")}
+              options={[
+                { value: "", label: t("allStatuses") },
+                { value: "DRAFT", label: t("draft") },
+                { value: "CLOSED", label: t("closed") },
+              ]}
+            />
+          </div>
+          {filtered ? (
+            <Button type="button" variant="ghost" onClick={clear}>
+              {t("clearFilters")}
+            </Button>
+          ) : null}
+        </HrToolbar>
+        <HrPagedState
+          view={view}
+          refused={(code) => <HrInlineError code={code} />}
+        >
+          {(value, items) => (
             <div className="space-y-2">
-              {complete ? null : (
+              {value.sitesComplete ? null : (
                 <Notice
                   tone="warning"
                   role="alert"
-                  title={t("incomplete", { count: items.length })}
+                  title={t("sitesIncomplete")}
                   testId="hr-periods-incomplete"
                 />
               )}
-              <TableScroller label={t("tableLabel")}>
-                <Table scroll={false} className="min-w-[40rem]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("range")}</TableHead>
-                      <TableHead>{t("site")}</TableHead>
-                      <TableHead>{t("status")}</TableHead>
-                      <TableHead className="text-right">
-                        {t("version")}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((period) => (
-                      <TableRow key={period.id}>
-                        <TableCell>
-                          <Link
-                            href={hrPeriodPath(period.id)}
-                            className="inline-flex min-h-touch items-center font-semibold text-link underline-offset-4 hover:underline"
-                          >
-                            {t("rangeLabel", {
-                              from: formatBusinessDate(
-                                period.startDate,
-                                locale,
-                                {
-                                  short: true,
-                                },
-                              ),
-                              to: formatBusinessDate(period.endDate, locale, {
-                                short: true,
-                              }),
-                            })}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          {period.siteCode} · {period.siteName}
-                          {period.siteActive ? null : (
-                            <span className="block text-xs text-muted">
-                              {t("siteInactive")}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <PeriodStatus status={period.status} />
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {period.status === "DRAFT"
-                            ? t("draftVersion", {
-                                version: period.draftVersion,
-                              })
-                            : t("closedVersion", {
-                                version: period.latestClosedVersion,
-                              })}
-                        </TableCell>
+              {items.length === 0 ? (
+                filtered ? (
+                  <EmptyState
+                    title={t("noMatches")}
+                    body={t("noMatchesHint")}
+                    action={
+                      <Button type="button" variant="outline" onClick={clear}>
+                        {t("clearFilters")}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState title={t("empty")} body={t("emptyHint")} />
+                )
+              ) : (
+                <TableScroller label={t("tableLabel")}>
+                  <Table scroll={false} className="min-w-[40rem]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("range")}</TableHead>
+                        <TableHead>{t("site")}</TableHead>
+                        <TableHead>{t("status")}</TableHead>
+                        <TableHead className="text-right">
+                          {t("version")}
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableScroller>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((period) => (
+                        <TableRow key={period.id}>
+                          <TableCell>
+                            <Link
+                              href={hrPeriodPath(period.id)}
+                              className="inline-flex min-h-touch items-center font-semibold text-link underline-offset-4 hover:underline"
+                            >
+                              {t("rangeLabel", {
+                                from: formatBusinessDate(
+                                  period.startDate,
+                                  locale,
+                                  { short: true },
+                                ),
+                                to: formatBusinessDate(period.endDate, locale, {
+                                  short: true,
+                                }),
+                              })}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            {period.siteCode} · {period.siteName}
+                            {period.siteActive ? null : (
+                              <span className="block text-xs text-muted">
+                                {t("siteInactive")}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <PeriodStatus status={period.status} />
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {period.status === "DRAFT"
+                              ? t("draftVersion", {
+                                  version: period.draftVersion,
+                                })
+                              : t("closedVersion", {
+                                  version: period.latestClosedVersion,
+                                })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableScroller>
+              )}
             </div>
-          );
-        }}
-      </HrQueryState>
+          )}
+        </HrPagedState>
+        <HrPager paging={paging} label={t("pagination")} />
+      </section>
     </div>
   );
 }
@@ -251,10 +326,11 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
       <p className="text-sm text-muted">{t("createIntro")}</p>
       <div className="grid gap-2 sm:max-w-sm">
         <Label htmlFor={`${id}-site`}>{t("site")}</Label>
-        <SelectControl
+        <HrSiteSelect
+          surface="period-create"
           id={`${id}-site`}
           value={site}
-          onValueChange={setSite}
+          onChange={setSite}
           disabled={write.locked}
           placeholder={t("chooseSite")}
           emptyLabel={t("noSites")}
@@ -262,10 +338,6 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
           {...(siteError === undefined
             ? {}
             : { describedBy: `${id}-site-error` })}
-          options={access.sites.map((option) => ({
-            value: option.id,
-            label: `${option.code} · ${option.name}`,
-          }))}
         />
         {siteError ? (
           <p

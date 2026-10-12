@@ -298,7 +298,10 @@ const schema = defineSchema({
       updatedAt: v.number(),
       updatedByUserId: v.id("users"),
     }),
-  ).index("by_orgId_warehouseId_startDate", byOrg("warehouseId", "startDate")),
+  )
+    .index("by_orgId_warehouseId_startDate", byOrg("warehouseId", "startDate"))
+    // Newest-first period registry across sites (paged HR list).
+    .index("by_orgId_startDate", byOrg("startDate")),
   /**
    * Persisted per-actor counters for rate-limited actions (AI Search). One
    * row per (actor, key); the window resets in place, so it never grows.
@@ -751,6 +754,16 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_locationType_code",
       byOrg("warehouseId", "status", "locationType", "code"),
+    )
+    /**
+     * Location choices of one building, in code order. Physical rows written
+     * before `buildingId` was maintained sort under a missing building; the
+     * picker reads that legacy range too, so an unmigrated row is never hidden
+     * by a building filter (see `staging/locationBuildingBackfill`).
+     */
+    .index(
+      "by_orgId_warehouseId_status_buildingId_code",
+      byOrg("warehouseId", "status", "buildingId", "code"),
     ),
   finishedGoodsProducts: defineTable(
     tenantFields({
@@ -1211,7 +1224,9 @@ const schema = defineSchema({
     .index("by_orgId_floorId_status_code", byOrg("floorId", "status", "code"))
     .index("by_orgId_locationId", byOrg("locationId"))
     .index("by_orgId_qrValue", byOrg("qrValue"))
-    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code")),
+    .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
+    /** A building's areas in code order, so a building filter is index-backed. */
+    .index("by_orgId_buildingId_code", byOrg("buildingId", "code")),
   storagePositions: defineTable(
     tenantFields({
       version: v.optional(v.number()),

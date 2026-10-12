@@ -1,0 +1,713 @@
+
+ RUN  v4.1.10 /Users/macbook/Development/industrial-sas-filter-research
+
+ × |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > shows a loading status while the first blank location query is pending 93ms
+   → Unable to find an accessible element with the role "status"
+
+Here are the accessible roles:
+
+  textbox:
+
+  Name "Search location":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Search location"[39m
+    [33mautocomplete[39m=[32m"off"[39m
+    [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+    [33mdata-slot[39m=[32m"input"[39m
+    [33mid[39m=[32m"_r_0_"[39m
+    [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+    [33mspellcheck[39m=[32m"false"[39m
+    [33mtype[39m=[32m"text"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Scan location barcode or QR":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+    [33mdata-size[39m=[32m"icon"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+    [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-section"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex min-w-0 items-center gap-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"relative min-w-0 flex-1"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute top-0 bottom-0 left-3 my-auto size-4 text-muted"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 21-4.34-4.34"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"11"[39m
+              [33mcy[39m=[32m"11"[39m
+              [33mr[39m=[32m"8"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Search location"[39m
+            [33mautocomplete[39m=[32m"off"[39m
+            [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+            [33mdata-slot[39m=[32m"input"[39m
+            [33mid[39m=[32m"_r_0_"[39m
+            [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+            [33mspellcheck[39m=[32m"false"[39m
+            [33mtype[39m=[32m"text"[39m
+            [33mvalue[39m=[32m""[39m
+          [36m/>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+          [33maria-pressed[39m=[32m"false"[39m
+          [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+          [33mdata-size[39m=[32m"icon"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"ghost"[39m
+          [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-scan-barcode size-5"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 7V5a2 2 0 0 1 2-2h2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 3h2a2 2 0 0 1 2 2v2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 17v2a2 2 0 0 1-2 2h-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M7 21H5a2 2 0 0 1-2-2v-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 7v10"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ × |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > shows a resolved exact location while catalogue scanning is pending 37ms
+   → Unable to find an accessible element with the role "button" and name `/F1-L30-16/`
+
+Here are the accessible roles:
+
+  textbox:
+
+  Name "Search location":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Search location"[39m
+    [33mautocomplete[39m=[32m"off"[39m
+    [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+    [33mdata-slot[39m=[32m"input"[39m
+    [33mid[39m=[32m"_r_1_"[39m
+    [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+    [33mspellcheck[39m=[32m"false"[39m
+    [33mtype[39m=[32m"text"[39m
+    [33mvalue[39m=[32m"F1-L30-16"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Clear search":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Clear search"[39m
+    [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control absolute inset-y-0 right-0 z-10 my-auto"[39m
+    [33mdata-size[39m=[32m"icon"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+    [33mtitle[39m=[32m"Clear search"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Scan location barcode or QR":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+    [33mdata-size[39m=[32m"icon"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+    [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm text-muted"[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-section"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex min-w-0 items-center gap-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"relative min-w-0 flex-1"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute top-0 bottom-0 left-3 my-auto size-4 text-muted"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 21-4.34-4.34"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"11"[39m
+              [33mcy[39m=[32m"11"[39m
+              [33mr[39m=[32m"8"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Search location"[39m
+            [33mautocomplete[39m=[32m"off"[39m
+            [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+            [33mdata-slot[39m=[32m"input"[39m
+            [33mid[39m=[32m"_r_1_"[39m
+            [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+            [33mspellcheck[39m=[32m"false"[39m
+            [33mtype[39m=[32m"text"[39m
+            [33mvalue[39m=[32m"F1-L30-16"[39m
+          [36m/>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Clear search"[39m
+            [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control absolute inset-y-0 right-0 z-10 my-auto"[39m
+            [33mdata-size[39m=[32m"icon"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"ghost"[39m
+            [33mtitle[39m=[32m"Clear search"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+          [33maria-pressed[39m=[32m"false"[39m
+          [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+          [33mdata-size[39m=[32m"icon"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"ghost"[39m
+          [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-scan-barcode size-5"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 7V5a2 2 0 0 1 2-2h2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 3h2a2 2 0 0 1 2 2v2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 17v2a2 2 0 0 1-2 2h-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M7 21H5a2 2 0 0 1-2-2v-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 7v10"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-sm text-muted"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mChecking location…[0m
+      [36m</p>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ × |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > does not claim a prefix is unregistered while matching catalogue results are pending 36ms
+   → expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <p
+  class="text-sm text-muted"
+  role="status"
+>
+  “F1-L30” is not registered yet.
+</p> instead
+ ✓ |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > requests locations for a blank search and displays a ready first page 11ms
+ ✓ |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > keeps the nonempty final picker page and resets its cursor when search criteria change 67ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > shows a loading status while the first blank location query is pending
+TestingLibraryElementError: Unable to find an accessible element with the role "status"
+
+Here are the accessible roles:
+
+  textbox:
+
+  Name "Search location":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Search location"[39m
+    [33mautocomplete[39m=[32m"off"[39m
+    [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+    [33mdata-slot[39m=[32m"input"[39m
+    [33mid[39m=[32m"_r_0_"[39m
+    [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+    [33mspellcheck[39m=[32m"false"[39m
+    [33mtype[39m=[32m"text"[39m
+    [33mvalue[39m=[32m""[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Scan location barcode or QR":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+    [33mdata-size[39m=[32m"icon"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+    [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-section"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex min-w-0 items-center gap-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"relative min-w-0 flex-1"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute top-0 bottom-0 left-3 my-auto size-4 text-muted"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 21-4.34-4.34"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"11"[39m
+              [33mcy[39m=[32m"11"[39m
+              [33mr[39m=[32m"8"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Search location"[39m
+            [33mautocomplete[39m=[32m"off"[39m
+            [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+            [33mdata-slot[39m=[32m"input"[39m
+            [33mid[39m=[32m"_r_0_"[39m
+            [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+            [33mspellcheck[39m=[32m"false"[39m
+            [33mtype[39m=[32m"text"[39m
+            [33mvalue[39m=[32m""[39m
+          [36m/>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+          [33maria-pressed[39m=[32m"false"[39m
+          [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+          [33mdata-size[39m=[32m"icon"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"ghost"[39m
+          [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-scan-barcode size-5"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 7V5a2 2 0 0 1 2-2h2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 3h2a2 2 0 0 1 2 2v2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 17v2a2 2 0 0 1-2 2h-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M7 21H5a2 2 0 0 1-2-2v-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 7v10"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx:49:17
+     47| it("shows a loading status while the first blank location query is pen…
+     48|   renderPicker();
+     49|   expect(screen.getByRole("status")).toHaveTextContent(/checking|loadi…
+       |                 ^
+     50| });
+     51|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > shows a resolved exact location while catalogue scanning is pending
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/F1-L30-16/`
+
+Here are the accessible roles:
+
+  textbox:
+
+  Name "Search location":
+  [36m<input[39m
+    [33maria-label[39m=[32m"Search location"[39m
+    [33mautocomplete[39m=[32m"off"[39m
+    [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+    [33mdata-slot[39m=[32m"input"[39m
+    [33mid[39m=[32m"_r_1_"[39m
+    [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+    [33mspellcheck[39m=[32m"false"[39m
+    [33mtype[39m=[32m"text"[39m
+    [33mvalue[39m=[32m"F1-L30-16"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Clear search":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Clear search"[39m
+    [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control absolute inset-y-0 right-0 z-10 my-auto"[39m
+    [33mdata-size[39m=[32m"icon"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+    [33mtitle[39m=[32m"Clear search"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Scan location barcode or QR":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+    [33maria-pressed[39m=[32m"false"[39m
+    [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+    [33mdata-size[39m=[32m"icon"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"ghost"[39m
+    [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm text-muted"[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-section"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex min-w-0 items-center gap-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"relative min-w-0 flex-1"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-search pointer-events-none absolute top-0 bottom-0 left-3 my-auto size-4 text-muted"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 21-4.34-4.34"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"11"[39m
+              [33mcy[39m=[32m"11"[39m
+              [33mr[39m=[32m"8"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Search location"[39m
+            [33mautocomplete[39m=[32m"off"[39m
+            [33mclass[39m=[32m"min-h-touch w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2.5 text-base text-text transition-colors placeholder:text-muted disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled-surface disabled:text-disabled focus-field aria-invalid:border-destructive dense:min-h-control dense:py-1.5 dense:text-sm pr-touch pl-9 dense:pr-control"[39m
+            [33mdata-slot[39m=[32m"input"[39m
+            [33mid[39m=[32m"_r_1_"[39m
+            [33mplaceholder[39m=[32m"e.g. F1-L3 or zone name"[39m
+            [33mspellcheck[39m=[32m"false"[39m
+            [33mtype[39m=[32m"text"[39m
+            [33mvalue[39m=[32m"F1-L30-16"[39m
+          [36m/>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Clear search"[39m
+            [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control absolute inset-y-0 right-0 z-10 my-auto"[39m
+            [33mdata-size[39m=[32m"icon"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"ghost"[39m
+            [33mtitle[39m=[32m"Clear search"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Scan location barcode or QR"[39m
+          [33maria-pressed[39m=[32m"false"[39m
+          [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-colors select-none focus-ring active:not-aria-[haspopup]:not-aria-disabled:translate-y-px disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:text-disabled aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent min-h-touch min-w-touch dense:min-h-control dense:min-w-control"[39m
+          [33mdata-size[39m=[32m"icon"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"ghost"[39m
+          [33mtitle[39m=[32m"Scan location barcode or QR"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-scan-barcode size-5"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 7V5a2 2 0 0 1 2-2h2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 3h2a2 2 0 0 1 2 2v2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 17v2a2 2 0 0 1-2 2h-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M7 21H5a2 2 0 0 1-2-2v-2"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 7v10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M17 7v10"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"text-sm text-muted"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mChecking location…[0m
+      [36m</p>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../industrial-sas/node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx:66:17
+     64|   type("F1-L30-16");
+     65|   await act(async () => vi.advanceTimersByTime(250));
+     66|   expect(screen.getByRole("button", { name: /F1-L30-16/ })).toBeVisibl…
+       |                 ^
+     67| });
+     68|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  |research-ui| docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx > does not claim a prefix is unregistered while matching catalogue results are pending
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <p
+  class="text-sm text-muted"
+  role="status"
+>
+  “F1-L30” is not registered yet.
+</p> instead
+ ❯ docs/reviews/filter-performance-2026-10-12/location-picker.probe.test.tsx:85:9
+     83|   expect(
+     84|     screen.queryByText("“F1-L30” is not registered yet."),
+     85|   ).not.toBeInTheDocument();
+       |         ^
+     86| });
+     87|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 2 passed (5)
+   Start at  00:00:10
+   Duration  2.30s (transform 480ms, setup 262ms, import 913ms, tests 244ms, environment 743ms)

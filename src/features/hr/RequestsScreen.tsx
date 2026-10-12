@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { ArrowLeft, ArrowRight, ClipboardList, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 import { OutcomeGate } from "@/components/system/DataGate";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,10 @@ import { Panel } from "@/components/ui/Panel";
 import { Notice } from "@/components/ui/Notice";
 import { DescriptionList } from "@/components/ui/DescriptionList";
 import { SelectControl } from "@/components/ui/SelectControl";
+import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { Link } from "@/i18n/navigation";
+import { useUrlBackedState } from "@/lib/deepLink";
 import { hrRefs } from "@/lib/convex/hrApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { HR_CODES, ROUTES, hrDayPath } from "@/lib/navigation";
@@ -30,6 +33,7 @@ import {
   useHrBack,
 } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
+import { useHrListCriteria } from "./HrListCriteria";
 import { HrToolbar } from "./HrUi";
 
 export function HrRequestsScreen() {
@@ -55,15 +59,31 @@ export function HrRequestsScreen() {
   );
 }
 
+const STATUSES = ["ALL", "PENDING", "CERTIFIED", "RETURNED"] as const;
+type RequestStatus = (typeof STATUSES)[number];
+const LIST_DEFAULTS = { status: "", from: "", to: "", text: "" } as const;
+
 function RequestsContent() {
   const t = useTranslations("Hr.requests");
-  const [cursors, setCursors] = useState<string[]>([]);
-  const [status, setStatus] = useState<
-    "ALL" | "PENDING" | "CERTIFIED" | "RETURNED"
-  >("ALL");
-  const [filters, setFilters] = useState({ from: "", to: "", text: "" });
-  const [draft, setDraft] = useState(filters);
-  const cursor = cursors.at(-1);
+  const access = useHrAccess();
+  // Filters live in the URL and the page position in history metadata, so
+  // returning from a request (Back) or reloading shows the same page.
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "requests",
+  );
+  const status: RequestStatus = (STATUSES as readonly string[]).includes(
+    criteria.status,
+  )
+    ? (criteria.status as RequestStatus)
+    : "ALL";
+  const filters = { from: criteria.from, to: criteria.to, text: criteria.text };
+  const [draft, setDraft] = useUrlBackedState(JSON.stringify(filters), filters);
+  const paging = useCursorPagination({
+    scope: `hr:requests:${access.identityKey ?? "anonymous"}`,
+    criteria: { status, ...filters, entry },
+  });
+  const cursor = paging.cursor ?? undefined;
   const outcome = useQuery(hrRefs.requests, {
     limit: 20,
     ...(filters.from === "" ? {} : { from: filters.from }),
@@ -72,6 +92,9 @@ function RequestsContent() {
     ...(status === "ALL" ? {} : { status }),
     ...(cursor === undefined ? {} : { cursor }),
   });
+  const setStatus = (value: RequestStatus) =>
+    setCriteria({ status: value === "ALL" ? "" : value });
+  const setFilters = (next: typeof filters) => setCriteria(next);
   const id = useId();
   return (
     <div className="space-y-group">
@@ -79,7 +102,6 @@ function RequestsContent() {
         onSubmit={(event) => {
           event.preventDefault();
           setFilters(draft);
-          setCursors([]);
         }}
       >
         <HrToolbar label={t("filters")}>
@@ -88,21 +110,15 @@ function RequestsContent() {
               <SelectControl
                 id={field.id}
                 value={status}
-                options={["ALL", "PENDING", "CERTIFIED", "RETURNED"].map(
-                  (value) => ({ value, label: t(`filter.${value}`) }),
-                )}
+                options={STATUSES.map((value) => ({
+                  value,
+                  label: t(`filter.${value}`),
+                }))}
                 placeholder={t("status")}
                 emptyLabel={t("filter.ALL")}
                 onValueChange={(value) => {
-                  if (
-                    value === "ALL" ||
-                    value === "PENDING" ||
-                    value === "CERTIFIED" ||
-                    value === "RETURNED"
-                  ) {
-                    setStatus(value);
-                    setCursors([]);
-                  }
+                  if ((STATUSES as readonly string[]).includes(value))
+                    setStatus(value as RequestStatus);
                 }}
                 className="sm:w-52"
               />
@@ -117,10 +133,7 @@ function RequestsContent() {
                   maxLength={key === "text" ? 100 : undefined}
                   value={draft[key as keyof typeof draft]}
                   onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      [key]: event.target.value,
-                    }))
+                    setDraft({ ...draft, [key]: event.target.value })
                   }
                 />
               )}
@@ -142,19 +155,13 @@ function RequestsContent() {
                 ? "ALL"
                 : "FILTERED"
             }
-            page={cursors.length + 1}
+            page={paging.page}
             clear={() => {
-              setStatus("ALL");
-              setFilters({ from: "", to: "", text: "" });
+              setCriteria(LIST_DEFAULTS);
               setDraft({ from: "", to: "", text: "" });
-              setCursors([]);
             }}
-            previous={
-              cursors.length === 0
-                ? undefined
-                : () => setCursors((list) => list.slice(0, -1))
-            }
-            next={(nextCursor) => setCursors((list) => [...list, nextCursor])}
+            previous={paging.canPrevious ? paging.previous : undefined}
+            next={(nextCursor) => paging.next(nextCursor)}
           />
         )}
       </OutcomeGate>

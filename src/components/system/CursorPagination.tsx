@@ -9,6 +9,7 @@ import type { PageSize } from "@/hooks/useCursorPagination";
 export function CursorPagination({
   page,
   pageSize,
+  pageSizes = CURSOR_PAGE_SIZES,
   onPageSizeChange,
   onPrevious,
   onNext,
@@ -22,6 +23,8 @@ export function CursorPagination({
 }: {
   page: number;
   pageSize: PageSize;
+  /** Restrict choices to sizes accepted by this endpoint. */
+  pageSizes?: readonly PageSize[];
   onPageSizeChange: (size: PageSize) => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -42,7 +45,7 @@ export function CursorPagination({
         <PageSizeSelect
           label={th ? "รายการต่อหน้า" : "Records per page"}
           value={pageSize}
-          sizes={CURSOR_PAGE_SIZES}
+          sizes={pageSizes}
           onValueChange={onPageSizeChange}
           disabled={loading}
         />

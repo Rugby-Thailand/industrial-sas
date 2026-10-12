@@ -260,7 +260,9 @@ function StorageView({
   const unit = data.units.find((p) => p._id === selected) ?? data.units[0];
   const result = useQuery(
     fgRefs.getPallet,
-    unit ? { warehouseId, palletId: unit._id } : "skip",
+    unit
+      ? { warehouseId, palletId: unit._id, includeMoveHistory: false }
+      : "skip",
   );
   const detail = result?.ok ? result.value : null;
   if (!unit)

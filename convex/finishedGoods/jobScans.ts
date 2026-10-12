@@ -26,6 +26,7 @@ import {
 } from "../model/finishedGoods/jobScans";
 
 import { jobLocationReader } from "./jobScanLocations";
+import { boundedRecordPage } from "../lib/boundedRecordPage";
 const batchFormat = v.union(
   v.literal("PALLET"),
   v.literal("BOX"),
@@ -426,6 +427,15 @@ export const listJobScans = queryWithOrg({
     ),
     search: v.optional(v.string()),
     cursor: v.optional(v.union(v.string(), v.null())),
+    /**
+     * Current clients opt into `scanning` progress. Without it each response
+     * is a complete, possibly short page, as clients before this field expect.
+     */
+    progressive: v.optional(v.boolean()),
+    /** Continuation of a page whose bounded scan has not filled it yet. */
+    scanCursor: v.optional(v.string()),
+    /** Client retry identity: a new value opens a fresh subscription. Ignored. */
+    attempt: v.optional(v.number()),
     pageSize: v.optional(v.number()),
   },
   returns: v.any(),
@@ -452,84 +462,130 @@ export const listJobScans = queryWithOrg({
       Math.max(1, Math.floor(args.pageSize ?? 20)),
       100,
     );
-    const needle = args.search?.trim().toUpperCase();
-    let records: readonly Doc<"finishedGoodsJobScans">[];
-    let continueCursor = "";
-    let isDone = true;
-    if (needle) {
-      // No text index yet: search scans the warehouse history (≤10k rows) and pages by offset.
-      const matches = [...(await reader.all(10_000))]
-        .reverse()
-        .filter((scan) =>
-          [
-            scan.factoryOrder,
-            scan.productBarcodeText,
-            scan.partName,
-            scan.locationText,
-            scan.locationCode,
-          ].some((value) => value?.toUpperCase().includes(needle)),
+    const needle = normalizeJobScanSearch(args.search ?? "");
+    // Parents are shared by many records: read each once per request.
+    const cached = new Map<string, Promise<unknown>>();
+    const parent = <T>(
+      table: "storageZones" | "storageBuildings" | "storageFloors",
+      id: string | undefined,
+    ): Promise<T | null> => {
+      if (!id) return Promise.resolve(null);
+      const key = `${table}:${id}`;
+      if (!cached.has(key)) cached.set(key, ctx.tenantDb.get<never>(table, id));
+      return cached.get(key) as Promise<T | null>;
+    };
+    const parents = async (scan: Doc<"finishedGoodsJobScans">) => {
+      const zone = scan.buildingId
+        ? null
+        : await parent<Doc<"storageZones">>("storageZones", scan.zoneId);
+      const [building, floor] = await Promise.all([
+        parent<Doc<"storageBuildings">>(
+          "storageBuildings",
+          scan.buildingId ?? zone?.buildingId,
+        ),
+        parent<Doc<"storageFloors">>(
+          "storageFloors",
+          scan.floorId ?? zone?.floorId,
+        ),
+      ]);
+      return {
+        building: building?.warehouseId === args.warehouseId ? building : null,
+        floor: floor?.warehouseId === args.warehouseId ? floor : null,
+      };
+    };
+    // No index answers arbitrary substrings, so text search inspects history in
+    // bounded chunks with a stable cursor instead of re-reading all of it.
+    return boundedRecordPage(ctx, {
+      scope: ["finishedGoodsJobScans", args.warehouseId, args.filter, needle],
+      pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      filtering: Boolean(needle),
+      acceptNativeCursor: true,
+      progressive: args.progressive === true,
+      read: (range, limit) =>
+        reader.page({
+          limit,
+          order: "desc",
+          ...(range.raw ? { cursor: range.raw } : {}),
+          ...(range.end ? { endCursor: range.end } : {}),
+        }),
+      get: async (id) => {
+        const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+          TABLE,
+          id,
         );
-      const offset = Math.max(0, Number(args.cursor ?? 0) || 0);
-      records = matches.slice(offset, offset + pageSize);
-      isDone = offset + pageSize >= matches.length;
-      continueCursor = isDone ? "" : String(offset + pageSize);
-    } else {
-      const page = await reader.page({
-        limit: pageSize,
-        order: "desc",
-        ...(args.cursor ? { cursor: args.cursor } : {}),
-      });
-      records = page.page;
-      isDone = page.isDone;
-      continueCursor = page.continueCursor;
+        return scan ?? null;
+      },
+      accept: async (scan) => {
+        if (
+          scan.warehouseId !== args.warehouseId ||
+          (args.filter !== "ALL" && scan.mapped !== (args.filter === "MAPPED"))
+        )
+          return false;
+        if (!needle) return true;
+        if (jobScanTextMatches(scan, needle)) return true;
+        const { building } = await parents(scan);
+        return Boolean(building && contains(building.name, needle));
+      },
+      hydrate: (records) => Promise.all(records.map(view)),
+    });
+    async function view(scan: Doc<"finishedGoodsJobScans">) {
+      const { building, floor } = await parents(scan);
+      return {
+        id: scan._id,
+        factoryOrder: scan.factoryOrder,
+        productBarcodeText: scan.productBarcodeText,
+        partName: scan.partName,
+        customer: scan.customer,
+        deliveryDate: scan.deliveryDate,
+        manufacturingDate: scan.manufacturingDate,
+        quantity: scan.quantity,
+        factoryQuantity: scan.factoryQuantity,
+        customerQuantity: scan.customerQuantity,
+        source: scan.source,
+        imageUrl: scan.imageUrl,
+        locationText: scan.locationText,
+        mapped: scan.mapped,
+        storageFormat: scan.storageFormat,
+        buildingName: building?.name,
+        floorNumber: floor?.floorNumber,
+        locationCode: scan.locationCode,
+        locationName: scan.locationName,
+        createdAt: scan.createdAt,
+      };
     }
-    const items = await Promise.all(
-      records.map(async (scan) => {
-        const zone =
-          !scan.buildingId && scan.zoneId
-            ? await ctx.tenantDb.get<Doc<"storageZones">>(
-                "storageZones",
-                scan.zoneId,
-              )
-            : null;
-        const buildingId = scan.buildingId ?? zone?.buildingId;
-        const floorId = scan.floorId ?? zone?.floorId;
-        const building = buildingId
-          ? await ctx.tenantDb.get<Doc<"storageBuildings">>(
-              "storageBuildings",
-              buildingId,
-            )
-          : null;
-        const floor = floorId
-          ? await ctx.tenantDb.get<Doc<"storageFloors">>(
-              "storageFloors",
-              floorId,
-            )
-          : null;
-        return {
-          id: scan._id,
-          factoryOrder: scan.factoryOrder,
-          productBarcodeText: scan.productBarcodeText,
-          partName: scan.partName,
-          customer: scan.customer,
-          deliveryDate: scan.deliveryDate,
-          manufacturingDate: scan.manufacturingDate,
-          quantity: scan.quantity,
-          factoryQuantity: scan.factoryQuantity,
-          customerQuantity: scan.customerQuantity,
-          source: scan.source,
-          imageUrl: scan.imageUrl,
-          locationText: scan.locationText,
-          mapped: scan.mapped,
-          storageFormat: scan.storageFormat,
-          buildingName: building?.name,
-          floorNumber: floor?.floorNumber,
-          locationCode: scan.locationCode,
-          locationName: scan.locationName,
-          createdAt: scan.createdAt,
-        };
-      }),
-    );
-    return { items, continueCursor, isDone };
   },
 });
+
+/** Case-, width- and composition-insensitive comparison text. */
+export function normalizeJobScanSearch(value: string) {
+  return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
+}
+function contains(value: string | undefined, needle: string) {
+  return value !== undefined && normalizeJobScanSearch(value).includes(needle);
+}
+/** Every job and location field shown on a saved record row. */
+export function jobScanTextMatches(
+  scan: Pick<
+    Doc<"finishedGoodsJobScans">,
+    | "factoryOrder"
+    | "productBarcodeText"
+    | "partName"
+    | "customer"
+    | "locationText"
+    | "locationCode"
+    | "locationName"
+  >,
+  needle: string,
+) {
+  return [
+    scan.factoryOrder,
+    scan.productBarcodeText,
+    scan.partName,
+    scan.customer,
+    scan.locationText,
+    scan.locationCode,
+    scan.locationName,
+  ].some((value) => contains(value, needle));
+}

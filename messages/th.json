@@ -1299,6 +1299,23 @@
       "awaiting-placement": "รอเลือกจุดจัดเก็บ",
       "reserved-awaiting-storage": "จองแล้ว · รอจัดเก็บ",
       "storage-unit-ced501": "หน่วยจัดเก็บ"
+    },
+    "paging": {
+      "historyPages": "หน้าประวัติการย้าย",
+      "historyFailed": "โหลดประวัติการย้ายไม่สำเร็จ",
+      "stackSearch": "ค้นหาพาเลทด้านบนด้วยรหัส",
+      "stackPages": "หน้ารายการพาเลทด้านบน",
+      "stackSearching": "กำลังหาพาเลทที่เลือกได้…",
+      "stackNoMatches": "ไม่พบพาเลทที่เลือกได้ซึ่งตรงกับรหัสนี้",
+      "stackChoicesFailed": "โหลดรายการพาเลทไม่สำเร็จ",
+      "destinationPages": "หน้ารายการตำแหน่ง",
+      "perPage": "ต่อหน้า",
+      "range": "{from}–{to} จาก {total}",
+      "previous": "หน้าก่อนหน้า",
+      "next": "หน้าถัดไป",
+      "otherPage": "จากหน้าอื่น",
+      "retry": "ลองอีกครั้ง",
+      "continue": "โหลดต่อ"
     }
   },
   "JobScan": {
@@ -1483,7 +1500,6 @@
     "useExistingLocation": "ใช้จุดจัดเก็บที่มีอยู่",
     "registeredLocationPagination": "การแบ่งหน้าจุดจัดเก็บที่ลงทะเบียน",
     "locationAiRetry": "ลองอ่านอีกครั้ง",
-    "locationAiRereadPhoto": "อ่านภาพเดิมซ้ำด้วย AI",
     "locationAiOpenCamera": "ถ่ายรูปใหม่",
     "locationAiDeviceCamera": "ใช้กล้องอุปกรณ์",
     "barcodeImagePrivacy": "อ่านบาร์โค้ดหรือ QR บนเครื่อง ไม่ใช้ AI และไม่อัปโหลดภาพ รองรับ JPEG, PNG หรือ WebP ไม่เกิน 25 MB",
@@ -1502,7 +1518,45 @@
     "barcodeImagePIXELS": "เลือกภาพความละเอียดไม่เกิน 16 ล้านพิกเซล",
     "barcodeImageIMAGE": "เปิดภาพนี้ไม่ได้",
     "barcodeImageDECODER": "โหลดตัวอ่านบาร์โค้ดไม่ได้ ลองอีกครั้ง",
-    "barcodeImageUNAVAILABLE": "เบราว์เซอร์นี้ไม่รองรับการอ่านภาพ ใช้กล้องหรือกรอกรหัสแทน"
+    "barcodeImageUNAVAILABLE": "เบราว์เซอร์นี้ไม่รองรับการอ่านภาพ ใช้กล้องหรือกรอกรหัสแทน",
+    "recordList": {
+      "status": "สถานะรายการ",
+      "searching": "กำลังค้นหารายการที่บันทึกไว้…",
+      "searchProgress": "กำลังค้นหา… ตรวจแล้ว {count, plural, other {# รายการ}}",
+      "noMatches": "ไม่พบรายการที่ตรงกับ “{search}”",
+      "noMatchesHint": "การค้นหาจะตรวจเลขที่งาน บาร์โค้ด ชิ้นงาน ลูกค้า ตำแหน่ง และอาคารของทุกรายการที่บันทึกไว้ในมุมมองนี้",
+      "clearSearch": "ล้างการค้นหา",
+      "loadFailed": "โหลดรายการไม่สำเร็จ",
+      "retry": "ลองอีกครั้ง",
+      "actionsWait": "ใช้งานคำสั่งได้เมื่อหน้านี้อัปเดตเสร็จ",
+      "stalled": "การค้นหาหยุดคืบหน้า",
+      "paused": "ยังค้นหาอยู่: ตรวจแล้ว {count, plural, other {# รายการ}} สำหรับหน้านี้",
+      "continue": "ค้นหาต่อ"
+    },
+    "locationAiRereadPhoto": "อ่านภาพเดิมซ้ำด้วย AI",
+    "filterByBuilding": "กรองตามอาคาร",
+    "allBuildings": "ทุกอาคาร",
+    "buildingFilterValue": "อาคาร: {name}",
+    "clearBuildingFilter": "ล้างตัวกรองอาคาร",
+    "searchBuildings": "ค้นหาอาคาร",
+    "moreBuildings": "แสดงอาคารเพิ่มเติม",
+    "loadingBuildings": "กำลังโหลดอาคาร…",
+    "noBuildingMatch": "ไม่พบอาคารที่ใช้งานอยู่ที่ตรงกัน",
+    "buildingUnavailable": "อาคารที่เลือกไม่ได้ใช้งานแล้ว กรุณาแสดงทุกอาคารเพื่อดำเนินการต่อ",
+    "showAllBuildings": "แสดงทุกอาคาร",
+    "locationOutsideBuilding": "“{code}” อยู่ใน {building} ซึ่งอยู่นอกตัวกรองอาคาร",
+    "loadingLocations": "กำลังโหลดตำแหน่ง…",
+    "searchingLocations": "กำลังค้นหาตำแหน่ง…",
+    "searchingMoreLocations": "แสดงผลที่พบแล้ว กำลังค้นหาตำแหน่งอื่นต่อ…",
+    "exactLocationMatch": "รหัสตรงกัน",
+    "locationResults": "ผลการค้นหาตำแหน่ง",
+    "noLocationsAvailable": "ยังไม่มีตำแหน่งในคลังนี้",
+    "locationListFailed": "โหลดตำแหน่งไม่ได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง",
+    "retryLocations": "ลองอีกครั้ง",
+    "locationSearchStalled": "การค้นหาหยุดคืบหน้า กรุณาลองอีกครั้ง",
+    "locationSearchPaused": "ตรวจตำแหน่งไปแล้วจำนวนมาก แต่ยังค้นหาไม่ครบ",
+    "keepSearching": "ค้นหาต่อ",
+    "buildingsFailed": "โหลดอาคารไม่ได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง"
   },
   "Hr": {
     "duration": "{hours} ชม. {minutes} น.",
@@ -1674,8 +1728,11 @@
         "NONWORKING": "วันไม่ทำงาน"
       },
       "priorDecisions": "การตัดสินก่อนหน้า",
-      "requestsIncomplete": "แสดง {count} คำขอล่าสุด มีคำขอเก่ากว่านี้ที่ไม่แสดง",
-      "notCorrectable": "วันนี้ยังส่งคำขอแก้เวลาไม่ได้"
+      "requestsIncomplete": "แสดง {count} คำขอล่าสุด ยังมีคำขอเก่ากว่านี้",
+      "notCorrectable": "วันนี้ยังส่งคำขอแก้เวลาไม่ได้",
+      "allRequests": "ดูคำขอทั้งหมดของวันนี้",
+      "allRequestsShow": "แสดงคำขอทั้งหมดของวันนี้",
+      "allRequestsPagination": "คำขอของวันนี้"
     },
     "correction": {
       "title": "ขอแก้เวลา",
@@ -1763,7 +1820,7 @@
       "reviewAgainHint": "ใช้เมื่อมีหลักฐานใหม่เท่านั้น",
       "backToList": "กลับไปรายการ",
       "certifiedCount": "รับรองแล้ว {count} รายการ",
-      "selectedOutsideList": "วันที่เปิดอยู่ไม่อยู่ในช่วงวันที่ สถานที่ หรือมุมมองของรายการนี้",
+      "selectedOutsideList": "วันที่เปิดอยู่ไม่อยู่ในหน้านี้ของรายการ หรือไม่อยู่ในช่วงวันที่ สถานที่ หรือมุมมองของรายการ",
       "nothingToDecide": "วันนี้ไม่มีรายการที่ต้องตัดสิน",
       "details": "รายละเอียดและประวัติ",
       "recordedIn": "เวลาเข้าที่บันทึก",
@@ -1772,7 +1829,12 @@
       "returnReason": "เหตุผลที่ส่งกลับ",
       "returnConfirm": "ยืนยันส่งกลับ",
       "returnCancel": "ยกเลิก",
-      "commentAdd": "เพิ่มความเห็น"
+      "commentAdd": "เพิ่มความเห็น",
+      "search": "ค้นหาพนักงาน",
+      "searchHint": "ชื่อหรือรหัสพนักงาน",
+      "pagination": "หน้ารายการตรวจสอบ",
+      "openOnPage": "{count} รายการรอตรวจสอบในหน้านี้",
+      "certifiedOnPage": "{count} รายการรับรองแล้วในหน้านี้"
     },
     "employees": {
       "title": "พนักงาน",
@@ -1851,7 +1913,24 @@
       },
       "count": "พนักงาน {count} คน",
       "everyDay": "ทุกวัน",
-      "backToList": "กลับไปที่รายชื่อพนักงาน"
+      "backToList": "กลับไปที่รายชื่อพนักงาน",
+      "filters": "ตัวกรองพนักงาน",
+      "search": "ค้นหาพนักงาน",
+      "searchHint": "ชื่อหรือรหัสพนักงาน",
+      "allSites": "ทุกสถานที่ทำงาน",
+      "allStatuses": "ทุกสถานะ",
+      "clearFilters": "ล้างตัวกรอง",
+      "sitesIncomplete": "สิทธิ์ของคุณครอบคลุมสถานที่ทำงานมากกว่าที่แสดงได้ จึงไม่แสดงพนักงานของสถานที่ที่ไม่ได้แสดง",
+      "noMatches": "ไม่พบพนักงานที่ตรงกัน",
+      "noMatchesHint": "การค้นหาครอบคลุมทุกสถานที่ทำงานที่คุณจัดการได้ ลองเปลี่ยนหรือล้างตัวกรอง",
+      "pageCount": "พนักงาน {count} คนในหน้านี้",
+      "pagination": "หน้ารายชื่อพนักงาน",
+      "selectedMember": "สมาชิกที่เลือก",
+      "memberSearch": "ค้นหาสำหรับ{field}",
+      "memberSearchHint": "ชื่อสมาชิก",
+      "memberNoMatches": "ไม่พบสมาชิกที่ใช้งานอยู่ที่ตรงกัน",
+      "memberPagination": "ตัวเลือก{field}",
+      "historyPagination": "หน้าประวัติการเปลี่ยนแปลง"
     },
     "periods": {
       "title": "งวดเวลาทำงาน",
@@ -1876,7 +1955,15 @@
       "empty": "ยังไม่มีงวดเวลา",
       "emptyHint": "สร้างงวดแรกเพื่อตรวจและปิดเวลาทำงาน",
       "incomplete": "แสดง {count} งวดล่าสุด ยังมีงวดเก่ากว่านี้ที่ไม่แสดง",
-      "siteInactive": "สถานที่ปิดใช้งานแล้ว (ดูประวัติได้)"
+      "siteInactive": "สถานที่ปิดใช้งานแล้ว (ดูประวัติได้)",
+      "filters": "ตัวกรองรอบเวลา",
+      "allSites": "ทุกสถานที่ทำงาน",
+      "allStatuses": "ทุกสถานะ",
+      "clearFilters": "ล้างตัวกรอง",
+      "sitesIncomplete": "สิทธิ์ของคุณครอบคลุมสถานที่ทำงานมากกว่าที่แสดงได้ จึงไม่แสดงรอบเวลาของสถานที่ที่ไม่ได้แสดง",
+      "noMatches": "ไม่พบรอบเวลาที่ตรงกัน",
+      "noMatchesHint": "ลองเปลี่ยนหรือล้างตัวกรอง",
+      "pagination": "หน้ารายการรอบเวลา"
     },
     "period": {
       "title": "งวดเวลาทำงาน",
@@ -1934,7 +2021,12 @@
       "shownClosed": "ปิดแล้ว · ฉบับ {version}",
       "earlierVersion": "กำลังดูฉบับก่อนหน้า",
       "versions": "ฉบับของงวดนี้",
-      "reviewOpen": "ตรวจรายการที่ค้าง"
+      "reviewOpen": "ตรวจรายการที่ค้าง",
+      "openCount": "ยังเปิดอยู่ {count} วัน",
+      "openPagination": "หน้ารายการวันที่ยังเปิดอยู่",
+      "employeePagination": "หน้าสรุปรายพนักงาน",
+      "allVersions": "ทุกเวอร์ชัน",
+      "allVersionsPagination": "หน้าเวอร์ชัน"
     },
     "settings": {
       "title": "ตั้งค่าฝ่ายบุคคล",
@@ -1973,7 +2065,18 @@
       "csv": "คอลัมน์ CSV v1",
       "csvNote": "การจับคู่กับระบบเงินเดือนจริงเป็นการตัดสินใจก่อนใช้งานจริง",
       "holidaysIncomplete": "แสดง {count} วันหยุดล่าสุด มีวันหยุดเก่ากว่านี้",
-      "holidayEdits": "การแก้วันหยุด"
+      "holidayEdits": "การแก้วันหยุด",
+      "holidayYear": "ปี",
+      "holidayYearHint": "เว้นว่างเพื่อแสดงทุกปี เรียงจากล่าสุด",
+      "holidayYearInvalid": "ระบุปีเป็นตัวเลข 4 หลัก",
+      "allYears": "ทุกปี",
+      "noHolidaysInYear": "ไม่มีวันหยุดในปีนี้",
+      "holidayPagination": "หน้ารายการวันหยุด",
+      "memberSearch": "ค้นหาสมาชิก",
+      "memberSearchHint": "ชื่อสมาชิก",
+      "noMembers": "ไม่มีสมาชิกที่ใช้งานอยู่",
+      "noMemberMatches": "ไม่พบสมาชิกที่ใช้งานอยู่ที่ตรงกัน",
+      "memberPagination": "หน้ารายการสมาชิก"
     },
     "errors": {
       "HR_NOT_LINKED": "บัญชีนี้ยังไม่ได้เชื่อมกับพนักงาน",
@@ -2117,7 +2220,10 @@
       "ANNOUNCEMENT_STALE": "ประกาศนี้เปลี่ยนแล้ว โหลดข้อมูลใหม่ก่อนบันทึกหรือเผยแพร่",
       "REQUEST_FILTER_INVALID": "ใช้วันที่ที่ถูกต้องและข้อความค้นหาไม่เกิน 100 ตัวอักษร",
       "SCHEDULE_PUBLISHER_UNAVAILABLE": "ผู้ตั้งเวลาไม่มีสิทธิ์แล้ว โปรดตรวจแบบร่างและตั้งเวลาใหม่",
-      "HR_CLOCK_DAY_CHANGED": "รายการลงเวลานี้เป็นของวันทำงานอื่น กรุณาตรวจประวัติลงเวลาก่อนเริ่มรายการใหม่"
+      "HR_CLOCK_DAY_CHANGED": "รายการลงเวลานี้เป็นของวันทำงานอื่น กรุณาตรวจประวัติลงเวลาก่อนเริ่มรายการใหม่",
+      "PAGE_SIZE_INVALID": "ไม่รองรับจำนวนรายการต่อหน้านี้ โปรดโหลดหน้าใหม่",
+      "SEARCH_INVALID": "คำค้นหาต้องยาวไม่เกิน 100 ตัวอักษร",
+      "YEAR_INVALID": "ระบุปีระหว่าง 1900 ถึง 2200"
     },
     "selfService": {
       "title": "งานของคุณ",
@@ -2440,7 +2546,8 @@
       "detail": "ดูคำขอและประวัติ",
       "revisions": "เวอร์ชันที่ส่งก่อนหน้า",
       "revision": "เวอร์ชัน {version}",
-      "discardEdit": "ปิดการแก้ไข"
+      "discardEdit": "ปิดการแก้ไข",
+      "queuePagination": "หน้ารายการคำขอลา"
     },
     "announcements": {
       "title": "ประกาศ",
@@ -2660,6 +2767,33 @@
       "exclusionsInvalid": "กรอกเหตุผล 3–500 ตัวอักษรสำหรับทุกแถวที่ไม่นำเข้า และเลือกอย่างน้อยหนึ่งแถว",
       "excludedSourceRows": "แถวต้นทางที่ไม่นำเข้า",
       "excludedRowLabel": "แถว {row} · {employee} · ไม่นำเข้า"
+    },
+    "pager": {
+      "perPage": "รายการต่อหน้า",
+      "page": "หน้า {page}",
+      "pageLoading": "หน้า {page} …",
+      "previous": "หน้าก่อนหน้า",
+      "next": "หน้าถัดไป",
+      "first": "หน้าแรก",
+      "loading": "กำลังโหลดรายการ…",
+      "searching": "กำลังค้นหาในรายการทั้งหมด…",
+      "range": "{from}–{to} จาก {count, number}",
+      "pageInterrupted": "หน้า {page} หยุดทำงาน",
+      "keepSearching": "ค้นหาต่อ",
+      "startOver": "เริ่มใหม่จากหน้า 1",
+      "interrupted": {
+        "reset": "รายการนี้เปลี่ยนไป หน้านี้ไปต่อไม่ได้แล้ว",
+        "stalled": "การค้นหาหยุดก่อนแสดงหน้านี้ครบ",
+        "paused": "ยังค้นหาอยู่ ตรวจรายการไปมากแล้วแต่ยังไม่ครบหน้า"
+      }
+    },
+    "sitePicker": {
+      "selected": "สาขาที่เลือก",
+      "search": "ค้นหาสาขา",
+      "searchHint": "รหัสหรือชื่อสาขา",
+      "noMatches": "ไม่พบสาขาที่ตรงกับคำค้นหา",
+      "pagination": "ตัวเลือกสาขา",
+      "chosenElsewhere": "สาขาที่เลือกไว้ซึ่งไม่อยู่ในหน้านี้"
     }
   },
   "Search": {
@@ -2889,8 +3023,22 @@
     "scrollTable": "{name} (ตารางเลื่อนได้)",
     "summaryShort": "ภาพรวมการใช้งานและค่าใช้จ่าย",
     "exportShort": "ส่งออก",
+    "estimateFeeIncluded": "รวมค่าธรรมเนียมประมาณ {percent}%",
+    "breakdownPages": "หน้าการแยกการใช้งาน",
+    "breakdownPerPage": "แถวต่อหน้า",
+    "breakdownRange": "{from}–{to} จาก {total} กลุ่ม",
+    "breakdownPrevious": "หน้าก่อนหน้า",
+    "breakdownNext": "หน้าถัดไป",
+    "searchUsers": "ค้นหาผู้ใช้",
+    "searchWarehouses": "ค้นหาคลังสินค้า",
+    "userPages": "หน้ารายการผู้ใช้",
+    "warehousePages": "หน้ารายการคลังสินค้า",
+    "optionsPage": "หน้า {page}",
+    "optionsNoMatch": "ไม่พบรายการที่ตรงกัน ลองชื่ออื่น",
+    "optionsFailed": "โหลดตัวเลือกไม่สำเร็จ",
+    "optionsRetry": "ลองอีกครั้ง",
+    "optionsContinue": "ค้นหาต่อ",
     "exportScope": "ส่งออก CSV ช่วง {from} – {to} ({timezone})",
-    "exportScopeFiltered": "ส่งออก CSV ตามตัวกรอง ช่วง {from} – {to} ({timezone})",
-    "estimateFeeIncluded": "รวมค่าธรรมเนียมประมาณ {percent}%"
+    "exportScopeFiltered": "ส่งออก CSV ตามตัวกรอง ช่วง {from} – {to} ({timezone})"
   }
 }

@@ -72,7 +72,11 @@ function MoveLoader({
   palletId: string;
   actorScope: string;
 }) {
-  const outcome = useQuery(fgRefs.getPallet, { warehouseId, palletId });
+  const outcome = useQuery(fgRefs.getPallet, {
+    warehouseId,
+    palletId,
+    includeMoveHistory: false,
+  });
   const crumbs = usePalletTrail(outcome?.ok ? outcome.value : undefined);
   const canManage = useCanManage();
   const [changeDestination, setChangeDestination] = useState(false);

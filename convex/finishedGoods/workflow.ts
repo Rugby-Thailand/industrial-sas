@@ -1,4 +1,5 @@
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
+import { boundedRecordPage } from "../lib/boundedRecordPage";
 import { validatePacking } from "../model/finishedGoods/packing";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -1087,9 +1088,11 @@ async function currentPlacement(
     ? row
     : null;
 }
+const MOVE_HISTORY_PREVIEW = 20;
 async function detail(
   ctx: TenantFunctionContext,
   pallet: Doc<"finishedGoodsPallets">,
+  options: { includeMoveHistory: boolean } = { includeMoveHistory: true },
 ) {
   const product = await productOf(ctx, {
     warehouseId: pallet.warehouseId,
@@ -1131,18 +1134,27 @@ async function detail(
         })
       : null,
     ...(await (async () => {
-      const moves = (await movesOf(ctx, pallet._id)).sort(
-        (a, b) => b.createdAt - a.createdAt,
-      );
-      const active = moves.find(isActiveMove);
+      const activeMoves = await activeMovesOf(ctx, pallet._id);
+      const active = activeMoves.at(-1);
+      // Current clients page history through `palletMoveHistory`. Previous
+      // clients still receive the newest 20 completed moves, read by index.
+      const recent = options.includeMoveHistory
+        ? await ctx.tenantDb
+            .byIndex<Doc<"finishedGoodsMoves">>(
+              "finishedGoodsMoves",
+              "by_orgId_palletId",
+              [{ field: "palletId", value: pallet._id }],
+            )
+            .take(MOVE_HISTORY_PREVIEW + activeMoves.length, "desc")
+        : [];
       return {
         ...(active ? { activeMove: await moveView(ctx, pallet, active) } : {}),
-        ...(moves.length
+        ...(recent.length
           ? {
               moveHistory: await Promise.all(
-                moves
+                recent
                   .filter((m) => !isActiveMove(m))
-                  .slice(0, 20)
+                  .slice(0, MOVE_HISTORY_PREVIEW)
                   .map((m) => moveView(ctx, pallet, m)),
               ),
             }
@@ -1155,14 +1167,22 @@ async function detail(
   };
 }
 export const getPallet = queryWithOrg({
-  args: palletArgs,
+  args: {
+    ...palletArgs,
+    /** Current clients read history separately, through `palletMoveHistory`. */
+    includeMoveHistory: v.optional(v.boolean()),
+  },
   returns: v.any(),
   permissionCode: READ,
   target: { table: "finishedGoodsPallets" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
     const pallet = await palletOf(ctx, args);
-    return pallet ? await detail(ctx, pallet) : null;
+    return pallet
+      ? await detail(ctx, pallet, {
+          includeMoveHistory: args.includeMoveHistory ?? true,
+        })
+      : null;
   },
 });
 export const getProduct = queryWithOrg({
@@ -1499,7 +1519,7 @@ export const confirmStored = mutationWithOrg({
       async () => {
         const pallet = await palletOf(ctx, args);
         if (!pallet) return failure("NOT_FOUND");
-        if ((await movesOf(ctx, pallet._id)).some(isActiveMove))
+        if (await hasActiveMove(ctx, pallet._id))
           return failure("MOVE_ALREADY_ACTIVE");
         if (pallet.status === "STORED") return { documentId: pallet._id };
         const placement = await currentPlacement(ctx, pallet);
@@ -1546,17 +1566,31 @@ const moveConfirmationArgs = {
   confirmationMethod: v.optional(v.literal("ACKNOWLEDGEMENT")),
   physicalConfirmed: v.boolean(),
 };
-async function movesOf(
+/** Reserved or in-transit moves in creation order, without the move history. */
+async function activeMovesOf(
   ctx: TenantFunctionContext,
   palletId: Id<"finishedGoodsPallets">,
 ) {
-  return rows<Doc<"finishedGoodsMoves">>(
-    ctx,
-    "finishedGoodsMoves",
-    "by_orgId_palletId",
-    [{ field: "palletId", value: palletId }],
+  const active = await Promise.all(
+    (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
+      ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsMoves">>(
+          "finishedGoodsMoves",
+          "by_orgId_palletId_status",
+          [
+            { field: "palletId", value: palletId },
+            { field: "status", value: status },
+          ],
+        )
+        .all(100),
+    ),
   );
+  return active.flat().sort((a, b) => a._creationTime - b._creationTime);
 }
+const hasActiveMove = async (
+  ctx: TenantFunctionContext,
+  palletId: Id<"finishedGoodsPallets">,
+) => (await activeMovesOf(ctx, palletId)).length > 0;
 function isActiveMove(move: Doc<"finishedGoodsMoves">) {
   return move.status === "RESERVED" || move.status === "IN_TRANSIT";
 }
@@ -1800,7 +1834,7 @@ export const reserveMove = mutationWithOrg({
           args.expectedMeasurementUpdatedAt !== pallet.updatedAt
         )
           return failure("MEASUREMENT_CHANGED");
-        const activeMove = (await movesOf(ctx, pallet._id)).find(isActiveMove);
+        const activeMove = (await activeMovesOf(ctx, pallet._id))[0];
         if (activeMove && activeMove._id !== args.moveId)
           return failure("MOVE_ALREADY_ACTIVE");
         const replacing = args.moveId
@@ -2233,14 +2267,31 @@ async function stackChildren(
   ctx: TenantFunctionContext,
   palletId: Id<"finishedGoodsPallets">,
 ) {
-  return (
-    await rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_supportPalletId",
-      [{ field: "supportPalletId", value: palletId }],
-    )
-  ).filter((p) => p.status !== "RELEASED");
+  return heldPlacements(ctx, "by_orgId_supportPalletId_status", {
+    field: "supportPalletId",
+    value: palletId,
+  });
+}
+/**
+ * Reserved and stored placements in creation order. Released placements are
+ * history: reading them only grows the cost of every occupancy check.
+ */
+export async function heldPlacements(
+  ctx: TenantFunctionContext,
+  index: "by_orgId_supportPalletId_status" | "by_orgId_palletId_status",
+  owner: { field: "supportPalletId" | "palletId"; value: string },
+) {
+  const held = await Promise.all(
+    (["RESERVED", "STORED"] as const).map((status) =>
+      rows<Doc<"finishedGoodsPlacements">>(
+        ctx,
+        "finishedGoodsPlacements",
+        index,
+        [owner, { field: "status", value: status }],
+      ),
+    ),
+  );
+  return held.flat().sort((a, b) => a._creationTime - b._creationTime);
 }
 async function validateStack(
   ctx: TenantFunctionContext,
@@ -2265,8 +2316,7 @@ async function validateStack(
     if (!parent || parent.status !== "STORED")
       return "STACK_SUPPORT_UNAVAILABLE";
     if (!(await isStackingPallet(ctx, parent))) return "STACK_PALLET_ONLY";
-    if ((await movesOf(ctx, parent._id)).some(isActiveMove))
-      return "STACK_SUPPORT_MOVING";
+    if (await hasActiveMove(ctx, parent._id)) return "STACK_SUPPORT_MOVING";
     if (
       !parent.stackable ||
       !Number.isSafeInteger(parent.maxStackLevels) ||
@@ -2314,7 +2364,7 @@ export const saveStackingLimits = mutationWithOrg({
         if (!pallet) return failure("NOT_FOUND");
         if (!(await isStackingPallet(ctx, pallet)))
           return failure("STACK_PALLET_ONLY");
-        if ((await movesOf(ctx, pallet._id)).some(isActiveMove))
+        if (await hasActiveMove(ctx, pallet._id))
           return failure("MOVE_ALREADY_ACTIVE");
         if ((await stackChildren(ctx, pallet._id)).length)
           return failure("PALLET_SUPPORTING_STACK");
@@ -2339,114 +2389,231 @@ export const saveStackingLimits = mutationWithOrg({
       },
     ),
 });
+const STACK_UPPER_STATUSES = ["AWAITING_PLACEMENT", "STORED", "RESERVED"];
+/** A pallet the operator may choose to place on `lower`. */
+async function stackUpperEligible(
+  ctx: TenantFunctionContext,
+  lower: Doc<"finishedGoodsPallets">,
+  pallet: Doc<"finishedGoodsPallets">,
+) {
+  return (
+    pallet.warehouseId === lower.warehouseId &&
+    !pallet.retiredAt &&
+    pallet._id !== lower._id &&
+    measured(pallet) &&
+    STACK_UPPER_STATUSES.includes(pallet.status) &&
+    (await isStackingPallet(ctx, pallet))
+  );
+}
+/** The supporting pallet and its location, or null when it cannot support. */
+async function stackSupport(
+  ctx: TenantFunctionContext,
+  args: { warehouseId: Id<"warehouses">; palletId: Id<"finishedGoodsPallets"> },
+) {
+  const lower = await palletOf(ctx, args);
+  if (
+    !lower ||
+    lower.status !== "STORED" ||
+    !(await isStackingPallet(ctx, lower))
+  )
+    return null;
+  const placement = await currentPlacement(ctx, lower);
+  if (!placement || !isGeometricPlacement(placement)) return null;
+  return { lower, placement };
+}
+async function stackPreviewOf(
+  ctx: TenantFunctionContext,
+  args: { warehouseId: Id<"warehouses">; rotation: Rotation },
+  { lower, placement }: NonNullable<Awaited<ReturnType<typeof stackSupport>>>,
+  upper: Doc<"finishedGoodsPallets"> | undefined,
+) {
+  const context = await locationContext(
+    ctx,
+    args.warehouseId,
+    placement.zoneId,
+  );
+  const support = context?.supports.find(
+    (s) => s.supportPalletId === lower._id,
+  );
+  let candidate: Destination | null = null;
+  let error: string | null = null;
+  if (upper) {
+    error = await validateStack(ctx, upper, lower._id);
+    if (await hasActiveMove(ctx, upper._id)) error = "MOVE_ALREADY_ACTIVE";
+    const product = await productOf(ctx, {
+      warehouseId: args.warehouseId,
+      productId: upper.productId,
+    });
+    if (!context || !support || !product) error ??= "STACK_SUPPORT_UNAVAILABLE";
+    else if (measured(upper)) {
+      const size = dimensions(upper, args.rotation);
+      const box = {
+        ...size,
+        xMm:
+          support.surface.xMm +
+          Math.floor((support.surface.widthMm - size.widthMm) / 2),
+        yMm:
+          support.surface.yMm +
+          Math.floor((support.surface.depthMm - size.depthMm) / 2),
+        zMm: support.surface.zMm,
+        rotation: args.rotation,
+      };
+      candidate = destination(context, support, box, product, upper._id);
+      error ??= placementError(
+        box,
+        support.surface,
+        context.occupancy.filter((p) => p.palletId !== upper._id),
+        context.unavailable,
+      );
+      if (conditionCheck(context, product) === "MISMATCH")
+        error ??= "STORAGE_CONDITION_MISMATCH";
+      const current = await currentPlacement(ctx, upper);
+      if (
+        upper.status === "STORED" &&
+        current &&
+        isGeometricPlacement(current) &&
+        current.zoneId === candidate.zoneId &&
+        current.xMm === box.xMm &&
+        current.yMm === box.yMm &&
+        current.zMm === box.zMm &&
+        current.rotation === box.rotation
+      )
+        error ??= "MOVE_UNCHANGED";
+    }
+  }
+  return {
+    lower,
+    lowerSettingsLocked:
+      Boolean(placement.supportPalletId) ||
+      (await hasActiveMove(ctx, lower._id)),
+    upperSettingsLocked: upper
+      ? Boolean((await currentPlacement(ctx, upper))?.supportPalletId) ||
+        (await hasActiveMove(ctx, upper._id))
+      : false,
+    children: await stackChildren(ctx, lower._id),
+    candidate,
+    error,
+  };
+}
+const stackArgs = {
+  ...palletArgs,
+  upperPalletId: v.optional(v.id("finishedGoodsPallets")),
+  rotation: v.union(v.literal(0), v.literal(90)),
+};
+/**
+ * Retained for clients loaded before stack choices were paged: it lists every
+ * eligible pallet in the warehouse. Current clients use `stackChoices` and
+ * `stackPreview`, which never read the warehouse's pallet collection.
+ */
 export const stackOptions = queryWithOrg({
-  args: {
-    ...palletArgs,
-    upperPalletId: v.optional(v.id("finishedGoodsPallets")),
-    rotation: v.union(v.literal(0), v.literal(90)),
-  },
+  args: stackArgs,
   returns: v.any(),
   permissionCode: READ,
   target: { table: "finishedGoodsPallets" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const lower = await palletOf(ctx, args);
-    if (
-      !lower ||
-      lower.status !== "STORED" ||
-      !(await isStackingPallet(ctx, lower))
-    )
-      return null;
-    const placement = await currentPlacement(ctx, lower);
-    if (!placement || !isGeometricPlacement(placement)) return null;
-    const context = await locationContext(
+    const stack = await stackSupport(ctx, args);
+    if (!stack) return null;
+    const pallets: Doc<"finishedGoodsPallets">[] = [];
+    for (const pallet of await rows<Doc<"finishedGoodsPallets">>(
       ctx,
-      args.warehouseId,
-      placement.zoneId,
-    );
-    const support = context?.supports.find(
-      (s) => s.supportPalletId === lower._id,
-    );
-    const possiblePallets = (
-      await rows<Doc<"finishedGoodsPallets">>(
-        ctx,
-        "finishedGoodsPallets",
-        "by_orgId_warehouseId_code",
-        [{ field: "warehouseId", value: args.warehouseId }],
-      )
-    ).filter(
-      (p) =>
-        !p.retiredAt &&
-        p._id !== lower._id &&
-        measured(p) &&
-        ["AWAITING_PLACEMENT", "STORED", "RESERVED"].includes(p.status),
-    );
-    const flags = await Promise.all(
-      possiblePallets.map((p) => isStackingPallet(ctx, p)),
-    );
-    const pallets = possiblePallets.filter((_, i) => flags[i]);
+      "finishedGoodsPallets",
+      "by_orgId_warehouseId_code",
+      [{ field: "warehouseId", value: args.warehouseId }],
+    ))
+      if (await stackUpperEligible(ctx, stack.lower, pallet))
+        pallets.push(pallet);
     const upper = pallets.find((p) => p._id === args.upperPalletId);
-    let candidate: Destination | null = null;
-    let error: string | null = null;
-    if (upper) {
-      error = await validateStack(ctx, upper, lower._id);
-      if ((await movesOf(ctx, upper._id)).some(isActiveMove))
-        error = "MOVE_ALREADY_ACTIVE";
-      const product = await productOf(ctx, {
-        warehouseId: args.warehouseId,
-        productId: upper.productId,
-      });
-      if (!context || !support || !product)
-        error ??= "STACK_SUPPORT_UNAVAILABLE";
-      else if (measured(upper)) {
-        const size = dimensions(upper, args.rotation);
-        const box = {
-          ...size,
-          xMm:
-            support.surface.xMm +
-            Math.floor((support.surface.widthMm - size.widthMm) / 2),
-          yMm:
-            support.surface.yMm +
-            Math.floor((support.surface.depthMm - size.depthMm) / 2),
-          zMm: support.surface.zMm,
-          rotation: args.rotation,
-        };
-        candidate = destination(context, support, box, product, upper._id);
-        error ??= placementError(
-          box,
-          support.surface,
-          context.occupancy.filter((p) => p.palletId !== upper._id),
-          context.unavailable,
-        );
-        if (conditionCheck(context, product) === "MISMATCH")
-          error ??= "STORAGE_CONDITION_MISMATCH";
-        const current = await currentPlacement(ctx, upper);
-        if (
-          upper.status === "STORED" &&
-          current &&
-          isGeometricPlacement(current) &&
-          current.zoneId === candidate.zoneId &&
-          current.xMm === box.xMm &&
-          current.yMm === box.yMm &&
-          current.zMm === box.zMm &&
-          current.rotation === box.rotation
-        )
-          error ??= "MOVE_UNCHANGED";
-      }
-    }
+    return { ...(await stackPreviewOf(ctx, args, stack, upper)), pallets };
+  },
+});
+/** Preview and checks for one chosen upper pallet, resolved by ID. */
+export const stackPreview = queryWithOrg({
+  args: stackArgs,
+  returns: v.any(),
+  permissionCode: READ,
+  target: { table: "finishedGoodsPallets" },
+  warehouseId: (a) => a.warehouseId,
+  handler: async (ctx, args) => {
+    const stack = await stackSupport(ctx, args);
+    if (!stack) return null;
+    const chosen = args.upperPalletId
+      ? await palletOf(ctx, {
+          warehouseId: args.warehouseId,
+          palletId: args.upperPalletId,
+        })
+      : null;
+    const upper =
+      chosen && (await stackUpperEligible(ctx, stack.lower, chosen))
+        ? chosen
+        : undefined;
     return {
-      lower,
-      lowerSettingsLocked:
-        Boolean(placement.supportPalletId) ||
-        (await movesOf(ctx, lower._id)).some(isActiveMove),
-      upperSettingsLocked: upper
-        ? Boolean((await currentPlacement(ctx, upper))?.supportPalletId) ||
-          (await movesOf(ctx, upper._id)).some(isActiveMove)
-        : false,
-      children: await stackChildren(ctx, lower._id),
-      pallets,
-      candidate,
-      error,
+      ...(await stackPreviewOf(ctx, args, stack, upper)),
+      upper: upper ?? null,
     };
+  },
+});
+/**
+ * Eligible upper pallets in code order, in bounded cursor pages. Eligibility
+ * and the optional case-insensitive code search are evaluated for every
+ * pallet before paging; a short scan continues instead of hiding choices.
+ */
+export const stackChoices = queryWithOrg({
+  args: {
+    ...palletArgs,
+    search: v.optional(v.string()),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    scanCursor: v.optional(v.string()),
+    pageSize: v.optional(v.number()),
+    /** Client retry identity: a new value opens a fresh subscription. Ignored. */
+    attempt: v.optional(v.number()),
+  },
+  permissionCode: READ,
+  target: { table: "finishedGoodsPallets" },
+  warehouseId: (a) => a.warehouseId,
+  handler: async (ctx, args) => {
+    const stack = await stackSupport(ctx, args);
+    const pageSize = args.pageSize ?? 20;
+    if (!stack || ![20, 50, 100].includes(pageSize)) return null;
+    const needle = (args.search ?? "")
+      .normalize("NFKC")
+      .trim()
+      .toLocaleLowerCase("en-US");
+    const reader = ctx.tenantDb.byIndex<Doc<"finishedGoodsPallets">>(
+      "finishedGoodsPallets",
+      "by_orgId_warehouseId_code",
+      [{ field: "warehouseId", value: args.warehouseId }],
+    );
+    return boundedRecordPage(ctx, {
+      scope: ["stackChoices", args.warehouseId, stack.lower._id, needle],
+      pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      // A new endpoint: every caller follows scan continuations.
+      progressive: true,
+      filtering: true,
+      read: (range, limit) =>
+        reader.page({
+          limit,
+          ...(range.raw ? { cursor: range.raw } : {}),
+          ...(range.end ? { endCursor: range.end } : {}),
+        }),
+      get: (id) =>
+        palletOf(ctx, { warehouseId: args.warehouseId, palletId: id }),
+      accept: async (pallet) =>
+        (!needle ||
+          pallet.code
+            .normalize("NFKC")
+            .toLocaleLowerCase("en-US")
+            .includes(needle)) &&
+        (await stackUpperEligible(ctx, stack.lower, pallet)),
+      hydrate: async (pallets) =>
+        pallets.map((pallet) => ({
+          _id: pallet._id,
+          code: pallet.code,
+          quantity: pallet.quantity,
+          status: pallet.status,
+        })),
+    });
   },
 });

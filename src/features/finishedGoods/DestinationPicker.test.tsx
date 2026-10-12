@@ -146,3 +146,70 @@ describe("shared destination search", () => {
     ).toHaveLength(2);
   });
 });
+
+describe("paged destination choices", () => {
+  const many: Candidate[] = Array.from({ length: 60 }, (_, n) => ({
+    ...finishedGoodDestination,
+    zoneId: `zone-${n}`,
+    locationName: `Bay ${String(n).padStart(2, "0")}`,
+    locationCode: `BAY-${n}`,
+  }));
+  function mount(selected: string, onSelect = vi.fn()) {
+    return render(
+      <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+        <DestinationPicker
+          candidates={many}
+          selected={selected}
+          recommended={many[0]}
+          onSelect={onSelect}
+          stateKey="paged-destinations"
+        />
+      </NextIntlClientProvider>,
+    );
+  }
+  const options = () =>
+    within(screen.getByRole("region", { name: "Location options" }))
+      .getAllByRole("button")
+      .map((button) => button.textContent ?? "");
+
+  it("pages the complete ranked list and keeps the chosen and recommended ones reachable", () => {
+    mount(destinationKey(many[3]!));
+    expect(options()).toHaveLength(25);
+    expect(options()[0]).toContain("Bay 00");
+    expect(screen.getByText("1–25 of 60")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("26–50 of 60")).toBeInTheDocument();
+    const page = options();
+    // Selected and recommended are pinned, marked, and then the page in order.
+    expect(page[0]).toContain("Bay 00");
+    expect(page[1]).toContain("Bay 03");
+    expect(page[0]).toContain("From another page");
+    expect(page[2]).toContain("Bay 25");
+    expect(page).toHaveLength(27);
+    expect(
+      screen.getByRole("button", { name: /Bay 03/, pressed: true }),
+    ).toBeInTheDocument();
+  });
+
+  it("returns to the first page of the filtered list when searching", () => {
+    mount("");
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "bay 5" },
+    });
+    expect(options().map((text) => text.slice(0, 6))).toEqual([
+      "Bay 50",
+      "Bay 51",
+      "Bay 52",
+      "Bay 53",
+      "Bay 54",
+      "Bay 55",
+      "Bay 56",
+      "Bay 57",
+      "Bay 58",
+      "Bay 59",
+    ]);
+    // A short result needs no pager.
+    expect(screen.queryByRole("navigation")).toBeNull();
+  });
+});

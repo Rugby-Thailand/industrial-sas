@@ -280,6 +280,7 @@ function UsageReport({
           </div>
           <UsageBreakdown
             report={data}
+            criteria={JSON.stringify({ ...args, refreshKey: undefined })}
             featureLabel={label}
             format={format}
             csvExport={{

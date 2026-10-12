@@ -346,6 +346,8 @@ export const createStorageZone = mutationWithOrg({
           warehouseId: args.warehouseId,
           code: replayZone.code,
           locationType: "FLOOR_BLOCK",
+          buildingId: replayZone.buildingId,
+          floorId: replayZone.floorId,
           status: scope.building.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
         },
       });
@@ -492,6 +494,8 @@ export const createStorageZone = mutationWithOrg({
         warehouseId: args.warehouseId,
         code,
         locationType: "FLOOR_BLOCK",
+        buildingId: scope.building._id,
+        floorId: scope.floor._id,
         status: scope.building.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
       },
     });
@@ -840,6 +844,8 @@ async function createPositionRecords(
       warehouseId: input.zone.warehouseId,
       code: input.code,
       locationType: input.kind === "RACK_SLOT" ? "RACK_BIN" : "FLOOR_BLOCK",
+      buildingId: input.zone.buildingId,
+      floorId: input.zone.floorId,
       status: building?.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
     },
   });

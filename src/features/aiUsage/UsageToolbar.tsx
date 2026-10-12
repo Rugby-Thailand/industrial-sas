@@ -12,6 +12,7 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ui/SelectControl";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { DimensionFilter, useDimensionLabels } from "./DimensionFilter";
 import {
   activeFilterCount,
   NO_FILTERS,
@@ -173,20 +174,27 @@ export function UsageToolbar({
                   label: featureLabel(kind),
                 })),
               )}
-              {selector(
-                "actorUserId",
-                t("user"),
-                options?.users.map((u) => ({ value: u.id, label: u.name })) ??
-                  [],
-              )}
-              {selector(
-                "warehouseId",
-                t("warehouse"),
-                options?.warehouses.map((w) => ({
-                  value: w.id,
-                  label: w.name,
-                })) ?? [],
-              )}
+              {/* Every member and warehouse is reachable, not only those
+                  the report could label within its bounded lookup. */}
+              <DimensionFilter
+                kind="actor"
+                title={t("user")}
+                value={filters.actorUserId}
+                knownLabel={
+                  options?.users.find((u) => u.id === filters.actorUserId)?.name
+                }
+                onChange={(value) => set({ actorUserId: value })}
+              />
+              <DimensionFilter
+                kind="warehouse"
+                title={t("warehouse")}
+                value={filters.warehouseId}
+                knownLabel={
+                  options?.warehouses.find((w) => w.id === filters.warehouseId)
+                    ?.name
+                }
+                onChange={(value) => set({ warehouseId: value })}
+              />
               {selector("requestedModel", t("model"), unique(options?.models))}
               {selector(
                 "environment",
@@ -278,14 +286,25 @@ function ActiveFilters({
   readonly onClear: () => void;
 }) {
   const t = useTranslations("AiUsage");
+  const reportUser = options?.users.find((u) => u.id === filters.actorUserId);
+  const reportWarehouse = options?.warehouses.find(
+    (w) => w.id === filters.warehouseId,
+  );
+  // A selection outside the report's labelled dimensions is named by ID.
+  const resolved = useDimensionLabels(
+    filters.actorUserId && !reportUser ? [filters.actorUserId] : [],
+    filters.warehouseId && !reportWarehouse ? [filters.warehouseId] : [],
+  );
   const names = [
     filters.feature ? featureLabel(filters.feature) : null,
     filters.actorUserId
-      ? (options?.users.find((u) => u.id === filters.actorUserId)?.name ??
+      ? (reportUser?.name ??
+        resolved.user(filters.actorUserId) ??
         t("unknownUser"))
       : null,
     filters.warehouseId
-      ? (options?.warehouses.find((w) => w.id === filters.warehouseId)?.name ??
+      ? (reportWarehouse?.name ??
+        resolved.warehouse(filters.warehouseId) ??
         t("unknownWarehouse"))
       : null,
     filters.requestedModel || null,

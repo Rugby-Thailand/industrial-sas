@@ -813,6 +813,24 @@ it("excludes retired/box units and uses the unit format before legacy product de
   expect(
     (options["pallets"] as Array<{ _id: string }>).map((p) => p._id),
   ).toEqual([w.upperId]);
+  // Paged choices and by-ID previews apply the same eligibility.
+  expect(
+    (
+      value(await call(w, workflow.stackChoices, w.base))["items"] as Array<{
+        _id: string;
+      }>
+    ).map((p) => p._id),
+  ).toEqual([w.upperId]);
+  for (const ineligible of [retired.palletId, box.palletId])
+    expect(
+      value(
+        await call(w, workflow.stackPreview, {
+          ...w.base,
+          rotation: 0,
+          upperPalletId: ineligible,
+        }),
+      ),
+    ).toMatchObject({ upper: null, candidate: null, error: null });
   error(
     await call(w, workflow.reserve, {
       ...w.stack,
@@ -1063,4 +1081,107 @@ it("retains rejected support geometry when no valid destination fits", async () 
     ]),
   );
   error(await call(w, workflow.reserve, w.stack), "HEIGHT_EXCEEDED");
+});
+
+it("pages eligible upper pallets in the same global code order without reading the collection per preview", async () => {
+  const w = await stackingWorld();
+  await w.t.run(async (ctx) => {
+    const upper = (await ctx.db.get(w.upperId as Id<"finishedGoodsPallets">))!;
+    const { _id, _creationTime, heightMm, ...fields } = upper;
+    void _id;
+    void _creationTime;
+    for (let n = 0; n < 160; n++)
+      await ctx.db.insert("finishedGoodsPallets", {
+        ...fields,
+        code: `Q-${String(n).padStart(4, "0")}`,
+        // Interleave units that must never be offered: boxes and unmeasured.
+        ...(n % 4 === 1 ? { storageFormat: "BOX" as const } : {}),
+        ...(n % 4 === 2 || heightMm === undefined ? {} : { heightMm }),
+      });
+  });
+  const expected = (
+    value(await call(w, workflow.stackOptions, { ...w.base, rotation: 0 }))[
+      "pallets"
+    ] as Array<{ _id: string }>
+  ).map((p) => p._id);
+  expect(expected).toHaveLength(81);
+  type ChoicePage = {
+    status: string;
+    items: { _id: string; code: string }[];
+    isDone: boolean;
+    continueCursor: string;
+    scanCursor?: string;
+  };
+  const traverse = async (args: Record<string, unknown>) => {
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    let requests = 0;
+    for (let page = 0; page < 30; page++) {
+      let scanCursor: string | undefined;
+      let body: ChoicePage;
+      do {
+        body = value(
+          await call(w, workflow.stackChoices, {
+            ...w.base,
+            ...args,
+            cursor,
+            ...(scanCursor ? { scanCursor } : {}),
+          }),
+        ) as unknown as ChoicePage;
+        requests++;
+        scanCursor = body.scanCursor;
+      } while (body.status === "scanning");
+      seen.push(...body.items.map((item) => item._id));
+      if (body.isDone) return { seen, requests };
+      cursor = body.continueCursor;
+    }
+    throw new Error("choices did not finish");
+  };
+  for (const pageSize of [20, 50, 100]) {
+    const { seen, requests } = await traverse({ pageSize });
+    expect(seen).toEqual(expected);
+    // About one 100-row chunk per request over the 162 warehouse units.
+    expect(requests).toBeLessThanOrEqual(Math.ceil(81 / pageSize) + 3);
+  }
+  // Case-insensitive code search over eligible units only: Q-0150…Q-0159.
+  const searched = await traverse({ pageSize: 20, search: " q-015 " });
+  expect(searched.seen).toEqual(expected.filter((_, n) => n >= 76 && n <= 80));
+  // The preview resolves the chosen pallet by ID.
+  const indexes: string[] = [];
+  await w.t.withIdentity(identity).run(async (ctx) => {
+    const db = new Proxy(ctx.db, {
+      get(target, key, receiver) {
+        const member = Reflect.get(target, key, receiver);
+        if (key === "query")
+          return (table: string) => {
+            const query = Reflect.apply(member, target, [table]) as {
+              withIndex: (name: string, ...rest: unknown[]) => unknown;
+            };
+            return new Proxy(query, {
+              get(q, k, r) {
+                const m = Reflect.get(q, k, r);
+                if (k === "withIndex")
+                  return (name: string, ...rest: unknown[]) => {
+                    indexes.push(`${table}.${name}`);
+                    return Reflect.apply(m, q, [name, ...rest]);
+                  };
+                return typeof m === "function" ? m.bind(q) : m;
+              },
+            });
+          };
+        return typeof member === "function" ? member.bind(target) : member;
+      },
+    });
+    const outcome = (await (
+      workflow.stackPreview as unknown as RuntimeFunction
+    )._handler({ ...ctx, db } as GenericMutationCtx<DataModel>, {
+      ...w.base,
+      rotation: 0,
+      upperPalletId: expected.at(-1),
+    })) as { ok: boolean; value: { upper: { _id: string } } };
+    expect(outcome.value.upper._id).toBe(expected.at(-1));
+  });
+  expect(indexes).not.toContain(
+    "finishedGoodsPallets.by_orgId_warehouseId_code",
+  );
 });
