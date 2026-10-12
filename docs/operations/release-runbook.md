@@ -125,6 +125,21 @@ a release therefore never overlap. Queued runs wait (`queue: max`) and are not
 cancelled. A queued release whose SHA is no longer `main` ends as
 `SUPERSEDED` without deploying.
 
+Public-domain readiness is checked separately from Vercel's production target.
+The release smoke probes `/api/runtime` and `/th/sign-in` wait up to 30 seconds
+when an HTTP 200 response still carries a valid different `x-release-sha`.
+They probe the ordinary URLs without a cache-busting query. The timeout uses a
+monotonic clock, and each GET is bounded by the remaining time. Missing or
+malformed commit headers, HTTP errors, redirects and transport failures fail
+immediately. The expected commit must serve before runtime assertions pass;
+the Bun version, cache policy and response SHA requirements remain enforced.
+No deployment or test-suite retry is introduced.
+
+The sanitized release report retains fixed `SMOKE_RELEASE_*` and
+`SMOKE_RUNTIME_*` diagnostic codes, so a persistent wrong commit can be
+distinguished from a request failure or unsupported runtime. Response bodies,
+observed SHA values and provider error strings are never included.
+
 To re-run a release, dispatch `Planner quality` on `main`. Fresh CI runs
 first, and the release can only use the current `main` SHA. Dispatching
 another branch runs CI only. A passing staging job is verification, not a

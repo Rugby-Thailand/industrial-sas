@@ -423,6 +423,34 @@ describe("sensitive reporting", () => {
     );
   });
 
+  it("keeps release readiness and runtime diagnostics without retaining response values", () => {
+    const outputFile = join(temp(), "release-safe.json");
+    const reporter = new SensitiveReporter({ outputFile });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const codes = [
+      "SMOKE_RELEASE_READINESS_INPUT_INVALID",
+      "SMOKE_RELEASE_REQUEST_FAILED",
+      "SMOKE_RELEASE_HTTP_STATUS_INVALID",
+      "SMOKE_RELEASE_SHA_MISSING_OR_INVALID",
+      "SMOKE_RELEASE_SHA_MISMATCH",
+      "SMOKE_RUNTIME_CACHE_INVALID",
+      "SMOKE_RUNTIME_RESPONSE_INVALID",
+      "SMOKE_RUNTIME_NOT_BUN",
+      "SMOKE_RUNTIME_VERSION_INVALID",
+      "SMOKE_RUNTIME_SHA_INVALID",
+    ];
+    for (const code of codes) {
+      reporter.onError({ message: `Error: ${code}`, stack: SENTINEL });
+      reporter.onError({ message: `${code}: ${SENTINEL}` });
+    }
+    reporter.onEnd({ status: "failed", startTime: new Date(), duration: 1 });
+    const json = readFileSync(outputFile, "utf8");
+    expect(json).not.toContain(SENTINEL);
+    const report = JSON.parse(json);
+    expect(report.diagnostics).toEqual(codes);
+    expect(summarizePlaywrightReport(report).diagnostics).toEqual(codes);
+  });
+
   it("retains controller statuses while excluding raw credentials, errors, streams and attachments", () => {
     const root = temp();
     const outputFile = join(root, "safe.json");
