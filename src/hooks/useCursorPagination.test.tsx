@@ -112,11 +112,12 @@ it("preserves Next router state without scheduling an unchanged URL restore", ()
 });
 
 it("restores concurrent list and selector positions after a cold restart", () => {
-  const usePagers = () => [
-    useCursorPagination({ scope: "actor:employees", criteria: {} }),
-    useCursorPagination({ scope: "actor:account", criteria: {} }),
-    useCursorPagination({ scope: "actor:supervisor", criteria: {} }),
-  ];
+  const usePagers = () =>
+    [
+      useCursorPagination({ scope: "actor:employees", criteria: {} }),
+      useCursorPagination({ scope: "actor:account", criteria: {} }),
+      useCursorPagination({ scope: "actor:supervisor", criteria: {} }),
+    ] as const;
   const first = renderHook(usePagers);
   act(() => first.result.current[0].next("employees-two"));
   act(() => first.result.current[1].next("accounts-two"));

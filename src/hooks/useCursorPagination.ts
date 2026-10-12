@@ -57,9 +57,9 @@ function historyPositions(state: unknown): SavedPosition[] {
 function historyPosition(scope: string) {
   return typeof window === "undefined"
     ? undefined
-    : historyPositions(window.history.state).findLast(
-        (entry) => entry.scope === scope,
-      )?.value;
+    : historyPositions(window.history.state)
+        .reverse()
+        .find((entry) => entry.scope === scope)?.value;
 }
 function remembered(scope: string, criteria: string) {
   const saved = historyPosition(scope) ?? positions.get(scope);
