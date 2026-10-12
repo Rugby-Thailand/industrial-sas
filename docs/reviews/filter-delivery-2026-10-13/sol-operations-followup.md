@@ -196,3 +196,9 @@ node node_modules/vitest/vitest.mjs run \
 ```
 
 Run directory: `/Users/macbook/Development/industrial-sas-filter-implementation`. The final operations-slice verdict is **approved**. The backend performance limits and cursor invalidation boundary documented earlier remain stated scope limitations, not newly unresolved correctness blockers or claims of production performance verification.
+
+## AI usage reconciliation with mobile UI merge
+
+Focused read-only review of merge `23876060` incorporating `origin/main` `b0f9fc65` (#85) is **clean** for the combined AI usage files and translations. Compared the result against both merge parents. The upstream `csvExport` interface and single export beside the breakdown heading are preserved, including loading/busy guards and accessible names stating filtered/unfiltered range and timezone. Export still uses the report screen's full frozen scope and lifecycle; local group pagination does not restrict CSV rows. The mobile header's wrapping range/heading and nonshrinking export control are retained. The operations page-size controls, criteria reset, independent dimension selectors, selected off-page labels, and current-page label resolution also remain intact. English/Thai AI usage key sets match and all new scope/paging/option keys exist.
+
+Independent focused verification after the merge: **3 files / 47 tests passed**, 3.22 seconds (`AiUsageScreen.test.tsx`, `usageExport.test.ts`, `csv.test.ts`), covering single scoped export placement, full export lifecycle, group traversal/reset, and dimension selection. No code edits, browser checks, or production access were performed. This is source reconciliation and local test evidence; it does not claim fresh visual viewport verification. No AI usage reconciliation blocker was found, and the operations approval remains unchanged.

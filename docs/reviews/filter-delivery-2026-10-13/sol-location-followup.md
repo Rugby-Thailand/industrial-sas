@@ -74,16 +74,56 @@ pnpm exec eslint tests/integration/location-unicode-search.integration.test.ts -
 
 Final focused batch: **7 files passed, 136 tests passed**, 11.07 seconds. Kiro added further tests between the earlier 126-test run and this final batch. The new Unicode suite independently passed 3 tests. Its formatting and lint checks passed.
 
-Snapshot recorded at `2026-10-12T19:22:53Z` (October 13 in Bangkok):
+Latest snapshot reconciled at `2026-10-12T19:27:54Z` (October 13 in Bangkok):
 
 | Source                                       | SHA-256                                                            |
 | -------------------------------------------- | ------------------------------------------------------------------ |
 | `convex/lib/keysetScan.ts`                   | `2bc8cf91b6a27effac54fa2c0c35aadc94f2c0606023fba31dd304a6e034b9ef` |
 | `convex/finishedGoods/jobScanLocations.ts`   | `fa62b760e5e12c1f5aa9796be018e905d7a2b7c5c65d843ff287409958596cbf` |
-| `convex/storageLayouts/locationCatalogue.ts` | `804e87a24d195609b45a619671ccde7729a45ddc81db7c3b501075ad4ece616f` |
+| `convex/storageLayouts/locationCatalogue.ts` | `1065be7a2ffd49617ecb4bd7ead896a617a1d3dd998688329811db131212e8a7` |
 | New Unicode regression file                  | `f2d83b724aaa5e07561a6db4b44fb90f85c056a1aedea0cfc912c34d9ee25ee4` |
 
 - All row/read counts are local `convex-test` observations; they are not hosted billing units, production latency, or the plan's 30-run warm-session measurements.
 - No browser, production call/write, commit, or deployment was performed.
 - Final integrated writer/backfill/recovery review, completed UI audit, generated/public-contract checks, deployment alignment, and release performance evidence remain parent-owned or pending. This report addresses the backend fixes above, not the complete all-list rollout.
 - Source was changing during review. The audited backend algorithms were re-read after hash changes and targeted validation was repeated after the Unicode correction. Final hashes delimit the reported snapshot; subsequent changes require reconciliation.
+
+### Latest concurrent NFC edit reconciled
+
+After the 136-test batch, Kiro adjusted descendant normalization to normalize the **carried tail plus the joined new text**, then case-fold. Query and heading normalization remain present. The latest catalogue hash is the one in the table above, replacing the earlier `804e87...` snapshot. The dedicated Unicode suite was rerun against this latest source: **3 passed**, 519 ms. The changed expression was inspected and introduces no unbounded reads or new cursor algorithm; prior backend count evidence remains applicable. This resolves the concurrent edit uncertainty rather than treating the older hash as final.
+
+## Completed picker recovery follow-up
+
+Parent subsequently authorized review of the completed picker changes. This section audits that later UI snapshot; it does not change the initial backend-only scope of the preceding work. No unresolved production UI defect was established in the specifically requested recovery/denial/prefix/sizing paths.
+
+### Earlier UI findings resolved
+
+| Earlier concern                                                  | Current source and executed result                                                                                                                                                                                                        |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Held rows stay enabled after read denial                         | Denial clears held state and hides exact/list choices. Original React/jsdom transition now reports `denialShown: true`, `heldChoiceShown: false`, `heldChoiceEnabled: false`                                                              |
+| Building options remain stuck loading after reset                | One safe automatic restart drops accumulated pages/cursors; a reset on the restarted first page reports failure/Retry. Independent probe: `loading: false`, `hasMore: false`, no old cursor in args, one Retry, no selectable old options |
+| Filter Retry repaints without changing subscription identity     | Independent probe after the preceding reset: args become `{ warehouseId: "warehouse-a", attempt: 1 }`; ready option becomes enabled                                                                                                       |
+| Location first-page reset falls through silently                 | Independent actual component/hook probe: initial args `{ warehouseId: "warehouse-a", text: "", pageSize: 20 }`, visible Retry, no `aria-busy`; click sends the same criteria with `attempt: 1`, shows enabled ready choice, removes alert |
+| Ready prefix page offers registration/unmapped before exhaustion | Exact miss for settled `F1-L30` plus a ready `isDone: false` page now reports `addLocationShown: false`, `unmappedShown: false`, `prefixChoiceEnabled: true`                                                                              |
+| No stalled/long-scan recovery                                    | `useScanRecovery` suppresses missing/repeated continuation cursors and exposes Retry; after 50 automatic steps it pauses with Keep searching. Completed tests exercise both paths and check serialized Retry arguments                    |
+| Thrown building-options query kills surrounding draft            | Building filter now has its own query error boundary and local retry. Completed test simulates a thrown query, recovers the filter, and preserves typed text                                                                              |
+| Filter target may shrink below 44px under dense styling          | Trigger uses explicit `size-12 dense:size-11`; at default root scale that is 48px/44px, overriding shared 36px dense minimum. Class regression passes. Browser/computed-layout measurement is not claimed                                 |
+
+The original UI reproduction script in `sol-location-initial.md` was adapted only in memory to report absence of the now-removed old buttons rather than throw when querying them. A follow-up click on building Retry captured the actual new argument object. The independent first-page location probe mocked `reset` for attempt zero and ready for attempt one, then captured the actual outgoing args. The prefix probe returned an exact miss and a valid ready/not-done matching choice page. These use actual component/hook code under React/jsdom; Convex results, translations, and unrelated registration/pager rendering are mocked as described in the initial report. They are not browser or deployed authentication tests.
+
+### UI checks and limits
+
+```sh
+pnpm exec vitest run src/features/finishedGoods/jobScan/LocationPicker.test.tsx src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx src/features/finishedGoods/jobScan/LocationPicker.image.test.tsx
+```
+
+Result: **3 files passed, 64 tests passed**, 4.66 seconds. Coverage includes first-page and repeated resets, changed Retry args, independent filter reset/stall/denial/error recovery, barcode-confirmed missing registration, pending-scan cancellation, typed prefix exhaustion, canonical exact deduplication, and fixed filter sizing. The current impeccable mechanical detector returned `[]`.
+
+The picker still relies on its parent/provider for identity-boundary remounting: local session/cache keys are warehouse/criteria based. `JobScanScreen` additionally keys by actor-scoped `useDraftKey`; the records picker and complete provider/org-switch lifecycle were not browser-tested here. No universal auth-switch isolation claim is made. Current query denial explicitly clears rendered retained choices, and the backend independently revalidates tenant/actor/criteria/retained IDs as recorded above.
+
+No browser, rendered geometry, real keyboard/Escape focus restoration, native mobile touch, or production session transition was exercised by this sub-audit. Parent-owned DOM/browser evidence must retain its own tool limitations. No UI/product or Kiro-owned test edits were made.
+
+UI snapshot hashes at `2026-10-12T19:27:54Z`:
+
+- `src/features/finishedGoods/jobScan/LocationPicker.tsx`: `005ea86b5bacc85435fdc8439674dbc7f4b7784930e0ff6d4019e5329d9d802b`
+- `src/hooks/useScanRecovery.ts`: `3e8e052eec13ee19cbe7f45b8761cab3519d02c3c8ce5875db859978c734db19`
