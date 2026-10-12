@@ -213,3 +213,59 @@ it("returns to the previous committed query after a guard marker survives a full
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
 });
+
+it("preserves the earlier page selected from the browser history menu after Discard", async () => {
+  // The committed pages are floor 1, floor 2, then floor 3. Selecting floor 1
+  // from the browser menu jumps past two distinct pages and the guard buffer.
+  history.pushState({ __NA: true }, "", "/planner?panel=map&floor=3#map");
+  render(
+    <NavigationGuardProvider>
+      <Workspace />
+    </NavigationGuardProvider>,
+  );
+  act(() => history.go(-3));
+  await screen.findByRole("dialog");
+  await waitFor(() => expect(isGuardTraversal()).toBe(false));
+  expect(screen.getByLabelText("Query")).toHaveTextContent(
+    "?panel=map&floor=3",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
+  expect(screen.getByLabelText("Query")).toHaveTextContent(
+    "?panel=map&floor=1",
+  );
+  expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
+  expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
+});
+
+it("restores the guard entry on Keep editing and reaches the same browser-menu target again", async () => {
+  history.pushState({ __NA: true }, "", "/planner?panel=map&floor=3#map");
+  render(
+    <NavigationGuardProvider>
+      <Workspace />
+    </NavigationGuardProvider>,
+  );
+  const buffer = history.state[GUARD_HISTORY_KEY];
+  act(() => history.go(-3));
+  await screen.findByRole("dialog");
+  await waitFor(() => expect(isGuardTraversal()).toBe(false));
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  // Cancelling restores the guard entry itself (the newest entry), not the
+  // unmarked page below it, so a later Forward has no guard entry to reach.
+  expect(history.state[GUARD_HISTORY_KEY]).toBe(buffer);
+  expect(location.search).toBe("?panel=map&floor=3");
+  expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("unsaved");
+
+  // The same menu choice reaches the same earlier page after Discard.
+  act(() => history.go(-3));
+  const discard = await screen.findByRole("button", {
+    name: "Discard changes",
+  });
+  await waitFor(() => expect(isGuardTraversal()).toBe(false));
+  fireEvent.click(discard);
+  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
+  expect(screen.getByLabelText("Query")).toHaveTextContent(
+    "?panel=map&floor=1",
+  );
+  expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
+});

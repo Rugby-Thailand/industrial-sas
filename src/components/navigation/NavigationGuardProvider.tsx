@@ -15,6 +15,7 @@ import {
 import { useRouter } from "@/i18n/navigation";
 import { LOCALES, type AppLocale } from "@/i18n/routing";
 import {
+  appHistoryIndex,
   GUARD_HISTORY_KEY,
   subscribeHistoryWrites,
 } from "@/lib/browser/appHistory";
@@ -239,7 +240,11 @@ function createGuardMachine(deps: MachineDeps) {
   const settled = new Set<string>();
   let bufferId: string | null = null;
   let bufferHref: string | null = null;
+  /** The committed app depth of the guarded page (its buffer adds none). */
+  let bufferIndex: number | undefined;
   let restoring = false;
+  /** Bounded re-aims when a restoration lands beside the buffer. */
+  let restoreCorrections = 0;
   let removing = false;
   let removeRequested = false;
   let ownWrite = false;
@@ -276,6 +281,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (typeof existing === "string" && !abandonedMarkers.has(existing)) {
       bufferId = existing;
       bufferHref = window.location.href;
+      bufferIndex = appHistoryIndex();
       return;
     }
     const id = newBufferMarker();
@@ -288,12 +294,48 @@ function createGuardMachine(deps: MachineDeps) {
     );
     bufferId = id;
     bufferHref = window.location.href;
+    bufferIndex = appHistoryIndex();
+  }
+
+  /**
+   * Native steps from the current entry back to the buffer, or undefined
+   * when committed depth is unknown. Each committed app depth below the page
+   * is one entry; the page's own unmarked entry shares the buffer's depth
+   * and sits directly beneath it.
+   */
+  function stepsToBuffer(): number | undefined {
+    const at = appHistoryIndex();
+    if (at === undefined || bufferIndex === undefined) return undefined;
+    return at <= bufferIndex ? bufferIndex - at + 1 : bufferIndex - at;
+  }
+
+  function traverse(delta: number) {
+    if (delta === 1) window.history.forward();
+    else if (delta === -1) window.history.back();
+    else if (delta !== 0) window.history.go(delta);
+  }
+
+  /**
+   * Continue a permitted browser traversal to the committed depth the user
+   * chose (e.g. an earlier page from the Back menu), measured from wherever
+   * buffer removal left history. Unknown depth falls back to one Back.
+   */
+  function traverseTo(target: number | undefined) {
+    const at = appHistoryIndex();
+    if (target === undefined || at === undefined) {
+      window.history.back();
+      return;
+    }
+    const delta = target - at;
+    // Forward entries begin with the removed buffer, which is skipped.
+    traverse(delta > 0 ? delta + 1 : delta);
   }
 
   function finishRemoval(): Transition | undefined {
     removing = false;
     bufferId = null;
     bufferHref = null;
+    bufferIndex = undefined;
     restoredLocation = null;
     const action = afterRemove;
     afterRemove = undefined;
@@ -322,6 +364,7 @@ function createGuardMachine(deps: MachineDeps) {
       // buffer does not belong to.
       bufferId = null;
       bufferHref = null;
+      bufferIndex = undefined;
       const next = afterRemove;
       afterRemove = undefined;
       next?.();
@@ -421,14 +464,30 @@ function createGuardMachine(deps: MachineDeps) {
       if (!action) arm();
       return;
     }
-    if (
-      restoring &&
-      (event.state?.[GUARD_HISTORY_KEY] === bufferId ||
-        window.location.href === bufferHref)
-    ) {
+    if (restoring) {
       event.stopImmediatePropagation();
+      // Only the owned marker completes restoration. Depth-less entries
+      // (no tracker) fall back to the guarded URL as before.
+      const steps = onBuffer() ? 0 : stepsToBuffer();
+      if (steps !== undefined && steps !== 0 && restoreCorrections < 2) {
+        // Landed beside the buffer (e.g. its unmarked base): re-aim without
+        // touching the user's original destination.
+        restoreCorrections += 1;
+        traverse(steps);
+        return;
+      }
+      if (
+        steps === undefined &&
+        window.location.href !== bufferHref &&
+        restoreCorrections < 2
+      ) {
+        restoreCorrections += 1;
+        window.history.forward();
+        return;
+      }
       restoring = false;
-      // The cancelled Back never reached query subscribers; refresh them.
+      restoreCorrections = 0;
+      // The cancelled traversal never reached query subscribers; refresh them.
       refreshQueries();
       if (removeRequested) {
         removeRequested = false;
@@ -437,11 +496,22 @@ function createGuardMachine(deps: MachineDeps) {
       return;
     }
     if (bufferId === null || !active()) return;
-    // Restore the same-route buffer without unmounting the editor.
+    // Remember where the user was going (a Back-menu entry may be several
+    // pages away), then restore the buffer without unmounting the editor.
+    const landed = appHistoryIndex();
+    const target =
+      landed === undefined || bufferIndex === undefined
+        ? undefined
+        : // Leaving the buffer onto its own unmarked page is one page Back.
+          landed === bufferIndex
+          ? bufferIndex - 1
+          : landed;
+    const steps = stepsToBuffer();
     event.stopImmediatePropagation();
     restoring = true;
-    window.history.forward();
-    requestTransition(() => window.history.back());
+    restoreCorrections = 0;
+    traverse(steps ?? 1);
+    requestTransition(() => traverseTo(target));
   }
 
   /**
@@ -453,6 +523,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (ownWrite) return;
     if (removing || restoring) {
       restoring = false;
+      restoreCorrections = 0;
       removeRequested = false;
       const action = finishRemoval();
       refreshQueries();
@@ -465,6 +536,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (bufferId !== null && !onBuffer()) {
       bufferId = null;
       bufferHref = null;
+      bufferIndex = undefined;
     }
   }
 
