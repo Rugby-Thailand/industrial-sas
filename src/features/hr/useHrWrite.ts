@@ -1,8 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { createRequestIdentityRegistry } from "@/hooks/requestIdentityRegistry";
+import {
+  useOperationLifecycle,
+  type OperationTicket,
+} from "@/hooks/useOperationLifecycle";
 import { sessionPreferences } from "@/lib/browser/storage";
 
 /**
@@ -72,19 +77,21 @@ export function useHrWrite<Value = Record<string, unknown>>(intent: string) {
   // request ID can never be reused by another account in the same tab.
   const identity = useHrAccess().identityKey ?? "anonymous";
   const scope = `${identity}|${intent}`;
+  const { acquire } = useOperationLifecycle(scope);
   // State belongs to one intent: a different scope reads as IDLE without an
   // effect, while an uncertain request ID stays in session storage.
   const [entry, setEntry] = useState<{
     readonly scope: string;
     readonly state: HrWriteState<Value>;
+    readonly ticket?: OperationTicket;
   }>({ scope, state: { kind: "IDLE" } });
   const state: HrWriteState<Value> =
-    entry.scope === scope ? entry.state : { kind: "IDLE" };
-  const inFlight = useRef(new Set<string>());
-  const mounted = useRef(true);
-  const currentScope = useRef(scope);
+    entry.scope === scope &&
+    (entry.ticket === undefined || entry.ticket.isCurrent())
+      ? entry.state
+      : { kind: "IDLE" };
   // Memory copy, so a retry reuses the ID even when storage is unavailable.
-  const remembered = useRef(new Map<string, string>());
+  const identities = useMemo(() => createRequestIdentityRegistry(), []);
   // The exact command sent for an intent whose outcome is uncertain. `submit`
   // and `retry` resend it verbatim (same payload, same request ID) until a
   // definite answer, even if the form changed meanwhile.
@@ -92,30 +99,21 @@ export function useHrWrite<Value = Record<string, unknown>>(intent: string) {
     new Map<string, (requestId: string) => Promise<unknown>>(),
   );
   const key = `${STORAGE_PREFIX}${scope}`;
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  useEffect(() => {
-    currentScope.current = scope;
-  }, [scope]);
 
   const requestId = useCallback(() => {
-    const inMemory = remembered.current.get(key);
-    if (inMemory !== undefined) return inMemory;
-    const saved = sessionPreferences.read(
-      key,
-      (value) =>
-        typeof value === "string" && ID_PATTERN.test(value) ? value : null,
-      null,
-    );
-    const id = saved ?? crypto.randomUUID();
-    remembered.current.set(key, id);
-    if (saved === null) sessionPreferences.write(key, id);
-    return id;
-  }, [key]);
+    return identities.request(key, {
+      read: () =>
+        sessionPreferences.read(
+          key,
+          (value) =>
+            typeof value === "string" && ID_PATTERN.test(value) ? value : null,
+          null,
+        ),
+      write: (id) => {
+        sessionPreferences.write(key, id);
+      },
+    });
+  }, [identities, key]);
 
   /**
    * Send once per intent at a time. The returned state is IDLE when the user
@@ -126,11 +124,11 @@ export function useHrWrite<Value = Record<string, unknown>>(intent: string) {
     async (
       send: (requestId: string) => Promise<unknown>,
     ): Promise<HrWriteState<Value>> => {
-      if (inFlight.current.has(key)) return { kind: "PENDING" };
-      inFlight.current.add(key);
+      const ticket = acquire(key);
+      if (ticket === null) return { kind: "PENDING" };
       const command = send;
       pinned.current.set(key, command);
-      setEntry({ scope, state: { kind: "PENDING" } });
+      setEntry({ scope, state: { kind: "PENDING" }, ticket });
       let next: HrWriteState<Value>;
       try {
         next = classifyOutcome<Value>(await command(requestId()));
@@ -143,16 +141,17 @@ export function useHrWrite<Value = Record<string, unknown>>(intent: string) {
       }
       if (next.kind !== "UNCERTAIN") pinned.current.delete(key);
       if (next.kind !== "UNCERTAIN" && next.kind !== "DENIED") {
-        remembered.current.delete(key);
-        sessionPreferences.remove(key);
+        identities.forget(key);
+        // A remounted workflow may already be retrying this scalar ID. A late
+        // result from its former owner must not erase that recovery identity.
+        if (ticket.isCurrent()) sessionPreferences.remove(key);
       }
-      inFlight.current.delete(key);
-      const current = mounted.current && currentScope.current === scope;
-      if (!current) return { kind: "IDLE" };
-      setEntry({ scope, state: next });
+      ticket.finish();
+      if (!ticket.isCurrent()) return { kind: "IDLE" };
+      setEntry({ scope, state: next, ticket });
       return next;
     },
-    [key, requestId, scope],
+    [acquire, identities, key, requestId, scope],
   );
 
   /** Resend the pinned command after an uncertain outcome. */
@@ -251,8 +250,7 @@ function readClockCommand(): StoredClockCommand | null {
 }
 function clearClockCommand(scope: string) {
   const stored = readClockCommand();
-  if (stored?.scope === scope || clockFallback?.scope === scope)
-    sessionPreferences.remove(CLOCK_STORAGE_KEY);
+  if (stored?.scope === scope) sessionPreferences.remove(CLOCK_STORAGE_KEY);
   if (clockFallback?.scope === scope) clockFallback = null;
 }
 /** Run above the page gate, so logout also clears recovery after child unmount. */
@@ -278,10 +276,12 @@ export function useHrClockWrite<Value = Record<string, unknown>>(
 ) {
   const identity = useHrAccess().identityKey ?? "anonymous";
   const scope = `${identity}|clock:${employeeId}`;
+  const { acquire } = useOperationLifecycle(scope);
   const [entry, setEntry] = useState<{
     readonly scope: string;
     readonly command: StoredClockCommand | null;
     readonly state: HrWriteState<Value>;
+    readonly ticket?: OperationTicket;
   }>(() => {
     const stored = readClockCommand();
     const command =
@@ -294,29 +294,27 @@ export function useHrClockWrite<Value = Record<string, unknown>>(
       state: command ? { kind: "UNCERTAIN" } : { kind: "IDLE" },
     };
   });
+  // This is React state, not a mutable cache: an abandoned render does not
+  // clear storage. A committed scope change must not revive a restored receipt
+  // or uncertain descriptor if this same component later returns to the scope.
+  if (entry.scope !== scope)
+    setEntry({ scope, command: null, state: { kind: "IDLE" } });
   const current =
-    entry.scope === scope
+    entry.scope === scope &&
+    (entry.ticket === undefined || entry.ticket.isCurrent())
       ? entry
       : {
           scope,
           command: null,
           state: { kind: "IDLE" } as HrWriteState<Value>,
         };
-  const inFlight = useRef(false);
-  const mounted = useRef(false);
-  const currentScope = useRef(scope);
   const commandRef = useRef<StoredClockCommand | null>(current.command);
-  const sendRef = useRef(send);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  useEffect(() => {
-    currentScope.current = scope;
-    commandRef.current = entry.scope === scope ? entry.command : null;
-    sendRef.current = send;
+  useLayoutEffect(() => {
+    commandRef.current =
+      entry.scope === scope &&
+      (entry.ticket === undefined || entry.ticket.isCurrent())
+        ? entry.command
+        : null;
     const stored = readClockCommand();
     if (
       clockFallback &&
@@ -329,17 +327,20 @@ export function useHrClockWrite<Value = Record<string, unknown>>(
     ) {
       clearClockCommand(stored.scope);
     }
-  }, [employeeId, entry.command, entry.scope, scope, send]);
+  }, [employeeId, entry.command, entry.scope, entry.ticket, scope]);
   const run = useCallback(
     async (kind?: HrClockCommand["kind"]): Promise<HrWriteState<Value>> => {
-      if (inFlight.current) return { kind: "PENDING" };
+      const ticket = acquire("clock");
+      if (ticket === null) return { kind: "PENDING" };
       const retained =
         commandRef.current?.scope === scope ? commandRef.current : null;
       if (
         !retained &&
         (!kind || !employeeId || !/^\d{4}-\d{2}-\d{2}$/.test(businessDate))
-      )
+      ) {
+        ticket.finish();
         return { kind: "IDLE" };
+      }
       const command: StoredClockCommand = retained ?? {
         schema: 1,
         scope,
@@ -351,13 +352,12 @@ export function useHrClockWrite<Value = Record<string, unknown>>(
       commandRef.current = command;
       clockFallback = command;
       sessionPreferences.write(CLOCK_STORAGE_KEY, command);
-      inFlight.current = true;
-      setEntry({ scope, command, state: { kind: "PENDING" } });
+      setEntry({ scope, command, state: { kind: "PENDING" }, ticket });
       let next: HrWriteState<Value>;
       try {
         // Project the strict API args: no storage metadata goes to the server.
         next = classifyOutcome<Value>(
-          await sendRef.current({
+          await send({
             kind: command.kind,
             employeeId: command.employeeId,
             expectedBusinessDate: command.expectedBusinessDate,
@@ -369,21 +369,24 @@ export function useHrClockWrite<Value = Record<string, unknown>>(
         next =
           code === null ? { kind: "UNCERTAIN" } : { kind: "REFUSED", code };
       }
-      inFlight.current = false;
+      ticket.finish();
+      // An old component cannot settle recovery now owned by a remounted or
+      // different account workflow. That workflow must learn the result via
+      // its original command's explicit idempotent retry.
+      if (!ticket.isCurrent()) return { kind: "IDLE" };
       if (next.kind !== "UNCERTAIN") {
         clearClockCommand(scope);
         if (commandRef.current?.scope === scope) commandRef.current = null;
       }
-      if (!mounted.current || currentScope.current !== scope)
-        return { kind: "IDLE" };
       setEntry({
         scope,
         command: next.kind === "UNCERTAIN" ? command : null,
         state: next,
+        ticket,
       });
       return next;
     },
-    [businessDate, employeeId, scope],
+    [acquire, businessDate, employeeId, scope, send],
   );
   const retry = useCallback(() => run(), [run]);
   return {

@@ -1,5 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useState, type SetStateAction } from "react";
+import {
+  useOperationLifecycle,
+  type OperationTicket,
+} from "./useOperationLifecycle";
 import { useRequestIdentity } from "./useRequestIdentity";
 
 export function operationErrorCode(error: unknown): string {
@@ -23,59 +27,94 @@ type AsyncOperationOptions =
       describeError: (code: string) => string;
     };
 
+const EMPTY_STATE = { busy: false, error: "", errorCode: "" };
+
 /** Execution is local to the workflow; no automatic retries or shared busy flag. */
 export function useAsyncOperation(options: AsyncOperationOptions) {
   const describeError =
     typeof options === "function" ? options : options.describeError;
   const scope = typeof options === "function" ? undefined : options.scope;
   const identity = useRequestIdentity(scope);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [errorCode, setErrorCode] = useState("");
-  const inFlight = useRef(false);
-  const mounted = useRef(true);
-  const activeScope = useRef(scope);
-  const generation = useRef(0);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
+  const lifecycle = useOperationLifecycle(scope);
+  const [entry, setEntry] = useState<{
+    readonly scope: string | undefined;
+    readonly state: typeof EMPTY_STATE;
+    readonly isCurrent?: () => boolean;
+    readonly ticket?: OperationTicket;
+  }>({ scope, state: EMPTY_STATE });
+  const { busy, error, errorCode } =
+    entry.scope === scope &&
+    (entry.isCurrent === undefined || entry.isCurrent())
+      ? entry.state
+      : EMPTY_STATE;
+  const setError = (next: SetStateAction<string>) => {
+    const isCurrent = lifecycle.capture();
+    if (!isCurrent()) return;
+    setEntry((previous) => {
+      if (!isCurrent()) return previous;
+      const current =
+        previous.scope === scope &&
+        (previous.isCurrent === undefined || previous.isCurrent());
+      const state = current ? previous.state : EMPTY_STATE;
+      return {
+        ...(current ? previous : { scope, isCurrent }),
+        state: {
+          ...state,
+          error: typeof next === "function" ? next(state.error) : next,
+        },
+      };
+    });
+  };
+  /** Put synchronous UI/navigation effects in onSuccess, never inside action. */
+  async function run<T>(
+    action: () => Promise<T>,
+    onSuccess?: (value: T) => void,
+  ): Promise<T | null> {
+    const ticket = lifecycle.acquire();
+    if (ticket === null) return null;
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      ticket.finish();
+      if (ticket.isCurrent())
+        setEntry((previous) =>
+          previous.ticket === ticket
+            ? { ...previous, state: { ...previous.state, busy: false } }
+            : previous,
+        );
     };
-  }, []);
-  useEffect(() => {
-    if (activeScope.current === scope) return;
-    activeScope.current = scope;
-    generation.current += 1;
-    inFlight.current = false;
-    setBusy(false);
-    setError("");
-    setErrorCode("");
-  }, [scope]);
-  async function run<T>(action: () => Promise<T>): Promise<T | null> {
-    if (inFlight.current) return null;
-    inFlight.current = true;
-    const runGeneration = generation.current;
-    const current = () =>
-      mounted.current && runGeneration === generation.current;
-    if (current()) {
-      setBusy(true);
-      setError("");
-      setErrorCode("");
-    }
+    setEntry({
+      scope,
+      ticket,
+      isCurrent: ticket.isCurrent,
+      state: { busy: true, error: "", errorCode: "" },
+    });
     try {
-      return await action();
+      const value = await action();
+      if (!ticket.isCurrent()) return null;
+      release();
+      onSuccess?.(value);
+      return value;
     } catch (error) {
       const code = operationErrorCode(error);
-      if (current()) {
-        setErrorCode(code);
-        setError(describeError(code));
+      if (ticket.isCurrent()) {
+        setEntry((previous) =>
+          previous.ticket === ticket
+            ? {
+                ...previous,
+                state: {
+                  ...previous.state,
+                  errorCode: code,
+                  error: describeError(code),
+                },
+              }
+            : previous,
+        );
       }
       return null;
     } finally {
-      if (runGeneration === generation.current) {
-        inFlight.current = false;
-        if (mounted.current) setBusy(false);
-      }
+      release();
     }
   }
   return {

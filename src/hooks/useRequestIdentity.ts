@@ -1,6 +1,7 @@
 "use client";
 import { useRef } from "react";
 import { drafts } from "@/lib/browser/storage";
+import { createRequestIdentityRegistry } from "./requestIdentityRegistry";
 
 function readRequests(scope: string) {
   return drafts.read(
@@ -13,21 +14,21 @@ function readRequests(scope: string) {
   );
 }
 export function useRequestIdentity(scope?: string) {
-  const requests = useRef({ scope, values: new Map<string, string>() });
+  const requests = useRef({ scope, registry: createRequestIdentityRegistry() });
   const currentRequests = () => {
     if (requests.current.scope !== scope)
-      requests.current = { scope, values: new Map() };
-    return requests.current.values;
+      requests.current = { scope, registry: createRequestIdentityRegistry() };
+    return requests.current.registry;
   };
   const request = (key: string) => {
-    let id = currentRequests().get(key);
-    if (!id && scope) {
-      const saved = readRequests(scope)[key];
-      if (typeof saved === "string" && /^[0-9a-f-]{36}$/.test(saved))
-        id = saved;
-    }
-    if (!id) id = crypto.randomUUID();
-    currentRequests().set(key, id);
+    const id = currentRequests().request(key, {
+      read: () => {
+        const saved = scope ? readRequests(scope)[key] : undefined;
+        return typeof saved === "string" && /^[0-9a-f-]{36}$/.test(saved)
+          ? saved
+          : null;
+      },
+    });
     if (scope)
       drafts.write(`fg-requests:${scope}`, {
         ...readRequests(scope),
