@@ -1,6 +1,6 @@
 # Sol final HR UI audit — worker snapshot
 
-October 13, 2026. Reviewed `/Users/macbook/Development/industrial-sas-filter-hr`, based on `11c8c2cc`, after Kiro's product follow-up and the parent's focused corrections. This is the HR UI review for integration, not live-browser/release approval. The auditor made no product edits or browser/production calls. At the parent's explicit request, one independent dedicated inactive-site regression test was added; no existing Kiro test was edited.
+October 13, 2026. Reviewed `/Users/macbook/Development/industrial-sas-filter-hr`, based on `11c8c2cc`, after Kiro's product follow-up and the parent's focused corrections. This is the HR UI review for integration, not live-browser/release approval. The auditor made no product edits or browser/production calls. At the parent's explicit request, two independent dedicated regressions were added (inactive sites and repeated cursor reset); no existing Kiro test was edited.
 
 ## Reviewer conclusion
 
@@ -39,15 +39,31 @@ pnpm exec vitest run src/features/hr/HrPagedRecovery.test.tsx
 
 **1 file, 13 tests passed**, 2.28 s. This is Kiro's new file, run independently by the auditor after its complete source was present. It drives actual screen/hook controls with mocked query outcomes rather than testing a mirrored pure implementation.
 
+Kiro then made two final hook changes to satisfy lint: automatic reset ownership moved into `useHrPagedQuery` with a criteria/request-key state machine; `useCatalogueSync` now handles only scanning/empty-last-page recovery for this hook. Carried router metadata now uses a pending ref consumed after the URL query commits, rather than an effect updating React pending state. Both final source changes were reread and the recovery/history batch rerun:
+
+```sh
+pnpm exec vitest run src/features/hr/HrPagedRecovery.test.tsx src/features/hr/HrPagination.test.tsx src/hooks/useCursorPagination.test.tsx
+```
+
+**3 files, 28 tests passed**, 2.65 s. Final automatic reset still occurs once, a fresh page-1 scan reset uses a new attempt, repeated reset becomes interruption, and explicit retry/resume controls remain outside retained inert rows. The fingerprints below include these final changes.
+
+The parent then identified a repeated-cycle reset guard issue: after ready clears the spent-reset state, the same logical cursor may reset again, so its earlier `restarted` ref must no longer suppress recovery. The parent clears that ref whenever automatic recovery is not pending. The auditor added a separate `HrRepeatedCursorReset.audit.test.tsx`, without editing Kiro's test: it drives the real shared hook/pager through two invalid-cursor→automatic-first-page→ready cycles using the same cursor, and asserts both settle back at page 1 with no stuck retained or interrupted view.
+
+```sh
+pnpm exec vitest run src/features/hr/HrRepeatedCursorReset.audit.test.tsx src/features/hr/HrPagedRecovery.test.tsx src/features/hr/HrPagination.test.tsx src/hooks/useCursorPagination.test.tsx
+```
+
+**4 files, 30 tests passed**, 2.75 s, after the parent correction. The repeated-cycle test avoids treating repeated React renders as distinct network requests. Both dedicated audit tests also pass ESLint/Prettier checks. The final paging-hook fingerprint below includes the ref reset.
+
 ## Exact source snapshot
 
 The following SHA-256 hashes were recorded after the focused checks. Later changes require appropriate revalidation; this worker was not yet a committed immutable integration snapshot.
 
 | File                                      | SHA-256                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------ |
-| `src/features/hr/HrPagedList.tsx`         | `3372b5cbb24efd44b6097986fb1845d81f0f9ef5337e7ea78476fd5f65924f07` |
+| `src/features/hr/HrPagedList.tsx`         | `14a46bca2104a343a983053c65a0b86b9d39ae181d3372615e6ef4b3d3d030bf` |
 | `src/hooks/useScanRecovery.ts`            | `3e8e052eec13ee19cbe7f45b8761cab3519d02c3c8ce5875db859978c734db19` |
-| `src/features/hr/HrListCriteria.ts`       | `66c8b737d0757e1e892cf51db2a49b48175d487cf5133d6c22997a4b8e2884aa` |
+| `src/features/hr/HrListCriteria.ts`       | `0fcad98be0ac35115fe48ea28f83bb6c64be138dcd5759ca5a80e341f1e0a6b7` |
 | `src/features/hr/HrSiteSelect.tsx`        | `9785cb7fcec845e3215a0118860144ab84cd482a54c6724338b5f19abb2aae44` |
 | `src/hooks/useCursorPagination.ts`        | `ab40d67bfc513754119e273bf3ca32c0bd9f9438ba75228a8f267c173d7e9939` |
 | `src/features/hr/AnnouncementsScreen.tsx` | `36d15defa6c95dd98123c2f0fa36201c35f7b4f0d08f268eb5bbc6206e9c5e0c` |
