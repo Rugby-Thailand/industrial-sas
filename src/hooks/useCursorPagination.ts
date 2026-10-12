@@ -40,15 +40,29 @@ function validPosition(value: unknown): value is Position {
     (state.offset ?? -1) >= 0
   );
 }
+type SavedPosition = { scope: string; value: Position };
+function historyPositions(state: unknown): SavedPosition[] {
+  if (!state || typeof state !== "object") return [];
+  const metadata = state as Record<string, unknown>;
+  const entries = Array.isArray(metadata.cataloguePaginationScopes)
+    ? metadata.cataloguePaginationScopes
+    : [metadata.cataloguePagination];
+  return entries
+    .filter((entry): entry is SavedPosition => {
+      if (!entry || typeof entry !== "object") return false;
+      return typeof entry.scope === "string" && validPosition(entry.value);
+    })
+    .slice(-MAX_SCOPES);
+}
+function historyPosition(scope: string) {
+  return typeof window === "undefined"
+    ? undefined
+    : historyPositions(window.history.state).findLast(
+        (entry) => entry.scope === scope,
+      )?.value;
+}
 function remembered(scope: string, criteria: string) {
-  const history =
-    typeof window !== "undefined"
-      ? window.history.state?.cataloguePagination
-      : undefined;
-  const saved =
-    history?.scope === scope
-      ? (history.value as Position)
-      : positions.get(scope);
+  const saved = historyPosition(scope) ?? positions.get(scope);
   return validPosition(saved) && saved.criteria === criteria
     ? saved
     : initial(criteria);
@@ -69,15 +83,10 @@ export function useCursorPagination({
   }));
   let value = stored.value;
   if (stored.scope !== scope || value.criteria !== fingerprint) {
-    const history =
-      typeof window !== "undefined"
-        ? window.history.state?.cataloguePagination
-        : undefined;
+    const history = historyPosition(scope);
     value =
-      history?.scope === scope &&
-      validPosition(history.value) &&
-      history.value.criteria === fingerprint
-        ? (history.value as Position)
+      history?.criteria === fingerprint
+        ? history
         : initial(fingerprint, stored.scope === scope ? value.size : 20);
     setStored({ scope, value });
   }
@@ -93,6 +102,11 @@ export function useCursorPagination({
     while (positions.size > MAX_SCOPES)
       positions.delete(positions.keys().next().value!);
     updateHistoryMetadata((state) => {
+      state.cataloguePaginationScopes = [
+        ...historyPositions(state).filter((entry) => entry.scope !== scope),
+        { scope, value: next },
+      ].slice(-MAX_SCOPES);
+      // Retain the last-used slot for browser entries created by older clients.
       state.cataloguePagination = { scope, value: next };
     });
     setStored({ scope, value: next });
@@ -126,10 +140,12 @@ export function clearCursorPositions() {
   positions.clear();
   if (
     typeof window !== "undefined" &&
-    window.history.state?.cataloguePagination
+    (window.history.state?.cataloguePagination ||
+      window.history.state?.cataloguePaginationScopes)
   ) {
     updateHistoryMetadata((state) => {
       delete state.cataloguePagination;
+      delete state.cataloguePaginationScopes;
     });
   }
 }

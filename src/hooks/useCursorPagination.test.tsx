@@ -110,3 +110,84 @@ it("preserves Next router state without scheduling an unchanged URL restore", ()
   expect(window.location.pathname).toBe("/finished-goods");
   replace.mockRestore();
 });
+
+it("restores concurrent list and selector positions after a cold restart", () => {
+  const usePagers = () => [
+    useCursorPagination({ scope: "actor:employees", criteria: {} }),
+    useCursorPagination({ scope: "actor:account", criteria: {} }),
+    useCursorPagination({ scope: "actor:supervisor", criteria: {} }),
+  ];
+  const first = renderHook(usePagers);
+  act(() => first.result.current[0].next("employees-two"));
+  act(() => first.result.current[1].next("accounts-two"));
+  act(() => first.result.current[2].next("supervisors-two"));
+  act(() => first.result.current[2].next("supervisors-three"));
+  const saved = window.history.state;
+  first.unmount();
+  clearCursorPositions();
+  window.history.replaceState(saved, "");
+  const restored = renderHook(usePagers);
+  expect(
+    restored.result.current.map(({ cursor, page }) => ({ cursor, page })),
+  ).toEqual([
+    { cursor: "employees-two", page: 2 },
+    { cursor: "accounts-two", page: 2 },
+    { cursor: "supervisors-three", page: 3 },
+  ]);
+  const otherActor = renderHook(() =>
+    useCursorPagination({ scope: "other:employees", criteria: {} }),
+  );
+  expect(otherActor.result.current.cursor).toBeNull();
+});
+
+it("bounds persisted scopes and clears them on identity reset", () => {
+  const hook = renderHook(
+    ({ scope }) => useCursorPagination({ scope, criteria: {} }),
+    {
+      initialProps: { scope: "scope-0" },
+    },
+  );
+  for (let index = 0; index < 25; index++) {
+    hook.rerender({ scope: `scope-${index}` });
+    act(() => hook.result.current.next(`cursor-${index}`));
+  }
+  const entries = window.history.state.cataloguePaginationScopes;
+  expect(entries).toHaveLength(24);
+  expect(entries[0].scope).toBe("scope-1");
+  expect(entries.at(-1).scope).toBe("scope-24");
+  clearCursorPositions();
+  expect(window.history.state.cataloguePaginationScopes).toBeUndefined();
+  expect(window.history.state.cataloguePagination).toBeUndefined();
+});
+
+it("reads legacy history entries and preserves them when another scope is saved", () => {
+  window.history.replaceState(
+    {
+      cataloguePagination: {
+        scope: "legacy",
+        value: {
+          criteria: "{}",
+          size: 50,
+          cursors: [null, "legacy-two"],
+          index: 1,
+          offset: 0,
+        },
+      },
+    },
+    "",
+  );
+  const legacy = renderHook(() =>
+    useCursorPagination({ scope: "legacy", criteria: {} }),
+  );
+  expect(legacy.result.current.cursor).toBe("legacy-two");
+  expect(legacy.result.current.pageSize).toBe(50);
+  const other = renderHook(() =>
+    useCursorPagination({ scope: "other", criteria: {} }),
+  );
+  act(() => other.result.current.next("other-two"));
+  expect(
+    window.history.state.cataloguePaginationScopes.map(
+      (entry: { scope: string }) => entry.scope,
+    ),
+  ).toEqual(["legacy", "other"]);
+});
