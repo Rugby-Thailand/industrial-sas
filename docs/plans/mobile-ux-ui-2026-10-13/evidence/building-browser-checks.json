@@ -1,0 +1,77 @@
+{
+  "fixture": "Production storage filters and building header composed with empty floors and synthetic building; settings form opened but never submitted",
+  "results": [
+    {
+      "locale": "th",
+      "theme": "dark",
+      "width": 360,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "th",
+      "theme": "dark",
+      "width": 1440,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "th",
+      "theme": "light",
+      "width": 360,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "th",
+      "theme": "light",
+      "width": 1440,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "en",
+      "theme": "dark",
+      "width": 360,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "en",
+      "theme": "dark",
+      "width": 1440,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "en",
+      "theme": "light",
+      "width": 360,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    },
+    {
+      "locale": "en",
+      "theme": "light",
+      "width": 1440,
+      "addOutsideSearch": true,
+      "onePenAfterHeading": true,
+      "settingsOpened": true,
+      "noOverflow": true
+    }
+  ]
+}

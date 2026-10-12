@@ -319,6 +319,7 @@
     "title": "Storage building planner",
     "description": "Plan buildings, floors, and QR-addressable storage spots.",
     "newBuilding": "New building",
+    "newBuildingShort": "Building",
     "emptyTitle": "No storage buildings yet",
     "emptyBody": "Create a building to start defining floor-by-floor capacity.",
     "search": "Search buildings",
@@ -1531,7 +1532,8 @@
       "stalled": "The search stopped making progress.",
       "paused": "Still searching: {count, plural, one {# record} other {# records}} checked for this page.",
       "continue": "Keep searching"
-    }
+    },
+    "locationAiRereadPhoto": "Read this photo again with AI"
   },
   "Hr": {
     "duration": "{hours} h {minutes} min",
@@ -2932,6 +2934,8 @@
     "optionsNoMatch": "No matches. Try another name.",
     "optionsFailed": "Choices could not be loaded.",
     "optionsRetry": "Try again",
-    "optionsContinue": "Keep searching"
+    "optionsContinue": "Keep searching",
+    "exportScope": "Export CSV, {from} – {to} ({timezone})",
+    "exportScopeFiltered": "Export filtered CSV, {from} – {to} ({timezone})"
   }
 }

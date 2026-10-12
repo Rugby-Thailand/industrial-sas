@@ -23,6 +23,7 @@ import styles from "./FloorMap.module.css";
 import { Popover } from "radix-ui";
 import { LocationDetailsHost } from "./LocationDetailsHost";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
+import { areaDisplayLabel } from "@/lib/storageLayouts/areaDisplayLabel";
 import {
   Sheet,
   SheetContent,
@@ -299,19 +300,34 @@ export function FloorMap(props: FloorMapProps) {
       setZoom,
     ],
   );
+  // On a phone the details live only in the bottom sheet, so tapping the
+  // current selection again reopens that sheet rather than toggling it off.
+  const mobileSheet = mobile && compactInspector;
+  const reopenSheet = useCallback((key: string) => {
+    opener.current = interaction.current ?? document.activeElement;
+    setInspectorVisible(true);
+    setSheetSelection(key);
+  }, []);
   const selectMapLocation = useCallback(
     (id: string, palletId?: string) => {
-      if (!mobile && id === selectedId && palletId === undefined) {
-        clearSelection();
-        fit();
+      if (id === selectedId && palletId === undefined) {
+        if (mobileSheet) reopenSheet(id);
+        else if (!mobile) {
+          clearSelection();
+          fit();
+        } else select(id, palletId);
       } else {
         select(id, palletId);
       }
     },
-    [mobile, selectedId, clearSelection, fit, select],
+    [mobile, mobileSheet, reopenSheet, selectedId, clearSelection, fit, select],
   );
   const selectArea = useCallback(
     (index: number) => {
+      if (mobileSheet && index === areaIndex && !selectedId) {
+        reopenSheet(`area:${index}`);
+        return;
+      }
       clearSelection();
       if (index === areaIndex) fit();
       else {
@@ -323,7 +339,15 @@ export function FloorMap(props: FloorMapProps) {
         }
       }
     },
-    [clearSelection, areaIndex, fit, compactInspector],
+    [
+      clearSelection,
+      areaIndex,
+      fit,
+      compactInspector,
+      mobileSheet,
+      reopenSheet,
+      selectedId,
+    ],
   );
   const action = (
     name: string,
@@ -351,11 +375,20 @@ export function FloorMap(props: FloorMapProps) {
       {!selected && selectedArea ? (
         <div data-selected-area="true">
           {/* The aside or sheet that hosts these details owns their only
-              close action; selection stays until cleared on the map. */}
-          <h3 className="min-w-0 text-lg font-semibold break-words">
-            {selectedArea.label}
-          </h3>
-          <p className="mt-3 flex items-center gap-2 text-sm">
+              close action; selection stays until cleared on the map. The
+              phone sheet already names the area in its description. */}
+          {mobileSheet ? null : (
+            <h3 className="min-w-0 text-lg font-semibold break-words">
+              {selectedArea.label}
+            </h3>
+          )}
+          <p
+            className={
+              mobileSheet
+                ? "flex items-center gap-2 text-sm"
+                : "mt-3 flex items-center gap-2 text-sm"
+            }
+          >
             <span
               aria-hidden="true"
               className="size-3 shrink-0 rounded-sm border border-border"
@@ -909,7 +942,10 @@ export function FloorMap(props: FloorMapProps) {
               <div ref={setDesktopTarget} />
             </aside>
           )}
+        {/* Phones reopen details by tapping the selection again, so no
+            banner covers the map there. */}
         {workspaceView !== "list" &&
+          !mobileSheet &&
           (selected || selectedArea) &&
           ((!inspectorVisible && !compactInspector) ||
             (compactInspector && !sheetOpen)) && (
@@ -980,8 +1016,16 @@ export function FloorMap(props: FloorMapProps) {
             <SheetHeader className="shrink-0 pr-14">
               <SheetTitle>{t("locationDetails")}</SheetTitle>
               <SheetDescription className="break-words">
-                {selected?.code ?? selectedArea?.label} ·{" "}
-                {t("floor", { floor: props.floorNumber })}
+                {selected?.code ??
+                  (selectedArea &&
+                    (mobileSheet
+                      ? areaDisplayLabel(
+                          selectedArea.label,
+                          selectedArea.widthMm,
+                          selectedArea.depthMm,
+                        )
+                      : selectedArea.label))}{" "}
+                · {t("floor", { floor: props.floorNumber })}
               </SheetDescription>
             </SheetHeader>
             <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">

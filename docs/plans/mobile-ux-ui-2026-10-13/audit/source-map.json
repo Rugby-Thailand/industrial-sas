@@ -1,0 +1,80 @@
+{
+  "inspectedBy": "Codex after Kiro audit",
+  "planBaseCommit": "733c6acad348f1c024ef033f9d6ae8300e45e363",
+  "candidateCommit": "a9e1c5223672387291d2a917079fdb2fa0701c4c",
+  "candidateBranch": "codex/navigation-storage-ui-audit-20261012",
+  "candidateWorktree": "/Users/macbook/Development/industrial-sas-ui-audit-20261012",
+  "deploymentMatch": "The user confirmed the JobScanScreen location-search context. The candidate matches the visible UI and labels; the exact deployed commit is not yet verified.",
+  "findings": {
+    "UX-01": "Existing custom building title row has building.name followed by code; use it instead of adding a PageHeader slot if this is the implementation base.",
+    "UX-06": "SidebarNavigation has NavigationSubmenu and activeHref.",
+    "UX-07": "UsageToolbar currently owns export button. AiUsageScreen owns exportCsv and frozen usageExportScope. Move trigger to UsageBreakdown title actions.",
+    "UX-14": "CameraFrame uses aspect ratio and maxWidth calc(min(60dvh, 28rem) * aspect), with object-contain.",
+    "UX-16": "The lower RotateCcw icon is labelled locationAiOpenCamera and opens camera; it is a different action from AI retry.",
+    "UX-17": "User confirmed central icon rereads the same image with AI. Existing full-width retry increments attempt."
+  },
+  "files": [
+    {
+      "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+      "sha256": "b6f4ea21e8de165f7ff623b7e700728be9451b135e060af9145dbd134da3dc65"
+    },
+    {
+      "path": "src/components/shell/SidebarNavigation.tsx",
+      "sha256": "43453c847192c7120495b404a4cc73cd75c54dddae87555613f11bd4ae87a729"
+    },
+    {
+      "path": "src/features/aiUsage/AiUsageScreen.tsx",
+      "sha256": "a947cb702195231da4ce917ed01a6982d9b8128f722953bc8c3cd21522c50767"
+    },
+    {
+      "path": "src/features/aiUsage/UsageToolbar.tsx",
+      "sha256": "1c3a541efce72a749e83dabe23586c1dfb3cd6dcf5dcdaeb3779b2ffd34e6cd2"
+    },
+    {
+      "path": "src/features/aiUsage/UsageBreakdown.tsx",
+      "sha256": "ee18a2ab2368c07b4fb4297a68b552e0b3f613cbadb0e07acd5938879a6b1877"
+    },
+    {
+      "path": "src/features/aiUsage/usageExport.ts",
+      "sha256": "5918fff9909c6a92394332d8605307535c1f7dbb94c06cda5ff53f87a0e6bcf7"
+    },
+    {
+      "path": "src/features/finishedGoods/CameraFrame.tsx",
+      "sha256": "2a4e4abfe6f8628eaab03ccc4a9c2d7725981564546ddb8c167f4f434bd99d13"
+    },
+    {
+      "path": "src/features/finishedGoods/BarcodeCameraBox.tsx",
+      "sha256": "39d68e0bf07a1954354543e1c63dfaa3dfd96c696fc6c9485d03b3cfe3a0913c"
+    },
+    {
+      "path": "src/features/finishedGoods/jobScan/LocationImageReader.tsx",
+      "sha256": "aaecdf3bd7a6e8007ad0cbf6b042e31e4fc25980f610807675ba6ccc7ed039e7"
+    },
+    {
+      "path": "src/features/finishedGoods/jobScan/LocationPicker.tsx",
+      "sha256": "be23d782d49dc9793951d7bc2ccd7a227bf7a22e0532afcef76c3bd8e914de4a"
+    },
+    {
+      "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+      "sha256": "38e5af0ad824422adf081dad69cbdab886b62c24e3fd818504523ed695b833bd"
+    },
+    {
+      "path": "src/app/[locale]/(desktop)/finished-goods/scan/page.tsx",
+      "sha256": "a20f0fe71a01e5796db69f297718be1cc7b383a7ab85685370385415ef4bcea3"
+    }
+  ],
+  "screenshotContext": {
+    "userConfirmed": "Scan job ticket: search for storage area/location",
+    "routePattern": "/[locale]/finished-goods/scan",
+    "componentChain": [
+      "JobScanScreen: location step before a location has been chosen",
+      "LocationPicker",
+      "BarcodeCameraBox or LocationImageReader"
+    ],
+    "scope": "Opt in only at the JobScanScreen location-step instance. LocationPicker in JobScanRecords and other scanner instances retain their existing presentation."
+  },
+  "userConfirmations": {
+    "UX-12": "Place + Building to the right, outside the search input border.",
+    "UX-17": "Reread the same image with AI."
+  }
+}

@@ -42,6 +42,7 @@ declare global {
       prefix: string;
       width: number;
       height: number;
+      sha256: string;
     }[];
   }
 }
@@ -236,6 +237,10 @@ function App() {
         />
         {ai ? (
           <LocationImageReader
+            retryOverPhoto={
+              new URLSearchParams(location.search).get("presentation") ===
+              "jobScan"
+            }
             {...(ai.photo ? { initialPhoto: ai.photo } : {})}
             extract={async (imageDataUrl) => {
               const bitmap = await createImageBitmap(
@@ -246,6 +251,15 @@ function App() {
                 prefix: imageDataUrl.slice(0, 23),
                 width: bitmap.width,
                 height: bitmap.height,
+                sha256: Array.from(
+                  new Uint8Array(
+                    await crypto.subtle.digest(
+                      "SHA-256",
+                      new TextEncoder().encode(imageDataUrl),
+                    ),
+                  ),
+                  (byte) => byte.toString(16).padStart(2, "0"),
+                ).join(""),
               });
               bitmap.close();
               const result = window.locationAiResponse;
@@ -264,6 +278,12 @@ function App() {
         ) : (
           <BarcodeCameraBox
             mode="LOCATION"
+            presentation={
+              new URLSearchParams(location.search).get("presentation") ===
+              "jobScan"
+                ? "expanded"
+                : "default"
+            }
             startOnMount={new URLSearchParams(location.search).has("camera")}
             stopAfterScan={new URLSearchParams(location.search).has("camera")}
             onCode={(code) => setCodes((items) => [...items, code])}

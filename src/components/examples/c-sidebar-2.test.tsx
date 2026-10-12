@@ -126,6 +126,9 @@ vi.mock("@/components/providers/AiUsageAccessProvider", () => ({
 }));
 
 import { Pattern } from "./c-sidebar-2";
+import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
+import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 
 const SEARCH_ROW = /^Search pages and records/;
 
@@ -452,5 +455,116 @@ describe("phone drawer search", () => {
     view.rerender(shell());
     await settle();
     expect(searchDialog()).toBeNull();
+  });
+});
+
+describe("phone drawer reopening", () => {
+  it("restores the active group on reopen even if the exit animation keeps it mounted", () => {
+    state.mobile = true;
+    state.pathname = "/hr/leave/review";
+    function PersistentDrawer() {
+      const { setOpenMobile } = useSidebar();
+      return (
+        <>
+          <button onClick={() => setOpenMobile(true)}>Open fixture</button>
+          <button onClick={() => setOpenMobile(false)}>Close fixture</button>
+          <SidebarNavigation id="fixture-nav" collapsed={false} />
+        </>
+      );
+    }
+    renderWithIntl(
+      <GlobalSearchProvider>
+        <SidebarProvider>
+          <PersistentDrawer />
+        </SidebarProvider>
+      </GlobalSearchProvider>,
+      { locale: "en" },
+    );
+    fireEvent.click(screen.getByText("Open fixture"));
+    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+    expect(screen.queryByRole("link", { name: "Review leave" })).toBeNull();
+    fireEvent.click(screen.getByText("Close fixture"));
+    fireEvent.click(screen.getByText("Open fixture"));
+    expect(screen.getByRole("link", { name: "Review leave" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+    expect(screen.queryByRole("link", { name: "Review leave" })).toBeNull();
+  });
+
+  // jsdom has no layout: the drawer list is 400px tall, the current page's
+  // row starts 900px down it, and `scrollTop` is recorded per element.
+  const scrollTops = new WeakMap<Element, number>();
+  let rectSpy: ReturnType<typeof vi.spyOn>;
+  let scrollTopSpy: PropertyDescriptor | undefined;
+  beforeEach(() => {
+    state.mobile = true;
+    state.pathname = "/hr/leave/review";
+    scrollTopSpy = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "scrollTop",
+    );
+    Object.defineProperty(Element.prototype, "scrollTop", {
+      configurable: true,
+      get(this: Element) {
+        return scrollTops.get(this) ?? 0;
+      },
+      set(this: Element, value: number) {
+        scrollTops.set(this, value);
+      },
+    });
+    rectSpy = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: Element) {
+        const box = (top: number, height: number) =>
+          ({ top, bottom: top + height, height }) as DOMRect;
+        if (this.getAttribute("data-sidebar") === "content") return box(0, 400);
+        if (this.getAttribute("aria-current") === "page")
+          return box(
+            900 -
+              (scrollTops.get(this.closest("[data-sidebar=content]")!) ?? 0),
+            40,
+          );
+        return box(0, 0);
+      });
+  });
+  afterEach(() => {
+    rectSpy.mockRestore();
+    if (scrollTopSpy)
+      Object.defineProperty(Element.prototype, "scrollTop", scrollTopSpy);
+  });
+  const list = (sheet: HTMLElement) =>
+    sheet.querySelector<HTMLElement>("[data-sidebar=content]")!;
+  const frame = () =>
+    act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+
+  it("scrolls only the drawer list to the current page on every opening, without moving focus", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const header = renderShell();
+    let { sheet } = await openDrawer(header);
+    const focused = document.activeElement;
+    await frame();
+    expect(
+      within(sheet).getByRole("link", { name: "Review leave" }),
+    ).toHaveAttribute("aria-current", "page");
+    // Centred: 900 − (400 − 40) / 2.
+    expect(list(sheet).scrollTop).toBe(720);
+    expect(document.activeElement).toBe(focused);
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(sheet, { key: "Escape" });
+    await waitFor(() => expect(drawer()).toBeNull());
+    ({ sheet } = await openDrawer(header));
+    await frame();
+    expect(list(sheet).scrollTop).toBe(720);
+    scrollTo.mockRestore();
+  });
+
+  it("leaves the list alone once the user starts scrolling it", async () => {
+    const { sheet } = await openDrawer(renderShell());
+    fireEvent.wheel(list(sheet));
+    await frame();
+    expect(list(sheet).scrollTop).toBe(0);
   });
 });

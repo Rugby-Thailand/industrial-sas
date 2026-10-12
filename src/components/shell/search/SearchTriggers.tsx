@@ -60,7 +60,7 @@ export function SidebarSearchTriggers({
             {t("trigger")}
           </span>
           {collapsed ? null : (
-            <kbd className="rounded border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 text-xs text-muted">
+            <kbd className="rounded border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 text-xs text-sidebar-accent-foreground">
               {shortcut}
             </kbd>
           )}

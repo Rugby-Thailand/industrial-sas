@@ -253,3 +253,105 @@ describe("canvas first workspace", () => {
     expect(search).toHaveFocus();
   });
 });
+
+describe("phone workspace (≤580px)", () => {
+  const phone = () => {
+    const original = window.matchMedia;
+    return vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      ...original(query),
+      // Every max-width breakpoint at or above the phone width matches.
+      matches: /max-width: (\d+)px/.test(query)
+        ? Number(/max-width: (\d+)px/.exec(query)![1]) >= 580
+        : false,
+    }));
+  };
+  const stagingArea = {
+    xMm: 1000,
+    yMm: 16000,
+    widthMm: 2800,
+    depthMm: 8980,
+    label: "Staging · 1 · 2.80 × 8.98 m",
+  };
+  const showPhone = () => {
+    const demo = floorMapDemo(false, false);
+    return renderWithIntl(
+      <FloorMap {...demo} blocks={[...demo.blocks, stagingArea]} />,
+      { locale: "en", workspace: false },
+    );
+  };
+  const closeSheet = async () => {
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Location details" }),
+      ).getByRole("button", { name: "Close dialog" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  };
+
+  it("shows a reserved area once in the sheet and reopens it on a second tap", async () => {
+    const spy = phone();
+    try {
+      showPhone();
+      fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+      expect(screen.getByText(/125%/)).toBeVisible();
+      const area = screen.getByRole("button", {
+        name: `Select area ${stagingArea.label}`,
+      });
+      fireEvent.click(area);
+      let sheet = screen.getByRole("dialog", { name: "Location details" });
+      // The description names the area without repeating its dimensions,
+      // which stay in their own row; there is no heading or inner clear.
+      expect(sheet).toHaveAccessibleDescription(/^Staging · 1 · Floor \d+$/);
+      expect(within(sheet).queryByRole("heading", { level: 3 })).toBeNull();
+      expect(within(sheet).getByText("2.8 × 8.98 m")).toBeVisible();
+      expect(
+        within(sheet).queryByRole("button", { name: "Clear selection" }),
+      ).toBeNull();
+      expect(
+        within(sheet).getAllByRole("button", { name: "Close dialog" }),
+      ).toHaveLength(1);
+
+      await closeSheet();
+      // No banner covers the map; the selection and camera are retained.
+      expect(
+        screen.queryByRole("button", { name: / · Location details$/ }),
+      ).toBeNull();
+      expect(area).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText(/125%/)).toBeVisible();
+
+      fireEvent.click(area);
+      sheet = screen.getByRole("dialog", { name: "Location details" });
+      expect(sheet).toBeVisible();
+      expect(area).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText(/125%/)).toBeVisible();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("reopens a closed location sheet by tapping the same location", async () => {
+    const spy = phone();
+    try {
+      showPhone();
+      fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+      const cell = screen.getByRole("button", {
+        name: "Select location FG-B · Stored & reserved",
+      });
+      fireEvent.click(cell);
+      await closeSheet();
+      expect(
+        screen.queryByRole("button", { name: / · Location details$/ }),
+      ).toBeNull();
+      fireEvent.click(cell);
+      expect(
+        screen.getByRole("dialog", { name: "Location details" }),
+      ).toBeVisible();
+      expect(cell).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText(/125%/)).toBeVisible();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

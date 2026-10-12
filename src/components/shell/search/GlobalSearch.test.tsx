@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -143,6 +149,44 @@ describe("global search dialog", () => {
     );
   });
 
+  it("drops the generic Open page line but keeps specific actions", async () => {
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    await type("employee");
+    const pages = screen.getAllByRole("option");
+    expect(pages.length).toBeGreaterThan(1);
+    expect(screen.getByRole("group", { name: "Tasks" })).toBeInTheDocument();
+    for (const option of pages)
+      expect(option).not.toHaveTextContent("Open page");
+    await type("วันหยุด");
+    expect(screen.getByRole("option", { name: /Holidays/ })).toHaveTextContent(
+      "Open this section",
+    );
+  });
+
+  it("centres its own close on the title row and returns focus to the opener", async () => {
+    renderSearch();
+    const opener = screen.getByRole("button", { name: "Open SEARCH" });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = await screen.findByRole("dialog");
+    const close = screen.getAllByRole("button", { name: "Close search" });
+    // One close, sharing a centred row with the title, not the corner.
+    expect(close).toHaveLength(1);
+    const row = close[0]!.parentElement!;
+    expect(row).toHaveClass("items-center");
+    expect(row).toContainElement(
+      screen.getByRole("heading", { name: "Search" }),
+    );
+    expect(dialog).toContainElement(row);
+    fireEvent.click(close[0]!);
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(opener).toHaveFocus();
+  });
+
   it("moves with arrows, ignores Enter while an IME composes, and returns focus on Escape", async () => {
     renderSearch();
     const opener = screen.getByRole("button", { name: "Open SEARCH" });
@@ -274,16 +318,14 @@ describe("global search dialog", () => {
 });
 
 describe("AI Search", () => {
-  it("says what Ask AI sends before anything is asked, and offers examples only for an empty query", async () => {
+  it("offers Ask AI without a disclosure paragraph, and sends nothing before it is pressed", async () => {
     renderSearch();
     fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
     await screen.findByRole("dialog");
-    // Normal search: the AI button and what pressing it sends, nothing more.
-    const note = screen.getByTestId("global-search-ai-disclosure");
-    expect(note).toBeVisible();
-    expect(note).toHaveTextContent("typed text (including any names)");
-    expect(note).toHaveTextContent("AI provider");
-    expect(note).toHaveTextContent("No records are sent");
+    // Normal search: only the AI button. The paragraph about what Ask AI
+    // sends was removed at the user's request (mobile UX-08).
+    expect(screen.queryByTestId("global-search-ai-disclosure")).toBeNull();
+    expect(screen.queryByText(/No records are sent/)).toBeNull();
     expect(screen.getByRole("button", { name: "Ask AI" })).toBeDisabled();
     expect(
       screen.queryByTestId("global-search-ai-panel"),
@@ -291,7 +333,7 @@ describe("AI Search", () => {
     expect(state.action).not.toHaveBeenCalled();
   });
 
-  it("offers examples only while the AI query is empty, keeping the disclosure in view", async () => {
+  it("offers examples only while the AI query is empty", async () => {
     renderSearch(<Opener mode="AI" />);
     fireEvent.click(screen.getByRole("button", { name: "Open AI" }));
     await screen.findByRole("dialog");
@@ -303,10 +345,31 @@ describe("AI Search", () => {
     expect(
       screen.queryByRole("group", { name: "Examples" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("global-search-ai-disclosure")).toBeVisible();
     // An example only fills the box: nothing is sent until Ask AI.
     expect(state.action).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Ask AI" })).toBeEnabled();
+  });
+
+  it("lists AI page suggestions without a generic Open page line", async () => {
+    state.action.mockResolvedValue({
+      ok: true,
+      value: {
+        ok: true,
+        today: "2026-10-09",
+        intent: grounded({ kind: "CLARIFY", clarify: "TASK" }),
+      },
+    });
+    renderSearch(<Opener mode="AI" />);
+    fireEvent.click(screen.getByRole("button", { name: "Open AI" }));
+    await screen.findByRole("dialog");
+    fireEvent.change(input(), { target: { value: "fix this one" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
+    const group = await screen.findByRole("group", { name: /AI/ });
+    const suggestions = within(group).getAllByRole("option");
+    expect(suggestions.length).toBeGreaterThan(0);
+    for (const option of suggestions)
+      expect(option).not.toHaveTextContent("Open page");
+    expect(state.action).toHaveBeenCalledTimes(1);
   });
 
   it("shows and clears the page context, sending only flags", async () => {

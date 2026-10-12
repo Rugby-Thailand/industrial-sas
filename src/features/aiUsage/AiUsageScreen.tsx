@@ -219,9 +219,6 @@ function UsageReport({
         onFilters={setFilters}
         options={data ?? options}
         featureLabel={label}
-        canExport={data !== null && estimate !== undefined}
-        exporting={exporting}
-        onExport={() => void exportCsv()}
       />
       {outcome === undefined ? (
         <div aria-busy="true" className="space-y-4">
@@ -286,6 +283,12 @@ function UsageReport({
             criteria={JSON.stringify({ ...args, refreshKey: undefined })}
             featureLabel={label}
             format={format}
+            csvExport={{
+              canExport: estimate !== undefined,
+              exporting,
+              filtered: activeFilterCount(filters) > 0,
+              onExport: () => void exportCsv(),
+            }}
           />
           <RecentActivity
             args={args}

@@ -103,8 +103,16 @@ vi.mock("@/hooks/useCanManage", () => ({
   useCanManage: () => mocks.canManage,
 }));
 vi.mock("../BarcodeCameraBox", () => ({
-  BarcodeCameraBox: ({ onCode }: { onCode: (code: string) => void }) => (
-    <button onClick={() => onCode("ZONE-A")}>Scan test location</button>
+  BarcodeCameraBox: ({
+    onCode,
+    presentation = "default",
+  }: {
+    onCode: (code: string) => void;
+    presentation?: string;
+  }) => (
+    <button data-presentation={presentation} onClick={() => onCode("ZONE-A")}>
+      Scan test location
+    </button>
   ),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
@@ -376,6 +384,10 @@ describe("scanned record deletion", () => {
       screen.getByRole("button", { name: "Set location for 1 record" }),
     );
     await user.click(screen.getByRole("button", { name: "Scan code" }));
+    // Assignment keeps the default scanner; only Scan job ticket opts in.
+    expect(
+      screen.getByRole("button", { name: "Scan test location" }),
+    ).toHaveAttribute("data-presentation", "default");
     await user.click(
       screen.getByRole("button", { name: "Scan test location" }),
     );

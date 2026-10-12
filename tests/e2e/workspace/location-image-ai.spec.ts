@@ -2,6 +2,108 @@ import { resolve } from "node:path";
 import { expect, test, expectNoAxeViolations } from "../support/fixtures";
 
 const url = `http://127.0.0.1:${process.env.BARCODE_PORT ?? 3199}`;
+
+test("Job location rereads the same photo once through its centred overlay", async ({
+  page,
+}) => {
+  await page.goto(`${url}/?presentation=jobScan&camera=portrait`);
+  await page.evaluate(() => {
+    window.locationAiResponse = { ok: true, candidates: [] };
+  });
+  await page.getByRole("button", { name: "Photo AI", exact: true }).click();
+  await page
+    .getByLabel("Choose photo", { exact: true })
+    .and(page.locator('input[type="file"]'))
+    .setInputFiles(resolve("tests/fixtures/barcode-photos/location-3-11.png"));
+  const retry = page.getByRole("button", {
+    name: "Read this photo again with AI",
+    exact: true,
+  });
+  await expect(retry).toBeVisible();
+  const photo = page.getByRole("img", { name: "Location label photo" });
+  const imageBox = (await photo.boundingBox())!;
+  const retryBox = (await retry.boundingBox())!;
+  expect(
+    Math.abs(retryBox.x + retryBox.width / 2 - imageBox.x - imageBox.width / 2),
+  ).toBeLessThan(1);
+  expect(
+    Math.abs(
+      retryBox.y + retryBox.height / 2 - imageBox.y - imageBox.height / 2,
+    ),
+  ).toBeLessThan(1);
+  await expect(
+    page.getByRole("button", { name: "Retry reading", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Take another photo", exact: true }),
+  ).toHaveCount(0);
+  await page.evaluate(() => {
+    window.locationAiDelay = 600;
+  });
+  await photo.click({ position: { x: 10, y: 10 } });
+  expect(await page.evaluate(() => window.locationAiRequests.length)).toBe(1);
+  await retry.click();
+  await expect(
+    page.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeVisible();
+  await expect(retry).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => window.locationAiCompleted))
+    .toBe(2);
+  await expect(retry).toBeVisible();
+  const requests = await page.evaluate(() => window.locationAiRequests);
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual(requests[0]);
+  await expectNoAxeViolations(page, "main");
+});
+
+test("Job location camera uses the available width and preserves the whole feed", async ({
+  page,
+}) => {
+  for (const width of [360, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${url}/?presentation=jobScan&camera=portrait`);
+    const video = page.locator("video");
+    for (const [feedWidth, feedHeight] of [
+      [480, 640],
+      [1280, 720],
+    ]) {
+      if (feedWidth === 1280)
+        await page.evaluate(() => window.resizeBarcodeFixtureCamera(1280, 720));
+      await expect
+        .poll(() =>
+          video.evaluate((node) =>
+            node instanceof HTMLVideoElement
+              ? [node.videoWidth, node.videoHeight]
+              : null,
+          ),
+        )
+        .toEqual([feedWidth, feedHeight]);
+      await expect
+        .poll(async () => {
+          const frame = (await video.boundingBox())!;
+          return frame.width / frame.height;
+        })
+        .toBeCloseTo(feedWidth! / feedHeight!, 2);
+      const frame = (await video.boundingBox())!;
+      expect(frame.width).toBeCloseTo(width - 32, 0);
+      expect(
+        await video.evaluate((node) => getComputedStyle(node).objectFit),
+      ).toBe("contain");
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth - innerWidth,
+        ),
+      ).toBe(0);
+    }
+    const choose = page.getByRole("button", {
+      name: "Choose image",
+      exact: true,
+    });
+    await expect(choose).toBeVisible();
+    expect((await choose.boundingBox())!.width).toBeLessThanOrEqual(48);
+  }
+});
 for (const locale of ["en", "th"] as const) {
   test(`AI location photo remains usable after camera denial and requires review (${locale})`, async ({
     page,

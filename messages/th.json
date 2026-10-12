@@ -319,6 +319,7 @@
     "title": "เครื่องมือวางแผนอาคารจัดเก็บ",
     "description": "วางแผนอาคาร ชั้น และจุดจัดเก็บพร้อมรหัส QR",
     "newBuilding": "สร้างอาคารใหม่",
+    "newBuildingShort": "อาคาร",
     "emptyTitle": "ยังไม่มีอาคารจัดเก็บ",
     "emptyBody": "สร้างอาคารเพื่อเริ่มกำหนดความจุแยกตามชั้น",
     "search": "ค้นหาอาคาร",
@@ -1531,7 +1532,8 @@
       "stalled": "การค้นหาหยุดคืบหน้า",
       "paused": "ยังค้นหาอยู่: ตรวจแล้ว {count, plural, other {# รายการ}} สำหรับหน้านี้",
       "continue": "ค้นหาต่อ"
-    }
+    },
+    "locationAiRereadPhoto": "อ่านภาพเดิมซ้ำด้วย AI"
   },
   "Hr": {
     "duration": "{hours} ชม. {minutes} น.",
@@ -2932,6 +2934,8 @@
     "optionsNoMatch": "ไม่พบรายการที่ตรงกัน ลองชื่ออื่น",
     "optionsFailed": "โหลดตัวเลือกไม่สำเร็จ",
     "optionsRetry": "ลองอีกครั้ง",
-    "optionsContinue": "ค้นหาต่อ"
+    "optionsContinue": "ค้นหาต่อ",
+    "exportScope": "ส่งออก CSV ช่วง {from} – {to} ({timezone})",
+    "exportScopeFiltered": "ส่งออก CSV ตามตัวกรอง ช่วง {from} – {to} ({timezone})"
   }
 }
