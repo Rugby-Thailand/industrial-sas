@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
 import { StillPhotoCamera } from "./StillPhotoCamera";
@@ -156,20 +157,18 @@ export function PhotoCapture({
         />
       )}
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-12"
+      <div className="flex items-center gap-2">
+        <IconButton
+          label={t("choosePhotos")}
+          variant="ghost"
           disabled={full}
           onClick={() => input.current?.click()}
         >
-          <ImagePlus className="size-4" aria-hidden="true" />
-          {t("choosePhotos")}
-        </Button>
+          <ImagePlus className="size-5" aria-hidden="true" />
+        </IconButton>
         <Button
           type="button"
-          className="min-h-12"
+          className="min-h-12 min-w-0 flex-1 whitespace-normal"
           disabled={!photos.length}
           onClick={() => {
             const files = collected.current.map((photo) => photo.file);

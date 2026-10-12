@@ -94,9 +94,12 @@ function setup(canReadImage = true, allowUnmapped = true) {
   return { onPick, ...view };
 }
 function select() {
-  fireEvent.change(screen.getByLabelText("Choose photo"), {
-    target: { files: [file()] },
-  });
+  fireEvent.change(
+    screen.getByLabelText("Choose photo", { selector: "input" }),
+    {
+      target: { files: [file()] },
+    },
+  );
 }
 function read() {
   fireEvent.click(
@@ -327,7 +330,7 @@ it("switches between one scan mode and one Photo AI mode without submitting an A
   expect(ai).toHaveAttribute("aria-pressed", "true");
   expect(scan).toHaveAttribute("aria-pressed", "false");
   const reader = screen.getByRole("region", { name: "Read a location label" });
-  expect(reader).toHaveTextContent("AI reads it automatically");
+  expect(reader).toBeVisible();
   expect(screen.getAllByRole("button", { name: "Choose photo" })).toHaveLength(
     1,
   );

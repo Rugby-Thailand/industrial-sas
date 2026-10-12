@@ -27,6 +27,7 @@ for (const locale of ["en", "th"] as const) {
       .getByLabel(locale === "en" ? "Choose photo" : "เลือกรูป", {
         exact: true,
       })
+      .and(page.locator('input[type="file"]'))
       .setInputFiles(
         resolve("tests/fixtures/barcode-photos/location-3-11.png"),
       );
@@ -73,7 +74,9 @@ test("AI multiple candidates require a choice and a fresh photo discards a late 
     };
   });
   await page.getByRole("button", { name: "Photo AI", exact: true }).click();
-  const picker = page.getByLabel("Choose photo", { exact: true });
+  const picker = page
+    .getByLabel("Choose photo", { exact: true })
+    .and(page.locator('input[type="file"]'));
   await picker.setInputFiles(
     resolve("tests/fixtures/barcode-photos/location-3-11.png"),
   );

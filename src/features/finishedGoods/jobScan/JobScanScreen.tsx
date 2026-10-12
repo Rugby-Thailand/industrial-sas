@@ -418,7 +418,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       <Panel
         padding="compact"
         aria-label={t("location")}
-        className="-mt-1 flex items-center gap-3"
+        className="-mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:flex sm:gap-3"
       >
         {mapped ? (
           <CheckCircle2
@@ -439,21 +439,23 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             <p className="truncate text-sm text-muted">{place.join(" · ")}</p>
           )}
         </div>
-        <StatusBadge
-          tone={mapped ? "success" : "warning"}
-          label={mapped ? t("mapped") : t("unmapped")}
-        />
-        <Button
-          variant="ghost"
-          className="shrink-0 px-2 text-link"
-          disabled={saving}
-          onClick={() => {
-            changePanel(null);
-            setLocation(undefined);
-          }}
-        >
-          {t("change")}
-        </Button>
+        <div className="col-start-2 flex flex-wrap items-center gap-2 sm:contents">
+          <StatusBadge
+            tone={mapped ? "success" : "warning"}
+            label={mapped ? t("mapped") : t("unmapped")}
+          />
+          <Button
+            variant="ghost"
+            className="ml-auto shrink-0 px-2 text-link sm:ml-0"
+            disabled={saving}
+            onClick={() => {
+              changePanel(null);
+              setLocation(undefined);
+            }}
+          >
+            {t("change")}
+          </Button>
+        </div>
       </Panel>
 
       <fieldset

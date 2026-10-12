@@ -8,10 +8,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { Camera, ImagePlus } from "lucide-react";
+import { Camera, ImagePlus, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { barcodeImageProblem, type BarcodeCrop } from "../barcodeDecoder";
 import { CameraFrame } from "../CameraFrame";
@@ -278,53 +279,51 @@ export function LocationImageReader({
               ))}
             </div>
           )}
-          <label htmlFor={id} className="block text-sm">
+          <label htmlFor={id} className="sr-only">
             {t("locationAiCode")}
           </label>
-          <Input
-            id={id}
-            value={code}
-            maxLength={200}
-            autoComplete="off"
-            onChange={(event) => setCode(event.target.value)}
-          />
-          <Button
-            type="button"
-            className="min-h-12 w-full"
-            disabled={!code.trim()}
-            onClick={() => onConfirm(code.trim())}
-          >
-            {t("useLocationAiCode")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Input
+              id={id}
+              className="min-w-0 flex-1"
+              value={code}
+              maxLength={200}
+              autoComplete="off"
+              onChange={(event) => setCode(event.target.value)}
+            />
+            <Button
+              type="button"
+              className="shrink-0"
+              disabled={!code.trim()}
+              onClick={() => onConfirm(code.trim())}
+            >
+              {t("useLocationAiCode")}
+            </Button>
+          </div>
         </div>
       )}
-      <div className="space-y-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-12 w-full"
+      <div className="flex items-center gap-1">
+        <IconButton
+          label={t("chooseLocationImage")}
+          variant="ghost"
           onClick={() => picker.current?.click()}
         >
-          <ImagePlus aria-hidden="true" className="size-4" />
-          {t("chooseLocationImage")}
-        </Button>
+          <ImagePlus aria-hidden="true" className="size-5" />
+        </IconButton>
         {!cameraOpen && (
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-12 w-full"
+          <IconButton
+            label={t("locationAiOpenCamera")}
+            variant="ghost"
             onClick={() => {
               invalidate();
               setPhoto(undefined);
               setCameraOpen(true);
             }}
           >
-            <Camera aria-hidden="true" className="size-4" />
-            {t("locationAiOpenCamera")}
-          </Button>
+            <RotateCcw aria-hidden="true" className="size-5" />
+          </IconButton>
         )}
       </div>
-      <p className="text-sm text-muted">{t("locationAiHint")}</p>
     </section>
   );
 }

@@ -68,9 +68,12 @@ function gallery(count: number) {
         type: "image/jpeg",
       }),
   );
-  fireEvent.change(screen.getByLabelText("Choose photos"), {
-    target: { files },
-  });
+  fireEvent.change(
+    screen.getByLabelText("Choose photos", { selector: "input" }),
+    {
+      target: { files },
+    },
+  );
 }
 function shoot(shutter: HTMLElement) {
   fireEvent.click(shutter);
