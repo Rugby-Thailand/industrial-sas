@@ -11,4 +11,4 @@ October 13, 2026 (Bangkok). T3 collaborative preview `tab_5l`, real location wor
 
 The shared browser host returned generic errors for snapshots and timeouts for native viewport resizing. Later native click calls also returned success without dispatching an observable click; DOM `click()` through `preview_evaluate` exercised the controls successfully. Responsive evidence therefore uses a constrained CSS viewport, not native device emulation. No final screenshots, touch interaction, camera capture or deployed after-latency claim is made. Earlier successful native keyboard/filter checks are described in the initial report.
 
-Final source will be reconciled after worker integration; combined production-component tests and CI remain the authoritative regression checks.
+After integration at `3da2ac95`, the preview was switched to the combined source. Rechecked exact lookup with broader catalogue transport deliberately pending: F1-L30-16 renders as an exact choice while search continues, and no selection is made automatically. The combined job-scan and public-contract batch passed 180 tests; final repository-wide checks and CI are recorded in README.md.

@@ -1,5 +1,7 @@
 # Filter, search, and pagination improvement plan
 
+Implementation status: see the [October 13 delivery and audit report](../reviews/filter-delivery-2026-10-13/README.md). The evidence below records the original research baseline; final implementation and validation supersede its pending steps.
+
 Research started October 12, 2026. Status: researched and tested; application changes are planned, not implemented or deployed.
 
 ## Recommended order
