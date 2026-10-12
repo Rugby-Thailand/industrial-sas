@@ -26,13 +26,13 @@ describe("LocaleSwitcher navigation", () => {
       locale: "th" as const,
       next: "en",
       label: "ภาษา",
-      option: "🇬🇧 อังกฤษ",
+      option: "อังกฤษ",
     },
     {
       locale: "en" as const,
       next: "th",
       label: "Language",
-      option: "🇹🇭 Thai",
+      option: "Thai",
     },
   ])(
     "preserves the pallet resume URL when switching $locale to $next",
@@ -54,7 +54,7 @@ describe("LocaleSwitcher navigation", () => {
     window.history.replaceState(null, "", `/en${pathname}`);
     renderWithIntl(<LocaleSwitcher />, { locale: "en", workspace: false });
 
-    chooseOption("Language", "🇹🇭 Thai");
+    chooseOption("Language", "Thai");
 
     expect(replace).toHaveBeenCalledExactlyOnceWith(pathname, { locale: "th" });
   });
@@ -65,7 +65,7 @@ describe("LocaleSwitcher navigation", () => {
     const suffix = "?resumePalletId=newly-created-pallet#measure";
     window.history.replaceState(null, "", `/en${pathname}${suffix}`);
 
-    chooseOption("Language", "🇹🇭 Thai");
+    chooseOption("Language", "Thai");
 
     expect(replace).toHaveBeenCalledExactlyOnceWith(`${pathname}${suffix}`, {
       locale: "th",

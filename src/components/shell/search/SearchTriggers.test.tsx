@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 
 describe("sidebar search triggers", () => {
-  it("updates AI visibility with the capability while retaining ordinary search", () => {
+  it("keeps a single search entry regardless of AI capability", () => {
     state.aiAvailable = false;
     const view = renderWithIntl(<Harness collapsed={false} />, {
       locale: "en",
@@ -50,8 +50,7 @@ describe("sidebar search triggers", () => {
     expect(screen.queryByTestId("sidebar-ai-search")).toBeNull();
     state.aiAvailable = true;
     view.rerender(<Harness collapsed={false} />);
-    fireEvent.click(screen.getByTestId("sidebar-ai-search"));
-    expect(state.open).toHaveBeenCalledWith("AI");
+    expect(screen.queryByTestId("sidebar-ai-search")).toBeNull();
 
     state.aiAvailable = false;
     view.rerender(<Harness collapsed={false} />);
@@ -60,15 +59,14 @@ describe("sidebar search triggers", () => {
     expect(state.open).toHaveBeenLastCalledWith("SEARCH");
   });
 
-  it("lets the drawer hand off either mode instead of opening directly", () => {
+  it("lets the drawer hand off search instead of opening directly", () => {
     const handoff = vi.fn();
     renderWithIntl(<Harness collapsed={false} onOpen={handoff} />, {
       locale: "en",
     });
 
     fireEvent.click(screen.getByTestId("sidebar-search"));
-    fireEvent.click(screen.getByTestId("sidebar-ai-search"));
-    expect(handoff.mock.calls).toEqual([["SEARCH"], ["AI"]]);
+    expect(handoff.mock.calls).toEqual([["SEARCH"]]);
     expect(state.open).not.toHaveBeenCalled();
   });
 
@@ -77,25 +75,16 @@ describe("sidebar search triggers", () => {
     renderWithIntl(<Harness collapsed />, { locale: "en" });
 
     const search = screen.getByTestId("sidebar-search");
-    const ai = screen.getByTestId("sidebar-ai-search");
     expect(search).toHaveAccessibleName(/Search pages and records \(.+\)/);
-    expect(ai).toHaveAccessibleName("AI Search: describe what you need");
     expect(search).toHaveAttribute("aria-haspopup", "dialog");
-    expect(ai).toHaveAttribute("aria-haspopup", "dialog");
     expect(search.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-    expect(ai.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 
     await user.tab();
     expect(search).toHaveFocus();
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       search.getAttribute("aria-label")!,
     );
-    await user.tab();
-    expect(ai).toHaveFocus();
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "AI Search: describe what you need",
-    );
     await user.keyboard("{Enter}");
-    expect(state.open).toHaveBeenCalledWith("AI");
+    expect(state.open).toHaveBeenCalledWith("SEARCH");
   });
 });
