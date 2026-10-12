@@ -294,10 +294,10 @@ function createGuardMachine(deps: MachineDeps) {
   const refreshQueries = () =>
     window.dispatchEvent(new Event(browserQueryEvent));
   /**
-   * Attach unload protection only while it can matter: a clean document
-   * keeps no `beforeunload` listener (it excludes pages from Firefox's
-   * Back/Forward cache). Runs synchronously with every registration change
-   * and with connect/disconnect.
+   * Attach the owner's unload protection only while it can matter. A clean
+   * owner adds no `beforeunload` listener that could block Firefox's
+   * Back/Forward cache; other integrations may still have their own.
+   * Runs synchronously with registration changes and connect/disconnect.
    */
   function syncUnloadListener() {
     const wanted = connected && active();
