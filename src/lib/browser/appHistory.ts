@@ -1,4 +1,5 @@
 export const APP_HISTORY_KEY = "appNavigationIndex";
+/** The navigation guard owner's same-URL buffer entry carries this marker. */
 export const GUARD_HISTORY_KEY = "__storageWorkspaceGuard";
 
 /** Only entries visited in this app count; history.length includes other sites. */
@@ -16,54 +17,116 @@ function historyIndex(state: unknown): number | undefined {
     : undefined;
 }
 
-/** Track actual entries, including same-URL refreshes and hash-only navigation.
- * Next can replace its internal state without changing pathname/search. Attach
- * our depth at the history write itself so those commits cannot erase Back.
+type Tracker = {
+  readonly push: History["pushState"];
+  readonly replace: History["replaceState"];
+  readonly nativePush: History["pushState"];
+  readonly nativeReplace: History["replaceState"];
+};
+
+/**
+ * One wrapper pair per document. Next's Router captures whatever
+ * pushState/replaceState exist when its effect runs (after ours), so once
+ * captured our wrapper cannot be removed from its chain. Instead the wrapper
+ * stays installed and merely passes through while no shell is tracking, and a
+ * later shell reactivates the same wrapper rather than stacking another.
  */
-export function trackAppHistory(): () => void {
-  const history = window.history;
-  const push = history.pushState;
-  const replace = history.replaceState;
-  let index = appHistoryIndex() ?? 0;
-  let active = true;
-  const onPopState = () => {
-    index = appHistoryIndex() ?? index;
+let installed: Tracker | null = null;
+let activeOwner: object | null = null;
+let index = 0;
+const writeListeners = new Set<() => void>();
+
+/**
+ * Observe tracked writes that create or move to another entry: every push,
+ * and replacements that change the URL. Same-URL refreshes and
+ * metadata-only writes are not reported. The navigation guard owner uses
+ * this to invalidate a buffer removal another write overtook.
+ */
+export function subscribeHistoryWrites(listener: () => void): () => void {
+  writeListeners.add(listener);
+  return () => {
+    writeListeners.delete(listener);
   };
-  const trackedPush: History["pushState"] = (data, unused, url) => {
-    if (!active) return push.call(history, data, unused, url);
+}
+
+function notifyWrite() {
+  for (const listener of [...writeListeners]) listener();
+}
+
+function install(history: History): Tracker {
+  const nativePush = history.pushState;
+  const nativeReplace = history.replaceState;
+  const push: History["pushState"] = (data, unused, url) => {
+    if (activeOwner === null)
+      return nativePush.call(history, data, unused, url);
     const state = { ...data };
+    // The guard's buffer duplicates the current page; it is not a new step.
     const buffer =
       state[GUARD_HISTORY_KEY] !== undefined &&
       state[GUARD_HISTORY_KEY] !== history.state?.[GUARD_HISTORY_KEY];
     const next = (appHistoryIndex() ?? index) + (buffer ? 0 : 1);
     state[APP_HISTORY_KEY] = next;
-    push.call(history, state, unused, url);
+    nativePush.call(history, state, unused, url);
     index = next;
+    notifyWrite();
   };
-  const trackedReplace: History["replaceState"] = (data, unused, url) => {
-    if (!active) return replace.call(history, data, unused, url);
+  const replace: History["replaceState"] = (data, unused, url) => {
+    if (activeOwner === null)
+      return nativeReplace.call(history, data, unused, url);
     const next = historyIndex(data) ?? appHistoryIndex() ?? index;
-    // A same-URL router refresh is still the same entry. Keep its draft guard
-    // and catalogue metadata while accepting Next's replacement router tree.
-    // Metadata-only writes omit the URL and can intentionally remove fields.
+    // A same-URL router refresh is still the same entry. Keep its guard and
+    // catalogue metadata while accepting Next's replacement router tree.
+    // Metadata-only writes omit the URL and may intentionally remove fields.
     const sameLocation =
       url != null &&
       new URL(url, window.location.href).href === window.location.href;
     const state = sameLocation ? { ...history.state, ...data } : { ...data };
-    replace.call(history, { ...state, [APP_HISTORY_KEY]: next }, unused, url);
+    nativeReplace.call(
+      history,
+      { ...state, [APP_HISTORY_KEY]: next },
+      unused,
+      url,
+    );
     index = next;
+    if (url != null && !sameLocation) notifyWrite();
   };
-  history.pushState = trackedPush;
-  history.replaceState = trackedReplace;
+  history.pushState = push;
+  history.replaceState = replace;
+  return { push, replace, nativePush, nativeReplace };
+}
+
+/**
+ * Track actual app entries, including same-URL refreshes and hash-only
+ * navigation, by stamping depth at the history write itself. Returns the
+ * shell's cleanup. Holds no payload, cache or account data.
+ */
+export function trackAppHistory(): () => void {
+  const history = window.history;
+  const owner = {};
+  installed ??= install(history);
+  activeOwner = owner;
+  index = appHistoryIndex() ?? 0;
+  const onPopState = () => {
+    index = appHistoryIndex() ?? index;
+  };
   // Omit the URL: a metadata write must not dispatch a router transition.
-  trackedReplace(history.state, "");
+  history.replaceState(history.state, "");
   window.addEventListener("popstate", onPopState);
   return () => {
-    active = false;
     window.removeEventListener("popstate", onPopState);
-    // Next may have wrapped these methods after this effect. Leave its patch
-    // in place; the captured inactive wrapper simply forwards native writes.
-    if (history.pushState === trackedPush) history.pushState = push;
-    if (history.replaceState === trackedReplace) history.replaceState = replace;
+    if (activeOwner === owner) activeOwner = null;
+    const tracker = installed;
+    // Only restore methods nobody wrapped after us; otherwise stay installed
+    // as a pass-through inside the captured chain.
+    if (
+      tracker !== null &&
+      activeOwner === null &&
+      history.pushState === tracker.push &&
+      history.replaceState === tracker.replace
+    ) {
+      history.pushState = tracker.nativePush;
+      history.replaceState = tracker.nativeReplace;
+      installed = null;
+    }
   };
 }

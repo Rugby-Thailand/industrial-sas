@@ -589,13 +589,17 @@ function AvailableEditor({
       ...(data.batch.simplePacking ? { simplePacking: true } : {}),
       packages,
     };
-    await op.run(async () => {
-      written(
-        await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
-      );
-      setDone(true);
-      op.clearRequests();
-    });
+    await op.run(
+      async () => {
+        written(
+          await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
+        );
+      },
+      () => {
+        setDone(true);
+        op.clearRequests();
+      },
+    );
   }
   return (
     <div className="space-y-4">

@@ -729,3 +729,33 @@ it("shows no suitable move destination when only invalid previews remain", () =>
   ).not.toBeInTheDocument();
   expect(mocks.write).not.toHaveBeenCalled();
 });
+
+it("does not navigate when a move completion resolves after unmount", async () => {
+  currentDetail = active("IN_TRANSIT");
+  currentDetail = {
+    ...currentDetail,
+    activeMove: {
+      ...currentDetail.activeMove!,
+      destinationVerifiedForCurrentUser: true,
+    },
+  };
+  let resolveComplete: () => void = () => {};
+  mocks.write.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveComplete = () => resolve(success("move-a"));
+      }),
+  );
+  const view = renderMove();
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: /shown position and orientation/ }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Confirm move complete" }),
+  );
+  await waitFor(() => expect(callsFor("completeMove")).toHaveLength(1));
+  view.unmount();
+  resolveComplete();
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+  expect(mocks.push).not.toHaveBeenCalled();
+});

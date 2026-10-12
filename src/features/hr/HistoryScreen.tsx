@@ -35,6 +35,7 @@ import {
   HrQueryState,
   PlanText,
   TimeText,
+  useHrBack,
 } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
 import { monthRange } from "./selfService";
@@ -42,9 +43,10 @@ import { HrToolbar } from "./HrUi";
 
 export function HrHistoryScreen() {
   const t = useTranslations("Hr.history");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false}>
+      <PageHeader title={t("title")} summary={t("summary")} {...back}>
         <Button asChild variant="outline">
           <Link href={ROUTES.hrFrozenPeriods}>{t("closedPeriods")}</Link>
         </Button>

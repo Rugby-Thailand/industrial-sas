@@ -38,7 +38,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { hrRefs } from "@/lib/convex/hrApi";
-import { registerTransitionGuard } from "@/lib/navigationGuard";
+import { registerNavigationGuardOwner } from "@/lib/navigationGuard";
 
 import {
   GlobalSearchProvider,
@@ -231,8 +231,11 @@ describe("global search dialog", () => {
 
   it("does not navigate while an unsaved-work guard holds the transition", async () => {
     let held: (() => void) | undefined;
-    const release = registerTransitionGuard((next) => {
-      held = next;
+    const release = registerNavigationGuardOwner({
+      requestTransition: (next) => {
+        held = next;
+      },
+      isTraversing: () => false,
     });
     renderSearch();
     fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));

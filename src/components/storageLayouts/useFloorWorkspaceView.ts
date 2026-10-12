@@ -6,16 +6,12 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  subscribeBrowserQuery,
-  updateBrowserQuery,
-} from "@/lib/browser/history";
+import { updateBrowserQuery } from "@/lib/browser/history";
+import { useBrowserQuery } from "@/hooks/useBrowserQuery";
 export type FloorWorkspaceView = "map" | "list" | "split";
 const event = "storage-floor-panel";
-const subscribe = (listener: () => void) =>
-  subscribeBrowserQuery(event, listener);
-const read = (): FloorWorkspaceView => {
-  const value = new URLSearchParams(window.location.search).get("panel");
+const read = (search: string): FloorWorkspaceView => {
+  const value = new URLSearchParams(search).get("panel");
   return value === "list" || value === "split" ? value : "map";
 };
 function useWorkspaceMedia(query: string) {
@@ -35,7 +31,7 @@ function useWorkspaceMedia(query: string) {
 }
 /** Presentation state owns only `panel`; building mode and floor navigation remain independent. */
 export function useFloorWorkspaceView() {
-  const requested = useSyncExternalStore(subscribe, read, () => "map" as const);
+  const requested = read(useBrowserQuery(event).search);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>();
   useEffect(() => {

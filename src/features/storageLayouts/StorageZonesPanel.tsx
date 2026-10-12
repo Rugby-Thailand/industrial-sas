@@ -334,47 +334,51 @@ export function StorageZonesPanel({
         maxStackHeightMm: millimetres(stackHeight),
         storageCondition: storageCondition === "ANY" ? "" : storageCondition,
       };
-      const outcome = isEditing
-        ? await operation.run(() => {
-            const payload = {
-              ...draft,
-              zoneId: editingZone.zoneId,
-              ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
+      // Each branch keeps its own payload; one current completion handles
+      // the shared create/update outcome.
+      const send =
+        editingZone !== undefined
+          ? () => {
+              const payload = {
+                ...draft,
+                zoneId: editingZone.zoneId,
+                ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
+              };
+              return updateZone({
+                ...payload,
+                requestId: operation.request(JSON.stringify(payload)),
+              });
+            }
+          : () => {
+              const payload = { ...draft, buildingId, floorNumber };
+              return createZone({
+                ...payload,
+                requestId: operation.request(JSON.stringify(payload)),
+              });
             };
-            return updateZone({
-              ...payload,
-              requestId: operation.request(JSON.stringify(payload)),
-            });
-          })
-        : await operation.run(() => {
-            const payload = { ...draft, buildingId, floorNumber };
-            return createZone({
-              ...payload,
-              requestId: operation.request(JSON.stringify(payload)),
-            });
+      await operation.run(send, (outcome) => {
+        if (!outcome.ok) {
+          setMessage({
+            tone: "warning",
+            text: storageErrorMessage(t, outcome.denial.code),
           });
-      if (!outcome) return;
-      if (!outcome.ok) {
-        setMessage({
-          tone: "warning",
-          text: storageErrorMessage(t, outcome.denial.code),
-        });
-      } else if (!outcome.value.written) {
-        setMessage({
-          tone: "warning",
-          text: storageErrorMessage(t, outcome.value.error.code),
-        });
-      } else {
-        operation.clearRequests();
-        setLabel("");
-        setConfirmingImpact(false);
-        setCreateDialogOpen(false);
-        setEditingZone(undefined);
-        setMessage({
-          tone: "success",
-          text: t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
-        });
-      }
+        } else if (!outcome.value.written) {
+          setMessage({
+            tone: "warning",
+            text: storageErrorMessage(t, outcome.value.error.code),
+          });
+        } else {
+          operation.clearRequests();
+          setLabel("");
+          setConfirmingImpact(false);
+          setCreateDialogOpen(false);
+          setEditingZone(undefined);
+          setMessage({
+            tone: "success",
+            text: t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
+          });
+        }
+      });
     } finally {
       setPendingAction(undefined);
     }
@@ -389,23 +393,25 @@ export function StorageZonesPanel({
         warehouseId,
         zoneId: zone.zoneId,
       };
-      const outcome = await operation.run(() =>
-        archiveZone({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      await operation.run(
+        () =>
+          archiveZone({
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          }),
+        (outcome) => {
+          if (!outcome.ok) {
+            const code = outcome.denial.code;
+            setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
+          } else if (!outcome.value.written) {
+            const code = outcome.value.error.code;
+            setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
+          } else {
+            operation.clearRequests();
+            setMessage({ tone: "success", text: t("storageZoneArchived") });
+          }
+        },
       );
-      if (!outcome) return;
-      if (!outcome.ok) {
-        const code = outcome.denial.code;
-        setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
-      } else if (!outcome.value.written) {
-        const code = outcome.value.error.code;
-        setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
-      } else {
-        operation.clearRequests();
-        setMessage({ tone: "success", text: t("storageZoneArchived") });
-      }
     } finally {
       setPendingAction(undefined);
     }

@@ -17,13 +17,16 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES } from "@/lib/navigation";
-import {
-  guardedNavigate,
-  registerTransitionGuard,
-} from "@/lib/navigationGuard";
+import { guardedNavigate, onNavigationIntent } from "@/lib/navigationGuard";
 
 import { formatBusinessDate } from "./format";
-import { Facts, HrGate, HrInlineError, HrQueryState } from "./HrShared";
+import {
+  Facts,
+  HrGate,
+  HrInlineError,
+  HrQueryState,
+  useHrBack,
+} from "./HrShared";
 import {
   downloadPrivatePayslip,
   PayslipAccessError,
@@ -43,13 +46,10 @@ type Detail = {
 
 export function HrPayslipsScreen({ rowId }: { readonly rowId?: string }) {
   const t = useTranslations("Hr.payslips");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader
-        title={t("title")}
-        summary={t("summary")}
-        showBack={rowId !== undefined}
-      />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.self}>
         {rowId ? <ExactPayslip rowId={rowId} /> : <PayslipList />}
       </HrGate>
@@ -267,10 +267,8 @@ function SensitiveStatementBody({
         if (link && !link.hasAttribute("download")) clear();
       }
     };
-    const unregister = registerTransitionGuard((action) => {
-      clear();
-      action();
-    });
+    // Hide amounts only once a navigation is permitted; never block it.
+    const unregister = onNavigationIntent(clear);
     document.addEventListener("click", navigationClick, true);
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", clear);

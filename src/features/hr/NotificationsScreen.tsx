@@ -17,7 +17,7 @@ import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES } from "@/lib/navigation";
 import { AnnouncementPager, AnnouncementTime } from "./AnnouncementsScreen";
-import { HrGate, HrInlineError, WriteFeedback } from "./HrShared";
+import { HrGate, HrInlineError, useHrBack, WriteFeedback } from "./HrShared";
 import { HrToolbar } from "./HrUi";
 import { useHrWrite } from "./useHrWrite";
 
@@ -43,9 +43,10 @@ export function notificationHref(row: NotificationRow): string | undefined {
 }
 export function HrNotificationsScreen() {
   const t = useTranslations("Hr.notifications");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.self}>
         <NotificationsContent />
       </HrGate>

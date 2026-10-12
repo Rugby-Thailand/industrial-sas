@@ -34,7 +34,7 @@ import { storageRectangleContains } from "../../../convex/model/storageLayout/st
 import { AreaOverview } from "./AreaOverview";
 import { BuildingAreaDetails } from "./BuildingAreaDetails";
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
-import { useWorkspaceNavigationGuard } from "./useWorkspaceNavigationGuard";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
@@ -379,19 +379,22 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
       defaultFloorHeightMm: millimetres(String(data.get("height") ?? "")),
       floorCount: Number(data.get("floors")),
     };
-    await operation.run(async () => {
-      const outcome = await create({
-        ...payload,
-        requestId: operation.request(JSON.stringify(payload)),
-      });
-      if (!outcome.ok) operation.setError(outcome.denial.code);
-      else if (!outcome.value.written)
-        operation.setError(outcome.value.error.code);
-      else {
-        operation.clearRequests();
-        router.push(storageBuildingPath(outcome.value.documentId));
-      }
-    });
+    await operation.run(
+      async () =>
+        create({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      (outcome) => {
+        if (!outcome.ok) operation.setError(outcome.denial.code);
+        else if (!outcome.value.written)
+          operation.setError(outcome.value.error.code);
+        else {
+          operation.clearRequests();
+          router.push(storageBuildingPath(outcome.value.documentId));
+        }
+      },
+    );
   }
   return (
     <form
@@ -652,19 +655,21 @@ function BuildingSettings({
         depthMm: millimetres(String(data.get("depth"))),
         defaultFloorHeightMm: millimetres(String(data.get("height"))),
       };
-      const result = await operation.run(() =>
-        update({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      await operation.run(
+        () =>
+          update({
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          }),
+        (result) => {
+          if (!result.ok) setError(result.denial.code);
+          else if (!result.value.written) setError(result.value.error.code);
+          else {
+            operation.clearRequests();
+            setConfirmingImpact(false);
+          }
+        },
       );
-      if (!result) return;
-      if (!result.ok) setError(result.denial.code);
-      else if (!result.value.written) setError(result.value.error.code);
-      else {
-        operation.clearRequests();
-        setConfirmingImpact(false);
-      }
     } finally {
       setPending(false);
     }
@@ -682,16 +687,18 @@ function BuildingSettings({
         expectedVersion: building.version,
         floorCount: Number(data.get("floorCount")),
       };
-      const result = await operation.run(() =>
-        changeFloorCount({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      await operation.run(
+        () =>
+          changeFloorCount({
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          }),
+        (result) => {
+          if (!result.ok) setError(result.denial.code);
+          else if (!result.value.written) setError(result.value.error.code);
+          else operation.clearRequests();
+        },
       );
-      if (!result) return;
-      if (!result.ok) setError(result.denial.code);
-      else if (!result.value.written) setError(result.value.error.code);
-      else operation.clearRequests();
     } finally {
       setPending(false);
     }
@@ -969,7 +976,7 @@ export function BuildingModelWorkspace({
   const [pending, setPending] = useState(false);
   const [reset, setReset] = useState(0);
   const editorRef = useRef<FloorEditorHandle>(null);
-  const guard = useWorkspaceNavigationGuard({
+  const guard = useNavigationDraft({
     dirty: dirty || dialogOpen,
     pending,
     ...(dialogOpen ? { saveBlockedReason: t("finishOpenEditor") } : {}),
@@ -999,7 +1006,6 @@ export function BuildingModelWorkspace({
   }
   return (
     <div className="min-w-0 space-y-3">
-      {guard.navigationPrompt}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-1 hidden min-[851px]:block">
@@ -1449,66 +1455,68 @@ function FloorForm({
           reservedBlocks: blocks,
         },
       };
-      const outcome = await operation.run(() =>
-        save({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      const outcome = await operation.run(
+        () =>
+          save({
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          }),
+        (outcome) => {
+          if (!outcome.ok)
+            setMessage({
+              tone: "warning",
+              text: storageErrorMessage(t, outcome.denial.code),
+            });
+          else if (!outcome.value.written)
+            setMessage({
+              tone: "warning",
+              text: storageErrorMessage(t, outcome.value.error.code),
+            });
+          else {
+            operation.clearRequests();
+            setConfirmingImpact(false);
+            const nextFloor = {
+              ...floor,
+              widthMm: actualWidth,
+              depthMm: actualDepth,
+              heightMm: actualHeight,
+              offsetXMm: actualPlacement.xMm,
+              offsetYMm: actualPlacement.yMm,
+              reservedBlocks: blocks.map(({ id, ...block }) => ({
+                ...block,
+                blockId: id,
+              })),
+              version: floor.version + 1,
+            };
+            const inheritedFloor: StorageFloorRow = {
+              floorId: nextFloor.floorId,
+              floorNumber: nextFloor.floorNumber,
+              grossAreaSqMm: nextFloor.grossAreaSqMm,
+              reservedAreaSqMm: nextFloor.reservedAreaSqMm,
+              usableAreaSqMm: nextFloor.usableAreaSqMm,
+              version: nextFloor.version,
+              storageZones: nextFloor.storageZones,
+              reservedBlocks: nextFloor.reservedBlocks,
+              offsetXMm: nextFloor.offsetXMm,
+              offsetYMm: nextFloor.offsetYMm,
+              ...(width === "" ? {} : { widthMm: actualWidth }),
+              ...(depth === "" ? {} : { depthMm: actualDepth }),
+              ...(height === "" ? {} : { heightMm: actualHeight }),
+            };
+            setBaseline(inheritedFloor);
+            setPlacement(actualPlacement);
+            dirtyChange?.(false);
+            setMessage({ tone: "success", text: t("savedContinueToStorage") });
+            requestAnimationFrame(() => {
+              document
+                .getElementById("storage-stacks-section")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+          }
+        },
       );
-      if (!outcome) return false;
-      if (!outcome.ok)
-        setMessage({
-          tone: "warning",
-          text: storageErrorMessage(t, outcome.denial.code),
-        });
-      else if (!outcome.value.written)
-        setMessage({
-          tone: "warning",
-          text: storageErrorMessage(t, outcome.value.error.code),
-        });
-      else {
-        operation.clearRequests();
-        setConfirmingImpact(false);
-        const nextFloor = {
-          ...floor,
-          widthMm: actualWidth,
-          depthMm: actualDepth,
-          heightMm: actualHeight,
-          offsetXMm: actualPlacement.xMm,
-          offsetYMm: actualPlacement.yMm,
-          reservedBlocks: blocks.map(({ id, ...block }) => ({
-            ...block,
-            blockId: id,
-          })),
-          version: floor.version + 1,
-        };
-        const inheritedFloor: StorageFloorRow = {
-          floorId: nextFloor.floorId,
-          floorNumber: nextFloor.floorNumber,
-          grossAreaSqMm: nextFloor.grossAreaSqMm,
-          reservedAreaSqMm: nextFloor.reservedAreaSqMm,
-          usableAreaSqMm: nextFloor.usableAreaSqMm,
-          version: nextFloor.version,
-          storageZones: nextFloor.storageZones,
-          reservedBlocks: nextFloor.reservedBlocks,
-          offsetXMm: nextFloor.offsetXMm,
-          offsetYMm: nextFloor.offsetYMm,
-          ...(width === "" ? {} : { widthMm: actualWidth }),
-          ...(depth === "" ? {} : { depthMm: actualDepth }),
-          ...(height === "" ? {} : { heightMm: actualHeight }),
-        };
-        setBaseline(inheritedFloor);
-        setPlacement(actualPlacement);
-        dirtyChange?.(false);
-        setMessage({ tone: "success", text: t("savedContinueToStorage") });
-        requestAnimationFrame(() => {
-          document
-            .getElementById("storage-stacks-section")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-        return true;
-      }
-      return false;
+      if (!outcome || !outcome.ok || !outcome.value.written) return false;
+      return true;
     } catch {
       setMessage({ tone: "warning", text: t("statusNetworkError") });
       return false;
@@ -2898,19 +2906,21 @@ function ReviewContent({
         buildingId,
         expectedVersion: building.version,
       };
-      const result = await operation.run(() =>
-        activate({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      await operation.run(
+        () =>
+          activate({
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          }),
+        (result) => {
+          if (!result.ok) setError(result.denial.code);
+          else if (!result.value.written) setError(result.value.error.code);
+          else {
+            operation.clearRequests();
+            router.push(storageBuildingPath(buildingId));
+          }
+        },
       );
-      if (!result) return;
-      if (!result.ok) setError(result.denial.code);
-      else if (!result.value.written) setError(result.value.error.code);
-      else {
-        operation.clearRequests();
-        router.push(storageBuildingPath(buildingId));
-      }
     } catch {
       setError("NETWORK_ERROR");
     } finally {

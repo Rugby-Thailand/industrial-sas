@@ -166,16 +166,17 @@ function Records({ warehouseId }: { warehouseId: string }) {
 
   async function onDelete() {
     if (!deletion || !canManage) return;
-    const result = await operation.run(async () =>
-      written(await deleteScans({ warehouseId, ...deletion })),
+    await operation.run(
+      async () => written(await deleteScans({ warehouseId, ...deletion })),
+      () => {
+        updateSelection((current) =>
+          current.filter((id) => !deletion.ids.includes(id)),
+        );
+        setLocationSelection(null);
+        setDeletion(null);
+        paging.reset();
+      },
     );
-    if (result === null) return;
-    updateSelection((current) =>
-      current.filter((id) => !deletion.ids.includes(id)),
-    );
-    setLocationSelection(null);
-    setDeletion(null);
-    paging.reset();
   }
 
   return (
@@ -253,18 +254,20 @@ function Records({ warehouseId }: { warehouseId: string }) {
                   const mapped = pickedLocationPayload(location);
                   if (!canManage || !mapped || operation.busy) return;
                   const target = { ids: picking.ids, location: mapped };
-                  const result = await operation.run(async () =>
-                    written(
-                      await assign({
-                        warehouseId,
-                        requestId: operation.request(JSON.stringify(target)),
-                        ...target,
-                      }),
-                    ),
+                  await operation.run(
+                    async () =>
+                      written(
+                        await assign({
+                          warehouseId,
+                          requestId: operation.request(JSON.stringify(target)),
+                          ...target,
+                        }),
+                      ),
+                    () => {
+                      clearSelection();
+                      operation.clearRequests();
+                    },
                   );
-                  if (result === null) return;
-                  clearSelection();
-                  operation.clearRequests();
                 }}
               />
               <Button

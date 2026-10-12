@@ -1,7 +1,10 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { useDraftGuard } from "@/components/providers/draftGuard";
 
 const state = vi.hoisted(() => ({
   theme: "light",
@@ -15,6 +18,7 @@ vi.mock("next-themes", () => ({
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
   useWorkspace: () => state.workspace,
 }));
+vi.mock("@/i18n/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -107,6 +111,47 @@ describe("WorkspaceContextBar in the sidebar", () => {
     render({ switchable: true });
     expect(screen.getByText("No organization context")).toBeVisible();
     expect(screen.queryByTestId("warehouse-select")).toBeNull();
+  });
+
+  it("asks before a warehouse switch discards unsaved work", async () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const workspace = ready();
+    state.workspace = workspace;
+    function UnsavedDraft() {
+      useDraftGuard(true, () => undefined);
+      return null;
+    }
+    renderWithIntl(
+      <NavigationGuardProvider>
+        <TooltipProvider>
+          <SidebarProvider defaultOpen>
+            <UnsavedDraft />
+            <WorkspaceContextBar switchable />
+          </SidebarProvider>
+        </TooltipProvider>
+      </NavigationGuardProvider>,
+      { locale: "en" },
+    );
+    const user = userEvent.setup();
+    const choose = async () => {
+      await user.click(screen.getByRole("combobox", { name: "Warehouse" }));
+      await user.click(screen.getByRole("option", { name: /TG-B/ }));
+    };
+    await choose();
+    expect(
+      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(workspace.selectWarehouse).not.toHaveBeenCalled();
+    await choose();
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    act(() => {
+      window.dispatchEvent(
+        new PopStateEvent("popstate", { state: window.history.state }),
+      );
+    });
+    expect(workspace.selectWarehouse).toHaveBeenCalledExactlyOnceWith("wh-2");
+    vi.mocked(window.history.back).mockRestore();
   });
 
   it("collapses to one rail icon that opens the sidebar", () => {

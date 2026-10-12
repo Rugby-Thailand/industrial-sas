@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider } from "next-intl";
 import en from "../../messages/en.json";
 import th from "../../messages/th.json";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import { JobScanScreen } from "@/features/finishedGoods/jobScan/JobScanScreen";
 import { readBarcodeImage } from "@/features/finishedGoods/barcodeImage";
 import { previewCalls } from "./adapters";
@@ -53,7 +54,9 @@ function App() {
           </div>
         </div>
       </div>
-      <JobScanScreen />
+      <NavigationGuardProvider>
+        <JobScanScreen />
+      </NavigationGuardProvider>
     </NextIntlClientProvider>
   );
 }

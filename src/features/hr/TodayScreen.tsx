@@ -23,8 +23,9 @@ import {
   HrQueryState,
   PlanText,
   SectionTitle,
-  WriteFeedback,
   type PlanLike,
+  useHrBack,
+  WriteFeedback,
 } from "./HrShared";
 import { HrInitials, HrStateChip, HrTimeCell } from "./HrUi";
 import { HrShortcuts } from "./HrShortcuts";
@@ -44,6 +45,7 @@ interface ClockResult {
 
 export function HrTodayScreen() {
   const t = useTranslations("Hr.today");
+  const back = useHrBack();
   const access = useHrAccess();
   const identity =
     access.status === "READY" ? (access.identityKey ?? "anonymous") : undefined;
@@ -55,7 +57,7 @@ export function HrTodayScreen() {
   }, [access.status, identity]);
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.self}>
         <TodayContent />
       </HrGate>

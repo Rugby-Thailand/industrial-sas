@@ -1401,3 +1401,30 @@ it("reads saved location-only group order without inventing a geometric scene", 
     screen.queryByRole("button", { name: "3D view" }),
   ).not.toBeInTheDocument();
 });
+
+describe("stale measurement save lifecycle", () => {
+  it("does not navigate or clear the draft when the measurement save resolves after unmount", async () => {
+    const draftKey = "fg-measure:user-a:warehouse-a:pallet-a";
+    let resolveWrite!: (value: ReturnType<typeof success>) => void;
+    mocks.write.mockReset().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWrite = resolve;
+        }),
+    );
+    const view = renderPallet("measure");
+    fireEvent.change(screen.getByRole("textbox", { name: "Lot (optional)" }), {
+      target: { value: "LOT-9" },
+    });
+    expect(localStorage.getItem(draftKey)).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+    await waitFor(() => expect(callsFor("saveMeasurement")).toHaveLength(1));
+    view.unmount();
+    await act(async () => {
+      resolveWrite(success("pallet-a"));
+      await Promise.resolve();
+    });
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(localStorage.getItem(draftKey)).not.toBeNull();
+  });
+});

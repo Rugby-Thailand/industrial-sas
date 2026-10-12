@@ -4,6 +4,7 @@ import { axe } from "jest-axe";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -775,4 +776,39 @@ it("drops old weights when available quantities are redistributed without changi
       }),
     ),
   );
+});
+
+it("does not clear the pending request when the repack commit resolves after unmount", async () => {
+  const requestKey = "fg-requests:batch-available:user-a:warehouse-a:batch-a";
+  const view = render(component("edit"));
+  fireEvent.change(screen.getByLabelText("Quantity · 1"), {
+    target: { value: "30" },
+  });
+  fireEvent.change(screen.getByLabelText("Quantity · 2"), {
+    target: { value: "30" },
+  });
+  checkDimensions();
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  let resolveWrite!: (value: ReturnType<typeof success>) => void;
+  mocks.write.mockReset().mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveWrite = resolve;
+      }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Confirm repacking" }));
+  await waitFor(() =>
+    expect(mocks.write).toHaveBeenCalledWith(
+      "finishedGoods/batchManagement:repackAvailable",
+      expect.anything(),
+    ),
+  );
+  expect(localStorage.getItem(requestKey)).not.toBeNull();
+  view.unmount();
+  await act(async () => {
+    resolveWrite(success("receipt-a"));
+    await Promise.resolve();
+  });
+  expect(mocks.push).not.toHaveBeenCalled();
+  expect(localStorage.getItem(requestKey)).not.toBeNull();
 });

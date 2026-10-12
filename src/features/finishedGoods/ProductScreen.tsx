@@ -274,42 +274,49 @@ function ProductForm({
     next: boolean,
     packing: boolean,
   ) {
-    await op.run(async () => {
-      if (!canManage) throw new Error("ACCESS_DENIED");
-      if (next && (!form.sku.trim() || !form.name.trim() || !form.unit.trim()))
-        throw new Error("INVALID_INPUT");
-      const payload = {
-        warehouseId,
-        ...(productId.current ? { productId: productId.current } : {}),
-        sku: form.sku,
-        name: form.name,
-        unit: form.unit,
-        storageCondition: form.storageCondition,
-        notes: form.notes,
-        customerReference: form.customerReference,
-        productReference: form.productReference,
-        draft: !next && product?.status !== "ACTIVE",
-      };
-      const id = written(
-        await saveProduct({
-          ...payload,
-          requestId: op.request(`product:${JSON.stringify(payload)}`),
-        }),
-      );
-      productId.current = id;
-      drafts.write(key, { ...form, savedProductId: id });
-      setConfirmedValues(form);
-      productForm.reset(form);
-      op.clearRequests();
-      drafts.remove(key);
-      router.push(
-        next && packing
-          ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
-          : next && resumePalletId
-            ? measurePath(resumePalletId)
-            : FG_PATH,
-      );
-    });
+    await op.run(
+      async () => {
+        if (!canManage) throw new Error("ACCESS_DENIED");
+        if (
+          next &&
+          (!form.sku.trim() || !form.name.trim() || !form.unit.trim())
+        )
+          throw new Error("INVALID_INPUT");
+        const payload = {
+          warehouseId,
+          ...(productId.current ? { productId: productId.current } : {}),
+          sku: form.sku,
+          name: form.name,
+          unit: form.unit,
+          storageCondition: form.storageCondition,
+          notes: form.notes,
+          customerReference: form.customerReference,
+          productReference: form.productReference,
+          draft: !next && product?.status !== "ACTIVE",
+        };
+        return written(
+          await saveProduct({
+            ...payload,
+            requestId: op.request(`product:${JSON.stringify(payload)}`),
+          }),
+        );
+      },
+      (id) => {
+        productId.current = id;
+        drafts.write(key, { ...form, savedProductId: id });
+        setConfirmedValues(form);
+        productForm.reset(form);
+        op.clearRequests();
+        drafts.remove(key);
+        router.push(
+          next && packing
+            ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
+            : next && resumePalletId
+              ? measurePath(resumePalletId)
+              : FG_PATH,
+        );
+      },
+    );
   }
   function save(next: boolean, packing = false) {
     return productForm.handleSubmit({ next, packing });

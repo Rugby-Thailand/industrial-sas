@@ -1,0 +1,62 @@
+[
+  {
+    "kind": "sidebar",
+    "page": "Where are we?",
+    "ms": 818
+  },
+  {
+    "kind": "sidebar",
+    "page": "Finished goods",
+    "ms": 61
+  },
+  {
+    "kind": "sidebar",
+    "page": "Scanned records",
+    "ms": 57
+  },
+  {
+    "kind": "browserBack",
+    "page": "Finished goods",
+    "ms": 14
+  },
+  {
+    "kind": "sidebar",
+    "page": "Where are we?",
+    "ms": 55
+  },
+  {
+    "kind": "sidebar",
+    "page": "Finished goods",
+    "ms": 40
+  },
+  {
+    "kind": "sidebar",
+    "page": "Scanned records",
+    "ms": 43
+  },
+  {
+    "kind": "browserBack",
+    "page": "Finished goods",
+    "ms": 11
+  },
+  {
+    "kind": "sidebar",
+    "page": "Where are we?",
+    "ms": 59
+  },
+  {
+    "kind": "sidebar",
+    "page": "Finished goods",
+    "ms": 49
+  },
+  {
+    "kind": "sidebar",
+    "page": "Scanned records",
+    "ms": 42
+  },
+  {
+    "kind": "browserBack",
+    "page": "Finished goods",
+    "ms": 10
+  }
+]

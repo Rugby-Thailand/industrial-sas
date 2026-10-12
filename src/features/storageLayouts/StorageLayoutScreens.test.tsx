@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -61,6 +62,8 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { isGuardTraversal } from "@/lib/navigationGuard";
 
 import type {
   StorageBuildingRow,
@@ -377,7 +380,7 @@ describe("unified floor editing", () => {
             messages={messagesFor("en")}
             timeZone="Asia/Bangkok"
           >
-            {children}
+            <NavigationGuardProvider>{children}</NavigationGuardProvider>
           </NextIntlClientProvider>
         ),
       },
@@ -1128,6 +1131,75 @@ describe("StorageZonesPanel", () => {
         "Recommendations compare this condition with the product requirement. Unconfigured conditions are shown as unknown.",
       ),
     ).toBeVisible();
+  });
+
+  it("reports each stack write through one shared outcome: refusal keeps the editor, success names create or update", async () => {
+    const zone: StorageZoneRow = {
+      zoneId: "zone-a",
+      locationId: "location-a",
+      code: "BLDG-A-F04-Z01",
+      label: "QA Finished Goods Stack",
+      qrValue: "ISAS:LOCATION:1:location-a",
+      xMm: 3_500,
+      yMm: 1_100,
+      widthMm: 2_000,
+      depthMm: 2_000,
+      maxStackHeightMm: 3_000,
+      mode: "SIMPLE",
+      positions: [],
+      placements: [],
+    };
+    renderWithIntl(
+      <StorageZonesPanel
+        warehouseId="warehouse-a"
+        buildingId="building-a"
+        floorNumber={4}
+        floorWidthMm={10_000}
+        floorDepthMm={10_000}
+        floorHeightMm={3_000}
+        zones={[zone]}
+      />,
+      { locale: "en", workspace: false },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit QA Finished Goods Stack" }),
+    );
+    mutation.mockResolvedValueOnce({
+      ok: true,
+      value: { written: false, error: { code: "VERSION_CONFLICT" } },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(mutation).toHaveBeenCalledOnce());
+    expect(mutation.mock.calls[0]?.[0]).toMatchObject({ zoneId: "zone-a" });
+    // A refusal keeps the editor open with its values.
+    expect(
+      await screen.findByRole("dialog", { name: "Edit storage stack" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+      "QA Finished Goods Stack",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(
+      await screen.findByText(
+        "Storage stack updated. Its location code and QR label are unchanged.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add storage stack" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create storage stack" }),
+    );
+    expect(
+      await screen.findByText(
+        "Storage stack created. Its location code and QR label are ready for activation.",
+      ),
+    ).toBeVisible();
+    const created = mutation.mock.calls.at(-1)?.[0];
+    expect(created).toMatchObject({ buildingId: "building-a", floorNumber: 4 });
+    expect(created).not.toHaveProperty("zoneId");
   });
 
   it("keeps active planner spots editable without inventory workflows", () => {
@@ -2130,6 +2202,29 @@ describe("building creation execution", () => {
       ),
     );
   });
+
+  it("does not navigate when the create resolves after the form unmounts", async () => {
+    let finish!: (value: unknown) => void;
+    mutation.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const view = renderWithIntl(<NewStorageBuildingForm />, {
+      locale: "en",
+      workspace: false,
+    });
+    fireEvent.submit(view.container.querySelector("form")!);
+    await waitFor(() => expect(mutation).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () =>
+      finish({
+        ok: true,
+        value: { written: true, documentId: "late-building" },
+      }),
+    );
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });
 
 describe("mobile storage workspace", () => {
@@ -2168,7 +2263,9 @@ describe("mobile storage workspace", () => {
       floor.floorNumber === 2 ? { ...floor, storageZones: [zone] } : floor,
     );
     return renderWithIntl(
-      <BuildingModelWorkspace building={building} floors={savedFloors} />,
+      <NavigationGuardProvider>
+        <BuildingModelWorkspace building={building} floors={savedFloors} />
+      </NavigationGuardProvider>,
       {
         locale: "en",
         workspace: false,
@@ -2239,9 +2336,11 @@ describe("mobile storage workspace", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    const { isWorkspaceHistoryGuardActive } =
-      await import("./useWorkspaceNavigationGuard");
-    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
+    // The closed editor's guard buffer is removed before the next step.
+    await waitFor(() =>
+      expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined(),
+    );
+    expect(isGuardTraversal()).toBe(false);
     expect(row).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Show on map" }));
     expect(
@@ -2275,9 +2374,11 @@ describe("mobile storage workspace", () => {
         screen.getByRole("group", { name: "Interactive floor map" }),
       ).getByRole("button", { name: "Select location Occupied FG" }),
     ).toHaveAttribute("aria-pressed", "true");
-    const { isWorkspaceHistoryGuardActive } =
-      await import("./useWorkspaceNavigationGuard");
-    await waitFor(() => expect(isWorkspaceHistoryGuardActive()).toBe(false));
+    // The closed editor's guard buffer is removed before the next step.
+    await waitFor(() =>
+      expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined(),
+    );
+    expect(isGuardTraversal()).toBe(false);
     expect(new URLSearchParams(window.location.search).has("editZone")).toBe(
       false,
     );

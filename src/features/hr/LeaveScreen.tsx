@@ -32,6 +32,7 @@ import {
   HrInlineError,
   HrQueryState,
   SectionTitle,
+  useHrBack,
   WriteFeedback,
 } from "./HrShared";
 import { useHrWrite } from "./useHrWrite";
@@ -41,10 +42,11 @@ export type LeaveRequest = SelfLeave["requests"][number];
 
 export function HrLeaveScreen() {
   const t = useTranslations("Hr.leave");
+  const back = useHrBack();
   const identity = useHrAccess().identityKey;
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.self}>
         <LeaveContent key={identity} />
       </HrGate>

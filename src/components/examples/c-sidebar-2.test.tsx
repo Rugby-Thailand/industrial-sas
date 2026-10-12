@@ -207,6 +207,15 @@ async function settle() {
   });
 }
 
+it("skips to the shell's main region without adding an unmanaged fragment history entry", () => {
+  renderShell();
+  const before = { href: window.location.href, length: window.history.length };
+  fireEvent.click(screen.getByRole("link", { name: "Skip to main content" }));
+  expect(screen.getByRole("main")).toHaveFocus();
+  expect(window.location.href).toBe(before.href);
+  expect(window.history.length).toBe(before.length);
+});
+
 describe("sidebar hierarchy", () => {
   it("starts expanded with a flag-only header and exactly one disclosure inside the desktop sidebar", () => {
     const header = renderShell();

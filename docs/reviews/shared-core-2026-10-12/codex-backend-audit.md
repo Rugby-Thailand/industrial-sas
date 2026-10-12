@@ -1,0 +1,35 @@
+# Backend reuse and write compatibility audit
+
+Read-only inspection of `/Users/macbook/Development/industrial-sas-shared-core-20261012`, including shared write commit `3257988f` and the current parallel frontend migration. No implementation, Git state, backend/schema, environment or production data was changed. This report concerns the navigation/write flows in this PR, not a complete backend security audit.
+
+## Backend verdict
+
+**No confirmed backend authorization or duplicate-command defect introduced by this refactor. No backend rewrite is needed for the migrated callbacks.** The backend already provides the intended reusable seams:
+
+| Flow                                       | Existing seam and invariant inspected                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All public FG/storage/HR mutations         | `convex/lib/tenantFunctions.ts:451` resolves authenticated tenant context, builds organization-scoped `tenantDb`, authorizes permission/warehouse/policy facts before calling the domain handler, and retains write auditing. `mutationWithOrg` at `:839` funnels these flows through that path. Frontend navigation callbacks cannot bypass this path.                                             |
+| Tenant rows and replay records             | `tenantDb.ts:320` enforces ownership on ID reads and writes; `:431` adds the organization equality to indexed reads. `idempotency.ts:61` keys replay by organization/operation/request ID and rejects mismatching fingerprints. These are server mechanisms independent of frontend scope keys.                                                                                                     |
+| FG product, packing, movement and job scan | `finishedGoods/workflow.ts:125` shares command validation, fingerprint/replay lookup, digest verification, domain refusal audit and successful replay recording. Job scan mutations use that command and validate selections, canonical location ownership and AI usage links before writing. Registration uses the shared master-data write machinery.                                             |
+| Storage building and zones                 | `storageLayouts/writes.ts:176` and `zones.ts` use `mutationWithOrg`, `writeContextOf` and master-data creation/update replay mechanics. `writeEnvelope.ts` centralizes refusal/success shape and actor/warehouse write context. No new envelope is needed.                                                                                                                                          |
+| HR period create and clock                 | `hr/shared.ts:499` fingerprints actor + payload + request ID, checks scoped replay/digest, performs domain auditing and records the successful command. Current clock replay reconstructs its answer under current linked-employee/access rules. Period create validates site scope/range/overlap before insertion. The strict frontend clock descriptor remains a replay guard, not authorization. |
+
+Existing integration tests cover normal replay/argument conflict, unauthenticated/readonly access, tenant/warehouse boundaries and the relevant scan/packing/HR rules. I inspected those test cases; I did **not** rerun the backend integration suite during this read-only pass. Full checks remain the root agent's final verification.
+
+The different domain command envelopes should stay separate: HR rebuilds response extras under current access, FG commands return domain document identities, and master-data replay verifies readable row identities. Merging them to reduce lines would change meaningful behavior.
+
+## Lifecycle and refusal callback compatibility
+
+Shared lifecycle commit `3257988f` preserves the frozen `run(action, onSuccess?)` contract. The callback runs for a **resolved, current action** after release; an action may return a raw refusal descriptor. The domain callback can then release its persisted pending command, display/throw its refusal and skip navigation. If it throws through `written(outcome)`, the existing hook catch records the current error and returns null. Rejected transport actions skip completion and retain exact retry descriptors. Stale resolved/refused actions skip completion entirely.
+
+HR ordinary and clock hooks now guard both visible state and durable recovery settlement with ticket currency. Ordinary late scalar removal was reproduced and fixed before this commit; the final focused verification was **5 files / 50 tests passed**, with formatting/lint clean. The implementation report `/tmp/shared-core-write-implementation.md` already includes that follow-up.
+
+One **confirmed frontend integration defect** was found in the migration: Packing's refused answer still cleared its pending descriptor inside the async action. Root's actual screen regression demonstrated that a delayed identical refusal overwrote newer edits (100 replaced 200). Kiro has now moved that effect to the current completion callback in the inspected live source. This is a caller-placement bug, not a backend or hook API defect. Root/Kiro must finish the screen regression rerun before declaring it resolved.
+
+The same read identified `AddLocationForm`'s field-error effect inside the action; its `alive` flag guards unmount but not a still-mounted scope change. Kiro owns moving that descriptor handling to completion. This secondary observation is from source inspection; no real-browser scope-change reproduction was run here.
+
+## Limits and follow-up
+
+- No deployed concurrency/load test, adversarial production replay or production permission test was performed. Reading the adapter/test code does not prove runtime isolation in every deployment.
+- Known pre-existing policy difference: FG `command` includes actor fingerprints for `finishedGoods.move.*` and `finishedGoods.scan.*`, whereas job-ticket commands are named `finishedGoods.jobScan.*`. All still require current server permission and scoped tenant access. Whether job-ticket replay must also bind the actor requires a separate explicit policy/contract test; it is **not** claimed as a confirmed authorization vulnerability or changed in this PR.
+- Exact generic HR command callbacks remain instance-local; only their scalar IDs persist. Durable cross-remount payload recovery remains deliberately limited to the strict clock descriptor. The refactor does not add automatic retries or persist sensitive generic HR form payloads.

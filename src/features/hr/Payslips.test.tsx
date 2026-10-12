@@ -79,6 +79,9 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { HrPayslipsScreen } from "./EmployeePayslipsScreen";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { useDraftGuard } from "@/components/providers/draftGuard";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { HrPayslipImportScreen } from "./PayslipImportScreen";
 import { downloadPrivatePayslip, PayslipAccessError } from "./payslipClient";
 import { preparePayslipImport } from "./payslipImport";
@@ -206,6 +209,38 @@ it("discards a late sensitive response after the document becomes hidden", async
   });
   fireEvent(document, new Event("visibilitychange"));
   expect(screen.getByText("Amounts hidden")).toBeInTheDocument();
+});
+it("hides sensitive amounts only once a programmatic navigation is permitted", async () => {
+  vi.spyOn(window.history, "back").mockImplementation(() => {});
+  function UnsavedNote() {
+    useDraftGuard(true, () => undefined);
+    return null;
+  }
+  render(
+    <NavigationGuardProvider>
+      <UnsavedNote />
+      <HrPayslipsScreen />
+    </NavigationGuardProvider>,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Verify and show amounts" }),
+  );
+  await screen.findByText(/30,000/);
+  const navigate = vi.fn();
+  act(() => guardedNavigate(navigate));
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  // Navigation was refused: the statement the member is reading stays.
+  expect(screen.getByText(/30,000/)).toBeInTheDocument();
+  act(() => guardedNavigate(navigate));
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  expect(screen.queryByText(/30,000/)).not.toBeInTheDocument();
+  act(() => {
+    window.dispatchEvent(
+      new PopStateEvent("popstate", { state: window.history.state }),
+    );
+  });
+  expect(navigate).toHaveBeenCalledOnce();
+  vi.mocked(window.history.back).mockRestore();
 });
 it("hides sensitive amounts immediately on a policy or account-session change", async () => {
   const view = render(<HrPayslipsScreen />);

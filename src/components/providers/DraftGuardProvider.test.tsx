@@ -6,11 +6,8 @@ const routing = vi.hoisted(() => ({ router: { push: vi.fn() }, locale: "en" }));
 vi.mock("@/i18n/navigation", () => ({ useRouter: () => routing.router }));
 vi.mock("next-intl", () => ({ useLocale: () => routing.locale }));
 
-import {
-  guardedNavigate,
-  registerTransitionGuard,
-} from "@/lib/navigationGuard";
-import { useWorkspaceNavigationGuard } from "@/features/storageLayouts/useWorkspaceNavigationGuard";
+import { useNavigationDraft } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
 
 import { DraftGuardProvider } from "./DraftGuardProvider";
 import { useDraftGuard, usePendingGuard } from "./draftGuard";
@@ -36,13 +33,13 @@ function Sending({ pending }: { readonly pending: boolean }) {
 }
 
 function StorageEditor({ dirty }: { readonly dirty: boolean }) {
-  const guard = useWorkspaceNavigationGuard({
+  useNavigationDraft({
     dirty,
     pending: false,
     save: async () => true,
     discard: () => undefined,
   });
-  return guard.navigationPrompt;
+  return null;
 }
 
 beforeEach(() => {
@@ -51,27 +48,10 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("navigation guard bridge", () => {
-  it("runs a navigation only after every registered guard allows it", () => {
-    const calls: string[] = [];
-    const action = vi.fn(() => calls.push("navigate"));
-    const first = registerTransitionGuard((next) => {
-      calls.push("first");
-      next();
-    });
-    let held: (() => void) | undefined;
-    const second = registerTransitionGuard((next) => {
-      calls.push("second");
-      held = next;
-    });
+  it("runs a navigation directly when no shell owner is mounted", () => {
+    const action = vi.fn();
     guardedNavigate(action);
-    expect(calls).toEqual(["first", "second"]);
-    expect(action).not.toHaveBeenCalled();
-    held?.();
-    expect(action).toHaveBeenCalledTimes(1);
-    first();
-    second();
-    guardedNavigate(action);
-    expect(action).toHaveBeenCalledTimes(2);
+    expect(action).toHaveBeenCalledOnce();
   });
 });
 
@@ -120,10 +100,11 @@ describe("HR draft guard", () => {
     expect(input).toHaveValue("");
   });
 
-  it("chains a dirty storage editor and an HR draft for programmatic navigation", async () => {
+  it("asks once for a dirty storage editor and an HR draft together", async () => {
     render(
       <DraftGuardProvider>
         <StorageEditor dirty />
+        <Draft />
       </DraftGuardProvider>,
     );
     const action = vi.fn();
@@ -131,6 +112,20 @@ describe("HR draft guard", () => {
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "Save changes before leaving?",
     );
+    // Only the storage editor can save, and it is the sole dirty draft.
+    expect(
+      screen.getByRole("button", { name: "Save and continue" }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), {
+      target: { value: "Typed" },
+    });
+    act(() => guardedNavigate(action));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    // Two dirty drafts: saving one would silently lose the other.
+    expect(
+      screen.queryByRole("button", { name: "Save and continue" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(action).not.toHaveBeenCalled();
   });

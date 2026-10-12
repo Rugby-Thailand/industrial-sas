@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { FormField } from "@/components/ui/FormField";
@@ -47,13 +47,6 @@ export function AddLocationForm({
       ? { warehouseId, code }
       : "skip",
   );
-  const alive = useRef(true);
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
   const buildings = outcome?.ok ? outcome.value.buildings : undefined;
   const floors =
     buildings?.find((building) => building.id === buildingId)?.floors ?? [];
@@ -67,27 +60,40 @@ export function AddLocationForm({
       buildingId,
       ...(floorId ? { floorId } : {}),
     };
-    await operation.run(async () => {
-      setErrorField(undefined);
-      const result = await create({
-        ...payload,
-        requestId: operation.request(JSON.stringify(payload)),
-      });
-      if (alive.current && result.ok && !result.value.written)
-        setErrorField(result.value.error.field);
-      written(result);
-      const resolved = await convex.query(fgRefs.resolveJobScanLocation, {
-        warehouseId,
-        code,
-      });
-      if (!resolved.ok || !resolved.value.ok)
-        throw new Error("LOCATION_UNAVAILABLE");
-      if (alive.current)
-        onPick({
-          ...resolved.value.location,
-          text: resolved.value.location.code,
+    setErrorField(undefined);
+    await operation.run(
+      async () => {
+        const result = await create({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
         });
-    });
+        // A refusal or denial resolves for the current completion below,
+        // which alone may mark its field.
+        if (!result.ok || !result.value.written)
+          return { kind: "UNWRITTEN", outcome: result } as const;
+        const resolved = await convex.query(fgRefs.resolveJobScanLocation, {
+          warehouseId,
+          code,
+        });
+        if (!resolved.ok || !resolved.value.ok)
+          throw new Error("LOCATION_UNAVAILABLE");
+        return { kind: "CREATED", location: resolved.value.location } as const;
+      },
+      (outcome) => {
+        if (outcome.kind === "UNWRITTEN") {
+          const result = outcome.outcome;
+          if (result.ok && !result.value.written)
+            setErrorField(result.value.error.field);
+          // Throws: the operation records its code and describes the error.
+          written(result);
+          return;
+        }
+        onPick({
+          ...outcome.location,
+          text: outcome.location.code,
+        });
+      },
+    );
   }
   return (
     <form

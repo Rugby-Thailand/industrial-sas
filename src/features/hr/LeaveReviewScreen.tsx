@@ -21,8 +21,9 @@ import {
   HrGate,
   HrInlineError,
   HrQueryState,
-  WriteFeedback,
   SectionTitle,
+  useHrBack,
+  WriteFeedback,
 } from "./HrShared";
 import { LeaveRequestCard, type LeaveRequest } from "./LeaveScreen";
 import { useHrWrite } from "./useHrWrite";
@@ -33,12 +34,13 @@ type QueueItem = Extract<
 >["items"][number];
 export function HrLeaveReviewScreen() {
   const t = useTranslations("Hr.leave");
+  const back = useHrBack();
   return (
     <>
       <PageHeader
         title={t("reviewTitle")}
         summary={t("reviewSummary")}
-        showBack={false}
+        {...back}
       />
       <HrGate code={HR_CODES.review}>
         <ReviewContent />

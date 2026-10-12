@@ -27,15 +27,17 @@ import {
   HrGate,
   HrInlineError,
   TimeText,
+  useHrBack,
 } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
 import { HrToolbar } from "./HrUi";
 
 export function HrRequestsScreen() {
   const t = useTranslations("Hr.requests");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false}>
+      <PageHeader title={t("title")} summary={t("summary")} {...back}>
         <Button asChild variant="outline">
           <Link href={ROUTES.hrTime}>
             <Plus aria-hidden="true" />

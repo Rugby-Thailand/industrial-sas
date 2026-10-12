@@ -85,14 +85,33 @@ export function BuildingStatusToggle({
     const version = control.version;
     const status = current;
     const requestKey = `${active ? "draft" : "activate"}:${version}`;
-    const result = await operation.run(async () => {
-      try {
-        const outcome = await (active ? returnToDraft : activate)({
-          warehouseId,
-          buildingId,
-          expectedVersion: version,
-          requestId: operation.request(requestKey),
-        });
+    await operation.run(
+      async () => {
+        try {
+          const outcome = await (active ? returnToDraft : activate)({
+            warehouseId,
+            buildingId,
+            expectedVersion: version,
+            requestId: operation.request(requestKey),
+          });
+          return { kind: "settled", outcome } as const;
+        } catch {
+          return { kind: "network" } as const;
+        }
+      },
+      (result) => {
+        if (result.kind === "network") {
+          setError({
+            buildingId,
+            warehouseId,
+            code: "NETWORK_ERROR",
+            version,
+            status,
+            denied: false,
+          });
+          return;
+        }
+        const outcome = result.outcome;
         if (!outcome.ok) {
           setError({
             buildingId,
@@ -102,9 +121,7 @@ export function BuildingStatusToggle({
             status,
             denied: true,
           });
-          return false;
-        }
-        if (!outcome.value.written) {
+        } else if (!outcome.value.written) {
           setError({
             buildingId,
             warehouseId,
@@ -113,23 +130,11 @@ export function BuildingStatusToggle({
             status,
             denied: false,
           });
-          return false;
+        } else {
+          operation.clearRequests();
         }
-        operation.clearRequests();
-        return true;
-      } catch {
-        setError({
-          buildingId,
-          warehouseId,
-          code: "NETWORK_ERROR",
-          version,
-          status,
-          denied: false,
-        });
-        throw new Error("NETWORK_ERROR");
-      }
-    });
-    return result;
+      },
+    );
   }
 
   if (!canChange || current === "ARCHIVED")

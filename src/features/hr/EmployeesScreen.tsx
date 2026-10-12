@@ -39,7 +39,13 @@ import {
 
 import { EmployeeForm, type EmployeeRecord } from "./EmployeeForm";
 import { workDaysLabel } from "./format";
-import { HrGate, HrInlineError, HrQueryState, PlanText } from "./HrShared";
+import {
+  HrGate,
+  HrInlineError,
+  HrQueryState,
+  PlanText,
+  useHrBack,
+} from "./HrShared";
 import { HrInitials } from "./HrUi";
 
 type EmployeeRow = {
@@ -59,6 +65,7 @@ type Editing = Exclude<EmployeesUrlState, { mode: "LIST" }>;
 
 export function HrEmployeesScreen() {
   const t = useTranslations("Hr.employees");
+  const back = useHrBack();
   const canManage = useHrCan(HR_CODES.admin);
   const params = useQueryParams();
   const url = readEmployeesUrl(params);
@@ -88,7 +95,7 @@ export function HrEmployeesScreen() {
   };
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false}>
+      <PageHeader title={t("title")} summary={t("summary")} {...back}>
         {canManage ? (
           <Button
             type="button"

@@ -47,6 +47,7 @@ import {
   HrInlineError,
   HrQueryState,
   SectionTitle,
+  useHrBack,
   WriteFeedback,
 } from "./HrShared";
 import {
@@ -60,12 +61,13 @@ type Imports = Extract<RefValue<typeof hrRefs.payslipImports>, { ok: true }>;
 type Batch = Imports["items"][number];
 export function HrPayslipImportScreen() {
   const t = useTranslations("Hr.payslips");
+  const back = useHrBack();
   return (
     <>
       <PageHeader
         title={t("importTitle")}
         summary={t("importSummary")}
-        showBack={false}
+        {...back}
       />
       <HrGate code={HR_CODES.admin}>
         <ImportContent />

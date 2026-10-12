@@ -42,11 +42,13 @@ vi.mock("@/i18n/navigation", () => ({
       {children}
     </a>
   ),
+  useRouter: () => ({ back: vi.fn(), replace: vi.fn() }),
 }));
 vi.mock("./HrShared", () => ({
   HrGate: ({ children }: { children: ReactNode }) =>
     mocks.accessStatus === "READY" ? children : null,
   HrQueryState: ({ children }: { children: () => ReactNode }) => children(),
+  useHrBack: () => ({ backFallbackHref: null, backPending: false }),
   CorrectionBadge: () => null,
   Facts: () => null,
   PlanText: () => null,

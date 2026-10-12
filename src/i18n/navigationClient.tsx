@@ -15,10 +15,16 @@ function targetsCurrentPath(
   href: ComponentProps<typeof BaseLink>["href"],
   locale: Parameters<typeof getPathname>[0]["locale"],
   pathname: string | null,
+  currentLocale: string,
 ) {
   if (pathname === null) return false;
+  // A query- or hash-only object keeps the current route unless it switches
+  // locale. `pathname` already carries the locale prefix, so it cannot be
+  // passed back through getPathname.
+  if (typeof href !== "string" && href.pathname == null)
+    return locale === currentLocale;
   const destination = getPathname({
-    href: typeof href === "string" ? href : (href.pathname ?? pathname),
+    href: typeof href === "string" ? href : (href.pathname ?? ""),
     locale,
   });
   // Resolve relative, query-only, and fragment hrefs without a browser global
@@ -37,6 +43,7 @@ function LinkProgress({ href, locale }: ComponentProps<typeof BaseLink>) {
     href,
     locale ?? currentLocale,
     pathname,
+    currentLocale,
   );
   const navigation = useNavigationProgress();
   const id = useId();
@@ -84,13 +91,27 @@ export function useRouter() {
       ...router,
       push: (...args: Parameters<typeof router.push>) => {
         navigation.prepare("push");
-        if (targetsCurrentPath(args[0], args[1]?.locale ?? locale, pathname))
+        if (
+          targetsCurrentPath(
+            args[0],
+            args[1]?.locale ?? locale,
+            pathname,
+            locale,
+          )
+        )
           router.push(...args);
         else navigation.run(() => router.push(...args));
       },
       replace: (...args: Parameters<typeof router.replace>) => {
         navigation.prepare("replace");
-        if (targetsCurrentPath(args[0], args[1]?.locale ?? locale, pathname))
+        if (
+          targetsCurrentPath(
+            args[0],
+            args[1]?.locale ?? locale,
+            pathname,
+            locale,
+          )
+        )
           router.replace(...args);
         else navigation.run(() => router.replace(...args));
       },

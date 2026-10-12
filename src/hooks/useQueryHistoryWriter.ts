@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { updateBrowserQuery } from "@/lib/browser/history";
+import {
+  subscribeBrowserQuery,
+  updateBrowserQuery,
+} from "@/lib/browser/history";
 
 /** A new view/filter is one Back step; consecutive search keystrokes share a step. */
-export function useQueryHistoryWriter() {
-  const typing = useRef<{ href: string; time: number } | null>(null);
+export function useQueryHistoryWriter(scope = "") {
+  const typing = useRef<{ href: string; time: number; scope: string } | null>(
+    null,
+  );
   useEffect(() => {
     const endTyping = () => {
       typing.current = null;
     };
-    window.addEventListener("popstate", endTyping);
-    return () => window.removeEventListener("popstate", endTyping);
+    // Committed traversals terminate typing; internal guard restoration does not.
+    return subscribeBrowserQuery("app-query-state", endTyping);
   }, []);
   return (
     change: (query: URLSearchParams) => void,
@@ -26,6 +31,7 @@ export function useQueryHistoryWriter() {
     const replace =
       options.typing &&
       previous !== null &&
+      previous.scope === scope &&
       previous.href === window.location.href &&
       now - previous.time < 1000;
     updateBrowserQuery(change, {
@@ -33,7 +39,7 @@ export function useQueryHistoryWriter() {
       mode: replace ? "replace" : "push",
     });
     typing.current = options.typing
-      ? { href: window.location.href, time: now }
+      ? { href: window.location.href, time: now, scope }
       : null;
   };
 }

@@ -11,14 +11,15 @@ import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES } from "@/lib/navigation";
 
 import { formatBusinessDate, weekdayName } from "./format";
-import { Facts, HrGate, HrQueryState, PlanText } from "./HrShared";
+import { Facts, HrGate, HrQueryState, PlanText, useHrBack } from "./HrShared";
 import { HrInitials } from "./HrUi";
 
 export function HrProfileScreen() {
   const t = useTranslations("Hr.profile");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.self}>
         <ProfileContent />
       </HrGate>

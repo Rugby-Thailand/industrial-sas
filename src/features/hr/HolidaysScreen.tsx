@@ -21,15 +21,16 @@ import type { RefValue } from "@/lib/convex/clientRef";
 import { HR_CODES, ROUTES } from "@/lib/navigation";
 
 import { formatBusinessDate } from "./format";
-import { HrGate, HrInlineError } from "./HrShared";
+import { HrGate, HrInlineError, useHrBack } from "./HrShared";
 import { HrToolbar } from "./HrUi";
 import { downloadHolidayCsv, holidayCsv } from "./selfService";
 
 export function HrHolidaysScreen() {
   const t = useTranslations("Hr.holidays");
+  const back = useHrBack();
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")} showBack={false} />
+      <PageHeader title={t("title")} summary={t("summary")} {...back} />
       <HrGate code={HR_CODES.self}>
         <HolidaysContent />
       </HrGate>

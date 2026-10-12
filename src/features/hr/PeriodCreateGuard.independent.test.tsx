@@ -87,16 +87,28 @@ it("holds navigation during creation and still opens the persisted period on suc
   ).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
 
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  // SAVED arrives while the guard still holds the pending creation. The
+  // period opens only after the buffer is removed, so the removal's Back can
+  // never land on (and leave) the newly opened period page.
   await act(async () => {
     answer?.({
       ok: true,
       value: { written: true, documentId: "period-qa", replayed: false },
     });
   });
-  expect(state.push).toHaveBeenCalledWith("/hr/periods/period-qa");
-  act(() => guardedNavigate(leave));
+  expect(back).toHaveBeenCalledOnce();
+  expect(state.push).not.toHaveBeenCalled();
   act(() => {
-    window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    window.dispatchEvent(
+      new PopStateEvent("popstate", { state: window.history.state }),
+    );
   });
+  expect(state.push).toHaveBeenCalledExactlyOnceWith("/hr/periods/period-qa");
+  // Later commits of the saved form do not remove anything again.
+  await waitFor(() => expect(back).toHaveBeenCalledOnce());
+  expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined();
+  act(() => guardedNavigate(leave));
   expect(leave).toHaveBeenCalledTimes(1);
+  back.mockRestore();
 });
