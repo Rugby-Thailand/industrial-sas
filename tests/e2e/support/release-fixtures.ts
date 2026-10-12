@@ -14,13 +14,25 @@ import {
   responseDiagnostic,
   reviewedNetworkOrigins,
 } from "./release-network-diagnostics";
+import { SessionRevocation } from "./session-revocation";
 
 /**
  * Release-suite fixtures: the API `request` context and the browser context
  * both use redirect-safe, origin-scoped staging OIDC. No global credential
  * headers, permanent bypass cookie or recorded session is configured.
  */
-export const test = base.extend({
+export const test = base.extend<{ sessionRevocation: SessionRevocation }>({
+  sessionRevocation: async ({ baseURL }, runFixture) => {
+    const origins = reviewedNetworkOrigins(reviewedTargets, baseURL);
+    const revocation = new SessionRevocation(
+      [...origins].find(([, kind]) => kind === "CLERK")?.[0],
+    );
+    try {
+      await runFixture(revocation);
+    } finally {
+      revocation.dispose();
+    }
+  },
   request: async ({ playwright, baseURL }, runFixture) => {
     const context = await playwright.request.newContext({
       ...(baseURL ? { baseURL } : {}),
@@ -36,7 +48,7 @@ export const test = base.extend({
       await context.dispose();
     }
   },
-  page: async ({ page, context, baseURL }, runFixture) => {
+  page: async ({ page, context, baseURL, sessionRevocation }, runFixture) => {
     const protection = baseURL
       ? await scopeProtectionBypass(context, baseURL)
       : undefined;
@@ -48,6 +60,7 @@ export const test = base.extend({
     // failure the console rules already raise: categories observed during the
     // test, not proof of which request caused it. Never a verdict by itself.
     const origins = reviewedNetworkOrigins(reviewedTargets, baseURL);
+    const revocation = sessionRevocation ?? new SessionRevocation(undefined);
     const networkCodes = new Set<string>();
     // Once full, later events are not even read.
     const observe = (classify: () => string | undefined) => {
@@ -55,17 +68,24 @@ export const test = base.extend({
       const code = classify();
       if (code) networkCodes.add(code);
     };
-    const response = (observed: ObservedResponse) =>
+    const response = (observed: ObservedResponse) => {
+      revocation.response(observed);
       observe(() => responseDiagnostic(origins, observed));
+    };
     const requestFailed = (observed: ObservedFailedRequest) =>
       observe(() => requestFailureDiagnostic(origins, observed));
     const uncaught = () => {
       pageErrors += 1;
       uncaughtErrors += 1;
     };
-    const consoleError = (message: { type(): string; text(): string }) => {
+    const consoleError = (message: {
+      type(): string;
+      text(): string;
+      location?(): { url: string };
+    }) => {
       if (message.type() === "error") {
         pageErrors += 1;
+        revocation.console(message);
         // Classify in memory only. Never retain the provider's message/URL.
         if (message.text().startsWith("Failed to load resource"))
           networkErrors += 1;
@@ -77,11 +97,12 @@ export const test = base.extend({
     page.on("requestfailed", requestFailed);
     try {
       await runFixture(page);
-      if (pageErrors)
+      const expectedRevocationErrors = revocation.expectedConsoleErrors();
+      if (pageErrors > expectedRevocationErrors)
         throw new Error(
           uncaughtErrors
             ? "SENSITIVE_SMOKE_UNCAUGHT_ERRORS"
-            : networkErrors
+            : networkErrors > expectedRevocationErrors
               ? networkErrorsMessage(networkCodes)
               : "SENSITIVE_SMOKE_CONSOLE_ERRORS",
         );
@@ -91,6 +112,7 @@ export const test = base.extend({
       page.off("console", consoleError);
       page.off("response", response);
       page.off("requestfailed", requestFailed);
+      revocation.dispose();
       await protection?.dispose();
     }
   },

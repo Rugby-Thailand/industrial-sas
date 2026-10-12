@@ -12,10 +12,16 @@ import {
   responseDiagnostic,
   reviewedNetworkOrigins,
 } from "../e2e/support/release-network-diagnostics";
+import { SessionRevocation } from "../e2e/support/session-revocation";
 
 type Listener = (payload: unknown) => void;
 type PageFixture = (
-  fixtures: { page: unknown; context: unknown; baseURL?: string },
+  fixtures: {
+    page: unknown;
+    context: unknown;
+    baseURL?: string;
+    sessionRevocation?: SessionRevocation;
+  },
   use: (page: unknown) => Promise<void>,
   testInfo: unknown,
 ) => Promise<void>;
@@ -158,6 +164,7 @@ const failedToLoad = (url: string) => ({
 async function runPage(
   body: (page: ReturnType<typeof fakeEmitter>) => void | Promise<void>,
   baseURL: string | null = STAGE,
+  sessionRevocation?: SessionRevocation,
 ) {
   const pageFixture = captured.fixtures?.page as PageFixture;
   const page = fakeEmitter();
@@ -165,7 +172,12 @@ async function runPage(
   let rejected: unknown;
   try {
     await pageFixture(
-      { page, context, ...(baseURL ? { baseURL } : {}) },
+      {
+        page,
+        context,
+        ...(baseURL ? { baseURL } : {}),
+        ...(sessionRevocation ? { sessionRevocation } : {}),
+      },
       async () => body(page),
       {},
     );
@@ -191,6 +203,163 @@ function rejectedDiagnostics(rejected: unknown) {
 const code = (suffix: string) => `SENSITIVE_SMOKE_NETWORK_${suffix}`;
 
 describe("release page fixture network diagnostics", () => {
+  it("accepts the exact revoked session's token 401 only after sign-out is confirmed", async () => {
+    const revocation = new SessionRevocation(CLERK_ORIGIN);
+    const url = `${CLERK_ORIGIN}/v1/client/sessions/sess_expected/tokens/convex`;
+    const run = await runPage(
+      (page) => {
+        revocation.begin("sess_expected");
+        page.emit("response", observed([], url, "fetch").response(401));
+        page.emit("console", {
+          type: () => "error",
+          text: () =>
+            "Failed to load resource: the server responded with a status of 401 ()",
+          location: () => ({ url }),
+        });
+        revocation.confirm();
+      },
+      STAGE,
+      revocation,
+    );
+    expect(run.rejected).toBeUndefined();
+    expect(run.listeners).toBe(0);
+    expect(protection.assertHealthy).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      "another session",
+      `${CLERK_ORIGIN}/v1/client/sessions/sess_other/tokens/convex`,
+    ],
+    ["the Clerk client", `${CLERK_ORIGIN}/v1/client`],
+    [
+      "an unrelated token template",
+      `${CLERK_ORIGIN}/v1/client/sessions/sess_expected/tokens/other`,
+    ],
+    [
+      "the application",
+      `${STAGE}/v1/client/sessions/sess_expected/tokens/convex`,
+    ],
+    [
+      "a foreign origin",
+      `https://other.invalid/v1/client/sessions/sess_expected/tokens/convex`,
+    ],
+  ])(
+    "keeps a 401 from %s fatal even after confirmed sign-out",
+    async (_label, url) => {
+      const revocation = new SessionRevocation(CLERK_ORIGIN);
+      const run = await runPage(
+        (page) => {
+          revocation.begin("sess_expected");
+          page.emit("response", observed([], url, "fetch").response(401));
+          page.emit("console", {
+            type: () => "error",
+            text: () =>
+              "Failed to load resource: the server responded with a status of 401 ()",
+            location: () => ({ url }),
+          });
+          revocation.confirm();
+        },
+        STAGE,
+        revocation,
+      );
+      expect(rejectedDiagnostics(run.rejected)).toContain(EXISTING_CODE);
+    },
+  );
+
+  it.each([
+    "unconfirmed",
+    "unmatched",
+    "before revocation",
+    "different status",
+    "duplicate console",
+  ])("keeps %s revocation evidence fatal", async (scenario) => {
+    const revocation = new SessionRevocation(CLERK_ORIGIN);
+    const url = `${CLERK_ORIGIN}/v1/client/sessions/sess_expected/tokens/convex`;
+    const run = await runPage(
+      (page) => {
+        if (scenario !== "before revocation") revocation.begin("sess_expected");
+        if (scenario !== "unmatched")
+          page.emit(
+            "response",
+            observed([], url, "fetch").response(
+              scenario === "different status" ? 403 : 401,
+            ),
+          );
+        const message = {
+          type: () => "error",
+          text: () =>
+            "Failed to load resource: the server responded with a status of 401 ()",
+          location: () => ({ url }),
+        };
+        page.emit("console", message);
+        if (scenario === "duplicate console") page.emit("console", message);
+        if (scenario === "before revocation") revocation.begin("sess_expected");
+        if (scenario !== "unconfirmed") revocation.confirm();
+      },
+      STAGE,
+      revocation,
+    );
+    expect(rejectedDiagnostics(run.rejected)).toContain(EXISTING_CODE);
+  });
+
+  it.each(["uncaught", "console"])(
+    "does not hide an unrelated %s error during sign-out",
+    async (kind) => {
+      const revocation = new SessionRevocation(CLERK_ORIGIN);
+      const url = `${CLERK_ORIGIN}/v1/client/sessions/sess_expected/tokens/convex`;
+      const run = await runPage(
+        (page) => {
+          revocation.begin("sess_expected");
+          page.emit("response", observed([], url, "fetch").response(401));
+          page.emit("console", {
+            type: () => "error",
+            text: () =>
+              "Failed to load resource: the server responded with a status of 401 ()",
+            location: () => ({ url }),
+          });
+          page.emit(kind === "uncaught" ? "pageerror" : "console", {
+            type: () => "error",
+            text: () => SENTINEL,
+          });
+          revocation.confirm();
+        },
+        STAGE,
+        revocation,
+      );
+      expect(rejectedDiagnostics(run.rejected)).toContain(
+        kind === "uncaught"
+          ? "SENSITIVE_SMOKE_UNCAUGHT_ERRORS"
+          : "SENSITIVE_SMOKE_CONSOLE_ERRORS",
+      );
+    },
+  );
+
+  it("correlates response and console events in either order without reading secrets", async () => {
+    const revocation = new SessionRevocation(CLERK_ORIGIN);
+    const reads: string[] = [];
+    const url = `${CLERK_ORIGIN}/v1/client/sessions/sess_expected/tokens/convex?secret=${SENTINEL}`;
+    const run = await runPage(
+      (page) => {
+        revocation.begin("sess_expected");
+        page.emit("console", {
+          type: () => "error",
+          text: () =>
+            "Failed to load resource: the server responded with a status of 401 ()",
+          location: () => ({ url }),
+        });
+        page.emit("response", observed(reads, url, "fetch").response(401));
+        revocation.confirm();
+      },
+      STAGE,
+      revocation,
+    );
+    expect(run.rejected).toBeUndefined();
+    expect(reads.every((read) => ALLOWED_READS.has(read))).toBe(true);
+    expect(revocation.expectedConsoleErrors()).toBe(0);
+    expect(run.listeners).toBe(0);
+  });
+
   it("retains a bounded Clerk HTTP 403 fetch code when teardown fails on network errors", async () => {
     // Sanity: the mocks captured the actual fixture module, not a stub.
     expect(releaseTest).toBe(captured.extended);
