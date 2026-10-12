@@ -1,0 +1,71 @@
+import type { GenericMutationCtx } from "convex/server";
+import { it } from "vitest";
+import { writeFileSync } from "node:fs";
+import type { Id } from "../../convex/_generated/dataModel";
+import type { DataModel } from "../../convex/schema";
+import * as locations from "../../convex/finishedGoods/jobScanLocations";
+import { page as cataloguePage } from "../../convex/storageLayouts/locationCatalogue";
+import { createConvexTenantWorld, seedConvexAuthorization, type ConvexTenantWorld } from "../fixtures/convex-tenant-world";
+type Runtime = { _handler: (ctx: GenericMutationCtx<DataModel>, args: unknown) => Promise<unknown> };
+const identity = { subject: "user_fixture_a", org_id: "org_fixture_a" };
+async function invoke(world: ConvexTenantWorld, fn: unknown, args: unknown) {
+  const m = { gets: 0, queries: 0 };
+  const r = (await world.t.withIdentity(identity).run(async (ctx) => {
+    const wrap = <Q extends object>(q: Q): Q => new Proxy(q, { get(t, p, rcv) { const mem = Reflect.get(t, p, rcv); if (typeof mem !== "function") return mem; return (...a: unknown[]) => { if (["paginate","take","first","collect","unique"].includes(String(p))) m.queries++; const v = Reflect.apply(mem, t, a); return v && typeof v === "object" && !("then" in v) ? wrap(v) : v; }; } });
+    const db = new Proxy(ctx.db, { get(t, p, rcv) { const mem = Reflect.get(t, p, rcv); if (p === "get") return (...a: unknown[]) => { m.gets++; return Reflect.apply(mem, t, a); }; if (p === "query") return (tb: string) => wrap(Reflect.apply(mem, t, [tb])); return typeof mem === "function" ? mem.bind(t) : mem; } });
+    return (fn as Runtime)._handler({ ...ctx, db } as GenericMutationCtx<DataModel>, args);
+  })) as { ok: boolean; value: any };
+  return { v: r.value, m };
+}
+async function setup(n: number) {
+  const world = await createConvexTenantWorld();
+  await seedConvexAuthorization(world, { roleA: "ORG_ADMIN" });
+  const warehouseId = world.warehouses.alphaA;
+  const ids = await world.t.run(async (ctx) => {
+    const st = { createdAt: 1, updatedAt: 1, createdByUserId: world.userA, updatedByUserId: world.userA };
+    const b = (code: string) => ctx.db.insert("storageBuildings", { orgId: world.orgA, warehouseId, code, name: code, widthMm: 10000, depthMm: 10000, defaultFloorHeightMm: 3000, floorCount: 1, totalHeightMm: 3000, grossAreaSqMm: 1e8, reservedAreaSqMm: 0, usableAreaSqMm: 1e8, status: "ACTIVE", version: 1, ...st });
+    const A = await b("BUILDING-A"); const E = await b("BUILDING-EMPTY");
+    const F = await ctx.db.insert("storageFloors", { orgId: world.orgA, warehouseId, buildingId: A, floorNumber: 1, widthMm: 10000, depthMm: 10000, heightMm: 3000, grossAreaSqMm: 1e8, reservedAreaSqMm: 0, usableAreaSqMm: 1e8, version: 1, updatedAt: 1, updatedByUserId: world.userA });
+    for (let i = 0; i < n; i++) {
+      const code = i === n - 1 ? "F1-L30-16" : `A-${String(i).padStart(5, "0")}`;
+      const label = i === n - 1 ? "NEEDLE ชั้นวาง" : `Shelf ${i}`;
+      const locationId = await ctx.db.insert("locations", { orgId: world.orgA, warehouseId, code, status: "ACTIVE", locationType: "FLOOR_BLOCK", buildingId: A, floorId: F });
+      const zoneId = await ctx.db.insert("storageZones", { orgId: world.orgA, warehouseId, buildingId: A, floorId: F, locationId, code, label, qrValue: `ISAS:LOCATION:1:${locationId}`, xMm: 0, yMm: 0, widthMm: 1000, depthMm: 1000, maxStackHeightMm: 3000, status: "ACTIVE", ...st });
+      await ctx.db.insert("storagePositions", { orgId: world.orgA, warehouseId, buildingId: A, floorId: F, zoneId, locationId, code, label, qrValue: `ISAS:LOCATION:1:${locationId}`, kind: "DEFAULT", isDefault: true, status: "ACTIVE", ...st });
+    }
+    return { A, E };
+  });
+  return { ...world, warehouseId, ...ids };
+}
+async function journey(world: any, fn: unknown, args: Record<string, unknown>, find: (v: any) => number) {
+  let scanCursor: string | undefined; let requests = 0; let gets = 0; let queries = 0; let firstShown = -1; let firstVisibleAt = -1;
+  for (;;) {
+    const { v, m } = await invoke(world, fn, { warehouseId: world.warehouseId, pageSize: 20, ...args, ...(scanCursor ? { scanCursor } : {}) });
+    requests++; gets += m.gets; queries += m.queries;
+    const shown = find(v); if (firstShown < 0) firstShown = shown; if (firstVisibleAt < 0 && shown > 0) firstVisibleAt = requests;
+    if (v.status !== "scanning") return { requests, rows: shown, gets, queries, firstResponseRows: firstShown, firstVisibleAtRequest: firstVisibleAt };
+    scanCursor = v.scanCursor;
+    if (requests > 3000) throw new Error("runaway");
+  }
+}
+it("measure", async () => {
+  const out: Record<string, unknown> = {};
+  for (const n of [121, 1000]) {
+    const w = await setup(n);
+    const items = (v: any) => (v.items ?? []).length;
+    const rows = (v: any) => (v.page ?? []).length;
+    out[`n${n}`] = {
+      pickerBlank: await journey(w, locations.searchPage, { text: "" }, items),
+      pickerExactText: await journey(w, locations.searchPage, { text: "F1-L30-16" }, items),
+      pickerPrefix: await journey(w, locations.searchPage, { text: "F1-L30" }, items),
+      pickerSparseLabel: await journey(w, locations.searchPage, { text: "NEEDLE" }, items),
+      pickerMiss: await journey(w, locations.searchPage, { text: "NO-SUCH-PLACE" }, items),
+      pickerEmptyBuilding: await journey(w, locations.searchPage, { text: "", buildingId: w.E }, items),
+      resolveExact: await journey(w, locations.resolve, { code: "F1-L30-16" }, (v: any) => (v.ok ? 1 : 0)),
+      catalogueBlank: await journey(w, cataloguePage, {}, rows),
+      catalogueSparse: await journey(w, cataloguePage, { search: "needle" }, rows),
+      catalogueEmptyBuilding: await journey(w, cataloguePage, { buildingId: w.E }, rows),
+    };
+  }
+  writeFileSync(process.env.KIRO_MEASURE_OUT!, JSON.stringify(out, null, 2));
+}, 600_000);

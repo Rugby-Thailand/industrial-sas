@@ -179,9 +179,81 @@ export type TenantStorageDocument = Record<string, unknown>;
 export interface TenantIndexEqualityTerm {
   readonly field: string;
   readonly value: unknown;
+  /**
+   * Explicitly match documents that omit this optional field; `value` must
+   * then be undefined. An undefined `value` without this flag is still
+   * refused, so a forgotten argument can never silently become a
+   * "missing field" lookup. `orgId` can never be missing.
+   */
+  readonly missing?: true;
 }
 
 export type TenantIndexEquality = readonly TenantIndexEqualityTerm[];
+
+export interface TenantIndexBound {
+  readonly value: string | number;
+  readonly inclusive: boolean;
+}
+
+/**
+ * One checked range on the index field that follows the equality prefix (or
+ * on the implicit `_creationTime` tie-breaker once every declared field is
+ * fixed). The tenant prefix is always injected first, so a range can only
+ * narrow this tenant's rows, never widen beyond them.
+ */
+export interface TenantIndexRange {
+  readonly field: string;
+  readonly lower?: TenantIndexBound;
+  readonly upper?: TenantIndexBound;
+}
+
+export const TENANT_INDEX_TIEBREAKER = "_creationTime";
+
+/** Shared validation for the accessor and the storage port; `null` is invalid. */
+export function checkedTenantIndexRange(
+  fieldsAfterOrg: readonly string[],
+  equalityLength: number,
+  range: unknown,
+): TenantIndexRange | undefined | null {
+  if (range === undefined) return undefined;
+  if (range === null || typeof range !== "object" || Array.isArray(range))
+    return null;
+  const record = range as Record<string, unknown>;
+  const expected =
+    equalityLength < fieldsAfterOrg.length
+      ? fieldsAfterOrg[equalityLength]
+      : equalityLength === fieldsAfterOrg.length
+        ? TENANT_INDEX_TIEBREAKER
+        : undefined;
+  if (typeof record.field !== "string" || record.field !== expected)
+    return null;
+  const bound = (value: unknown): TenantIndexBound | undefined | null => {
+    if (value === undefined) return undefined;
+    if (value === null || typeof value !== "object" || Array.isArray(value))
+      return null;
+    const item = value as Record<string, unknown>;
+    if (typeof item.inclusive !== "boolean") return null;
+    const ok =
+      typeof item.value === "string" ||
+      (typeof item.value === "number" && Number.isFinite(item.value));
+    return ok
+      ? Object.freeze({
+          value: item.value as string | number,
+          inclusive: item.inclusive,
+        })
+      : null;
+  };
+  const lower = bound(record.lower);
+  const upper = bound(record.upper);
+  if (lower === null || upper === null) return null;
+  if (!lower && !upper) return null;
+  if (lower && upper && typeof lower.value !== typeof upper.value) return null;
+  return Object.freeze({
+    field: record.field,
+    ...(lower ? { lower } : {}),
+    ...(upper ? { upper } : {}),
+  });
+}
 
 export const TENANT_INDEX_MAX_PAGE_SIZE = 100;
 /** Complete transactional reads must fail, never truncate occupancy. */
@@ -235,6 +307,7 @@ export interface TenantStoragePort {
     index: string,
     equality: TenantIndexEquality,
     limit: number,
+    range?: TenantIndexRange,
   ) => Promise<unknown>;
 
   readonly indexedPage: (
@@ -248,6 +321,7 @@ export interface TenantStoragePort {
       readonly endCursor?: string | null;
       readonly nativePage?: boolean;
     },
+    range?: TenantIndexRange,
   ) => Promise<unknown>;
 }
 
@@ -313,6 +387,7 @@ export interface TenantDocumentAccess {
     table: TenantTableName,
     index: string,
     equalityAfterOrg?: TenantIndexEquality,
+    range?: TenantIndexRange,
   ) => TenantIndexReader<Document>;
 }
 
@@ -442,10 +517,18 @@ export function createTenantDocumentAccess(
       if (typeof field !== "string") throw invalidQuery();
       if (seen.has(field)) throw invalidQuery();
       if (field !== facts.fieldsAfterOrg[position]) throw invalidQuery();
+      seen.add(field);
+      if (record.missing === true) {
+        if (record.value !== undefined) throw invalidQuery();
+        terms.push(
+          Object.freeze({ field, value: undefined, missing: true as const }),
+        );
+        continue;
+      }
+      if (record.missing !== undefined) throw invalidQuery();
       if (!Object.hasOwn(record, "value")) throw invalidQuery();
       if (record.value === undefined) throw invalidQuery();
 
-      seen.add(field);
       terms.push(Object.freeze({ field, value: record.value }));
     }
 
@@ -470,6 +553,7 @@ export function createTenantDocumentAccess(
     order?: "asc" | "desc",
     endCursor?: string | null,
     nativePage?: boolean,
+    range?: TenantIndexRange,
   ): Promise<TenantIndexPage<Document>> => {
     const answer: unknown = await port.indexedPage(
       facts.table,
@@ -482,6 +566,7 @@ export function createTenantDocumentAccess(
         ...(endCursor ? { endCursor } : {}),
         ...(nativePage ? { nativePage } : {}),
       },
+      ...(range ? ([range] as const) : ([] as const)),
     );
 
     if (answer === null || typeof answer !== "object") throw invalidResult();
@@ -539,6 +624,7 @@ export function createTenantDocumentAccess(
     table: TenantTableName,
     index: string,
     equalityAfterOrg: TenantIndexEquality = [],
+    suppliedRange?: TenantIndexRange,
   ): TenantIndexReader<Document> => {
     requireTenantTable(table);
 
@@ -548,14 +634,38 @@ export function createTenantDocumentAccess(
     if (facts === undefined) throw invalidQuery();
 
     const equality = equalityPrefix(facts, equalityAfterOrg);
+    const range = checkedTenantIndexRange(
+      facts.fieldsAfterOrg,
+      equalityAfterOrg.length,
+      suppliedRange,
+    );
+    if (range === null) throw invalidQuery();
 
     const first = async (): Promise<Document | null> => {
-      const { page } = await readPage<Document>(facts, equality, 1, null);
+      const { page } = await readPage<Document>(
+        facts,
+        equality,
+        1,
+        null,
+        undefined,
+        undefined,
+        undefined,
+        range,
+      );
       return page[0] ?? null;
     };
 
     const unique = async (): Promise<Document | null> => {
-      const { page } = await readPage<Document>(facts, equality, 2, null);
+      const { page } = await readPage<Document>(
+        facts,
+        equality,
+        2,
+        null,
+        undefined,
+        undefined,
+        undefined,
+        range,
+      );
       if (page.length > 1) throw invalidResult();
       return page[0] ?? null;
     };
@@ -573,6 +683,9 @@ export function createTenantDocumentAccess(
         bounded,
         null,
         order,
+        undefined,
+        undefined,
+        range,
       );
       return page;
     };
@@ -598,6 +711,7 @@ export function createTenantDocumentAccess(
         request.order,
         requireCursor(request.endCursor),
         true,
+        range,
       );
     };
 
@@ -615,6 +729,7 @@ export function createTenantDocumentAccess(
         facts.name,
         equality,
         limit,
+        ...(range ? ([range] as const) : ([] as const)),
       );
       if (!Array.isArray(answer)) throw invalidResult();
       if (answer.length > limit)

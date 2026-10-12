@@ -135,11 +135,11 @@ describe("warehouse location catalogue", () => {
     expect(
       next.page.every((row) => row.buildingName === "Renamed building"),
     ).toBe(true);
-    // Searching builds a heading and then hydrates the matching row. Both
-    // phases must use the same authorized snapshot reader.
-    const started = await readPage("Renamed building");
-    expect(started.scanCursor).toBeDefined();
-    const searched = await readPage("Renamed building", started.scanCursor);
+    // Searching matches the heading and hydrates the row through the same
+    // authorized snapshot reader: one building and one floor read per page.
+    const searched = await readPage("Renamed building");
+    expect(searched.scanCursor).toBeUndefined();
+    expect(searched.page).toHaveLength(20);
     expect(
       searched.reads.filter((r) => r.table === "storageBuildings"),
     ).toHaveLength(1);
@@ -258,10 +258,11 @@ describe("warehouse location catalogue", () => {
       const source = (await ctx.db.query("storageZones").collect())[0]!;
       const { _id, _creationTime, ...fields } = source;
       void _creationTime;
-      for (let i = 0; i < 30; i++)
+      // Enough areas that one bounded request cannot finish the search.
+      for (let i = 0; i < 800; i++)
         await ctx.db.insert("storageZones", {
           ...fields,
-          code: `Z-${i}`,
+          code: `Z-${String(i).padStart(3, "0")}`,
           label: `Zone ${i}`,
         });
       return _id;
@@ -272,9 +273,10 @@ describe("warehouse location catalogue", () => {
       search: "renamed",
     };
     const first = (await call(world, page, args)) as {
-      value: { status: string; scanCursor: string };
+      value: { status: string; scanCursor: string; scanned: number };
     };
     expect(first.value.status).toBe("scanning");
+    expect(first.value.scanned).toBeGreaterThan(1);
     await world.t.run(async (ctx) => {
       const db = createTenantDocumentAccess(
         { orgId: world.orgA, requestId: "location-revision" },
@@ -287,9 +289,17 @@ describe("warehouse location catalogue", () => {
     const second = (await call(world, page, {
       ...args,
       scanCursor: first.value.scanCursor,
-    })) as { value: { status: string; scanCursor: string; scanned: number } };
+    })) as {
+      value: {
+        status: string;
+        scanCursor: string;
+        page: { label: string }[];
+      };
+    };
+    // The renamed area precedes the continuation. The scan restarts from the
+    // page start, so it is found (a resumed scan would have skipped it).
     expect(second.value.status).toBe("scanning");
-    expect(second.value.scanned).toBe(0);
+    expect(second.value.page.map((row) => row.label)).toEqual(["renamed"]);
     const completed = await finishSearch(world, args, second.value.scanCursor);
     expect(completed.status).toBe("ready");
     expect(completed.page.map((row) => row.label)).toEqual(["renamed"]);

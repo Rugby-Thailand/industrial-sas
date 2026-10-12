@@ -9,6 +9,9 @@ export const fgRefs = Object.freeze({
   resolveJobScanLocation: clientRef(api.finishedGoods.jobScanLocations.resolve),
   createJobScanLocation: clientRef(api.finishedGoods.jobScanLocations.create),
   jobScanLocationOptions: clientRef(api.finishedGoods.jobScanLocations.options),
+  jobScanBuildingOptions: clientRef(
+    api.finishedGoods.jobScanLocations.buildingOptions,
+  ),
   searchJobScanLocations: clientRef(
     api.finishedGoods.jobScanLocations.searchPage,
   ),

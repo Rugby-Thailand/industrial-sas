@@ -8,10 +8,14 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
+import { paginatedScan } from "../lib/cataloguePagination";
 import {
-  paginatedScan,
-  remainingScanCapacity,
-} from "../lib/cataloguePagination";
+  keysetScan,
+  KeysetSuspend,
+  readKeysetRange,
+  type KeysetSegment,
+  type KeysetWork,
+} from "../lib/keysetScan";
 
 function createLocationReader(
   ctx: TenantFunctionContext,
@@ -161,148 +165,102 @@ async function withOccupancy(
   };
 }
 
-type LocationSearchState = {
-  ids: string[];
-  next?: string;
-  done: boolean;
-  positionCursor?: string;
-  tail?: string;
+const POSITION_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+/** Where one area's descendant text search stopped, and the text carried over. */
+type DescendantScan = {
+  st: number;
+  k?: string;
+  t?: number;
+  i?: string;
+  tail: string;
 };
-/** Search historical sublocations with bounded reads, retaining only the text boundary. */
-async function searchLocationChunk(
+function validDescendantScan(value: unknown): value is DescendantScan {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const state = value as Record<string, unknown>;
+  const boundary = [state.k, state.t, state.i];
+  return (
+    Number.isSafeInteger(state.st) &&
+    (state.st as number) >= 0 &&
+    (state.st as number) <= POSITION_STATUSES.length &&
+    typeof state.tail === "string" &&
+    (boundary.every((part) => part === undefined) ||
+      (typeof state.k === "string" &&
+        typeof state.t === "number" &&
+        Number.isFinite(state.t) &&
+        typeof state.i === "string"))
+  );
+}
+
+/**
+ * Search one area's complete position history (active, then inactive, each
+ * in index order) for `needle`, in bounded chunks. A match may span adjacent
+ * labels/codes, so the last `needle.length - 1` characters carry across
+ * chunks. Each call reads at least one chunk, then returns `KeysetSuspend`
+ * with its position once this request's budget is spent; the scan resumes it
+ * on the next request. History is never truncated or capped.
+ */
+async function descendantsMatch(
   ctx: TenantFunctionContext,
-  warehouseId: string,
+  zone: Doc<"storageZones">,
   needle: string,
-  readLocation: LocationReader,
-  raw?: string,
-  end?: string,
-) {
-  const decode = (cursor?: string): LocationSearchState => {
-    if (!cursor) return { ids: [], done: false };
-    try {
-      const state = JSON.parse(cursor) as LocationSearchState;
-      if (
-        !Array.isArray(state.ids) ||
-        state.ids.length > 100 ||
-        state.ids.some((id) => typeof id !== "string") ||
-        typeof state.done !== "boolean" ||
-        [state.next, state.positionCursor, state.tail].some(
-          (value) => value !== undefined && typeof value !== "string",
-        )
-      )
-        throw new Error();
-      return state;
-    } catch {
-      throw new Error("InvalidCursor");
-    }
-  };
-  let state = decode(raw);
-  const boundary = end ? decode(end) : undefined;
-  const encode = (value: LocationSearchState) => JSON.stringify(value);
-  if (!state.ids.length) {
-    const zones = await ctx.tenantDb
-      .byIndex<Doc<"storageZones">>(
-        "storageZones",
-        "by_orgId_warehouseId_code",
-        [{ field: "warehouseId", value: warehouseId }],
-      )
-      .page({
-        limit: 1,
-        ...(state.next ? { cursor: state.next } : {}),
-        ...(boundary?.next ? { endCursor: boundary.next } : {}),
-      });
-    if (zones.pageStatus === "SplitRequired" && !zones.splitCursor)
-      throw new Error("CATALOGUE_READ_CAPACITY_EXCEEDED");
-    if (zones.pageStatus === "SplitRequired")
-      return {
-        ...zones,
-        page: [] as Doc<"storageZones">[],
-        splitCursor: encode({ ids: [], done: false, next: zones.splitCursor! }),
-        continueCursor: encode({
-          ids: [],
-          done: false,
-          next: zones.continueCursor,
-        }),
-      };
-    state = {
-      ids: zones.page.map((zone) => zone._id),
-      next: zones.continueCursor,
-      done: zones.isDone,
-    };
-    // Convex permits only one native pagination call per query. Inspect the
-    // selected zone and its positions on the next bounded request.
-    return {
-      page: [] as Doc<"storageZones">[],
-      isDone: state.done && !state.ids.length,
-      continueCursor: encode(state),
-    };
-  }
-  const id = state.ids[0];
-  if (!id)
-    return {
-      page: [] as Doc<"storageZones">[],
-      isDone: state.done,
-      continueCursor: encode(state),
-    };
-  const zone = await ctx.tenantDb.get<Doc<"storageZones">>("storageZones", id);
-  const after: LocationSearchState = {
-    ids: state.ids.slice(1),
-    done: state.done,
-    ...(state.next ? { next: state.next } : {}),
-  };
-  const result = (matched: boolean) => ({
-    page: matched && zone ? [zone] : [],
-    isDone: after.done && !after.ids.length,
-    continueCursor: encode(after),
-  });
-  if (!zone || zone.warehouseId !== warehouseId) return result(false);
-  const row = await readLocation(zone);
-  const heading =
-    `${row.label} ${row.code} ${row.buildingName} ${row.buildingCode} `.toLocaleLowerCase();
-  if (heading.includes(needle)) return result(true);
-  const positions = await ctx.tenantDb
-    .byIndex<Doc<"storagePositions">>(
-      "storagePositions",
-      "by_orgId_zoneId_status_code",
-      [{ field: "zoneId", value: zone._id }],
+  heading: string,
+  work: KeysetWork,
+  resume: unknown,
+): Promise<boolean | KeysetSuspend> {
+  const keep = Math.max(0, needle.length - 1);
+  const carry = (text: string) =>
+    keep ? text.slice(Math.max(0, text.length - keep)) : "";
+  let state: DescendantScan = validDescendantScan(resume)
+    ? resume
+    : { st: 0, tail: carry(heading) };
+  for (let chunk = 0; ; chunk += 1) {
+    const status = POSITION_STATUSES[state.st];
+    if (!status) return false;
+    if (chunk > 0 && work.remaining() <= 0) return new KeysetSuspend(state);
+    const limit = Math.min(100, Math.max(10, work.remaining()));
+    const { rows, full, read } = await readKeysetRange(
+      ctx,
+      {
+        table: "storagePositions",
+        index: "by_orgId_zoneId_status_code",
+        equalities: [
+          [
+            { field: "zoneId", value: zone._id },
+            { field: "status", value: status },
+          ],
+        ],
+        keyField: "code",
+      },
+      state.k === undefined
+        ? undefined
+        : { key: state.k, time: state.t!, id: state.i! },
+      limit,
+    );
+    work.reads += read + (state.k === undefined ? 1 : 2);
+    // Normalize after joining the carried tail, so a combining mark at the
+    // start of a chunk composes with the character before it.
+    const text = (
+      state.tail +
+      (rows as Doc<"storagePositions">[])
+        .filter((p) => !p.isDefault)
+        .map((p) => `${p.label} ${p.code} `)
+        .join("")
     )
-    .page({
-      limit: 50,
-      ...(state.positionCursor ? { cursor: state.positionCursor } : {}),
-      ...(boundary?.positionCursor
-        ? { endCursor: boundary.positionCursor }
-        : {}),
-    });
-  if (positions.pageStatus === "SplitRequired" && !positions.splitCursor)
-    throw new Error("CATALOGUE_READ_CAPACITY_EXCEEDED");
-  if (positions.pageStatus === "SplitRequired")
-    return {
-      ...positions,
-      page: [] as Doc<"storageZones">[],
-      splitCursor: encode({ ...state, positionCursor: positions.splitCursor! }),
-      continueCursor: encode({
-        ...state,
-        positionCursor: positions.continueCursor,
-      }),
-    };
-  const text =
-    (state.tail ?? heading) +
-    positions.page
-      .filter((p) => !p.isDefault)
-      .map((p) => `${p.label} ${p.code} `)
-      .join("")
+      .normalize("NFC")
       .toLocaleLowerCase();
-  if (text.includes(needle)) return result(true);
-  if (positions.isDone) return result(false);
-  return {
-    page: [] as Doc<"storageZones">[],
-    isDone: false,
-    continueCursor: encode({
-      ...state,
-      positionCursor: positions.continueCursor,
-      tail: needle.length > 1 ? text.slice(1 - needle.length) : "",
-    }),
-  };
+    if (text.includes(needle)) return true;
+    const last = rows.at(-1) as Doc<"storagePositions"> | undefined;
+    state =
+      full && last
+        ? {
+            st: state.st,
+            k: last.code,
+            t: last._creationTime,
+            i: last._id,
+            tail: carry(text),
+          }
+        : { st: state.st + 1, tail: carry(text) };
+  }
 }
 
 export const page = queryWithOrg({
@@ -322,48 +280,117 @@ export const page = queryWithOrg({
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, args) => {
     const { cursor, scanCursor, pageSize, ...criteria } = args;
-    const needle = (args.search ?? "").trim().toLocaleLowerCase();
+    const needle = (args.search ?? "")
+      .normalize("NFC")
+      .trim()
+      .toLocaleLowerCase();
     const readLocation = createLocationReader(ctx, false);
-    const result = await paginatedScan(ctx, {
+    const empty = {
+      status: "ready" as const,
+      page: [] as Awaited<ReturnType<LocationReader>>[],
+      isDone: true,
+      continueCursor: "",
+      scanned: 0,
+    };
+    // A building filter reads only that building's areas, and a floor filter
+    // inside it is an in-row comparison against one resolved floor.
+    let floorId: string | undefined;
+    if (args.buildingId) {
+      const building = await ctx.tenantDb.get<Doc<"storageBuildings">>(
+        "storageBuildings",
+        args.buildingId,
+      );
+      if (!building || building.warehouseId !== args.warehouseId) return empty;
+      if (
+        args.status &&
+        args.status !== "ARCHIVED" &&
+        building.status !== args.status
+      )
+        return empty;
+      if (args.floorNumber !== undefined) {
+        const floor = await ctx.tenantDb
+          .byIndex<Doc<"storageFloors">>(
+            "storageFloors",
+            "by_orgId_buildingId_floorNumber",
+            [
+              { field: "buildingId", value: args.buildingId },
+              { field: "floorNumber", value: args.floorNumber },
+            ],
+          )
+          .first();
+        if (!floor) return empty;
+        floorId = floor._id;
+      }
+    }
+    const segment: KeysetSegment = args.buildingId
+      ? {
+          table: "storageZones",
+          index: "by_orgId_buildingId_code",
+          equalities: [[{ field: "buildingId", value: args.buildingId }]],
+          keyField: "code",
+        }
+      : {
+          table: "storageZones",
+          index: "by_orgId_warehouseId_code",
+          equalities: [[{ field: "warehouseId", value: args.warehouseId }]],
+          keyField: "code",
+        };
+    const result = await keysetScan(ctx, {
       generation:
         (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
         0,
       scope: { entity: "locations", ...criteria },
       pageSize,
-      ...(cursor ? { cursor } : {}),
-      ...(scanCursor ? { scanCursor } : {}),
-      read: (rawCursor, endCursor?: string) =>
-        needle
-          ? searchLocationChunk(
-              ctx,
-              args.warehouseId,
-              needle,
-              readLocation,
-              rawCursor,
-              endCursor,
-            )
-          : ctx.tenantDb
-              .byIndex<Doc<"storageZones">>(
-                "storageZones",
-                "by_orgId_warehouseId_code",
-                [{ field: "warehouseId", value: args.warehouseId }],
-              )
-              .page({
-                limit: Math.min(
-                  20,
-                  remainingScanCapacity(scanCursor, pageSize),
-                ),
-                ...(rawCursor ? { cursor: rawCursor } : {}),
-                ...(endCursor ? { endCursor } : {}),
-              }),
+      cursor,
+      scanCursor,
+      segments: [
+        {
+          ...segment,
+          dense: !needle && !args.status && args.floorNumber === undefined,
+        },
+      ],
+      maxWork: 1_200,
+      // One area at a time, so a long position history can suspend and
+      // resume instead of overrunning this request's budget.
+      sequential: true,
       get: (id) => ctx.tenantDb.get<Doc<"storageZones">>("storageZones", id),
-      hydrate: readLocation,
-      matches: (row) =>
-        row.warehouseId === args.warehouseId &&
-        (!args.status || row.status === args.status) &&
-        (!args.buildingId || row.buildingId === args.buildingId) &&
-        (args.floorNumber === undefined ||
-          row.floorNumber === args.floorNumber),
+      evaluate: async (zone, work, { resume, retained }) => {
+        // In-row filters first, then cached parents, then descendant text.
+        if (zone.warehouseId !== args.warehouseId) return null;
+        if (floorId && zone.floorId !== floorId) return null;
+        // An archived area is ARCHIVED whatever its building's status.
+        if (
+          args.status &&
+          args.status !== "ARCHIVED" &&
+          zone.status !== "ACTIVE"
+        )
+          return null;
+        // Building and floor reads are shared across the snapshot.
+        const row = await readLocation(zone);
+        if (
+          (args.status && row.status !== args.status) ||
+          (args.floorNumber !== undefined &&
+            row.floorNumber !== args.floorNumber)
+        )
+          return null;
+        // A retained match already passed the text search on this page.
+        if (!needle || retained) return row;
+        const heading =
+          `${row.label} ${row.code} ${row.buildingName} ${row.buildingCode} `
+            .normalize("NFC")
+            .toLocaleLowerCase();
+        if (resume === undefined && heading.includes(needle)) return row;
+        const found = await descendantsMatch(
+          ctx,
+          zone,
+          needle,
+          heading,
+          work,
+          resume,
+        );
+        if (found instanceof KeysetSuspend) return found;
+        return found ? row : null;
+      },
     });
     return { ...result, page: result.page };
   },

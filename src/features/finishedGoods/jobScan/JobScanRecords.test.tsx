@@ -334,7 +334,9 @@ describe("scanned record deletion", () => {
     expect(location).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "All" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+    // Records pager and the picker's always-visible pager are both locked.
+    for (const next of screen.getAllByRole("button", { name: "Next page" }))
+      expect(next).toBeDisabled();
     expect(
       screen.getByRole("textbox", { name: /Search Job No/ }),
     ).toBeDisabled();

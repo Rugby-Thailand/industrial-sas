@@ -1,0 +1,166 @@
+{
+  "n121": {
+    "pickerBlank": {
+      "requests": 1,
+      "rows": 20,
+      "gets": 122,
+      "queries": 31,
+      "firstResponseRows": 20,
+      "firstVisibleAtRequest": 1
+    },
+    "pickerExactText": {
+      "requests": 7,
+      "rows": 1,
+      "gets": 768,
+      "queries": 268,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 7
+    },
+    "pickerPrefix": {
+      "requests": 7,
+      "rows": 1,
+      "gets": 740,
+      "queries": 240,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 7
+    },
+    "pickerSparseLabel": {
+      "requests": 7,
+      "rows": 1,
+      "gets": 740,
+      "queries": 240,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 7
+    },
+    "pickerMiss": {
+      "requests": 7,
+      "rows": 0,
+      "gets": 740,
+      "queries": 240,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": -1
+    },
+    "pickerEmptyBuilding": {
+      "requests": 1,
+      "rows": 20,
+      "gets": 122,
+      "queries": 31,
+      "firstResponseRows": 20,
+      "firstVisibleAtRequest": 1
+    },
+    "resolveExact": {
+      "requests": 1,
+      "rows": 1,
+      "gets": 6,
+      "queries": 20,
+      "firstResponseRows": 1,
+      "firstVisibleAtRequest": 1
+    },
+    "catalogueBlank": {
+      "requests": 1,
+      "rows": 20,
+      "gets": 4,
+      "queries": 12,
+      "firstResponseRows": 20,
+      "firstVisibleAtRequest": 1
+    },
+    "catalogueSparse": {
+      "requests": 242,
+      "rows": 1,
+      "gets": 847,
+      "queries": 2903,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 242
+    },
+    "catalogueEmptyBuilding": {
+      "requests": 7,
+      "rows": 0,
+      "gets": 28,
+      "queries": 84,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": -1
+    }
+  },
+  "n1000": {
+    "pickerBlank": {
+      "requests": 1,
+      "rows": 20,
+      "gets": 122,
+      "queries": 31,
+      "firstResponseRows": 20,
+      "firstVisibleAtRequest": 1
+    },
+    "pickerExactText": {
+      "requests": 50,
+      "rows": 1,
+      "gets": 6300,
+      "queries": 2050,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 50
+    },
+    "pickerPrefix": {
+      "requests": 50,
+      "rows": 1,
+      "gets": 6100,
+      "queries": 1850,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 50
+    },
+    "pickerSparseLabel": {
+      "requests": 50,
+      "rows": 1,
+      "gets": 6100,
+      "queries": 1850,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 50
+    },
+    "pickerMiss": {
+      "requests": 50,
+      "rows": 0,
+      "gets": 6100,
+      "queries": 1850,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": -1
+    },
+    "pickerEmptyBuilding": {
+      "requests": 1,
+      "rows": 20,
+      "gets": 122,
+      "queries": 31,
+      "firstResponseRows": 20,
+      "firstVisibleAtRequest": 1
+    },
+    "resolveExact": {
+      "requests": 1,
+      "rows": 1,
+      "gets": 6,
+      "queries": 20,
+      "firstResponseRows": 1,
+      "firstVisibleAtRequest": 1
+    },
+    "catalogueBlank": {
+      "requests": 1,
+      "rows": 20,
+      "gets": 4,
+      "queries": 12,
+      "firstResponseRows": 20,
+      "firstVisibleAtRequest": 1
+    },
+    "catalogueSparse": {
+      "requests": 2000,
+      "rows": 1,
+      "gets": 7000,
+      "queries": 23999,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": 2000
+    },
+    "catalogueEmptyBuilding": {
+      "requests": 50,
+      "rows": 0,
+      "gets": 200,
+      "queries": 600,
+      "firstResponseRows": 0,
+      "firstVisibleAtRequest": -1
+    }
+  }
+}

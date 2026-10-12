@@ -485,7 +485,15 @@ describe("register a location during job scanning", () => {
         }),
       );
       expect(page["items"]).toEqual([expect.objectContaining({ locationId })]);
-      expect(page["canCreate"]).toBe(false);
+      // Registration is offered only for an exact LOCATION_NOT_FOUND answer.
+      expect(
+        value(
+          await call(world, locations.resolve, {
+            warehouseId: world.warehouseId,
+            code: `ISAS:LOCATION:1:${locationId}`,
+          }),
+        ),
+      ).toMatchObject({ ok: true, location: { locationId } });
     }
   });
 
@@ -856,7 +864,16 @@ describe("register a location during job scanning", () => {
         pageSize: 20,
       }),
     );
-    expect(result["canCreate"]).toBe(false);
+    expect(result["items"]).toEqual([]);
+    // The picker offers registration only for LOCATION_NOT_FOUND.
+    const exact = value(
+      await call(world, locations.resolve, {
+        warehouseId: world.warehouseId,
+        code,
+      }),
+    );
+    expect(exact["ok"]).toBe(false);
+    expect(exact["error"]).not.toEqual({ code: "LOCATION_NOT_FOUND" });
   });
 
   it("rejects unauthenticated creation and missing manage permission", async () => {

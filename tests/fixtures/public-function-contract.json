@@ -1146,6 +1146,303 @@
       "type": "any"
     }
   },
+  "finishedGoods/batchManagement:get": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "batchId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "finishedGoodsBatches"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "finishedGoods/batchManagement:repackAvailable": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "batchId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "finishedGoodsBatches"
+          },
+          "optional": false
+        },
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedRevision": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "simplePacking": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "sameSize": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "unitIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "finishedGoodsPallets"
+            }
+          },
+          "optional": false
+        },
+        "packages": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "quantity": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "lengthMm": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "widthMm": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "heightMm": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "fillPercent": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "weightKg": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": true
+                },
+                "dimensionsChecked": {
+                  "fieldType": {
+                    "type": "boolean"
+                  },
+                  "optional": false
+                }
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "finishedGoods/batches:cancelLegacyUnit": {
     "kind": "mutation",
     "visibility": "public",
@@ -2371,303 +2668,6 @@
       ]
     }
   },
-  "finishedGoods/batchManagement:get": {
-    "kind": "query",
-    "visibility": "public",
-    "args": {
-      "type": "object",
-      "value": {
-        "warehouseId": {
-          "fieldType": {
-            "type": "id",
-            "tableName": "warehouses"
-          },
-          "optional": false
-        },
-        "batchId": {
-          "fieldType": {
-            "type": "id",
-            "tableName": "finishedGoodsBatches"
-          },
-          "optional": false
-        }
-      }
-    },
-    "returns": {
-      "type": "union",
-      "value": [
-        {
-          "type": "object",
-          "value": {
-            "ok": {
-              "fieldType": {
-                "type": "literal",
-                "value": true
-              },
-              "optional": false
-            },
-            "requestId": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "value": {
-              "fieldType": {
-                "type": "any"
-              },
-              "optional": false
-            }
-          }
-        },
-        {
-          "type": "object",
-          "value": {
-            "ok": {
-              "fieldType": {
-                "type": "literal",
-                "value": false
-              },
-              "optional": false
-            },
-            "requestId": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "denial": {
-              "fieldType": {
-                "type": "object",
-                "value": {
-                  "kind": {
-                    "fieldType": {
-                      "type": "literal",
-                      "value": "AUTHORIZATION_DENIED"
-                    },
-                    "optional": false
-                  },
-                  "code": {
-                    "fieldType": {
-                      "type": "literal",
-                      "value": "AUTHORIZATION_DENIED"
-                    },
-                    "optional": false
-                  },
-                  "requestId": {
-                    "fieldType": {
-                      "type": "string"
-                    },
-                    "optional": false
-                  },
-                  "message": {
-                    "fieldType": {
-                      "type": "literal",
-                      "value": "This request was denied. Quote the request ID when asking for help."
-                    },
-                    "optional": false
-                  }
-                }
-              },
-              "optional": false
-            }
-          }
-        }
-      ]
-    }
-  },
-  "finishedGoods/batchManagement:repackAvailable": {
-    "kind": "mutation",
-    "visibility": "public",
-    "args": {
-      "type": "object",
-      "value": {
-        "warehouseId": {
-          "fieldType": {
-            "type": "id",
-            "tableName": "warehouses"
-          },
-          "optional": false
-        },
-        "batchId": {
-          "fieldType": {
-            "type": "id",
-            "tableName": "finishedGoodsBatches"
-          },
-          "optional": false
-        },
-        "requestId": {
-          "fieldType": {
-            "type": "string"
-          },
-          "optional": false
-        },
-        "expectedRevision": {
-          "fieldType": {
-            "type": "number"
-          },
-          "optional": false
-        },
-        "simplePacking": {
-          "fieldType": {
-            "type": "boolean"
-          },
-          "optional": true
-        },
-        "sameSize": {
-          "fieldType": {
-            "type": "boolean"
-          },
-          "optional": true
-        },
-        "unitIds": {
-          "fieldType": {
-            "type": "array",
-            "value": {
-              "type": "id",
-              "tableName": "finishedGoodsPallets"
-            }
-          },
-          "optional": false
-        },
-        "packages": {
-          "fieldType": {
-            "type": "array",
-            "value": {
-              "type": "object",
-              "value": {
-                "quantity": {
-                  "fieldType": {
-                    "type": "number"
-                  },
-                  "optional": false
-                },
-                "lengthMm": {
-                  "fieldType": {
-                    "type": "number"
-                  },
-                  "optional": true
-                },
-                "widthMm": {
-                  "fieldType": {
-                    "type": "number"
-                  },
-                  "optional": true
-                },
-                "heightMm": {
-                  "fieldType": {
-                    "type": "number"
-                  },
-                  "optional": true
-                },
-                "fillPercent": {
-                  "fieldType": {
-                    "type": "number"
-                  },
-                  "optional": true
-                },
-                "weightKg": {
-                  "fieldType": {
-                    "type": "number"
-                  },
-                  "optional": true
-                },
-                "dimensionsChecked": {
-                  "fieldType": {
-                    "type": "boolean"
-                  },
-                  "optional": false
-                }
-              }
-            }
-          },
-          "optional": false
-        }
-      }
-    },
-    "returns": {
-      "type": "union",
-      "value": [
-        {
-          "type": "object",
-          "value": {
-            "ok": {
-              "fieldType": {
-                "type": "literal",
-                "value": true
-              },
-              "optional": false
-            },
-            "requestId": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "value": {
-              "fieldType": {
-                "type": "any"
-              },
-              "optional": false
-            }
-          }
-        },
-        {
-          "type": "object",
-          "value": {
-            "ok": {
-              "fieldType": {
-                "type": "literal",
-                "value": false
-              },
-              "optional": false
-            },
-            "requestId": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "denial": {
-              "fieldType": {
-                "type": "object",
-                "value": {
-                  "kind": {
-                    "fieldType": {
-                      "type": "literal",
-                      "value": "AUTHORIZATION_DENIED"
-                    },
-                    "optional": false
-                  },
-                  "code": {
-                    "fieldType": {
-                      "type": "literal",
-                      "value": "AUTHORIZATION_DENIED"
-                    },
-                    "optional": false
-                  },
-                  "requestId": {
-                    "fieldType": {
-                      "type": "string"
-                    },
-                    "optional": false
-                  },
-                  "message": {
-                    "fieldType": {
-                      "type": "literal",
-                      "value": "This request was denied. Quote the request ID when asking for help."
-                    },
-                    "optional": false
-                  }
-                }
-              },
-              "optional": false
-            }
-          }
-        }
-      ]
-    }
-  },
   "finishedGoods/catalogue:findSku": {
     "kind": "query",
     "visibility": "public",
@@ -3359,6 +3359,128 @@
       "type": "any"
     }
   },
+  "finishedGoods/jobScanLocations:buildingOptions": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "search": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "scanCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "attempt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "finishedGoods/jobScanLocations:create": {
     "kind": "mutation",
     "visibility": "public",
@@ -3746,6 +3868,13 @@
             "type": "string"
           },
           "optional": false
+        },
+        "buildingId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "storageBuildings"
+          },
+          "optional": true
         }
       }
     },
@@ -3851,6 +3980,13 @@
           },
           "optional": false
         },
+        "buildingId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "storageBuildings"
+          },
+          "optional": true
+        },
         "pageSize": {
           "fieldType": {
             "type": "number"
@@ -3866,6 +4002,12 @@
         "scanCursor": {
           "fieldType": {
             "type": "string"
+          },
+          "optional": true
+        },
+        "attempt": {
+          "fieldType": {
+            "type": "number"
           },
           "optional": true
         }
@@ -8788,6 +8930,31 @@
       ]
     }
   },
+  "hr/announcementSchedule:publishDue": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "announcementId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "hrAnnouncements"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "hr/announcements:archive": {
     "kind": "mutation",
     "visibility": "public",
@@ -10065,31 +10232,6 @@
           }
         }
       ]
-    }
-  },
-  "hr/announcementSchedule:publishDue": {
-    "kind": "mutation",
-    "visibility": "internal",
-    "args": {
-      "type": "object",
-      "value": {
-        "announcementId": {
-          "fieldType": {
-            "type": "id",
-            "tableName": "hrAnnouncements"
-          },
-          "optional": false
-        },
-        "expectedVersion": {
-          "fieldType": {
-            "type": "number"
-          },
-          "optional": false
-        }
-      }
-    },
-    "returns": {
-      "type": "any"
     }
   },
   "hr/leave:adjust": {
@@ -19122,6 +19264,31 @@
             "type": "string"
           },
           "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "staging/locationBuildingBackfill:run": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
         }
       }
     },
