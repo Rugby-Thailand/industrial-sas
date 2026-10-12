@@ -55,11 +55,26 @@ vi.mock("./LocationPicker", () => ({
   LocationPicker: ({
     onPick,
   }: {
-    onPick: (location: { text: string }) => void;
+    onPick: (location: Record<string, unknown> & { text: string }) => void;
   }) => (
-    <button onClick={() => onPick({ text: "DEMO-L01" })}>
-      Choose demo location
-    </button>
+    <>
+      <button onClick={() => onPick({ text: "DEMO-L01" })}>
+        Choose demo location
+      </button>
+      <button
+        onClick={() =>
+          onPick({
+            text: "F1-L1-1",
+            code: "F1-L1-1",
+            locationId: "location-f1",
+            buildingName: "Building A",
+            floorNumber: 1,
+          })
+        }
+      >
+        Choose mapped location
+      </button>
+    </>
   ),
 }));
 vi.mock("./PhotoCapture", () => ({
@@ -73,6 +88,7 @@ vi.mock("./PhotoCapture", () => ({
     </button>
   ),
 }));
+
 vi.mock("./resizeImage", () => ({
   resizeImage: mocks.resize,
   toDataUrl: vi.fn(),
@@ -91,7 +107,7 @@ function start() {
   fireEvent.click(screen.getByRole("button", { name: "Choose demo location" }));
 }
 function addTicket(index = 0) {
-  fireEvent.click(screen.getByRole("button", { name: "Type manually" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
   fireEvent.change(
     screen.getAllByRole("textbox", { name: /Job No\./ })[index]!,
     { target: { value: "FO69070073" } },
@@ -139,7 +155,7 @@ it("blocks repeated identities until reviewed and invalidates review after an ed
 
 it("recovers a failed photo into an editable ticket instead of leaving it reading", async () => {
   start();
-  fireEvent.click(screen.getByRole("button", { name: "Photos (AI)" }));
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   fireEvent.click(screen.getByRole("button", { name: "Submit demo photo" }));
   await waitFor(() =>
     expect(screen.getByText(/The photo could not be read/)).toBeVisible(),
@@ -158,7 +174,7 @@ it("locks editing and prevents a second write while a save is pending", async ()
   );
   start();
   addTicket();
-  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   expect(screen.getByText("QA barcode scanner active")).toBeVisible();
   const lateDecode = mocks.decode!;
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
@@ -173,7 +189,7 @@ it("locks editing and prevents a second write while a save is pending", async ()
     "DEMO-BOX",
   );
   expect(screen.getByRole("textbox", { name: /Job No\./ })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Type manually" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Manual" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: /Saving/ }));
   expect(mocks.save).toHaveBeenCalledTimes(1);
   resolve(writeSuccess("scan-a"));
@@ -184,8 +200,8 @@ it("locks editing and prevents a second write while a save is pending", async ()
 
 it("scans into the selected ticket field without choosing a different incomplete ticket", () => {
   start();
-  fireEvent.click(screen.getByRole("button", { name: "Type manually" }));
-  fireEvent.click(screen.getByRole("button", { name: "Type manually" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
   fireEvent.click(screen.getAllByRole("button", { name: "Scan Job No." })[0]!);
   expect(screen.getByRole("dialog")).toHaveTextContent("Ticket #1");
   act(() => mocks.decode!("DEMO-BOX"));
@@ -237,7 +253,7 @@ it("requires replacement confirmation, keeps the original on cancel, and applies
 it("ignores a closed global scanner while a field scanner is open", () => {
   start();
   addTicket();
-  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   const oldGlobalDecode = mocks.decode!;
   fireEvent.click(screen.getByRole("button", { name: "Scan Product barcode" }));
   act(() => oldGlobalDecode("LATE-GLOBAL-BOX"));
@@ -305,7 +321,7 @@ it("keeps focus on the scan action after Escape and exposes accessible field and
 
 it("applies an image JOB/product pair together and saves the decoded identities", async () => {
   start();
-  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
   expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
     "FO12345678",
@@ -327,7 +343,7 @@ it("applies an image JOB/product pair together and saves the decoded identities"
 });
 it("requires duplicate review before saving repeated photographed physical units", async () => {
   start();
-  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
   expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(2);
@@ -343,7 +359,7 @@ it("requires duplicate review before saving repeated photographed physical units
 it("manual edits close image intake and reject its late results", () => {
   start();
   addTicket();
-  fireEvent.click(screen.getByRole("button", { name: "Scan barcode" }));
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   const late = mocks.imageCodes!;
   fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
     target: { value: "EDITED-PRODUCT" },
@@ -358,4 +374,60 @@ it("manual edits close image intake and reject its late results", () => {
   expect(screen.getByRole("textbox", { name: /Product barcode/ })).toHaveValue(
     "EDITED-PRODUCT",
   );
+});
+
+it("shows the selected location with its real status and offers save only once a ticket exists", () => {
+  start();
+  expect(screen.getByRole("heading", { name: "Scan pallet" })).toBeVisible();
+  const strip = screen.getByRole("region", { name: "Location" });
+  expect(strip).toHaveTextContent("DEMO-L01");
+  expect(strip).toHaveTextContent("Needs location");
+  expect(
+    screen.queryByRole("button", { name: /Save/ }),
+  ).not.toBeInTheDocument();
+  addTicket();
+  expect(screen.getByRole("button", { name: "Save 1 ticket" })).toBeEnabled();
+});
+
+it("keeps one acquisition panel open and Manual adds a ticket without a panel", () => {
+  start();
+  const photo = screen.getByRole("button", { name: "Photo AI" });
+  const scan = screen.getByRole("button", { name: "Scan code" });
+  fireEvent.click(photo);
+  expect(photo).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(scan);
+  expect(photo).toHaveAttribute("aria-pressed", "false");
+  expect(scan).toHaveAttribute("aria-pressed", "true");
+  expect(
+    screen.queryByRole("button", { name: "Submit demo photo" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+  expect(scan).toHaveAttribute("aria-pressed", "false");
+  expect(
+    screen.queryByText("QA barcode scanner active"),
+  ).not.toBeInTheDocument();
+  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(1);
+});
+
+it("keeps drafts when the location changes and saves them at the new location", async () => {
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Change" }));
+  expect(screen.getByRole("heading", { name: "Where are we?" })).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Choose mapped location" }),
+  );
+  const strip = screen.getByRole("region", { name: "Location" });
+  expect(strip).toHaveTextContent("F1-L1-1");
+  expect(strip).toHaveTextContent("Building A · Floor 1");
+  expect(strip).toHaveTextContent("Location set");
+  expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
+    "FO69070073",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save 1 ticket" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0]).toMatchObject({
+    locationText: "F1-L1-1",
+    location: { locationId: "location-f1" },
+  });
 });

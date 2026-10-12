@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Camera, CircleAlert, ImagePlus, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
+import { ImagePlus, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { useFileUpload } from "@/hooks/use-file-upload";
-import { cn } from "@/lib/utils";
+import { Notice } from "@/components/ui/Notice";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
+import { StillPhotoCamera } from "./StillPhotoCamera";
 
-const MAX_PHOTOS = 20;
+export const MAX_PHOTOS = 20;
+const MAX_BYTES = 25 * 1024 * 1024;
+
+type Photo = { id: number; file: File; preview: string };
+type PhotoProblem = "imageType" | "imageSize" | "photoLimit";
+
+const ticketFileName = () => `job-ticket-${Date.now()}.jpg`;
 
 /** In-page camera plus multi-select; every collected photo is handed to the AI together. */
 export function PhotoCapture({
@@ -19,200 +25,164 @@ export function PhotoCapture({
   onClose: () => void;
 }) {
   const t = useTranslations("JobScan");
-  const videoRef = useRef<HTMLVideoElement>(null);
-  // Only rendered after a tap, so the browser APIs are available here.
-  const [cameraState, setCameraState] = useState<"STARTING" | "ON" | "ERROR">(
-    () =>
-      "getUserMedia" in (navigator.mediaDevices ?? {}) ? "STARTING" : "ERROR",
-  );
-  const [
-    { files, isDragging, errors },
-    {
-      addFiles,
-      removeFile,
-      clearFiles,
-      handleDragEnter,
-      handleDragLeave,
-      handleDragOver,
-      handleDrop,
-      openFileDialog,
-      getInputProps,
+  const input = useRef<HTMLInputElement>(null);
+  const nextId = useRef(0);
+  // The synchronous source of truth for the limit; React state only renders it.
+  const collected = useRef<Photo[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [problem, setProblem] = useState<PhotoProblem>();
+
+  useEffect(
+    () => () => {
+      for (const photo of collected.current) URL.revokeObjectURL(photo.preview);
+      collected.current = [];
     },
-  ] = useFileUpload({
-    accept: "image/*",
-    multiple: true,
-    maxFiles: MAX_PHOTOS,
-    maxSize: 25 * 1024 * 1024,
-  });
+    [],
+  );
 
-  useEffect(() => {
-    let stream: MediaStream | undefined;
-    let cancelled = false;
-    const video = videoRef.current;
-    navigator.mediaDevices
-      ?.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1440 },
-        },
-      })
-      .then((media) => {
-        if (cancelled || !video) {
-          media.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        stream = media;
-        video.srcObject = media;
-        void video.play().catch(() => undefined);
-        setCameraState("ON");
-      })
-      .catch(() => !cancelled && setCameraState("ERROR"));
-    return () => {
-      cancelled = true;
-      stream?.getTracks().forEach((track) => track.stop());
-      if (video) video.srcObject = null;
-    };
-  }, []);
-
-  function capture() {
-    const video = videoRef.current;
-    if (!video?.videoWidth) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    canvas.toBlob(
-      (blob) =>
-        blob &&
-        addFiles([
-          new File([blob], `job-ticket-${Date.now()}.jpg`, {
-            type: "image/jpeg",
-          }),
-        ]),
-      "image/jpeg",
-      0.9,
-    );
+  function commit(next: Photo[]) {
+    collected.current = next;
+    setPhotos(next);
   }
 
-  const photos = files.flatMap((item) =>
-    item.file instanceof File
-      ? [{ id: item.id, file: item.file, preview: item.preview }]
-      : [],
-  );
+  function add(files: readonly File[]) {
+    const accepted: Photo[] = [];
+    let found: PhotoProblem | undefined;
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) found = "imageType";
+      else if (!file.size || file.size > MAX_BYTES) found = "imageSize";
+      else if (collected.current.length + accepted.length >= MAX_PHOTOS)
+        found = "photoLimit";
+      else
+        accepted.push({
+          id: nextId.current++,
+          file,
+          preview: URL.createObjectURL(file),
+        });
+    }
+    if (accepted.length) commit([...collected.current, ...accepted]);
+    setProblem(found);
+  }
+
+  function clear() {
+    for (const photo of collected.current) URL.revokeObjectURL(photo.preview);
+    commit([]);
+    setProblem(undefined);
+  }
+
+  function remove(id: number) {
+    const photo = collected.current.find((item) => item.id === id);
+    if (!photo) return;
+    URL.revokeObjectURL(photo.preview);
+    commit(collected.current.filter((item) => item.id !== id));
+    setProblem(undefined);
+  }
+
+  function drop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    add([...event.dataTransfer.files]);
+  }
+
+  const full = photos.length >= MAX_PHOTOS;
 
   return (
     <div
-      className={cn(
-        "space-y-3 rounded-xl border border-dashed p-3 transition-colors",
-        isDragging ? "border-link bg-selected" : "border-border-strong",
-      )}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      className="space-y-3"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={drop}
     >
-      <input {...getInputProps()} className="sr-only" />
-      <div className="relative overflow-hidden rounded-lg bg-black">
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          className={cn(
-            "aspect-[3/4] max-h-[55vh] w-full object-cover sm:aspect-[4/3]",
-            cameraState !== "ON" && "invisible",
-          )}
-        />
-        {cameraState !== "ON" && (
-          <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-white/80">
-            {cameraState === "ERROR" ? t("cameraError") : t("startingCamera")}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={capture}
-          disabled={cameraState !== "ON" || photos.length >= MAX_PHOTOS}
-          aria-label={t("takePhoto")}
-          className="absolute bottom-4 left-1/2 flex size-16 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white bg-white/25 text-white active:scale-95 disabled:opacity-40"
-        >
-          <Camera className="size-6" aria-hidden="true" />
-        </button>
-      </div>
+      <StillPhotoCamera
+        onPhoto={(file) => add([file])}
+        onClose={onClose}
+        closeLabel={t("closePhotoAi")}
+        captureLabel={t("takePhoto")}
+        fileName={ticketFileName}
+        canCapture={() => collected.current.length < MAX_PHOTOS}
+        captureDisabled={full}
+      />
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        aria-label={t("choosePhotos")}
+        onChange={(event) => {
+          const files = [...(event.target.files ?? [])];
+          event.target.value = "";
+          add(files);
+        }}
+      />
 
-      <div className="flex items-center gap-2">
+      {photos.length > 0 && (
+        <div className="flex items-center gap-3">
+          <ul
+            aria-label={t("collectedPhotos")}
+            className="flex min-w-0 flex-1 gap-3 overflow-x-auto pt-3 pr-3 pb-1"
+          >
+            {photos.map((photo, index) => (
+              <li key={photo.id} className="relative shrink-0">
+                <JobScanPhotoPreview
+                  src={photo.preview}
+                  thumbnailClassName="h-20 w-16 rounded-md border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => remove(photo.id)}
+                  aria-label={t("removePhoto", { index: index + 1 })}
+                  className="absolute -top-3 -right-3 flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <span className="flex size-6 items-center justify-center rounded-full bg-black/70 text-white">
+                    <X className="size-4" aria-hidden="true" />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p
+            role="status"
+            className="shrink-0 text-sm whitespace-nowrap text-muted"
+          >
+            {t("photoCount", { count: photos.length, max: MAX_PHOTOS })}
+          </p>
+        </div>
+      )}
+
+      {problem && (
+        <Notice
+          tone="warning"
+          role="alert"
+          title={t(problem, { max: MAX_PHOTOS })}
+        />
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-2">
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 flex-1"
-          onClick={openFileDialog}
+          className="min-h-12"
+          disabled={full}
+          onClick={() => input.current?.click()}
         >
           <ImagePlus className="size-4" aria-hidden="true" />
           {t("choosePhotos")}
         </Button>
         <Button
           type="button"
-          variant="ghost"
-          className="min-h-11"
-          onClick={onClose}
+          className="min-h-12"
+          disabled={!photos.length}
+          onClick={() => {
+            const files = collected.current.map((photo) => photo.file);
+            if (!files.length) return;
+            onSubmit(files);
+            clear();
+          }}
         >
-          {t("cancel")}
+          <Sparkles className="size-4" aria-hidden="true" />
+          {t("sendToAi", { count: photos.length })}
         </Button>
       </div>
-      <p className="text-xs text-muted">
-        {t("photoHint", { max: MAX_PHOTOS })}
-      </p>
-
-      {photos.length > 0 && (
-        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {photos.map((photo, index) => (
-            <li key={photo.id} className="relative">
-              {photo.preview ? (
-                <JobScanPhotoPreview
-                  src={photo.preview}
-                  thumbnailClassName="aspect-[3/4] w-full rounded-md border border-border object-cover"
-                  triggerClassName="w-full"
-                />
-              ) : (
-                <div className="flex aspect-[3/4] items-center justify-center rounded-md border border-border">
-                  <ImagePlus className="size-5 text-muted" aria-hidden="true" />
-                </div>
-              )}
-              <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-xs text-white">
-                {index + 1}
-              </span>
-              <button
-                type="button"
-                onClick={() => removeFile(photo.id)}
-                aria-label={`${t("remove")} ${index + 1}`}
-                className="absolute top-1 right-1 flex size-7 items-center justify-center rounded-full bg-black/60 text-white"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {errors.length > 0 && (
-        <p role="alert" className="flex items-start gap-2 text-sm text-danger">
-          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          {errors.join(" ")}
-        </p>
-      )}
-
-      <Button
-        type="button"
-        className="min-h-12 w-full"
-        disabled={!photos.length}
-        onClick={() => {
-          onSubmit(photos.map((photo) => photo.file));
-          clearFiles();
-        }}
-      >
-        <Sparkles className="size-4" aria-hidden="true" />
-        {t("sendToAi", { count: photos.length })}
-      </Button>
+      <p className="text-sm text-muted">{t("photoHint")}</p>
     </div>
   );
 }

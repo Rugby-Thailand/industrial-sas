@@ -57,9 +57,7 @@ function start(allowUnmapped = true) {
     />,
     { locale: "en", preserveProviders: true },
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   return { onPick, ...view };
 }
 function location(code = "ZONE-A") {
@@ -84,6 +82,32 @@ it("accepts one resolved location, suppressing repeated frames before lookup com
     code: "ZONE-A",
     name: "Zone A",
   });
+});
+it("lists the location catalogue only for a non-empty search", async () => {
+  const query = vi.spyOn(await import("convex/react"), "useQuery");
+  renderWithIntl(
+    <LocationPicker warehouseId="warehouse-a" onPick={vi.fn()} />,
+    {
+      locale: "en",
+      preserveProviders: true,
+    },
+  );
+  const search = screen.getByRole("textbox", { name: "Search location" });
+  expect(search).toHaveAttribute("placeholder", "Location code or name");
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  expect(screen.queryByText("No matching location.")).not.toBeInTheDocument();
+  expect(query).toHaveBeenCalled();
+  expect(query.mock.calls.every(([, args]) => args === "skip")).toBe(true);
+  fireEvent.change(search, { target: { value: "   " } });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  fireEvent.change(search, { target: { value: "zone" } });
+  expect(await screen.findByRole("button", { name: /ZONE-B/ })).toBeVisible();
+  fireEvent.change(search, { target: { value: "" } });
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Manual" }),
+  ).not.toBeInTheDocument();
 });
 it("ignores a pending lookup when the user types a replacement", async () => {
   let finish!: (value: ReturnType<typeof location>) => void;
@@ -110,9 +134,18 @@ it("keeps a manually chosen location when an earlier lookup arrives", async () =
       finish = resolve;
     }),
   );
-  const { onPick } = start();
+  const onPick = vi.fn();
+  renderWithIntl(<LocationPicker warehouseId="warehouse-a" onPick={onPick} />, {
+    locale: "en",
+    preserveProviders: true,
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+    target: { value: "ZONE" },
+  });
+  const zone = await screen.findByRole("button", { name: /ZONE-B/ });
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.decode!("ZONE-A"));
-  fireEvent.click(screen.getByRole("button", { name: /ZONE-B/ }));
+  fireEvent.click(zone);
   await act(async () => finish(location()));
   expect(onPick).toHaveBeenCalledTimes(1);
   expect(onPick.mock.calls[0]![0].code).toBe("ZONE-B");
@@ -129,9 +162,7 @@ it("reports network failures and retains typing and scan retry", async () => {
   expect(
     screen.getByRole("textbox", { name: "Search location" }),
   ).toBeEnabled();
-  expect(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Scan code" })).toBeEnabled();
   expect(onPick).not.toHaveBeenCalled();
 });
 it("reports rejected identities when a real mapped location is required", async () => {

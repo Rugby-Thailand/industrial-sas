@@ -107,6 +107,7 @@ export function TicketFieldScanner({
             imageTarget={field}
             onCode={read}
             onClose={close}
+            closeControl={false}
             videoLabel={t("scanField", { field: t(field) })}
           />
         )}

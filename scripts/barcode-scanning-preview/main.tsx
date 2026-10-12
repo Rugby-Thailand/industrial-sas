@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 import { IconButton } from "@/components/ui/IconButton";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
-import { Sparkles } from "lucide-react";
+import { Camera } from "lucide-react";
 import { BarcodeFormat, QRCodeWriter } from "@zxing/library";
 import { decodeBarcodeImage } from "@/features/finishedGoods/barcodeDecoder";
 import { BarcodeCameraBox } from "@/features/finishedGoods/BarcodeCameraBox";
@@ -194,17 +194,17 @@ function LocationControls({
     <ScanCodeInput
       aria-label={t("searchLocation")}
       placeholder={t("searchPlaceholder")}
-      scanLabel={t("scanLocationQr")}
+      scanLabel={t("scanCode")}
       onScan={onScan}
       trailingAction={
         <IconButton
-          label={t("openLocationAiCamera")}
+          label={t("photoAi")}
           variant="ghost"
           className="size-11 shrink-0"
           aria-pressed={ai}
           onClick={onAi}
         >
-          <Sparkles aria-hidden="true" className="size-5" />
+          <Camera aria-hidden="true" className="size-5" />
         </IconButton>
       }
     />

@@ -8,11 +8,13 @@ import {
   useRef,
   useState,
 } from "react";
+import { Camera, ImagePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { barcodeImageProblem, type BarcodeCrop } from "../barcodeDecoder";
+import { CameraFrame } from "../CameraFrame";
 import type {
   LocationImageResult,
   LocationLabelCandidate,
@@ -36,6 +38,7 @@ export function locationPhoto(file: File, crop?: BarcodeCrop): LocationPhoto {
   };
 }
 
+/** One location photo, read automatically; the code is reviewed before lookup. */
 export function LocationImageReader({
   initialPhoto,
   extract,
@@ -80,6 +83,8 @@ export function LocationImageReader({
   }
   function select(file: File) {
     invalidate();
+    // A gallery photo replaces the live camera before any late capture can land.
+    photoCamera.current?.stop();
     setCameraOpen(false);
     const problem = barcodeImageProblem(file);
     if (problem) {
@@ -88,6 +93,11 @@ export function LocationImageReader({
       return;
     }
     setPhoto(locationPhoto(file));
+  }
+  function close() {
+    invalidate();
+    photoCamera.current?.stop();
+    onClose();
   }
   const read = useEffectEvent(async () => {
     if (!photo || pending.current) return;
@@ -156,25 +166,68 @@ export function LocationImageReader({
     };
   }, [photo, attempt, cancelPending]);
 
+  const chooseFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) select(file);
+  };
+
   return (
-    <section
-      className="space-y-3 rounded-lg border border-border p-3"
-      aria-label={t("locationAiTitle")}
-    >
-      <h3 className="font-semibold">{t("locationAiTitle")}</h3>
-      <p className="text-sm text-muted">{t("locationAiHint")}</p>
-      {cameraOpen && <LocationPhotoCamera ref={photoCamera} onPhoto={select} />}
+    <section className="space-y-3" aria-label={t("locationAiTitle")}>
+      {cameraOpen ? (
+        <LocationPhotoCamera
+          ref={photoCamera}
+          onPhoto={select}
+          onClose={close}
+          errorAction={
+            // The device camera is a fallback only when the in-app camera fails.
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-12 flex-1"
+              onClick={() => {
+                photoCamera.current?.stop();
+                capture.current?.click();
+              }}
+            >
+              <Camera aria-hidden="true" className="size-4" />
+              {t("locationAiDeviceCamera")}
+            </Button>
+          }
+        />
+      ) : photo ? (
+        <CameraFrame
+          layout="content"
+          onClose={close}
+          closeLabel={t("closePhotoAi")}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
+          <img
+            src={previewUrl}
+            alt={t("locationAiPhoto")}
+            className="block h-auto max-h-[60dvh] w-auto max-w-full"
+          />
+          {photo.crop && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute border-2 border-white bg-white/10"
+              style={{
+                left: `${photo.crop.x * 100}%`,
+                top: `${photo.crop.y * 100}%`,
+                width: `${photo.crop.width * 100}%`,
+                height: `${photo.crop.height * 100}%`,
+              }}
+            />
+          )}
+        </CameraFrame>
+      ) : null}
       <input
         ref={picker}
         hidden
         type="file"
         accept="image/jpeg,image/png,image/webp"
         aria-label={t("chooseLocationImage")}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) select(file);
-        }}
+        onChange={chooseFile}
       />
       <input
         ref={capture}
@@ -182,70 +235,9 @@ export function LocationImageReader({
         type="file"
         accept="image/jpeg,image/png,image/webp"
         capture="environment"
-        aria-label={t("takeLocationPhoto")}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) select(file);
-        }}
+        aria-label={t("locationAiDeviceCamera")}
+        onChange={chooseFile}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => picker.current?.click()}
-        >
-          {t("chooseLocationImage")}
-        </Button>
-        {!cameraOpen && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              invalidate();
-              setPhoto(undefined);
-              setCameraOpen(true);
-            }}
-          >
-            {t("locationAiOpenCamera")}
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            photoCamera.current?.stop();
-            setCameraOpen(false);
-            capture.current?.click();
-          }}
-        >
-          {t("locationAiDeviceCamera")}
-        </Button>
-      </div>
-      {photo && (
-        <>
-          <div className="relative overflow-hidden rounded-lg bg-black">
-            {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
-            <img
-              src={previewUrl}
-              alt={t("locationAiPhoto")}
-              className="block h-auto w-full"
-            />
-            {photo.crop && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute border-2 border-white bg-white/10"
-                style={{
-                  left: `${photo.crop.x * 100}%`,
-                  top: `${photo.crop.y * 100}%`,
-                  width: `${photo.crop.width * 100}%`,
-                  height: `${photo.crop.height * 100}%`,
-                }}
-              />
-            )}
-          </div>
-        </>
-      )}
       {busy ? (
         <div className="flex flex-wrap items-center gap-2">
           <p role="status" aria-live="polite" className="flex-1 text-sm">
@@ -306,17 +298,33 @@ export function LocationImageReader({
           </Button>
         </div>
       )}
-      <Button
-        type="button"
-        variant="ghost"
-        className="w-full"
-        onClick={() => {
-          invalidate();
-          onClose();
-        }}
-      >
-        {t("backToLocationScanner")}
-      </Button>
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-12 w-full"
+          onClick={() => picker.current?.click()}
+        >
+          <ImagePlus aria-hidden="true" className="size-4" />
+          {t("chooseLocationImage")}
+        </Button>
+        {!cameraOpen && (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-12 w-full"
+            onClick={() => {
+              invalidate();
+              setPhoto(undefined);
+              setCameraOpen(true);
+            }}
+          >
+            <Camera aria-hidden="true" className="size-4" />
+            {t("locationAiOpenCamera")}
+          </Button>
+        )}
+      </div>
+      <p className="text-sm text-muted">{t("locationAiHint")}</p>
     </section>
   );
 }

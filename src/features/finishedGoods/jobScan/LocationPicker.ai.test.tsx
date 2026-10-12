@@ -90,13 +90,11 @@ function setup(canReadImage = true, allowUnmapped = true) {
     />,
     { locale: "en", preserveProviders: true },
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   return { onPick, ...view };
 }
 function select() {
-  fireEvent.change(screen.getByLabelText("Choose location image"), {
+  fireEvent.change(screen.getByLabelText("Choose photo"), {
     target: { files: [file()] },
   });
 }
@@ -106,7 +104,7 @@ function read() {
   );
 }
 function startReading() {
-  read();
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   select();
 }
 
@@ -209,9 +207,7 @@ it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
     else if (change === "cancel")
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     else if (change === "back")
-      fireEvent.click(
-        screen.getByRole("button", { name: "Back to location scanner" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
     else unmount();
     await act(async () => finish(extracted()));
     expect(mocks.query).not.toHaveBeenCalled();
@@ -311,32 +307,44 @@ it("offers existing registration and explicit unmapped entry after confirming a 
 it("does not offer AI without the management affordance", () => {
   setup(false);
   expect(
+    screen.queryByRole("button", { name: "Photo AI" }),
+  ).not.toBeInTheDocument();
+  expect(
     screen.queryByRole("button", { name: "Read location with AI" }),
   ).not.toBeInTheDocument();
 });
 
-it("offers separate barcode and AI icons and switches camera modes without submitting an AI request", async () => {
+it("switches between one scan mode and one Photo AI mode without submitting an AI request", async () => {
   setup();
-  const ai = screen.getByRole("button", {
-    name: "Read location with AI camera",
-  });
+  const ai = screen.getByRole("button", { name: "Photo AI" });
+  const scan = screen.getByRole("button", { name: "Scan code" });
+  expect(scan).toHaveAttribute("aria-pressed", "true");
+  // The barcode fallback to AI appears only for a selected image.
+  expect(
+    screen.queryByRole("button", { name: "Read location with AI" }),
+  ).not.toBeInTheDocument();
   fireEvent.click(ai);
   expect(ai).toHaveAttribute("aria-pressed", "true");
-  expect(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
-  ).toHaveAttribute("aria-pressed", "false");
-  expect(
-    screen.getByRole("region", { name: "Read a location label" }),
-  ).toBeInTheDocument();
-  expect(mocks.action).not.toHaveBeenCalled();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Scan location barcode or QR" }),
+  expect(scan).toHaveAttribute("aria-pressed", "false");
+  const reader = screen.getByRole("region", { name: "Read a location label" });
+  expect(reader).toHaveTextContent("AI reads it automatically");
+  expect(screen.getAllByRole("button", { name: "Choose photo" })).toHaveLength(
+    1,
   );
+  expect(
+    screen.queryByRole("button", { name: /Read .*with AI/ }),
+  ).not.toBeInTheDocument();
+  expect(mocks.action).not.toHaveBeenCalled();
+  fireEvent.click(scan);
   expect(ai).toHaveAttribute("aria-pressed", "false");
   expect(
     screen.queryByRole("region", { name: "Read a location label" }),
   ).not.toBeInTheDocument();
-  expect(
-    screen.getByLabelText("Stop camera", { selector: "button" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  expect(scan).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(ai);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Close Photo AI" }),
+  );
+  expect(ai).toHaveAttribute("aria-pressed", "false");
+  expect(scan).toHaveAttribute("aria-pressed", "false");
 });

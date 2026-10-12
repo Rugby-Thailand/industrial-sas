@@ -1,7 +1,11 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-vi.mock("./playShutterSound", () => ({ playShutterSound: vi.fn() }));
-import { playShutterSound } from "./playShutterSound";
+const sound = vi.hoisted(() => ({
+  prime: vi.fn(),
+  play: vi.fn(),
+  dispose: vi.fn(),
+}));
+vi.mock("./playShutterSound", () => ({ createShutterSound: () => sound }));
 import { createRef } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import {
@@ -14,7 +18,9 @@ const stream = { getTracks: () => [{ stop }] };
 const getUserMedia = vi.fn();
 beforeEach(() => {
   stop.mockReset();
-  vi.mocked(playShutterSound).mockClear();
+  sound.prime.mockClear();
+  sound.play.mockClear();
+  sound.dispose.mockClear();
   getUserMedia.mockReset().mockResolvedValue(stream);
   vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
   vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
@@ -31,12 +37,13 @@ afterEach(() => {
 });
 function setup() {
   const onPhoto = vi.fn();
+  const onClose = vi.fn();
   const ref = createRef<LocationPhotoCameraHandle>();
   const view = renderWithIntl(
-    <LocationPhotoCamera ref={ref} onPhoto={onPhoto} />,
+    <LocationPhotoCamera ref={ref} onPhoto={onPhoto} onClose={onClose} />,
     { locale: "en" },
   );
-  return { onPhoto, ref, ...view };
+  return { onPhoto, onClose, ref, ...view };
 }
 it("opens immediately and delivers one still image only after capture, stopping the stream first", async () => {
   const drawImage = vi.fn();
@@ -56,10 +63,17 @@ it("opens immediately and delivers one still image only after capture, stopping 
   onPhoto.mockImplementation(() => expect(stop).toHaveBeenCalledOnce());
   fireEvent.click(capture);
   expect(drawImage).toHaveBeenCalledOnce();
-  expect(playShutterSound).toHaveBeenCalledOnce();
+  expect(sound.prime).toHaveBeenCalledOnce();
+  expect(sound.play).toHaveBeenCalledOnce();
   expect(onPhoto).toHaveBeenCalledWith(
     expect.objectContaining({ name: "location-label.jpg", type: "image/jpeg" }),
   );
+});
+it("offers one close control on the frame", async () => {
+  const { onClose } = setup();
+  fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(screen.getAllByRole("button")).toHaveLength(2);
 });
 it("stops a camera permission grant that arrives after unmount", async () => {
   let grant = () => {};
@@ -74,6 +88,7 @@ it("stops a camera permission grant that arrives after unmount", async () => {
   await act(async () => grant());
   expect(stop).toHaveBeenCalledOnce();
   expect(onPhoto).not.toHaveBeenCalled();
+  expect(sound.play).not.toHaveBeenCalled();
 });
 it("releases the stream synchronously before a native camera handoff", async () => {
   const { ref, onPhoto } = setup();
@@ -94,7 +109,12 @@ it("releases the stream on a failed capture and allows a fresh retry", async () 
   fireEvent.click(capture);
   expect(stop).toHaveBeenCalledOnce();
   expect(onPhoto).not.toHaveBeenCalled();
+  expect(sound.play).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Retry camera" }));
-  await waitFor(() => expect(capture).toBeEnabled());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Take location photo" }),
+    ).toBeEnabled(),
+  );
   expect(getUserMedia).toHaveBeenCalledTimes(2);
 });

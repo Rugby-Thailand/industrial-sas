@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
-import { MapPin, Plus, Search, Sparkles } from "lucide-react";
+import { Camera, MapPin, Plus, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { FormField } from "@/components/ui/FormField";
 import { IconButton } from "@/components/ui/IconButton";
@@ -24,12 +24,14 @@ import {
   type LocationPhoto,
 } from "./LocationImageReader";
 
-/** Search or scan a known location; optionally accept free text as an unmapped location. */
+/** Search, scan or photograph a known location; optionally accept free text as an unmapped location. */
 interface LocationPickerProps {
   warehouseId: string;
   onPick: (location: PickedLocation) => void;
   allowUnmapped?: boolean;
   canReadImage?: boolean;
+  /** List the catalogue before any search, for assignment screens that browse. */
+  browseWithoutSearch?: boolean;
 }
 
 export function LocationPicker(props: LocationPickerProps) {
@@ -46,6 +48,7 @@ function LocationPickerSession({
   onPick,
   allowUnmapped = true,
   canReadImage = false,
+  browseWithoutSearch = false,
 }: LocationPickerProps) {
   const t = useTranslations("JobScan");
   const locale = useLocale();
@@ -68,6 +71,8 @@ function LocationPickerSession({
     [warehouseId, allowUnmapped],
   );
   const settledText = useDebouncedSearch(text);
+  // Scanning starts from an empty list; the catalogue answers a search.
+  const searching = browseWithoutSearch || Boolean(settledText.trim());
   const criteria = { warehouseId, text: settledText };
   const paging = useCursorPagination({
     scope: `job-location-picker:${warehouseId}`,
@@ -76,12 +81,17 @@ function LocationPickerSession({
   const scan = useScanContinuation(
     JSON.stringify([criteria, paging.cursor, paging.pageSize]),
   );
-  const outcome = useQuery(fgRefs.searchJobScanLocations, {
-    ...criteria,
-    pageSize: paging.pageSize,
-    ...(paging.cursor ? { cursor: paging.cursor } : {}),
-    ...(scan.cursor ? { scanCursor: scan.cursor } : {}),
-  });
+  const outcome = useQuery(
+    fgRefs.searchJobScanLocations,
+    searching
+      ? {
+          ...criteria,
+          pageSize: paging.pageSize,
+          ...(paging.cursor ? { cursor: paging.cursor } : {}),
+          ...(scan.cursor ? { scanCursor: scan.cursor } : {}),
+        }
+      : "skip",
+  );
   useCatalogueSync({
     outcome,
     continuation: scan,
@@ -171,19 +181,30 @@ function LocationPickerSession({
           <div className="relative">
             <Search
               aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+              className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted"
             />
             <ScanCodeInput
               {...control}
-              scanLabel={camera && !ai ? t("stopCamera") : t("scanLocationQr")}
+              scanLabel={t("scanCode")}
               scanning={camera && !ai}
+              onScan={() => {
+                const opening = !camera || Boolean(ai);
+                cancelScan();
+                setConfirmedMissing(undefined);
+                setAdding(false);
+                setNotice(undefined);
+                if (opening) {
+                  acquisitionOpen.current = true;
+                  setCamera(true);
+                }
+              }}
               trailingAction={
                 canReadImage ? (
                   <IconButton
-                    label={t("openLocationAiCamera")}
+                    label={t("photoAi")}
                     variant="ghost"
-                    className="size-11 shrink-0"
                     aria-pressed={Boolean(ai)}
+                    className="shrink-0"
                     onClick={() => {
                       const opening = !ai;
                       cancelScan();
@@ -196,27 +217,16 @@ function LocationPickerSession({
                       }
                     }}
                   >
-                    <Sparkles aria-hidden="true" className="size-5" />
+                    <Camera aria-hidden="true" className="size-5" />
                   </IconButton>
                 ) : undefined
               }
-              onScan={() => {
-                cancelScan();
-                setConfirmedMissing(undefined);
-                setAdding(false);
-                setNotice(undefined);
-                if (!camera || ai) {
-                  acquisitionOpen.current = true;
-                  setCamera(true);
-                }
-              }}
               value={text}
               onChange={(event) => {
                 cancelScan();
                 setConfirmedMissing(undefined);
                 setAdding(false);
                 setText(event.target.value);
-
                 setNotice(undefined);
               }}
               placeholder={t("searchPlaceholder")}
@@ -241,10 +251,7 @@ function LocationPickerSession({
                 : { ok: false, error: { code: "AI_DENIED" } };
             }}
             onConfirm={(code) => void onScan(code, scannerVersion)}
-            onClose={() => {
-              lookupVersion.current++;
-              setAi(undefined);
-            }}
+            onClose={cancelScan}
           />
         ) : (
           <BarcodeCameraBox
@@ -303,59 +310,63 @@ function LocationPickerSession({
           </Button>
         </div>
       )}
-      {!adding && (
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-          {zones.map((zone) => (
-            <li key={zone.locationId ?? zone.zoneId}>
-              <button
-                type="button"
-                className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
-                onClick={() => choose({ ...zone, text: zone.code })}
-              >
-                <MapPin
-                  className="size-4 shrink-0 text-muted"
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 shrink-0 font-mono font-semibold break-all sm:break-normal">
-                  {zone.code}
-                </span>
-                <span className="min-w-0 truncate text-sm text-muted">
-                  {zone.buildingName
-                    ? [
-                        zone.buildingName,
-                        zone.floorNumber === undefined
-                          ? undefined
-                          : t("floorNumber", { number: zone.floorNumber }),
-                        zone.name,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")
-                    : zone.name}
-                </span>
-              </button>
-            </li>
-          ))}
-          {outcome && !zones.length && (
-            <li className="px-3 py-3 text-sm text-muted">
-              {t("noLocationMatch")}
-            </li>
-          )}
-          {allowUnmapped && canCreate && (
-            <li>
-              <button
-                type="button"
-                className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
-                onClick={() => choose({ text: trimmed })}
-              >
-                <span className="font-semibold text-warning">
-                  {t("useUnmapped", { text: trimmed })}
-                </span>
-                <span className="text-xs text-muted">{t("unmappedHint")}</span>
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
+      {!adding &&
+        (browseWithoutSearch ||
+          (Boolean(trimmed) && (searching || canCreate))) && (
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+            {zones.map((zone) => (
+              <li key={zone.locationId ?? zone.zoneId}>
+                <button
+                  type="button"
+                  className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                  onClick={() => choose({ ...zone, text: zone.code })}
+                >
+                  <MapPin
+                    className="size-4 shrink-0 text-muted"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 shrink-0 font-mono font-semibold break-all sm:break-normal">
+                    {zone.code}
+                  </span>
+                  <span className="min-w-0 truncate text-sm text-muted">
+                    {zone.buildingName
+                      ? [
+                          zone.buildingName,
+                          zone.floorNumber === undefined
+                            ? undefined
+                            : t("floorNumber", { number: zone.floorNumber }),
+                          zone.name,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : zone.name}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {outcome && !zones.length && (
+              <li className="px-3 py-3 text-sm text-muted">
+                {t("noLocationMatch")}
+              </li>
+            )}
+            {allowUnmapped && canCreate && (
+              <li>
+                <button
+                  type="button"
+                  className="flex min-h-12 w-full flex-col items-start px-3 py-2 text-left hover:bg-raised focus-visible:bg-raised focus-visible:outline-none"
+                  onClick={() => choose({ text: trimmed })}
+                >
+                  <span className="font-semibold text-warning">
+                    {t("useUnmapped", { text: trimmed })}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {t("unmappedHint")}
+                  </span>
+                </button>
+              </li>
+            )}
+          </ul>
+        )}
       {!adding && !canCreate && result?.status === "scanning" && (
         <p role="status" className="text-sm text-muted">
           {t("checkingLocation")}
@@ -367,6 +378,7 @@ function LocationPickerSession({
         </p>
       )}
       {!adding &&
+        searching &&
         result?.status === "ready" &&
         (paging.canPrevious || !result.isDone) && (
           <CursorPagination

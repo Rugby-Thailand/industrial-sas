@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import { Camera, CheckCircle2, Keyboard, MapPin } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  CircleAlert,
+  Keyboard,
+  MapPin,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
@@ -27,6 +33,7 @@ import {
   written,
 } from "../shared";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
+import { AcquisitionModes } from "./AcquisitionModes";
 import { LocationPicker } from "./LocationPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { TicketCard } from "./TicketCard";
@@ -58,8 +65,6 @@ type FieldScanTarget = {
 
 export const JOB_SCAN_PATH = "/finished-goods/scan";
 export const JOB_SCAN_RECORDS_PATH = "/finished-goods/scan/records";
-const acquisitionButtonClass =
-  "min-h-14 flex-col gap-1 px-1 text-xs sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-2 sm:text-sm";
 
 export function JobScanScreen() {
   const scope = useDraftKey("fg-job-scan");
@@ -370,18 +375,15 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   if (!location)
     return (
       <PageContainer size="form">
-        <Heading title={t("title")} description={t("subtitle")} />
-        <Panel className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold">{t("locationStepTitle")}</h2>
-            <p className="text-sm text-muted">{t("locationStepHint")}</p>
-          </div>
-          <LocationPicker
-            warehouseId={warehouseId}
-            onPick={setLocation}
-            canReadImage={canManage}
-          />
-        </Panel>
+        <Heading
+          title={t("locationStepTitle")}
+          description={t("locationStepHint")}
+        />
+        <LocationPicker
+          warehouseId={warehouseId}
+          onPick={setLocation}
+          canReadImage={canManage}
+        />
       </PageContainer>
     );
 
@@ -398,34 +400,52 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           ? t("duplicateTickets")
           : null;
 
+  const mapped = Boolean(location.locationId || location.zoneId);
+  const place = [
+    location.buildingName,
+    location.floorNumber === undefined
+      ? undefined
+      : t("floorNumber", { number: location.floorNumber }),
+    location.name,
+  ].filter(Boolean);
+
   return (
-    <PageContainer size="form" actionInset="responsive">
-      <Heading title={t("title")} description={t("locationNotStock")} />
-      <div className="-mt-4 flex min-h-11 flex-wrap items-center gap-2 text-sm">
-        <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
-        <span className="max-w-full font-mono font-semibold break-all">
-          {location.code ?? location.text}
-        </span>
-        {location.name && (
-          <span className="min-w-0 truncate text-muted">{location.name}</span>
+    <PageContainer
+      size="form"
+      {...(tickets.length ? { actionInset: "responsive" as const } : {})}
+    >
+      <Heading title={t("palletStepTitle")} description={t("palletStepHint")} />
+      <Panel
+        padding="compact"
+        aria-label={t("location")}
+        className="-mt-1 flex items-center gap-3"
+      >
+        {mapped ? (
+          <CheckCircle2
+            className="size-6 shrink-0 text-success"
+            aria-hidden="true"
+          />
+        ) : (
+          <CircleAlert
+            className="size-6 shrink-0 text-warning"
+            aria-hidden="true"
+          />
         )}
-        {location.buildingName && (
-          <span className="w-full text-sm text-muted">
-            {location.buildingName}
-            {location.floorNumber === undefined
-              ? ""
-              : ` · ${t("floorNumber", { number: location.floorNumber })}`}
-          </span>
-        )}
+        <div className="min-w-0 flex-1">
+          <p className="font-mono font-semibold break-all">
+            {location.code ?? location.text}
+          </p>
+          {place.length > 0 && (
+            <p className="truncate text-sm text-muted">{place.join(" · ")}</p>
+          )}
+        </div>
         <StatusBadge
-          tone={location.locationId || location.zoneId ? "success" : "warning"}
-          label={
-            location.locationId || location.zoneId ? t("mapped") : t("unmapped")
-          }
+          tone={mapped ? "success" : "warning"}
+          label={mapped ? t("mapped") : t("unmapped")}
         />
-        <button
-          type="button"
-          className="ml-auto min-h-11 shrink-0 px-1 font-semibold text-link hover:underline disabled:text-disabled"
+        <Button
+          variant="ghost"
+          className="shrink-0 px-2 text-link"
           disabled={saving}
           onClick={() => {
             changePanel(null);
@@ -433,46 +453,45 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           }}
         >
           {t("change")}
-        </button>
-      </div>
+        </Button>
+      </Panel>
 
       <fieldset
         disabled={saving}
         aria-busy={saving}
         className="min-w-0 space-y-3"
       >
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant={panel === "PHOTO" ? "default" : "outline"}
-            className={acquisitionButtonClass}
-            aria-pressed={panel === "PHOTO"}
-            onClick={() => changePanel(panel === "PHOTO" ? null : "PHOTO")}
-          >
-            <Camera className="size-4" aria-hidden="true" />
-            {t("photo")}
-          </Button>
-          <Button
-            variant={panel === "BARCODE" ? "default" : "outline"}
-            className={acquisitionButtonClass}
-            aria-pressed={panel === "BARCODE"}
-            onClick={() => {
-              changePanel(panel === "BARCODE" ? null : "BARCODE");
-            }}
-          >
-            <ScanIcon className="size-4" aria-hidden="true" />
-            {t("barcode")}
-          </Button>
-          <Button
-            variant="outline"
-            className={acquisitionButtonClass}
-            onClick={() =>
-              setTickets((current) => [...current, newTicket("MANUAL")])
-            }
-          >
-            <Keyboard className="size-4" aria-hidden="true" />
-            {t("manual")}
-          </Button>
-        </div>
+        <AcquisitionModes
+          label={t("ticketModes")}
+          modes={[
+            {
+              key: "PHOTO",
+              label: t("photoAi"),
+              icon: Camera,
+              pressed: panel === "PHOTO",
+              onSelect: () => changePanel(panel === "PHOTO" ? null : "PHOTO"),
+            },
+            {
+              key: "BARCODE",
+              label: t("scanCode"),
+              icon: ScanIcon,
+              pressed: panel === "BARCODE",
+              onSelect: () =>
+                changePanel(panel === "BARCODE" ? null : "BARCODE"),
+            },
+            {
+              key: "MANUAL",
+              label: t("manual"),
+              icon: Keyboard,
+              onSelect: () => {
+                if (acquisitionBlocked.current) return;
+                // A typed ticket is edited in its card; no acquisition panel stays open.
+                changePanel(null);
+                setTickets((current) => [...current, newTicket("MANUAL")]);
+              },
+            },
+          ]}
+        />
         {panel === "PHOTO" && (
           <PhotoCapture
             onClose={() => changePanel(null)}
@@ -538,9 +557,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             ))}
           </ol>
         ) : (
-          <Panel as="p" className="text-muted">
-            {t("noTickets")}
-          </Panel>
+          !panel && <p className="text-sm text-muted">{t("noTickets")}</p>
         )}
         {fieldScan &&
           !saving &&
@@ -574,22 +591,22 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       </fieldset>
       <ErrorNotice message={operation.error} />
 
-      <StickyActionBar placement="responsive">
-        <div className="mx-auto max-w-3xl">
-          <Button
-            className="min-h-12 w-full"
-            disabled={!tickets.length || Boolean(blocker) || saving}
-            onClick={() => void submit()}
-          >
-            {saving ? t("saving") : t("save", { count: tickets.length })}
-          </Button>
-          {tickets.length > 0 && blocker && (
+      {tickets.length > 0 && (
+        <StickyActionBar placement="responsive">
+          <div className="mx-auto max-w-3xl">
+            <Button
+              className="min-h-12 w-full"
+              disabled={Boolean(blocker) || saving}
+              onClick={() => void submit()}
+            >
+              {saving ? t("saving") : t("save", { count: tickets.length })}
+            </Button>
             <p role="status" className="mt-2 text-sm text-muted">
-              {blocker}
+              {blocker ?? t("locationNotStock")}
             </p>
-          )}
-        </div>
-      </StickyActionBar>
+          </div>
+        </StickyActionBar>
+      )}
     </PageContainer>
   );
 }
