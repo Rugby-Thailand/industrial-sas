@@ -12,6 +12,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  type SheetCompletionHandle,
 } from "@/components/ui/sheet";
 import {
   Tooltip,
@@ -133,6 +134,7 @@ function Sidebar({
   mobileDescription,
   mobileCloseLabel,
   onMobileCloseAutoFocus,
+  mobileCompletionRef,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right";
@@ -144,6 +146,8 @@ function Sidebar({
   mobileCloseLabel?: string;
   /** Hand off focus after the mobile drawer finishes closing. */
   onMobileCloseAutoFocus?: (event: Event) => void;
+  /** Consume the mobile drawer's history entry before a successor runs. */
+  mobileCompletionRef?: React.Ref<SheetCompletionHandle>;
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -164,7 +168,14 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet
+        open={openMobile}
+        onOpenChange={setOpenMobile}
+        {...(mobileCompletionRef === undefined
+          ? {}
+          : { completionRef: mobileCompletionRef })}
+        {...props}
+      >
         <SheetContent
           dir={dir}
           data-sidebar="sidebar"

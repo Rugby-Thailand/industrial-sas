@@ -1,5 +1,6 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -72,8 +73,12 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import {
+  NavigationGuardProvider,
+  useNavigationDraft,
+} from "@/components/navigation/NavigationGuardProvider";
 import { isGuardTraversal } from "@/lib/navigationGuard";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 
 import type {
   StorageBuildingRow,
@@ -2394,6 +2399,7 @@ describe("building creation execution", () => {
 
 describe("mobile storage workspace", () => {
   let mobile = true;
+  let stopHistory = () => {};
   const listeners = new Set<EventListenerOrEventListenerObject>();
   beforeEach(() => {
     mobile = true;
@@ -2422,7 +2428,10 @@ describe("mobile storage workspace", () => {
       },
     }));
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    stopHistory();
+    vi.restoreAllMocks();
+  });
   function mount(zone = occupiedTestZone()) {
     const savedFloors = floors.map((floor) =>
       floor.floorNumber === 2 ? { ...floor, storageZones: [zone] } : floor,
@@ -2445,6 +2454,25 @@ describe("mobile storage workspace", () => {
     button.focus();
     fireEvent.click(button);
     return button;
+  }
+  function holdInspectorExitAnimation() {
+    const computedStyle = window.getComputedStyle;
+    // Browser computed styles stay live as Radix updates data-state.
+    return vi
+      .spyOn(window, "getComputedStyle")
+      .mockImplementation((node, pseudo) => {
+        const style = computedStyle(node, pseudo);
+        if (node.getAttribute("data-slot") !== "sheet-content") return style;
+        return new Proxy(style, {
+          get(target, key) {
+            if (key === "animationName")
+              return node.getAttribute("data-state") === "closed"
+                ? "inspector-exit"
+                : "none";
+            return Reflect.get(target, key);
+          },
+        });
+      });
   }
   it("opens details only on interaction and keeps map selection, zoom and focus after Escape", async () => {
     mount();
@@ -2548,6 +2576,405 @@ describe("mobile storage workspace", () => {
       false,
     );
     expect(mutation).not.toHaveBeenCalled();
+  });
+  it("waits for the mobile inspector's native Back before opening the zone editor and consumes Close before the next Back", async () => {
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/finished-goods?origin=1#source",
+    );
+    stopHistory = trackAppHistory();
+    window.history.pushState(
+      { appNavigationIndex: 1 },
+      "",
+      "/en/master-data/storage-layouts/building-a?floor=2&view=storage&kept=yes#map",
+    );
+    mount();
+    selectMap();
+
+    // A rendering frame is allowed to run before an asynchronous native Back.
+    // Hold that traversal so the inspector-to-editor handoff cannot pass by luck.
+    const nativeBack = window.history.back.bind(window.history);
+    const back = vi
+      .spyOn(window.history, "back")
+      .mockImplementationOnce(() => {});
+    const popped = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Location details" }),
+      ).getByRole("button", { name: "Edit Occupied FG" }),
+    );
+    // A second tap while native Back is pending must not lose the handoff.
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Location details" }),
+      ).getByRole("button", { name: "Edit Occupied FG" }),
+    );
+    expect(back).toHaveBeenCalledOnce();
+    try {
+      await act(async () => {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+      });
+      expect(
+        screen.queryByRole("dialog", { name: "Edit storage spot" }),
+      ).toBeNull();
+      expect(window.location.search).not.toContain("editZone");
+    } finally {
+      await act(async () => {
+        nativeBack();
+        await popped;
+      });
+    }
+
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(window.history.state.appNavigationIndex).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(window.history.state.appNavigationIndex).toBe(1),
+    );
+    expect(window.location.search).not.toContain("editZone");
+    expect(window.location.search).not.toContain("overlay");
+
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods?origin=1#source"),
+    );
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it("waits for the mobile inspector's exit animation before opening a single zone editor with focus", async () => {
+    // Radix retains the closing sheet's focus scope until its animation ends.
+    const styles = holdInspectorExitAnimation();
+    try {
+      mount();
+      selectMap();
+      const inspector = screen.getByRole("dialog", {
+        name: "Location details",
+      });
+      const inspectorKey = [
+        ...new URLSearchParams(window.location.search).keys(),
+      ].find((key) => key.startsWith("overlay"))!;
+      fireEvent.click(
+        within(inspector).getByRole("button", { name: "Edit Occupied FG" }),
+      );
+      await waitFor(() =>
+        expect(inspector).toHaveAttribute("data-state", "closed"),
+      );
+      await waitFor(() =>
+        expect(
+          new URLSearchParams(window.location.search).has(inspectorKey),
+        ).toBe(false),
+      );
+      await act(async () => {
+        await new Promise(requestAnimationFrame);
+      });
+      expect(
+        screen.queryByRole("dialog", { name: "Edit storage spot" }),
+      ).toBeNull();
+
+      const end = new Event("animationend", { bubbles: true });
+      Object.defineProperty(end, "animationName", { value: "inspector-exit" });
+      fireEvent(inspector, end);
+      const editor = await screen.findByRole("dialog", {
+        name: "Edit storage spot",
+      });
+      await waitFor(() =>
+        expect(editor.contains(document.activeElement)).toBe(true),
+      );
+      expect(inspector).not.toBeInTheDocument();
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+      expect(within(editor).getByRole("textbox", { name: "Name" })).toHaveValue(
+        "Occupied FG",
+      );
+      expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      styles.mockRestore();
+    }
+  });
+  it("does not replay a mobile inspector action after the workspace unmounts during its exit animation", async () => {
+    const styles = holdInspectorExitAnimation();
+    try {
+      const view = mount();
+      selectMap();
+      const inspector = screen.getByRole("dialog", {
+        name: "Location details",
+      });
+      const inspectorKey = [
+        ...new URLSearchParams(window.location.search).keys(),
+      ].find((key) => key.startsWith("overlay"))!;
+      fireEvent.click(
+        within(inspector).getByRole("button", { name: "Edit Occupied FG" }),
+      );
+      await waitFor(() =>
+        expect(inspector).toHaveAttribute("data-state", "closed"),
+      );
+      await waitFor(() =>
+        expect(
+          new URLSearchParams(window.location.search).has(inspectorKey),
+        ).toBe(false),
+      );
+      await act(async () => {
+        await new Promise(requestAnimationFrame);
+      });
+      // A new route removes the still-animating workspace. Its later focus
+      // cleanup must not run an action belonging to the removed inspector.
+      await act(async () => {
+        view.unmount();
+        window.history.replaceState(
+          {},
+          "",
+          "/en/finished-goods?origin=1#source",
+        );
+        await new Promise(requestAnimationFrame);
+      });
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods?origin=1#source");
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(mutation).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      styles.mockRestore();
+    }
+  });
+  it("restores map focus after a refused inspector handoff is cancelled and the inspector is closed manually", async () => {
+    function PendingWrite({ pending }: { pending: boolean }) {
+      useNavigationDraft({ dirty: false, pending, discard: () => {} });
+      return null;
+    }
+    const savedFloors = floors.map((floor) =>
+      floor.floorNumber === 2
+        ? { ...floor, storageZones: [occupiedTestZone()] }
+        : floor,
+    );
+    const content = (pending: boolean) => (
+      <NavigationGuardProvider>
+        <PendingWrite pending={pending} />
+        <BuildingModelWorkspace building={building} floors={savedFloors} />
+      </NavigationGuardProvider>
+    );
+    const view = renderWithIntl(content(false), {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    const opener = selectMap();
+    view.rerender(content(true));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Location details" }),
+      ).getByRole("button", { name: "Edit Occupied FG" }),
+    );
+    const prompt = await screen.findByRole("dialog", {
+      name: "Save changes before leaving?",
+    });
+    expect(
+      within(prompt).getByRole("button", { name: "Discard changes" }),
+    ).toBeDisabled();
+    fireEvent.click(
+      within(prompt).getByRole("button", { name: "Keep editing" }),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Edit storage spot" }),
+    ).toBeNull();
+
+    // The background write settles; the user chooses an ordinary Close, not
+    // the editor action they cancelled in the guard prompt.
+    view.rerender(content(false));
+    await waitFor(() => expect(isGuardTraversal()).toBe(false));
+    await waitFor(() =>
+      expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined(),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Location details" }),
+      ).getByRole("button", { name: "Close dialog" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(opener).toHaveFocus());
+    expect(window.location.search).not.toContain("editZone");
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["Close dialog", false],
+    ["Cancel", false],
+    ["Close dialog", true],
+    ["Cancel", true],
+  ] as const)(
+    "%s dismisses the mobile zone editor with the shell guard and consumes its entry before the next Back (dirty: %s)",
+    async (closeLabel, dirty) => {
+      window.history.replaceState(
+        { appNavigationIndex: 0 },
+        "",
+        "/en/finished-goods?origin=1#source",
+      );
+      stopHistory = trackAppHistory();
+      window.history.pushState(
+        { appNavigationIndex: 1 },
+        "",
+        "/en/master-data/storage-layouts/building-a?floor=2&view=storage&kept=yes#map",
+      );
+      const zone = occupiedTestZone();
+      const content = (key: number) => (
+        <NavigationGuardProvider>
+          <BuildingModelWorkspace
+            key={key}
+            building={building}
+            floors={floors.map((floor) =>
+              floor.floorNumber === 2
+                ? { ...floor, storageZones: [zone] }
+                : floor,
+            )}
+          />
+        </NavigationGuardProvider>
+      );
+      const view = renderWithIntl(content(0), {
+        locale: "en",
+        workspace: false,
+        preserveProviders: true,
+      });
+      selectMap();
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Edit Occupied FG",
+        }),
+      );
+      await screen.findByRole("dialog", { name: "Edit storage spot" });
+      if (dirty)
+        fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+          target: { value: "Unsent location" },
+        });
+      fireEvent.click(screen.getByRole("button", { name: closeLabel }));
+      if (dirty) {
+        fireEvent.click(
+          await screen.findByRole("button", { name: "Keep editing" }),
+        );
+        expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+          "Unsent location",
+        );
+        fireEvent.click(screen.getByRole("button", { name: closeLabel }));
+        fireEvent.click(
+          await screen.findByRole("button", { name: "Discard changes" }),
+        );
+      }
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() => expect(isGuardTraversal()).toBe(false));
+      await waitFor(() =>
+        expect(
+          [...new URLSearchParams(window.location.search).keys()].filter(
+            (key) => key.startsWith("overlay"),
+          ),
+        ).toHaveLength(0),
+      );
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(window.location.pathname).toBe(
+        "/en/master-data/storage-layouts/building-a",
+      );
+      expect(new URLSearchParams(window.location.search).get("kept")).toBe(
+        "yes",
+      );
+      expect(window.location.hash).toBe("#map");
+      expect(window.location.search).not.toContain("editZone");
+      expect(document.body.style.pointerEvents).not.toBe("none");
+      // A refreshed/remounted caller must not replay the dismissed URL command.
+      await act(async () => view.rerender(content(1)));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      act(() => window.history.back());
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/en/finished-goods?origin=1#source"),
+      );
+      expect(mutation).not.toHaveBeenCalled();
+    },
+  );
+  it("closes a directly linked mobile zone editor through native Back and restores it on Forward", async () => {
+    const zone = occupiedTestZone();
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/th/master-data/storage-layouts/building-a?floor=2&view=storage&kept=yes&editZone=blocked-zone#map",
+    );
+    mount(zone);
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    act(() => window.history.back());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(window.location.search).not.toContain("editZone"),
+    );
+    expect(window.location.pathname).toBe(
+      "/th/master-data/storage-layouts/building-a",
+    );
+    expect(window.location.hash).toBe("#map");
+    act(() => window.history.forward());
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+      zone.label,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(window.location.search).not.toContain("editZone"),
+    );
+    expect(mutation).not.toHaveBeenCalled();
+  });
+  it("blocks mobile zone Close and native Back while a write is pending, then permits guarded closure", async () => {
+    let failWrite: () => void = () => {};
+    mutation.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          failWrite = () => reject(new Error("NETWORK_ERROR"));
+        }),
+    );
+    mount();
+    selectMap();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+      target: { value: "Pending location" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await screen.findByRole("button", { name: "Updating…" });
+    const pendingQuery = window.location.search;
+    fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    expect(
+      screen.getByRole("dialog", { name: "Edit storage spot" }),
+    ).toBeVisible();
+    await act(async () => {
+      window.history.back();
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    await waitFor(() => expect(window.location.search).toBe(pendingQuery));
+    expect(
+      screen.getByRole("dialog", { name: "Edit storage spot" }),
+    ).toBeVisible();
+    await act(async () => failWrite());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Updating…" })).toBeNull(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Discard changes" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(window.location.search).not.toContain("editZone"),
+    );
+    expect(mutation).toHaveBeenCalledOnce();
   });
   it("restores URL selection as summary and resets its scope when changing floors", async () => {
     const zone = occupiedTestZone();

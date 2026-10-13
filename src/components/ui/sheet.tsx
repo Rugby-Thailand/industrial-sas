@@ -5,18 +5,104 @@ import { Dialog as SheetPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  useCompletionHandle,
+  type DialogCompletionHandle,
+} from "@/components/ui/dialog";
 import { XIcon } from "lucide-react";
 import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { DraftForegroundContext } from "@/components/providers/draftGuard";
+
+/** Same contract as a Dialog's: the sheet's entry is consumed first. */
+export type SheetCompletionHandle = DialogCompletionHandle;
+
+/**
+ * Open a successor foreground (an editor, Search) from a Sheet only once the
+ * sheet has consumed its own history entry and finished closing. Opening on
+ * close focus alone lets the successor push its entry while the sheet's native
+ * Back is pending; that one pop then restores both and leaves a duplicate page
+ * entry. Opening on the pop alone stacks it on a sheet that still owns focus.
+ *
+ * One close serves one successor: a repeated request while it is pending
+ * replaces the successor rather than queueing a second. Unmounting (a route
+ * change during the exit animation) drops it.
+ *
+ * `close` closes the sheet's state if its entry was already gone. The
+ * SheetContent's `onCloseAutoFocus` calls `closeFocus` first: true means a
+ * handoff owns focus. `cancel` drops a handoff that no longer applies.
+ */
+export function useSheetHandoff(
+  completionRef: React.RefObject<SheetCompletionHandle | null>,
+  close: () => void,
+) {
+  const successor = React.useRef<(() => void) | null>(null);
+  const consumed = React.useRef(false);
+  const closed = React.useRef(false);
+  // Identifies one handoff; a cancelled one's late completion is ignored.
+  const generation = React.useRef(0);
+  const latestClose = React.useRef(close);
+  React.useLayoutEffect(() => {
+    latestClose.current = close;
+  });
+  const cancel = React.useCallback(() => {
+    generation.current += 1;
+    successor.current = null;
+    consumed.current = false;
+    closed.current = false;
+  }, []);
+  React.useEffect(() => cancel, [cancel]);
+  const settle = React.useCallback(() => {
+    const run = successor.current;
+    if (run === null || !consumed.current || !closed.current) return;
+    cancel();
+    run();
+  }, [cancel]);
+  const handOff = React.useCallback(
+    (run: () => void) => {
+      successor.current = run;
+      const current = generation.current;
+      // While its traversal is in flight, `complete` ignores a repeat; after a
+      // refused traversal (a pending write kept the sheet) it starts again.
+      completionRef.current?.complete(
+        () => {
+          if (current !== generation.current || successor.current === null)
+            return;
+          consumed.current = true;
+          // Normally already closed by its own Back; never left open otherwise.
+          latestClose.current();
+          settle();
+        },
+        () => {
+          // A refused handoff cannot claim focus on a later manual close.
+          if (current === generation.current) cancel();
+        },
+      );
+    },
+    [completionRef, settle, cancel],
+  );
+  const closeFocus = React.useCallback(
+    (event: Event) => {
+      if (successor.current === null) return false;
+      event.preventDefault();
+      closed.current = true;
+      settle();
+      return true;
+    },
+    [settle],
+  );
+  return { handOff, cancel, closeFocus };
+}
 
 function Sheet({
   open,
   defaultOpen = false,
   onOpenChange,
   backPending = false,
+  completionRef,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Root> & {
   backPending?: boolean;
+  completionRef?: React.Ref<SheetCompletionHandle>;
 }) {
   const [local, setLocal] = React.useState(defaultOpen);
   const disclosure = useBackDisclosure(
@@ -27,6 +113,7 @@ function Sheet({
     },
     { blocked: backPending },
   );
+  useCompletionHandle(completionRef, disclosure.complete);
   return (
     <DraftForegroundContext.Provider value={disclosure.scope}>
       <SheetPrimitive.Root

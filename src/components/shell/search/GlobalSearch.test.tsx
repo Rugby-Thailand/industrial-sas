@@ -143,7 +143,9 @@ describe("global search dialog", () => {
     expect(option).toHaveTextContent("People › HR settings › Holidays");
     expect(input()).toHaveAttribute("aria-activedescendant", option.id);
     fireEvent.keyDown(input(), { key: "Enter" });
-    expect(state.push).toHaveBeenCalledWith("/hr/settings?section=holidays");
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith("/hr/settings?section=holidays"),
+    );
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
@@ -244,8 +246,10 @@ describe("global search dialog", () => {
       )?.args,
     ).toEqual({ text: "", codes: ["EMP-DEMO-002"] });
     fireEvent.click(screen.getByRole("option", { name: /Anan Wong/ }));
-    expect(state.push).toHaveBeenCalledWith(
-      "/hr/review?employee=e2&date=2026-10-08&focus=decision",
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith(
+        "/hr/review?employee=e2&date=2026-10-08&focus=decision",
+      ),
     );
   });
 
@@ -276,20 +280,30 @@ describe("global search dialog", () => {
   it("does not navigate while an unsaved-work guard holds the transition", async () => {
     let held: (() => void) | undefined;
     const release = registerNavigationGuardOwner({
-      requestTransition: (next) => {
-        held = next;
+      requestTransition: (next, options) => {
+        if (options?.preserveDraftScope) next();
+        else held = next;
       },
       isTraversing: () => false,
     });
-    renderSearch();
-    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
-    await screen.findByRole("dialog");
-    await type("holidays");
-    fireEvent.keyDown(input(), { key: "Enter" });
-    expect(state.push).not.toHaveBeenCalled();
-    act(() => held?.());
-    expect(state.push).toHaveBeenCalledWith("/hr/settings?section=holidays");
-    release();
+    try {
+      renderSearch();
+      fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+      await screen.findByRole("dialog");
+      await type("holidays");
+      fireEvent.keyDown(input(), { key: "Enter" });
+      expect(state.push).not.toHaveBeenCalled();
+      await waitFor(() => expect(held).toBeDefined());
+      release();
+      act(() => held?.());
+      await waitFor(() =>
+        expect(state.push).toHaveBeenCalledWith(
+          "/hr/settings?section=holidays",
+        ),
+      );
+    } finally {
+      release();
+    }
   });
 
   it("hides AI Search from members without HR access", async () => {
@@ -689,8 +703,10 @@ describe("record results lifecycle", () => {
     });
     await flush(300);
     fireEvent.keyDown(input(), { key: "Enter" });
-    expect(state.push).toHaveBeenCalledWith(
-      "/hr/review?employee=e3&date=2026-10-08&focus=decision",
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith(
+        "/hr/review?employee=e3&date=2026-10-08&focus=decision",
+      ),
     );
   });
 
@@ -816,8 +832,10 @@ describe("normal search tasks and periods", () => {
     expect(first).toHaveTextContent("HQ · Closed, version 1");
     expect(first).not.toHaveTextContent("version 4");
     fireEvent.click(first);
-    expect(state.push).toHaveBeenCalledWith(
-      "/hr/periods/p1?version=1&focus=export",
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith(
+        "/hr/periods/p1?version=1&focus=export",
+      ),
     );
   });
 
@@ -859,8 +877,10 @@ describe("normal search tasks and periods", () => {
     expect(choice).not.toHaveTextContent("version 4");
     expect(state.push).not.toHaveBeenCalled();
     fireEvent.click(choice);
-    expect(state.push).toHaveBeenCalledWith(
-      "/hr/periods/p1?version=1&focus=export",
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith(
+        "/hr/periods/p1?version=1&focus=export",
+      ),
     );
   });
 });

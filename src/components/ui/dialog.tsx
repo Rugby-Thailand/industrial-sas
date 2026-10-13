@@ -10,9 +10,33 @@ import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { DraftForegroundContext } from "@/components/providers/draftGuard";
 
 export type DialogCompletionHandle = {
-  /** Consume this dialog's owned entry before closing a parent workflow. */
-  complete: (action: () => void) => void;
+  /**
+   * Consume this foreground's owned entry, then run `action` once its native
+   * Back has been processed: a successor (route, editor, dialog) never races it.
+   */
+  complete: (action: () => void, onCancel?: () => void) => void;
 };
+
+/**
+ * Expose a shared Dialog/Sheet disclosure's completion through a stable handle.
+ * It stays mounted while the disclosure's own Back effects notify callers.
+ */
+export function useCompletionHandle(
+  completionRef: React.Ref<DialogCompletionHandle> | undefined,
+  complete: DialogCompletionHandle["complete"],
+) {
+  const latest = React.useRef(complete);
+  React.useLayoutEffect(() => {
+    latest.current = complete;
+  });
+  React.useImperativeHandle(
+    completionRef,
+    () => ({
+      complete: (action, onCancel) => latest.current(action, onCancel),
+    }),
+    [],
+  );
+}
 
 function Dialog({
   open,
@@ -42,16 +66,7 @@ function Dialog({
       ...(draftScope ? { draftScope } : {}),
     },
   );
-  const complete = React.useRef(disclosure.complete);
-  React.useLayoutEffect(() => {
-    complete.current = disclosure.complete;
-  });
-  // Keep the handle mounted while disclosure's own Back effects notify callers.
-  React.useImperativeHandle(
-    completionRef,
-    () => ({ complete: (action) => complete.current(action) }),
-    [],
-  );
+  useCompletionHandle(completionRef, disclosure.complete);
   return (
     <DraftForegroundContext.Provider value={disclosure.scope}>
       <DialogPrimitive.Root

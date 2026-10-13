@@ -5,6 +5,7 @@
 // Navigation rows, their presentation data and the drawer search handoff
 // live in `@/components/shell`.
 import {
+  useCallback,
   useRef,
   type CSSProperties,
   type ReactNode,
@@ -29,6 +30,7 @@ import { useDrawerSearchHandoff } from "@/components/shell/useDrawerSearchHandof
 import { useOrganizationName } from "@/components/shell/useOrganizationName";
 import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
 import { Button } from "@/components/ui/button";
+import type { SheetCompletionHandle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
@@ -39,7 +41,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { usePathname } from "@/i18n/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -189,13 +191,31 @@ function AppSidebar({
   const organizationName = useOrganizationName();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
-  const searchHandoff = useDrawerSearchHandoff(menuOpener);
+  const drawer = useRef<SheetCompletionHandle>(null);
+  const searchHandoff = useDrawerSearchHandoff(menuOpener, drawer);
+  // This router outlives the drawer's links, which unmount as it closes.
+  const router = useRouter();
+  // The drawer consumes its own entry first; only then does the route push,
+  // so the drawer's native Back cannot restore the origin over it.
+  const navigateFromDrawer = useCallback(
+    (href: string) =>
+      // Drawer links render only inside the drawer, so its handle is mounted.
+      drawer.current?.complete(() => {
+        // Normally already closed by its own Back; never left open otherwise.
+        setOpenMobile(false);
+        router.push(href);
+      }),
+    [router, setOpenMobile],
+  );
   return (
     <Sidebar
       collapsible="icon"
       {...(!isMobile
         ? { role: "complementary", "aria-label": t("primary") }
-        : { onMobileCloseAutoFocus: searchHandoff.onDrawerCloseAutoFocus })}
+        : {
+            onMobileCloseAutoFocus: searchHandoff.onDrawerCloseAutoFocus,
+            mobileCompletionRef: drawer,
+          })}
       className="absolute h-full border-border"
       mobileTitle={t("primary")}
       mobileCloseLabel={t("closeMenu")}
@@ -234,7 +254,7 @@ function AppSidebar({
       <SidebarNavigation
         id={NAV_ID}
         collapsed={collapsed}
-        onNavigate={() => setOpenMobile(false)}
+        {...(isMobile ? { onNavigate: navigateFromDrawer } : {})}
       />
       <SidebarFooter
         className={cn(

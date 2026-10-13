@@ -775,7 +775,7 @@ describe("registered location layout completion", () => {
       mutationFor("storageLayouts/namedLayout:completeNamedLocationLayout"),
     ).toHaveBeenCalledWith(expect.objectContaining({ floorNumber: 2 }));
     expect(
-      screen.getByText(
+      await screen.findByText(
         "DOCK SHELF is now on floor 2. Its code and QR are unchanged.",
       ),
     ).toBeVisible();

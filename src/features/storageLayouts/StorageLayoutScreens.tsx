@@ -1507,7 +1507,9 @@ export function BuildingModelWorkspace({
     // Earlier steps inside the floor editor (impact review, offset editor)
     // retain this draft; closing the editor itself asks first.
     workflowScope: floorDraftScope,
-    dirty: dirty || dialogOpen,
+    // A spot editor opened from browsing owns its own draft and history.
+    // Only a nested dialog in the floor editor also protects the floor draft.
+    dirty: dirty || (editing && dialogOpen),
     pending,
     ...(dialogOpen ? { saveBlockedReason: t("finishOpenEditor") } : {}),
     save: async () => (await editorRef.current?.save()) ?? false,

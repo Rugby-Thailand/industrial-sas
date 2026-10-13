@@ -35,7 +35,8 @@ import { cn } from "@/lib/utils";
 interface RowProps {
   readonly activeHref: string | undefined;
   readonly collapsed: boolean;
-  readonly onNavigate: (() => void) | undefined;
+  /** The mobile drawer's handoff for a chosen destination (see the link). */
+  readonly onNavigate: ((href: string) => void) | undefined;
 }
 
 /**
@@ -49,7 +50,7 @@ export function SidebarNavigation({
 }: {
   readonly id: string;
   readonly collapsed: boolean;
-  readonly onNavigate?: () => void;
+  readonly onNavigate?: (href: string) => void;
 }) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
@@ -240,7 +241,9 @@ function NavigationLeaf({
           href={item.href}
           className="relative"
           aria-current={active ? "page" : undefined}
-          {...(onNavigate === undefined ? {} : { onClick: onNavigate })}
+          {...(onNavigate === undefined
+            ? {}
+            : { navigate: () => onNavigate(item.href) })}
         >
           {Icon === undefined ? null : (
             <Icon aria-hidden="true" className="size-4" />
