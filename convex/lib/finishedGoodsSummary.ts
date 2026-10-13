@@ -145,12 +145,36 @@ export async function summaryReadiness(
     )
     .unique();
 }
+/** Layout cursor invalidation is independent of inventory/backfill readiness. */
+export async function storageCatalogueGeneration(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+) {
+  const state = await db
+    .byIndex<Doc<"storageCatalogueSignals">>(
+      "storageCatalogueSignals",
+      "by_orgId_warehouseId",
+      [{ field: "warehouseId", value: warehouseId }],
+    )
+    .unique();
+  return state?.generation ?? 0;
+}
+
 export async function readProductSummary(
   ctx: { tenantDb: TenantDocumentAccess },
   product: Doc<"finishedGoodsProducts">,
+  readiness?: Doc<"finishedGoodsSummaryReadiness"> | null,
 ) {
-  const ready = await summaryReadiness(ctx.tenantDb, product.warehouseId);
-  if (!ready?.ready || ready.version !== VERSION) return null;
+  const ready =
+    readiness === undefined
+      ? await summaryReadiness(ctx.tenantDb, product.warehouseId)
+      : readiness;
+  if (
+    !ready?.ready ||
+    ready.version !== VERSION ||
+    ready.warehouseId !== product.warehouseId
+  )
+    return null;
   const row = await summary(ctx.tenantDb, product._id);
   const values = row ?? zero();
   const formatCounts = {
@@ -223,12 +247,14 @@ export async function backfillProductSummaries(
 export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
   const touched = new Set<string>();
   const warehouses = new Set<string>();
+  const storageWarehouses = new Set<string>();
   const note = async (table: string, id: string) => {
     if (table === "finishedGoodsPallets") touched.add(id);
     if (
       table === "finishedGoodsPallets" ||
       table === "finishedGoodsProducts" ||
       table === "finishedGoodsMoves" ||
+      table === "finishedGoodsBatches" ||
       table === "storageBuildings" ||
       table === "storageFloors" ||
       table === "storageZones" ||
@@ -238,12 +264,17 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
         | Doc<"finishedGoodsPallets">
         | Doc<"finishedGoodsProducts">
         | Doc<"finishedGoodsMoves">
+        | Doc<"finishedGoodsBatches">
         | Doc<"storageBuildings">
         | Doc<"storageFloors">
         | Doc<"storageZones">
         | Doc<"storagePositions">
       >(table, id);
-      if (row) warehouses.add(row.warehouseId);
+      if (row) {
+        (table.startsWith("storage") ? storageWarehouses : warehouses).add(
+          row.warehouseId,
+        );
+      }
     }
     if (table === "finishedGoodsMoves") {
       const move = await db.get<Doc<"finishedGoodsMoves">>(
@@ -279,6 +310,24 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
     db: tracked,
     flush: async () => {
       for (const id of touched) await reconcileUnitContribution(db, id);
+      for (const warehouseId of storageWarehouses) {
+        const state = await db
+          .byIndex<Doc<"storageCatalogueSignals">>(
+            "storageCatalogueSignals",
+            "by_orgId_warehouseId",
+            [{ field: "warehouseId", value: warehouseId }],
+          )
+          .unique();
+        if (state)
+          await db.patch("storageCatalogueSignals", state._id, {
+            generation: state.generation + 1,
+          });
+        else
+          await db.insert("storageCatalogueSignals", {
+            warehouseId,
+            generation: 1,
+          });
+      }
       for (const warehouseId of warehouses) {
         const state = await summaryReadiness(db, warehouseId);
         if (state)

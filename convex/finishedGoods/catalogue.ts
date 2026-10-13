@@ -100,8 +100,9 @@ type UnitRow = Awaited<ReturnType<ReturnType<typeof createUnitReader>>>;
 async function hydrateProduct(
   ctx: TenantFunctionContext,
   product: Doc<"finishedGoodsProducts">,
+  ready: Doc<"finishedGoodsSummaryReadiness"> | null,
 ) {
-  const summary = await readSummary(ctx, product);
+  const summary = await readSummary(ctx, product, ready);
   if (!summary) throw new Error("CATALOGUE_SUMMARY_NOT_READY");
   return { ...product, summary };
 }
@@ -393,7 +394,7 @@ export const page = queryWithOrg({
           );
           return p?.warehouseId === warehouseId ? p : null;
         },
-        hydrate: (p) => hydrateProduct(ctx, p),
+        hydrate: (p) => hydrateProduct(ctx, p, ready),
         matches: (p) => matchesRow(productFilter(p), filters, ""),
         ...(sorted
           ? {
@@ -479,8 +480,9 @@ export const productSummary = queryWithOrg({
       args.productId,
     );
     if (!product || product.warehouseId !== args.warehouseId) return null;
-    if (!(await readiness(ctx, args.warehouseId))?.ready) return null;
-    return readSummary(ctx, product);
+    const ready = await readiness(ctx, args.warehouseId);
+    if (!ready?.ready) return null;
+    return readSummary(ctx, product, ready);
   },
 });
 
@@ -574,7 +576,7 @@ export const summary = queryWithOrg({
         ),
       };
     for (const product of chunk.page) {
-      const value = await readSummary(ctx, product);
+      const value = await readSummary(ctx, product, ready);
       if (!value)
         return {
           status: "not_ready" as const,
