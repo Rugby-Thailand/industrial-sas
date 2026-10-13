@@ -923,3 +923,29 @@ describe("retained rows and scan recovery", () => {
     expect(requested()).toBe(101);
   });
 });
+
+it("renders a saved provider URL in the record thumbnail and full photo dialog", async () => {
+  const user = userEvent.setup();
+  const imageUrl = "https://example.ufs.sh/f/saved-ticket.jpg";
+  mocks.listJobScans = () =>
+    querySuccess({
+      status: "ready",
+      scanned: 1,
+      items: [{ ...originalRecords[0], imageUrl }],
+      isDone: true,
+      continueCursor: null,
+    });
+  const { container } = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  const trigger = await screen.findByRole("button", { name: "Open photo" });
+  expect(container.querySelector("img")).toHaveAttribute("src", imageUrl);
+  await user.click(trigger);
+  expect(
+    within(screen.getByRole("dialog", { name: "Open photo" })).getByRole(
+      "img",
+      { name: "Open photo" },
+    ),
+  ).toHaveAttribute("src", imageUrl);
+});

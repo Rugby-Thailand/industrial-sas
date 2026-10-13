@@ -1,23 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useRef, type DragEvent } from "react";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
-import { StillPhotoCamera } from "./StillPhotoCamera";
+import {
+  StillPhotoCamera,
+  type StillPhotoCameraHandle,
+} from "./StillPhotoCamera";
+import { MAX_PHOTOS, usePhotoSelection } from "./usePhotoSelection";
 
-export const MAX_PHOTOS = 20;
-const MAX_BYTES = 25 * 1024 * 1024;
-
-type Photo = { id: number; file: File; preview: string };
-type PhotoProblem = "imageType" | "imageSize" | "photoLimit";
+export { MAX_PHOTOS } from "./usePhotoSelection";
 
 const ticketFileName = () => `job-ticket-${Date.now()}.jpg`;
 
-/** In-page camera plus multi-select; every collected photo is handed to the AI together. */
+/** In-page camera plus multi-select; each collected photo becomes one AI ticket. */
 export function PhotoCapture({
   onSubmit,
   onClose,
@@ -27,56 +27,14 @@ export function PhotoCapture({
 }) {
   const t = useTranslations("JobScan");
   const input = useRef<HTMLInputElement>(null);
-  const nextId = useRef(0);
-  // The synchronous source of truth for the limit; React state only renders it.
-  const collected = useRef<Photo[]>([]);
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [problem, setProblem] = useState<PhotoProblem>();
+  const camera = useRef<StillPhotoCameraHandle>(null);
+  const { photos, problem, add, remove, clear, getFiles, canCapture } =
+    usePhotoSelection();
 
-  useEffect(
-    () => () => {
-      for (const photo of collected.current) URL.revokeObjectURL(photo.preview);
-      collected.current = [];
-    },
-    [],
-  );
-
-  function commit(next: Photo[]) {
-    collected.current = next;
-    setPhotos(next);
-  }
-
-  function add(files: readonly File[]) {
-    const accepted: Photo[] = [];
-    let found: PhotoProblem | undefined;
-    for (const file of files) {
-      if (!file.type.startsWith("image/")) found = "imageType";
-      else if (!file.size || file.size > MAX_BYTES) found = "imageSize";
-      else if (collected.current.length + accepted.length >= MAX_PHOTOS)
-        found = "photoLimit";
-      else
-        accepted.push({
-          id: nextId.current++,
-          file,
-          preview: URL.createObjectURL(file),
-        });
-    }
-    if (accepted.length) commit([...collected.current, ...accepted]);
-    setProblem(found);
-  }
-
-  function clear() {
-    for (const photo of collected.current) URL.revokeObjectURL(photo.preview);
-    commit([]);
-    setProblem(undefined);
-  }
-
-  function remove(id: number) {
-    const photo = collected.current.find((item) => item.id === id);
-    if (!photo) return;
-    URL.revokeObjectURL(photo.preview);
-    commit(collected.current.filter((item) => item.id !== id));
-    setProblem(undefined);
+  function close() {
+    camera.current?.stop();
+    clear();
+    onClose();
   }
 
   function drop(event: DragEvent<HTMLDivElement>) {
@@ -93,12 +51,13 @@ export function PhotoCapture({
       onDrop={drop}
     >
       <StillPhotoCamera
-        onPhoto={(file) => add([file])}
-        onClose={onClose}
+        ref={camera}
+        onPhoto={(file) => add([file], "camera")}
+        onClose={close}
         closeLabel={t("closePhotoAi")}
         captureLabel={t("takePhoto")}
         fileName={ticketFileName}
-        canCapture={() => collected.current.length < MAX_PHOTOS}
+        canCapture={canCapture}
         captureDisabled={full}
       />
       <input
@@ -171,10 +130,11 @@ export function PhotoCapture({
           className="min-h-12 min-w-0 flex-1 whitespace-normal"
           disabled={!photos.length}
           onClick={() => {
-            const files = collected.current.map((photo) => photo.file);
+            const files = getFiles();
             if (!files.length) return;
-            onSubmit(files);
+            camera.current?.stop();
             clear();
+            onSubmit(files);
           }}
         >
           <Sparkles className="size-4" aria-hidden="true" />
