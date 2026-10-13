@@ -13,7 +13,7 @@ export default async function StorageLayoutsPage({
   const t = await getTranslations("StorageLayouts");
   return (
     <>
-      <PageHeader title={t("title")} />
+      <PageHeader title={t("title")} backFallbackHref={null} />
       {/* New building sits beside the search field in each catalogue view. */}
       <StorageBuildingCatalogue />
     </>
