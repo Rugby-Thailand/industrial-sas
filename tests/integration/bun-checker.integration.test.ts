@@ -97,7 +97,7 @@ describe("pinned Bun checker", () => {
     for (const command of Object.values(scripts))
       expect(command).not.toMatch(/\bbun check\b/);
     expect(scripts.check).toBe(
-      "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+      "pnpm check:navigation && pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     );
     // Next runs under Bun with Bun's dotenv preload off (also for workers
     // Next re-spawns, via BUN_OPTIONS); framework flags are unchanged and
