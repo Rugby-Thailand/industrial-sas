@@ -17,6 +17,9 @@ async function openSpot(page: Page) {
   });
   await expect(editor).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(1);
+  // Overflow must not make mobile Chromium scale the synthetic document and
+  // translate a physical tap into a different element's coordinates.
+  await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(390);
   return editor;
 }
 

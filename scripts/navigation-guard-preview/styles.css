@@ -1,6 +1,15 @@
+html {
+  overflow-x: clip;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 body {
   font: 16px system-ui;
-  margin: 24px;
+  margin: 0;
+  padding: 24px;
   color: #18252b;
   background: white;
 }
@@ -11,6 +20,7 @@ main {
 nav,
 label {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin: 16px 0;
 }
