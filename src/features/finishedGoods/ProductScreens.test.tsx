@@ -1884,6 +1884,7 @@ describe("stale finished-good save lifecycle", () => {
 });
 
 it("retains stale product edits and merges only locally changed fields into the reviewed server version", async () => {
+  mocks.save.mockRejectedValueOnce(new Error("VERSION_CONFLICT"));
   const view = renderProduct("product-a");
   fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
     target: { value: "My product name" },
@@ -1908,7 +1909,13 @@ it("retains stale product edits and merges only locally changed fields into the 
     "My product name",
   );
   fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
-  expect(mocks.save).not.toHaveBeenCalled();
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+  expect(mocks.save.mock.calls[0]?.[0]).toEqual(
+    expect.objectContaining({
+      expectedUpdatedAt: finishedGoodProduct.updatedAt,
+    }),
+  );
+  expect(mocks.push).not.toHaveBeenCalled();
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Merge my changed fields" }),
@@ -1977,4 +1984,37 @@ it("guards a merged product draft when browser storage fails during conflict res
   );
   expect(leave).not.toHaveBeenCalled();
   storage.mockRestore();
+});
+
+it("retries a committed product edit with its original request after a lost response advances the live version", async () => {
+  mocks.save.mockRejectedValueOnce(
+    new Error("Response lost after server committed"),
+  );
+  const view = renderProduct("product-a");
+  fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
+    target: { value: "Committed new name" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+  await screen.findByRole("alert");
+  const firstRequest = mocks.save.mock.calls[0]![0].requestId;
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getProduct")
+      ? querySuccess({
+          ...finishedGoodProduct,
+          name: "Committed new name",
+          updatedAt: finishedGoodProduct.updatedAt + 1,
+        })
+      : name.endsWith(":listProductBatches")
+        ? querySuccess({ batches: [], legacyUnits: [] })
+        : querySuccess(finishedGoodsList),
+  );
+  view.rerender(
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+      <ProductScreen productId="product-a" />
+    </NextIntlClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+  expect(mocks.save.mock.calls[1]![0].requestId).toBe(firstRequest);
 });

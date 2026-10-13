@@ -319,8 +319,9 @@ function ProductForm({
     await op.run(
       async () => {
         if (!canManage) throw new Error("ACCESS_DENIED");
-        if (product && form.expectedUpdatedAt !== product.updatedAt)
-          throw new Error("VERSION_CONFLICT");
+        // The server replays an accepted request before checking its version.
+        // A live query can advance after a lost response, so an unchanged
+        // retry must still send the original token and request identity.
         if (
           next &&
           (!form.sku.trim() || !form.name.trim() || !form.unit.trim())
