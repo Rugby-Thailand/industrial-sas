@@ -6999,26 +6999,34 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:remapReview",
       "policy": "overlay",
-      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions; stale data blocks persistence and pending writes protect dismissal.",
+      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions. New writes require current versions; an uncertain response retains the immutable attempted command for explicit replay. Pending writes protect dismissal.",
       "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "requires review and blocks a stale multi-ticket location snapshot without writing"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "retries the immutable reviewed location command after response loss and advanced record versions"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:Dialog:remapReview",
       "policy": "overlay",
-      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions; stale data blocks persistence and pending writes protect dismissal.",
+      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions. New writes require current versions; an uncertain response retains the immutable attempted command for explicit replay. Pending writes protect dismissal.",
       "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "requires review and blocks a stale multi-ticket location snapshot without writing"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "retries the immutable reviewed location command after response loss and advanced record versions"
         }
       ]
     },

@@ -1785,6 +1785,8 @@
     "buildingsFailed": "Buildings could not be loaded. Check your connection and try again.",
     "groupCapacity": "{count, plural, one {#/{max} ticket} other {#/{max} tickets}} · {remaining, plural, one {# place left} other {# places left}}. Save this group, then scan more.",
     "remapReviewTitle": "Review location change for {count, plural, one {# ticket} other {# tickets}}",
+    "retryLocationChange": "Retry location change",
+    "locationChangeRecovery": "The result is uncertain. Retry the same reviewed tickets and location to recover the change.",
     "remapConfirm": "Change {count, plural, one {# ticket} other {# tickets}}",
     "editRecord": "Correct ticket details",
     "editRecordTitle": "Correct saved job ticket",

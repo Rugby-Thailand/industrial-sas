@@ -104,6 +104,7 @@ function Records({
   const [remapReview, setRemapReview] = useState<{
     location: PickedLocation;
     records: RecordPage["items"];
+    command?: Parameters<typeof assign>[0];
   } | null>(null);
   const [deletion, setDeletion] = useState<{
     ids: string[];
@@ -622,16 +623,22 @@ function Records({
               ))}
             </ul>
             <ErrorNotice message={operation.error} />
-            {remapReview.records.some(
-              (snapshot) =>
-                !records?.some(
-                  (record) =>
-                    record.id === snapshot.id &&
-                    record.version === snapshot.version,
-                ),
-            ) && (
-              <p role="alert" className="text-sm text-warning">
-                {t("recordConflict")}
+            {!remapReview.command &&
+              remapReview.records.some(
+                (snapshot) =>
+                  !records?.some(
+                    (record) =>
+                      record.id === snapshot.id &&
+                      record.version === snapshot.version,
+                  ),
+              ) && (
+                <p role="alert" className="text-sm text-warning">
+                  {t("recordConflict")}
+                </p>
+              )}
+            {remapReview.command && !operation.busy && (
+              <p role="status" className="text-sm text-muted">
+                {t("locationChangeRecovery")}
               </p>
             )}
             <DialogFooter>
@@ -644,37 +651,59 @@ function Records({
               </Button>
               <Button
                 disabled={
-                  !actionable ||
-                  remapReview.records.some(
-                    (snapshot) =>
-                      !records?.some(
-                        (record) =>
-                          record.id === snapshot.id &&
-                          record.version === snapshot.version,
-                      ),
-                  )
+                  !canManage ||
+                  operation.busy ||
+                  (!remapReview.command &&
+                    (!actionable ||
+                      remapReview.records.some(
+                        (snapshot) =>
+                          !records?.some(
+                            (record) =>
+                              record.id === snapshot.id &&
+                              record.version === snapshot.version,
+                          ),
+                      )))
                 }
                 onClick={() => {
-                  const location = pickedLocationPayload(remapReview.location);
-                  if (!location || !actionable) return;
-                  const target = {
-                    ids: remapReview.records.map((record) => record.id),
-                    location,
-                    expectedVersions: remapReview.records.map((record) => ({
-                      id: record.id,
-                      version: record.version,
-                    })),
-                  };
+                  if (!canManage || operation.busy) return;
+                  let command = remapReview.command;
+                  if (!command) {
+                    const location = pickedLocationPayload(
+                      remapReview.location,
+                    );
+                    if (!location || !actionable) return;
+                    const target = {
+                      ids: remapReview.records.map((record) => record.id),
+                      location,
+                      expectedVersions: remapReview.records.map((record) => ({
+                        id: record.id,
+                        version: record.version,
+                      })),
+                    };
+                    command = {
+                      warehouseId,
+                      requestId: operation.request(JSON.stringify(target)),
+                      ...target,
+                    };
+                  }
+                  const payload = command;
+                  // Only this immutable attempted command may bypass live-row
+                  // preflight to recover an accepted write after response loss.
+                  setRemapReview((current) =>
+                    current ? { ...current, command: payload } : null,
+                  );
                   void operation.run(
-                    async () =>
-                      written(
-                        await assign({
-                          warehouseId,
-                          requestId: operation.request(JSON.stringify(target)),
-                          ...target,
-                        }),
-                      ),
-                    () => {
+                    async () => assign(payload),
+                    (outcome) => {
+                      setRemapReview((current) =>
+                        current
+                          ? {
+                              location: current.location,
+                              records: current.records,
+                            }
+                          : null,
+                      );
+                      written(outcome);
                       operation.complete(() =>
                         remapCompletion.current?.complete(() =>
                           locationStep.complete(() => {
@@ -687,7 +716,9 @@ function Records({
                   );
                 }}
               >
-                {t("remapConfirm", { count: remapReview.records.length })}
+                {remapReview.command && !operation.busy
+                  ? t("retryLocationChange")
+                  : t("remapConfirm", { count: remapReview.records.length })}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -167,13 +167,15 @@ describe("scanned record deletion", () => {
     await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Change 1 ticket" }),
+        screen.getByRole("button", { name: "Retry location change" }),
       ).toBeEnabled(),
     );
     expect(
       screen.getByRole("checkbox", { name: "Select FO001", hidden: true }),
     ).toBeChecked();
-    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
+    await user.click(
+      screen.getByRole("button", { name: "Retry location change" }),
+    );
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledTimes(2));
     expect(mocks.assign.mock.calls[0]).toEqual(mocks.assign.mock.calls[1]);
     await waitFor(() =>
@@ -1145,4 +1147,45 @@ it("successful deletion consumes confirmation before the next native Back withou
     view.unmount();
     stop();
   }
+});
+
+it("retries the immutable reviewed location command after response loss and advanced record versions", async () => {
+  const user = userEvent.setup();
+  mocks.assign.mockRejectedValueOnce(
+    new Error("Response lost after location changes committed"),
+  );
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+  await user.click(
+    screen.getByRole("checkbox", { name: "Select all on this page" }),
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Set location for 2 records" }),
+  );
+  await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
+  await user.click(screen.getByRole("button", { name: "Change 2 tickets" }));
+  await waitFor(() => expect(mocks.assign).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Retry location change" }),
+    ).toBeEnabled(),
+  );
+  const original = mocks.assign.mock.calls[0]![0];
+  mocks.records = mocks.records.map((record) => ({
+    ...record,
+    version: record.version + 1,
+  }));
+  view.rerender(<JobScanRecordsScreen />);
+  await user.click(
+    screen.getByRole("button", { name: "Retry location change" }),
+  );
+  await waitFor(() => expect(mocks.assign).toHaveBeenCalledTimes(2));
+  expect(mocks.assign.mock.calls[1]![0]).toEqual(original);
+  expect(original.expectedVersions).toEqual([
+    { id: "scan-a", version: 1 },
+    { id: "scan-c", version: 1 },
+  ]);
 });
