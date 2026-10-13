@@ -324,18 +324,23 @@
       "parent": "/finished-goods/pallets/[palletId]",
       "targets": ["src/features/finishedGoods/MoveScreen#MoveScreen"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/finishedGoods/MoveScreen.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/finishedGoods/MoveScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/MoveScreen.test.tsx",
           "name": "%s Back returns from Change destination to the prepared move"
         },
         {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "explicit destination Cancel consumes its step and next Back restores the actual locale query and hash origin"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "Forward restores the move destination step and remount retains its connected ownership"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "direct destination links dismiss selection before using the safe pallet parent"
         }
       ]
     },
@@ -1808,7 +1813,7 @@
       "id": "src/features/finishedGoods/BarcodeImagePicker.tsx#BarcodeImagePicker:image",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Chosen image/preview data stays within the acquisition panel; its owning camera/modal governs Back.",
+      "expectation": "Chosen image is preview data within acquisition, including inline crop controls; fullPreview owns the independent shared photo Dialog and acquisition owns scanner Back.",
       "render": [
         {
           "shape": "and",
@@ -1823,6 +1828,11 @@
             "src/components/ui/dialog#DialogTitle",
             "src/features/finishedGoods/BarcodeCropControls#BarcodeCropControls"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         }
       ]
@@ -3010,7 +3020,7 @@
       "cases": [
         {
           "file": "src/features/finishedGoods/MoveScreen.test.tsx",
-          "name": "%s Back returns from Change destination to the prepared move"
+          "name": "explicit issue Close protects its unsent description and discarding consumes only that foreground"
         }
       ]
     },
@@ -3023,7 +3033,7 @@
       "cases": [
         {
           "file": "src/features/finishedGoods/MoveScreen.test.tsx",
-          "name": "%s Back returns from Change destination to the prepared move"
+          "name": "explicit issue Close protects its unsent description and discarding consumes only that foreground"
         }
       ]
     },
@@ -3096,6 +3106,18 @@
         {
           "file": "src/features/finishedGoods/MoveScreen.test.tsx",
           "name": "%s Back returns from Change destination to the prepared move"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "explicit destination Cancel consumes its step and next Back restores the actual locale query and hash origin"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "Forward restores the move destination step and remount retains its connected ownership"
+        },
+        {
+          "file": "src/features/finishedGoods/MoveScreen.test.tsx",
+          "name": "direct destination links dismiss selection before using the safe pallet parent"
         }
       ]
     },
@@ -3360,6 +3382,13 @@
           "truthy": ["p"],
           "falsy": []
         }
+      ],
+      "tests": ["src/features/finishedGoods/PalletScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "measurement native Back retains the dirty draft and discard restores the actual catalogue origin"
+        }
       ]
     },
     {
@@ -3367,18 +3396,15 @@
       "policy": "overlay",
       "integration": "dialog",
       "expectation": "Back restores the predecessor owned by PalletDetailScreen.cancel, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": [
-        "src/features/finishedGoods/PalletScreens.test.tsx",
-        "src/components/ui/ForegroundOrdering.test.tsx"
-      ],
+      "tests": ["src/features/finishedGoods/PalletScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
-          "name": "can keep a reservation or explicitly release it"
+          "name": "reservation explicit Close consumes its dialog before the next native Back"
         },
         {
-          "file": "src/components/ui/ForegroundOrdering.test.tsx",
-          "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "pending reservation release blocks native Back and success consumes its modal and task entry"
         }
       ]
     },
@@ -5839,18 +5865,15 @@
       "policy": "overlay",
       "integration": "dialog",
       "expectation": "Release cancellation uses the actual shared Dialog; native Back closes it before the task and a pending release blocks leaving.",
-      "tests": [
-        "src/features/finishedGoods/PalletScreens.test.tsx",
-        "src/components/ui/ForegroundOrdering.test.tsx"
-      ],
+      "tests": ["src/features/finishedGoods/PalletScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
-          "name": "can keep a reservation or explicitly release it"
+          "name": "reservation explicit Close consumes its dialog before the next native Back"
         },
         {
-          "file": "src/components/ui/ForegroundOrdering.test.tsx",
-          "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "pending reservation release blocks native Back and success consumes its modal and task entry"
         }
       ]
     }
@@ -6010,7 +6033,11 @@
       "cases": [
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
-          "name": "can keep a reservation or explicitly release it"
+          "name": "reservation explicit Close consumes its dialog before the next native Back"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "pending reservation release blocks native Back and success consumes its modal and task entry"
         }
       ]
     },
@@ -6023,6 +6050,10 @@
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
           "name": "converts units without changing physical measurements and saves millimetres"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "does not navigate or clear the draft when the measurement save resolves after unmount"
         }
       ]
     },
