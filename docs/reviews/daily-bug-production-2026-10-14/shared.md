@@ -5,3 +5,9 @@
 - ROOT-04 already fixed upstream by shared useSheetHandoff and current FloorMap; preserve source and all delayed native traversal/exit-focus tests.
 - Public compatibility: ported sound ID-to-string argument widening comparator and narrowing/return safety regression; updated registered recovery API example and tenant denial coverage: 203 tests pass. Snapshot refresh refuses breaking changes; 10 compatibility tests pass without override.
 - Existing production build and browser pipeline retained. Origin/main is 63 commits beyond initial source; only missing fixes are adapted on a clean current-main worktree. Original dirty workspace untouched. Repo STAGING_ENABLED=false is preserved; automatic production pipeline still requires quality/security checks, snapshot backup, candidate and live read-only smoke.
+
+## Final coordinator follow-ups
+
+The extended workflow callback regression passes 18/18 hook cases. ROOT-05 now preserves later query/hash edits while an invalidated foreground consumes its native entry. Its real Records caller and related navigation suites passed 64 tests; a held-native-Back regression separately verifies every typed character, locale, source query and hash. The prior retry test waits for its successful native history consumption before the next test starts.
+
+The staging storage flow now reads the newly created pallet and submits its loaded updatedAt as the measurement precondition. Its 20 registered integration cases pass. This is local fixture verification, not an authenticated staging deployment claim.

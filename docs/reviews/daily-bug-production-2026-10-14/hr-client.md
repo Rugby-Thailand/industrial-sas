@@ -1,0 +1,44 @@
+# HR client reconciliation onto production — 2026-10-14
+
+Production baseline: `59fb1d134dfc56bb0ce2c0fbc874c41c2741d92f`, shared isolated worktree `/tmp/industrial-daily-prod-20261013`. Compared the approved delta `218493e280bdf25d2aa4cf955048b2c336cfae62` → `110d56b77f3b76b5d79d9e63e4069740f813f1fe`, including its HR/root reports, against the newer production code. No original-workspace edits, commits, index changes, push, deployment, production account or cloud database operations were performed by this agent.
+
+## Already present and preserved
+
+- Clock writes already send `expectedBusinessDate` and retain a strict clock-only descriptor in `hr-clock-command:v1`. Kept the public command shape, actor/organization/employee isolation, initial access-loading preservation, logout cleanup, and current `HR_CLOCK_DAY_CHANGED` server error.
+- HR access already uses `accessDisplay` plus `useBusinessDate`, refreshing the client display at organization-local midnight and on resume. Provider/source untouched; no minute polling for clock-free access.
+- KIRO-11 already has a better production implementation: every bounded preview open row is reachable through `HrLocalPager`, including beyond 200, while rendering a small page. `PeriodDetailScreen` source untouched. The regression was adapted to traverse the newer pager to the previously hidden final exception.
+- Period preview deliberately uses `clockFree:true`, and newer frozen-history/capability reads remain unchanged. The newer paged employee/member/site/history lists and all richer HR leave, announcements, payslips and notifications UI were preserved.
+
+## Missing approved behaviors ported
+
+- **DAILY-01 durable generic command ownership:** versioned recovery record; one shared live owner per actor/intent; a remount subscribes to the original pending operation and cannot submit a second command. New submission and explicit Retry are separate. Valid serialized shortcut commands retain their payload and request ID; opaque form evidence remains only in tab memory.
+- **DAILY-01 clock ownership:** retained production's strict clock-only descriptor and added the same pending-remount ownership semantics. Fresh writes require readable, successfully saved durable storage before sending. Existing live uncertain commands retain exact retry identity when storage later becomes unavailable. Malformed descriptors stay blocked and are neither projected into fresh commands nor silently cleared.
+- **DAILY-01 old/orphan commands:** action-scoped legacy clock IDs and exact descriptors are still read by Today. Legacy/opaque commands with a known operation use the backend's status-only reconciliation, yielding `RECONCILED` after `COMMITTED`/`FENCED`; this does not become a new form success or navigation. Each current fixed-operation HR intent maps to its actual operation. The newer multi-action announcement callers persist their exact operation metadata, without their private form payload, for future cold recovery. Truly malformed or ambiguous legacy references remain blocked with HR guidance.
+- **DAILY-01 Today receipts:** validate action, expected business date and finite recorded event time before accepting clock success. A prior-day receipt is a separate neutral status Notice, keeps today's action unsatisfied, and requires another explicit click for today's new command. Pending operations settling after remount also expose their original receipt. Overnight clock-out still uses its original workday.
+- **DAILY-02:** shortcut Back to Today uses guarded owned `returnFromTask` with `router.replace`, preserving actual locale/query/hash and consuming the task entry. Direct entry retains the safe Today anchor; dirty and pending protection remains.
+- **DAILY-03:** clean shortcut editors adopt newer preferences and version; dirty, sorting, pending and uncertain drafts keep their original baseline. Cancel adopts the latest confirmed/query version. A shared SAVED receipt is consumed exactly once, so a response settling after remount supplies the next write's expected version without overwriting a later edit or a newer query.
+- **KIRO-10:** employee form identity is actor + employee ID rather than reactive version. Dirty and pending forms survive remote updates with their original expected version. A clean form adopts the newer record/version without remounting.
+- **Untouched timestamp sides:** minute-only time inputs mark edits explicitly. Correction submission omits an untouched side so registered backend handling retains the original seconds/milliseconds. Reviewer WORKED disposition intentionally still sends its entered complete values.
+- **Clock freshness:** opt-in `useHrQuery` invalidates only still-server-time self/detail reads and the review queue page. A shared visible-page timer refreshes them within a minute, with immediate focus/visibility refresh; server time remains authoritative. The earlier authorized subscription stays reactive while replacement loads, including permission revocation. Page criteria/cursor identity excludes the clock token, preserving normal paging/reset behavior.
+
+## Meaningful optimization
+
+- Reused the superior clock-free access and period-read design instead of reintroducing polling across all HR queries.
+- Clock-free paged consumers keep one actual query subscription, unchanged arguments, and no refresh timer. A second query subscription exists only while an enabled server-time replacement is loading.
+- Preserved full open-day paging instead of rendering up to 1,550 rows at once.
+- Shared command ownership avoids duplicate mutation transmissions when a live pending write remounts.
+
+## Verification
+
+- Final-source full HR + real `useBusinessDate` provider + query tests: **34 files / 315 tests passed** after the StrictMode fix and adapting old assertions to explicit Retry, fail-closed fresh storage and newer-query preference authority. Raw log `/tmp/prod-hr-client-tests-full-final-after-strict.log`. The prior 314-test full pass is also retained at `/tmp/prod-hr-client-tests-full-final.log`.
+- A final additional StrictMode test reproduced a fresh clock being suppressed by duplicate render/subscription lifetime (`send` called zero times). Reusing the fresh IDLE owner during double render and safely reattaching its subscription fixed it. **Final source focused clock/owner/recovery/Today/pending/query verification: 6 files / 43 tests passed**, `/tmp/prod-hr-clock-strict-final.log`. The failing reproduction is preserved at `/tmp/prod-hr-clock-strict-before.log`.
+- Added actual clean employee adoption/version test and exact opaque multi-action operation recovery test: **2 files / 13 tests passed**, `/tmp/prod-hr-client-final-additional-tests.log` (also included in the 314-test full run).
+- Real backend recovery caller tests cover prior-day cold/pending recovery, receipt completeness, committed/absent legacy preference reconciliation, fencing, and pending preference remount baseline/newer-query authority.
+- Clock refresh test uses an argument-keyed transport cache with no DB write or forced reload: Today crosses midnight while access stays on one clock-free query. Hook tests preserve dirty children, enforce reactive revocation, current args/skip, hidden-page behavior, timer release and clock-free opt-out.
+- Existing concrete Employees/leave navigation tests required per-test actor isolation: intentionally unresolved writes must not be shared with the next unrelated fixture. The navigation auditor preserved every assertion and title; **32/32 passed**. Repeated cursor-reset fixture now honors actual Convex `skip` behavior; its reset assertions remain unchanged.
+- Shortcut native-history navigation regressions: all four approved caller cases passed, including owned return → next Back, direct entry, dirty/pending protection and retained locale/query/hash.
+- `pnpm exec tsc --noEmit`: pass (`/tmp/prod-hr-client-typecheck-final.log`). Scoped normal ESLint: pass (`/tmp/prod-hr-client-eslint.log`). `git diff --check`: pass. Root owns the combined full lint, navigation inventory, codegen, public contracts, production build and immutable-candidate reviews.
+
+## Limits
+
+Browser callers use JSDOM with the real shared guards; data regressions use registered Convex functions in an isolated tenant fixture. No deployed websocket/overnight physical browser test is claimed. Server-time freshness is within one visible minute plus network latency. Unknown or unusable recovery references deliberately remain blocked rather than inventing a request or replaying a new form payload. Dynamic multi-action legacy ID-only records cannot safely infer which registered mutation was sent; new records now retain exact operation metadata.

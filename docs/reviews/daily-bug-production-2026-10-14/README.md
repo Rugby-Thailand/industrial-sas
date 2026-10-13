@@ -43,6 +43,6 @@ The five original policy questions are excluded: retroactive employment dates, o
 
 ## Release verification
 
-Implementation, independent review and final check results are recorded here before production merge. The repository's existing automatic release pipeline requires quality/security checks, a Convex backup, staged production candidate smoke, promotion of that same deployment and live smoke. Its existing `STAGING_ENABLED=false` setting is preserved, so this release does not claim an authenticated staging write suite.
+Implementation details are recorded in the accompanying reports. The pull request records independent reviewer decisions and the final commit-specific CI results. The repository's existing automatic release pipeline requires quality/security checks, a Convex backup, staged production candidate smoke, promotion of that same deployment and live smoke. Its existing `STAGING_ENABLED=false` setting is preserved, so this release does not claim an authenticated staging write suite.
 
 Original uncommitted workspace files are not staged or overwritten by this release.
