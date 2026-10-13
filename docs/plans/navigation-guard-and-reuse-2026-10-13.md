@@ -1,12 +1,12 @@
 # Navigation guard correction and shared code maintenance plan
 
-Status: implementation authorized on 13 October 2026, Asia/Bangkok, including PR creation and merge after validation. The earlier delivery was documentation only. Fix the confirmed continuation defect first, preserve the existing navigation behavior, then remove proven duplication in small, independently reviewable changes.
+Status: implemented and independently reviewed on 13 October 2026, Asia/Bangkok. PR creation and merge are user-authorized; delivery is tracked in [PR 88](https://github.com/Rugby-Thailand/industrial-sas/pull/88). See the [delivery report](../reviews/navigation-guard-reuse-2026-10-13.md) for passed gates, authenticated app QA, 320 selected timing samples and explicit conditional deferrals. The original plan and its historical baseline are preserved below.
 
 Plan review: Sol 6.1 behavior and standards reviewers accepted the plan; the behavior reviewer also accepted the clarified Floor save-compatibility requirement. Kiro Opus 5.5 requested six material clarifications, then accepted the revised plan after the save/intent rules, removal controls, concrete Next harness, smaller pagination scope and reuse of existing measurement scripts were incorporated. This is design acceptance, not evidence that the planned fixes have been implemented or passed their gates.
 
 ## Baseline and evidence
 
-- Reviewed branch: `codex/navigation-audit-plan-20261013`, HEAD `abc1e8e4af67b4e6416177ff73b95f4a8800e2e5`, [PR 87](https://github.com/Rugby-Thailand/industrial-sas/pull/87), currently open.
+- Reviewed branch: `codex/navigation-audit-plan-20261013`, HEAD `abc1e8e4af67b4e6416177ff73b95f4a8800e2e5`, [PR 87](https://github.com/Rugby-Thailand/industrial-sas/pull/87), open when planned; subsequently merged as `2d164bc3` before the follow-up rebase.
 - Freshly fetched main: `7491a2f44cd2774fca18f7ac93e5c2b5b7920a02`. The branch is zero commits behind and three ahead; no rebase is needed at plan creation. Fetch and compare again before implementation.
 - The [previous navigation plan](navigation-history-follow-up-2026-10-13.md) and [delivery evidence](../reviews/navigation-follow-up-2026-10-13.md) remain authoritative for the fixes already delivered and the unresolved browser paths.
 - Independent Kiro Opus 5.5 and Sol 6.1 audits found no confirmed new regression in the scoped PR. Kiro's latest focused run passed 65 tests. These results do not cover the newly identified continuation failure.

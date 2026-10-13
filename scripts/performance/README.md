@@ -9,11 +9,11 @@ match the local seed; `LOCAL_TEST_CLERK_USER_ID`/`LOCAL_TEST_CLERK_ORG_ID` overr
 them. Do not save tickets, JWTs, browser storage state, or business records in
 the evidence report.
 
-Use a completed production build and its matching environment. For example:
+Use a completed production build and its matching environment, with the repository-pinned Bun on `PATH`. For example:
 
 ```sh
-NEXT_DIST_DIR=.next-preview pnpm exec next build --webpack
-NEXT_DIST_DIR=.next-preview pnpm exec next start --hostname localhost --port 3235
+NEXT_DIST_DIR=.next-preview BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next build --webpack
+NEXT_DIST_DIR=.next-preview BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next start --hostname localhost --port 3235
 PERFORMANCE_BASE_URL=http://localhost:3235 PERFORMANCE_BUILD_DIR=.next-preview PERFORMANCE_REVISION=$(git rev-parse HEAD) node scripts/performance/measure.mjs after
 PERFORMANCE_BASE_URL=http://localhost:3235 node scripts/performance/verify-local.mjs
 ```
@@ -67,6 +67,8 @@ animation frame. It is a **URL proxy**, not a React route-shell commit.
 `dataReadyMs` uses the same origin and waits for the route's loaded outcome;
 retained content under `hidden`, `aria-hidden` or `aria-busy` cannot satisfy
 readiness. No history wrappers or synthetic events are installed.
+
+For mobile Scan → finished goods, the script opens the real navigation menu before timing the goods link. Menu opening is excluded; drawer closure/accessibility release can contribute to data readiness. This measures the app link, not browser Back.
 
 Navigation timers finish on readiness, timeout, a superseding URL/link,
 page errors or unmount, and remove their listeners/frame. Page closure or an
