@@ -13,6 +13,22 @@ import { TenantDbError } from "./tenantDb";
 
 const EXACT_TAKE = 2;
 
+/** Promise cache owned by one resolution/query snapshot, never a process cache. */
+export function memoizeLookup<Input, Output>(
+  read: (input: Input) => Promise<Output>,
+) {
+  const pending = new Map<string, Promise<Output>>();
+  return (input: Input): Promise<Output> => {
+    const key = JSON.stringify(input);
+    let result = pending.get(key);
+    if (!result) {
+      result = read(input);
+      pending.set(key, result);
+    }
+    return result;
+  };
+}
+
 export interface TenantContextLookupContext {
   readonly db: GenericDatabaseReader<DataModel>;
 }
@@ -20,6 +36,7 @@ export interface TenantContextLookupContext {
 export function createConvexTenantContextLookups(
   ctx: TenantContextLookupContext,
   requestId: string,
+  reuse = false,
 ): TenantContextLookups {
   const { db } = ctx;
 
@@ -149,8 +166,12 @@ export function createConvexTenantContextLookups(
   return Object.freeze({
     findUserByClerkUserId,
     findOrganizationByClerkOrganizationId,
-    findMembershipByOrganizationAndUser,
+    findMembershipByOrganizationAndUser: reuse
+      ? memoizeLookup(findMembershipByOrganizationAndUser)
+      : findMembershipByOrganizationAndUser,
     findWarehouseByOrganizationAndId,
-    findMembershipWarehouse,
+    findMembershipWarehouse: reuse
+      ? memoizeLookup(findMembershipWarehouse)
+      : findMembershipWarehouse,
   });
 }

@@ -1,3 +1,4 @@
+import { createPermissionGrants } from "./navigationGrants";
 import { createAiUsagePort, type AiUsagePort } from "./aiUsage";
 import { trackFinishedGoodsWrites } from "./finishedGoodsSummary";
 import {
@@ -94,6 +95,10 @@ export interface TenantFunctionContext {
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
   readonly tenantDb: TenantDocumentAccess;
+  /** Query-only facts share the authorization snapshot, never mutation writes. */
+  readonly permissionGrants?: (
+    codes: readonly string[],
+  ) => Promise<readonly string[]>;
   /** Members of the active organization only; see `memberDirectory.ts`. */
   readonly members: MemberDirectoryPort;
 
@@ -314,6 +319,7 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   readonly spec: AuthorizationSpec<Args>;
   readonly args: Args;
   readonly audit: boolean;
+  readonly lookups?: ReturnType<typeof createConvexAuthorizationLookups>;
 }): Promise<boolean> {
   const { rawContext, requestId, tenant, tenantDb, spec, args, audit } = input;
   // A document's server creation time is a trusted lower bound on now. For
@@ -334,7 +340,8 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   const actorUserId = tenant.actor._id;
 
   const targetWarehouseId = tenant.warehouse?._id;
-  const lookups = createConvexAuthorizationLookups(rawContext, requestId);
+  const lookups =
+    input.lookups ?? createConvexAuthorizationLookups(rawContext, requestId);
   const permission = spec.permission;
 
   // Both of these exist only to fill in the audit row, so they are not read on a
@@ -456,10 +463,15 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   try {
     const identity = await rawContext.auth.getUserIdentity();
     const selectedWarehouse = warehouseId?.(args[0]);
+    const contextLookups = createConvexTenantContextLookups(
+      rawContext,
+      requestId,
+      !audit,
+    );
     const resolved = await resolveTenantContext({
       requestId,
       identity,
-      lookups: createConvexTenantContextLookups(rawContext, requestId),
+      lookups: contextLookups,
       ...(selectedWarehouse === undefined
         ? {}
         : { warehouseId: selectedWarehouse }),
@@ -479,6 +491,12 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       : undefined;
     const tenantDb = summaryWrites?.db ?? sourceDb;
 
+    const authorizationLookups = createConvexAuthorizationLookups(
+      rawContext,
+      requestId,
+      contextLookups,
+      !audit,
+    );
     const allowed = await authorizeTenantRequest({
       rawContext,
       requestId,
@@ -487,6 +505,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       spec,
       args,
       audit,
+      lookups: authorizationLookups,
     });
     if (!allowed) {
       return Object.freeze({
@@ -501,6 +520,14 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       identity: identity!,
       tenant: resolved.context,
       tenantDb,
+      ...(!audit
+        ? {
+            permissionGrants: createPermissionGrants(
+              resolved.context,
+              authorizationLookups,
+            ),
+          }
+        : {}),
       members: createMemberDirectory(
         rawContext.db,
         resolved.context.organization._id,
