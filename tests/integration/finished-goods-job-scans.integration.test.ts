@@ -125,6 +125,310 @@ const ticket = {
   quantity: 1000,
   source: "AI" as const,
 };
+
+describe("saved job ticket corrections", () => {
+  async function correctionSetup(
+    role: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN",
+  ) {
+    const world = await setup(role);
+    const jobScanId = await world.t.run((ctx) =>
+      ctx.db.insert("finishedGoodsJobScans", {
+        ...ticket,
+        customer: "Original customer",
+        imageUrl: "https://example.test/original.jpg",
+        aiRaw: '{"quantity":1000}',
+        orgId: world.orgA,
+        warehouseId: world.warehouseId,
+        locationText: "Original dock label",
+        locationId: world.locationId,
+        zoneId: world.zoneId,
+        mapped: true,
+        createdAt: 1,
+        createdByUserId: world.userA,
+        updatedAt: 1,
+        updatedByUserId: world.userA,
+      }),
+    );
+    const args = {
+      warehouseId: world.warehouseId,
+      jobScanId,
+      requestId: "correct-ticket",
+      expectedVersion: 1,
+      fields: {
+        factoryOrder: "FO-corrected",
+        productBarcodeText: ticket.productBarcodeText,
+        partName: ticket.partName,
+        quantity: 24,
+        deliveryDate: "13/10/2569",
+      },
+    };
+    return { world, jobScanId, args };
+  }
+
+  it("corrects only ticket metadata, preserves provenance and stock, and audits cleared fields", async () => {
+    const { world, jobScanId, args } = await correctionSetup();
+    const before = await world.t.run((ctx) => ctx.db.get(jobScanId));
+    const stock = () =>
+      world.t.run(async (ctx) => ({
+        products: await ctx.db.query("finishedGoodsProducts").collect(),
+        units: await ctx.db.query("finishedGoodsPallets").collect(),
+        placements: await ctx.db.query("finishedGoodsPlacements").collect(),
+        assignments: await ctx.db
+          .query("finishedGoodsScanAssignments")
+          .collect(),
+        moves: await ctx.db.query("finishedGoodsMoves").collect(),
+      }));
+    const stockBefore = await stock();
+    expect(id(await call(world, jobScans.updateJobScan, args))).toBe(jobScanId);
+    const after = await world.t.run((ctx) => ctx.db.get(jobScanId));
+    expect(after).toMatchObject({
+      ...args.fields,
+      version: 2,
+      source: before!.source,
+      imageUrl: before!.imageUrl,
+      aiRaw: before!.aiRaw,
+      locationId: before!.locationId,
+      zoneId: before!.zoneId,
+      locationText: before!.locationText,
+      mapped: true,
+      createdAt: before!.createdAt,
+      createdByUserId: before!.createdByUserId,
+      correctedByUserId: world.userA,
+    });
+    expect(after).not.toHaveProperty("customer");
+    expect(after!.updatedAt).toBeGreaterThan(before!.updatedAt);
+    expect(await stock()).toEqual(stockBefore);
+    const events = await world.t.run((ctx) =>
+      ctx.db.query("auditEvents").collect(),
+    );
+    const allowed = events.filter(
+      (event) =>
+        event.action === "finishedGoods.jobScan.correct" &&
+        event.outcome === "ALLOWED",
+    );
+    expect(allowed).toHaveLength(1);
+    expect(allowed[0]).toMatchObject({
+      actorUserId: world.userA,
+      entityId: jobScanId,
+      warehouseId: world.warehouseId,
+      changes: expect.arrayContaining([
+        { field: "quantity", from: "1000", to: "24" },
+        { field: "customer", from: "Original customer" },
+      ]),
+    });
+    const page = value(
+      await call(world, jobScans.listJobScans, {
+        warehouseId: world.warehouseId,
+        filter: "ALL",
+      }),
+    );
+    expect(page["items"]).toEqual([
+      expect.objectContaining({ id: jobScanId, version: 2 }),
+    ]);
+  });
+
+  it("replays a lost response once and refuses a stale competing edit without overwriting the winner", async () => {
+    const { world, jobScanId, args } = await correctionSetup();
+    await call(world, jobScans.updateJobScan, args);
+    expect(
+      value(await call(world, jobScans.updateJobScan, args)),
+    ).toMatchObject({
+      written: true,
+      replayed: true,
+    });
+    error(
+      await call(world, jobScans.updateJobScan, {
+        ...args,
+        requestId: "competing-edit",
+        fields: { ...args.fields, quantity: 999 },
+      }),
+      "STALE_REVISION",
+    );
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      quantity: 24,
+      version: 2,
+    });
+    const history = value(
+      await call(world, jobScans.listJobScanCorrections, {
+        warehouseId: world.warehouseId,
+        jobScanId,
+      }),
+    );
+    expect(history["complete"]).toBe(true);
+    expect(history["items"]).toHaveLength(1);
+  });
+
+  it("invalidates an open correction when another operator remaps the ticket", async () => {
+    const { world, jobScanId, args } = await correctionSetup();
+    id(
+      await call(world, jobScans.assignJobScanLocation, {
+        warehouseId: world.warehouseId,
+        requestId: "remap-before-correction",
+        ids: [jobScanId],
+        location: { locationId: world.locationId },
+      }),
+    );
+    error(await call(world, jobScans.updateJobScan, args), "STALE_REVISION");
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      quantity: 1000,
+      version: 2,
+    });
+  });
+
+  it("checks the entire reviewed remap selection before changing any ticket", async () => {
+    const { world, jobScanId } = await correctionSetup();
+    const secondId = await world.t.run((ctx) =>
+      ctx.db.insert("finishedGoodsJobScans", {
+        ...ticket,
+        orgId: world.orgA,
+        warehouseId: world.warehouseId,
+        locationText: "Second dock",
+        mapped: false,
+        version: 2,
+        createdAt: 1,
+        createdByUserId: world.userA,
+        updatedAt: 1,
+        updatedByUserId: world.userA,
+      }),
+    );
+    const snapshots = await world.t.run((ctx) =>
+      Promise.all([ctx.db.get(jobScanId), ctx.db.get(secondId)]),
+    );
+    const assignments = {
+      warehouseId: world.warehouseId,
+      ids: [jobScanId, secondId],
+      location: { locationId: world.locationId },
+    };
+    const selections = [
+      [{ id: jobScanId, version: 1 }],
+      [
+        { id: jobScanId, version: 1 },
+        { id: jobScanId, version: 1 },
+      ],
+      [
+        { id: jobScanId, version: 1 },
+        { id: secondId, version: 1 },
+      ],
+    ];
+    for (const [index, expectedVersions] of selections.entries()) {
+      error(
+        await call(world, jobScans.assignJobScanLocation, {
+          ...assignments,
+          requestId: `stale-remap-${index}`,
+          expectedVersions,
+        }),
+        "STALE_REVISION",
+      );
+      expect(
+        await world.t.run((ctx) =>
+          Promise.all([ctx.db.get(jobScanId), ctx.db.get(secondId)]),
+        ),
+      ).toEqual(snapshots);
+    }
+    id(
+      await call(world, jobScans.assignJobScanLocation, {
+        ...assignments,
+        requestId: "reviewed-remap",
+        expectedVersions: [
+          { id: jobScanId, version: 1 },
+          { id: secondId, version: 2 },
+        ],
+      }),
+    );
+    expect(
+      await world.t.run((ctx) =>
+        Promise.all([ctx.db.get(jobScanId), ctx.db.get(secondId)]),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        version: 2,
+        locationCode: "BLDG-A-F01-Z01",
+        mapped: true,
+      }),
+      expect.objectContaining({
+        version: 3,
+        locationCode: "BLDG-A-F01-Z01",
+        mapped: true,
+      }),
+    ]);
+  });
+
+  it.each([
+    [{ quantity: -1 }, "FIELD_INVALID"],
+    [{ factoryQuantity: Number.NaN }, "REQUEST_IDENTITY_INVALID"],
+    [{ customerQuantity: 1_000_000_001 }, "FIELD_INVALID"],
+    [{ customer: "x".repeat(501) }, "FIELD_TOO_LONG"],
+    [{ factoryOrder: "  " }, "FACTORY_ORDER_REQUIRED"],
+  ])(
+    "refuses invalid corrected metadata %j without changing the saved ticket",
+    async (fields, code) => {
+      const { world, jobScanId, args } = await correctionSetup();
+      const before = await world.t.run((ctx) => ctx.db.get(jobScanId));
+      error(
+        await call(world, jobScans.updateJobScan, {
+          ...args,
+          fields: { ...args.fields, ...fields },
+        }),
+        code,
+      );
+      expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toEqual(before);
+    },
+  );
+
+  it("denies correction without manage permission, authentication, or matching warehouse", async () => {
+    const { world, args, jobScanId } = await correctionSetup("SUPERVISOR");
+    expect(await call(world, jobScans.updateJobScan, args)).toMatchObject({
+      ok: false,
+    });
+    await expect(
+      call(world, jobScans.updateJobScan, args, false),
+    ).rejects.toMatchObject({ data: { code: "ANONYMOUS" } });
+    expect(await world.t.run((ctx) => ctx.db.get(jobScanId))).toMatchObject({
+      quantity: 1000,
+    });
+    const admin = await correctionSetup();
+    for (const warehouseId of [
+      admin.world.warehouses.bravoA,
+      admin.world.warehouses.alphaB,
+    ]) {
+      const foreignId = await admin.world.t.run((ctx) =>
+        ctx.db.insert("finishedGoodsJobScans", {
+          ...ticket,
+          orgId:
+            warehouseId === admin.world.warehouses.alphaB
+              ? admin.world.orgB
+              : admin.world.orgA,
+          warehouseId,
+          mapped: false,
+          locationText: "Foreign dock",
+          createdAt: 1,
+          createdByUserId: admin.world.userA,
+          updatedAt: 1,
+          updatedByUserId: admin.world.userA,
+        }),
+      );
+      error(
+        await call(admin.world, jobScans.updateJobScan, {
+          ...admin.args,
+          jobScanId: foreignId,
+          requestId: `foreign-${warehouseId}`,
+        }),
+        "NOT_FOUND",
+      );
+      expect(
+        value(
+          await call(admin.world, jobScans.listJobScanCorrections, {
+            warehouseId: admin.world.warehouseId,
+            jobScanId: foreignId,
+          }),
+        ),
+      ).toBeNull();
+      expect(
+        await admin.world.t.run((ctx) => ctx.db.get(foreignId)),
+      ).toMatchObject({ quantity: 1000 });
+    }
+  });
+});
 const listPage = async (
   world: Awaited<ReturnType<typeof setup>>,
   args: Record<string, unknown>,

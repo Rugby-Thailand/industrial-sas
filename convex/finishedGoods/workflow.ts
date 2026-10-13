@@ -17,6 +17,7 @@ import {
   writeIdempotencyRecord,
 } from "../lib/idempotency";
 import type { TenantTableName } from "../lib/schemaPolicy";
+import type { AuditChange } from "../lib/masterDataStore";
 import type { TenantIndexEquality, TenantOwnedDocument } from "../lib/tenantDb";
 import {
   dimensions,
@@ -129,7 +130,10 @@ export async function command(
   args: { warehouseId: Id<"warehouses">; requestId: string },
   operation: string,
   table: TenantTableName,
-  run: () => Promise<ReturnType<typeof refusal> | { documentId: string }>,
+  run: () => Promise<
+    | ReturnType<typeof refusal>
+    | { documentId: string; changes?: readonly AuditChange[] }
+  >,
 ) {
   if (!args.requestId.trim() || args.requestId.length > 200)
     return failure("REQUEST_IDENTITY_INVALID", "requestId");
@@ -186,6 +190,9 @@ export async function command(
     warehouseId: args.warehouseId,
     outcome: "ALLOWED",
     requestId: args.requestId,
+    ...(result.changes
+      ? { changes: result.changes.map((change) => ({ ...change })) }
+      : {}),
   });
   await writeIdempotencyRecord({
     tenantDb: ctx.tenantDb,
