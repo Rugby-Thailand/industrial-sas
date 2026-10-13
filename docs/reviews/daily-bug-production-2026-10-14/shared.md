@@ -11,3 +11,11 @@
 The extended workflow callback regression passes 18/18 hook cases. ROOT-05 now preserves later query/hash edits while an invalidated foreground consumes its native entry. Its real Records caller and related navigation suites passed 64 tests; a held-native-Back regression separately verifies every typed character, locale, source query and hash. The prior retry test waits for its successful native history consumption before the next test starts.
 
 The staging storage flow now reads the newly created pallet and submits its loaded updatedAt as the measurement precondition. Its 20 registered integration cases pass. This is local fixture verification, not an authenticated staging deployment claim.
+
+## Browser fixture hydration follow-up
+
+The first CI attempt on `972d93c2` passed all quality checks except one WebKit Close → refresh → native Back case. The unchanged source passed 20 repeated local WebKit cases and the bounded CI re-run. A controlled fresh-document React scheduler hold reproduced the exact failure and identified the cause: Close consumed the editor's history index 2 → 1 correctly; Back before hydration reached the previous page at index 0; Next's initial canonical-URL replacement then rewrote that entry to the storage URL. The server-rendered heading was visible before the router's history listeners were ready.
+
+The isolated navigation fixture now publishes an explicit readiness marker from a commit scheduled after its initial passive effects. The storage browser test waits for that marker after reload before native Back. Every existing Close/Cancel, query/hash, selected location, no-replayed dialog and exact previous-page assertion remains intact. No production navigation code, arbitrary delay, retry policy or timeout changed. The controlled scheduler probe is retained outside the repository as diagnosis evidence; it is not part of the production app or ordinary test suite.
+
+This correction verifies hydrated application history. Native Back before the framework finishes hydration remains a documented framework limitation, not a claimed production fix.

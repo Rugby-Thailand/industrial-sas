@@ -24,6 +24,13 @@ The locale provider surrounds progress → guard → content, matching the relev
 shell listener mount order. Normal locale request configuration and messages are
 shared. The tests assert both native URL and Next's query reader.
 
+After a document reload, native traversal waits for the shell's explicit
+`navigation-ready` marker, published in a commit after the initial passive
+effects attach history listeners. A visible server-rendered heading does not
+prove hydration has finished. Traversing before hydration can let Next's
+initial canonical-URL replacement overwrite the newly visited entry; these
+regressions cover the hydrated application's history behavior.
+
 Fixtures are under `scripts/`, outside `src/app`; they cannot become normal app
 routes. `/fixture-save` is a synthetic response with no data access. Tests hold
 that request to observe pending saves, then release it. The queued-removal case
