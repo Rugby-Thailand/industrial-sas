@@ -49,6 +49,20 @@ export function subscribeHistoryWrites(listener: () => void): () => void {
   };
 }
 
+/**
+ * Observe every change of the current entry: tracked writes and browser
+ * traversals (`popstate`). For `useSyncExternalStore` readers of location or
+ * depth; each reader keeps its own snapshot.
+ */
+export function subscribeHistoryChanges(listener: () => void): () => void {
+  const release = subscribeHistoryWrites(listener);
+  window.addEventListener("popstate", listener);
+  return () => {
+    release();
+    window.removeEventListener("popstate", listener);
+  };
+}
+
 function notifyWrite() {
   for (const listener of [...writeListeners]) listener();
 }
@@ -64,6 +78,10 @@ function install(history: History): Tracker {
     const buffer =
       state[GUARD_HISTORY_KEY] !== undefined &&
       state[GUARD_HISTORY_KEY] !== history.state?.[GUARD_HISTORY_KEY];
+    // Any other push is a new app entry. A writer that copied the current
+    // state (e.g. a pushed query) must not carry the guard marker into it, or
+    // a later owner would adopt that copy as its buffer at the wrong depth.
+    if (!buffer) delete state[GUARD_HISTORY_KEY];
     const next = (appHistoryIndex() ?? index) + (buffer ? 0 : 1);
     state[APP_HISTORY_KEY] = next;
     nativePush.call(history, state, unused, url);

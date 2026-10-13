@@ -7,18 +7,10 @@ import { useRouter } from "@/i18n/navigation";
 import { IconButton } from "./IconButton";
 import {
   appHistoryIndex,
-  subscribeHistoryWrites,
+  subscribeHistoryChanges,
 } from "@/lib/browser/appHistory";
 import { guardedNavigate } from "@/lib/navigationGuard";
 
-function subscribeDepth(listener: () => void) {
-  const release = subscribeHistoryWrites(listener);
-  window.addEventListener("popstate", listener);
-  return () => {
-    release();
-    window.removeEventListener("popstate", listener);
-  };
-}
 const currentDepth = () => appHistoryIndex() ?? 0;
 const serverDepth = () => 0;
 
@@ -38,7 +30,8 @@ export function PageBackButton({
   const t = useTranslations("App");
   const router = useRouter();
   const hasHistory =
-    useSyncExternalStore(subscribeDepth, currentDepth, serverDepth) > 0;
+    useSyncExternalStore(subscribeHistoryChanges, currentDepth, serverDepth) >
+    0;
   if (!hasHistory && !pending && fallbackHref === null) return null;
   return (
     <IconButton
