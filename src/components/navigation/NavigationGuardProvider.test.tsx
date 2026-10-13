@@ -5,7 +5,16 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { StrictMode, useState, type ReactNode } from "react";
+import {
+  Activity,
+  StrictMode,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const routing = vi.hoisted(() => ({ router: { push: vi.fn() }, locale: "en" }));
@@ -598,11 +607,15 @@ describe("settled completion", () => {
       window.history.pushState({ __NA: true }, "", "/en/finished-goods"),
     );
     expect(isGuardTraversal()).toBe(false);
-    expect(transition).toHaveBeenCalledOnce();
+    // That navigation supersedes the approved one; it never runs later.
+    expect(transition).not.toHaveBeenCalled();
+    // The still-registered draft is not re-armed onto the route it left.
+    expect(window.history.state.__storageWorkspaceGuard).toBeUndefined();
     const next = vi.fn();
     window.addEventListener("popstate", next);
     pop({ __NA: true }, PAGE);
     expect(next).toHaveBeenCalledOnce();
+    expect(transition).not.toHaveBeenCalled();
     window.removeEventListener("popstate", next);
     stopTracking();
   });
@@ -811,6 +824,70 @@ describe("same-page push while work is guarded", () => {
   });
 });
 
+describe("owner connection lifetime", () => {
+  it("runs a clean request from a child effect that precedes the first connect", () => {
+    function Redirect() {
+      const guard = useNavigationDraft({
+        dirty: false,
+        pending: false,
+        discard,
+      });
+      useLayoutEffect(() => guard.requestTransition(transition), [guard]);
+      return null;
+    }
+    render(owned(<Redirect />));
+    expect(transition).toHaveBeenCalledOnce();
+    expect(window.history.back).not.toHaveBeenCalled();
+  });
+
+  it("guards the next real Back after an Activity hide interrupts a Back restoration", async () => {
+    vi.mocked(window.history.back).mockRestore();
+    vi.mocked(window.history.forward).mockRestore();
+    window.history.replaceState({ __NA: true }, "", "/en/finished-goods");
+    const stopTracking = trackAppHistory();
+    window.history.pushState({ __NA: true }, "", PAGE);
+    // Hold the owner's restoring traversal until the owner is hidden.
+    const queued: Array<() => void> = [];
+    const forward = window.history.forward.bind(window.history);
+    const held = vi
+      .spyOn(window.history, "forward")
+      .mockImplementation(() => queued.push(forward));
+    const tree = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>{owned(<Editor />)}</Activity>
+    );
+    const popped = vi.fn();
+    window.addEventListener("popstate", popped, true);
+    async function traversal(start: () => void) {
+      const before = popped.mock.calls.length;
+      act(start);
+      await waitFor(() =>
+        expect(popped.mock.calls.length).toBeGreaterThan(before),
+      );
+    }
+
+    const view = render(tree("visible"));
+    await traversal(() => window.history.back());
+    expect(queued).toHaveLength(1);
+    view.rerender(tree("hidden"));
+    // The restoration is delivered while no owner listens.
+    await traversal(() => queued.shift()?.());
+    held.mockRestore();
+    view.rerender(tree("visible"));
+
+    // The reconnected owner reads this Back as the user's, not its own.
+    await traversal(() => window.history.back());
+    await screen.findByRole("dialog");
+    await waitFor(() => expect(isGuardTraversal()).toBe(false));
+    expect(window.location.pathname).toBe(PAGE);
+    expect(transition).not.toHaveBeenCalled();
+    expect(discard).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(transition).not.toHaveBeenCalled();
+    window.removeEventListener("popstate", popped, true);
+    stopTracking();
+  });
+});
+
 describe("superseded restoration", () => {
   it("does not let a write that overtakes a Back restoration swallow the next real Back", () => {
     const stopTracking = trackAppHistory();
@@ -976,5 +1053,353 @@ describe("bridge consumers", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     finishRemoval();
     expect(transition).toHaveBeenCalledOnce();
+  });
+});
+
+describe("save and continue lifecycle", () => {
+  function deferred() {
+    let resolve!: (saved: boolean) => void;
+    const promise = new Promise<boolean>((finish) => {
+      resolve = finish;
+    });
+    return { promise, resolve };
+  }
+
+  type FloorHandle = { save: () => Promise<boolean> };
+
+  /**
+   * Floor's actual callback pattern: the nested form owns the draft and its
+   * write, reports both to the workspace through layout effects, returns
+   * true on success and becomes clean only through later React updates. It
+   * never settles the guard explicitly.
+   */
+  function FloorForm({
+    editorRef,
+    onDirtyChange,
+    onPendingChange,
+  }: {
+    editorRef: Ref<FloorHandle>;
+    onDirtyChange: (dirty: boolean) => void;
+    onPendingChange: (pending: boolean) => void;
+  }) {
+    const [width, setWidth] = useState("22");
+    const [baseline, setBaseline] = useState("20");
+    const [pending, setPending] = useState(false);
+    const dirty = width !== baseline;
+    useLayoutEffect(() => onDirtyChange(dirty), [onDirtyChange, dirty]);
+    useLayoutEffect(() => onPendingChange(pending), [onPendingChange, pending]);
+    async function saveDraft() {
+      if (pending) return false;
+      if (!dirty) return true;
+      setPending(true);
+      try {
+        if (!(await save())) return false;
+        setBaseline(width);
+        onDirtyChange(false);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        setPending(false);
+      }
+    }
+    useImperativeHandle(editorRef, () => ({ save: saveDraft }));
+    return (
+      <input
+        aria-label="Width (m)"
+        disabled={pending}
+        value={width}
+        onChange={(event) => setWidth(event.target.value)}
+      />
+    );
+  }
+
+  function FloorWorkspace() {
+    const [dirty, setDirty] = useState(false);
+    const [pending, setPending] = useState(false);
+    const editorRef = useRef<FloorHandle>(null);
+    const guard = useNavigationDraft({
+      dirty,
+      pending,
+      save: async () => (await editorRef.current?.save()) ?? false,
+      discard: () => {
+        discard();
+        setDirty(false);
+      },
+    });
+    return (
+      <>
+        <button onClick={() => guard.requestTransition(transition)}>
+          Switch floor
+        </button>
+        <FloorForm
+          editorRef={editorRef}
+          onDirtyChange={setDirty}
+          onPendingChange={setPending}
+        />
+      </>
+    );
+  }
+
+  it("continues a sole Floor save exactly once although its clean report commits later", async () => {
+    const completion = deferred();
+    save.mockReturnValue(completion.promise);
+    render(<StrictMode>{owned(<FloorWorkspace />)}</StrictMode>);
+    const width = screen.getByRole("textbox", { name: "Width (m)" });
+    const pendingWhenRemoving: boolean[] = [];
+    vi.mocked(window.history.back).mockImplementation(() => {
+      pendingWhenRemoving.push((width as HTMLInputElement).disabled);
+    });
+    fireEvent.click(screen.getByText("Switch floor"));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    expect(width).toBeDisabled();
+    // Outside act, React commits Floor's cleanup in a later task, as in a
+    // browser; the owner's continuation runs first.
+    completion.resolve(true);
+    await waitFor(() => expect(width).toBeEnabled());
+    // The owner approved before that cleanup committed, without a prompt.
+    expect(pendingWhenRemoving).toEqual([true]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(transition).not.toHaveBeenCalled();
+    finishRemoval();
+    expect(transition).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(discard).not.toHaveBeenCalled();
+    expect(width).toHaveValue("22");
+    // The saved Floor is guarded again by its next edit.
+    fireEvent.change(width, { target: { value: "23" } });
+    fireEvent.click(screen.getByText("Switch floor"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(transition).toHaveBeenCalledOnce();
+  });
+
+  it("protects work that arrives in the saved draft before its removal finishes", async () => {
+    const view = render(owned(<Editor />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await act(async () => {});
+    expect(window.history.back).toHaveBeenCalledOnce();
+    // The saved draft reports clean, then is edited again, while the
+    // approved removal is still in flight.
+    view.rerender(owned(<Editor dirty={false} />));
+    view.rerender(owned(<Editor />));
+    finishRemoval();
+    expect(transition).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(window.history.state.__storageWorkspaceGuard).toBeDefined();
+    expect(discard).not.toHaveBeenCalled();
+    // A fresh explicit decision continues once.
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    finishRemoval();
+    expect(transition).toHaveBeenCalledOnce();
+    expect(discard).toHaveBeenCalledOnce();
+  });
+
+  it("starts one save and one discard for rapid repeated input", async () => {
+    const completion = deferred();
+    save.mockReturnValue(completion.promise);
+    const view = render(owned(<Editor />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    const saveButton = screen.getByRole("button", {
+      name: "Save and continue",
+    });
+    act(() => {
+      saveButton.click();
+      saveButton.click();
+    });
+    expect(save).toHaveBeenCalledOnce();
+    await act(async () => completion.resolve(true));
+    finishRemoval();
+    expect(transition).toHaveBeenCalledOnce();
+
+    // The saved draft reports clean, then holds a new edit.
+    view.rerender(owned(<Editor dirty={false} />));
+    view.rerender(owned(<Editor />));
+    transition.mockReset();
+    vi.mocked(window.history.back).mockClear();
+    fireEvent.click(screen.getByText("Switch floor"));
+    const discardButton = screen.getByRole("button", {
+      name: "Discard changes",
+    });
+    act(() => {
+      discardButton.click();
+      discardButton.click();
+    });
+    expect(discard).toHaveBeenCalledOnce();
+    expect(window.history.back).toHaveBeenCalledOnce();
+    finishRemoval();
+    expect(transition).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a newer request superseding an in-flight save until a fresh decision", async () => {
+    const completion = deferred();
+    save.mockReturnValue(completion.promise);
+    const newer = vi.fn();
+    render(owned(<Editor />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    act(() => guardedNavigate(newer));
+    await act(async () => completion.resolve(true));
+    // The saving indicator finishes; neither request continues by itself.
+    expect(
+      screen.queryByRole("button", { name: "Saving…" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    finishRemoval();
+    expect(transition).not.toHaveBeenCalled();
+    expect(newer).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    finishRemoval();
+    expect(newer).toHaveBeenCalledOnce();
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it("does not show a superseded save's failure on the newer prompt", async () => {
+    const completion = deferred();
+    save.mockReturnValue(completion.promise);
+    render(owned(<Editor />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    act(() => guardedNavigate(vi.fn()));
+    await act(async () => completion.resolve(false));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save and continue" }),
+    ).toBeEnabled();
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stale completion after the owner remounts", async () => {
+    const completion = deferred();
+    save.mockReturnValue(completion.promise);
+    const first = render(owned(<Editor />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    first.unmount();
+    render(owned(<Editor />));
+    await act(async () => completion.resolve(true));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(window.history.back).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    // The new owner still guards its own draft.
+    fireEvent.click(screen.getByText("Switch floor"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(transition).not.toHaveBeenCalled();
+  });
+});
+
+describe("buffer removal overtaken by a same-page query push", () => {
+  const PREVIOUS = "/en/finished-goods";
+  const QUERY = `${PAGE}?panel=list`;
+  let stopTracking: () => void;
+  let a!: NavigationDraftControl;
+  const depart = vi.fn();
+
+  // PREVIOUS@0, then the page's base@1. Traversals stay recorded (mocked);
+  // each test delivers the entry a browser chose.
+  beforeEach(() => {
+    depart.mockReset();
+    window.history.replaceState({ __NA: true }, "", PREVIOUS);
+    stopTracking = trackAppHistory();
+    window.history.pushState({ __NA: true }, "", PAGE);
+    vi.spyOn(window.history, "go").mockImplementation(() => {});
+  });
+  afterEach(() => stopTracking());
+
+  const editors = (aDirty: boolean, bPending: boolean) =>
+    owned(
+      <>
+        <Editor
+          name="A"
+          dirty={aDirty}
+          onControl={(control) => (a = control)}
+        />
+        <Editor name="B" dirty={false} pending={bPending} saveable={false} />
+      </>,
+    );
+
+  /** A native landing: no app write, only the entry and its popstate. */
+  function land(state: Record<string, unknown>, url: string) {
+    act(() => {
+      History.prototype.replaceState.call(window.history, state, "", url);
+      window.dispatchEvent(new PopStateEvent("popstate", { state }));
+    });
+  }
+  const withoutMarker = (state: Record<string, unknown>) => {
+    const copy = { ...state };
+    delete copy.__storageWorkspaceGuard;
+    return copy;
+  };
+
+  /**
+   * A settles and queues its buffer removal; in the same task B becomes
+   * pending and a pushed query arms a fresh buffer above the old one.
+   */
+  function overtake(view: ReturnType<typeof render>) {
+    const old = { ...window.history.state };
+    expect(old.__storageWorkspaceGuard).toEqual(expect.any(String));
+    act(() => a.settle(depart));
+    expect(window.history.back).toHaveBeenCalledOnce();
+    view.rerender(editors(false, true));
+    act(() =>
+      updateBrowserQuery((query) => query.set("panel", "list"), {
+        mode: "push",
+      }),
+    );
+    const fresh = { ...window.history.state };
+    expect(fresh.__storageWorkspaceGuard).toEqual(expect.any(String));
+    expect(fresh.__storageWorkspaceGuard).not.toBe(old.__storageWorkspaceGuard);
+    expect(fresh.appNavigationIndex).toBe(2);
+    expect(isGuardTraversal()).toBe(false);
+    return { old, fresh };
+  }
+
+  function keepIfPrompted() {
+    const keep = screen.queryByRole("button", { name: "Keep editing" });
+    if (keep) fireEvent.click(keep);
+  }
+
+  /** An ordinary Back from the fresh buffer prompts and restores it. */
+  function expectGuardedBack(fresh: Record<string, unknown>) {
+    const forwards = vi.mocked(window.history.forward).mock.calls.length;
+    land(withoutMarker(fresh), QUERY);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("navigation-guard-pending")).toBeInTheDocument();
+    expect(window.history.forward).toHaveBeenCalledTimes(forwards + 1);
+    land(fresh, QUERY);
+    expect(isGuardTraversal()).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(depart).not.toHaveBeenCalled();
+    expect(discard).not.toHaveBeenCalled();
+    expect(window.history.state).toEqual(fresh);
+  }
+
+  it("re-aims the overtaken Back from the old buffer's base one step at a time", () => {
+    const view = render(editors(true, false));
+    const { old, fresh } = overtake(view);
+    // Chromium lands the queued Back on the old buffer's base while still
+    // reporting the list as it was when queued: a re-aim past the old buffer
+    // would be dropped there, so step onto it first.
+    land(withoutMarker(old), PAGE);
+    expect(window.history.forward).toHaveBeenCalledOnce();
+    expect(window.history.go).not.toHaveBeenCalled();
+    expect(isGuardTraversal()).toBe(true);
+    land(old, PAGE);
+    expect(window.history.go).toHaveBeenCalledExactlyOnceWith(2);
+    land(fresh, QUERY);
+    expect(isGuardTraversal()).toBe(false);
+    expect(window.history.state).toEqual(fresh);
+    expect(depart).not.toHaveBeenCalled();
+    expect(discard).not.toHaveBeenCalled();
+    keepIfPrompted();
+    expectGuardedBack(fresh);
+  });
+
+  it("keeps the next ordinary Back guarded when the overtaken Back is dropped", () => {
+    // Firefox drops the queued Back: the next traversal is the user's own.
+    const view = render(editors(true, false));
+    const { fresh } = overtake(view);
+    expectGuardedBack(fresh);
+    expect(window.history.go).not.toHaveBeenCalled();
   });
 });

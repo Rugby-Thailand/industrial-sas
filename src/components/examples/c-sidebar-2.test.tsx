@@ -493,9 +493,29 @@ describe("phone drawer reopening", () => {
   // jsdom has no layout: the drawer list is 400px tall, the current page's
   // row starts 900px down it, and `scrollTop` is recorded per element.
   const scrollTops = new WeakMap<Element, number>();
+  // Drawer lookup is asynchronous: keep reveal pending until the test chooses
+  // whether user input happens before or after the animation frame.
+  const frames = new Map<number, FrameRequestCallback>();
+  let frameId = 0;
+  let requestFrameSpy: ReturnType<typeof vi.spyOn>;
+  let cancelFrameSpy: ReturnType<typeof vi.spyOn>;
   let rectSpy: ReturnType<typeof vi.spyOn>;
   let scrollTopSpy: PropertyDescriptor | undefined;
   beforeEach(() => {
+    frames.clear();
+    frameId = 0;
+    requestFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        const id = ++frameId;
+        frames.set(id, callback);
+        return id;
+      });
+    cancelFrameSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation((id) => {
+        frames.delete(id);
+      });
     state.mobile = true;
     state.pathname = "/hr/leave/review";
     scrollTopSpy = Object.getOwnPropertyDescriptor(
@@ -527,24 +547,32 @@ describe("phone drawer reopening", () => {
       });
   });
   afterEach(() => {
+    requestFrameSpy.mockRestore();
+    cancelFrameSpy.mockRestore();
+    frames.clear();
     rectSpy.mockRestore();
     if (scrollTopSpy)
       Object.defineProperty(Element.prototype, "scrollTop", scrollTopSpy);
   });
   const list = (sheet: HTMLElement) =>
     sheet.querySelector<HTMLElement>("[data-sidebar=content]")!;
-  const frame = () =>
-    act(
-      () =>
-        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
-    );
+  const frame = () => {
+    act(() => {
+      const pending = [...frames];
+      for (const [id, callback] of pending) {
+        if (!frames.delete(id)) continue;
+        callback(0);
+      }
+    });
+  };
 
   it("scrolls only the drawer list to the current page on every opening, without moving focus", async () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     const header = renderShell();
     let { sheet } = await openDrawer(header);
     const focused = document.activeElement;
-    await frame();
+    expect(list(sheet).scrollTop).toBe(0);
+    frame();
     expect(
       within(sheet).getByRole("link", { name: "Review leave" }),
     ).toHaveAttribute("aria-current", "page");
@@ -556,15 +584,17 @@ describe("phone drawer reopening", () => {
     fireEvent.keyDown(sheet, { key: "Escape" });
     await waitFor(() => expect(drawer()).toBeNull());
     ({ sheet } = await openDrawer(header));
-    await frame();
+    expect(list(sheet).scrollTop).toBe(0);
+    frame();
     expect(list(sheet).scrollTop).toBe(720);
     scrollTo.mockRestore();
   });
 
   it("leaves the list alone once the user starts scrolling it", async () => {
     const { sheet } = await openDrawer(renderShell());
+    expect(list(sheet).scrollTop).toBe(0);
     fireEvent.wheel(list(sheet));
-    await frame();
+    frame();
     expect(list(sheet).scrollTop).toBe(0);
   });
 });

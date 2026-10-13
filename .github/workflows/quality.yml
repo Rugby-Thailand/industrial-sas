@@ -115,8 +115,8 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  # Smoke plus two workspace shards; the matrix result requires every leg.
-  # Smoke owns the only production build in this workflow. The Vite
+  # Smoke, isolated navigation Next app and two workspace shards; all gate check.
+  # Smoke and navigation own separate production builds. The Vite
   # workspace harness needs no Next.js build.
   browser:
     name: Browser (${{ matrix.suite }})
@@ -127,6 +127,8 @@ jobs:
       matrix:
         include:
           - suite: smoke
+            shard: 0
+          - suite: navigation
             shard: 0
           - suite: workspace-1
             shard: 1
@@ -151,20 +153,33 @@ jobs:
       - name: Production-mode build (credential-free)
         if: ${{ matrix.suite == 'smoke' }}
         run: pnpm build
+      - name: Navigation harness build (credential-free)
+        if: ${{ matrix.suite == 'navigation' }}
+        run: pnpm build:navigation
       - name: Clean tree after build
-        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && (matrix.suite == 'smoke' || matrix.suite == 'navigation') && steps.setup.outcome == 'success' }}
         run: pnpm ci:clean-tree
       # Exactly the browser revision bundled with the locked @playwright/test.
       - name: Install Playwright Chromium
         id: browsers
+        if: ${{ matrix.suite != 'navigation' }}
         run: pnpm exec playwright install --with-deps chromium
+      - name: Install navigation browser engines
+        id: navigation-browsers
+        if: ${{ matrix.suite == 'navigation' }}
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Anonymous smoke (desktop and mobile)
         if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.browsers.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e
+      - name: Navigation regressions (desktop engines and mobile Chromium)
+        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-browsers.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e:navigation
       - name: Storage workspace (PR subset)
-        if: ${{ !cancelled() && matrix.suite != 'smoke' && steps.browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}
         env:
           WORKSPACE_REPORT_NAME: ${{ matrix.suite }}
         run: pnpm test:e2e:workspace --shard=${{ matrix.shard }}/2

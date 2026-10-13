@@ -1,0 +1,61 @@
+body {
+  font: 16px system-ui;
+  margin: 24px;
+  color: #18252b;
+  background: white;
+}
+main {
+  max-width: 720px;
+  margin: auto;
+}
+nav,
+label {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+button,
+input,
+select {
+  font: inherit;
+  padding: 12px;
+  margin: 4px;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+[data-slot="dialog-overlay"] {
+  position: fixed;
+  inset: 0;
+  background: #0006;
+}
+[data-slot="dialog-content"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 24px;
+  width: min(500px, 80vw);
+  border: 1px solid #aaa;
+}
+[data-slot="dialog-close"] {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+[data-slot="dialog-footer"] {
+  display: flex;
+  flex-wrap: wrap;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}

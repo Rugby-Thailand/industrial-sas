@@ -78,6 +78,13 @@ const guarded = (entry: DraftRegistration) => entry.dirty || entry.pending;
  * only to render the prompt, so a completion that settles and navigates in
  * the same task sees its own change. No timers synchronize anything: every
  * continuation runs from the buffer's own popstate.
+ *
+ * The owner also holds the prompt's requested action and decides every
+ * continuation. A decision covers the registrations as they were reported
+ * when it was made (a successful save covers only its own draft); work
+ * reported after that is checked again before the action runs and, if
+ * present, needs a fresh decision. Teardown, a newer request or a
+ * superseding history write invalidates an approval.
  */
 export function NavigationGuardProvider({
   children,
@@ -86,7 +93,8 @@ export function NavigationGuardProvider({
 }) {
   const locale = useLocale();
   const router = useRouter();
-  const [prompt, setPrompt] = useState<{ action: Transition } | null>(null);
+  // Presentation only: the machine holds the requested action and decides.
+  const [prompt, setPrompt] = useState(false);
   const [summary, setSummary] = useState<Summary>(EMPTY_SUMMARY);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -95,9 +103,9 @@ export function NavigationGuardProvider({
     createGuardMachine({
       onSummary: (next) =>
         setSummary((current) => (sameSummary(current, next) ? current : next)),
-      onPrompt: (action) => {
+      onPrompt: (open) => {
         setFailed(false);
-        setPrompt({ action });
+        setPrompt(open);
       },
     }),
   );
@@ -122,32 +130,29 @@ export function NavigationGuardProvider({
   const keepDisabled = saving;
 
   async function saveAndContinue() {
-    if (!prompt || saving) return;
-    const save = machine.soleSave();
-    if (!save) return;
+    if (saving) return;
+    const attempt = machine.beginSave();
+    if (!attempt) return;
     setSaving(true);
     setFailed(false);
+    let saved = false;
     try {
-      if (!(await save())) {
-        setFailed(true);
-        return;
-      }
-      setPrompt(null);
-      machine.proceed(prompt.action);
+      saved = await attempt.save();
     } catch {
-      setFailed(true);
-    } finally {
-      setSaving(false);
+      saved = false;
     }
+    setSaving(false);
+    // The owner decides from its current registrations and intent.
+    if (machine.finishSave(attempt, saved)) setFailed(true);
   }
 
   return (
     <NavigationDraftContext.Provider value={owner}>
       {children}
       <Dialog
-        open={prompt !== null}
+        open={prompt}
         onOpenChange={(open) => {
-          if (!open && !keepDisabled) setPrompt(null);
+          if (!open && !keepDisabled) machine.keep();
         }}
       >
         <DialogContent
@@ -183,18 +188,14 @@ export function NavigationGuardProvider({
             <Button
               variant="ghost"
               disabled={keepDisabled}
-              onClick={() => setPrompt(null)}
+              onClick={() => machine.keep()}
             >
               {labels.keep}
             </Button>
             <Button
               variant="outline"
               disabled={disabled}
-              onClick={() => {
-                if (!prompt || saving || !machine.discardAll()) return;
-                setPrompt(null);
-                machine.proceed(prompt.action);
-              }}
+              onClick={() => machine.discard()}
             >
               {labels.discard}
             </Button>
@@ -242,24 +243,59 @@ function newBufferMarker(): string {
 
 interface MachineDeps {
   readonly onSummary: (summary: Summary) => void;
-  readonly onPrompt: (action: Transition) => void;
+  readonly onPrompt: (open: boolean) => void;
+}
+
+/** The action the open prompt would continue. Identity marks one request. */
+interface Intent {
+  readonly action: Transition;
+}
+
+/** One Save and continue: its prompt intent and the registration it saves. */
+interface SaveAttempt {
+  readonly intent: Intent;
+  readonly id: string;
+  readonly save: () => Promise<boolean>;
+  /** The registration reported clean after the attempt began. */
+  cleared: boolean;
+  /** It then gained work the attempt did not save (see `update`). */
+  renewed: boolean;
+}
+
+/**
+ * A permitted action and the registrations its decision covered (exactly as
+ * they were reported). Anything else guarded when it runs is newer work.
+ */
+interface Approval {
+  readonly action: Transition;
+  readonly covered: ReadonlyMap<string, DraftRegistration>;
+}
+
+const NOTHING_COVERED: ReadonlyMap<string, DraftRegistration> = new Map();
+
+/** The same-URL history entry this owner pushed or adopted for its page. */
+interface OwnedBuffer {
+  readonly marker: string;
+  readonly href: string;
+  /** The guarded page's committed app depth (its buffer adds none). */
+  readonly index: number | undefined;
 }
 
 function createGuardMachine(deps: MachineDeps) {
   const entries = new Map<string, DraftRegistration>();
   /** Settled entries ignore stale dirty reports until they report clean. */
   const settled = new Set<string>();
-  let bufferId: string | null = null;
-  let bufferHref: string | null = null;
-  /** The committed app depth of the guarded page (its buffer adds none). */
-  let bufferIndex: number | undefined;
+  /** The open prompt's request; only the owner may continue it. */
+  let intent: Intent | null = null;
+  let attempt: SaveAttempt | null = null;
+  let buffer: OwnedBuffer | null = null;
   let restoring = false;
   /** Bounded re-aims when a restoration lands beside the buffer. */
   let restoreCorrections = 0;
   let removing = false;
   let removeRequested = false;
   let ownWrite = false;
-  let afterRemove: Transition | undefined;
+  let afterRemove: Approval | undefined;
   let restoredLocation: { url: string; state: unknown } | null = null;
   let connected = false;
   /** `beforeunload` is attached only while connected with guarded work. */
@@ -270,17 +306,28 @@ function createGuardMachine(deps: MachineDeps) {
    * traversed on mount; a Back from it skips its duplicate base entry.
    */
   let orphan: { marker: string; href: string; index: number } | null = null;
+  /**
+   * The buffer a queued removal was leaving when a same-page push overtook
+   * it and a fresh buffer was armed above. That removal's Back still lands
+   * on this entry's unmarked base. Chromium then reports the history list
+   * as it was when the Back was queued and silently drops any re-aim beyond
+   * it, so restoration first steps onto this buffer, which sits directly
+   * above its base. Cleared by the next traversal or a write that leaves
+   * the fresh buffer.
+   */
+  let overtaken: { marker: string; href: string; index: number } | null = null;
   let navigate: (href: URL) => void = () => undefined;
 
   const active = () => [...entries.values()].some(guarded);
   const onBuffer = () =>
-    bufferId !== null && window.history.state?.[GUARD_HISTORY_KEY] === bufferId;
+    buffer !== null &&
+    window.history.state?.[GUARD_HISTORY_KEY] === buffer.marker;
   /** Remember the current entry if it is an unowned, inactive guard entry. */
   function noteOrphan() {
     const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     const index = appHistoryIndex();
     orphan =
-      bufferId === null &&
+      buffer === null &&
       typeof marker === "string" &&
       !abandonedMarkers.has(marker) &&
       index !== undefined
@@ -321,16 +368,18 @@ function createGuardMachine(deps: MachineDeps) {
   }
 
   function arm() {
-    if (!connected || bufferId !== null || removing || !active()) return;
+    if (!connected || buffer !== null || removing || !active()) return;
     // A same-URL buffer left by a previous owner or document (remount,
     // reload) already duplicates this page: reuse it rather than stacking a
     // second dead Back step.
     const existing: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     orphan = null;
     if (typeof existing === "string" && !abandonedMarkers.has(existing)) {
-      bufferId = existing;
-      bufferHref = window.location.href;
-      bufferIndex = appHistoryIndex();
+      buffer = {
+        marker: existing,
+        href: window.location.href,
+        index: appHistoryIndex(),
+      };
       return;
     }
     const id = newBufferMarker();
@@ -341,9 +390,11 @@ function createGuardMachine(deps: MachineDeps) {
         window.location.href,
       ),
     );
-    bufferId = id;
-    bufferHref = window.location.href;
-    bufferIndex = appHistoryIndex();
+    buffer = {
+      marker: id,
+      href: window.location.href,
+      index: appHistoryIndex(),
+    };
   }
 
   /**
@@ -354,8 +405,9 @@ function createGuardMachine(deps: MachineDeps) {
    */
   function stepsToBuffer(): number | undefined {
     const at = appHistoryIndex();
-    if (at === undefined || bufferIndex === undefined) return undefined;
-    return at <= bufferIndex ? bufferIndex - at + 1 : bufferIndex - at;
+    const index = buffer?.index;
+    if (at === undefined || index === undefined) return undefined;
+    return at <= index ? index - at + 1 : index - at;
   }
 
   function traverse(delta: number) {
@@ -380,20 +432,39 @@ function createGuardMachine(deps: MachineDeps) {
     traverse(delta > 0 ? delta + 1 : delta);
   }
 
-  function finishRemoval(): Transition | undefined {
+  function finishRemoval(): Approval | undefined {
     removing = false;
-    bufferId = null;
-    bufferHref = null;
-    bufferIndex = undefined;
+    buffer = null;
     restoredLocation = null;
-    const action = afterRemove;
+    const approval = afterRemove;
     afterRemove = undefined;
-    return action;
+    return approval;
   }
 
-  /** Remove the buffer (if any), then run `action` from its popstate. */
-  function removeBuffer(action?: Transition) {
-    if (action) afterRemove = action;
+  function setIntent(next: Intent | null) {
+    intent = next;
+    deps.onPrompt(next !== null);
+  }
+
+  /**
+   * Run an approved action, unless work its decision did not cover is now
+   * guarded: that needs a fresh explicit decision through the prompt (a
+   * newer open request keeps precedence). Returns whether the action ran.
+   */
+  function continueApproved(approval: Approval | undefined): boolean {
+    if (approval === undefined) return false;
+    for (const [id, entry] of entries)
+      if (approval.covered.get(id) !== entry) {
+        if (intent === null) setIntent({ action: approval.action });
+        return false;
+      }
+    approval.action();
+    return true;
+  }
+
+  /** Remove the buffer (if any), then run `approval` from its popstate. */
+  function removeBuffer(approval?: Approval) {
+    if (approval) afterRemove = approval;
     if (removing) return;
     if (restoring) {
       removeRequested = true;
@@ -401,22 +472,18 @@ function createGuardMachine(deps: MachineDeps) {
     }
     if (!connected) {
       // The shell is unmounting (or StrictMode is re-running its effects):
-      // keep the buffer for a reconnect and never traverse while detached.
-      const next = afterRemove;
-      afterRemove = undefined;
-      next?.();
+      // keep the buffer and any approval for a reconnect, and never traverse
+      // or navigate while detached. A disposed owner never runs it.
       return;
     }
-    if (bufferId === null || !onBuffer()) {
+    if (buffer === null || !onBuffer()) {
       // Nothing to traverse: no buffer, or history already moved off it (a
       // route change unmounting the editor). Never step Back from a page the
       // buffer does not belong to.
-      bufferId = null;
-      bufferHref = null;
-      bufferIndex = undefined;
+      buffer = null;
       const next = afterRemove;
       afterRemove = undefined;
-      next?.();
+      if (next !== undefined && !continueApproved(next)) arm();
       return;
     }
     const state = { ...window.history.state };
@@ -426,9 +493,14 @@ function createGuardMachine(deps: MachineDeps) {
     window.history.back();
   }
 
-  function proceed(action: Transition) {
+  function proceed(
+    action: Transition,
+    covered: ReadonlyMap<string, DraftRegistration> = NOTHING_COVERED,
+  ) {
+    // A permitted navigation supersedes any request still awaiting a decision.
+    if (intent !== null) setIntent(null);
     announceNavigationIntent();
-    removeBuffer(action);
+    removeBuffer({ action, covered });
   }
 
   function requestTransition(action: Transition) {
@@ -436,13 +508,16 @@ function createGuardMachine(deps: MachineDeps) {
       proceed(action);
       return;
     }
-    deps.onPrompt(action);
+    // A newer request supersedes an approval still waiting for its buffer
+    // removal, whatever that approval covered: only this request continues.
+    afterRemove = undefined;
+    setIntent({ action });
   }
 
   function sync() {
     publish();
     if (active()) arm();
-    else if (bufferId !== null) removeBuffer();
+    else if (buffer !== null) removeBuffer();
   }
 
   function update(id: string, entry: DraftRegistration | null) {
@@ -451,6 +526,17 @@ function createGuardMachine(deps: MachineDeps) {
       settled.delete(id);
     }
     const before = entries.get(id);
+    if (attempt?.id === id) {
+      // The attempt saves what its registration held when it began. A clean
+      // report followed by guarded work, or turning dirty again while only
+      // pending, is work the attempt cannot have saved.
+      if (entry === null || !guarded(entry)) attempt.cleared = true;
+      else if (
+        attempt.cleared ||
+        (before !== undefined && !before.dirty && entry.dirty)
+      )
+        attempt.renewed = true;
+    }
     if (entry === null || !guarded(entry)) {
       if (before === undefined) return;
       entries.delete(id);
@@ -480,23 +566,71 @@ function createGuardMachine(deps: MachineDeps) {
     else removeBuffer();
   }
 
-  function discardAll(): boolean {
-    const current = [...entries.values()];
-    if (current.some((entry) => entry.pending)) return false;
-    for (const entry of current) if (entry.dirty) entry.discard();
+  /** Keep editing: forget the requested action. Not while a save runs. */
+  function keep() {
+    if (attempt === null && intent !== null) setIntent(null);
+  }
+
+  /** Dispose of every dirty draft, then continue the prompt's action. */
+  function discard(): boolean {
+    const current = intent;
+    if (current === null || attempt !== null) return false;
+    const values = [...entries.values()];
+    if (values.some((entry) => entry.pending)) return false;
+    // Disposed work may report clean only after the transition: it is
+    // covered as reported now, while any later change is new work.
+    const covered = new Map(entries);
+    for (const entry of values) if (entry.dirty) entry.discard();
+    proceed(current.action, covered);
     return true;
   }
 
-  function soleSave() {
-    const values = [...entries.values()];
-    const dirty = values.filter((entry) => entry.dirty);
-    if (dirty.length !== 1 || values.some((entry) => entry.pending))
+  /** Begin saving the sole dirty draft for the open prompt. */
+  function beginSave(): Pick<SaveAttempt, "save"> | undefined {
+    if (intent === null || attempt !== null) return undefined;
+    const values = [...entries];
+    const dirty = values.filter(([, entry]) => entry.dirty);
+    const sole = dirty.length === 1 ? dirty[0] : undefined;
+    if (sole === undefined || values.some(([, entry]) => entry.pending))
       return undefined;
-    const [sole] = dirty;
-    return sole?.saveBlockedReason ? undefined : sole?.save;
+    const [id, entry] = sole;
+    if (entry.save === undefined || entry.saveBlockedReason) return undefined;
+    attempt = { intent, id, save: entry.save, cleared: false, renewed: false };
+    return attempt;
+  }
+
+  /**
+   * Finish a save the owner began. Returns whether to show its failure. A
+   * true result settles only the saved registration; the prompt's action
+   * continues once only if that prompt is still current and nothing else
+   * (including newer work in the saved draft) is guarded. Otherwise the
+   * prompt stays for a fresh decision: nothing continues automatically.
+   */
+  function finishSave(token: Pick<SaveAttempt, "save">, saved: boolean) {
+    if (attempt === null || attempt !== token) return false;
+    const finished = attempt;
+    attempt = null;
+    const current = finished.intent === intent;
+    if (!saved) return current;
+    // Its React cleanup may report clean later (Floor does): until then its
+    // stale guarded reports are this saved work, not new work.
+    if (!finished.renewed && entries.has(finished.id)) {
+      settled.add(finished.id);
+      entries.delete(finished.id);
+      publish();
+    }
+    if (active()) return false;
+    if (!current) {
+      removeBuffer();
+      return false;
+    }
+    proceed(finished.intent.action);
+    return false;
   }
 
   function onPopState(event: PopStateEvent) {
+    const left = overtaken;
+    overtaken = null;
     if (removing) {
       // Consume only the buffer-removal traversal. The real transition
       // follows, with Next's original history state preserved.
@@ -506,11 +640,11 @@ function createGuardMachine(deps: MachineDeps) {
         withOwnWrite(() =>
           window.history.replaceState(previous.state, "", previous.url),
         );
-      const action = finishRemoval();
+      const approval = finishRemoval();
       refreshQueries();
-      action?.();
-      // An edit can arrive while an ordinary save removes the buffer.
-      if (!action) arm();
+      // An edit can arrive while an ordinary save removes the buffer, or
+      // after an approval: guard it again rather than leave with it.
+      if (!continueApproved(approval)) arm();
       return;
     }
     if (restoring) {
@@ -527,7 +661,7 @@ function createGuardMachine(deps: MachineDeps) {
       }
       if (
         steps === undefined &&
-        window.location.href !== bufferHref &&
+        window.location.href !== buffer?.href &&
         restoreCorrections < 2
       ) {
         restoreCorrections += 1;
@@ -544,21 +678,30 @@ function createGuardMachine(deps: MachineDeps) {
       }
       return;
     }
-    if (bufferId === null || !active()) {
-      if (bufferId === null) skipOrphanBase(event);
+    if (buffer === null || !active()) {
+      if (buffer === null) skipOrphanBase(event);
       return;
     }
     // Remember where the user was going (a Back-menu entry may be several
     // pages away), then restore the buffer without unmounting the editor.
     const landed = appHistoryIndex();
+    const index = buffer.index;
     const target =
-      landed === undefined || bufferIndex === undefined
+      landed === undefined || index === undefined
         ? undefined
         : // Leaving the buffer onto its own unmarked page is one page Back.
-          landed === bufferIndex
-          ? bufferIndex - 1
+          landed === index
+          ? index - 1
           : landed;
-    const steps = stepsToBuffer();
+    // From the overtaken buffer's base, that buffer is the next entry; the
+    // remaining distance is re-aimed from there (see `overtaken`).
+    const steps =
+      left !== null &&
+      window.history.state?.[GUARD_HISTORY_KEY] !== left.marker &&
+      landed === left.index &&
+      samePage(window.location.href, left.href)
+        ? 1
+        : stepsToBuffer();
     event.stopImmediatePropagation();
     restoring = true;
     restoreCorrections = 0;
@@ -598,7 +741,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (left === null) return;
     const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     orphan =
-      bufferId === null &&
+      buffer === null &&
       marker === left.marker &&
       !abandonedMarkers.has(left.marker) &&
       appHistoryIndex() === left.index &&
@@ -608,40 +751,73 @@ function createGuardMachine(deps: MachineDeps) {
   }
 
   /**
+   * Whether a write kept the guarded page: an in-place replacement on the
+   * same route that kept the buffer's marker, or a new entry pushed above it
+   * on the same route (e.g. a pushed query). Either keeps the editor mounted
+   * with its work. Unknown depth is not treated as the same page.
+   */
+  function keptGuardedPage(): boolean {
+    const at = appHistoryIndex();
+    const index = buffer?.index;
+    return (
+      buffer !== null &&
+      index !== undefined &&
+      at !== undefined &&
+      samePage(window.location.href, buffer.href) &&
+      (at > index || (at === index && onBuffer()))
+    );
+  }
+
+  /**
    * Another write moved history while the owner was traversing its buffer.
    * The queued traversal is no longer ours to recognise, so drop the stale
-   * state rather than let it consume a later, real Back.
+   * state rather than let it consume a later, real Back. That navigation
+   * also supersedes any approved action waiting for the removal; work still
+   * guarded on the same page stays protected.
    */
   function onHistoryWrite() {
     if (ownWrite) return;
+    // A write on the fresh buffer (e.g. a same-URL report or an in-place
+    // query replacement) cannot remove the overtaken buffer below it.
+    if (!onBuffer()) overtaken = null;
     reconcileOrphan();
     if (removing || restoring) {
+      // Decide before clearing the buffer this write overtook.
+      const kept = keptGuardedPage();
+      const leaving =
+        removing && buffer !== null && buffer.index !== undefined
+          ? { marker: buffer.marker, href: buffer.href, index: buffer.index }
+          : null;
       restoring = false;
       restoreCorrections = 0;
       removeRequested = false;
-      const action = finishRemoval();
+      const superseded = finishRemoval();
       refreshQueries();
-      action?.();
-      if (!action) arm();
+      // Re-arm unless the cancelled approval's departure took the page away.
+      // The traversal may still be delivered; arming makes it an ordinary
+      // guarded Back rather than an unprotected one.
+      if (!superseded || kept) arm();
+      // A push above the page leaves the old buffer below the fresh one. An
+      // in-place replacement re-adopts it, where its base is already one
+      // step below and nothing needs recording.
+      if (
+        kept &&
+        leaving !== null &&
+        buffer !== null &&
+        buffer.marker !== leaving.marker
+      )
+        overtaken = leaving;
       return;
     }
     // A write that bypassed the guard left the buffer behind. Stop tracking
     // the entry we left; it stays in history as an unowned guard entry.
-    if (bufferId !== null && !onBuffer()) {
+    if (buffer !== null && !onBuffer()) {
       // Decide before clearing: a push of a new entry above the guarded page
-      // on the same route (e.g. a pushed query) keeps the editor mounted
-      // with its work. A route departure, or a replacement that dropped the
-      // marker in place, re-arms only on the next registration change.
-      const at = appHistoryIndex();
-      const pushedOnPage =
-        bufferHref !== null &&
-        bufferIndex !== undefined &&
-        at !== undefined &&
-        at > bufferIndex &&
-        samePage(window.location.href, bufferHref);
-      bufferId = null;
-      bufferHref = null;
-      bufferIndex = undefined;
+      // on the same route keeps the editor mounted with its work. A route
+      // departure, or a replacement that dropped the marker in place,
+      // re-arms only on the next registration change.
+      const pushedOnPage = keptGuardedPage();
+      buffer = null;
       // Guard the new entry now. The tracker stripped the copied marker, so
       // arm() pushes a fresh buffer. Next's patched pushState passes that
       // nested push through (it carries the `__NA` Next copied into this
@@ -708,12 +884,27 @@ function createGuardMachine(deps: MachineDeps) {
     publish();
     if (active()) arm();
     else noteOrphan();
+    // An approval made while detached (child effects before the first
+    // connect, or StrictMode's effect re-run) runs only once the owner is
+    // connected. One made during an earlier connection never survives it.
+    if (afterRemove !== undefined && !removing && !restoring) removeBuffer();
     return () => {
       connected = false;
-      // A traversal this owner queued can no longer be recognised: never let
-      // a successor adopt the buffer it is leaving.
-      if ((removing || restoring) && bufferId !== null)
-        abandonedMarkers.add(bufferId);
+      if (removing || restoring) {
+        // A traversal this connection queued can no longer be recognised:
+        // its event may arrive while detached, so a reconnect must not read
+        // the next real Back as it, nor a successor adopt the buffer it is
+        // leaving. The approval waiting for it belonged to this connection.
+        if (buffer !== null) abandonedMarkers.add(buffer.marker);
+        restoring = false;
+        restoreCorrections = 0;
+        removeRequested = false;
+        finishRemoval();
+      }
+      // Its prompt and any save in flight belong to this connection only.
+      attempt = null;
+      overtaken = null;
+      if (intent !== null) setIntent(null);
       release();
       unsubscribe();
       window.removeEventListener("popstate", onPopState, true);
@@ -730,9 +921,10 @@ function createGuardMachine(deps: MachineDeps) {
     update,
     settle,
     requestTransition,
-    proceed,
-    discardAll,
-    soleSave,
+    keep,
+    discard,
+    beginSave,
+    finishSave,
   };
 }
 

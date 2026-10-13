@@ -27,6 +27,7 @@ const playwright = [];
 for (const config of [
   "playwright.config.ts",
   "playwright.workspace.config.ts",
+  "playwright.navigation.config.ts",
   "playwright.staging.config.ts",
   "playwright.production.config.ts",
 ]) {
