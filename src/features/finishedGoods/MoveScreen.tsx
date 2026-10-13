@@ -2,6 +2,10 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { guardedNavigate } from "@/lib/navigationGuard";
+import { completeTask } from "@/lib/taskNavigation";
+import { useDraftGuard } from "@/components/providers/draftGuard";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -79,7 +83,17 @@ function MoveLoader({
   });
   const crumbs = usePalletTrail(outcome?.ok ? outcome.value : undefined);
   const canManage = useCanManage();
-  const [changeDestination, setChangeDestination] = useState(false);
+  const destinationStep = useWorkflowStep(
+    "moveDestination",
+    `move-destination:${warehouseId}:${palletId}`,
+    !!(
+      outcome?.ok &&
+      outcome.value?.activeMove?.isOwner &&
+      outcome.value.activeMove.status === "RESERVED" &&
+      canManage
+    ),
+  );
+  const changeDestination = destinationStep.active;
   const { t } = useUnitText(
     outcome?.ok
       ? (outcome.value?.pallet.storageFormat ??
@@ -104,7 +118,7 @@ function MoveLoader({
         detail={detail}
         warehouseId={warehouseId}
         actorScope={actorScope}
-        onChangeDestination={() => setChangeDestination(true)}
+        onChangeDestination={destinationStep.enter}
       />
     );
   if (
@@ -138,7 +152,8 @@ function MoveLoader({
     <MoveSelection
       detail={detail}
       warehouseId={warehouseId}
-      onReserved={() => setChangeDestination(false)}
+      onReserved={() => destinationStep.back()}
+      {...(changeDestination ? { onCancel: () => destinationStep.back() } : {})}
     />
   );
 }
@@ -147,10 +162,12 @@ function MoveSelection({
   detail,
   warehouseId,
   onReserved,
+  onCancel,
 }: {
   detail: PalletDetail;
   warehouseId: string;
   onReserved: () => void;
+  onCancel?: () => void;
 }) {
   const crumbs = usePalletTrail(detail);
   const { t, tr } = useUnitText(
@@ -193,7 +210,13 @@ function MoveSelection({
         description={t(
           "copy.choose-an-exact-destination-the-source-stays-occupied-until-the-move-or-",
         )}
-      />
+      >
+        {onCancel ? (
+          <Button variant="outline" onClick={onCancel}>
+            {t("copy.cancel")}
+          </Button>
+        ) : null}
+      </Heading>
       <Summary detail={detail} />
       {!current &&
       detail.destination &&
@@ -334,6 +357,13 @@ function ActiveMove({
   const [issueSaved, setIssueSaved] = useState(false);
   const owner = canManage && move.isOwner;
   const inTransit = move.status === "IN_TRANSIT";
+  useDraftGuard(
+    dialog === "issue" && issue.trim() !== "",
+    () => setIssue(""),
+    op.busy,
+    undefined,
+    `${actorScope}:move-command`,
+  );
   const base = { warehouseId, palletId: detail.pallet._id, moveId: move._id };
   async function command(
     kind: "start" | "complete" | "cancel" | "return" | "issue",
@@ -410,10 +440,12 @@ function ActiveMove({
         if (!ok) return;
         if (kind === "issue") setIssueSaved(true);
         op.clearRequests();
-        setDialog(null);
+        if (kind === "start" || kind === "issue") setDialog(null);
         setPhysicalConfirmed(false);
         if (kind === "complete" || kind === "cancel" || kind === "return")
-          router.push(palletPath(detail.pallet._id));
+          op.complete(() =>
+            completeTask(palletPath(detail.pallet._id), router.replace),
+          );
       },
     );
   }
@@ -717,6 +749,8 @@ function ActiveMove({
       </div>
       <MoveHistory detail={detail} />
       <Dialog
+        draftScope={`${actorScope}:move-command`}
+        backPending={op.busy}
         open={!!dialog && owner}
         onOpenChange={(open) => {
           if (!open && !op.busy) {
@@ -846,7 +880,11 @@ function ActiveMove({
             <Button
               variant="outline"
               disabled={op.busy}
-              onClick={() => setDialog(null)}
+              onClick={() =>
+                guardedNavigate(() => setDialog(null), {
+                  preserveDraftScope: `foreground:${actorScope}:move-command`,
+                })
+              }
             >
               {t("copy.close")}
             </Button>

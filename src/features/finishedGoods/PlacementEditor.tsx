@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import { Check, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
+import { completeTask } from "@/lib/taskNavigation";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   fgRefs,
@@ -321,12 +322,16 @@ export function PlacementEditor({
       () => {
         op.clearRequests();
         clearDraft();
-        onReserved?.();
-        router.push(
-          moving
-            ? `${palletPath(detail.pallet._id)}/move`
-            : palletPath(detail.pallet._id),
-        );
+        op.complete(() => {
+          onReserved?.();
+          if (moving && detail.activeMove) return;
+          completeTask(
+            moving
+              ? `${palletPath(detail.pallet._id)}/move`
+              : palletPath(detail.pallet._id),
+            router.replace,
+          );
+        });
       },
     );
   }

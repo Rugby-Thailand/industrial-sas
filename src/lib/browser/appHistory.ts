@@ -89,6 +89,25 @@ function replacementMetadata(
       kept[`${key}OriginIndex`] = ownIndex;
     }
   }
+  const editor: unknown = previous?.hrEmployeeEditorOrigin;
+  if (
+    routePath(destination) === "/hr/employees" &&
+    ["edit", "new"].includes(destination.searchParams.get("mode") ?? "") &&
+    ["mode", "employee"].every((key) =>
+      unchangedQuery(current, destination, key),
+    ) &&
+    editor &&
+    typeof editor === "object" &&
+    "url" in editor &&
+    typeof editor.url === "string" &&
+    "index" in editor &&
+    editor.index === index &&
+    index > 0
+  ) {
+    const source = internalSource(editor.url, current);
+    if (source && routePath(source) === "/hr/employees")
+      kept.hrEmployeeEditorOrigin = editor;
+  }
   return kept;
 }
 

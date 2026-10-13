@@ -150,6 +150,7 @@ function Catalogue({
   return (
     <>
       <Heading
+        backFallbackHref={null}
         title={t("copy.finished-goods")}
         helpText={t(
           "copy.prepare-goods-scan-packages-and-confirm-their-storage-location",
