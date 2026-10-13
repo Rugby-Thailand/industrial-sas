@@ -23,6 +23,7 @@ export type PublicApiWorld = ConvexTenantWorld & {
   readonly batchId: Id<"finishedGoodsBatches">;
   readonly palletId: Id<"finishedGoodsPallets">;
   readonly buildingId: Id<"storageBuildings">;
+  readonly historicalLocationId: Id<"locations">;
 };
 
 export function allowedValue(outcome: unknown): unknown {
@@ -54,9 +55,10 @@ function writtenId(outcome: unknown): string {
 }
 
 /**
- * Use the real role catalogue and real registered mutations, with no extra
- * permissions or handler stubs. Domain IDs belong to actual schema-validated
- * in-memory documents rather than hand-written strings that only look like IDs.
+ * Use the real role catalogue and registered mutations, with no extra
+ * permissions or handler stubs. The inactive historical address has no public
+ * creation path and is seeded directly. Every ID belongs to a schema-validated
+ * in-memory document rather than a hand-written string that only looks like one.
  */
 export async function createPublicApiWorld(
   modules: ConvexTestModuleMap,
@@ -138,6 +140,17 @@ export async function createPublicApiWorld(
   );
   if (buildingId === null)
     throw new Error("Registered building write returned the wrong table ID.");
+  const historicalLocationId = await world.t.run((ctx) =>
+    ctx.db.insert("locations", {
+      orgId: world.orgA,
+      warehouseId,
+      buildingId,
+      code: "PUBLIC-OLD-LOCATION",
+      label: "Historical address",
+      locationType: "NAMED_STORAGE",
+      status: "INACTIVE",
+    }),
+  );
   if (role !== "ORG_ADMIN") {
     const roleId = authorization.rolesA.get(role);
     if (roleId === undefined)
@@ -149,7 +162,14 @@ export async function createPublicApiWorld(
         }),
     );
   }
-  return { ...world, productId, batchId, palletId, buildingId };
+  return {
+    ...world,
+    productId,
+    batchId,
+    palletId,
+    buildingId,
+    historicalLocationId,
+  };
 }
 
 type Kind = "query" | "mutation" | "action";
@@ -284,6 +304,14 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("storageLayouts/locationCatalogue:list", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
   })),
+  example(
+    "storageLayouts/namedLayout:namedLocationLayoutTarget",
+    "query",
+    (w) => ({
+      warehouseId: w.warehouses.alphaA,
+      locationId: w.historicalLocationId,
+    }),
+  ),
   example(
     "storageLayouts/pdImport:preflight",
     "query",

@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(33);
+    expect(coveredModules).toHaveLength(34);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 38 representative functions, not every public export
+    // The inventory covers 39 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(38);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(39);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -309,6 +309,16 @@ describe("representative registered payloads and safe HR capability gates", () =
         error: { code: "LOCATION_NOT_FOUND" },
       },
       "storageLayouts/locationCatalogue:list": [],
+      "storageLayouts/namedLayout:namedLocationLayoutTarget": {
+        found: true,
+        locationId: world.historicalLocationId,
+        code: "PUBLIC-OLD-LOCATION",
+        label: "Historical address",
+        version: 1,
+        layoutPending: false,
+        buildingId: world.buildingId,
+        buildingStatus: "DRAFT",
+      },
       "storageLayouts/writes:createStorageBuilding": {
         written: true,
         documentId: expect.any(String),
