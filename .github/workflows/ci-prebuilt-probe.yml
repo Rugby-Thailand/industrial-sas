@@ -1,0 +1,60 @@
+name: CI prebuilt feasibility probe
+# Temporary branch-only experiment. Never deploys or receives credentials.
+on:
+  push:
+    branches: [codex/ci-speed-under-two-minutes-20261013]
+permissions:
+  contents: read
+concurrency:
+  group: ci-prebuilt-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: Linux prebuilt staging artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Install pinned release CLI
+        run: pnpm -C tools/release install --frozen-lockfile
+      - name: Select reviewed public staging configuration
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          const target = JSON.parse(readFileSync('scripts/release/targets.json', 'utf8')).targets.staging;
+          const values = {
+            NEXT_PUBLIC_APP_URL: target.appUrl,
+            NEXT_PUBLIC_CONVEX_URL: `https://${target.convexDeployment}.convex.cloud`,
+            NEXT_PUBLIC_CONVEX_SITE_URL: `https://${target.convexDeployment}.convex.site`,
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_test_${Buffer.from(`${target.clerkFrontendHost}$`).toString('base64')}`,
+            NEXT_PUBLIC_CLERK_SIGN_IN_URL: '/th/sign-in',
+          };
+          for (const [key, value] of Object.entries(values)) {
+            if (/[\r\n]/.test(value)) throw new Error('Invalid public configuration');
+            appendFileSync(process.env.GITHUB_ENV, `${key}=${value}\n`);
+          }
+          NODE
+      - name: Build and inspect portable output without secrets
+        env:
+          RELEASE_ENVIRONMENT: staging
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+          RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: node scripts/release/build-prebuilt.mjs
+      - name: Preserve output links for the isolated deployment experiment
+        run: |
+          mkdir -p .cache/prebuilt-probe-artifact
+          tar -C .vercel -czf .cache/prebuilt-probe-artifact/output.tgz output
+          cp .vercel/prebuilt-receipt.json .cache/prebuilt-probe-artifact/receipt.json
+      - name: Upload public experiment output
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prebuilt-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .cache/prebuilt-probe-artifact/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0

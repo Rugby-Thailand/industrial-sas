@@ -752,10 +752,11 @@ const BROWSER_STEPS = Object.freeze([
   [
     "Chromium install",
     (step) =>
-      runOf(step) === "pnpm exec playwright install --with-deps chromium",
+      runOf(step) ===
+      "pnpm exec playwright install --with-deps --only-shell chromium",
     {
       id: "browsers",
-      run: "pnpm exec playwright install --with-deps chromium",
+      run: "pnpm exec playwright install --with-deps --only-shell chromium",
       if: "${{ matrix.suite != 'navigation' }}",
     },
   ],
@@ -763,10 +764,10 @@ const BROWSER_STEPS = Object.freeze([
     "navigation engine install",
     (step) =>
       runOf(step) ===
-      "pnpm exec playwright install --with-deps chromium firefox webkit",
+      "pnpm exec playwright install --with-deps --only-shell chromium firefox webkit",
     {
       id: "navigation-browsers",
-      run: "pnpm exec playwright install --with-deps chromium firefox webkit",
+      run: "pnpm exec playwright install --with-deps --only-shell chromium firefox webkit",
       if: "${{ matrix.suite == 'navigation' }}",
     },
   ],
@@ -1005,6 +1006,49 @@ function qualityProblems(workflow, { allowedGhsas }) {
       );
   }
 
+  const validationLanes = {
+    style: ["pnpm format:check"],
+    "types-lint": ["pnpm typecheck", "pnpm lint"],
+    audit: [
+      "node scripts/ci/validate-workflows.mjs --verify-pins",
+      "pnpm audit:prod",
+      "node scripts/ci/audit-dependencies.mjs --scope=app",
+      "node scripts/ci/audit-dependencies.mjs --scope=release",
+      "pnpm ci:test-discovery",
+    ],
+  };
+  if (
+    !same(jobs.validate?.strategy, {
+      "fail-fast": "false",
+      matrix: { lane: ["style", "types-lint", "audit"] },
+    })
+  )
+    problems.push(
+      "quality.yml:validate: exact complete validation lanes required",
+    );
+  const validationSteps = stepsOf(jobs.validate);
+  for (const [lane, commands] of Object.entries(validationLanes)) {
+    for (const command of commands) {
+      const matches = validationSteps.filter((step) => step.run === command);
+      const expected = `\${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == '${lane}' }}`;
+      if (matches.length !== 1 || matches[0]?.if !== expected)
+        problems.push(
+          `quality.yml:validate: ${command} must run exactly once in ${lane}`,
+        );
+    }
+  }
+  const clean = validationSteps.filter(
+    (step) => step.run === "pnpm ci:clean-tree",
+  );
+  if (
+    clean.length !== 1 ||
+    clean[0]?.if !==
+      "${{ !cancelled() && steps.setup.outcome == 'success' }}" ||
+    validationSteps.at(-1) !== clean[0]
+  )
+    problems.push(
+      "quality.yml:validate: clean tree must join each lane after all checks",
+    );
   const validateRuns = stepsOf(jobs.validate).map((step) => step.run);
   for (const command of VALIDATE_COMMANDS)
     if (!validateRuns.includes(command))
@@ -1133,6 +1177,162 @@ function setupActionProblems(parsed) {
  * Policy problems for `{ "<file>.yml": text }` workflows plus composite action
  * texts. `exceptions` is scripts/ci/dependency-exceptions.json; `now` in ms.
  */
+function speedProbeProblems(workflow) {
+  const at = "ci-speed-probe.yml";
+  const problems = [];
+  if (
+    !same(workflow.on, {
+      push: { branches: ["codex/ci-speed-under-two-minutes-20261013"] },
+    }) ||
+    !same(workflow.permissions, { contents: "read" })
+  )
+    problems.push(`${at}: probe must be branch-only push with contents read`);
+  if (!same(Object.keys(workflow.jobs ?? {}), ["browser-probe"]))
+    problems.push(`${at}: only browser-probe job is allowed`);
+  const job = workflow.jobs?.["browser-probe"];
+  if (
+    !job ||
+    job.needs !== undefined ||
+    job.if !== undefined ||
+    job.environment !== undefined ||
+    job.env !== undefined ||
+    job.permissions !== undefined ||
+    job.outputs !== undefined
+  )
+    problems.push(`${at}: probe must stay independent and credential-free`);
+  if (
+    job?.["runs-on"] !== "ubuntu-24.04" ||
+    !same(job.container, {
+      image:
+        "mcr.microsoft.com/playwright@sha256:c091b21d9fae78c76e85cd4356431e9b018402f172a214fc7d7a5e9a7e29d8ac",
+      options: "--ipc=host",
+    }) ||
+    !same(job.strategy, {
+      "fail-fast": "false",
+      matrix: {
+        include: [
+          { suite: "navigation", workers: "2" },
+          { suite: "smoke", workers: "2" },
+          { suite: "smoke", workers: "4" },
+        ],
+      },
+    })
+  )
+    problems.push(
+      `${at}: exact pinned container and complete probe matrix required`,
+    );
+  const expectedRuns = [
+    { run: "node scripts/ci/assert-playwright-image.mjs" },
+    { run: "pnpm build", if: "${{ matrix.suite == 'smoke' }}" },
+    { run: "pnpm build:navigation", if: "${{ matrix.suite == 'navigation' }}" },
+    { run: "pnpm ci:clean-tree" },
+    {
+      run: "pnpm test:e2e --workers=${{ matrix.workers }}",
+      if: "${{ matrix.suite == 'smoke' }}",
+      env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
+    },
+    {
+      run: "pnpm test:e2e:navigation --workers=${{ matrix.workers }}",
+      if: "${{ matrix.suite == 'navigation' }}",
+      env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
+    },
+  ];
+  const steps = stepsOf(job);
+  const runs = steps
+    .filter((step) => step.run !== undefined)
+    .map(({ run, if: condition, env }) => ({
+      run,
+      ...(condition === undefined ? {} : { if: condition }),
+      ...(env === undefined ? {} : { env }),
+    }));
+  if (!same(runs, expectedRuns))
+    problems.push(
+      `${at}: exact install-free verification/build/test sequence required`,
+    );
+  const uses = steps.filter((step) => step.uses !== undefined).map(usesOf);
+  if (
+    !same(uses, [
+      "actions/checkout",
+      "./.github/actions/setup-node-pnpm",
+      "actions/upload-artifact",
+    ]) ||
+    steps.length !== 9
+  )
+    problems.push(`${at}: exact checkout/setup/report actions required`);
+  if (
+    !same(job?.defaults, { run: { shell: "bash" } }) ||
+    steps.some(
+      (step) =>
+        step.uses &&
+        usesOf(step) !== "actions/upload-artifact" &&
+        (step.if !== undefined || step.env !== undefined),
+    )
+  )
+    problems.push(
+      `${at}: setup/checkout cannot skip and container commands use bash`,
+    );
+  const upload = steps.find(isUpload);
+  if (
+    upload?.if !== "${{ !cancelled() }}" ||
+    !same(upload?.with, {
+      name: "ci-speed-probe-${{ matrix.suite }}-${{ matrix.workers }}-${{ github.run_attempt }}",
+      path: "test-results/${{ matrix.suite }}-junit.xml",
+      "retention-days": "7",
+      "if-no-files-found": "error",
+    })
+  )
+    problems.push(`${at}: every probe requires its unique nonempty report`);
+  return problems;
+}
+
+function prebuiltProbeProblems(workflow) {
+  const at = "ci-prebuilt-probe.yml";
+  const jobs = workflow.jobs ?? {};
+  const job = jobs.build;
+  const problems = [];
+  if (
+    !same(workflow.on, {
+      push: { branches: ["codex/ci-speed-under-two-minutes-20261013"] },
+    }) ||
+    !same(workflow.permissions, { contents: "read" }) ||
+    !same(Object.keys(jobs), ["build"])
+  )
+    problems.push(`${at}: exact branch-only read-only build probe required`);
+  if (
+    !job ||
+    job.environment !== undefined ||
+    job.needs !== undefined ||
+    job.permissions !== undefined ||
+    job.if !== undefined ||
+    job.outputs !== undefined ||
+    job.env !== undefined ||
+    secretNames(job).length
+  )
+    problems.push(`${at}: prebuilt probe cannot receive deployment privileges`);
+  const build = stepsOf(job).filter(
+    (step) => step.run === "node scripts/release/build-prebuilt.mjs",
+  );
+  if (
+    build.length !== 1 ||
+    !same(build[0]?.env, {
+      RELEASE_ENVIRONMENT: "staging",
+      RELEASE_SHA: "${{ github.sha }}",
+      RELEASE_RUN_ID: "${{ github.run_id }}",
+      RELEASE_RUN_ATTEMPT: "${{ github.run_attempt }}",
+    })
+  )
+    problems.push(`${at}: only public staging prebuilt artifact is permitted`);
+  if (
+    stepsOf(job).some((step) =>
+      /scripts\/release\/run\.mjs|vercel (?:deploy|promote)|CONVEX_DEPLOY_KEY|CLERK_SECRET_KEY/.test(
+        runOf(step),
+      ),
+    )
+  )
+    problems.push(`${at}: probe must never deploy`);
+  return problems;
+}
+
 export function workflowPolicyProblems({
   workflows,
   actions = {},
@@ -1170,6 +1370,10 @@ export function workflowPolicyProblems({
       }),
     );
   else if (!("quality.yml" in workflows)) problems.push("quality.yml: missing");
+  if (parsed["ci-speed-probe.yml"])
+    problems.push(...speedProbeProblems(parsed["ci-speed-probe.yml"]));
+  if (parsed["ci-prebuilt-probe.yml"])
+    problems.push(...prebuiltProbeProblems(parsed["ci-prebuilt-probe.yml"]));
   if (parsed["production-backup.yml"])
     problems.push(...backupProblems(parsed["production-backup.yml"]));
   return problems;

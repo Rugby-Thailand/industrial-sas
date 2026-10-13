@@ -25,6 +25,8 @@ const read = (path: string) => readFileSync(path, "utf8");
 const exceptions = JSON.parse(read("scripts/ci/dependency-exceptions.json"));
 const owned = {
   "quality.yml": read(".github/workflows/quality.yml"),
+  "ci-prebuilt-probe.yml": read(".github/workflows/ci-prebuilt-probe.yml"),
+  "ci-speed-probe.yml": read(".github/workflows/ci-speed-probe.yml"),
   "codeql.yml": read(".github/workflows/codeql.yml"),
   "security-audit.yml": read(".github/workflows/security-audit.yml"),
   "workspace-matrix.yml": read(".github/workflows/workspace-matrix.yml"),
@@ -174,8 +176,8 @@ describe("workflow policy rejects regressions", () => {
     ["duplicate shard", "shard: [1, 2, 3]", "shard: [1, 2, 2]"],
     [
       "fail-fast cancellation",
-      "      fail-fast: false\n",
-      "      fail-fast: true\n",
+      "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3]",
+      "      fail-fast: true\n      matrix:\n        shard: [1, 2, 3]",
     ],
     [
       "mismatched total",
@@ -295,14 +297,29 @@ describe("workflow policy rejects regressions", () => {
     ]);
   });
 
+  it("requires headless-only Chromium installation without omitting other engines", () => {
+    for (const name of [
+      "Install Playwright Chromium",
+      "Install navigation browser engines",
+    ]) {
+      const step = namedStep("quality.yml", name);
+      expectJobFailure("quality.yml", "browser", [
+        [step, step.replace(" --only-shell", "")],
+      ]);
+      expectJobFailure("quality.yml", "browser", [
+        [step, step.replace("--only-shell", "--no-shell")],
+      ]);
+    }
+  });
+
   it("requires the navigation matrix leg and all three installed engines", () => {
     expectJobFailure("quality.yml", "browser", [
       ["          - suite: navigation\n            shard: 0\n", ""],
     ]);
     expectJobFailure("quality.yml", "browser", [
       [
-        "playwright install --with-deps chromium firefox webkit",
-        "playwright install --with-deps chromium",
+        "playwright install --with-deps --only-shell chromium firefox webkit",
+        "playwright install --with-deps --only-shell chromium",
       ],
     ]);
     const navigation = namedStep(
@@ -754,6 +771,113 @@ describe("workflow policy rejects regressions", () => {
         ),
       ),
     ).toContain(rule);
+  });
+
+  it("keeps the prebuilt probe branch-only and unable to deploy", () => {
+    expect(
+      problemsWith("ci-prebuilt-probe.yml", [
+        [
+          "branches: [codex/ci-speed-under-two-minutes-20261013]",
+          "branches: [main]",
+        ],
+      ]),
+    ).toContain(
+      "ci-prebuilt-probe.yml: exact branch-only read-only build probe required",
+    );
+    expect(
+      problemsWith("ci-prebuilt-probe.yml", [
+        ["RELEASE_ENVIRONMENT: staging", "RELEASE_ENVIRONMENT: production"],
+      ]),
+    ).toContain(
+      "ci-prebuilt-probe.yml: only public staging prebuilt artifact is permitted",
+    );
+    expect(
+      problemsWith("ci-prebuilt-probe.yml", [
+        [
+          "run: node scripts/release/build-prebuilt.mjs",
+          "run: node scripts/release/run.mjs --target=production",
+        ],
+      ]),
+    ).toContain("ci-prebuilt-probe.yml: probe must never deploy");
+  });
+
+  it("keeps the container timing probe branch-only, pinned and independent", () => {
+    for (const [from, to, rule] of [
+      [
+        "branches: [codex/ci-speed-under-two-minutes-20261013]",
+        "branches: [main]",
+        "probe must be branch-only push with contents read",
+      ],
+      [
+        "contents: read",
+        "contents: write",
+        "probe must be branch-only push with contents read",
+      ],
+      [
+        "workers: 4",
+        "workers: 2",
+        "exact pinned container and complete probe matrix required",
+      ],
+      [
+        "--ipc=host",
+        "--privileged",
+        "exact pinned container and complete probe matrix required",
+      ],
+      [
+        "run: node scripts/ci/assert-playwright-image.mjs",
+        "run: echo skip",
+        "exact install-free verification/build/test sequence required",
+      ],
+      [
+        "if-no-files-found: error",
+        "if-no-files-found: warn",
+        "every probe requires its unique nonempty report",
+      ],
+    ] as const)
+      expect(problemsWith("ci-speed-probe.yml", [[from, to]])).toContain(
+        `ci-speed-probe.yml: ${rule}`,
+      );
+    expect(
+      problemsWith("ci-speed-probe.yml", [
+        [
+          "    timeout-minutes: 15",
+          "    timeout-minutes: 15\n    environment: production",
+        ],
+      ]),
+    ).toContain(
+      "ci-speed-probe.yml: probe must stay independent and credential-free",
+    );
+  });
+
+  it("fails closed when validation lanes are missing, duplicated or skipped", () => {
+    for (const lanes of [
+      "[style, types-lint]",
+      "[style, types-lint, types-lint]",
+    ])
+      expect(
+        problemsWith("quality.yml", [
+          ["lane: [style, types-lint, audit]", `lane: ${lanes}`],
+        ]),
+      ).toContain(
+        "quality.yml:validate: exact complete validation lanes required",
+      );
+    const lint = namedStep("quality.yml", "Lint");
+    for (const replacement of [
+      "",
+      `${lint}\n${lint}`,
+      lint.replace("matrix.lane == 'types-lint'", "matrix.lane == 'style'"),
+    ])
+      expect(problemsWith("quality.yml", [[lint, replacement]])).toContain(
+        "quality.yml:validate: pnpm lint must run exactly once in types-lint",
+      );
+    const clean = namedStep("quality.yml", "Clean tree after generators");
+    expect(
+      problemsWith("quality.yml", [
+        [clean, clean.replace("steps.setup.outcome == 'success'", "false")],
+      ]),
+    ).toContain(
+      "quality.yml:validate: clean tree must join each lane after all checks",
+    );
   });
 
   it("keeps the validate job on the shared Bun without a second install", () => {

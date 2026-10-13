@@ -1,0 +1,64 @@
+name: CI speed container probe
+# Branch-only empirical job timings. These jobs never deploy or gate release.
+on:
+  push:
+    branches: [codex/ci-speed-under-two-minutes-20261013]
+permissions:
+  contents: read
+concurrency:
+  group: ci-speed-container-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser-probe:
+    name: Container probe (${{ matrix.suite }}, workers ${{ matrix.workers }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright@sha256:c091b21d9fae78c76e85cd4356431e9b018402f172a214fc7d7a5e9a7e29d8ac
+      options: --ipc=host
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: navigation
+            workers: 2
+          - suite: smoke
+            workers: 2
+          - suite: smoke
+            workers: 4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Verify preinstalled exact browser image
+        run: node scripts/ci/assert-playwright-image.mjs
+      - name: Production-mode build (credential-free)
+        if: ${{ matrix.suite == 'smoke' }}
+        run: pnpm build
+      - name: Navigation harness build (credential-free)
+        if: ${{ matrix.suite == 'navigation' }}
+        run: pnpm build:navigation
+      - name: Clean tree after build
+        run: pnpm ci:clean-tree
+      - name: All smoke tests
+        if: ${{ matrix.suite == 'smoke' }}
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e --workers=${{ matrix.workers }}
+      - name: All navigation engines
+        if: ${{ matrix.suite == 'navigation' }}
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e:navigation --workers=${{ matrix.workers }}
+      - name: Upload probe JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-speed-probe-${{ matrix.suite }}-${{ matrix.workers }}-${{ github.run_attempt }}
+          path: test-results/${{ matrix.suite }}-junit.xml
+          retention-days: 7
+          if-no-files-found: error
