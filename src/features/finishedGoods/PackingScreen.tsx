@@ -5,7 +5,7 @@ import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Copy } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { Link, useRouter } from "@/i18n/navigation";
 import { batchManagementRefs } from "@/lib/convex/batchManagementApi";
@@ -415,6 +416,7 @@ function PackingForm({
   const [storageWarning, setStorageWarning] = useState(false);
   const [saved, setSaved] = useState(false);
   const [review, setReview] = useState(false);
+  const reviewCompletion = useRef<DialogCompletionHandle>(null);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
   const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
   const replacementLabels = useQuery(
@@ -616,31 +618,39 @@ function PackingForm({
           return;
         }
         const result = outcome.value;
-        setReview(false);
-        const next: Draft = {
-          ...draft,
-          pending: undefined,
-          batchId: result.batchId,
-          revision: result.revision,
-          ...(pending.kind === "commit" ? { completed: result.palletIds } : {}),
-        };
-        persist(next);
-        setSaved(true);
-        setLocalError("");
         op.clearRequests();
-        if (!batch && pending.kind === "save") {
-          if (
-            !drafts.write(
-              `${scope}:${warehouseId}:batch:${result.batchId}`,
-              next,
-            ) ||
-            !drafts.remove(key)
-          )
-            setStorageWarning(true);
-          op.complete(() =>
-            completeTask(batchPath(result.batchId), router.replace),
-          );
-        }
+        op.complete(() => {
+          const finish = () => {
+            setReview(false);
+            const next: Draft = {
+              ...draft,
+              pending: undefined,
+              batchId: result.batchId,
+              revision: result.revision,
+              ...(pending.kind === "commit"
+                ? { completed: result.palletIds }
+                : {}),
+            };
+            persist(next);
+            setSaved(true);
+            setLocalError("");
+            if (!batch && pending.kind === "save") {
+              if (
+                !drafts.write(
+                  `${scope}:${warehouseId}:batch:${result.batchId}`,
+                  next,
+                ) ||
+                !drafts.remove(key)
+              )
+                setStorageWarning(true);
+              completeTask(batchPath(result.batchId), router.replace);
+            }
+          };
+          // Keep the review mounted until its owner consumes the entry. A
+          // pending-write Back buffer must settle before the receipt replaces it.
+          if (review) reviewCompletion.current?.complete(finish);
+          else finish();
+        });
       },
     );
   }
@@ -1512,6 +1522,7 @@ function PackingForm({
         </StickyActionBar>
       </div>
       <Dialog
+        completionRef={reviewCompletion}
         backPending={op.busy}
         open={review}
         onOpenChange={(open) => {
