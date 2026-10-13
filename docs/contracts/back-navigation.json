@@ -4238,7 +4238,7 @@
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#ReservedBlocks:$overlay:Dialog:dialogOpen+pending",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Back dismisses the shared controlled foreground before its retained page/editor; pending writes protect dismissal and cleanup consumes its entry.",
+      "expectation": "Unavailable-area editing owns a separate dirty foreground scope. Applying settles only its own draft and consumes only its Dialog entry; the floor draft underneath stays guarded and canceled departure preserves its dimensions.",
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
@@ -4247,6 +4247,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "discarding only the unavailable-area foreground retains dirty floor dimensions"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "applying an unavailable area consumes only its dialog and keeps the floor draft guarded"
         }
       ],
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"]
@@ -4255,7 +4259,7 @@
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#ReservedBlocks:dialogOpen",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Back restores the predecessor owned by ReservedBlocks.dialogOpen, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "Unavailable-area editing owns a separate dirty foreground scope. Applying settles only its own draft and consumes only its Dialog entry; the floor draft underneath stays guarded and canceled departure preserves its dimensions.",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
@@ -4265,6 +4269,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "discarding only the unavailable-area foreground retains dirty floor dimensions"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "applying an unavailable area consumes only its dialog and keeps the floor draft guarded"
         }
       ]
     },
@@ -4350,7 +4358,7 @@
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:$overlay:Dialog:createDialogOpen",
       "policy": "overlay",
-      "expectation": "The actual spot editor Dialog owns dirty/pending dismissal, explicit Cancel and successful entry consumption before the next Back.",
+      "expectation": "The actual spot editor Dialog protects its exact dirty/pending draft. Live operation completion consumes only the generation that sent the write, preserves newer edit intent, and Forward restores the same saved spot; explicit closure precedes the next Back.",
       "integration": "dialog",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
@@ -4361,13 +4369,33 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a pending spot save keeps its editor through native Back and closes it once the write settles"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved spot edit consumes its editor entry and the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "an older spot save cannot close a newer spot edit intent that replaced it"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a spot save that resolves after unmount leaves the next route's edit intent alone"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "clean native Forward reopens the same spot editor from its saved values"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "remounting over a spot editor entry keeps the page and a stale editZone link opens nothing"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:createDialogOpen",
       "policy": "overlay",
-      "expectation": "The actual spot editor Dialog owns dirty/pending dismissal, explicit Cancel and successful entry consumption before the next Back.",
+      "expectation": "The actual spot editor Dialog protects its exact dirty/pending draft. Live operation completion consumes only the generation that sent the write, preserves newer edit intent, and Forward restores the same saved spot; explicit closure precedes the next Back.",
       "integration": "dialog",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
@@ -4378,6 +4406,26 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a pending spot save keeps its editor through native Back and closes it once the write settles"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved spot edit consumes its editor entry and the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "an older spot save cannot close a newer spot edit intent that replaced it"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a spot save that resolves after unmount leaves the next route's edit intent alone"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "clean native Forward reopens the same spot editor from its saved values"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "remounting over a spot editor entry keeps the page and a stale editZone link opens nothing"
         }
       ]
     },
@@ -5846,7 +5894,7 @@
     {
       "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionForm:draft",
       "policy": "presentation",
-      "expectation": "Position code/geometry values change inline validation/code preview inside the form; the edit step and containing Dialog own Back.",
+      "expectation": "Position code/geometry values drive inline validation and code preview within the actual form. The edit step and containing Dialog own Back; only the exact saved snapshot or original baseline is clean, so newer typed values remain protected.",
       "uses": ["branch"],
       "render": [
         {
@@ -6082,7 +6130,7 @@
     {
       "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:$overlay:Dialog:controlled",
       "policy": "overlay",
-      "expectation": "Registered-layout completion is an actual shared Dialog with a retained measured draft, immutable assigned floor identity, guarded dirty Cancel and live successful owner consumption.",
+      "expectation": "Registered-layout completion uses the live operation owner beside its actual Dialog, retains exact submitted measurements and consumes that Dialog before receipt. Forward reopens only the unfinished registration; completed entries cannot revive an editable command.",
       "integration": "dialog",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
@@ -6093,13 +6141,17 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "Cancel closes the unsent registration layout after consent and the next Back leaves"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "clean native Forward reopens an unfinished registration layout, but not a completed one"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:$overlay:Dialog:controlled",
       "policy": "overlay",
-      "expectation": "The positions manager is an actual shared Dialog with protected pending writes; its nested edit owner retains the manager add draft and consumes successful edit entries.",
+      "expectation": "The actual always-mounted positions Dialog owns its selected spot prop, protects pending writes and restores that same existing spot on Forward. Nested edit completion returns to retained manager state before Back dismisses the manager and leaves.",
       "integration": "dialog",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
@@ -6110,6 +6162,14 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a saved position edit consumes its step and keeps the manager open"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "clean native Forward reopens the positions manager for the same spot"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit returns to the manager, then Back closes the manager, then leaves"
         }
       ]
     },
@@ -7024,7 +7084,7 @@
     {
       "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:editing",
       "policy": "workflow",
-      "expectation": "Editing one position connects to the named position-edit owner, and Back restores the underlying manager with the add/generate draft retained.",
+      "expectation": "Named position editing owns its enter/active branch and preserves the add/generate underlay. Live operation completion consumes only the submitted edit generation; exact saved values are clean, while newer draft values stay protected.",
       "integration": "useWorkflowStep",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
@@ -7035,13 +7095,21 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a saved position edit consumes its step and keeps the manager open"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit returns to the manager, then Back closes the manager, then leaves"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a position save that resolves after unmount does not traverse the next route"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:editStep",
       "policy": "workflow",
-      "expectation": "Named position editing owns its enter/active branch, explicit Cancel and successful live completion; returning preserves the manager underlay draft.",
+      "expectation": "Named position editing owns its enter/active branch and preserves the add/generate underlay. Live operation completion consumes only the submitted edit generation; exact saved values are clean, while newer draft values stay protected.",
       "integration": "useWorkflowStep",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
@@ -7052,6 +7120,14 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a saved position edit consumes its step and keeps the manager open"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit returns to the manager, then Back closes the manager, then leaves"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a position save that resolves after unmount does not traverse the next route"
         }
       ]
     },
@@ -7112,7 +7188,7 @@
       "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completing",
       "policy": "overlay",
       "integration": "delegated-overlay",
-      "expectation": "The exact reviewed foreground prop delegates to its actual shared Dialog owner; native/explicit closure preserves the underlay draft, protects pending writes and consumes its owned entry.",
+      "expectation": "Registered-layout completion uses the live operation owner beside its actual Dialog, retains exact submitted measurements and consumes that Dialog before receipt. Forward reopens only the unfinished registration; completed entries cannot revive an editable command.",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
@@ -7122,6 +7198,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "Cancel closes the unsent registration layout after consent and the next Back leaves"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "clean native Forward reopens an unfinished registration layout, but not a completed one"
         }
       ]
     },
@@ -7129,7 +7209,7 @@
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:positionsZoneId",
       "policy": "overlay",
       "integration": "delegated-overlay",
-      "expectation": "The exact reviewed foreground prop delegates to its actual shared Dialog owner; native/explicit closure preserves the underlay draft, protects pending writes and consumes its owned entry.",
+      "expectation": "The actual always-mounted positions Dialog owns its selected spot prop, protects pending writes and restores that same existing spot on Forward. Nested edit completion returns to retained manager state before Back dismisses the manager and leaves.",
       "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
@@ -7139,6 +7219,14 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back returns from editing a position to the manager with the add draft retained"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "clean native Forward reopens the positions manager for the same spot"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit returns to the manager, then Back closes the manager, then leaves"
         }
       ]
     }
