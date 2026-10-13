@@ -273,6 +273,14 @@ interface Approval {
 
 const NOTHING_COVERED: ReadonlyMap<string, DraftRegistration> = new Map();
 
+/** The same-URL history entry this owner pushed or adopted for its page. */
+interface OwnedBuffer {
+  readonly marker: string;
+  readonly href: string;
+  /** The guarded page's committed app depth (its buffer adds none). */
+  readonly index: number | undefined;
+}
+
 function createGuardMachine(deps: MachineDeps) {
   const entries = new Map<string, DraftRegistration>();
   /** Settled entries ignore stale dirty reports until they report clean. */
@@ -280,10 +288,7 @@ function createGuardMachine(deps: MachineDeps) {
   /** The open prompt's request; only the owner may continue it. */
   let intent: Intent | null = null;
   let attempt: SaveAttempt | null = null;
-  let bufferId: string | null = null;
-  let bufferHref: string | null = null;
-  /** The committed app depth of the guarded page (its buffer adds none). */
-  let bufferIndex: number | undefined;
+  let buffer: OwnedBuffer | null = null;
   let restoring = false;
   /** Bounded re-aims when a restoration lands beside the buffer. */
   let restoreCorrections = 0;
@@ -315,13 +320,14 @@ function createGuardMachine(deps: MachineDeps) {
 
   const active = () => [...entries.values()].some(guarded);
   const onBuffer = () =>
-    bufferId !== null && window.history.state?.[GUARD_HISTORY_KEY] === bufferId;
+    buffer !== null &&
+    window.history.state?.[GUARD_HISTORY_KEY] === buffer.marker;
   /** Remember the current entry if it is an unowned, inactive guard entry. */
   function noteOrphan() {
     const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     const index = appHistoryIndex();
     orphan =
-      bufferId === null &&
+      buffer === null &&
       typeof marker === "string" &&
       !abandonedMarkers.has(marker) &&
       index !== undefined
@@ -362,16 +368,18 @@ function createGuardMachine(deps: MachineDeps) {
   }
 
   function arm() {
-    if (!connected || bufferId !== null || removing || !active()) return;
+    if (!connected || buffer !== null || removing || !active()) return;
     // A same-URL buffer left by a previous owner or document (remount,
     // reload) already duplicates this page: reuse it rather than stacking a
     // second dead Back step.
     const existing: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     orphan = null;
     if (typeof existing === "string" && !abandonedMarkers.has(existing)) {
-      bufferId = existing;
-      bufferHref = window.location.href;
-      bufferIndex = appHistoryIndex();
+      buffer = {
+        marker: existing,
+        href: window.location.href,
+        index: appHistoryIndex(),
+      };
       return;
     }
     const id = newBufferMarker();
@@ -382,9 +390,11 @@ function createGuardMachine(deps: MachineDeps) {
         window.location.href,
       ),
     );
-    bufferId = id;
-    bufferHref = window.location.href;
-    bufferIndex = appHistoryIndex();
+    buffer = {
+      marker: id,
+      href: window.location.href,
+      index: appHistoryIndex(),
+    };
   }
 
   /**
@@ -395,8 +405,9 @@ function createGuardMachine(deps: MachineDeps) {
    */
   function stepsToBuffer(): number | undefined {
     const at = appHistoryIndex();
-    if (at === undefined || bufferIndex === undefined) return undefined;
-    return at <= bufferIndex ? bufferIndex - at + 1 : bufferIndex - at;
+    const index = buffer?.index;
+    if (at === undefined || index === undefined) return undefined;
+    return at <= index ? index - at + 1 : index - at;
   }
 
   function traverse(delta: number) {
@@ -423,9 +434,7 @@ function createGuardMachine(deps: MachineDeps) {
 
   function finishRemoval(): Approval | undefined {
     removing = false;
-    bufferId = null;
-    bufferHref = null;
-    bufferIndex = undefined;
+    buffer = null;
     restoredLocation = null;
     const approval = afterRemove;
     afterRemove = undefined;
@@ -467,13 +476,11 @@ function createGuardMachine(deps: MachineDeps) {
       // or navigate while detached. A disposed owner never runs it.
       return;
     }
-    if (bufferId === null || !onBuffer()) {
+    if (buffer === null || !onBuffer()) {
       // Nothing to traverse: no buffer, or history already moved off it (a
       // route change unmounting the editor). Never step Back from a page the
       // buffer does not belong to.
-      bufferId = null;
-      bufferHref = null;
-      bufferIndex = undefined;
+      buffer = null;
       const next = afterRemove;
       afterRemove = undefined;
       if (next !== undefined && !continueApproved(next)) arm();
@@ -510,7 +517,7 @@ function createGuardMachine(deps: MachineDeps) {
   function sync() {
     publish();
     if (active()) arm();
-    else if (bufferId !== null) removeBuffer();
+    else if (buffer !== null) removeBuffer();
   }
 
   function update(id: string, entry: DraftRegistration | null) {
@@ -654,7 +661,7 @@ function createGuardMachine(deps: MachineDeps) {
       }
       if (
         steps === undefined &&
-        window.location.href !== bufferHref &&
+        window.location.href !== buffer?.href &&
         restoreCorrections < 2
       ) {
         restoreCorrections += 1;
@@ -671,19 +678,20 @@ function createGuardMachine(deps: MachineDeps) {
       }
       return;
     }
-    if (bufferId === null || !active()) {
-      if (bufferId === null) skipOrphanBase(event);
+    if (buffer === null || !active()) {
+      if (buffer === null) skipOrphanBase(event);
       return;
     }
     // Remember where the user was going (a Back-menu entry may be several
     // pages away), then restore the buffer without unmounting the editor.
     const landed = appHistoryIndex();
+    const index = buffer.index;
     const target =
-      landed === undefined || bufferIndex === undefined
+      landed === undefined || index === undefined
         ? undefined
         : // Leaving the buffer onto its own unmarked page is one page Back.
-          landed === bufferIndex
-          ? bufferIndex - 1
+          landed === index
+          ? index - 1
           : landed;
     // From the overtaken buffer's base, that buffer is the next entry; the
     // remaining distance is re-aimed from there (see `overtaken`).
@@ -733,7 +741,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (left === null) return;
     const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     orphan =
-      bufferId === null &&
+      buffer === null &&
       marker === left.marker &&
       !abandonedMarkers.has(left.marker) &&
       appHistoryIndex() === left.index &&
@@ -750,12 +758,13 @@ function createGuardMachine(deps: MachineDeps) {
    */
   function keptGuardedPage(): boolean {
     const at = appHistoryIndex();
+    const index = buffer?.index;
     return (
-      bufferHref !== null &&
-      bufferIndex !== undefined &&
+      buffer !== null &&
+      index !== undefined &&
       at !== undefined &&
-      samePage(window.location.href, bufferHref) &&
-      (at > bufferIndex || (at === bufferIndex && onBuffer()))
+      samePage(window.location.href, buffer.href) &&
+      (at > index || (at === index && onBuffer()))
     );
   }
 
@@ -776,11 +785,8 @@ function createGuardMachine(deps: MachineDeps) {
       // Decide before clearing the buffer this write overtook.
       const kept = keptGuardedPage();
       const leaving =
-        removing &&
-        bufferId !== null &&
-        bufferHref !== null &&
-        bufferIndex !== undefined
-          ? { marker: bufferId, href: bufferHref, index: bufferIndex }
+        removing && buffer !== null && buffer.index !== undefined
+          ? { marker: buffer.marker, href: buffer.href, index: buffer.index }
           : null;
       restoring = false;
       restoreCorrections = 0;
@@ -797,23 +803,21 @@ function createGuardMachine(deps: MachineDeps) {
       if (
         kept &&
         leaving !== null &&
-        bufferId !== null &&
-        bufferId !== leaving.marker
+        buffer !== null &&
+        buffer.marker !== leaving.marker
       )
         overtaken = leaving;
       return;
     }
     // A write that bypassed the guard left the buffer behind. Stop tracking
     // the entry we left; it stays in history as an unowned guard entry.
-    if (bufferId !== null && !onBuffer()) {
+    if (buffer !== null && !onBuffer()) {
       // Decide before clearing: a push of a new entry above the guarded page
       // on the same route keeps the editor mounted with its work. A route
       // departure, or a replacement that dropped the marker in place,
       // re-arms only on the next registration change.
       const pushedOnPage = keptGuardedPage();
-      bufferId = null;
-      bufferHref = null;
-      bufferIndex = undefined;
+      buffer = null;
       // Guard the new entry now. The tracker stripped the copied marker, so
       // arm() pushes a fresh buffer. Next's patched pushState passes that
       // nested push through (it carries the `__NA` Next copied into this
@@ -891,7 +895,7 @@ function createGuardMachine(deps: MachineDeps) {
         // its event may arrive while detached, so a reconnect must not read
         // the next real Back as it, nor a successor adopt the buffer it is
         // leaving. The approval waiting for it belonged to this connection.
-        if (bufferId !== null) abandonedMarkers.add(bufferId);
+        if (buffer !== null) abandonedMarkers.add(buffer.marker);
         restoring = false;
         restoreCorrections = 0;
         removeRequested = false;
