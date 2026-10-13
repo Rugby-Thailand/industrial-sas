@@ -792,6 +792,12 @@ export interface LayoutReadinessIssue {
  * blocking issue; the review screen reads every issue through
  * `layoutReadiness`, so "ready" there always means the same server checks.
  */
+// Reserve transaction headroom for authorization, floor geometry, indexed
+// leaf reads and the owned-location reads required by lifecycle patches.
+// Limits apply to the whole building, not independently to each area.
+export const STORAGE_LAYOUT_ACTIVATION_ADDRESS_LIMIT = 1800;
+const CAPACITY_ISSUE = "LAYOUT_CAPACITY_LIMIT";
+
 export async function assessLayoutReadiness(
   ctx: TenantFunctionContext,
   building: BuildingDocument,
@@ -799,11 +805,48 @@ export async function assessLayoutReadiness(
   const layout = await readLayout(ctx, building);
   const issues: LayoutReadinessIssue[] = [];
   const zonesByFloor = new Map<string, ZoneDocument[]>();
+  const positionsByZone = new Map<string, readonly Doc<"storagePositions">[]>();
   let zoneCount = 0;
+  let addressCount = 0;
   for (const floor of layout.documents) {
-    const zones = [...(await activeZonesForFloor(ctx, floor._id))];
-    zonesByFloor.set(floor._id, zones);
-    zoneCount += zones.length;
+    const remaining = STORAGE_LAYOUT_ACTIVATION_ADDRESS_LIMIT - addressCount;
+    if (remaining <= 0) {
+      issues.push({
+        code: CAPACITY_ISSUE,
+        blocking: true,
+        floorNumber: floor.floorNumber,
+      });
+      break;
+    }
+    try {
+      const zones = [
+        ...(await ctx.tenantDb
+          .byIndex<ZoneDocument>(
+            "storageZones",
+            "by_orgId_floorId_status_code",
+            [
+              { field: "floorId", value: floor._id },
+              { field: "status", value: "ACTIVE" },
+            ],
+          )
+          .all(Math.min(STORAGE_ZONE_LIMITS.maximumZonesPerFloor, remaining))),
+      ];
+      zonesByFloor.set(floor._id, zones);
+      zoneCount += zones.length;
+      addressCount += zones.length;
+    } catch (error) {
+      if (
+        !(error instanceof TenantDbError) ||
+        error.code !== "CAPACITY_DATA_LIMIT"
+      )
+        throw error;
+      issues.push({
+        code: CAPACITY_ISSUE,
+        blocking: true,
+        floorNumber: floor.floorNumber,
+      });
+      break;
+    }
   }
   if (zoneCount === 0)
     issues.push({ code: "STORAGE_STACK_REQUIRED", blocking: true });
@@ -870,6 +913,12 @@ export async function assessLayoutReadiness(
           blocking: true,
           ...where,
         });
+      if (issues.some((issue) => issue.code === CAPACITY_ISSUE)) continue;
+      const remaining = STORAGE_LAYOUT_ACTIVATION_ADDRESS_LIMIT - addressCount;
+      if (remaining <= 0) {
+        issues.push({ code: CAPACITY_ISSUE, blocking: true, ...where });
+        continue;
+      }
       let positions: readonly Doc<"storagePositions">[];
       try {
         positions = await ctx.tenantDb
@@ -881,7 +930,14 @@ export async function assessLayoutReadiness(
               { field: "status", value: "ACTIVE" },
             ],
           )
-          .all(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
+          .all(
+            Math.min(
+              STORAGE_POSITION_LIMITS.maximumPositionsPerArea,
+              remaining,
+            ),
+          );
+        addressCount += positions.length;
+        positionsByZone.set(zone._id, positions);
       } catch (error) {
         if (
           !(error instanceof TenantDbError) ||
@@ -889,7 +945,10 @@ export async function assessLayoutReadiness(
         )
           throw error;
         issues.push({
-          code: "POSITION_LIMIT_EXCEEDED",
+          code:
+            remaining < STORAGE_POSITION_LIMITS.maximumPositionsPerArea
+              ? CAPACITY_ISSUE
+              : "POSITION_LIMIT_EXCEEDED",
           blocking: true,
           ...where,
         });
@@ -944,6 +1003,7 @@ export async function assessLayoutReadiness(
     layout,
     zones: [...zonesByFloor.values()].flat(),
     zoneCount,
+    positionsByZone,
     issues,
   };
 }
@@ -982,6 +1042,11 @@ async function changeStatus(
     return failure("LOCATION_OCCUPIED");
   const assessment = await assessLayoutReadiness(ctx, building);
   const zones = assessment.zones;
+  const incomplete = assessment.issues.find(
+    (issue) =>
+      issue.code === CAPACITY_ISSUE || issue.code === "POSITION_LIMIT_EXCEEDED",
+  );
+  if (incomplete) return failure(incomplete.code);
   if (status === "ACTIVE") {
     const blocking = assessment.issues.find((issue) => issue.blocking);
     if (blocking !== undefined) return failure(blocking.code, blocking.field);
@@ -1014,16 +1079,7 @@ async function changeStatus(
       await ctx.tenantDb.patch("locations", zone.locationId, {
         status: status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
       });
-      const positions = await ctx.tenantDb
-        .byIndex<Doc<"storagePositions">>(
-          "storagePositions",
-          "by_orgId_zoneId_status_code",
-          [
-            { field: "zoneId", value: zone._id },
-            { field: "status", value: "ACTIVE" },
-          ],
-        )
-        .all(100);
+      const positions = assessment.positionsByZone.get(zone._id) ?? [];
       for (const position of positions) {
         if (position.locationId !== zone.locationId) {
           await ctx.tenantDb.patch("locations", position.locationId, {
@@ -1153,31 +1209,28 @@ export const buildingLifecycleImpact = queryWithOrg({
     );
     if (building === null || building.warehouseId !== args.warehouseId)
       return { found: false as const };
-    const layout = await readLayout(ctx, building);
-    let zoneCount = 0;
+    const assessment = await assessLayoutReadiness(ctx, building);
+    const zoneCount = assessment.zoneCount;
     let positionCount = 0;
-    for (const floor of layout.documents) {
-      const zones = await activeZonesForFloor(ctx, floor._id);
-      zoneCount += zones.length;
-      for (const zone of zones) {
-        const positions = await ctx.tenantDb
-          .byIndex<Doc<"storagePositions">>(
-            "storagePositions",
-            "by_orgId_zoneId_status_code",
-            [
-              { field: "zoneId", value: zone._id },
-              { field: "status", value: "ACTIVE" },
-            ],
-          )
-          .all(100);
-        positionCount += positions.filter(
-          (position) => position.locationId !== zone.locationId,
-        ).length;
-      }
-    }
+    for (const zone of assessment.zones)
+      positionCount += (assessment.positionsByZone.get(zone._id) ?? []).filter(
+        (position) => position.locationId !== zone.locationId,
+      ).length;
+    const capacityExceeded = assessment.issues.some(
+      (issue) =>
+        issue.code === CAPACITY_ISSUE ||
+        issue.code === "POSITION_LIMIT_EXCEEDED",
+    );
     const named = await namedRegistrations(ctx, args.warehouseId, building._id);
+    const occupied = await hasOccupiedStorage(ctx, {
+      buildingId: building._id,
+    });
     return {
       found: true as const,
+      // Incomplete totals are lower bounds, never an exact confirmation count.
+      complete: !capacityExceeded && named.complete,
+      capacityExceeded,
+      canArchive: !capacityExceeded && !occupied,
       status: building.status,
       version: building.version,
       floorCount: building.floorCount,
@@ -1185,7 +1238,7 @@ export const buildingLifecycleImpact = queryWithOrg({
       positionCount,
       namedRegistrationCount: named.count,
       namedRegistrationCountComplete: named.complete,
-      occupied: await hasOccupiedStorage(ctx, { buildingId: building._id }),
+      occupied,
     };
   },
 });

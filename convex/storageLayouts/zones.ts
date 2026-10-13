@@ -990,6 +990,34 @@ export const createStoragePosition = mutationWithOrg({
   target: { table: "storagePositions" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    // The command receipt uses submitted intent, independent of later parent
+    // edits. Keep the older per-row receipts compatible during rollout.
+    const operation = "storageLayout.position.createCommand";
+    const fingerprint = await fingerprintArguments(args);
+    if (!fingerprint.ok) return failure(fingerprint.error.code);
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storagePositions",
+        operation,
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null) {
+      const position = await ctx.tenantDb.get<PositionDocument>(
+        "storagePositions",
+        replay.value.documentId,
+      );
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+        ...(position ? { code: position.code } : {}),
+      };
+    }
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -1059,6 +1087,18 @@ export const createStoragePosition = mutationWithOrg({
       ...geometry,
     });
     if (!created.ok) return failure(created.error.code);
+    await writeIdempotencyRecord({
+      tenantDb: ctx.tenantDb,
+      operation,
+      requestId: args.requestId,
+      requestHash: fingerprint.value,
+      resultRef: created.value.documentId,
+      resultHash: await sha256Hex(
+        `storagePositions:${created.value.documentId}`,
+      ),
+      actorUserId: ctx.tenant.actor._id,
+      now: Date.now(),
+    });
     return {
       written: true as const,
       documentId: created.value.documentId,
@@ -1651,6 +1691,23 @@ export const archiveStorageZone = mutationWithOrg({
   target: { table: "storageZones", id: ({ zoneId }) => zoneId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storageZones",
+        "storageLayout.zone.archive",
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null)
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+      };
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,

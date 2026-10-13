@@ -27,6 +27,7 @@ import {
 } from "../../convex/storageLayouts/writes";
 import {
   archiveStoragePosition,
+  archiveStorageZone,
   updateStoragePosition,
   createStoragePosition,
   createStorageZone,
@@ -1262,3 +1263,280 @@ it("an active rack keeps its final exact address until the empty building return
     error: { code: "AREA_REQUIRES_LEAF_POSITION" },
   });
 });
+
+it("replays a committed zone archive after its building is archived", async () => {
+  const context = await plannerWorld(1);
+  const created = await zone(context, "Only");
+  const args = {
+    warehouseId: context.warehouseId,
+    zoneId: created["documentId"],
+    requestId: "audit-zone-archive",
+  };
+  expect(
+    value(await call(context.world, archiveStorageZone, args)),
+  ).toMatchObject({ written: true });
+  expect(
+    value(
+      await call(context.world, archiveStorageBuilding, {
+        warehouseId: context.warehouseId,
+        buildingId: context.buildingId,
+        expectedVersion: (await building(context)).building.version,
+        requestId: "audit-building-archive",
+      }),
+    ),
+  ).toMatchObject({ written: true });
+  expect(
+    value(await call(context.world, archiveStorageZone, args)),
+  ).toMatchObject({ written: true, replayed: true });
+});
+
+it("replays a committed position creation after its parent is renamed", async () => {
+  const context = await plannerWorld(1);
+  const created = await zone(context, "Grid", { mode: "FLOOR_POSITIONS" });
+  const args = {
+    warehouseId: context.warehouseId,
+    zoneId: created["documentId"],
+    requestId: "audit-position-create",
+    code: "P1",
+    label: "P1",
+    xMm: 0,
+    yMm: 0,
+    widthMm: 1000,
+    depthMm: 1000,
+  };
+  expect(
+    value(await call(context.world, createStoragePosition, args)),
+  ).toMatchObject({ written: true });
+  // Existing deployments have only the per-row receipt. An unchanged retry
+  // remains compatible and upgrades it to a command receipt before later edits.
+  await context.world.t.run(async (ctx) => {
+    const receipts = await ctx.db.query("idempotencyRecords").collect();
+    for (const receipt of receipts)
+      if (receipt.operation === "storageLayout.position.createCommand")
+        await ctx.db.delete(receipt._id);
+  });
+  expect(
+    value(await call(context.world, createStoragePosition, args)),
+  ).toMatchObject({ written: true, replayed: true });
+  const current = await rawZone(context, created["documentId"] as string);
+  expect(
+    value(
+      await call(context.world, updateStorageZone, {
+        warehouseId: context.warehouseId,
+        zoneId: current._id,
+        requestId: "audit-parent-rename",
+        label: "New parent label",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 2000,
+        depthMm: 2000,
+        maxStackHeightMm: 3000,
+        expectedRevision: `${current.version ?? 0}:${current.updatedAt}`,
+      }),
+    ),
+  ).toMatchObject({ written: true });
+  expect(
+    value(await call(context.world, createStoragePosition, args)),
+  ).toMatchObject({ written: true, replayed: true });
+  expect(
+    value(
+      await call(context.world, createStoragePosition, {
+        ...args,
+        label: "Different creation intent",
+      }),
+    ),
+  ).toMatchObject({
+    written: false,
+    error: { code: "REQUEST_ARGUMENT_CONFLICT" },
+  });
+  const leaves = await context.world.t.run((ctx) =>
+    ctx.db.query("storagePositions").collect(),
+  );
+  expect(leaves.filter((leaf) => !leaf.isDefault)).toHaveLength(1);
+});
+
+it.each([false, true])(
+  "bounds aggregate readiness and lifecycle transactions at the address cap (overflow=%s)",
+  async (overflow) => {
+    const context = await plannerWorld(1);
+    await context.world.t.run(async (ctx) => {
+      await ctx.db.patch(context.buildingId as never, {
+        widthMm: 200000,
+        depthMm: 200000,
+        grossAreaSqMm: 40000000000,
+        usableAreaSqMm: 40000000000,
+      });
+      const floor = (await ctx.db.query("storageFloors").collect())[0]!;
+      for (let areaIndex = 0; areaIndex < 18; areaIndex++) {
+        const xMm = areaIndex * 10000,
+          yMm = 0;
+        const locationId = await ctx.db.insert("locations", {
+          orgId: context.world.orgA,
+          warehouseId: context.warehouseId,
+          buildingId: floor.buildingId,
+          floorId: floor._id,
+          code: `A${areaIndex}`,
+          locationType: "FLOOR_BLOCK",
+          status: "INACTIVE",
+        });
+        const zoneId = await ctx.db.insert("storageZones", {
+          orgId: context.world.orgA,
+          warehouseId: context.warehouseId,
+          buildingId: floor.buildingId,
+          floorId: floor._id,
+          locationId,
+          code: `A${areaIndex}`,
+          label: `A${areaIndex}`,
+          qrValue: `ISAS:LOCATION:1:${locationId}`,
+          mode: "RACK",
+          xMm,
+          yMm,
+          widthMm: 10000,
+          depthMm: 10000,
+          maxStackHeightMm: 3000,
+          status: "ACTIVE",
+          createdAt: 1,
+          updatedAt: 1,
+          createdByUserId: context.world.userA,
+          updatedByUserId: context.world.userA,
+        });
+        const leafCount = overflow && areaIndex === 17 ? 100 : 99;
+        for (let leafIndex = 0; leafIndex < leafCount; leafIndex++) {
+          const leafLocationId = await ctx.db.insert("locations", {
+            orgId: context.world.orgA,
+            warehouseId: context.warehouseId,
+            buildingId: floor.buildingId,
+            floorId: floor._id,
+            code: `A${areaIndex}-${leafIndex}`,
+            locationType: "RACK_BIN",
+            status: "INACTIVE",
+          });
+          await ctx.db.insert("storagePositions", {
+            orgId: context.world.orgA,
+            warehouseId: context.warehouseId,
+            buildingId: floor.buildingId,
+            floorId: floor._id,
+            zoneId,
+            locationId: leafLocationId,
+            code: `A${areaIndex}-${leafIndex}`,
+            label: `A${areaIndex}-${leafIndex}`,
+            qrValue: `ISAS:LOCATION:1:${leafLocationId}`,
+            kind: "RACK_SLOT",
+            isDefault: false,
+            xMm: xMm + (leafIndex % 10) * 1000,
+            yMm,
+            widthMm: 1000,
+            depthMm: 1000,
+            elevationMm: Math.floor(leafIndex / 10) * 300,
+            status: "ACTIVE",
+            createdAt: 1,
+            updatedAt: 1,
+            createdByUserId: context.world.userA,
+            updatedByUserId: context.world.userA,
+          });
+        }
+      }
+    });
+    const readiness = value(
+      await call(context.world, layoutReadiness, {
+        warehouseId: context.warehouseId,
+        buildingId: context.buildingId,
+      }),
+    );
+    expect(readiness["ready"]).toBe(!overflow);
+    if (overflow)
+      expect(readiness["issues"]).toContainEqual(
+        expect.objectContaining({
+          code: "LAYOUT_CAPACITY_LIMIT",
+          blocking: true,
+        }),
+      );
+    const impact = value(
+      await call(context.world, buildingLifecycleImpact, {
+        warehouseId: context.warehouseId,
+        buildingId: context.buildingId,
+      }),
+    );
+    expect(impact).toMatchObject({
+      complete: !overflow,
+      capacityExceeded: overflow,
+      canArchive: !overflow,
+    });
+    if (!overflow)
+      expect(impact).toMatchObject({ zoneCount: 18, positionCount: 1782 });
+    const snapshot = await context.world.t.run((ctx) =>
+      ctx.db.get(context.buildingId as never),
+    );
+    const change = async (fn: unknown, requestId: string) =>
+      context.world.t
+        .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+        .run(async (ctx) => {
+          let writes = 0;
+          const measured = new Proxy(ctx.db, {
+            get(target, key, receiver) {
+              const member = Reflect.get(target, key, receiver);
+              return typeof member === "function"
+                ? (...args: unknown[]) => {
+                    if (key === "patch" || key === "insert") writes++;
+                    return Reflect.apply(member, target, args);
+                  }
+                : member;
+            },
+          });
+          const tracked = trackDocumentReads(measured);
+          const response = value(
+            (await (fn as RuntimeFunction)._handler(
+              { ...ctx, db: tracked.db } as GenericMutationCtx<DataModel>,
+              {
+                warehouseId: context.warehouseId,
+                buildingId: context.buildingId,
+                expectedVersion: (snapshot as Doc<"storageBuildings">).version,
+                requestId,
+              },
+            )) as Outcome,
+          );
+          expect(
+            tracked.queryRows.reduce((sum, row) => sum + row.count, 0) +
+              tracked.reads.length,
+          ).toBeLessThan(32000);
+          expect(tracked.queries.length + tracked.reads.length).toBeLessThan(
+            4096,
+          );
+          expect(writes).toBeLessThan(16000);
+          return response;
+        });
+    if (overflow) {
+      for (const [fn, requestId] of [
+        [activateStorageBuilding, "over-cap-activate"],
+        [archiveStorageBuilding, "over-cap-archive"],
+      ] as const) {
+        expect(await change(fn, requestId)).toMatchObject({
+          written: false,
+          error: { code: "LAYOUT_CAPACITY_LIMIT" },
+        });
+        expect(
+          await context.world.t.run((ctx) =>
+            ctx.db.get(context.buildingId as never),
+          ),
+        ).toEqual(snapshot);
+        const locations = await context.world.t.run((ctx) =>
+          ctx.db.query("locations").collect(),
+        );
+        expect(
+          locations.every((location) => location.status === "INACTIVE"),
+        ).toBe(true);
+      }
+    } else {
+      expect(
+        await change(activateStorageBuilding, "at-cap-activate"),
+      ).toMatchObject({ written: true });
+      const locations = await context.world.t.run((ctx) =>
+        ctx.db.query("locations").collect(),
+      );
+      expect(locations).toHaveLength(1800);
+      expect(locations.every((location) => location.status === "ACTIVE")).toBe(
+        true,
+      );
+    }
+  },
+);
