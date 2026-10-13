@@ -3,7 +3,9 @@
 import { useMutation } from "convex/react";
 import { Archive, PencilLine, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -30,7 +32,7 @@ import {
   OperationFailure,
   storageWriteMessage,
 } from "./layoutActions";
-import { measuredMillimetres } from "./measure";
+import { measuredMillimetres, whenGuardIdle } from "./measure";
 import { metres } from "./storageLayoutShared";
 
 type Geometry = { x: string; y: string; width: string; depth: string };
@@ -63,8 +65,44 @@ export function StoragePositionsDialog({
   onClose,
 }: {
   readonly warehouseId: string;
-  readonly zone: StorageZoneRow;
+  /** The managed spot; undefined keeps the shared Dialog mounted but closed. */
+  readonly zone: StorageZoneRow | undefined;
   readonly onClose: () => void;
+}) {
+  const t = useTranslations("StorageLayouts");
+  // Mounted while closed, so opening and closing always own one foreground
+  // entry through the shared Dialog (never an unmounted, unconsumed entry).
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog
+      open={zone !== undefined}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      backPending={busy}
+    >
+      {zone === undefined ? null : (
+        <DialogContent closeLabel={t("closeDialog")} className="max-w-4xl">
+          <PositionsManager
+            key={zone.zoneId}
+            warehouseId={warehouseId}
+            zone={zone}
+            onBusyChange={setBusy}
+          />
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function PositionsManager({
+  warehouseId,
+  zone,
+  onBusyChange,
+}: {
+  readonly warehouseId: string;
+  readonly zone: StorageZoneRow;
+  readonly onBusyChange: (busy: boolean) => void;
 }) {
   const t = useTranslations("StorageLayouts");
   const exact = zone.positions.filter((position) => !position.isDefault);
@@ -78,6 +116,25 @@ export function StoragePositionsDialog({
   const [message, setMessage] = useState<string>();
   const [refusal, setRefusal] = useState<string>();
   const [editing, setEditing] = useState<StoragePositionRow>();
+  // Editing one position is an earlier step inside the manager: Back and
+  // Cancel return to the list with any add/generate draft retained.
+  const editScope = `storage-position-edit:${zone.zoneId}`;
+  const editStep = useWorkflowStep(
+    "positionEdit",
+    editScope,
+    true,
+    () => setEditing(undefined),
+    { priority: 110, blocked: operation.busy },
+  );
+  const [editSaved, setEditSaved] = useState(false);
+  // Close the edit step only once the successful write has settled.
+  useEffect(() => {
+    if (!editSaved || operation.busy || !editStep.active) return;
+    whenGuardIdle(() => editStep.back());
+  });
+  useLayoutEffect(() => {
+    onBusyChange(operation.busy);
+  }, [operation.busy, onBusyChange]);
   const [archiving, setArchiving] = useState<StoragePositionRow>();
   const create = useMutation(storageLayoutRefs.createPosition);
   const update = useMutation(storageLayoutRefs.updatePosition);
@@ -89,9 +146,10 @@ export function StoragePositionsDialog({
     send: () => Promise<T>,
     success: string,
     after?: () => void,
-  ) {
+  ): Promise<boolean> {
     setRefusal(undefined);
     setMessage(undefined);
+    let saved = false;
     await operation.run(send, (outcome) => {
       const result = outcome as unknown as
         | { ok: false; denial: { code: string } }
@@ -106,156 +164,156 @@ export function StoragePositionsDialog({
       else {
         operation.clearRequests();
         setMessage(success);
+        saved = true;
         after?.();
       }
     });
+    return saved;
   }
 
   const failure = layoutFailure(refusal, operation);
+  const editingActive = editing !== undefined && editStep.active;
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      backPending={operation.busy}
-    >
-      <DialogContent closeLabel={t("closeDialog")} className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>
-            {t("layoutActions.positions.manageTitle", { code: zone.code })}
-          </DialogTitle>
-          <DialogDescription>
-            {t("layoutActions.positions.description")}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[calc(100dvh-14rem)] space-y-4 overflow-y-auto">
-          <p className="text-xs text-muted">
-            {t("layoutActions.positions.withinSpot", {
-              x: metres(zone.xMm),
-              right: metres(zone.xMm + zone.widthMm),
-              y: metres(zone.yMm),
-              bottom: metres(zone.yMm + zone.depthMm),
-            })}
-          </p>
-          {occupied ? (
-            <Notice
-              tone="muted"
-              title={t("layoutActions.positions.occupied")}
-            />
-          ) : null}
-          {exact.length === 0 ? (
-            <Notice tone="warning" title={t("layoutActions.positions.none")} />
-          ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {exact.map((position) => (
-                <li
-                  key={position.locationId}
-                  className="flex flex-wrap items-center justify-between gap-2 p-3"
-                >
-                  <div className="min-w-0">
-                    <p className="font-mono text-sm font-semibold break-all">
-                      {position.code}
-                    </p>
-                    <p className="text-sm">{position.label}</p>
-                    <p className="text-xs text-muted tabular-nums">
-                      X{" "}
-                      {position.xMm === undefined ? "—" : metres(position.xMm)}{" "}
-                      · Y{" "}
-                      {position.yMm === undefined ? "—" : metres(position.yMm)}{" "}
-                      ·{" "}
-                      {position.widthMm === undefined
-                        ? "—"
-                        : metres(position.widthMm)}{" "}
-                      ×{" "}
-                      {position.depthMm === undefined
-                        ? "—"
-                        : metres(position.depthMm)}{" "}
-                      m
-                      {position.elevationMm === undefined
-                        ? ""
-                        : ` · ${t("elevationValue", { value: metres(position.elevationMm) })}`}
-                    </p>
-                    <code className="text-xs break-all text-muted">
-                      {t("layoutActions.qr.exact")}: {position.qrValue}
-                    </code>
-                  </div>
-                  {position.positionId === undefined ? null : (
-                    <div className="flex gap-1">
-                      {position.kind === "RACK_SLOT" ? null : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={operation.busy}
-                          onClick={() => setEditing(position)}
-                          aria-label={t("layoutActions.positions.edit", {
-                            code: position.code,
-                          })}
-                        >
-                          <PencilLine aria-hidden="true" className="size-4" />
-                          {t("edit")}
-                        </Button>
-                      )}
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {t("layoutActions.positions.manageTitle", { code: zone.code })}
+        </DialogTitle>
+        <DialogDescription>
+          {t("layoutActions.positions.description")}
+        </DialogDescription>
+      </DialogHeader>
+      <div className="max-h-[calc(100dvh-14rem)] space-y-4 overflow-y-auto">
+        <p className="text-xs text-muted">
+          {t("layoutActions.positions.withinSpot", {
+            x: metres(zone.xMm),
+            right: metres(zone.xMm + zone.widthMm),
+            y: metres(zone.yMm),
+            bottom: metres(zone.yMm + zone.depthMm),
+          })}
+        </p>
+        {occupied ? (
+          <Notice tone="muted" title={t("layoutActions.positions.occupied")} />
+        ) : null}
+        {exact.length === 0 ? (
+          <Notice tone="warning" title={t("layoutActions.positions.none")} />
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {exact.map((position) => (
+              <li
+                key={position.locationId}
+                className="flex flex-wrap items-center justify-between gap-2 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-mono text-sm font-semibold break-all">
+                    {position.code}
+                  </p>
+                  <p className="text-sm">{position.label}</p>
+                  <p className="text-xs text-muted tabular-nums">
+                    X {position.xMm === undefined ? "—" : metres(position.xMm)}{" "}
+                    · Y{" "}
+                    {position.yMm === undefined ? "—" : metres(position.yMm)} ·{" "}
+                    {position.widthMm === undefined
+                      ? "—"
+                      : metres(position.widthMm)}{" "}
+                    ×{" "}
+                    {position.depthMm === undefined
+                      ? "—"
+                      : metres(position.depthMm)}{" "}
+                    m
+                    {position.elevationMm === undefined
+                      ? ""
+                      : ` · ${t("elevationValue", { value: metres(position.elevationMm) })}`}
+                  </p>
+                  <code className="text-xs break-all text-muted">
+                    {t("layoutActions.qr.exact")}: {position.qrValue}
+                  </code>
+                </div>
+                {position.positionId === undefined ? null : (
+                  <div className="flex gap-1">
+                    {position.kind === "RACK_SLOT" ? null : (
                       <Button
                         type="button"
                         size="sm"
-                        variant="ghost"
-                        disabled={operation.busy || occupied}
+                        variant="outline"
+                        disabled={operation.busy}
                         onClick={() => {
-                          setRefusal(undefined);
-                          setArchiving(position);
+                          setEditSaved(false);
+                          setEditing(position);
+                          editStep.enter();
                         }}
-                        aria-label={t("layoutActions.positions.archive", {
+                        aria-label={t("layoutActions.positions.edit", {
                           code: position.code,
                         })}
                       >
-                        <Archive aria-hidden="true" className="size-4" />
+                        <PencilLine aria-hidden="true" className="size-4" />
+                        {t("edit")}
                       </Button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {editing?.positionId !== undefined ? (
-            <PositionForm
-              key={editing.positionId}
-              zone={zone}
-              initial={{
-                code: editing.code,
-                label: editing.label,
-                ...geometryOf(editing),
-              }}
-              codeLocked
-              geometryLocked={occupied}
-              busy={operation.busy}
-              submitLabel={t("savePosition")}
-              onCancel={() => setEditing(undefined)}
-              onSubmit={(value) => {
-                const payload = {
-                  warehouseId,
-                  positionId: editing.positionId!,
-                  label: value.label,
-                  ...value.geometry,
-                  ...(editing.revision === undefined
-                    ? {}
-                    : { expectedRevision: editing.revision }),
-                };
-                return write(
-                  () =>
-                    update({
-                      ...payload,
-                      requestId: operation.request(JSON.stringify(payload)),
-                    }),
-                  t("layoutActions.positions.saved"),
-                  () => setEditing(undefined),
-                );
-              }}
-            />
-          ) : zone.mode === "RACK" ? (
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={operation.busy || occupied}
+                      onClick={() => {
+                        setRefusal(undefined);
+                        setArchiving(position);
+                      }}
+                      aria-label={t("layoutActions.positions.archive", {
+                        code: position.code,
+                      })}
+                    >
+                      <Archive aria-hidden="true" className="size-4" />
+                    </Button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {editingActive && editing?.positionId !== undefined ? (
+          <PositionForm
+            key={editing.positionId}
+            zone={zone}
+            initial={{
+              code: editing.code,
+              label: editing.label,
+              ...geometryOf(editing),
+            }}
+            codeLocked
+            clean={editSaved}
+            geometryLocked={occupied}
+            busy={operation.busy}
+            submitLabel={t("savePosition")}
+            onCancel={() => editStep.back()}
+            onSubmit={(value) => {
+              const payload = {
+                warehouseId,
+                positionId: editing.positionId!,
+                label: value.label,
+                ...value.geometry,
+                ...(editing.revision === undefined
+                  ? {}
+                  : { expectedRevision: editing.revision }),
+              };
+              return write(
+                () =>
+                  update({
+                    ...payload,
+                    requestId: operation.request(JSON.stringify(payload)),
+                  }),
+                t("layoutActions.positions.saved"),
+                () => setEditSaved(true),
+              );
+            }}
+          />
+        ) : null}
+        {/* Kept mounted while one position is edited, so its draft returns. */}
+        <div hidden={editingActive}>
+          {zone.mode === "RACK" ? (
             <RackGenerator
               zone={zone}
+              draftScope={editScope}
               disabled={occupied}
               busy={operation.busy}
               onGenerate={(config) => {
@@ -274,6 +332,7 @@ export function StoragePositionsDialog({
             occupied ? null : (
               <PositionForm
                 zone={zone}
+                draftScope={editScope}
                 initial={{
                   code: "",
                   label: "",
@@ -306,57 +365,59 @@ export function StoragePositionsDialog({
               />
             )
           ) : null}
-          {message ? (
-            <p role="status" className="text-sm text-success">
-              {message}
-            </p>
-          ) : null}
-          <OperationFailure failure={failure} />
         </div>
-        <ConfirmDialog
-          open={archiving !== undefined}
-          onOpenChange={(open) => {
-            if (!open) setArchiving(undefined);
-          }}
-          title={t("layoutActions.positions.archive", {
-            code: archiving?.code ?? "",
-          })}
-          description={t("layoutActions.archiveZoneDescription", { count: 0 })}
-          cancelLabel={t("cancel")}
-          confirmLabel={t("archiveZone")}
-          pendingLabel={t("layoutActions.archivingZone")}
-          tone="destructive"
-          pending={operation.busy}
-          onConfirm={() => {
-            const target = archiving;
-            if (target?.positionId === undefined) return;
-            const payload = { warehouseId, positionId: target.positionId };
-            void write(
-              () =>
-                archive({
-                  ...payload,
-                  requestId: operation.request(JSON.stringify(payload)),
-                }),
-              t("layoutActions.positions.archived"),
-              () => setArchiving(undefined),
-            );
-          }}
-          error={
-            failure === undefined
-              ? undefined
-              : failure.thrown
-                ? t("layoutActions.failure.network")
-                : storageWriteMessage(t, failure.code)
-          }
-        />
-      </DialogContent>
-    </Dialog>
+        {message ? (
+          <p role="status" className="text-sm text-success">
+            {message}
+          </p>
+        ) : null}
+        <OperationFailure failure={failure} />
+      </div>
+      <ConfirmDialog
+        open={archiving !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setArchiving(undefined);
+        }}
+        title={t("layoutActions.positions.archive", {
+          code: archiving?.code ?? "",
+        })}
+        description={t("layoutActions.archiveZoneDescription", { count: 0 })}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("archiveZone")}
+        pendingLabel={t("layoutActions.archivingZone")}
+        tone="destructive"
+        pending={operation.busy}
+        onConfirm={() => {
+          const target = archiving;
+          if (target?.positionId === undefined) return;
+          const payload = { warehouseId, positionId: target.positionId };
+          void write(
+            () =>
+              archive({
+                ...payload,
+                requestId: operation.request(JSON.stringify(payload)),
+              }),
+            t("layoutActions.positions.archived"),
+            () => setArchiving(undefined),
+          );
+        }}
+        error={
+          failure === undefined
+            ? undefined
+            : failure.thrown
+              ? t("layoutActions.failure.network")
+              : storageWriteMessage(t, failure.code)
+        }
+      />
+    </>
   );
 }
 
 function PositionForm({
   zone,
   initial,
+  draftScope,
+  clean = false,
   codeLocked = false,
   geometryLocked = false,
   busy,
@@ -366,6 +427,10 @@ function PositionForm({
 }: {
   readonly zone: StorageZoneRow;
   readonly initial: Geometry & { code: string; label: string };
+  /** Retained by this earlier step's Back (the add form under an edit). */
+  readonly draftScope?: string;
+  /** The write succeeded; nothing is left to protect. */
+  readonly clean?: boolean;
   readonly codeLocked?: boolean;
   readonly geometryLocked?: boolean;
   readonly busy: boolean;
@@ -374,11 +439,18 @@ function PositionForm({
     code: string;
     label: string;
     geometry: { xMm: number; yMm: number; widthMm: number; depthMm: number };
-  }) => Promise<void>;
+  }) => Promise<boolean>;
   readonly onCancel?: () => void;
 }) {
   const t = useTranslations("StorageLayouts");
   const [draft, setDraft] = useState(initial);
+  const [baseline, setBaseline] = useState(initial);
+  useNavigationDraft({
+    dirty: !clean && JSON.stringify(draft) !== JSON.stringify(baseline),
+    pending: busy,
+    discard: () => setBaseline(draft),
+    ...(draftScope === undefined ? {} : { workflowScope: draftScope }),
+  });
   const geometry = geometryMm(draft);
   const inside =
     geometry !== null &&
@@ -395,10 +467,17 @@ function PositionForm({
     event.preventDefault();
     event.stopPropagation();
     if (!valid || geometry === null || busy) return;
-    void onSubmit({ code, label: draft.label.trim(), geometry }).then(() => {
-      if (!codeLocked)
-        setDraft((current) => ({ ...current, code: "", label: "" }));
-    });
+    void onSubmit({ code, label: draft.label.trim(), geometry }).then(
+      (saved) => {
+        if (!saved) return;
+        if (codeLocked) setBaseline(draft);
+        else {
+          const next = { ...draft, code: "", label: "" };
+          setDraft(next);
+          setBaseline(next);
+        }
+      },
+    );
   };
   const field = (key: keyof Geometry, label: string) => (
     <div key={key}>
@@ -477,11 +556,13 @@ function PositionForm({
 
 function RackGenerator({
   zone,
+  draftScope,
   disabled,
   busy,
   onGenerate,
 }: {
   readonly zone: StorageZoneRow;
+  readonly draftScope: string;
   readonly disabled: boolean;
   readonly busy: boolean;
   readonly onGenerate: (config: {
@@ -493,10 +574,10 @@ function RackGenerator({
     rackDepthMm: number;
     levelHeightMm: number;
     count: number;
-  }) => Promise<void>;
+  }) => Promise<boolean>;
 }) {
   const t = useTranslations("StorageLayouts");
-  const [draft, setDraft] = useState({
+  const empty = {
     fixtureCode: "",
     bays: "",
     levels: "",
@@ -504,6 +585,16 @@ function RackGenerator({
     bayWidth: "",
     rackDepth: "",
     levelHeight: "",
+  };
+  const [draft, setDraft] = useState(empty);
+  const [generated, setGenerated] = useState<string>();
+  useNavigationDraft({
+    dirty:
+      JSON.stringify(draft) !== JSON.stringify(empty) &&
+      JSON.stringify(draft) !== generated,
+    pending: busy,
+    discard: () => setGenerated(JSON.stringify(draft)),
+    workflowScope: draftScope,
   });
   const integer = (value: string) =>
     /^\d+$/.test(value.trim()) ? Number(value) : Number.NaN;
@@ -572,7 +663,11 @@ function RackGenerator({
         event.preventDefault();
         event.stopPropagation();
         if (!preview?.ok || busy || disabled) return;
-        void onGenerate({ ...config, count: positions.length });
+        void onGenerate({ ...config, count: positions.length }).then(
+          (saved) => {
+            if (saved) setGenerated(JSON.stringify(draft));
+          },
+        );
       }}
     >
       <p className="text-sm text-muted sm:col-span-3">

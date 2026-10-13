@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -47,8 +48,46 @@ export function CompleteNamedLayoutDialog({
   onCompleted,
 }: {
   readonly warehouseId: string;
-  readonly location: NamedLocationTarget;
+  /** The registration to place; undefined keeps the shared Dialog closed. */
+  readonly location: NamedLocationTarget | undefined;
   readonly onClose: () => void;
+  readonly onCompleted: (result: { code: string; floorNumber: number }) => void;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const [busy, setBusy] = useState(false);
+  // Always mounted, so open/close/completion own one foreground entry.
+  return (
+    <Dialog
+      open={location !== undefined}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      backPending={busy}
+    >
+      {location === undefined ? null : (
+        <DialogContent closeLabel={t("closeDialog")} className="max-w-2xl">
+          <CompleteNamedLayoutForm
+            key={location.locationId}
+            warehouseId={warehouseId}
+            location={location}
+            onBusyChange={setBusy}
+            onCompleted={onCompleted}
+          />
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function CompleteNamedLayoutForm({
+  warehouseId,
+  location,
+  onBusyChange,
+  onCompleted,
+}: {
+  readonly warehouseId: string;
+  readonly location: NamedLocationTarget;
+  readonly onBusyChange: (busy: boolean) => void;
   readonly onCompleted: (result: { code: string; floorNumber: number }) => void;
 }) {
   const t = useTranslations("StorageLayouts");
@@ -82,7 +121,25 @@ export function CompleteNamedLayoutDialog({
   });
   const [refusal, setRefusal] = useState<string>();
   const [noRoom, setNoRoom] = useState(false);
-  const floor = floors.find((row) => row.floorNumber === Number(floorNumber));
+  const [saved, setSaved] = useState(false);
+  useLayoutEffect(() => {
+    onBusyChange(operation.busy);
+  }, [operation.busy, onBusyChange]);
+  // Unsent measurements are this dialog's own draft: closing asks first.
+  useNavigationDraft({
+    dirty: !saved && Object.values(draft).some((value) => value !== ""),
+    pending: operation.busy,
+    discard: () => setSaved(true),
+  });
+  const value = target?.ok ? target.value : undefined;
+  // Job records keep a registered floor, so an assigned floor is fixed; only
+  // an unassigned registration may choose one (NAMED_LOCATION_FLOOR_CONFLICT).
+  const assignedFloor =
+    value?.found === true && typeof value.floorNumber === "number"
+      ? value.floorNumber
+      : undefined;
+  const chosenFloor = String(assignedFloor ?? floorNumber);
+  const floor = floors.find((row) => row.floorNumber === Number(chosenFloor));
   const building = detail?.found ? detail.building : undefined;
   const floorWidthMm = floor?.widthMm ?? building?.widthMm ?? 0;
   const floorDepthMm = floor?.depthMm ?? building?.depthMm ?? 0;
@@ -124,7 +181,6 @@ export function CompleteNamedLayoutDialog({
         areas,
       })
     : { kind: "incomplete" as const };
-  const value = target?.ok ? target.value : undefined;
   const pending = value?.found === true && value.layoutPending === true;
   const archived = value?.found === true && value.buildingStatus === "ARCHIVED";
   const ready =
@@ -137,7 +193,7 @@ export function CompleteNamedLayoutDialog({
       locationId: location.locationId,
       buildingId: location.buildingId,
       expectedVersion: value.version,
-      floorNumber: Number(floorNumber),
+      floorNumber: Number(chosenFloor),
       ...rectangle,
       maxStackHeightMm: heightMm,
     };
@@ -153,10 +209,14 @@ export function CompleteNamedLayoutDialog({
         else if (!result.value.written) setRefusal(result.value.error.code);
         else {
           operation.clearRequests();
-          onCompleted({
-            code: location.code,
-            floorNumber: payload.floorNumber,
-          });
+          setSaved(true);
+          // Close and report only once the write has settled (live owner).
+          operation.complete(() =>
+            onCompleted({
+              code: location.code,
+              floorNumber: payload.floorNumber,
+            }),
+          );
         }
       },
     );
@@ -194,123 +254,123 @@ export function CompleteNamedLayoutDialog({
     </div>
   );
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      backPending={operation.busy}
-    >
-      <DialogContent closeLabel={t("closeDialog")} className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {t("layoutActions.named.completeTitle", { code: location.code })}
-          </DialogTitle>
-          <DialogDescription>
-            {t("layoutActions.named.completeDescription")}
-          </DialogDescription>
-        </DialogHeader>
-        {archived ? (
-          <Notice
-            tone="warning"
-            title={t("layoutActions.named.buildingArchived")}
-          />
-        ) : value?.found && !pending ? (
-          <Notice tone="muted" title={t("layoutActions.named.alreadyMapped")} />
-        ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label htmlFor="named-layout-floor">
-              {t("layoutActions.named.floor")}
-            </Label>
-            <SelectControl
-              id="named-layout-floor"
-              className="mt-2 w-full"
-              label={t("layoutActions.named.floor")}
-              value={floorNumber}
-              onValueChange={setFloorNumber}
-              placeholder={t("layoutActions.named.floor")}
-              emptyLabel={t("layoutActions.named.floor")}
-              options={floors.map((row) => ({
-                value: String(row.floorNumber),
-                label: `${t("floor", { floor: row.floorNumber })} · ${metres(row.widthMm ?? building?.widthMm ?? 0)} × ${metres(row.depthMm ?? building?.depthMm ?? 0)} m`,
-              }))}
-            />
-          </div>
-          {field("width", t("zoneWidth"))}
-          {field("depth", t("zoneDepth"))}
-          {field("x", t("x"))}
-          {field("y", t("y"))}
-          {field("height", t("maxStackHeight"))}
-          <div className="self-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!floor || mm.widthMm === null || mm.depthMm === null}
-              onClick={() => {
-                if (!floor || mm.widthMm === null || mm.depthMm === null)
-                  return;
-                const found = findFreePlacement(
-                  floorWidthMm,
-                  floorDepthMm,
-                  mm.widthMm,
-                  mm.depthMm,
-                  areas,
-                );
-                setNoRoom(found === null);
-                if (found)
-                  setDraft((current) => ({
-                    ...current,
-                    x: String(metres(found.xMm)),
-                    y: String(metres(found.yMm)),
-                  }));
-              }}
-            >
-              {t("layoutActions.placement.findSpace")}
-            </Button>
-          </div>
-        </div>
-        {noRoom ? (
-          <Notice
-            tone="warning"
-            role="status"
-            title={t("layoutActions.placement.noRoom", {
-              width: draft.width,
-              depth: draft.depth,
-            })}
-            body={t("layoutActions.placement.noRoomHelp")}
-          />
-        ) : null}
-        <p
-          className={`text-xs ${problem === null ? "text-muted" : "text-warning"}`}
-          aria-live="polite"
-          data-testid="named-layout-status"
-        >
-          {problemText}
-        </p>
-        <OperationFailure
-          failure={layoutFailure(refusal, operation)}
-          onRetry={() => void submit()}
-          retrying={operation.busy}
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {t("layoutActions.named.completeTitle", { code: location.code })}
+        </DialogTitle>
+        <DialogDescription>
+          {t("layoutActions.named.completeDescription")}
+        </DialogDescription>
+      </DialogHeader>
+      {archived ? (
+        <Notice
+          tone="warning"
+          title={t("layoutActions.named.buildingArchived")}
         />
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" disabled={operation.busy}>
-              {t("cancel")}
-            </Button>
-          </DialogClose>
+      ) : value?.found && !pending ? (
+        <Notice tone="muted" title={t("layoutActions.named.alreadyMapped")} />
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Label htmlFor="named-layout-floor">
+            {t("layoutActions.named.floor")}
+          </Label>
+          <SelectControl
+            id="named-layout-floor"
+            className="mt-2 w-full"
+            label={t("layoutActions.named.floor")}
+            value={chosenFloor}
+            onValueChange={setFloorNumber}
+            disabled={assignedFloor !== undefined}
+            placeholder={t("layoutActions.named.floor")}
+            emptyLabel={t("layoutActions.named.floor")}
+            options={floors.map((row) => ({
+              value: String(row.floorNumber),
+              label: `${t("floor", { floor: row.floorNumber })} · ${metres(row.widthMm ?? building?.widthMm ?? 0)} × ${metres(row.depthMm ?? building?.depthMm ?? 0)} m`,
+            }))}
+          />
+          {assignedFloor === undefined ? null : (
+            <p
+              className="mt-2 text-xs text-muted"
+              data-testid="named-floor-locked"
+            >
+              {t("layoutActions.named.floorLocked", { floor: assignedFloor })}
+            </p>
+          )}
+        </div>
+        {field("width", t("zoneWidth"))}
+        {field("depth", t("zoneDepth"))}
+        {field("x", t("x"))}
+        {field("y", t("y"))}
+        {field("height", t("maxStackHeight"))}
+        <div className="self-end">
           <Button
             type="button"
-            disabled={!ready || operation.busy}
-            onClick={() => void submit()}
+            variant="ghost"
+            size="sm"
+            disabled={!floor || mm.widthMm === null || mm.depthMm === null}
+            onClick={() => {
+              if (!floor || mm.widthMm === null || mm.depthMm === null) return;
+              const found = findFreePlacement(
+                floorWidthMm,
+                floorDepthMm,
+                mm.widthMm,
+                mm.depthMm,
+                areas,
+              );
+              setNoRoom(found === null);
+              if (found)
+                setDraft((current) => ({
+                  ...current,
+                  x: String(metres(found.xMm)),
+                  y: String(metres(found.yMm)),
+                }));
+            }}
           >
-            {operation.busy
-              ? t("layoutActions.named.saving")
-              : t("layoutActions.named.confirm")}
+            {t("layoutActions.placement.findSpace")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+      {noRoom ? (
+        <Notice
+          tone="warning"
+          role="status"
+          title={t("layoutActions.placement.noRoom", {
+            width: draft.width,
+            depth: draft.depth,
+          })}
+          body={t("layoutActions.placement.noRoomHelp")}
+        />
+      ) : null}
+      <p
+        className={`text-xs ${problem === null ? "text-muted" : "text-warning"}`}
+        aria-live="polite"
+        data-testid="named-layout-status"
+      >
+        {problemText}
+      </p>
+      <OperationFailure
+        failure={layoutFailure(refusal, operation)}
+        onRetry={() => void submit()}
+        retrying={operation.busy}
+      />
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline" disabled={operation.busy}>
+            {t("cancel")}
+          </Button>
+        </DialogClose>
+        <Button
+          type="button"
+          disabled={!ready || operation.busy}
+          onClick={() => void submit()}
+        >
+          {operation.busy
+            ? t("layoutActions.named.saving")
+            : t("layoutActions.named.confirm")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

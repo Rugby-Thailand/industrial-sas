@@ -825,7 +825,8 @@
         "done": "{code} is now on floor {floor}. Its code and QR are unchanged.",
         "openFloor": "Open floor {floor}",
         "buildingArchived": "The building is archived, so this location can't be placed.",
-        "alreadyMapped": "This location is already on a floor plan."
+        "alreadyMapped": "This location is already on a floor plan.",
+        "floorLocked": "Registered on floor {floor}. Job records keep that floor, so the layout must be on it."
       },
       "vocab": {
         "title": "How the layout is organised",
@@ -848,7 +849,7 @@
         "RACK_CODE_CONFLICT": "Positions with this rack identity already exist. Choose another rack identity.",
         "RACK_DOES_NOT_FIT_AREA": "The rack doesn't fit inside this spot.",
         "POSITION_LIMIT_EXCEEDED": "A spot can hold at most 100 exact positions.",
-        "AREA_REQUIRES_LEAF_POSITION": "A spot must keep at least one exact position.",
+        "AREA_REQUIRES_LEAF_POSITION": "An active building's spot must keep at least one exact position. Only an empty draft area may retire its last one.",
         "BASE_ELEVATION_INVALID": "Platform base plus stack height must fit within the floor height.",
         "ZONE_OUT_OF_BOUNDS": "The spot extends outside the floor.",
         "ZONE_OVERLAPS_RESERVED_SPACE": "The spot overlaps an unavailable area.",
@@ -857,7 +858,43 @@
         "DUPLICATE_KEY": "That code is already used in this warehouse.",
         "NOT_FOUND": "It no longer exists. Refresh to see the latest layout.",
         "STORAGE_STACK_REQUIRED": "Add at least one storage spot before activation.",
-        "FORBIDDEN": "Your access doesn't allow this change."
+        "FORBIDDEN": "Your access doesn't allow this change.",
+        "NAMED_LOCATION_FLOOR_CONFLICT": "This location is registered on another floor. Its layout must be completed on that floor so job records stay correct.",
+        "REQUEST_ARGUMENT_CONFLICT": "This retry differs from the first attempt. Reload and start the change again."
+      },
+      "task": {
+        "group": "Task",
+        "view": "Find and view",
+        "viewHint": "Browse spots and stock. Nothing is changed.",
+        "store": "Store goods",
+        "storeHint": "Choose a unit in Finished goods, then use Store to pick its spot here.",
+        "storeInactive": "Storing is available after the building is activated.",
+        "editHint": "Change floor size, unavailable areas and storage spots.",
+        "storageMapLabel": "Map",
+        "buildingModelLabel": "Model"
+      },
+      "help": {
+        "open": "Layout help",
+        "title": "Set up a storage layout",
+        "description": "Business setup for this building. Connection status is on the Setup page.",
+        "checklist": "Checklist",
+        "step": {
+          "building": "Building measured and named",
+          "floors": "Floors match the real building",
+          "spots": "Storage spots placed on each used floor",
+          "positions": "Exact positions added for rack, platform or grid spots (optional)",
+          "activate": "Reviewed and activated"
+        },
+        "done": "Done",
+        "todo": "To do",
+        "notNeeded": "Not needed",
+        "qrTitle": "Spot QR and exact position QR",
+        "qrBody": "A simple spot has one QR; scanning it selects the spot. A spot with exact positions keeps its own QR, but scanning it asks which position. Each exact position has its own QR for the slot or marker."
+      },
+      "floorConflict": {
+        "title": "This floor was saved elsewhere",
+        "description": "Your draft is kept and nothing was saved. Saving it now is refused; load the latest floor to start again from the saved version.",
+        "reload": "Load latest floor (discard my draft)"
       }
     }
   },

@@ -96,17 +96,16 @@ export function NamedLocationCatalogue({
           </Link>
         </Notice>
       ) : null}
-      {completing ? (
-        <CompleteNamedLayoutDialog
-          warehouseId={warehouseId}
-          location={completing}
-          onClose={() => setCompleting(undefined)}
-          onCompleted={(result) => {
+      <CompleteNamedLayoutDialog
+        warehouseId={warehouseId}
+        location={completing}
+        onClose={() => setCompleting(undefined)}
+        onCompleted={(result) => {
+          if (completing)
             setCompleted({ ...result, buildingId: completing.buildingId });
-            setCompleting(undefined);
-          }}
-        />
-      ) : null}
+          setCompleting(undefined);
+        }}
+      />
       <DataGate outcome={outcome}>
         {(result) =>
           result.status === "ready" ? (

@@ -34,6 +34,8 @@ import { BuildingAreaDetails } from "./BuildingAreaDetails";
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { completeTask, returnFromTask } from "@/lib/taskNavigation";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { LayoutTaskBar } from "./LayoutTaskBar";
 import {
   BlockedImpact,
   layoutFailure,
@@ -43,6 +45,7 @@ import {
   storageWriteMessage,
   zoneUnmeasuredCount,
 } from "./layoutActions";
+import { whenGuardIdle } from "./measure";
 
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
@@ -67,6 +70,7 @@ import {
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  useEffect,
   useId,
   useImperativeHandle,
   useLayoutEffect,
@@ -1460,16 +1464,32 @@ export function BuildingModelWorkspace({
     defaultFloor;
   const selectedFloorNumber = selectedFloor?.floorNumber ?? 1;
   const view = params.get("view") === "building" ? "building" : "storage";
-  const editing =
-    canManage &&
-    building.status !== "ARCHIVED" &&
-    params.get("editing") === "1";
+  const { permissionsReady } = useWorkspace();
+  const editable = canManage && building.status !== "ARCHIVED";
   const [dirty, setDirty] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [reset, setReset] = useState(0);
   const editorRef = useRef<FloorEditorHandle>(null);
+  // The floor editor is an owned workflow step (`editing=1`). Opening pushes
+  // it; Close, Cancel and native/header Back consume it. A direct
+  // `editing=1` link has no owned entry, so closing replaces the query and
+  // returns to the same building view. Permissions are still loading on a
+  // direct link, so the step stays available until they are known.
+  const editorScope = `storage-floor-editor:${building.buildingId}`;
+  const floorDraftScope = `storage-floor-draft:${building.buildingId}`;
+  const editStep = useWorkflowStep(
+    "editing",
+    editorScope,
+    !permissionsReady || editable,
+    undefined,
+    { priority: 10, blocked: pending },
+  );
+  const editing = editable && editStep.active;
   const guard = useNavigationDraft({
+    // Earlier steps inside the floor editor (impact review, offset editor)
+    // retain this draft; closing the editor itself asks first.
+    workflowScope: floorDraftScope,
     dirty: dirty || dialogOpen,
     pending,
     ...(dialogOpen ? { saveBlockedReason: t("finishOpenEditor") } : {}),
@@ -1479,24 +1499,29 @@ export function BuildingModelWorkspace({
       setReset((value) => value + 1);
     },
   });
-  function transition(change: {
-    floor?: number;
-    view?: string;
-    editing?: boolean;
-  }) {
-    guard.requestTransition(() => {
+  function select(change: { floor?: number; view?: string }) {
+    const apply = () =>
       updateBrowserQuery(
         (query) => {
           query.set("floor", String(change.floor ?? selectedFloorNumber));
           query.set("view", change.view ?? view);
-          if (change.editing ?? editing) query.set("editing", "1");
-          else query.delete("editing");
           query.delete("editZone");
         },
         { event: workspaceStateEvent },
       );
-    });
+    // Leaving the editor for another floor or view consumes its entry first,
+    // so the next Back never reopens a stale editor.
+    if (editStep.active) editStep.complete(apply);
+    else guard.requestTransition(apply);
   }
+  const openEditor = () => {
+    if (!editable || pending || editStep.active) return;
+    editStep.enter();
+  };
+  const closeEditor = () => {
+    if (pending) return;
+    editStep.back();
+  };
   return (
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1539,9 +1564,12 @@ export function BuildingModelWorkspace({
               title={t("storageFloorView")}
               className="min-h-11 min-w-11"
               aria-pressed={view === "storage"}
-              onClick={() => transition({ view: "storage" })}
+              onClick={() => select({ view: "storage" })}
             >
               <MapIcon aria-hidden="true" className="size-4" />
+              <span aria-hidden="true" className="hidden sm:inline">
+                {t("layoutActions.task.storageMapLabel")}
+              </span>
             </Button>
             <Button
               type="button"
@@ -1551,13 +1579,26 @@ export function BuildingModelWorkspace({
               title={t("buildingModelView")}
               className="min-h-11 min-w-11"
               aria-pressed={view === "building"}
-              onClick={() => transition({ view: "building", editing: false })}
+              onClick={() => select({ view: "building" })}
             >
               <Building2 aria-hidden="true" className="size-4" />
+              <span aria-hidden="true" className="hidden sm:inline">
+                {t("layoutActions.task.buildingModelLabel")}
+              </span>
             </Button>
           </div>
         </div>
       </div>
+      <LayoutTaskBar
+        building={building}
+        floors={floors}
+        editing={editing}
+        editable={editable}
+        pending={pending}
+        floorNumber={selectedFloorNumber}
+        onView={closeEditor}
+        onEdit={openEditor}
+      />
       {view === "building" ? (
         <IsometricBuilding
           building={building}
@@ -1576,35 +1617,18 @@ export function BuildingModelWorkspace({
                 building={building}
                 floors={floors}
                 selectedFloorNumber={selectedFloorNumber}
-                onSelect={(floor) => transition({ floor, editing: false })}
-                editAction={
-                  canManage && building.status !== "ARCHIVED" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={pending}
-                      className="min-h-11 shrink-0 px-2 text-xs min-[851px]:w-full min-[851px]:whitespace-normal"
-                      onClick={() => transition({ editing: !editing })}
-                    >
-                      <PencilLine
-                        className="size-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      {editing
-                        ? t("closeFloorEditing")
-                        : t("editFloor", { floor: selectedFloorNumber })}
-                    </Button>
-                  ) : null
-                }
+                onSelect={(floor) => select({ floor })}
+                editAction={null}
               />
             }
             workspace={{
               editing,
               editorRef,
+              draftScope: floorDraftScope,
               onDirtyChange: setDirty,
               onPendingChange: setPending,
               onDialogChange: setDialogOpen,
-              onCancel: () => transition({ editing: false }),
+              onCancel: closeEditor,
             }}
           />
         </>
@@ -1657,7 +1681,9 @@ function FloorQuery({
     return <Notice tone="warning" title={t("notFound")} />;
   return (
     <FloorForm
-      key={`${floor.floorId}:${floor.version}`}
+      // Stable per floor: a newer saved version is reconciled inside the form
+      // and never remounts (and discards) an unsent draft.
+      key={floor.floorId}
       warehouseId={warehouseId}
       detail={outcome.value}
       floor={floor}
@@ -1679,6 +1705,7 @@ function FloorForm({
   readonly workspace?: {
     editing: boolean;
     editorRef: Ref<FloorEditorHandle>;
+    draftScope: string;
     onDirtyChange: (dirty: boolean) => void;
     onPendingChange: (pending: boolean) => void;
     onDialogChange: (open: boolean) => void;
@@ -1756,7 +1783,32 @@ function FloorForm({
     })),
   );
   const [pending, setPending] = useState(false);
-  const [confirmingImpact, setConfirmingImpact] = useState(false);
+  // Stock-blocked review is an owned step on top of the dirty floor form:
+  // Back returns to the same draft (retained through the draft scope).
+  const floorDraftScope =
+    workspace?.draftScope ??
+    `storage-floor-draft:${detail.building.buildingId}`;
+  const impactStep = useWorkflowStep(
+    "floorImpact",
+    floorDraftScope,
+    editable,
+    undefined,
+    { priority: 20, blocked: pending },
+  );
+  const confirmingImpact = impactStep.active;
+  // The floor-position editor replaces the map. It is an earlier step of the
+  // same floor draft, so Back returns to the map with placement retained.
+  const offsetStep = useWorkflowStep(
+    "floorOffset",
+    floorDraftScope,
+    editable,
+    undefined,
+    { priority: 20, blocked: pending },
+  );
+  const setConfirmingImpact = (open: boolean) => {
+    if (open && !impactStep.active) impactStep.enter();
+    if (!open && impactStep.active) impactStep.back();
+  };
   const [refusal, setRefusal] = useState<string>();
   const [message, setMessage] = useState<{
     tone: "success" | "warning";
@@ -1872,13 +1924,8 @@ function FloorForm({
   useLayoutEffect(() => {
     pendingChange?.(pending || zonePending);
   }, [pendingChange, pending, zonePending]);
-  // Reconcile external updates only when the local draft is clean.
-  if (
-    (savedFloor.version > receivedVersion ||
-      detail.building.version > geometryContext.building.version) &&
-    savedFloor.version >= baseline.version &&
-    !hasUnsavedFloorChanges
-  ) {
+  /** Replace the form with the latest saved floor (discarding any draft). */
+  function adoptSaved() {
     setReceivedVersion(savedFloor.version);
     setGeometryContext(detail);
     setBaseline(savedFloor);
@@ -1929,6 +1976,20 @@ function FloorForm({
       })),
     );
   }
+  // Reconcile external updates only when the local draft is clean.
+  if (
+    (savedFloor.version > receivedVersion ||
+      detail.building.version > geometryContext.building.version) &&
+    savedFloor.version >= baseline.version &&
+    !hasUnsavedFloorChanges
+  )
+    adoptSaved();
+  // A newer saved version arrived while this draft was dirty: keep the draft
+  // and say so instead of remounting or silently rebasing it.
+  const staleDraft =
+    hasUnsavedFloorChanges &&
+    (savedFloor.version > baseline.version ||
+      detail.building.version > geometryContext.building.version);
   async function saveDraft(): Promise<boolean> {
     if (!editable || pending || areaEditorOpen || zoneEditorOpen) return false;
     if (!hasUnsavedFloorChanges) return true;
@@ -1968,7 +2029,6 @@ function FloorForm({
           else if (!outcome.value.written) setRefusal(outcome.value.error.code);
           else {
             operation.clearRequests();
-            setConfirmingImpact(false);
             const nextFloor = {
               ...floor,
               widthMm: actualWidth,
@@ -1998,6 +2058,13 @@ function FloorForm({
               ...(height === "" ? {} : { heightMm: actualHeight }),
             };
             setBaseline(inheritedFloor);
+            setGeometryContext((current) => ({
+              ...current,
+              building: {
+                ...current.building,
+                version: current.building.version + 1,
+              },
+            }));
             setPlacement(actualPlacement);
             dirtyChange?.(false);
             setMessage({ tone: "success", text: t("savedContinueToStorage") });
@@ -2057,7 +2124,8 @@ function FloorForm({
             floorSelector={floorSelector}
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
-              workspace && editable ? (
+              // Adding is an editing task; viewing stays read-only (F28).
+              workspace && editable && showEditing ? (
                 <IconButton
                   label={t("addStorageZone")}
                   tooltip={t("addStorageZone")}
@@ -2090,8 +2158,17 @@ function FloorForm({
             floorNumber={floor.floorNumber}
             offsetXMm={actualPlacement.xMm}
             offsetYMm={actualPlacement.yMm}
-            {...(editable && showEditing && !pending
-              ? { onPlacementChange: setPlacement }
+            {...(editable && showEditing
+              ? {
+                  onPlacementChange: (next: { xMm: number; yMm: number }) => {
+                    if (!pending) setPlacement(next);
+                  },
+                  offsetEditing: offsetStep.active,
+                  onOffsetEditingChange: (open: boolean) => {
+                    if (open) offsetStep.enter();
+                    else offsetStep.back();
+                  },
+                }
               : {})}
             blocks={blocks}
             zones={floor.storageZones}
@@ -2205,6 +2282,29 @@ function FloorForm({
               onBack={() => setConfirmingImpact(false)}
             />
           ) : null}
+          {staleDraft ? (
+            <Notice
+              tone="warning"
+              role="alert"
+              title={t("layoutActions.floorConflict.title")}
+              body={t("layoutActions.floorConflict.description")}
+              testId="floor-version-conflict"
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                disabled={pending}
+                onClick={() => {
+                  setConfirmingImpact(false);
+                  adoptSaved();
+                }}
+              >
+                {t("layoutActions.floorConflict.reload")}
+              </Button>
+            </Notice>
+          ) : null}
           <OperationFailure
             failure={layoutFailure(refusal, operation)}
             onRetry={() => void saveDraft()}
@@ -2229,7 +2329,13 @@ function FloorForm({
               type="button"
               variant="outline"
               disabled={pending}
-              onClick={workspace.onCancel}
+              onClick={() => {
+                // Consume nested steps of this floor draft before closing.
+                if (offsetStep.active) offsetStep.complete(workspace.onCancel);
+                else if (impactStep.active)
+                  impactStep.complete(workspace.onCancel);
+                else workspace.onCancel();
+              }}
             >
               {t("cancel")}
             </Button>
@@ -2281,6 +2387,8 @@ export function FloorPlan(
     readonly buildingCode?: string;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
+    readonly offsetEditing?: boolean;
+    readonly onOffsetEditingChange?: (open: boolean) => void;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;
     readonly selectedZoneId?: string | undefined;
     readonly onSelectionChange?:
@@ -3030,6 +3138,21 @@ export function ReservedBlocks({
     return () => onEditorOpenChange?.(false);
   }, [dialogOpen, editable, onEditorOpenChange]);
   const [editingBlockId, setEditingBlockId] = useState<string>();
+  // The area dialog's own values: closing it asks before discarding them,
+  // while the floor draft underneath is retained.
+  const areaScope = `storage-area-editor:${useId()}`;
+  const [draftBaseline, setDraftBaseline] = useState("");
+  const [closeAfterApply, setCloseAfterApply] = useState(false);
+  useEffect(() => {
+    if (!closeAfterApply) return;
+    queueMicrotask(() =>
+      whenGuardIdle(() => {
+        setCloseAfterApply(false);
+        setDialogOpen(false);
+        setEditingBlockId(undefined);
+      }),
+    );
+  }, [closeAfterApply]);
   const [draft, setDraft] = useState<{
     label: string;
     color: string;
@@ -3055,20 +3178,22 @@ export function ReservedBlocks({
   const startNewReservedBlock = () => {
     if (!editable) return;
     setEditingBlockId(undefined);
-    setDraft({
+    const next = {
       label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
       color: resolveAreaColor(),
-      areaKind: "NO_STORAGE",
+      areaKind: "NO_STORAGE" as const,
       x: "0",
       y: "0",
       width: "1",
       depth: "1",
-    });
+    };
+    setDraft(next);
+    setDraftBaseline(JSON.stringify(next));
   };
   const startEditingReservedBlock = (block: EditableBlock) => {
     if (!editable) return;
     setEditingBlockId(block.id);
-    setDraft({
+    const next = {
       label: block.label,
       color: resolveAreaColor(block.color),
       areaKind: block.areaKind,
@@ -3076,9 +3201,17 @@ export function ReservedBlocks({
       y: String(metres(block.yMm)),
       width: String(metres(block.widthMm)),
       depth: String(metres(block.depthMm)),
-    });
+    };
+    setDraft(next);
+    setDraftBaseline(JSON.stringify(next));
     setDialogOpen(true);
   };
+  useNavigationDraft({
+    dirty: dialogOpen && editable && JSON.stringify(draft) !== draftBaseline,
+    pending: false,
+    discard: () => setDraftBaseline(JSON.stringify(draft)),
+    foregroundScope: areaScope,
+  });
   const draftBlock = {
     id: editingBlockId ?? "draft",
     label: draft.label.trim(),
@@ -3133,14 +3266,20 @@ export function ReservedBlocks({
             block.id === editingBlockId ? nextBlock : block,
           ),
     );
-    setDialogOpen(false);
-    setEditingBlockId(undefined);
+    // Applied to the floor draft: nothing of the dialog is left unsent.
+    // Close after that clean state is registered (see the effect below).
+    setDraftBaseline(JSON.stringify(draft));
+    setCloseAfterApply(true);
   };
   return (
     <section className="min-w-0 rounded-lg border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold text-text">{t("reservedZones")}</h2>
-        <Dialog open={dialogOpen && editable} onOpenChange={openDialog}>
+        <Dialog
+          open={dialogOpen && editable}
+          onOpenChange={openDialog}
+          draftScope={areaScope}
+        >
           <DialogTrigger asChild>
             <Button
               type="button"

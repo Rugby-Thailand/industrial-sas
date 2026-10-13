@@ -6,7 +6,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { messagesFor } from "@/i18n/messages";
@@ -277,6 +277,8 @@ describe("BuildingModelWorkspace", () => {
         name: "Close dialog",
       }),
     );
+    // Closing consumes the editor's own history entry before other actions.
+    await waitFor(() => expect(window.location.search).not.toMatch(/overlay/));
     fireEvent.click(
       within(
         screen.getByRole("complementary", { name: "Selected location" }),
@@ -368,7 +370,7 @@ describe("BuildingModelWorkspace", () => {
       screen.queryByRole("article", { name: `${zone.label} · ${zone.code}` }),
     ).not.toBeInTheDocument();
   });
-  it("opens the existing create editor from the compact location toolbar", () => {
+  it("opens the existing create editor from the compact location toolbar", async () => {
     renderWithIntl(
       <BuildingModelWorkspace building={building} floors={floors} />,
       { locale: "en", workspace: false },
@@ -383,7 +385,12 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.getAllByRole("button", { name: "Display options" }),
     ).toHaveLength(1);
-    const add = screen.getByRole("button", { name: "Add storage spot" });
+    // Viewing is read-only; the add action belongs to the editing task.
+    expect(
+      screen.queryByRole("button", { name: "Add storage spot" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Edit floor \d$/ }));
+    const add = await screen.findByRole("button", { name: "Add storage spot" });
     expect(add).toHaveAttribute("type", "button");
     expect(add).toBeEnabled();
     fireEvent.click(add);
@@ -646,11 +653,23 @@ describe("IsometricBuilding", () => {
   });
 });
 
+/** FloorPlan's offset editor is caller-owned; tests hold the open state. */
+function OffsetFloorPlan(props: ComponentProps<typeof FloorPlan>) {
+  const [open, setOpen] = useState(false);
+  return (
+    <FloorPlan
+      {...props}
+      offsetEditing={open}
+      onOffsetEditingChange={setOpen}
+    />
+  );
+}
+
 describe("FloorPlan", () => {
   it("positions the floor on its previous floor and supports keyboard movement", () => {
     const onPlacementChange = vi.fn();
     renderWithIntl(
-      <FloorPlan
+      <OffsetFloorPlan
         widthMm={20_000}
         depthMm={18_000}
         heightMm={5_000}
@@ -997,7 +1016,8 @@ describe("Unavailable area color saving", () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Apply to floor draft" }),
       );
-      const save = screen.getByRole("button", {
+      // The area dialog closes after its applied draft settles.
+      const save = await screen.findByRole("button", {
         name: "Save floor",
       });
       expect(save).toBeEnabled();
@@ -1306,19 +1326,25 @@ describe("StorageZonesPanel", () => {
       label: "My rename",
       expectedRevision: "2:200",
     });
+    // The editor closes once the write and its draft have settled.
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(
-      await screen.findByText(
+      screen.getByText(
         "Storage spot saved. Its code and QR label are unchanged.",
       ),
     ).toBeVisible();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add storage spot" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "Create storage spot" }),
     );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(
-      await screen.findByText(
+      screen.getByText(
         "Storage spot created. Its code and QR label are ready.",
       ),
     ).toBeVisible();
@@ -1554,7 +1580,7 @@ it("keeps exact pallets inside the floor viewport and translates local coordinat
     placements: [placement],
   };
   const { container } = renderWithIntl(
-    <FloorPlan
+    <OffsetFloorPlan
       widthMm={8_000}
       depthMm={8_000}
       heightMm={3_000}
@@ -1663,6 +1689,12 @@ it("disables confirmation for occupied zone geometry while allowing a label-only
   ).not.toBeInTheDocument();
   expect(mutation).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+  // Back to edit consumes the review step and returns to the same draft.
+  expect(
+    await screen.findByRole("button", { name: "Review impact" }),
+  ).toBeVisible();
+  expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(3);
+  expect(window.location.search).not.toContain("zoneImpact");
   fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
     target: { value: "4" },
   });
