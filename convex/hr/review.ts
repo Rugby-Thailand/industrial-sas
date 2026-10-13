@@ -45,10 +45,11 @@ import {
   MAX_SITE_EMPLOYEES,
   closedPeriodCovering,
   dayOf,
+  employeeDaysInRange,
   employmentOf,
   ensureDay,
   fail,
-  holidayName,
+  holidaysInRange,
   hrCommand,
   livePlan,
   loadSiteDays,
@@ -303,11 +304,11 @@ export const queuePage = queryWithOrg({
             "warehouses",
             warehouseId,
           );
-          const holidays = new Map<string, string>();
-          for (const date of dates) {
-            const name = await holidayName(ctx, warehouseId, date);
-            if (name !== undefined) holidays.set(date, name);
-          }
+          // One date-range read for the site's holidays in the window.
+          const holidays: ReadonlyMap<string, string> =
+            dates.length === 0
+              ? new Map()
+              : await holidaysInRange(ctx, warehouseId, args.from, to);
           return { code: site?.code ?? "", holidays };
         })();
         sites.set(warehouseId, entry);
@@ -394,15 +395,14 @@ async function evaluateEmployee(
   const employment = employmentOf(employee);
   const employed = input.dates.filter((date) => isEmployedOn(employment, date));
   if (employed.length === 0) return [];
+  // One date-range read of the employee's days instead of one per date.
   const [{ holidays }, recorded] = await Promise.all([
     input.site,
-    Promise.all(
-      employed.map(
-        async (date) => [date, await dayOf(ctx, employee._id, date)] as const,
-      ),
-    ),
+    employeeDaysInRange(ctx, employee._id, input.from, input.to),
   ]);
-  const days = new Map(recorded);
+  const days = new Map(
+    employed.map((date) => [date, recorded.get(date) ?? null] as const),
+  );
   const rows = buildPeriodRows({
     startDate: input.from,
     endDate: input.to,

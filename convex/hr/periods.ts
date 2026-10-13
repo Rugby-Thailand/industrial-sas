@@ -42,6 +42,7 @@ import {
   hrCommand,
   loadSiteDays,
   orgClock,
+  periodsNear,
   planFromStored,
   planView,
   recordedDay,
@@ -525,7 +526,11 @@ export const create = mutationWithOrg({
             "endDate",
             "reason" in range.error ? range.error.reason : undefined,
           );
-        const existing = await sitePeriods(ctx, site._id);
+        // Bounded: only periods that can overlap the new range, with the
+        // exact site scan when stored data breaks the period invariants.
+        const existing =
+          (await periodsNear(ctx, site._id, args.startDate, args.endDate)) ??
+          (await sitePeriods(ctx, site._id));
         if (existing.some((period) => rangesOverlap(period, args)))
           return fail("PERIOD_OVERLAP");
         const employees = await siteEmployeesInRange(

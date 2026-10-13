@@ -18,15 +18,24 @@ import {
 import { grantedPermissionsAmong } from "../lib/navigationGrants";
 import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
+import {
+  TENANT_INDEX_MAX_BATCH_SIZE,
+  TENANT_INDEX_MAX_PAGE_SIZE,
+  TenantDbError,
+  type TenantIndexRange,
+} from "../lib/tenantDb";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { refusal } from "../lib/writeEnvelope";
 import {
+  addDays,
+  compareDates,
+  inclusiveDayCount,
+  isIsoDate,
   timezoneOffsetMinutes,
   toLocal,
   type IsoDate,
 } from "../model/hr/calendar";
-import { compareDates } from "../model/hr/calendar";
-import type { RecordedDay } from "../model/hr/period";
+import { MAX_PERIOD_DAYS, type RecordedDay } from "../model/hr/period";
 import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
 import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
@@ -626,7 +635,83 @@ export async function ensureDay(
 
 /* Periods and locks -------------------------------------------------------- */
 
-/** All recorded days and holidays of one site for the given dates. */
+const ascendingDates = (dates: readonly IsoDate[]) =>
+  [...dates].sort(compareDates);
+
+/**
+ * One employee's recorded days in `[from, to]` by business date: a single
+ * checked date-range read instead of one lookup per date. A business date
+ * has at most one day record (`ensureDay`); a duplicate fails exactly as
+ * the per-date `unique()` did.
+ */
+export async function employeeDaysInRange(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, AttendanceDay>> {
+  const days = new Map<IsoDate, AttendanceDay>();
+  const count = inclusiveDayCount(from, to);
+  if (count < 1) return days;
+  const rows = await ctx.tenantDb
+    .byIndex<AttendanceDay>(
+      "hrAttendanceDays",
+      "by_orgId_employeeId_businessDate",
+      [{ field: "employeeId", value: employeeId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(Math.min(count * 2, TENANT_INDEX_MAX_BATCH_SIZE));
+  for (const row of rows) {
+    if (days.has(row.businessDate))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    days.set(row.businessDate, row);
+  }
+  return days;
+}
+
+/**
+ * A site's holidays in `[from, to]` by date, in one checked range read. One
+ * holiday per site date; a duplicate fails as the per-date `unique()` did.
+ */
+export async function holidaysInRange(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, string>> {
+  const holidays = new Map<IsoDate, string>();
+  const count = inclusiveDayCount(from, to);
+  if (count < 1) return holidays;
+  const rows = await ctx.tenantDb
+    .byIndex<Doc<"hrHolidays">>(
+      "hrHolidays",
+      "by_orgId_warehouseId_date",
+      [{ field: "warehouseId", value: warehouseId }],
+      {
+        field: "date",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(Math.min(count * 2, TENANT_INDEX_MAX_BATCH_SIZE));
+  for (const row of rows) {
+    if (holidays.has(row.date))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    holidays.set(row.date, row.name);
+  }
+  return holidays;
+}
+
+/**
+ * All recorded days and holidays of one site for the given dates: one date
+ * range read per kind over the dates' span, filtered to the dates. Each date
+ * keeps its former bound of `MAX_SITE_EMPLOYEES * 2` day records and fails
+ * rather than truncates beyond it.
+ */
 export async function loadSiteDays(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -637,21 +722,40 @@ export async function loadSiteDays(
 }> {
   const days = new Map<string, AttendanceDay>();
   const holidays = new Map<IsoDate, string>();
-  for (const date of dates) {
-    const rows = await ctx.tenantDb
+  if (dates.length === 0) return { days, holidays };
+  const sorted = ascendingDates(dates);
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  const wanted = new Set(dates);
+  const perDate = MAX_SITE_EMPLOYEES * 2;
+  const span = inclusiveDayCount(first, last);
+  const [rows, siteHolidays] = await Promise.all([
+    ctx.tenantDb
       .byIndex<AttendanceDay>(
         "hrAttendanceDays",
         "by_orgId_warehouseId_businessDate",
-        [
-          { field: "warehouseId", value: warehouseId },
-          { field: "businessDate", value: date },
-        ],
+        [{ field: "warehouseId", value: warehouseId }],
+        {
+          field: "businessDate",
+          lower: { value: first, inclusive: true },
+          upper: { value: last, inclusive: true },
+        },
       )
-      .all(MAX_SITE_EMPLOYEES * 2);
-    for (const row of rows) days.set(`${row.employeeId}:${date}`, row);
-    const name = await holidayName(ctx, warehouseId, date);
-    if (name !== undefined) holidays.set(date, name);
+      .all(Math.min(perDate * span, TENANT_INDEX_MAX_BATCH_SIZE)),
+    holidaysInRange(ctx, warehouseId, first, last),
+  ]);
+  const perDateCount = new Map<IsoDate, number>();
+  for (const row of rows) {
+    const date = row.businessDate;
+    if (!wanted.has(date)) continue;
+    const seen = (perDateCount.get(date) ?? 0) + 1;
+    if (seen > perDate)
+      throw new TenantDbError("CAPACITY_DATA_LIMIT", ctx.requestId);
+    perDateCount.set(date, seen);
+    days.set(`${row.employeeId}:${date}`, row);
   }
+  for (const [date, name] of siteHolidays)
+    if (wanted.has(date)) holidays.set(date, name);
   return { days, holidays };
 }
 
@@ -689,13 +793,64 @@ export async function sitePeriods(
     .all(MAX_SITE_PERIODS);
 }
 
+/**
+ * The site periods that can overlap `[from, to]`, without reading the
+ * site's whole period history; null when the data breaks the invariants
+ * below and the caller must use the exact `sitePeriods` scan instead.
+ *
+ * Periods are created with at most `MAX_PERIOD_DAYS` days and without
+ * overlap (`periods.create`; revisions never move dates). The result is
+ * every period starting in `[from - (MAX_PERIOD_DAYS - 1), to]` plus the
+ * latest one starting before that window, and it is exact when EITHER
+ * invariant holds:
+ * - length bound: an overlapping period cannot start before the window;
+ * - no overlap: an earlier-starting period that reached the range would
+ *   contain the window's first day, so it is that latest predecessor.
+ * More window rows than window days means two periods share a start date,
+ * i.e. overlapping data, so the bounded read refuses (null).
+ */
+export async function periodsNear(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<readonly Doc<"hrPeriods">[] | null> {
+  if (!isIsoDate(from) || !isIsoDate(to) || compareDates(from, to) > 0)
+    return null;
+  const windowStart = addDays(from, -(MAX_PERIOD_DAYS - 1));
+  const span = inclusiveDayCount(windowStart, to);
+  if (span + 1 > TENANT_INDEX_MAX_PAGE_SIZE) return null;
+  const reader = (range: TenantIndexRange) =>
+    ctx.tenantDb.byIndex<Doc<"hrPeriods">>(
+      "hrPeriods",
+      "by_orgId_warehouseId_startDate",
+      [{ field: "warehouseId", value: warehouseId }],
+      range,
+    );
+  const [window, before] = await Promise.all([
+    reader({
+      field: "startDate",
+      lower: { value: windowStart, inclusive: true },
+      upper: { value: to, inclusive: true },
+    }).take(span + 1),
+    reader({
+      field: "startDate",
+      upper: { value: windowStart, inclusive: false },
+    }).take(1, "desc"),
+  ]);
+  if (window.length > span) return null;
+  return [...before, ...window];
+}
+
 /** A closed period covering this site date, which no normal write may change. */
 export async function closedPeriodCovering(
   ctx: TenantFunctionContext,
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
-  const periods = await sitePeriods(ctx, warehouseId);
+  const periods =
+    (await periodsNear(ctx, warehouseId, date, date)) ??
+    (await sitePeriods(ctx, warehouseId));
   return (
     periods.find(
       (period) =>

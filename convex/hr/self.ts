@@ -29,14 +29,15 @@ import {
   resolveClockInDate,
   type DayPlan,
 } from "../model/hr/schedule";
-import { buildDayDetail, correctionView, dayCorrections } from "./dayDetail";
+import { buildDayDetail, correctionView, latestCorrection } from "./dayDetail";
 import {
   closedPeriodCovering,
   dayOf,
+  employeeDaysInRange,
   employmentOf,
   ensureDay,
   fail,
-  holidayName,
+  holidaysInRange,
   hrCommand,
   linkedEmployee,
   livePlan,
@@ -201,7 +202,7 @@ export const today = queryWithOrg({
     const current = state.kind === "CLOCKED_IN" ? state.day : state.day;
     const date =
       state.kind === "CLOCKED_IN" ? state.day.businessDate : state.date;
-    const corrections = await recentCorrections(ctx, employee);
+    const corrections = await recentCorrections(ctx, employee, clock);
     return {
       ...base,
       state: state.kind,
@@ -233,17 +234,23 @@ export const today = queryWithOrg({
 async function recentCorrections(
   ctx: TenantFunctionContext,
   employee: Employee,
+  clock: OrgClock,
 ) {
-  // Bounded: the latest request of each of the last 14 recorded dates.
-  const clock = orgClock(ctx);
-  if (clock === null) return [];
+  // Bounded: the latest request of each of the last 14 recorded dates, read
+  // as one date range, newest date first.
+  const days = await employeeDaysInRange(
+    ctx,
+    employee._id,
+    addDays(clock.today, -13),
+    clock.today,
+  );
   const items = [];
   for (let offset = 0; offset < 14 && items.length < 5; offset += 1) {
     const date = addDays(clock.today, -offset);
-    const day = await dayOf(ctx, employee._id, date);
-    if (day === null) continue;
-    const latest = (await dayCorrections(ctx, day)).items[0];
-    if (latest === undefined) continue;
+    const day = days.get(date);
+    if (day === undefined) continue;
+    const latest = await latestCorrection(ctx, day);
+    if (latest === null) continue;
     items.push({
       id: latest._id,
       businessDate: date,
@@ -650,27 +657,23 @@ export const history = queryWithOrg({
     const employee = await linkedEmployee(ctx);
     if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
     const to = compareDates(args.to, clock.today) > 0 ? clock.today : args.to;
-    const recorded = new Map<IsoDate, AttendanceDay>();
+    // One date-range read each for the days and the site's holidays; the
+    // holidays matter only for dates without a recorded day.
+    const [recorded, siteHolidays] = await Promise.all([
+      employeeDaysInRange(ctx, employee._id, args.from, to),
+      holidaysInRange(ctx, employee.warehouseId, args.from, to),
+    ]);
     const holidays = new Map<IsoDate, string>();
+    for (const [date, name] of siteHolidays)
+      if (!recorded.has(date)) holidays.set(date, name);
     const corrections = new Map<
       IsoDate,
       { id: Id<"hrCorrectionRequests">; status: string }
     >();
-    for (
-      let date = args.from;
-      compareDates(date, to) <= 0;
-      date = addDays(date, 1)
-    ) {
-      const day = await dayOf(ctx, employee._id, date);
-      if (day) {
-        recorded.set(date, day);
-        const latest = (await dayCorrections(ctx, day)).items[0];
-        if (latest)
-          corrections.set(date, { id: latest._id, status: latest.status });
-      } else {
-        const name = await holidayName(ctx, employee.warehouseId, date);
-        if (name !== undefined) holidays.set(date, name);
-      }
+    for (const [date, day] of recorded) {
+      const latest = await latestCorrection(ctx, day);
+      if (latest)
+        corrections.set(date, { id: latest._id, status: latest.status });
     }
     const rows =
       compareDates(args.from, to) > 0
