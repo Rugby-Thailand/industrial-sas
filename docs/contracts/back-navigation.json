@@ -134,7 +134,31 @@
       "file": "src/lib/browser/appHistory.ts",
       "functions": ["install", "trackAppHistory"],
       "capabilities": ["history-write"],
-      "reason": "Preserves app entry depth and excludes draft guard buffers."
+      "reason": "Preserves validated app entry depth, actual route origin and same-route foreground/HR selection provenance across Next and locale replacement, excluding draft guard buffers.",
+      "expectation": "Valid selected HR editor entries retain ownership across locale replacement; explicit closure consumes selection before the next native Back, while external/cross-module provenance is discarded.",
+      "tests": [
+        "src/features/hr/HrBackNavigation.test.tsx",
+        "src/features/hr/EmployeesNavigation.test.tsx",
+        "src/components/system/NavigationProgress.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "locale replacement retains Review selection ownership so Back to list and next native Back restore the actual caller"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "Review locale replacement rejects unsafe selection provenance %s"
+        },
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "locale replacement retains editor ownership so Cancel and the next native Back consume no duplicate list"
+        },
+        {
+          "file": "src/components/system/NavigationProgress.test.tsx",
+          "name": "keeps replacements at the same app history depth and records pushes and Back"
+        }
+      ]
     },
     {
       "file": "src/lib/navigationGuard.ts",
@@ -4018,6 +4042,14 @@
         {
           "file": "src/features/hr/HrBackNavigation.test.tsx",
           "name": "Review Back to list followed by header Back does not reopen closed detail"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "locale replacement retains Review selection ownership so Back to list and next native Back restore the actual caller"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "Review locale replacement rejects unsafe selection provenance %s"
         }
       ],
       "tests": ["src/features/hr/HrBackNavigation.test.tsx"]
@@ -4050,6 +4082,14 @@
         {
           "file": "src/features/hr/HrBackNavigation.test.tsx",
           "name": "Review Back to list followed by header Back does not reopen closed detail"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "locale replacement retains Review selection ownership so Back to list and next native Back restore the actual caller"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "Review locale replacement rejects unsafe selection provenance %s"
         }
       ]
     },

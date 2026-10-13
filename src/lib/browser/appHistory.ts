@@ -108,6 +108,26 @@ function replacementMetadata(
     if (source && routePath(source) === "/hr/employees")
       kept.hrEmployeeEditorOrigin = editor;
   }
+  const review: unknown = previous?.hrReviewSelectionOrigin;
+  if (
+    routePath(destination) === "/hr/review" &&
+    destination.searchParams.has("employee") &&
+    destination.searchParams.has("date") &&
+    ["employee", "date", "tab"].every((key) =>
+      unchangedQuery(current, destination, key),
+    ) &&
+    review &&
+    typeof review === "object" &&
+    "pathname" in review &&
+    typeof review.pathname === "string" &&
+    "index" in review &&
+    review.index === index &&
+    index > 0
+  ) {
+    const source = internalSource(review.pathname, current);
+    if (source && routePath(source) === "/hr/review")
+      kept.hrReviewSelectionOrigin = review;
+  }
   return kept;
 }
 

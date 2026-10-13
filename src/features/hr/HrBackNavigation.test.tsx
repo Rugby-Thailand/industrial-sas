@@ -343,3 +343,87 @@ it("dirty Period Cancel consumes its guard and creation entries before the next 
     ).toBe("/th/hr/time?q=kept#origin"),
   );
 });
+
+it("locale replacement retains Review selection ownership so Back to list and next native Back restore the actual caller", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/th/finished-goods?q=kept#origin",
+  );
+  window.history.pushState({}, "", "/en/hr/review?tab=OPEN&site=w1#queue");
+  renderWithIntl(
+    <DraftGuardProvider>
+      <HrReviewScreen />
+    </DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Somsak/ }));
+  expect(new URLSearchParams(window.location.search).get("employee")).toBe(
+    "e7",
+  );
+  // Next locale replacement preserves this entry's depth but omits custom metadata.
+  act(() => {
+    window.history.replaceState(
+      { __NA: true },
+      "",
+      `/th/hr/review${window.location.search}${window.location.hash}`,
+    );
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/en/hr/review?tab=OPEN&site=w1#queue"),
+  );
+  await act(async () => {
+    window.history.back();
+  });
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/finished-goods?q=kept#origin"),
+  );
+});
+
+it.each([
+  "https://external.example/hr/review",
+  "//external.example/hr/review",
+  "/en/hr/employees",
+])(
+  "Review locale replacement rejects unsafe selection provenance %s",
+  async (pathname) => {
+    window.history.pushState({}, "", "/en/hr/review?tab=OPEN&site=w1#queue");
+    renderWithIntl(
+      <DraftGuardProvider>
+        <HrReviewScreen />
+      </DraftGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Somsak/ }));
+    act(() => {
+      window.history.replaceState(
+        {
+          ...window.history.state,
+          hrReviewSelectionOrigin: { pathname, index: appHistoryIndex() },
+        },
+        "",
+        window.location.href,
+      );
+      window.history.replaceState(
+        { __NA: true },
+        "",
+        `/th/hr/review${window.location.search}${window.location.hash}`,
+      );
+    });
+    expect(window.history.state.hrReviewSelectionOrigin).toBeUndefined();
+    fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
+    await waitFor(() =>
+      expect(
+        new URLSearchParams(window.location.search).get("employee"),
+      ).toBeNull(),
+    );
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/hr/review?tab=OPEN&site=w1#queue");
+  },
+);

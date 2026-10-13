@@ -16,7 +16,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { useQueryParams, useUrlBackedState } from "@/lib/deepLink";
-import { HR_CODES, readReviewUrl, type ReviewTab } from "@/lib/navigation";
+import {
+  HR_CODES,
+  ROUTES,
+  readReviewUrl,
+  type ReviewTab,
+} from "@/lib/navigation";
 
 import { addDays, formatBusinessDate } from "./format";
 import { compareDates } from "../../../convex/model/hr/calendar";
@@ -191,8 +196,13 @@ function ReviewContent() {
     if (next === undefined && selected !== undefined && nextTab === tab) {
       const origin = window.history.state?.hrReviewSelectionOrigin;
       if (
-        origin?.pathname === window.location.pathname &&
-        origin?.index === appHistoryIndex()
+        typeof origin?.pathname === "string" &&
+        origin.pathname.replace(/^\/(en|th)(?=\/|$)/, "") === ROUTES.hrReview &&
+        window.location.pathname.replace(/^\/(en|th)(?=\/|$)/, "") ===
+          ROUTES.hrReview &&
+        Number.isSafeInteger(origin?.index) &&
+        origin.index > 0 &&
+        origin.index === appHistoryIndex()
       ) {
         traverseBack();
         return;
