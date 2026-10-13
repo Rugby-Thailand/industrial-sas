@@ -8,6 +8,9 @@ const state = vi.hoisted(() => ({
   blocked: false,
   ready: true,
   version: 7,
+  complete: true,
+  capacityExceeded: false,
+  canArchive: true,
   mutation: vi.fn(),
   query: vi.fn(),
 }));
@@ -27,6 +30,9 @@ vi.mock("convex/react", () => ({
         positionCount: 4,
         namedRegistrationCount: 1,
         issues: [],
+        complete: state.complete,
+        capacityExceeded: state.capacityExceeded,
+        canArchive: state.canArchive,
       },
     };
   },
@@ -69,6 +75,9 @@ beforeEach(() => {
   state.blocked = false;
   state.ready = true;
   state.version = 7;
+  state.complete = true;
+  state.capacityExceeded = false;
+  state.canArchive = true;
   state.mutation
     .mockReset()
     .mockResolvedValue({ ok: true, value: { written: true } });
@@ -256,4 +265,55 @@ it("uses shared occupancy controls without a second status subscription", () => 
   expect(state.query).toHaveBeenCalledWith(expect.anything(), "skip");
   expect(screen.getByRole("switch")).toBeDisabled();
   expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+});
+
+it.each(["DRAFT", "ACTIVE"])(
+  "shows the capacity reason and minimum counts before blocking %s lifecycle confirmation",
+  (status) => {
+    state.status = status;
+    state.complete = false;
+    state.capacityExceeded = true;
+    state.canArchive = false;
+    renderToggle();
+    fireEvent.click(screen.getByRole("switch"));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(
+      "This building has more storage areas and positions than can be checked safely at once.",
+    );
+    expect(within(dialog).getByTestId("status-impact")).toHaveTextContent(
+      "Minimum counts; some addresses are not included.",
+    );
+    const confirm = within(dialog).getByRole("button", {
+      name:
+        status === "ACTIVE" ? "Return building to Draft" : "Activate building",
+    });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(state.mutation).not.toHaveBeenCalled();
+  },
+);
+
+it("uses the capacity recovery text for an actual server refusal", async () => {
+  state.mutation.mockResolvedValue({
+    ok: true,
+    value: { written: false, error: { code: "LAYOUT_CAPACITY_LIMIT" } },
+  });
+  renderToggle();
+  toggle();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Keep the current layout and contact an administrator",
+  );
+});
+
+it("honors the server archive capability even without a capacity flag", () => {
+  state.status = "ACTIVE";
+  state.canArchive = false;
+  renderToggle();
+  fireEvent.click(screen.getByRole("switch"));
+  expect(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Return building to Draft",
+    }),
+  ).toBeDisabled();
+  expect(state.mutation).not.toHaveBeenCalled();
 });

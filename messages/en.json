@@ -704,6 +704,7 @@
       "archivedNotice": "This building is archived and read-only. Its QR labels do not resolve.",
       "reactivate": "Review and reactivate",
       "impactCounts": "{zones, plural, one {# storage spot} other {# storage spots}} · {positions, plural, one {# exact position} other {# exact positions}} · {named, plural, one {# registered location} other {# registered locations}}",
+      "impactCountsMinimum": "Minimum counts; some addresses are not included.",
       "impactLoading": "Counting affected addresses…",
       "statusConfirmDraftTitle": "Return {code} to Draft?",
       "statusConfirmDraftDescription": "This applies to the whole building. Every spot and exact position in it stops being selectable for storage and scanning until the building is active again.",
@@ -833,6 +834,7 @@
       "openLocation": "View {label} on its floor",
       "editLocation": "Edit {label}",
       "error": {
+        "LAYOUT_CAPACITY_LIMIT": "This building has more storage areas and positions than can be checked safely at once. Keep the current layout and contact an administrator to review or split the building before changing its status.",
         "FLOOR_NOT_EMPTY": "This floor still has storage spots, including archived ones, so it can't be removed.",
         "FLOOR_HAS_REGISTRATIONS": "A registered location names this floor. Complete its layout on another floor or remove the registration first.",
         "FLOOR_NOT_TOP": "Only the top floor can be removed.",

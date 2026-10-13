@@ -1178,7 +1178,14 @@ function BuildingArchiveSection({
   if (!canActivate) return null;
   const value = impact?.ok ? impact.value : undefined;
   async function confirm() {
-    if (!value?.found || value.version === undefined) return;
+    if (
+      !value?.found ||
+      value.version === undefined ||
+      value.capacityExceeded === true ||
+      value.canArchive === false ||
+      value.occupied === true
+    )
+      return;
     const payload = {
       warehouseId,
       buildingId: building.buildingId,
@@ -1228,7 +1235,12 @@ function BuildingArchiveSection({
         pendingLabel={t("layoutActions.archiving")}
         tone="destructive"
         pending={operation.busy}
-        confirmDisabled={!value?.found || value.occupied === true}
+        confirmDisabled={
+          !value?.found ||
+          value.occupied === true ||
+          value.capacityExceeded === true ||
+          value.canArchive === false
+        }
         onConfirm={() => void confirm()}
         error={
           failure === undefined
@@ -1239,6 +1251,12 @@ function BuildingArchiveSection({
         }
       >
         <LifecycleImpactSummary impact={value} loading={impact === undefined} />
+        {value?.capacityExceeded ? (
+          <Notice
+            tone="warning"
+            title={storageWriteMessage(t, "LAYOUT_CAPACITY_LIMIT")}
+          />
+        ) : null}
         {value?.occupied ? (
           <Notice tone="warning" title={t("layoutActions.archiveOccupied")} />
         ) : null}
@@ -1264,6 +1282,12 @@ export function LifecycleImpactSummary({
   if (!impact?.found) return null;
   return (
     <p className="text-sm font-medium" data-testid="lifecycle-impact">
+      {impact.complete === false ||
+      impact.namedRegistrationCountComplete === false ? (
+        <span className="mb-1 block font-normal text-muted">
+          {t("layoutActions.impactCountsMinimum")}
+        </span>
+      ) : null}
       {t("layoutActions.impactCounts", {
         zones: impact.zoneCount ?? 0,
         positions: impact.positionCount ?? 0,
@@ -3424,6 +3448,8 @@ function ReviewContent({
     );
   }
   const issueText = (issue: LayoutReadinessIssue) => {
+    if (issue.code === "LAYOUT_CAPACITY_LIMIT")
+      return storageWriteMessage(t, issue.code);
     const key = `layoutActions.issue.${issue.code}` as Parameters<typeof t>[0];
     return t.has(key)
       ? t(key)

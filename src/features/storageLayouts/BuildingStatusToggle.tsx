@@ -10,6 +10,7 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import AnimatedToggle from "@/components/ui/animated-toggle";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatusReason } from "@/components/ui/StatusReason";
+import { storageWriteMessage } from "./layoutActions";
 import { storageReviewPath } from "@/lib/navigation";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Link } from "@/i18n/navigation";
@@ -17,6 +18,7 @@ import { Notice } from "@/components/ui/Notice";
 import {
   storageLayoutRefs,
   type StorageLayoutStatus,
+  type BuildingLifecycleImpact,
 } from "@/lib/convex/storageLayoutApi";
 
 const setupErrors = new Set([
@@ -109,7 +111,15 @@ export function BuildingStatusToggle({
   );
 
   async function change() {
-    if (!control || control.blocked || operation.busy) return;
+    if (
+      !control ||
+      control.blocked ||
+      operation.busy ||
+      (impact?.ok &&
+        (impact.value.capacityExceeded === true ||
+          impact.value.canArchive === false))
+    )
+      return;
     setError(undefined);
     const version = control.version;
     const status = current;
@@ -185,26 +195,29 @@ export function BuildingStatusToggle({
       : undefined;
   const setupFailure =
     failure && !failure.denied && !active && setupErrors.has(failure.code);
-  const message = failure
-    ? t(
-        failure.denied
-          ? "statusAccessError"
-          : failure.code === "LOCATION_OCCUPIED"
-            ? "statusOccupied"
-            : failure.code === "VERSION_CONFLICT"
-              ? "layoutChangedRetry"
-              : failure.code === "NETWORK_ERROR"
-                ? "statusNetworkError"
-                : setupFailure
-                  ? "statusSetupError"
-                  : "statusChangeFailed",
-      )
-    : control?.blocked
-      ? t("statusOccupied")
-      : (sharedControl ? sharedControl.loaded : result !== undefined) &&
-          !control
-        ? t("statusUnavailable")
-        : undefined;
+  const message =
+    failure?.code === "LAYOUT_CAPACITY_LIMIT"
+      ? storageWriteMessage(t, failure.code)
+      : failure
+        ? t(
+            failure.denied
+              ? "statusAccessError"
+              : failure.code === "LOCATION_OCCUPIED"
+                ? "statusOccupied"
+                : failure.code === "VERSION_CONFLICT"
+                  ? "layoutChangedRetry"
+                  : failure.code === "NETWORK_ERROR"
+                    ? "statusNetworkError"
+                    : setupFailure
+                      ? "statusSetupError"
+                      : "statusChangeFailed",
+          )
+        : control?.blocked
+          ? t("statusOccupied")
+          : (sharedControl ? sharedControl.loaded : result !== undefined) &&
+              !control
+            ? t("statusUnavailable")
+            : undefined;
   return (
     <div
       className="relative z-10 flex min-h-touch items-center gap-2"
@@ -289,14 +302,7 @@ function StatusConfirmation({
   readonly buildingId: string;
   readonly pending: boolean;
   readonly onConfirm: () => void;
-  readonly impact:
-    | {
-        found: boolean;
-        zoneCount?: number;
-        positionCount?: number;
-        namedRegistrationCount?: number;
-      }
-    | undefined;
+  readonly impact: BuildingLifecycleImpact | undefined;
   readonly impactLoading: boolean;
   readonly ready: boolean | undefined;
 }) {
@@ -324,7 +330,12 @@ function StatusConfirmation({
       )}
       pendingLabel={t("statusSaving")}
       pending={pending}
-      confirmDisabled={!impact?.found || ready !== true}
+      confirmDisabled={
+        !impact?.found ||
+        ready !== true ||
+        impact.capacityExceeded === true ||
+        impact.canArchive === false
+      }
       onConfirm={onConfirm}
     >
       {impactLoading ? (
@@ -333,12 +344,24 @@ function StatusConfirmation({
         </p>
       ) : impact?.found ? (
         <p className="text-sm font-medium" data-testid="status-impact">
+          {impact.complete === false ||
+          impact.namedRegistrationCountComplete === false ? (
+            <span className="mb-1 block font-normal text-muted">
+              {t("layoutActions.impactCountsMinimum")}
+            </span>
+          ) : null}
           {t("layoutActions.impactCounts", {
             zones: impact.zoneCount ?? 0,
             positions: impact.positionCount ?? 0,
             named: impact.namedRegistrationCount ?? 0,
           })}
         </p>
+      ) : null}
+      {impact?.capacityExceeded ? (
+        <Notice
+          tone="warning"
+          title={storageWriteMessage(t, "LAYOUT_CAPACITY_LIMIT")}
+        />
       ) : null}
       {!active && ready === undefined ? (
         <p role="status" className="text-sm text-muted">

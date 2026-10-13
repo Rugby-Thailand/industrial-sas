@@ -16,9 +16,9 @@ Readiness and lifecycle support at most **1,800 active area records plus active 
 
 Lifecycle impact uses the same bounded assessment. `complete:false` identifies partial lower-bound counts, `capacityExceeded:true` identifies the unsupported aggregate case, and `canArchive:false` prevents a confirmation from promising the blocked action. Named-registration count completeness remains independently available. Larger buildings need a separate bounded readiness/lifecycle design before these whole-building operations can support them. This release deliberately refuses them safely. Top-floor removal does not use readiness and remains independent of this cap.
 
-## Frontend copy to integrate
+## Frontend integration
 
-Add `layoutActions.error.LAYOUT_CAPACITY_LIMIT` in both locales, and render it for readiness issues and refused mutations. Lifecycle confirmation must honor `capacityExceeded`/`canArchive` and must identify `complete:false` counts as lower bounds.
+The follow-up frontend commit adds `layoutActions.error.LAYOUT_CAPACITY_LIMIT` in both locales and renders it for readiness issues and refused mutations. Archive and status confirmations honor `capacityExceeded`/`canArchive` and identify `complete:false` or incomplete named-registration counts as minimum counts. Existing foreground and navigation ownership remain unchanged.
 
 English: “This building has more storage areas and positions than can be checked safely at once. Keep the current layout and contact an administrator to review or split the building before changing its status.”
 
@@ -29,3 +29,5 @@ Thai: “อาคารนี้มีพื้นที่และตำแ�
 The storage action suite has 29 passing cases, including exact retry after later parent/lifecycle changes, changed command identity refusal, an unchanged legacy receipt replay, and caller-level aggregate boundary tests. At 1,800 area-plus-leaf records, activation succeeds within the documented document, index-range and write budgets; at 1,801, readiness, lifecycle impact, activation and archive report capacity limits without partial status writes. The large original 32,431-read reproduction was temporary; the committed boundary fixtures use 1,800/1,801 records and run in seconds.
 
 The nine scoped action/layout/occupancy/catalogue/job-ticket/isolation/model suites pass (123 tests, including the final impact assertions). Scoped normal ESLint, TypeScript 6, and diff whitespace checks pass. These are local convex-test checks, not production writes or deployment verification.
+
+Frontend validation: both changed caller suites pass (84 tests), including bilingual archive capacity refusal, disabled archive and status confirmations, lower-bound labels, the readiness issue, and actual server-refusal recovery text. TypeScript 6 and whitespace checks pass. Normal ESLint passes on the status toggle, DTO and both test files. Screens ESLint reports eight navigation-audit errors in the untouched `FloorForm`; the same eight reproduce against checkpoint `b13c980e`, so the integration inventory owner must reconcile those final foreground targets before merge. The one Impeccable detector pass reports no warnings. These are component-level DOM checks; no live browser screenshot or production write was performed.

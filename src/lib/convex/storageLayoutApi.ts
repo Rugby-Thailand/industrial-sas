@@ -239,6 +239,10 @@ export interface LayoutReadiness {
 
 export interface BuildingLifecycleImpact {
   readonly found: boolean;
+  /** False means the displayed counts are lower bounds. */
+  readonly complete?: boolean;
+  readonly capacityExceeded?: boolean;
+  readonly canArchive?: boolean;
   readonly status?: StorageLayoutStatus;
   readonly version?: number;
   readonly floorCount?: number;

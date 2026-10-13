@@ -16,6 +16,7 @@ const mutation = vi.hoisted(() => vi.fn());
 const navigate = vi.hoisted(() => vi.fn());
 const layoutAccess = vi.hoisted(() => ({
   manage: true,
+  activate: false,
   ready: true,
   query: vi.fn<() => unknown>(),
 }));
@@ -23,6 +24,7 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/");
   navigate.mockReset();
   layoutAccess.manage = true;
+  layoutAccess.activate = false;
   layoutAccess.ready = true;
   layoutAccess.query.mockReset().mockReturnValue(undefined);
   mutation
@@ -49,9 +51,12 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
   ...(await importOriginal<typeof WorkspaceModule>()),
   useWorkspace: () => ({
     permissionsReady: layoutAccess.ready,
-    navigationPermissions: layoutAccess.manage
-      ? ["masterData.storageLayout.manage"]
-      : ["masterData.storageLayout.read"],
+    navigationPermissions: [
+      layoutAccess.manage
+        ? "masterData.storageLayout.manage"
+        : "masterData.storageLayout.read",
+      ...(layoutAccess.activate ? ["masterData.storageLayout.activate"] : []),
+    ],
   }),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
@@ -88,6 +93,7 @@ import {
   StorageZoneDraftPreview,
   StorageZonesPanel,
   StorageFloorEditor,
+  StorageBuildingReview,
 } from "./StorageLayoutScreens";
 
 function floorButton(floor: number) {
@@ -2568,5 +2574,90 @@ describe("mobile storage workspace", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(document.body.style.pointerEvents).not.toBe("none");
+  });
+});
+
+describe("building lifecycle capacity feedback", () => {
+  it.each(["en", "th"] as const)(
+    "blocks archive and identifies partial counts in %s",
+    (locale) => {
+      layoutAccess.activate = true;
+      layoutAccess.query.mockReturnValue({
+        ok: true,
+        value: {
+          found: true,
+          version: 2,
+          zoneCount: 18,
+          positionCount: 1700,
+          namedRegistrationCount: 0,
+          complete: false,
+          capacityExceeded: true,
+          canArchive: false,
+          occupied: false,
+        },
+      });
+      renderWithIntl(
+        <BuildingSettingsDialog
+          warehouseId="warehouse-a"
+          building={building}
+        />,
+        { locale, workspace: false },
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name:
+            locale === "en" ? "Edit building settings" : "แก้ไขการตั้งค่าอาคาร",
+        }),
+      );
+      const archiveLabel =
+        locale === "en" ? "Archive building" : "เก็บถาวรอาคาร";
+      fireEvent.click(screen.getByRole("button", { name: archiveLabel }));
+      const dialog = screen.getByRole("dialog", {
+        name:
+          locale === "en"
+            ? "Archive Main storage?"
+            : "เก็บถาวร Main storage หรือไม่",
+      });
+      expect(dialog).toHaveTextContent(
+        locale === "en"
+          ? "This building has more storage areas and positions than can be checked safely at once."
+          : "อาคารนี้มีพื้นที่และตำแหน่งจัดเก็บมากเกินกว่าจะตรวจสอบอย่างปลอดภัยในครั้งเดียว",
+      );
+      expect(within(dialog).getByTestId("lifecycle-impact")).toHaveTextContent(
+        locale === "en"
+          ? "Minimum counts; some addresses are not included."
+          : "จำนวนขั้นต่ำ บางตำแหน่งยังไม่รวมอยู่ในยอดนี้",
+      );
+      const confirm = within(dialog).getByRole("button", {
+        name: archiveLabel,
+      });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mutation).not.toHaveBeenCalled();
+    },
+  );
+  it("shows a useful capacity explanation in the server readiness review", () => {
+    layoutAccess.activate = true;
+    layoutAccess.query.mockReturnValue({
+      ok: true,
+      value: {
+        found: true,
+        building,
+        floors,
+        version: building.version,
+        ready: false,
+        issues: [{ code: "LAYOUT_CAPACITY_LIMIT", blocking: true }],
+      },
+    });
+    renderWithIntl(<StorageBuildingReview buildingId={building.buildingId} />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(
+      screen.getByText(/This building has more storage areas and positions/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Activate layout" }),
+    ).toBeDisabled();
   });
 });
