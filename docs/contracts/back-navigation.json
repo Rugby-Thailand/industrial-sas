@@ -1270,8 +1270,10 @@
           "shape": "conditional",
           "truthy": [
             "div[role=group]",
+            "lucide-react#LayoutGrid",
+            "lucide-react#List",
             "lucide-react#X",
-            "src/components/ui/SegmentedControl#SegmentedControl",
+            "src/components/ui/IconButton#IconButton",
             "src/components/ui/button#Button"
           ],
           "falsy": []
@@ -1288,10 +1290,7 @@
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableRow"
-          ],
+          "truthy": ["td", "tr"],
           "falsy": []
         }
       ]
@@ -1304,15 +1303,22 @@
       "render": [
         {
           "shape": "and",
-          "truthy": ["src/components/ui/SegmentedControl#SegmentedControl"],
+          "truthy": [
+            "div[role=group]",
+            "lucide-react#LayoutGrid",
+            "lucide-react#List",
+            "src/components/ui/IconButton#IconButton"
+          ],
           "falsy": []
         },
         {
           "shape": "conditional",
           "truthy": [
             "div[role=group]",
+            "lucide-react#LayoutGrid",
+            "lucide-react#List",
             "lucide-react#X",
-            "src/components/ui/SegmentedControl#SegmentedControl",
+            "src/components/ui/IconButton#IconButton",
             "src/components/ui/button#Button"
           ],
           "falsy": []
@@ -1329,22 +1335,29 @@
           "shape": "conditional",
           "truthy": [
             "button",
+            "dd",
             "div",
             "div[role=list]",
             "div[role=listitem]",
+            "dl",
+            "dt",
+            "label",
+            "lucide-react#ArrowDown",
+            "lucide-react#ArrowUp",
             "p",
-            "src/components/ui/DescriptionList#DescriptionList"
+            "src/components/ui/IconButton#IconButton",
+            "src/components/ui/SelectControl#SelectControl"
           ],
           "falsy": [
             "button",
-            "src/components/ui/TableScroller#TableScroller",
-            "src/components/ui/table#Table",
-            "src/components/ui/table#TableBody",
-            "src/components/ui/table#TableCaption",
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableHead",
-            "src/components/ui/table#TableHeader",
-            "src/components/ui/table#TableRow"
+            "caption",
+            "div[role=region]",
+            "table",
+            "tbody",
+            "td",
+            "th",
+            "thead",
+            "tr"
           ]
         }
       ]
@@ -1367,10 +1380,7 @@
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableRow"
-          ],
+          "truthy": ["td", "tr"],
           "falsy": []
         }
       ]
@@ -1393,10 +1403,7 @@
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableRow"
-          ],
+          "truthy": ["td", "tr"],
           "falsy": []
         }
       ]
@@ -1419,10 +1426,7 @@
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableRow"
-          ],
+          "truthy": ["td", "tr"],
           "falsy": []
         }
       ]
@@ -1450,10 +1454,7 @@
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableRow"
-          ],
+          "truthy": ["td", "tr"],
           "falsy": []
         }
       ]
@@ -4140,19 +4141,19 @@
       "render": [
         {
           "shape": "conditional",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
+          "truthy": ["p"],
           "falsy": [
+            "caption",
+            "div",
             "p",
-            "src/components/ui/TableScroller#TableScroller",
-            "src/components/ui/table#Table",
-            "src/components/ui/table#TableBody",
-            "src/components/ui/table#TableCaption",
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableHead",
-            "src/components/ui/table#TableHeader",
-            "src/components/ui/table#TableRow",
             "src/features/storageKit/PlacementStatusBadge#PlacementStatusBadge",
-            "src/i18n/navigation#Link"
+            "src/i18n/navigation#Link",
+            "table",
+            "tbody",
+            "td",
+            "th",
+            "thead",
+            "tr"
           ]
         }
       ]
@@ -4479,6 +4480,11 @@
           "shape": "conditional",
           "truthy": ["lucide-react#Plus"],
           "falsy": ["lucide-react#PencilLine"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["p"]
         }
       ]
     },
@@ -4590,13 +4596,21 @@
         {
           "shape": "conditional",
           "truthy": ["lucide-react#Plus"],
-          "falsy": ["lucide-react#CheckCircle2", "lucide-react#PencilLine"]
+          "falsy": ["lucide-react#PencilLine"]
         },
         {
           "shape": "conditional",
-          "truthy": [
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
-          ],
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/features/storageLayouts/layoutActions#BlockedImpact"],
           "falsy": []
         }
       ],
@@ -4634,6 +4648,11 @@
         {
           "shape": "conditional",
           "truthy": [],
+          "falsy": ["div", "src/components/ui/Notice#Notice"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
           "falsy": ["src/components/ui/Notice#Notice"]
         }
       ]
@@ -4647,9 +4666,21 @@
         {
           "shape": "and",
           "truthy": [
-            "src/components/ui/EmptyState#EmptyState",
+            "div",
+            "lucide-react#Search",
+            "p",
             "src/components/ui/button#Button"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["lucide-react#X", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         },
         {
@@ -4661,11 +4692,6 @@
             "src/components/ui/Notice#Notice",
             "src/components/ui/button#Button"
           ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         },
         {
@@ -5876,6 +5902,426 @@
           "name": "pending reservation release blocks native Back and success consumes its modal and task entry"
         }
       ]
+    },
+    {
+      "id": "src/components/storageLayouts/AreaColorPicker.tsx#AreaColorPicker:custom",
+      "policy": "presentation",
+      "expectation": "Custom color syntax produces an inline validation alert inside the existing color choice popover.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["p[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:noRoom",
+      "policy": "presentation",
+      "expectation": "No-room feedback is an inline status Notice inside the already owned named-layout Dialog; it does not open another editor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completed",
+      "policy": "presentation",
+      "expectation": "The completed registered-location receipt shows a success Notice and its explicit floor link in the retained catalogue; it cannot resurrect an editable command on Back.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=status]",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingDimensionsForm:baseline",
+      "policy": "presentation",
+      "expectation": "Authoritative building dimensions are a retained form baseline used for a same-form saved status.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingDimensionsForm:draft",
+      "policy": "presentation",
+      "expectation": "Dimension fields stay inside the existing settings Dialog and only control its inline saved status; the registered draft protects departure.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingDimensionsForm:blocked",
+      "policy": "presentation",
+      "expectation": "A server/stock refusal shows inline BlockedImpact explanation and suppresses the prohibited write; the retained settings form stays mounted.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/features/storageLayouts/layoutActions#BlockedImpact"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/components/ui/button#Button"]
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingDimensionsForm:saved",
+      "policy": "presentation",
+      "expectation": "A successful dimensions receipt displays inline status without creating an editable predecessor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingFloorCountForm:base",
+      "policy": "presentation",
+      "expectation": "Saved floor-count baseline controls inline success status within the same add-floors form.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingFloorCountForm:total",
+      "policy": "presentation",
+      "expectation": "Proposed total floor count changes validation and inline preview/receipt in the retained settings form; it is an input value.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingFloorCountForm:added",
+      "policy": "presentation",
+      "expectation": "Added floor count produces a terminal inline receipt in the existing settings form.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:removed",
+      "policy": "presentation",
+      "expectation": "The removed top-floor number produces a terminal inline status after confirmed persistence; the confirmation owns departure.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:message",
+      "policy": "presentation",
+      "expectation": "Position write feedback stays inline inside the actual positions Dialog.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionForm:draft",
+      "policy": "presentation",
+      "expectation": "Position code/geometry values change inline validation/code preview inside the form; the edit step and containing Dialog own Back.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#RackGenerator:draft",
+      "policy": "presentation",
+      "expectation": "Rack dimensions configure a preview and validation inside the existing generator form; the containing positions Dialog owns dismissal.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["p"]
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:mode",
+      "policy": "presentation",
+      "expectation": "Simple/floor-position/rack/platform is a zone form field that reveals elevation inputs and inline guidance inside the same zone editor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/ui/label#Label",
+            "src/features/storageLayouts/layoutActions#MeasureInput"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": ["p"]
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:noRoom",
+      "policy": "presentation",
+      "expectation": "No-room search feedback displays an inline status Notice without opening an overlapping zone draft.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/Notice#Notice[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:conflict",
+      "policy": "presentation",
+      "expectation": "Concurrent-version refusal keeps the same zone draft and displays inline reload/reapply controls, rather than replacing the editor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#BuildingStatusToggle:confirming",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+          "name": "confirms a whole-building return to Draft with the affected count"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#StatusConfirmation:$overlay:ConfirmDialog:confirming",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+          "name": "confirms a whole-building return to Draft with the affected count"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:open",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "removes only the empty top floor after confirmation and explains a refusal"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:$overlay:ConfirmDialog:open",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "removes only the empty top floor after confirmation and explains a refusal"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingArchiveSection:open",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "archives with counted impact and explains reactivation; stock blocks confirmation"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingArchiveSection:$overlay:ConfirmDialog:open",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "archives with counted impact and explains reactivation; stock blocks confirmation"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:archiving",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "confirms an archive with the spot identity and exact-position count"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:$overlay:ConfirmDialog:archiving",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "confirms an archive with the spot identity and exact-position count"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:$overlay:Dialog:controlled",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "dialog",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "requires measured geometry and keeps the registered identity"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completing",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "delegated-overlay",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "requires measured geometry and keeps the registered identity"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:$overlay:Dialog:controlled",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "dialog",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "adds a floor position with a code preview and keeps it inside the spot"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+    },
+    {
+      "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:positionsZoneId",
+      "policy": "overlay",
+      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "integration": "delegated-overlay",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "adds a floor position with a code preview and keeps it inside the spot"
+        }
+      ],
+      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
     }
   ],
   "overlayDelegates": [
@@ -5904,6 +6350,16 @@
     {
       "component": "src/features/storageLayouts/StorageLayoutScreens#BuildingSettingsDialog",
       "owner": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingSettingsDialog:$overlay:Dialog:controlled"
+    },
+    {
+      "component": "src/features/storageLayouts/CompleteNamedLayoutDialog#CompleteNamedLayoutDialog",
+      "owner": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:$overlay:Dialog:controlled",
+      "prop": "location"
+    },
+    {
+      "component": "src/features/storageLayouts/StoragePositionsDialog#StoragePositionsDialog",
+      "owner": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:$overlay:Dialog:controlled",
+      "prop": "zone"
     }
   ],
   "breadcrumbBuilders": ["src/features/finishedGoods/shared#usePalletTrail"],
@@ -6203,12 +6659,12 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#submit:$task:completeTask:storageBuildingPath",
       "intent": "completion",
-      "expectation": "Successful building creation completes through live op.complete after pending registration settles and replaces with its validated building overview.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "expectation": "Only a live successful operation completes the new-building or activation task after pending settles, consuming owned entries before replacement.",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "blocks native Back while building creation is in flight"
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "activates after a passing preflight and completes to the building"
         }
       ]
     },
@@ -6245,6 +6701,18 @@
         {
           "file": "src/hooks/useAsyncOperation.test.tsx",
           "name": "does not return or complete an old success after %s"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#NewBuildingContent:$task:returnFromTask:ROUTES.storageLayouts",
+      "intent": "return",
+      "expectation": "Explicit new-building Back/Cancel consumes its task and restores the actual catalogue origin locale/query/hash; direct entry uses the safe catalogue parent.",
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "Back returns to the real catalogue origin with its query and hash, consuming the task entry"
         }
       ]
     }
