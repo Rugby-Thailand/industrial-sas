@@ -1123,7 +1123,7 @@ it("replays named layout completion after a lost response changes its live targe
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(complete).toHaveBeenCalledTimes(2));
   expect(complete.mock.calls[1]![0]).toEqual(original);
-  expect(props.onCompleted).toHaveBeenCalledOnce();
+  await waitFor(() => expect(props.onCompleted).toHaveBeenCalledOnce());
 });
 
 it("uses a distinct floor-count command when the user explicitly adds more after an uncertain save", async () => {
