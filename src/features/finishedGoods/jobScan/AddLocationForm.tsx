@@ -107,13 +107,12 @@ export function AddLocationForm({
           written(result);
           return;
         }
+        guard.settle();
         operation.complete(() =>
-          guard.settle(() =>
-            onPick({
-              ...outcome.location,
-              text: outcome.location.code,
-            }),
-          ),
+          onPick({
+            ...outcome.location,
+            text: outcome.location.code,
+          }),
         );
       },
     );

@@ -65,7 +65,10 @@ export function LocationImageReader({
   const photoCamera = useRef<LocationPhotoCameraHandle>(null);
   const [photo, setPhoto] = useState(initialPhoto);
   const [cameraOpen, setCameraOpen] = useState(!initialPhoto);
-  useBackDisclosure(cameraOpen && photo !== undefined, setCameraOpen);
+  const cameraDisclosure = useBackDisclosure(
+    cameraOpen && photo !== undefined,
+    setCameraOpen,
+  );
   const [previewUrl, setPreviewUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [candidates, setCandidates] = useState<
@@ -191,7 +194,10 @@ export function LocationImageReader({
         <LocationPhotoCamera
           ref={photoCamera}
           onPhoto={select}
-          onClose={close}
+          onClose={() => {
+            if (photo) cameraDisclosure.onOpenChange(false);
+            else close();
+          }}
           errorAction={
             // The device camera is a fallback only when the in-app camera fails.
             <Button
@@ -342,8 +348,11 @@ export function LocationImageReader({
             label={t("locationAiOpenCamera")}
             variant="ghost"
             onClick={() => {
-              invalidate();
-              setPhoto(undefined);
+              // Keep the reviewed photo and corrected code until a replacement
+              // is actually captured. Back from retake restores this work.
+              cancelPending();
+              pending.current = false;
+              setBusy(false);
               setCameraOpen(true);
             }}
           >
