@@ -1,9 +1,11 @@
 "use client";
 import { packageScanPath } from "@/lib/navigation";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { resolveWriteError } from "@/lib/resolveWriteError";
 import {
   useCallback,
+  useId,
   useEffect,
   useRef,
   useState,
@@ -21,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   Dialog,
+  type DialogCompletionHandle,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -91,17 +94,37 @@ export function BatchManager({
     busy: false,
   });
   const [discardOpen, setDiscardOpen] = useState(false);
+  const draftScope = useId();
+  const completion = useRef<DialogCompletionHandle>(null);
+  const discardCompletion = useRef<DialogCompletionHandle>(null);
+  const closing = useRef(false);
+  const closed = useRef(false);
+  const finishClose = () => {
+    if (closed.current) return;
+    closed.current = true;
+    onClose();
+  };
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   useUnsavedWarning(editorState.dirty || editorState.busy);
+  const guard = useNavigationDraft({
+    foregroundScope: draftScope,
+    workflowScope: `batch-repack:${warehouseId}:${batchId}`,
+    dirty: editorState.dirty,
+    pending: editorState.busy,
+    discard: () => setEditorState({ dirty: false, busy: false }),
+  });
   const reportEditorState = useCallback((next: EditorState) => {
     setEditorState(next);
   }, []);
   const requestClose = () => {
-    if (editorState.busy) return;
+    if (editorState.busy || closing.current) return;
     if (editorState.dirty) {
       setPendingHref(null);
       setDiscardOpen(true);
-    } else onClose();
+    } else {
+      closing.current = true;
+      completion.current?.complete(finishClose);
+    }
   };
   const guardNavigation = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -127,6 +150,9 @@ export function BatchManager({
   return (
     <Dialog
       open
+      completionRef={completion}
+      draftScope={draftScope}
+      backPending={editorState.busy}
       onOpenChange={(open) => {
         if (!open) requestClose();
       }}
@@ -208,12 +234,17 @@ export function BatchManager({
                   warehouseId={warehouseId}
                   initialUnitId={unitId}
                   onStateChange={reportEditorState}
+                  onSaved={guard.settle}
                 />
               </div>
             )}
           </>
         )}
-        <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <Dialog
+          open={discardOpen}
+          onOpenChange={setDiscardOpen}
+          completionRef={discardCompletion}
+        >
           <DialogContent showCloseButton={false} className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t("copy.discard-packing-changes")}</DialogTitle>
@@ -230,8 +261,15 @@ export function BatchManager({
               <Button
                 variant="destructive"
                 onClick={() => {
-                  onClose();
-                  if (pendingHref) router.push(pendingHref);
+                  closing.current = true;
+                  guard.settle(() =>
+                    discardCompletion.current?.complete(() =>
+                      completion.current?.complete(() => {
+                        finishClose();
+                        if (pendingHref) router.push(pendingHref);
+                      }),
+                    ),
+                  );
                 }}
               >
                 {t("copy.discard-changes")}
@@ -482,11 +520,13 @@ function AvailableEditor({
   warehouseId,
   initialUnitId,
   onStateChange,
+  onSaved,
 }: {
   data: ManagedBatch;
   warehouseId: string;
   initialUnitId?: string | undefined;
   onStateChange: (state: EditorState) => void;
+  onSaved: () => void;
 }) {
   const { t, tr } = useFGText();
   const canManage = useCanManage();
@@ -646,9 +686,14 @@ function AvailableEditor({
         );
       },
       (receipt) => {
-        setReceiptId(receipt);
-        setDone(true);
-        op.clearRequests();
+        onSaved();
+        op.complete(() =>
+          reviewStep.complete(() => {
+            setReceiptId(receipt);
+            setDone(true);
+            op.clearRequests();
+          }),
+        );
       },
     );
   }

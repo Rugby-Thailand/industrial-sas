@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SelectControl } from "@/components/ui/SelectControl";
 import {
   Dialog,
+  type DialogCompletionHandle,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -54,6 +55,8 @@ export function JobScanRecordEditor({
 }) {
   const t = useTranslations("JobScan");
   const draftScope = useId();
+  const completion = useRef<DialogCompletionHandle>(null);
+  const closing = useRef(false);
   const op = useOperation(`${warehouseId}:ticket-correction:${record.id}`);
   const save = useMutation(fgRefs.updateJobScan);
   const [baseline, setBaseline] = useState(record);
@@ -68,7 +71,6 @@ export function JobScanRecordEditor({
     pending: op.busy,
     discard: () => {
       setTicket(recordDraft(record));
-      onClose();
     },
   });
   const history = useQuery(fgRefs.listJobScanCorrections, {
@@ -77,7 +79,11 @@ export function JobScanRecordEditor({
   });
   const stale = record.version !== baseline.version;
   const close = () => {
-    if (!op.busy) guard.requestTransition(onClose);
+    if (!op.busy && !closing.current)
+      guard.requestTransition(() => {
+        closing.current = true;
+        completion.current?.complete(onClose);
+      });
   };
   async function commit() {
     if (op.busy || stale || !isComplete(ticket) || hasInvalidQuantity(ticket))
@@ -96,13 +102,17 @@ export function JobScanRecordEditor({
         ),
       () => {
         guard.settle();
-        op.complete(onClose);
+        op.complete(() => {
+          closing.current = true;
+          completion.current?.complete(onClose);
+        });
       },
     );
   }
   return (
     <Dialog
       draftScope={draftScope}
+      completionRef={completion}
       backPending={op.busy}
       open
       onOpenChange={(open) => {

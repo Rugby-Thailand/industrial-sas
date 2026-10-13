@@ -13,6 +13,7 @@ import {
   writeSuccess,
 } from "@tests/fixtures/finished-goods-ui";
 import { JobScanRecordsScreen } from "./JobScanRecords";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
@@ -200,9 +201,11 @@ describe("scanned record deletion", () => {
     expect(screen.getByText("2 records selected")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await user.click(selectAll);
-    expect(
-      screen.getByRole("checkbox", { name: "Select FO001" }),
-    ).not.toBeChecked();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "Select FO001" }),
+      ).not.toBeChecked(),
+    );
     expect(
       screen.queryByRole("button", { name: "Delete 2 selected records" }),
     ).not.toBeInTheDocument();
@@ -366,9 +369,11 @@ describe("scanned record deletion", () => {
         screen.queryByRole("heading", { name: "Choose a location" }),
       ).not.toBeInTheDocument(),
     );
-    expect(
-      screen.getByRole("checkbox", { name: "Select FO001" }),
-    ).not.toBeChecked();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "Select FO001" }),
+      ).not.toBeChecked(),
+    );
   });
 
   it("shows a denied query instead of loading indefinitely", () => {
@@ -1029,4 +1034,53 @@ it("requires review and blocks a stale multi-ticket location snapshot without wr
     screen.getByRole("button", { name: "Change 2 tickets" }),
   ).toBeDisabled();
   expect(mocks.assign).not.toHaveBeenCalled();
+});
+
+it("successful location remap consumes review and picker before the next native Back", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+  });
+  try {
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Set location for 1 record" }),
+    );
+    await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
+    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: /Review location change/ }),
+      ).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("region", { name: "Choose a location" }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(window.location.search).toBe("?filter=keep"));
+    expect(window.location.hash).toBe("#rows");
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/en/finished-goods/scan"),
+    );
+    expect(window.location.search + window.location.hash).toBe(
+      "?origin=kept#scanner",
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
 });

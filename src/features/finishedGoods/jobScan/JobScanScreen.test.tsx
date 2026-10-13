@@ -681,3 +681,36 @@ it("a refresh or deep link without local data falls back to the location questio
   expect(window.location.search).toBe("?source=keep");
   expect(window.location.hash).toBe("#question");
 });
+
+it.each([
+  ["group", "Scan code"],
+  ["field", "Scan Job No."],
+])(
+  "native Back closes the %s scanner and ignores late acquisition callbacks",
+  async (_kind, action) => {
+    window.history.replaceState(
+      { __NA: true },
+      "",
+      "/th/finished-goods/scan?source=kept#tickets",
+    );
+    start();
+    addTicket();
+    fireEvent.click(screen.getByRole("button", { name: action }));
+    const late = mocks.decode!;
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(screen.queryByText("QA barcode scanner active")).toBeNull(),
+    );
+    act(() => late("FO99999999"));
+    expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
+      "FO69070073",
+    );
+    expect(
+      screen.getByRole("textbox", { name: /Product barcode/ }),
+    ).toHaveValue("DEMO-BOX");
+    expect(window.location.pathname).toBe("/th/finished-goods/scan");
+    expect(window.location.search).toContain("source=kept");
+    expect(window.location.hash).toBe("#tickets");
+    expect(mocks.save).not.toHaveBeenCalled();
+  },
+);

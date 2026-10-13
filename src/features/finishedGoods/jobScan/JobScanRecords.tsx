@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import {
   Dialog,
+  type DialogCompletionHandle,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -94,6 +95,7 @@ function Records({
     ids: string[];
   } | null>(null);
   const locationPanel = useRef<HTMLDivElement>(null);
+  const remapCompletion = useRef<DialogCompletionHandle>(null);
   const [editing, setEditing] = useState<RecordPage["items"][number] | null>(
     null,
   );
@@ -582,6 +584,8 @@ function Records({
       )}
       <Dialog
         open={remapReview !== null}
+        completionRef={remapCompletion}
+        backPending={operation.busy}
         onOpenChange={(open) => {
           if (!open && !operation.busy) setRemapReview(null);
         }}
@@ -660,9 +664,14 @@ function Records({
                         }),
                       ),
                     () => {
-                      setRemapReview(null);
-                      clearSelection();
-                      operation.clearRequests();
+                      operation.complete(() =>
+                        remapCompletion.current?.complete(() =>
+                          locationStep.complete(() => {
+                            clearSelection();
+                            operation.clearRequests();
+                          }),
+                        ),
+                      );
                     },
                   );
                 }}

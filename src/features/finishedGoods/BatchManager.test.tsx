@@ -11,7 +11,9 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
+import { trackAppHistory } from "@/lib/browser/appHistory";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import { getFunctionName } from "convex/server";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -537,18 +539,18 @@ it.each(["en", "th"])("keeps the editor accessible in %s", async (locale) => {
 
 it.each(["close", "escape"])(
   "closes an untouched editor without a discard step via %s",
-  (method) => {
+  async (method) => {
     render(component("edit"));
     if (method === "close")
       fireEvent.click(screen.getByRole("button", { name: "Close" }));
     else fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-    expect(mocks.close).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
     expect(
       screen.queryByRole("dialog", { name: "Discard packing changes?" }),
     ).not.toBeInTheDocument();
   },
 );
-it("protects dirty corrections on Escape, keeps the draft on cancel, and discards only explicitly", () => {
+it("protects dirty corrections on Escape, keeps the draft on cancel, and discards only explicitly", async () => {
   render(component("edit", "en", "free-b"));
   fireEvent.change(screen.getByLabelText("Length (m) · 1"), {
     target: { value: "0.8" },
@@ -559,20 +561,27 @@ it("protects dirty corrections on Escape, keeps the draft on cancel, and discard
   ).toBeVisible();
   expect(mocks.close).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  await waitFor(() =>
+    expect(
+      [...new URLSearchParams(window.location.search).keys()].filter((key) =>
+        key.startsWith("overlay"),
+      ),
+    ).toHaveLength(1),
+  );
   expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(0.8);
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
-  expect(mocks.close).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
   expect(mocks.write).not.toHaveBeenCalled();
 });
-it("does not warn after a dimension correction is restored to its original value", () => {
+it("does not warn after a dimension correction is restored to its original value", async () => {
   render(component("edit", "en", "free-b"));
   const input = screen.getByLabelText("Length (m) · 1");
   const original = (data.units[2]!.lengthMm! / 1000).toString();
   fireEvent.change(input, { target: { value: "0.8" } });
   fireEvent.change(input, { target: { value: original } });
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
-  expect(mocks.close).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
 });
 it("preserves dirty packing through storage tabs and still protects closing there", () => {
   render(component("edit"));
@@ -620,7 +629,7 @@ it("prevents dialog dismissal and tab changes during save and permits close afte
   resolveSave(success("receipt-a"));
   await screen.findByText("Packing updated");
   fireEvent.click(await screen.findByRole("button", { name: "Close" }));
-  expect(mocks.close).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
   expect(
     screen.queryByRole("dialog", { name: "Discard packing changes?" }),
   ).not.toBeInTheDocument();
@@ -641,6 +650,13 @@ it("keeps failed corrections protected while allowing an idempotent retry", asyn
   );
   fireEvent.click(await screen.findByRole("button", { name: "Close" }));
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  await waitFor(() =>
+    expect(
+      [...new URLSearchParams(window.location.search).keys()].filter((key) =>
+        key.startsWith("overlay"),
+      ),
+    ).toHaveLength(1),
+  );
   expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(0.8);
   expect(
     screen.getByRole("region", { name: "Confirm repacking" }),
@@ -675,7 +691,7 @@ it("intercepts outside dismissal without losing a dirty correction", async () =>
   expect(mocks.close).not.toHaveBeenCalled();
 });
 
-it("keeps edits on cancelled Storage navigation and discards to the exact chosen destination", () => {
+it("keeps edits on cancelled Storage navigation and discards to the exact chosen destination", async () => {
   render(component("edit", "en", "free-b"));
   fireEvent.change(screen.getByLabelText("Length (m) · 1"), {
     target: { value: "0.8" },
@@ -685,15 +701,24 @@ it("keeps edits on cancelled Storage navigation and discards to the exact chosen
   fireEvent.click(screen.getByRole("link", { name: "Move unit" }));
   expect(mocks.push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  await waitFor(() =>
+    expect(
+      [...new URLSearchParams(window.location.search).keys()].filter((key) =>
+        key.startsWith("overlay"),
+      ),
+    ).toHaveLength(1),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Edit unit · P-003" }));
   expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(0.8);
   fireEvent.click(screen.getByRole("button", { name: "Storage" }));
   fireEvent.click(screen.getByRole("link", { name: "Move unit" }));
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
-  expect(mocks.push).toHaveBeenCalledWith(
-    "/finished-goods/pallets/stored/move",
+  await waitFor(() =>
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/finished-goods/pallets/stored/move",
+    ),
   );
-  expect(mocks.close).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
   expect(mocks.write).not.toHaveBeenCalled();
 });
 it("warns before browser unload only while corrections are dirty", async () => {
@@ -825,4 +850,141 @@ it("undo restores measured correction rows after splitting them", () => {
   fireEvent.click(screen.getByRole("button", { name: "Undo row change" }));
   expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(1.2);
   expect(screen.getByLabelText("Quantity · 1")).toHaveValue(50);
+});
+
+function OwnedManager({ mode }: { mode: "view" | "edit" }) {
+  const [open, setOpen] = useState(true);
+  return open ? (
+    <BatchManager
+      warehouseId="warehouse-a"
+      batchId="batch-a"
+      mode={mode}
+      onClose={() => {
+        mocks.close();
+        setOpen(false);
+      }}
+    />
+  ) : (
+    <p>Manager closed</p>
+  );
+}
+function showOwned(mode: "view" | "edit") {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods?origin=kept#catalogue",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/products/product-a?filter=kept#batches",
+  );
+  const view = render(
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+      <NavigationGuardProvider>
+        <OwnedManager mode={mode} />
+      </NavigationGuardProvider>
+    </NextIntlClientProvider>,
+  );
+  return { view, stop };
+}
+it("native Back closes an untouched batch modal before leaving its product page", async () => {
+  const { view, stop } = showOwned("view");
+  try {
+    act(() => window.history.back());
+    await screen.findByText("Manager closed");
+    expect(window.location.pathname).toBe(
+      "/en/finished-goods/products/product-a",
+    );
+    expect(window.location.search + window.location.hash).toBe(
+      "?filter=kept#batches",
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/en/finished-goods"),
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+it("native Back dismisses batch repack review and retains its measured draft", async () => {
+  const { view, stop } = showOwned("edit");
+  try {
+    checkDimensions();
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    expect(new URLSearchParams(window.location.search).has("batchReview")).toBe(
+      true,
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Confirm repacking" }),
+      ).toBeNull(),
+    );
+    expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(
+      data.units[1]!.lengthMm! / 1000,
+    );
+    expect(screen.getByRole("dialog", { name: "Batch details" })).toBeVisible();
+    expect(mocks.write).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+it("successful batch repack consumes review before Close and the next native Back", async () => {
+  const { view, stop } = showOwned("edit");
+  try {
+    checkDimensions();
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm repacking" }));
+    await screen.findByText("Packing updated");
+    expect(new URLSearchParams(window.location.search).has("batchReview")).toBe(
+      false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await screen.findByText("Manager closed");
+    expect(window.location.search + window.location.hash).toBe(
+      "?filter=kept#batches",
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/en/finished-goods"),
+    );
+    expect(window.location.search + window.location.hash).toBe(
+      "?origin=kept#catalogue",
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+
+it("native Back retains dirty batch corrections when leaving is canceled", async () => {
+  const { view, stop } = showOwned("edit");
+  try {
+    fireEvent.change(screen.getByLabelText("Length (m) · 1"), {
+      target: { value: "0.8" },
+    });
+    act(() => window.history.back());
+    await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      ).toBeNull(),
+    );
+    expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(0.8);
+    expect(window.location.pathname).toBe(
+      "/en/finished-goods/products/product-a",
+    );
+    expect(mocks.close).not.toHaveBeenCalled();
+    act(() => window.history.back());
+    await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+    expect(mocks.write).not.toHaveBeenCalled();
+  } finally {
+    view.unmount();
+    stop();
+  }
 });

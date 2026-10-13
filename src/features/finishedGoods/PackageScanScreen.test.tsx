@@ -342,13 +342,34 @@ it("ignores a location verification that resolves after the typed destination ch
     screen.getByRole("button", { name: "Review storage assignment" }),
   ).toBeDisabled();
 });
-it("recovers the same uncertain package assignment after remount without resolving stored units again", async () => {
+it("recovers the same scanned-location assignment identity after selective request storage failure and remount", async () => {
   mocks.assign.mockRejectedValueOnce(new Error("NETWORK_ERROR"));
   const view = show();
-  await review();
+  await add();
+  fireEvent.click(screen.getByRole("button", { name: "Scan location" }));
+  await act(async () => mocks.decode!("ZONE-A"));
+  fireEvent.click(screen.getByRole("button", { name: "Stop package camera" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Stop package camera" }),
+    ).toBeNull(),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review storage assignment" }),
+  );
   fireEvent.click(
     screen.getByRole("checkbox", { name: /I placed these packages/ }),
   );
+  const setItem = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+    this: Storage,
+    key,
+    value,
+  ) {
+    if (key.startsWith("fg-requests:"))
+      throw new Error("Selective quota failure");
+    return setItem.call(this, key, value);
+  });
   fireEvent.click(screen.getByRole("button", { name: "Confirm stored" }));
   await waitFor(() =>
     expect(
@@ -356,6 +377,7 @@ it("recovers the same uncertain package assignment after remount without resolvi
     ).toBeEnabled(),
   );
   const first = mocks.assign.mock.calls[0]![0];
+  expect(first.location.method).toBe("SCAN");
   view.unmount();
   mocks.query.mockClear();
   show();

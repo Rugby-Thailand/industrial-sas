@@ -44,6 +44,7 @@ type ResolvedLocation = Extract<
   { ok: true }
 >["location"];
 type Unit = ResolvedUnit & { fill: string };
+type PendingRequest = { id: string; fingerprint: string };
 
 export function PackageScanScreen(context: Context) {
   const scope = useDraftKey("fg-package-assignment");
@@ -86,6 +87,7 @@ export function PackageAssignment({
           uncertain?: boolean;
           receiptId?: string;
           locationMethod?: "MANUAL" | "SCAN";
+          pendingRequest?: PendingRequest;
         };
         if (
           !Array.isArray(candidate.units) ||
@@ -111,6 +113,16 @@ export function PackageAssignment({
             typeof candidate.location.version !== "string")
         )
           return null;
+        if (
+          (candidate.locationMethod !== undefined &&
+            candidate.locationMethod !== "MANUAL" &&
+            candidate.locationMethod !== "SCAN") ||
+          (candidate.pendingRequest &&
+            (typeof candidate.pendingRequest.fingerprint !== "string" ||
+              typeof candidate.pendingRequest.id !== "string" ||
+              !/^[0-9a-f-]{36}$/.test(candidate.pendingRequest.id)))
+        )
+          return null;
         return candidate;
       },
       null,
@@ -126,7 +138,7 @@ export function PackageAssignment({
     restored?.location,
   );
   const [locationMethod, setLocationMethod] = useState<"MANUAL" | "SCAN">(
-    "MANUAL",
+    restored?.locationMethod ?? "MANUAL",
   );
   const [sameSize, setSameSize] = useState(restored?.sameSize ?? false);
   const [physical, setPhysical] = useState(restored?.physical ?? false);
@@ -139,6 +151,9 @@ export function PackageAssignment({
   const [receiptId, setReceiptId] = useState<string | undefined>(
     restored?.receiptId,
   );
+  const [pendingRequest, setPendingRequest] = useState<
+    PendingRequest | undefined
+  >(restored?.pendingRequest);
   const snapshot = useMemo(
     () => ({
       units,
@@ -148,8 +163,18 @@ export function PackageAssignment({
       uncertain,
       ...(receiptId ? { receiptId } : {}),
       locationMethod,
+      ...(pendingRequest ? { pendingRequest } : {}),
     }),
-    [units, location, sameSize, physical, uncertain, receiptId, locationMethod],
+    [
+      units,
+      location,
+      sameSize,
+      physical,
+      uncertain,
+      receiptId,
+      locationMethod,
+      pendingRequest,
+    ],
   );
   useEffect(() => {
     const stored = drafts.write(key, snapshot);
@@ -286,7 +311,20 @@ export function PackageAssignment({
       sameSize,
       physicalConfirmed: physical,
     };
-    if (!drafts.write(key, { ...snapshot, uncertain: true })) {
+    const fingerprint = JSON.stringify(args);
+    const request =
+      pendingRequest?.fingerprint === fingerprint
+        ? pendingRequest
+        : { id: op.request(fingerprint), fingerprint };
+    // The assignment and its retry identity must survive together. The generic
+    // request registry is a convenience; this required write is the durable owner.
+    if (
+      !drafts.write(key, {
+        ...snapshot,
+        pendingRequest: request,
+        uncertain: true,
+      })
+    ) {
       setStorageWarning(true);
       op.setError(
         tr(
@@ -296,14 +334,15 @@ export function PackageAssignment({
       );
       return;
     }
+    setPendingRequest(request);
     setUncertain(true);
     await op.run(
-      async () =>
-        assign({ ...args, requestId: op.request(JSON.stringify(args)) }),
+      async () => assign({ ...args, requestId: request.id }),
       (outcome) => {
         setUncertain(false);
         const id = written(outcome);
         op.clearRequests();
+        setPendingRequest(undefined);
         generation.current++;
         scan(null);
         draft.settle();
