@@ -826,6 +826,7 @@ describe("bounded truthful cleanup", () => {
         expiresAt: Date.now() + 86_400_000,
       });
     });
+    expect((await rowCounts(world)).tables.storageCatalogueSignals).toBe(2);
     const preserved = await world.t.run(async (ctx) => ({
       organizations: (await ctx.db.query("organizations").collect()).filter(
         (row) => row._id === world.ids.orgA || row._id === world.ids.orgB,
@@ -862,6 +863,7 @@ describe("bounded truthful cleanup", () => {
       buildings: await ctx.db.query("storageBuildings").collect(),
       audits: await ctx.db.query("auditEvents").collect(),
       idempotency: await ctx.db.query("idempotencyRecords").collect(),
+      layoutSignals: await ctx.db.query("storageCatalogueSignals").collect(),
       organizations: (await ctx.db.query("organizations").collect()).filter(
         (row) => row._id === world.ids.orgA || row._id === world.ids.orgB,
       ),
@@ -875,6 +877,10 @@ describe("bounded truthful cleanup", () => {
     expect(after.audits.some((row) => owned.has(row.orgId))).toBe(false);
     expect(after.idempotency.some((row) => owned.has(row.orgId))).toBe(false);
     expect(after.buildings.map(({ code }) => code)).toEqual(["E2E-TWO"]);
+    // Signals are warehouse-owned, not orphaned after their warehouse is removed.
+    expect(after.layoutSignals.map((signal) => signal.warehouseId)).toEqual([
+      otherRun.runWarehouseId,
+    ]);
     expect(after.audits.filter((row) => row.orgId === second.ids.orgA)).toEqual(
       preserved.otherAudit,
     );
