@@ -629,7 +629,7 @@ export function StorageZonesPanel({
             setArchiveRefusal(outcome.value.error.code);
           else {
             operation.clearRequests();
-            setArchiving(undefined);
+            operation.complete(() => setArchiving(undefined));
             setMessage({ tone: "success", text: t("storageZoneArchived") });
           }
         },

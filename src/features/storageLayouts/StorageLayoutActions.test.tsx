@@ -937,3 +937,85 @@ it.each(["remove", "archive"])(
     );
   },
 );
+
+it.each(["spot", "position"])(
+  "consumes successful %s archival without a stale pending prompt",
+  async (kind) => {
+    stopHistory = trackAppHistory();
+    const zone = spot({
+      mode: "FLOOR_POSITIONS",
+      positions: [
+        {
+          positionId: "position-a",
+          locationId: "position-location",
+          code: "POS-01",
+          label: "Exact spot",
+          qrValue: "ISAS:LOCATION:1:position-location",
+          kind: "FLOOR",
+          isDefault: false,
+          breadcrumb: "",
+          placements: [],
+          xMm: 0,
+          yMm: 0,
+          widthMm: 1000,
+          depthMm: 1000,
+          revision: "1:1",
+        },
+      ],
+    });
+    renderWithIntl(
+      <NavigationGuardProvider>
+        {kind === "position" ? (
+          <StoragePositionsDialog
+            warehouseId="warehouse-a"
+            zone={zone}
+            onClose={vi.fn()}
+          />
+        ) : (
+          <StorageZonesPanel
+            warehouseId="warehouse-a"
+            buildingId="pd"
+            floorNumber={1}
+            floorWidthMm={10000}
+            floorDepthMm={10000}
+            floorHeightMm={4000}
+            reservedBlocks={[]}
+            zones={[zone]}
+          />
+        )}
+      </NavigationGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name:
+          kind === "position" ? "Archive POS-01" : "Archive spot · PD-F01-Z01",
+      }),
+    );
+    const title =
+      kind === "position" ? "Archive POS-01" : "Archive PD-F01-Z01 · Rack A?";
+    const dialog = screen.getByRole("dialog", { name: title });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Archive spot" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: title }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        [...new URLSearchParams(window.location.search).keys()].filter((key) =>
+          key.startsWith("overlay"),
+        ),
+      ).toHaveLength(kind === "position" ? 1 : 0),
+    );
+    if (kind === "position")
+      expect(
+        screen.getByRole("dialog", { name: "Exact positions · PD-F01-Z01" }),
+      ).toBeVisible();
+  },
+);

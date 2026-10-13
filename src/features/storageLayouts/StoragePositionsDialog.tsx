@@ -398,7 +398,7 @@ function PositionsManager({
                 requestId: operation.request(JSON.stringify(payload)),
               }),
             t("layoutActions.positions.archived"),
-            () => setArchiving(undefined),
+            () => operation.complete(() => setArchiving(undefined)),
           );
         }}
         error={
