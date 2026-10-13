@@ -8,16 +8,20 @@ const state = vi.hoisted(() => ({
   blocked: false,
   version: 7,
   mutation: vi.fn(),
+  query: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
-  useQuery: () => ({
-    ok: true,
-    value: {
-      status: state.status,
-      version: state.version,
-      blocked: state.blocked,
-    },
-  }),
+  useQuery: (...args: unknown[]) => {
+    state.query(...args);
+    return {
+      ok: true,
+      value: {
+        status: state.status,
+        version: state.version,
+        blocked: state.blocked,
+      },
+    };
+  },
   useMutation: () => state.mutation,
 }));
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
@@ -43,6 +47,7 @@ function renderToggle() {
   );
 }
 beforeEach(() => {
+  state.query.mockReset();
   state.allowed = true;
   state.status = "DRAFT";
   state.blocked = false;
@@ -178,3 +183,22 @@ import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider"
 import { unconfiguredEnvironment } from "@tests/fixtures/intl-render";
 import { NextIntlClientProvider } from "next-intl";
 import { messagesFor } from "@/i18n/messages";
+
+it("uses shared occupancy controls without a second status subscription", () => {
+  renderWithIntl(
+    <BuildingStatusToggle
+      warehouseId="warehouse"
+      buildingId="building"
+      code="MAIN"
+      status="DRAFT"
+      sharedControl={{
+        loaded: true,
+        value: { status: "ACTIVE", version: 9, blocked: true },
+      }}
+    />,
+    { locale: "en", workspace: false },
+  );
+  expect(state.query).toHaveBeenCalledWith(expect.anything(), "skip");
+  expect(screen.getByRole("switch")).toBeDisabled();
+  expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+});

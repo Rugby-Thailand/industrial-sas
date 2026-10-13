@@ -353,6 +353,7 @@ async function buildingWithOccupancy(
   return {
     ...row,
     buildingId: row._id,
+    blocked: row.status === "ACTIVE" && placements.length > 0,
     unmeasuredPalletCount: placements.filter((p) => !isGeometricPlacement(p))
       .length,
     measuredAreaPartial: placements.some((p) => !isGeometricPlacement(p)),
