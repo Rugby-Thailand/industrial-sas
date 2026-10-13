@@ -1,3 +1,4 @@
+import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
 import { validatePacking } from "../model/finishedGoods/packing";
@@ -535,29 +536,67 @@ export const saveMeasurement = mutationWithOrg({
     ),
 });
 
+/** Created only for a recommendation query; mutations retain fresh per-call reads. */
+function createLocationReadScope(ctx: TenantFunctionContext) {
+  const blocks = new Map<
+    string,
+    Promise<readonly Doc<"storageFloorReservedBlocks">[]>
+  >();
+  return {
+    zone: createQueryDocumentReader(ctx.tenantDb, "storageZones"),
+    building: createQueryDocumentReader(ctx.tenantDb, "storageBuildings"),
+    floor: createQueryDocumentReader(ctx.tenantDb, "storageFloors"),
+    location: createQueryDocumentReader(ctx.tenantDb, "locations"),
+    pallet: createQueryDocumentReader(ctx.tenantDb, "finishedGoodsPallets"),
+    blocks: (floorId: string) => {
+      let pending = blocks.get(floorId);
+      if (!pending) {
+        pending = rows<Doc<"storageFloorReservedBlocks">>(
+          ctx,
+          "storageFloorReservedBlocks",
+          "by_orgId_floorId",
+          [{ field: "floorId", value: floorId }],
+        );
+        blocks.set(floorId, pending);
+      }
+      return pending;
+    },
+  };
+}
+
+async function mapBounded<Input, Output>(
+  items: readonly Input[],
+  read: (item: Input) => Promise<Output>,
+  concurrency = 8,
+) {
+  const result = new Array<Output>(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        result[index] = await read(items[index]!);
+      }
+    }),
+  );
+  return result;
+}
+
 async function locationContext(
   ctx: TenantFunctionContext,
   warehouseId: string,
   zoneId: string,
+  scope = createLocationReadScope(ctx),
+  knownZone?: Doc<"storageZones">,
 ) {
-  const zone = await ctx.tenantDb.get<Doc<"storageZones">>(
-    "storageZones",
-    zoneId,
-  );
+  const zone = knownZone ?? (await scope.zone(zoneId));
   if (!zone || zone.warehouseId !== warehouseId || zone.status !== "ACTIVE")
     return null;
-  const building = await ctx.tenantDb.get<Doc<"storageBuildings">>(
-    "storageBuildings",
-    zone.buildingId,
-  );
-  const floor = await ctx.tenantDb.get<Doc<"storageFloors">>(
-    "storageFloors",
-    zone.floorId,
-  );
-  const location = await ctx.tenantDb.get<Doc<"locations">>(
-    "locations",
-    zone.locationId,
-  );
+  const [building, floor, location] = await Promise.all([
+    scope.building(zone.buildingId),
+    scope.floor(zone.floorId),
+    scope.location(zone.locationId),
+  ]);
   if (
     !building ||
     building.status !== "ACTIVE" ||
@@ -569,21 +608,36 @@ async function locationContext(
     location.warehouseId !== warehouseId
   )
     return null;
-  const positions = await rows<Doc<"storagePositions">>(
-    ctx,
-    "storagePositions",
-    "by_orgId_zoneId_status_code",
-    [
-      { field: "zoneId", value: zone._id },
-      { field: "status", value: "ACTIVE" },
-    ],
-  );
-  const allBlocks = await rows<Doc<"storageFloorReservedBlocks">>(
-    ctx,
-    "storageFloorReservedBlocks",
-    "by_orgId_floorId",
-    [{ field: "floorId", value: floor._id }],
-  );
+  const [positions, allBlocks, held, stored] = await Promise.all([
+    rows<Doc<"storagePositions">>(
+      ctx,
+      "storagePositions",
+      "by_orgId_zoneId_status_code",
+      [
+        { field: "zoneId", value: zone._id },
+        { field: "status", value: "ACTIVE" },
+      ],
+    ),
+    scope.blocks(zone.floorId),
+    rows<Doc<"finishedGoodsPlacements">>(
+      ctx,
+      "finishedGoodsPlacements",
+      "by_orgId_zoneId_status",
+      [
+        { field: "zoneId", value: zone._id },
+        { field: "status", value: "RESERVED" },
+      ],
+    ),
+    rows<Doc<"finishedGoodsPlacements">>(
+      ctx,
+      "finishedGoodsPlacements",
+      "by_orgId_zoneId_status",
+      [
+        { field: "zoneId", value: zone._id },
+        { field: "status", value: "STORED" },
+      ],
+    ),
+  ]);
   const unavailable = allBlocks
     .filter((block) => overlaps(zone, block))
     .map((block) => ({
@@ -595,24 +649,6 @@ async function locationContext(
       widthMm: block.widthMm,
       depthMm: block.depthMm,
     }));
-  const held = await rows<Doc<"finishedGoodsPlacements">>(
-    ctx,
-    "finishedGoodsPlacements",
-    "by_orgId_zoneId_status",
-    [
-      { field: "zoneId", value: zone._id },
-      { field: "status", value: "RESERVED" },
-    ],
-  );
-  const stored = await rows<Doc<"finishedGoodsPlacements">>(
-    ctx,
-    "finishedGoodsPlacements",
-    "by_orgId_zoneId_status",
-    [
-      { field: "zoneId", value: zone._id },
-      { field: "status", value: "STORED" },
-    ],
-  );
   const occupancy = [...held, ...stored].filter(isGeometricPlacement);
   const base = zone.baseElevationMm ?? 0;
   const ceiling = Math.min(
@@ -646,10 +682,7 @@ async function locationContext(
         position.depthMm === undefined
       )
         continue;
-      const positionLocation = await ctx.tenantDb.get<Doc<"locations">>(
-        "locations",
-        position.locationId,
-      );
+      const positionLocation = await scope.location(position.locationId);
       if (
         !positionLocation ||
         positionLocation.status !== "ACTIVE" ||
@@ -722,11 +755,13 @@ async function locationContext(
     const fixed = fixedSupports.find(
       (p) => p.supportPositionId === root.supportPositionId,
     );
-    const lowerPallet = await palletOf(ctx, {
-      warehouseId,
-      palletId: lower.palletId,
-    });
-    if (!fixed || !lowerPallet || lowerPallet.placementId !== lower._id)
+    const lowerPallet = await scope.pallet(lower.palletId);
+    if (
+      !fixed ||
+      !lowerPallet ||
+      lowerPallet.warehouseId !== warehouseId ||
+      lowerPallet.placementId !== lower._id
+    )
       continue;
     const zMm = lower.zMm + lower.heightMm;
     supports.push({
@@ -951,8 +986,11 @@ async function recommendations(
   const previewCandidates: Candidate[] = [];
   const reasons = new Set<string>();
   let active = 0;
-  for (const zone of zones) {
-    const context = await locationContext(ctx, args.warehouseId, zone._id);
+  const scope = createLocationReadScope(ctx);
+  const contexts = await mapBounded(zones, (zone) =>
+    locationContext(ctx, args.warehouseId, zone._id, scope, zone),
+  );
+  for (const context of contexts) {
     if (!context) continue;
     active++;
     if (context.unmeasuredPalletCount > 0) {

@@ -1,3 +1,4 @@
+import { recommend } from "../../convex/finishedGoods/workflow";
 import {
   trackFinishedGoodsWrites,
   storageCatalogueGeneration,
@@ -1077,3 +1078,32 @@ it("isolates layout cursor signals from inventory writes and preserves row contr
   });
 });
 
+it("shares recommendation parents and floor blocks across concurrently loaded zones", async () => {
+  const { world, warehouseId, building, placementId } =
+    await occupiedWorld("STORED");
+  const palletId = await world.t.run(async (ctx) => {
+    const template = (await ctx.db.query("storageZones").collect())[0]!;
+    const { _id, _creationTime, ...zone } = template;
+    void _id;
+    void _creationTime;
+    for (let index = 0; index < 30; index++)
+      await ctx.db.insert("storageZones", {
+        ...zone,
+        code: `RECOMMEND-${index}`,
+      });
+    return (await ctx.db.get("finishedGoodsPlacements", placementId))!.palletId;
+  });
+  const read = await measuredRead(world, recommend, { warehouseId, palletId });
+  expect(read.result).toHaveProperty("candidates");
+  expect(
+    read.tables.filter((table) => table === "storageFloorReservedBlocks"),
+  ).toHaveLength(1);
+  expect(read.tables.filter((table) => table === "storageFloors")).toHaveLength(
+    1,
+  );
+  // All zones share this parent; each query snapshot reads it once.
+  expect(
+    read.tables.filter((table) => table === "storageBuildings"),
+  ).toHaveLength(1);
+  expect(building._id).toBeTruthy();
+});
