@@ -1107,3 +1107,45 @@ it("shares recommendation parents and floor blocks across concurrently loaded zo
   ).toHaveLength(1);
   expect(building._id).toBeTruthy();
 });
+
+it("resets pre-split layout cursors while current native pages survive inventory writes", async () => {
+  const { world, warehouseId, building, placementId } =
+    await occupiedWorld("STORED");
+  await world.t.run(async (ctx) => {
+    const { _id, _creationTime, ...template } = building;
+    void _id;
+    void _creationTime;
+    for (let index = 0; index < 25; index++)
+      await ctx.db.insert("storageBuildings", {
+        ...template,
+        code: `CURSOR-${index.toString().padStart(2, "0")}`,
+      });
+  });
+  const args = { warehouseId, pageSize: 20 };
+  const first = await measuredRead(world, listStorageBuildingsPage, args);
+  const cursor = first.result.continueCursor as string;
+  expect(cursor).toContain("buildings-v2");
+  const legacy = await measuredRead(world, listStorageBuildingsPage, {
+    ...args,
+    cursor: cursor.replace("buildings-v2", "buildings"),
+  });
+  expect(legacy.result.status).toBe("reset");
+  await world.t.run(async (ctx) => {
+    const palletId = (await ctx.db.get("finishedGoodsPlacements", placementId))!
+      .palletId;
+    const db = createTenantDocumentAccess(
+      { orgId: world.orgA, requestId: "cursor-inventory" },
+      createMutationTenantStorage(ctx, "cursor-inventory"),
+    );
+    const tracked = trackFinishedGoodsWrites(db);
+    await tracked.db.patch("finishedGoodsPallets", palletId, { quantity: 3 });
+    await tracked.flush();
+  });
+  const next = await measuredRead(world, listStorageBuildingsPage, {
+    ...args,
+    cursor,
+  });
+  expect(next.result.status).toBe("ready");
+  expect(next.result.page).toHaveLength(6);
+});
+

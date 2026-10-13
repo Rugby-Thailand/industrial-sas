@@ -367,3 +367,23 @@ it("shares context membership, role and permission reads only inside one lookup 
     );
   });
 });
+
+it("default mutation lookups observe role changes within the transaction", async () => {
+  const { world, seeded } = await authorizationWorld();
+  await world.t.run(async (ctx) => {
+    const lookups = createConvexAuthorizationLookups(ctx, FIXTURE_REQUEST_ID);
+    const grants = await lookups.listMembershipRoles({
+      orgId: world.orgA,
+      membershipId: seeded.identities.membershipA,
+      limit: MEMBERSHIP_ROLE_LIMIT,
+    });
+    const roleId = grants[0]!.roleId;
+    expect(
+      (await lookups.findRole({ orgId: world.orgA, roleId }))?.status,
+    ).toBe("ACTIVE");
+    await ctx.db.patch("roles", roleId, { status: "ARCHIVED" });
+    expect(
+      (await lookups.findRole({ orgId: world.orgA, roleId }))?.status,
+    ).toBe("ARCHIVED");
+  });
+});
