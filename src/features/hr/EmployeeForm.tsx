@@ -138,16 +138,31 @@ export function EmployeeForm({
   const message = useHrError();
   const id = useId();
   const save = useMutation(hrRefs.saveEmployee);
-  const [initial] = useState<Draft>(() => draftOf(employee, sites, today));
+  const [baseline, setBaseline] = useState(employee);
+  const [initial, setInitial] = useState<Draft>(() =>
+    draftOf(employee, sites, today),
+  );
   const [draft, setDraft] = useState<Draft>(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
   const write = useHrWrite(
-    `employee:${employee?.id ?? "new"}:${employee?.version ?? 0}`,
+    `employee:${baseline?.id ?? "new"}:${baseline?.version ?? 0}`,
   );
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  if (
+    !dirty &&
+    !write.locked &&
+    employee &&
+    employee.version > (baseline?.version ?? 0)
+  ) {
+    const next = draftOf(employee, sites, today);
+    setBaseline(employee);
+    setInitial(next);
+    setDraft(next);
+    setErrors({});
+  }
   // Unsaved edits survive search and navigation unless the user discards.
   useDraftGuard(
-    write.state.kind !== "SAVED" &&
-      JSON.stringify(draft) !== JSON.stringify(initial),
+    write.state.kind !== "SAVED" && dirty,
     () => {
       setDraft(initial);
       setErrors({});
@@ -164,9 +179,9 @@ export function EmployeeForm({
     const result = await write.submit((requestId) =>
       save({
         requestId,
-        ...(employee === undefined
+        ...(baseline === undefined
           ? {}
-          : { employeeId: employee.id, expectedVersion: employee.version }),
+          : { employeeId: baseline.id, expectedVersion: baseline.version }),
         warehouseId: draft.siteId,
         code: draft.code.trim(),
         displayName: draft.displayName.trim(),

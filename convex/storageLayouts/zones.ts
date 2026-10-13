@@ -71,6 +71,38 @@ function areaMode(zone: ZoneDocument): StorageAreaMode {
   return effectiveStorageAreaMode(zone.mode);
 }
 
+/**
+ * The stored receipt of an exact retry, or null for a fresh command.
+ *
+ * Call it first in the handler, inside the authorized tenant wrapper and
+ * before any revision, status, occupancy, leaf-count or geometry check, and
+ * before any child write: a newer committed command may have changed all of
+ * those. The fingerprint is the complete `args`, so a reused request ID with
+ * other arguments refuses with REQUEST_ARGUMENT_CONFLICT. The receipt must
+ * still name a readable `table` row with a matching digest. `operation` is
+ * the handler's final `updateMasterDataRow`, which commits in the same
+ * transaction as every earlier write of the command.
+ */
+async function replayedWrite(
+  ctx: TenantFunctionContext,
+  table: "storageZones" | "storagePositions",
+  operation: string,
+  args: { readonly requestId: string; readonly warehouseId: string },
+) {
+  const replay = await replayTenantWriteIfPresent({
+    ...writeContext(ctx, table, operation, args.requestId, args.warehouseId),
+    fingerprint: args,
+  });
+  if (!replay.ok) return failure(replay.error.code);
+  return replay.value === null
+    ? null
+    : {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+      };
+}
+
 function zoneGeometry(zone: ZoneDocument) {
   return {
     xMm: zone.xMm,
@@ -617,23 +649,15 @@ export const updateStorageZone = mutationWithOrg({
   target: { table: "storageZones", id: ({ zoneId }) => zoneId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const replay = await replayTenantWriteIfPresent({
-      ...writeContext(
-        ctx,
-        "storageZones",
-        "storageLayout.zone.update",
-        args.requestId,
-        args.warehouseId,
-      ),
-      fingerprint: args,
-    });
-    if (!replay.ok) return failure(replay.error.code);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    // An exact retry must not re-validate against, or copy its old arguments
+    // over, a newer zone and default-position geometry.
+    const replay = await replayedWrite(
+      ctx,
+      "storageZones",
+      "storageLayout.zone.update",
+      args,
+    );
+    if (replay !== null) return replay;
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -1281,23 +1305,15 @@ export const updateStoragePosition = mutationWithOrg({
   },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const replay = await replayTenantWriteIfPresent({
-      ...writeContext(
-        ctx,
-        "storagePositions",
-        "storageLayout.position.update",
-        args.requestId,
-        args.warehouseId,
-      ),
-      fingerprint: args,
-    });
-    if (!replay.ok) return failure(replay.error.code);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    // Before the live revision, status, occupancy and geometry checks, which a
+    // newer committed write may have changed.
+    const replay = await replayedWrite(
+      ctx,
+      "storagePositions",
+      "storageLayout.position.update",
+      args,
+    );
+    if (replay !== null) return replay;
     const position = await ctx.tenantDb.get<PositionDocument>(
       "storagePositions",
       args.positionId,
@@ -1399,23 +1415,16 @@ export const archiveStoragePosition = mutationWithOrg({
   },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const replay = await replayTenantWriteIfPresent({
-      ...writeContext(
-        ctx,
-        "storagePositions",
-        "storageLayout.position.archive",
-        args.requestId,
-        args.warehouseId,
-      ),
-      fingerprint: args,
-    });
-    if (!replay.ok) return failure(replay.error.code);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    // The location and position archives commit together; the position
+    // archive is the final write, so its receipt identifies an exact retry
+    // before the leaf-count and occupancy checks.
+    const replay = await replayedWrite(
+      ctx,
+      "storagePositions",
+      "storageLayout.position.archive",
+      args,
+    );
+    if (replay !== null) return replay;
     const position = await ctx.tenantDb.get<PositionDocument>(
       "storagePositions",
       args.positionId,
@@ -1691,23 +1700,16 @@ export const archiveStorageZone = mutationWithOrg({
   target: { table: "storageZones", id: ({ zoneId }) => zoneId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const replay = await replayTenantWriteIfPresent({
-      ...writeContext(
-        ctx,
-        "storageZones",
-        "storageLayout.zone.archive",
-        args.requestId,
-        args.warehouseId,
-      ),
-      fingerprint: args,
-    });
-    if (!replay.ok) return failure(replay.error.code);
-    if (replay.value !== null)
-      return {
-        written: true as const,
-        documentId: replay.value.documentId,
-        replayed: true,
-      };
+    // Before the building, occupancy and child-position writes: the loop
+    // below patches positions directly, so a retry that reached it would
+    // archive positions committed after the original archive.
+    const replay = await replayedWrite(
+      ctx,
+      "storageZones",
+      "storageLayout.zone.archive",
+      args,
+    );
+    if (replay !== null) return replay;
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,

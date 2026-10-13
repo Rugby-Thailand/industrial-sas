@@ -430,6 +430,15 @@ export const approveF1F2Schematic = mutationWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    // The approval advances the version, so a lost-reply retry must answer
+    // from its receipt before the version check and the zone-count scan.
+    const replay = await replayed(
+      ctx,
+      "storageBuildings",
+      "storageLayout.approveF1F2Schematic",
+      args,
+    );
+    if (replay !== null) return replay;
     const building = await ctx.tenantDb.get<BuildingDocument>(
       "storageBuildings",
       args.buildingId,
@@ -712,17 +721,15 @@ export const saveStorageFloor = mutationWithOrg({
       fingerprint: args,
       uniqueness: [],
       patch: {
-        // Missing overrides mean inherit the building defaults. Explicit
-        // undefined values remove previous optional fields in a Convex patch.
+        // Missing overrides mean inherit the building defaults; omitted
+        // offsets inherit the centered placement validated above. Explicit
+        // undefined values remove previous optional fields in a Convex patch,
+        // so the stored row matches the validated floor input.
         widthMm: args.floor.widthMm,
         depthMm: args.floor.depthMm,
         heightMm: args.floor.heightMm,
-        ...(args.floor.offsetXMm === undefined
-          ? {}
-          : { offsetXMm: args.floor.offsetXMm }),
-        ...(args.floor.offsetYMm === undefined
-          ? {}
-          : { offsetYMm: args.floor.offsetYMm }),
+        offsetXMm: args.floor.offsetXMm,
+        offsetYMm: args.floor.offsetYMm,
         grossAreaSqMm: floorSummary.grossAreaSqMm,
         reservedAreaSqMm: floorSummary.reservedAreaSqMm,
         usableAreaSqMm: floorSummary.usableAreaSqMm,

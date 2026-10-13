@@ -148,6 +148,9 @@ async function measuredPallet(
   );
   id(
     await call(world, workflow.saveMeasurement, {
+      expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+        ctx.db.get(palletId as Id<"finishedGoodsPallets">),
+      ))!.updatedAt,
       warehouseId: world.warehouseId,
       requestId: `measure-${suffix}`,
       palletId,

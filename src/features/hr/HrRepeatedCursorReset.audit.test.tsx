@@ -7,8 +7,11 @@ import { hrRefs } from "@/lib/convex/hrApi";
 
 const state = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock("convex/react", () => ({
-  useQuery: (reference: Parameters<typeof getFunctionName>[0], args: unknown) =>
-    state.query(getFunctionName(reference), args),
+  useQuery: (
+    reference: Parameters<typeof getFunctionName>[0],
+    args: unknown,
+  ) =>
+    args === "skip" ? undefined : state.query(getFunctionName(reference), args),
 }));
 vi.mock("@/components/providers/HrAccessProvider", () => ({
   useHrAccess: () => ({ identityKey: "org:reviewer:not-linked" }),

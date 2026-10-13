@@ -316,21 +316,24 @@ function AnnouncementEditor({
       return;
     }
     lastAction.current = "SAVE";
-    const result = await write.submit((requestId) =>
-      save({
-        requestId,
-        ...(baseline._id ? { announcementId: baseline._id } : {}),
-        expectedVersion: baseline.version,
-        title: draft.title,
-        body: draft.body,
-        audience: {
-          mode: draft.audience.mode,
-          warehouseIds: [...draft.audience.warehouseIds],
-        },
-        acknowledgmentRequired: draft.acknowledgmentRequired,
-        pinned: draft.pinned,
-        ...(draft.replacesId ? { replacesId: draft.replacesId } : {}),
-      }),
+    const result = await write.submit(
+      (requestId) =>
+        save({
+          requestId,
+          ...(baseline._id ? { announcementId: baseline._id } : {}),
+          expectedVersion: baseline.version,
+          title: draft.title,
+          body: draft.body,
+          audience: {
+            mode: draft.audience.mode,
+            warehouseIds: [...draft.audience.warehouseIds],
+          },
+          acknowledgmentRequired: draft.acknowledgmentRequired,
+          pinned: draft.pinned,
+          ...(draft.replacesId ? { replacesId: draft.replacesId } : {}),
+        }),
+      undefined,
+      "hr.announcements.saveDraft",
     );
     if (result.kind === "SAVED") afterSave(result.value);
   };
@@ -458,12 +461,15 @@ function AnnouncementEditor({
               if (baseline._id) {
                 lastAction.current = "PUBLISH";
                 void write
-                  .submit((requestId) =>
-                    publish({
-                      requestId,
-                      announcementId: baseline._id!,
-                      expectedVersion: baseline.version,
-                    }),
+                  .submit(
+                    (requestId) =>
+                      publish({
+                        requestId,
+                        announcementId: baseline._id!,
+                        expectedVersion: baseline.version,
+                      }),
+                    undefined,
+                    "hr.announcements.publish",
                   )
                   .then((result) => {
                     if (result.kind === "SAVED") completeClose();
@@ -527,14 +533,17 @@ function AnnouncementEditor({
                 return;
               lastAction.current = "SCHEDULE";
               void write
-                .submit((requestId) =>
-                  schedule({
-                    requestId,
-                    announcementId,
-                    expectedVersion: baseline.version,
-                    publishDate,
-                    publishTime,
-                  }),
+                .submit(
+                  (requestId) =>
+                    schedule({
+                      requestId,
+                      announcementId,
+                      expectedVersion: baseline.version,
+                      publishDate,
+                      publishTime,
+                    }),
+                  undefined,
+                  "hr.announcements.schedule",
                 )
                 .then((result) => {
                   if (result.kind === "SAVED") completeClose();
@@ -608,13 +617,16 @@ function PublishedActions({ row }: { readonly row: AnnouncementRow }) {
           disabled={write.locked}
           pending={write.pending}
           onClick={() =>
-            void write.submit((requestId) =>
-              pin({
-                requestId,
-                announcementId: row._id,
-                expectedVersion: row.version,
-                pinned: !row.pinned,
-              }),
+            void write.submit(
+              (requestId) =>
+                pin({
+                  requestId,
+                  announcementId: row._id,
+                  expectedVersion: row.version,
+                  pinned: !row.pinned,
+                }),
+              undefined,
+              "hr.announcements.setPinned",
             )
           }
         >
@@ -624,12 +636,15 @@ function PublishedActions({ row }: { readonly row: AnnouncementRow }) {
           variant="outline"
           disabled={write.locked}
           onClick={() =>
-            void write.submit((requestId) =>
-              archive({
-                requestId,
-                announcementId: row._id,
-                expectedVersion: row.version,
-              }),
+            void write.submit(
+              (requestId) =>
+                archive({
+                  requestId,
+                  announcementId: row._id,
+                  expectedVersion: row.version,
+                }),
+              undefined,
+              "hr.announcements.archive",
             )
           }
         >

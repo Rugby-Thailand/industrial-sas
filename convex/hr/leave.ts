@@ -42,6 +42,7 @@ import {
   reviewAccess,
   reviewBlocker,
   reviewScope,
+  retainReviewer,
   type Employee,
 } from "./shared";
 const SELF = HR_PERMISSION.selfAccess,
@@ -215,7 +216,12 @@ export const queue = queryWithOrg({
           "hrEmployees",
           request.employeeId,
         );
-        if (employee && reviewBlocker(scope, employee) === null)
+        const blocker = employee
+          ? await reviewBlocker(ctx, scope, employee)
+          : "NOT_FOUND";
+        if (blocker === "LIMIT_EXCEEDED")
+          return { ok: false as const, code: "LIMIT_EXCEEDED" };
+        if (employee && blocker === null)
           items.push({
             ...request,
             employeeName: employee.displayName,
@@ -256,6 +262,7 @@ export const queuePage = queryWithOrg({
       }
       return entry;
     };
+    let identitiesComplete = true;
     const page = await hrScanPage(ctx, {
       surface: "leave-queue",
       criteria: {},
@@ -277,10 +284,10 @@ export const queuePage = queryWithOrg({
         )
           return false;
         const employee = await employeeOf(request.employeeId);
-        return (
-          employee !== null &&
-          (await reviewAccess(ctx, scope, employee, grants)) === null
-        );
+        if (employee === null) return false;
+        const blocker = await reviewAccess(ctx, scope, employee, grants);
+        if (blocker === "LIMIT_EXCEEDED") identitiesComplete = false;
+        return blocker === null;
       },
       hydrate: async (request) => {
         const employee = await employeeOf(request.employeeId);
@@ -293,6 +300,8 @@ export const queuePage = queryWithOrg({
             };
       },
     });
+    if (!identitiesComplete)
+      return { ok: false as const, code: "LIMIT_EXCEEDED" };
     return { ok: true as const, ...page };
   },
 });
@@ -1091,6 +1100,7 @@ export const decide = mutationWithOrg({
             },
           ],
         });
+        await retainReviewer(ctx, employee);
         await deliverNotification(ctx, {
           employeeId: row.employeeId,
           event: "LEAVE_DECIDED",
@@ -1411,6 +1421,7 @@ export const adjust = mutationWithOrg({
             },
           ],
         });
+        await retainReviewer(ctx, employee);
         await deliverNotification(ctx, {
           employeeId: row.employeeId,
           event: "LEAVE_DECIDED",

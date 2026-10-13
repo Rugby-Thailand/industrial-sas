@@ -23,7 +23,7 @@ export function PhotoCapture({
   onClose,
   selection,
 }: {
-  onSubmit: (files: File[]) => void;
+  onSubmit: (files: File[]) => boolean | void;
   onClose: () => void;
   selection?: ReturnType<typeof usePhotoSelection>;
 }) {
@@ -135,9 +135,9 @@ export function PhotoCapture({
           onClick={() => {
             const files = getFiles();
             if (!files.length) return;
+            if (onSubmit(files) === false) return;
             camera.current?.stop();
             clear();
-            onSubmit(files);
           }}
         >
           <Sparkles className="size-4" aria-hidden="true" />

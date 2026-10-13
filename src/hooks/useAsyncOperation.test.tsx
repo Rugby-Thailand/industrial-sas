@@ -223,6 +223,34 @@ describe("useAsyncOperation", () => {
     },
   );
 
+  it("refuses stale callbacks when a workflow returns to the same scope", async () => {
+    const hook = renderHook(
+      ({ scope }) =>
+        useAsyncOperation({ scope, describeError: (code) => code }),
+      { initialProps: { scope: "A" } },
+    );
+    const stale = hook.result.current;
+    hook.rerender({ scope: "B" });
+    hook.rerender({ scope: "A" });
+    await act(async () => {
+      await hook.result.current.run(async () => "current-document");
+      hook.result.current.setError("CURRENT_ERROR");
+    });
+    const action = vi.fn(async () => "stale-document");
+    const navigate = vi.fn();
+    const requestId = hook.result.current.request("current-command");
+    await act(async () => {
+      stale.clearRequests();
+      stale.setError("STALE_ERROR");
+      stale.complete(navigate);
+      expect(await stale.run(action)).toBeNull();
+    });
+    expect(action).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(hook.result.current.error).toBe("CURRENT_ERROR");
+    expect(hook.result.current.request("current-command")).toBe(requestId);
+  });
+
   it("releases before synchronous completion and leaves a newly started action busy", async () => {
     const hook = renderHook(() => useAsyncOperation((code) => code));
     let finish!: () => void;

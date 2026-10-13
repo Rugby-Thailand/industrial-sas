@@ -1,3 +1,4 @@
+import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 import * as batches from "../../convex/finishedGoods/batches";
@@ -390,6 +391,9 @@ describe("preparation batches", () => {
     ).toMatchObject({ ok: true, value: { written: true, replayed: true } });
     expect(
       await call(world, workflow.saveMeasurement, {
+        expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+          ctx.db.get(legacy!._id as Id<"finishedGoodsPallets">),
+        ))!.updatedAt,
         warehouseId: args.warehouseId,
         palletId: legacy!._id,
         quantity: 100,
@@ -600,6 +604,9 @@ describe("preparation integrity", () => {
     const [unit] = await active(world);
     expect(
       await call(world, workflow.saveMeasurement, {
+        expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+          ctx.db.get(unit!._id as Id<"finishedGoodsPallets">),
+        ))!.updatedAt,
         warehouseId: args.warehouseId,
         palletId: unit!._id,
         requestId: "measure",

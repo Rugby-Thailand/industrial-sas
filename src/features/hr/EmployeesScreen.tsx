@@ -522,7 +522,7 @@ function EmployeeEditor({
         const employee = result.employee as EmployeeRecord;
         return (
           <EmployeeForm
-            key={`${employee.id}:${employee.version}`}
+            key={`${access.identityKey}:${employee.id}`}
             employee={employee}
             sites={access.sites}
             today={access.today ?? ""}

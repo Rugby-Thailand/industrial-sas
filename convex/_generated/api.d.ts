@@ -41,6 +41,7 @@ import type * as hr_periods from "../hr/periods.js";
 import type * as hr_policies from "../hr/policies.js";
 import type * as hr_preferences from "../hr/preferences.js";
 import type * as hr_provisioning from "../hr/provisioning.js";
+import type * as hr_recovery from "../hr/recovery.js";
 import type * as hr_review from "../hr/review.js";
 import type * as hr_search from "../hr/search.js";
 import type * as hr_self from "../hr/self.js";
@@ -178,6 +179,7 @@ declare const fullApi: ApiFromModules<{
   "hr/policies": typeof hr_policies;
   "hr/preferences": typeof hr_preferences;
   "hr/provisioning": typeof hr_provisioning;
+  "hr/recovery": typeof hr_recovery;
   "hr/review": typeof hr_review;
   "hr/search": typeof hr_search;
   "hr/self": typeof hr_self;

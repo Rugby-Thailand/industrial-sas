@@ -146,6 +146,7 @@ export function mergeExtracted(
 export function applyBarcode(
   tickets: TicketDraft[],
   code: string,
+  maximum = MAX_JOB_SCAN_ITEMS,
 ): { tickets: TicketDraft[]; field: TicketField } {
   const field = classifyTicketBarcode(code);
   let index = tickets.length - 1;
@@ -158,7 +159,7 @@ export function applyBarcode(
   if (index === -1)
     return {
       tickets:
-        tickets.length >= MAX_JOB_SCAN_ITEMS
+        tickets.length >= maximum
           ? tickets
           : [...tickets, newTicket("BARCODE", { [field]: code })],
       field,
@@ -177,10 +178,11 @@ export function applyBarcode(
 export function applyImageBarcodes(
   tickets: TicketDraft[],
   codes: string[],
+  maximum = MAX_JOB_SCAN_ITEMS,
 ): TicketDraft[] {
   if (codes.length !== 2)
     return codes.reduce(
-      (rows, code) => applyBarcode(rows, code).tickets,
+      (rows, code) => applyBarcode(rows, code, maximum).tickets,
       tickets,
     );
   const fields = Object.fromEntries(
@@ -202,7 +204,7 @@ export function applyImageBarcodes(
   )
     index--;
   if (index < 0)
-    return tickets.length >= MAX_JOB_SCAN_ITEMS
+    return tickets.length >= maximum
       ? tickets
       : [...tickets, newTicket("BARCODE", fields)];
   return tickets.map((ticket, i) =>

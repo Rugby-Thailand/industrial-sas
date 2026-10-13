@@ -505,6 +505,9 @@ describe("finished goods job scans", () => {
       }),
     );
     expect(await list(world, "MAPPED")).toHaveLength(1);
+    expect(await list(world, "MAPPED", "fg-1")).toMatchObject([
+      { locationName: "FG-1", locationCode: "BLDG-A-F01-Z01" },
+    ]);
     error(
       await call(world, jobScans.saveJobScans, {
         warehouseId: world.warehouseId,

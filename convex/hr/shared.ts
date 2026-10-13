@@ -18,7 +18,11 @@ import {
 import { grantedPermissionsAmong } from "../lib/navigationGrants";
 import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
-import { TENANT_INDEX_MAX_BATCH_SIZE, TenantDbError } from "../lib/tenantDb";
+import {
+  TENANT_INDEX_MAX_BATCH_SIZE,
+  TenantDbError,
+  type TenantIndexReader,
+} from "../lib/tenantDb";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { refusal } from "../lib/writeEnvelope";
 import {
@@ -38,6 +42,8 @@ export type StoredPlan = Doc<"hrAttendanceDays">["plan"];
 
 export const MAX_SCOPE_SITES = 50;
 export const MAX_SITE_EMPLOYEES = 99;
+export const MAX_HR_EMPLOYEE_SCAN = TENANT_INDEX_MAX_BATCH_SIZE;
+export const MAX_HR_IDENTITY_SCAN = TENANT_INDEX_MAX_BATCH_SIZE;
 export const MAX_SITE_PERIODS = 1000;
 
 export const fail = (code: string, field?: string, reason?: string) =>
@@ -412,6 +418,8 @@ export interface ReviewScope {
   readonly admin: boolean;
   readonly sites: SiteScope;
   readonly actorUserId: Id<"users">;
+  readonly identityScanBudget: { remaining: number };
+  readonly identityCache: Map<string, Promise<Set<Id<"users">> | null>>;
 }
 
 export async function reviewScope(
@@ -421,6 +429,8 @@ export async function reviewScope(
     admin: await holds(ctx, HR_PERMISSION.adminManage),
     sites: await siteScope(ctx),
     actorUserId: ctx.tenant.actor._id,
+    identityScanBudget: { remaining: MAX_HR_IDENTITY_SCAN },
+    identityCache: new Map(),
   };
 }
 
@@ -429,34 +439,172 @@ export async function reviewScope(
  * reporting relationship and the site; HR needs the site. Nobody reviews
  * their own attendance.
  */
-export function reviewBlocker(
+export async function reviewBlocker(
+  ctx: TenantFunctionContext,
   scope: ReviewScope,
   employee: Employee,
-): "SELF_REVIEW" | "NOT_FOUND" | null {
-  if (employee.userId !== undefined && employee.userId === scope.actorUserId)
-    return "SELF_REVIEW";
+): Promise<"SELF_REVIEW" | "NOT_FOUND" | "LIMIT_EXCEEDED" | null> {
   if (!inScope(scope.sites, employee.warehouseId)) return "NOT_FOUND";
-  if (scope.admin) return null;
-  return employee.supervisorUserId === scope.actorUserId ? null : "NOT_FOUND";
+  return await reviewAccess(ctx, scope, employee);
 }
 
-/**
- * `reviewBlocker` with exact site authorization (see `siteAllowed`), so an
- * employee at an authorized site beyond the preloaded scope stays
- * reviewable, and one at a revoked site is not.
- */
+/** Exact site access and all retained account affiliations, cached per request. */
 export async function reviewAccess(
   ctx: TenantFunctionContext,
   scope: ReviewScope,
   employee: Employee,
   cache?: Map<string, Promise<boolean>>,
-): Promise<"SELF_REVIEW" | "NOT_FOUND" | null> {
-  if (employee.userId !== undefined && employee.userId === scope.actorUserId)
+): Promise<"SELF_REVIEW" | "NOT_FOUND" | "LIMIT_EXCEEDED" | null> {
+  if (
+    employee.userId === scope.actorUserId ||
+    employee.reviewExcludedUserIds?.includes(scope.actorUserId)
+  )
     return "SELF_REVIEW";
+  if (!scope.admin && employee.supervisorUserId !== scope.actorUserId)
+    return "NOT_FOUND";
   if (!(await siteAllowed(ctx, scope.sites, employee.warehouseId, cache)))
     return "NOT_FOUND";
-  if (scope.admin) return null;
-  return employee.supervisorUserId === scope.actorUserId ? null : "NOT_FOUND";
+  let entry = scope.identityCache.get(employee._id);
+  if (entry === undefined) {
+    entry = employeeReviewIdentities(ctx, employee, scope.identityScanBudget);
+    scope.identityCache.set(employee._id, entry);
+  }
+  const identities = await entry;
+  if (identities === null) return "LIMIT_EXCEEDED";
+  return identities.has(scope.actorUserId) ? "SELF_REVIEW" : null;
+}
+
+/**
+ * Previously unlinked employees have no identity set yet. Allowed employee
+ * saves record JSON-encoded before/after userId values in tenant-owned audit
+ * rows. Read that complete bounded history until the next save persists it.
+ */
+export async function employeeReviewIdentities(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+  budget = { remaining: MAX_HR_IDENTITY_SCAN },
+): Promise<Set<Id<"users">> | null> {
+  const identities = new Set(employee.reviewExcludedUserIds ?? []);
+  if (employee.userId !== undefined) identities.add(employee.userId);
+  if (employee.reviewExcludedUserIds !== undefined) return identities;
+  const reader = ctx.tenantDb.byIndex<Doc<"auditEvents">>(
+    "auditEvents",
+    "by_orgId_entityTable_entityId_occurredAt",
+    [
+      { field: "entityTable", value: "hrEmployees" },
+      { field: "entityId", value: employee._id },
+    ],
+  );
+  try {
+    if (budget.remaining === 0)
+      return (await reader.first()) === null ? identities : null;
+    const rows = await reader.all(budget.remaining);
+    budget.remaining -= rows.length;
+    for (const row of rows) {
+      if (row.outcome !== "ALLOWED" || row.action !== "hr.employee.save")
+        continue;
+      for (const change of row.changes ?? []) {
+        if (change.field !== "userId") continue;
+        for (const text of [change.from, change.to]) {
+          if (text === undefined) continue;
+          try {
+            const id: unknown = JSON.parse(text);
+            if (typeof id !== "string") return null;
+            // The audit is generated from schema-validated employee user IDs.
+            identities.add(id as Id<"users">);
+          } catch {
+            // Unreadable affiliation history must never grant review access.
+            return null;
+          }
+        }
+      }
+    }
+    return identities;
+  } catch (error) {
+    if (error instanceof TenantDbError && error.code === "CAPACITY_DATA_LIMIT")
+      return null;
+    throw error;
+  }
+}
+
+/** Persist the affiliation even if the underlying decision is later revised. */
+export async function retainReviewer(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+): Promise<void> {
+  const reviewerUserIds = employee.reviewerUserIds ?? [];
+  if (reviewerUserIds.includes(ctx.tenant.actor._id)) return;
+  await ctx.tenantDb.patch("hrEmployees", employee._id, {
+    reviewerUserIds: [...reviewerUserIds, ctx.tenant.actor._id],
+  });
+}
+
+/**
+ * Legacy decisions predate reviewerUserIds. A first self-link checks their
+ * complete retained history too; an incomplete bounded read denies linkage.
+ */
+export async function reviewedByActor(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+): Promise<boolean | null> {
+  const actor = ctx.tenant.actor._id;
+  if (employee.reviewerUserIds?.includes(actor)) return true;
+  try {
+    const days = await ctx.tenantDb
+      .byIndex<AttendanceDay>(
+        "hrAttendanceDays",
+        "by_orgId_employeeId_businessDate",
+        [{ field: "employeeId", value: employee._id }],
+      )
+      .all(MAX_HR_IDENTITY_SCAN);
+    if (
+      days.some(
+        (day) =>
+          day.certification?.decidedByUserId === actor ||
+          day.certificationHistory?.some(
+            (entry) => entry.decidedByUserId === actor,
+          ),
+      )
+    )
+      return true;
+    const requests = await ctx.tenantDb
+      .byIndex<Doc<"hrCorrectionRequests">>(
+        "hrCorrectionRequests",
+        "by_orgId_employeeId_businessDate",
+        [{ field: "employeeId", value: employee._id }],
+      )
+      .all(MAX_HR_IDENTITY_SCAN);
+    if (
+      requests.some(
+        (request) =>
+          request.decidedByUserId === actor ||
+          request.history.some(
+            (entry) =>
+              entry.action !== "SUBMITTED" && entry.actorUserId === actor,
+          ),
+      )
+    )
+      return true;
+    const leaveRequests = await ctx.tenantDb
+      .byIndex<Doc<"hrLeaveRequests">>(
+        "hrLeaveRequests",
+        "by_orgId_employeeId_submittedAt",
+        [{ field: "employeeId", value: employee._id }],
+      )
+      .all(MAX_HR_IDENTITY_SCAN);
+    return leaveRequests.some((request) =>
+      request.history.some(
+        (entry) =>
+          ["APPROVED", "RETURNED", "CANCELLED", "HR_ADJUSTMENT"].includes(
+            entry.action,
+          ) && entry.actorUserId === actor,
+      ),
+    );
+  } catch (error) {
+    if (error instanceof TenantDbError && error.code === "CAPACITY_DATA_LIMIT")
+      return null;
+    throw error;
+  }
 }
 
 /* Employees, holidays and plans -------------------------------------------- */
@@ -753,26 +901,60 @@ export async function loadSiteDays(
 }
 
 /** Site employees employed at any point of the range, or null over the bound. */
+export const employedInRange = (
+  employee: Employee,
+  startDate: IsoDate,
+  endDate: IsoDate,
+) =>
+  compareDates(employee.employmentStartDate, endDate) <= 0 &&
+  (employee.employmentEndDate === undefined ||
+    compareDates(startDate, employee.employmentEndDate) <= 0);
+
+export interface EmployeeScanBudget {
+  remaining: number;
+}
+
+/** A bounded complete index read: never report a partial period or queue. */
+export async function employeesInRange(
+  reader: TenantIndexReader<Employee>,
+  startDate: IsoDate,
+  endDate: IsoDate,
+  limit: number,
+  budget: EmployeeScanBudget = { remaining: MAX_HR_EMPLOYEE_SCAN },
+): Promise<readonly Employee[] | null> {
+  try {
+    if (budget.remaining === 0)
+      return (await reader.first()) === null ? [] : null;
+    const rows = await reader.all(budget.remaining);
+    budget.remaining -= rows.length;
+    const employed = rows.filter((row) =>
+      employedInRange(row, startDate, endDate),
+    );
+    return employed.length > limit ? null : employed;
+  } catch (error) {
+    if (error instanceof TenantDbError && error.code === "CAPACITY_DATA_LIMIT")
+      return null;
+    throw error;
+  }
+}
+
 export async function siteEmployeesInRange(
   ctx: TenantFunctionContext,
   warehouseId: string,
   startDate: IsoDate,
   endDate: IsoDate,
   limit: number,
+  budget?: EmployeeScanBudget,
 ): Promise<readonly Employee[] | null> {
-  const rows = await ctx.tenantDb
-    .byIndex<Employee>("hrEmployees", "by_orgId_warehouseId_code", [
+  return await employeesInRange(
+    ctx.tenantDb.byIndex<Employee>("hrEmployees", "by_orgId_warehouseId_code", [
       { field: "warehouseId", value: warehouseId },
-    ])
-    .take(MAX_SITE_EMPLOYEES + 1);
-  if (rows.length > MAX_SITE_EMPLOYEES) return null;
-  const employed = rows.filter(
-    (employee) =>
-      compareDates(employee.employmentStartDate, endDate) <= 0 &&
-      (employee.employmentEndDate === undefined ||
-        compareDates(startDate, employee.employmentEndDate) <= 0),
+    ]),
+    startDate,
+    endDate,
+    limit,
+    budget,
   );
-  return employed.length > limit ? null : employed;
 }
 
 export async function sitePeriods(
@@ -820,6 +1002,14 @@ export interface CommandSuccess<Extra> {
 }
 
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
+export const validHrRequestId = (requestId: string) =>
+  REQUEST_ID.test(requestId);
+
+/** Actor-scoped durable cancellation records share the tenant-owned ledger. */
+export const hrRequestFenceOperation = (
+  operation: string,
+  actorUserId: string,
+) => `hr.request.fence:${actorUserId}:${operation}`;
 
 const compactChanges = (changes: readonly AuditChange[]) =>
   changes.slice(0, 40).map((change) => ({
@@ -855,6 +1045,20 @@ export async function hrCommand<Extra extends Record<string, unknown>>(
   const actorUserId = ctx.tenant.actor._id;
   if (!REQUEST_ID.test(input.requestId))
     return fail("REQUEST_IDENTITY_INVALID", "requestId");
+  const fence = await ctx.tenantDb
+    .byIndex<Doc<"idempotencyRecords">>(
+      "idempotencyRecords",
+      "by_orgId_operation_requestId",
+      [
+        {
+          field: "operation",
+          value: hrRequestFenceOperation(input.operation, actorUserId),
+        },
+        { field: "requestId", value: input.requestId },
+      ],
+    )
+    .unique();
+  if (fence !== null) return fail("REQUEST_RETIRED", "requestId");
   const hash = await fingerprintArguments({
     ...JSON.parse(JSON.stringify(input.payload)),
     requestId: input.requestId,

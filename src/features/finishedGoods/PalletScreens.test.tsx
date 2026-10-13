@@ -1559,3 +1559,102 @@ it("pending reservation release blocks native Back and success consumes its moda
     ).toBe("/th/finished-goods?search=box#origin"),
   );
 });
+
+it("retains the loaded measurement baseline across live updates and reloads only after explicit discard", async () => {
+  const baseline = currentDetail.pallet.updatedAt;
+  const view = renderPallet("measure");
+  number("Width (m)", "1.75");
+  currentDetail = {
+    ...currentDetail,
+    pallet: { ...currentDetail.pallet, widthMm: 2000, updatedAt: baseline + 1 },
+  };
+  view.refresh();
+  expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+    1.75,
+  );
+  mocks.write.mockResolvedValueOnce(writeFailure("VERSION_CONFLICT"));
+  fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+  await waitFor(() => expect(callsFor("saveMeasurement")).toHaveLength(1));
+  expect(callsFor("saveMeasurement")[0]?.[1]).toEqual(
+    expect.objectContaining({
+      expectedMeasurementUpdatedAt: baseline,
+      widthMm: 1750,
+    }),
+  );
+  expect(mocks.push).not.toHaveBeenCalled();
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Discard draft and reload saved measurements",
+    }),
+  );
+  expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(2);
+  fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+  await waitFor(() => expect(callsFor("saveMeasurement")).toHaveLength(2));
+  expect(callsFor("saveMeasurement")[1]?.[1]).toEqual(
+    expect.objectContaining({
+      expectedMeasurementUpdatedAt: baseline + 1,
+      widthMm: 2000,
+    }),
+  );
+});
+
+it("retains a stale measurement draft baseline across remount", async () => {
+  const baseline = currentDetail.pallet.updatedAt;
+  const view = renderPallet("measure");
+  number("Width (m)", "1.75");
+  view.unmount();
+  currentDetail = {
+    ...currentDetail,
+    pallet: { ...currentDetail.pallet, widthMm: 2000, updatedAt: baseline + 1 },
+  };
+  renderPallet("measure");
+  fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+  await waitFor(() => expect(callsFor("saveMeasurement")).toHaveLength(1));
+  expect(callsFor("saveMeasurement")[0]?.[1]).toEqual(
+    expect.objectContaining({
+      expectedMeasurementUpdatedAt: baseline,
+      widthMm: 1750,
+    }),
+  );
+});
+
+it("preserves old measurement drafts without assigning the current server baseline", async () => {
+  localStorage.setItem(
+    "fg-measure:user-a:warehouse-a:pallet-a",
+    JSON.stringify({
+      quantity: "500",
+      lot: "Old",
+      length: "1",
+      width: "1.75",
+      height: "1",
+      weight: "",
+      unit: "m",
+    }),
+  );
+  renderPallet("measure");
+  expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+    1.75,
+  );
+  expect(
+    screen.getByRole("button", {
+      name: "Discard draft and reload saved measurements",
+    }),
+  ).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+  await waitFor(() => expect(callsFor("saveMeasurement")).toHaveLength(1));
+  expect(callsFor("saveMeasurement")[0]?.[1]).toEqual(
+    expect.objectContaining({ expectedMeasurementUpdatedAt: -1 }),
+  );
+});
+
+it("refuses fractional discrete measurement quantities before calling the server", async () => {
+  renderPallet("measure");
+  number("Actual quantity", "1.5");
+  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+  await screen.findByRole("alert");
+  expect(callsFor("saveMeasurement")).toHaveLength(0);
+  expect(
+    screen.getByRole("spinbutton", { name: "Actual quantity" }),
+  ).toHaveAttribute("step", "1");
+});

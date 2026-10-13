@@ -84,6 +84,7 @@ it("converts the Thai Buddhist year to the canonical query and recovers an empty
   const year = screen.getByLabelText("ปี พ.ศ.");
   expect(year).toHaveValue(2569);
   expect(state.query).toHaveBeenLastCalledWith("hr/self:holidays", {
+    clockRefresh: expect.any(Number),
     year: 2026,
   });
   fireEvent.change(year, { target: { value: "2570" } });
@@ -151,6 +152,7 @@ it("browses older correction pages and opens the exact request record", () => {
   ).toHaveAttribute("href", "/hr/requests/new-request");
   fireEvent.click(screen.getByRole("button", { name: "Older page" }));
   expect(state.query).toHaveBeenLastCalledWith("hr/self:requests", {
+    clockRefresh: expect.any(Number),
     limit: 20,
     cursor: "next-cursor",
   });
@@ -224,6 +226,7 @@ it("reconciles summary filters to the exact bounded attendance rows", () => {
     target: { value: "2026-11" },
   });
   expect(state.query).toHaveBeenLastCalledWith("hr/self:history", {
+    clockRefresh: expect.any(Number),
     from: "2026-11-01",
     to: "2026-11-30",
   });
@@ -251,6 +254,7 @@ it("keeps scanning filtered requests and resets the cursor when applying search"
   });
   fireEvent.click(screen.getByRole("button", { name: "Apply filters" }));
   expect(state.query).toHaveBeenLastCalledWith("hr/self:requests", {
+    clockRefresh: expect.any(Number),
     limit: 20,
     text: " missed punch ",
     from: "2026-10-01",

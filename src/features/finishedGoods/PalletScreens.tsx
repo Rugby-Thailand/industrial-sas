@@ -44,6 +44,10 @@ export {
 } from "./PlacementEditor";
 import { PalletScene } from "./PalletScene";
 import { usePreviewState } from "./usePreviewState";
+import {
+  quantityPrecision,
+  quantityToMinor,
+} from "../../../convex/model/finishedGoods/packing";
 import { DestinationScanner } from "./DestinationScanner";
 import { MoveHistory } from "./MoveHistory";
 import { DestinationPicker, destinationKey } from "./DestinationPicker";
@@ -242,6 +246,7 @@ export function Summary({
 }
 
 type MeasurementDraft = {
+  expectedMeasurementUpdatedAt?: number;
   quantity: string;
   lot: string;
   length: string;
@@ -282,18 +287,18 @@ function Measurement({
     key,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
+  const savedMeasurement = (): MeasurementDraft => ({
+    expectedMeasurementUpdatedAt: pallet.updatedAt ?? 0,
+    quantity: String(pallet.quantity),
+    lot: pallet.lot ?? "",
+    length: pallet.lengthMm === undefined ? "" : String(pallet.lengthMm / 1000),
+    width: pallet.widthMm === undefined ? "" : String(pallet.widthMm / 1000),
+    height: pallet.heightMm === undefined ? "" : String(pallet.heightMm / 1000),
+    weight: pallet.weightKg === undefined ? "" : String(pallet.weightKg),
+    unit: "m",
+  });
   const [form, setForm] = useState<MeasurementDraft>(() => {
-    const fallback: MeasurementDraft = {
-      quantity: String(pallet.quantity),
-      lot: pallet.lot ?? "",
-      length:
-        pallet.lengthMm === undefined ? "" : String(pallet.lengthMm / 1000),
-      width: pallet.widthMm === undefined ? "" : String(pallet.widthMm / 1000),
-      height:
-        pallet.heightMm === undefined ? "" : String(pallet.heightMm / 1000),
-      weight: pallet.weightKg === undefined ? "" : String(pallet.weightKg),
-      unit: "m",
-    };
+    const fallback = savedMeasurement();
     return drafts.read(
       key,
       (parsed) => {
@@ -307,6 +312,12 @@ function Measurement({
         )
           return {
             ...(d as MeasurementDraft),
+            expectedMeasurementUpdatedAt:
+              typeof d.expectedMeasurementUpdatedAt === "number" &&
+              Number.isSafeInteger(d.expectedMeasurementUpdatedAt) &&
+              d.expectedMeasurementUpdatedAt >= 0
+                ? d.expectedMeasurementUpdatedAt
+                : -1,
             ...(pallet.packingBatchId || pallet.preparationBatchId
               ? { quantity: String(pallet.quantity) }
               : {}),
@@ -335,6 +346,7 @@ function Measurement({
   const valid = [form.length, form.width, form.height, form.quantity].every(
     (v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) > 0,
   );
+  const discreteQuantity = quantityPrecision(detail.product?.unit ?? "") === 0;
   function update(next: MeasurementDraft) {
     if (
       ["quantity", "length", "width", "height"].some(
@@ -365,6 +377,11 @@ function Measurement({
   async function save(find: boolean) {
     await op.run(
       async () => {
+        if (
+          quantityToMinor(Number(form.quantity), detail.product?.unit ?? "") ===
+          null
+        )
+          throw new Error("QUANTITY_INVALID");
         if (find && !valid) throw new Error("INVALID_DIMENSIONS");
         if (
           valid &&
@@ -375,6 +392,7 @@ function Measurement({
         const args = {
           warehouseId,
           palletId: pallet._id,
+          expectedMeasurementUpdatedAt: form.expectedMeasurementUpdatedAt ?? -1,
           quantity: Number(form.quantity),
           lot: form.lot,
           ...(form.dimensionsChecked ? { dimensionsChecked: true } : {}),
@@ -424,6 +442,33 @@ function Measurement({
       <form onSubmit={submit} className="space-y-5">
         <fieldset disabled={op.busy} className="min-w-0 space-y-5">
           <ErrorNotice message={op.error} />
+          {(op.errorCode === "VERSION_CONFLICT" ||
+            form.expectedMeasurementUpdatedAt === -1) && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted">
+                {tr(
+                  "Saved measurements changed. Your draft is kept here. Copy any edits you want to keep before reloading.",
+                  "ขนาดที่บันทึกมีการเปลี่ยนแปลง แบบร่างของคุณยังอยู่ คัดลอกสิ่งที่ต้องการเก็บก่อนโหลดข้อมูลล่าสุด",
+                )}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setForm(savedMeasurement());
+                  setDirty(false);
+                  drafts.remove(key);
+                  op.setError("");
+                  op.clearRequests();
+                }}
+              >
+                {tr(
+                  "Discard draft and reload saved measurements",
+                  "ทิ้งแบบร่างและโหลดขนาดที่บันทึกล่าสุด",
+                )}
+              </Button>
+            </div>
+          )}
           <div className="grid items-start gap-4 xl:grid-cols-[1.3fr_1fr]">
             <div className={panel}>
               <PalletScene
@@ -470,8 +515,8 @@ function Measurement({
                   value={form.quantity}
                   onChange={(quantity) => update({ ...form, quantity })}
                   type="number"
-                  min={0.001}
-                  step="any"
+                  min={discreteQuantity ? 1 : 0.001}
+                  step={discreteQuantity ? "1" : "0.001"}
                   required
                 />
                 <div className="sm:col-span-2">

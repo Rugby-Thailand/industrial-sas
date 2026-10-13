@@ -71,6 +71,9 @@ export function accepts(
   }
   if (narrow.type === "any") return false;
   if (wide.type !== narrow.type) {
+    // Convex document IDs are strings on the wire. Accepting any string
+    // widens an argument; the inverse would reject old arbitrary strings.
+    if (wide.type === "string" && narrow.type === "id") return true;
     // A literal is accepted by its primitive type.
     if (narrow.type === "literal") {
       const value = narrow.value;

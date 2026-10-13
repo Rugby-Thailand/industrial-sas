@@ -4,6 +4,7 @@ import {
   useCallback,
   useInsertionEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
 } from "react";
 
@@ -15,8 +16,10 @@ export interface OperationTicket {
 
 /** Private execution mechanics; outcome, retry and persistence belong to callers. */
 export function useOperationLifecycle(scope: string | undefined) {
+  // Distinct committed visits to the same scope must not adopt old callbacks.
+  const owner = useMemo(() => ({ scope }), [scope]);
   const lifecycle = useRef({
-    scope,
+    owner,
     generation: 0,
     mounted: false,
     locks: new Map<string | number, symbol>(),
@@ -26,14 +29,14 @@ export function useOperationLifecycle(scope: string | undefined) {
   // No state updates happen here, and an abandoned render changes nothing.
   useInsertionEffect(() => {
     const current = lifecycle.current;
-    current.scope = scope;
+    current.owner = owner;
     current.generation += 1;
     current.mounted = true;
     return () => {
       current.mounted = false;
       current.generation += 1;
     };
-  }, [scope]);
+  }, [owner]);
 
   // React replays layout lifetimes in StrictMode without replaying insertion
   // effects. Invalidate the old tickets even when the scope text stays equal.
@@ -49,14 +52,14 @@ export function useOperationLifecycle(scope: string | undefined) {
     const generation = current.generation;
     return () =>
       current.mounted &&
-      current.scope === scope &&
+      current.owner === owner &&
       current.generation === generation;
-  }, [scope]);
+  }, [owner]);
 
   const acquire = useCallback(
     (lockKey?: string): OperationTicket | null => {
       const current = lifecycle.current;
-      if (!current.mounted || current.scope !== scope) return null;
+      if (!current.mounted || current.owner !== owner) return null;
       // Local workflows may start afresh after changing scope. Domain intent
       // keys (HR) retain their lock until the original request has settled.
       const key = lockKey ?? current.generation;
@@ -70,7 +73,7 @@ export function useOperationLifecycle(scope: string | undefined) {
         },
       };
     },
-    [capture, scope],
+    [capture, owner],
   );
   return { acquire, capture };
 }

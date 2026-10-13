@@ -8,6 +8,7 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 const state = vi.hoisted(() => ({
   queries: new Map<string, unknown>(),
   save: vi.fn(),
+  identityKey: "audit-org:audit-user",
 }));
 vi.mock("convex/react", async () => {
   const { getFunctionName: name } = await import("convex/server");
@@ -24,7 +25,7 @@ vi.mock("@/components/providers/HrAccessProvider", () => ({
     timezoneSupported: true,
     timezone: "Asia/Bangkok",
     today: "2026-10-09",
-    identityKey: "audit-org:audit-user",
+    identityKey: state.identityKey,
     sites: [{ id: "w1", code: "HQ", name: "Head office" }],
   }),
   useHrCan: () => true,
@@ -78,12 +79,16 @@ const employee = {
   version: 4,
 };
 let stopTracking: () => void;
+let testActor = 0;
 const snapshot = () => ({
   url: window.location.pathname + window.location.search + window.location.hash,
   index: appHistoryIndex(),
   guard: !!window.history.state?.__storageWorkspaceGuard,
 });
 beforeEach(() => {
+  // Each case starts a new actor; pending commands deliberately survive a
+  // form unmount, so the preceding case's unresolved save must stay isolated.
+  state.identityKey = `audit-org:audit-user-${++testActor}`;
   state.save.mockReset();
   window.sessionStorage.clear();
   state.queries.set(getFunctionName(hrRefs.employeesPage), {

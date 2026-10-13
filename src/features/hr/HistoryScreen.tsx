@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2, CircleAlert, Clock, CalendarDays } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -122,7 +122,7 @@ function HistoryContent() {
     selected?.from === range.from && selected.to === range.to
       ? range.from.slice(0, 7)
       : "";
-  const outcome = useQuery(hrRefs.history, range);
+  const outcome = useHrQuery(hrRefs.history, range);
   return (
     <div className="space-y-4">
       <HrToolbar>

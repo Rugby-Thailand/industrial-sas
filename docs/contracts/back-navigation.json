@@ -2372,12 +2372,16 @@
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:locationStep",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by Records.locationStep, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "Back restores the predecessor owned by Records.locationStep, preserving route intent and retained drafts; pending writes remain protected. Deferred focus respects a later user-selected input. Invalidation consumes the owned entry while retaining query/hash changes made during native traversal.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "native Back closes Location assignment and retains the selected records"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "a delayed picker focus must not steal a user's newly focused search field"
         }
       ]
     },
@@ -3301,8 +3305,13 @@
       "id": "src/features/finishedGoods/PalletScreens.tsx#Measurement:form",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Form fields change validation/packing options within the active editor; they are not a separate predecessor.",
+      "expectation": "Form fields change validation/packing options within the active editor; they are not a separate predecessor. Conflict recovery displays inline copy and an explicit discard-and-reload button in the retained measurement form, without opening or navigating to another foreground.",
       "render": [
+        {
+          "shape": "and",
+          "truthy": ["div", "p", "src/components/ui/button#Button"],
+          "falsy": []
+        },
         {
           "shape": "and",
           "truthy": ["input", "label"],
@@ -3319,6 +3328,10 @@
         {
           "file": "src/features/finishedGoods/PalletScreens.test.tsx",
           "name": "measurement native Back retains the dirty draft and discard restores the actual catalogue origin"
+        },
+        {
+          "file": "src/features/finishedGoods/PalletScreens.test.tsx",
+          "name": "retains the loaded measurement baseline across live updates and reloads only after explicit discard"
         }
       ]
     },
@@ -3946,8 +3959,16 @@
       "id": "src/features/hr/TodayScreen.tsx#TodayView:receipt",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "An attendance mutation receipt displays on Today; Back must not create or replay a command.",
+      "expectation": "An attendance mutation receipt displays on Today; Back must not create or replay a command. A recovered earlier-day receipt is an inline status Notice, not a new command or Today success; both remain on the existing Today surface.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["SavedClock"],
+          "falsy": [
+            "src/components/ui/Notice#Notice[role=status]",
+            "src/features/hr/HrShared#WriteFeedback"
+          ]
+        },
         {
           "shape": "conditional",
           "truthy": ["lucide-react#CheckCircle2", "p[role=status]"],
@@ -3960,8 +3981,15 @@
         },
         {
           "shape": "conditional",
-          "truthy": ["src/features/hr/HrShared#WriteFeedback"],
-          "falsy": ["SavedClock"]
+          "truthy": ["src/components/ui/Notice#Notice[role=status]"],
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "tests": ["src/features/hr/HrClientRecovery.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrClientRecovery.test.tsx",
+          "name": "a pending clock settling after a next-day remount is displayed as the earlier day's receipt"
         }
       ]
     },
@@ -7839,12 +7867,19 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#NewBuildingContent:$task:returnFromTask:ROUTES.storageLayouts",
       "intent": "return",
-      "expectation": "Explicit new-building Back/Cancel consumes its task and restores the actual catalogue origin locale/query/hash; direct entry uses the safe catalogue parent.",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "expectation": "Explicit new-building Back/Cancel consumes its task and restores the actual catalogue origin locale/query/hash; direct entry uses the safe catalogue parent. Warehouse changes remount the owned form; an old create response cannot navigate or clear the replacement warehouse draft.",
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+        "src/features/storageLayouts/StorageBuildingCompletion.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
           "name": "Back returns to the real catalogue origin with its query and hash, consuming the task entry"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageBuildingCompletion.test.tsx",
+          "name": "a late building-create completion must not navigate the replacement warehouse"
         }
       ]
     },
@@ -7885,6 +7920,30 @@
         {
           "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
           "name": "desktop sidebar navigation reaches its destination without creating a foreground entry"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/ShortcutCustomizeScreen.tsx#ShortcutEditor:$task:returnFromTask:$dynamic",
+      "intent": "return",
+      "expectation": "Back to Today abandons customization through guarded returnFromTask, consumes its owned entry and preserves the actual originating locale/query/hash; direct entry replaces with Today’s safe shortcut anchor. Dirty drafts require consent and pending writes cannot depart.",
+      "tests": ["src/features/hr/ShortcutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/ShortcutNavigation.test.tsx",
+          "name": "Back to Today consumes customization and next native Back restores the earlier workflow (dirty=%s)"
+        },
+        {
+          "file": "src/features/hr/ShortcutNavigation.test.tsx",
+          "name": "Back to Today replaces a direct customization entry with its safe parent"
+        },
+        {
+          "file": "src/features/hr/ShortcutNavigation.test.tsx",
+          "name": "Back to Today cannot discard a pending shortcut write"
+        },
+        {
+          "file": "src/features/hr/ShortcutNavigation.test.tsx",
+          "name": "customization remount retains owned Back to Today history and Forward restores only the explicit task"
         }
       ]
     }

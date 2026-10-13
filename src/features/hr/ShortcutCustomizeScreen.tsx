@@ -25,7 +25,8 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { hrRefs } from "@/lib/convex/hrApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { HR_CODES, ROUTES } from "@/lib/navigation";
-import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { returnFromTask } from "@/lib/taskNavigation";
 
 import { HrGate, WriteFeedback } from "./HrShared";
 import {
@@ -43,6 +44,44 @@ type SavedPreferences = Extract<
   RefValue<typeof hrRefs.saveShortcutPreferences>,
   { written: true }
 >;
+
+interface PreferenceCommand {
+  readonly expectedVersion: number;
+  readonly shortcuts: readonly HrShortcutPreference[];
+}
+function preferenceCommand(value: unknown): PreferenceCommand | undefined {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("expectedVersion" in value) ||
+    typeof value.expectedVersion !== "number" ||
+    !Number.isInteger(value.expectedVersion) ||
+    !("shortcuts" in value) ||
+    !Array.isArray(value.shortcuts) ||
+    value.shortcuts.length !== HR_SHORTCUTS.length
+  )
+    return undefined;
+  const keys = new Set<string>();
+  for (const item of value.shortcuts) {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.key !== "string" ||
+      typeof item.visible !== "boolean" ||
+      keys.has(item.key) ||
+      !HR_SHORTCUTS.some((shortcut) => shortcut.key === item.key)
+    )
+      return undefined;
+    keys.add(item.key);
+  }
+  return {
+    expectedVersion: value.expectedVersion,
+    shortcuts: value.shortcuts.map((item) => ({
+      key: item.key as string,
+      visible: item.visible as boolean,
+    })),
+  };
+}
 
 function validSavedShortcuts(
   shortcuts: readonly HrShortcutPreference[],
@@ -104,10 +143,33 @@ function ShortcutEditor({
 }) {
   const t = useTranslations("Hr.shortcuts");
   const save = useMutation(hrRefs.saveShortcutPreferences);
-  const write = useHrWrite<SavedPreferences>("shortcut-preferences");
+  const router = useRouter();
+  const write = useHrWrite<SavedPreferences, PreferenceCommand>(
+    "shortcut-preferences",
+    {
+      decode: preferenceCommand,
+      send: async (payload, requestId) => {
+        const outcome = await save({
+          requestId,
+          expectedVersion: payload.expectedVersion,
+          shortcuts: payload.shortcuts,
+        });
+        if (
+          outcome.ok &&
+          outcome.value.written === true &&
+          (typeof outcome.value.version !== "number" ||
+            outcome.value.shortcuts === undefined ||
+            !validSavedShortcuts(outcome.value.shortcuts))
+        )
+          return undefined;
+        return outcome;
+      },
+    },
+  );
   const [baseline, setBaseline] = useState(preferences);
+  const [consumedReceipt, setConsumedReceipt] = useState<SavedPreferences>();
   const [draft, setDraft] = useState<readonly HrShortcutPreference[]>(
-    preferences.shortcuts,
+    write.recoveredPayload?.shortcuts ?? preferences.shortcuts,
   );
   const latest = useRef(draft);
   const sorting = useRef<Sorting | null>(null);
@@ -118,11 +180,44 @@ function ShortcutEditor({
   const restoreFocus = useRef<string | null>(null);
   const dirty = JSON.stringify(draft) !== JSON.stringify(baseline.shortcuts);
 
+  const receipt = write.state.kind === "SAVED" ? write.state.value : undefined;
+  // Completion belongs to the shared command owner. It can settle after this
+  // editor remounts, without the original persist() callback running here.
+  // Consume each receipt once, before controls unlock for a subsequent draft.
+  if (
+    receipt &&
+    receipt !== consumedReceipt &&
+    typeof receipt.version === "number" &&
+    receipt.shortcuts !== undefined &&
+    validSavedShortcuts(receipt.shortcuts)
+  ) {
+    setConsumedReceipt(receipt);
+    const saved = {
+      ok: true as const,
+      version: receipt.version,
+      shortcuts: receipt.shortcuts,
+    };
+    const current = preferences.version >= saved.version ? preferences : saved;
+    const next = baseline.version > current.version ? baseline : current;
+    setBaseline(next);
+    setDraft(next.shortcuts);
+  } else if (
+    !dirty &&
+    !write.locked &&
+    activeKey === null &&
+    preferences.version > baseline.version
+  ) {
+    // Clean editors follow newer live data; owned drafts retain their version.
+    setBaseline(preferences);
+    setDraft(preferences.shortcuts);
+  }
+
   const replace = useCallback((next: readonly HrShortcutPreference[]) => {
     latest.current = next;
     setDraft(next);
   }, []);
   useLayoutEffect(() => {
+    latest.current = draft;
     if (restoreFocus.current === null) return;
     handles.current.get(restoreFocus.current)?.focus({ preventScroll: true });
     restoreFocus.current = null;
@@ -281,38 +376,12 @@ function ShortcutEditor({
   }
   async function persist(retry = false) {
     const payload = latest.current.map((item) => ({ ...item }));
-    const result = retry
-      ? await write.retry()
-      : await write.submit(async (requestId) => {
-          const outcome = await save({
-            requestId,
-            expectedVersion: baseline.version,
-            shortcuts: payload,
-          });
-          if (
-            outcome.ok &&
-            outcome.value.written === true &&
-            (typeof outcome.value.version !== "number" ||
-              outcome.value.shortcuts === undefined ||
-              !validSavedShortcuts(outcome.value.shortcuts))
-          )
-            return undefined;
-          return outcome;
-        });
-    if (
-      result.kind === "SAVED" &&
-      typeof result.value.version === "number" &&
-      result.value.shortcuts !== undefined &&
-      validSavedShortcuts(result.value.shortcuts)
-    ) {
-      const next = {
-        ok: true as const,
-        version: result.value.version,
-        shortcuts: result.value.shortcuts,
-      };
-      setBaseline(next);
-      replace(next.shortcuts);
-    }
+    if (retry) await write.retry();
+    else
+      await write.submitCommand({
+        expectedVersion: baseline.version,
+        shortcuts: payload,
+      });
   }
 
   return (
@@ -470,10 +539,17 @@ function ShortcutEditor({
           >
             {t("save")}
           </Button>
-          <Button asChild variant="link">
-            <Link href={`${ROUTES.hrToday}#hr-customize-shortcuts`}>
-              {t("back")}
-            </Link>
+          <Button
+            type="button"
+            variant="link"
+            onClick={() =>
+              returnFromTask(
+                `${ROUTES.hrToday}#hr-customize-shortcuts`,
+                router.replace,
+              )
+            }
+          >
+            {t("back")}
           </Button>
         </div>
       </Panel>

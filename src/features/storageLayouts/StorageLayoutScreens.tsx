@@ -386,7 +386,9 @@ export function StorageCatalogueFilters({
 export function NewStorageBuildingForm() {
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId) => <NewBuildingContent warehouseId={warehouseId} />}
+      {(warehouseId) => (
+        <NewBuildingContent key={warehouseId} warehouseId={warehouseId} />
+      )}
     </QueryGate>
   );
 }

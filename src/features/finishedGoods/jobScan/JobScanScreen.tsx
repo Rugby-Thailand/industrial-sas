@@ -313,7 +313,13 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       setFeedback(t(problem));
       return;
     }
-    setTickets((current) => applyBarcode(current, value).tickets);
+    const current = ticketsRef.current;
+    const next = applyBarcode(current, value).tickets;
+    if (next === current) {
+      setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
+      return;
+    }
+    setTickets(next);
     setFeedback(t("barcodeAdded", { field: t(field), code: value }));
   }
 
@@ -328,23 +334,40 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         return;
       }
     }
-    setTickets((current) => applyImageBarcodes(current, values));
+    // Compute the whole acquisition before enforcing capacity. Applying a cap
+    // per code would silently retain only part of an oversized image group.
+    const next = applyImageBarcodes(ticketsRef.current, values, Infinity);
+    if (next.length > MAX_JOB_SCAN_ITEMS) {
+      setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
+      return;
+    }
+    setTickets(next);
     setFeedback(t("barcodeImageRead"));
   }
 
   async function submit() {
+    // Acquisition can update the live group before React commits its render.
+    const currentTickets = ticketsRef.current;
+    const currentDuplicates = duplicateTicketKeys(currentTickets);
+    const currentFingerprint = JSON.stringify(
+      currentTickets
+        .filter((ticket) => currentDuplicates.includes(ticket.key))
+        .map((ticket) => [ticket.key, ticket.values]),
+    );
     if (
-      photos.photos.length > 0 ||
+      photos.getFiles().length > 0 ||
       !location ||
       acquisitionBlocked.current ||
-      !tickets.length ||
-      tickets.some(
+      !currentTickets.length ||
+      currentTickets.length > MAX_JOB_SCAN_ITEMS ||
+      currentTickets.some(
         (ticket) =>
           ticket.status === "reading" ||
           !isComplete(ticket) ||
           hasInvalidQuantity(ticket),
       ) ||
-      (duplicateKeys.length > 0 && !duplicatesReviewed)
+      (currentDuplicates.length > 0 &&
+        reviewedDuplicates !== currentFingerprint)
     )
       return;
     const mappedLocation = pickedLocationPayload(location);
@@ -352,7 +375,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       warehouseId,
       locationText: location.text,
       ...(mappedLocation ? { location: mappedLocation } : {}),
-      items: tickets.map(toPayload),
+      items: currentTickets.map(toPayload),
     };
     acquisitionBlocked.current = true;
     closeFieldScan();
@@ -367,10 +390,10 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       () => {
         // Current completion only: a stale or unmounted save changes nothing.
         operation.clearRequests();
-        tickets.forEach(releasePreview);
+        currentTickets.forEach(releasePreview);
         draft.settle();
         setTickets([]);
-        setSaved({ count: tickets.length, location });
+        setSaved({ count: currentTickets.length, location });
         changePanel(null);
         operation.complete(() => completeTask(JOB_SCAN_PATH, router.replace));
       },
@@ -573,9 +596,18 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             selection={photos}
             onClose={() => changePanel(null)}
             onSubmit={(files) => {
+              if (acquisitionBlocked.current) return false;
+              if (
+                ticketsRef.current.length + files.length >
+                MAX_JOB_SCAN_ITEMS
+              ) {
+                setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
+                return false;
+              }
               changePanel(null);
               // Every photo becomes its own ticket; the AI reads them all at once.
               files.forEach((file) => void onPhoto(file));
+              return true;
             }}
           />
         )}

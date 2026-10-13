@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { ArrowRight, Check, MessageSquarePlus, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -58,7 +59,7 @@ export function ReviewDetail({
 }) {
   const t = useTranslations("Hr.review");
   const day = useTranslations("Hr.day");
-  const outcome = useQuery(hrRefs.reviewDayDetail, {
+  const outcome = useHrQuery(hrRefs.reviewDayDetail, {
     employeeId,
     businessDate,
   });
@@ -552,8 +553,9 @@ function DispositionForm({
   const send = async () => {
     const next: { time?: string; reason?: string } = {};
     const startInput =
-      choice === "WORKED" ? toLocalTimeInput(start) : undefined;
-    const endInput = choice === "WORKED" ? toLocalTimeInput(end) : undefined;
+      choice === "WORKED" ? toLocalTimeInput(start, false) : undefined;
+    const endInput =
+      choice === "WORKED" ? toLocalTimeInput(end, false) : undefined;
     if (startInput === null || endInput === null)
       next.time = form("timeInvalid");
     if (reason.trim().length < 3) next.reason = form("reasonRequired");

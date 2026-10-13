@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Notice } from "@/components/ui/Notice";
@@ -46,7 +46,7 @@ function DayContent({ businessDate }: { readonly businessDate: string }) {
   const t = useTranslations("Hr.day");
   const params = useQueryParams();
   const focus = readDayFocus(params);
-  const outcome = useQuery(hrRefs.selfDayDetail, { businessDate });
+  const outcome = useHrQuery(hrRefs.selfDayDetail, { businessDate });
   usePageSearchContext(
     outcome?.ok === true && outcome.value.ok
       ? { page: "hr.day", date: businessDate }

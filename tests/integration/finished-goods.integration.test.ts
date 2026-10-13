@@ -152,6 +152,9 @@ async function measuredPallet(
   );
   id(
     await call(world, workflow.saveMeasurement, {
+      expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+        ctx.db.get(palletId as Id<"finishedGoodsPallets">),
+      ))!.updatedAt,
       warehouseId: world.warehouseId,
       requestId: `measure-${suffix}`,
       palletId,
@@ -590,6 +593,9 @@ describe("finished goods workflow", () => {
     ].entries())
       error(
         await call(world, workflow.saveMeasurement, {
+          expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+            ctx.db.get(palletId as Id<"finishedGoodsPallets">),
+          ))!.updatedAt,
           warehouseId: world.warehouseId,
           palletId,
           requestId: `invalid-${index}`,
@@ -603,6 +609,9 @@ describe("finished goods workflow", () => {
       );
     id(
       await call(world, workflow.saveMeasurement, {
+        expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+          ctx.db.get(palletId as Id<"finishedGoodsPallets">),
+        ))!.updatedAt,
         warehouseId: world.warehouseId,
         palletId,
         requestId: "partial",
@@ -650,6 +659,9 @@ describe("finished goods workflow", () => {
     ).toMatchObject({ placement: { _id: firstId, status: "RESERVED" } });
     error(
       await call(world, workflow.saveMeasurement, {
+        expectedMeasurementUpdatedAt: (await world.t.run((ctx) =>
+          ctx.db.get(a.palletId as Id<"finishedGoodsPallets">),
+        ))!.updatedAt,
         warehouseId: world.warehouseId,
         palletId: a.palletId,
         requestId: "reserved-edit",
