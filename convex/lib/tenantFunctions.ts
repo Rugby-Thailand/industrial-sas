@@ -55,10 +55,6 @@ import {
   createMemberDirectory,
   type MemberDirectoryPort,
 } from "./memberDirectory";
-import {
-  createPrivateFileStorage,
-  type PrivateFileStoragePort,
-} from "./privateFileStorage";
 import type { TenantTableName } from "./schemaPolicy";
 import {
   TENANT_CONTEXT_DENIAL_CODES,
@@ -98,7 +94,6 @@ export interface TenantFunctionContext {
   readonly identity: UserIdentity;
   readonly tenant: ActiveTenantContext;
   readonly tenantDb: TenantDocumentAccess;
-  readonly privateFiles: PrivateFileStoragePort;
   /** Members of the active organization only; see `memberDirectory.ts`. */
   readonly members: MemberDirectoryPort;
 
@@ -506,22 +501,6 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       identity: identity!,
       tenant: resolved.context,
       tenantDb,
-      privateFiles: createPrivateFileStorage(
-        rawContext.storage,
-        async (storageId) => {
-          const metadata = await rawContext.db.system.get(
-            "_storage",
-            storageId,
-          );
-          return metadata === null
-            ? null
-            : {
-                sha256: metadata.sha256,
-                size: metadata.size,
-                contentType: metadata.contentType ?? null,
-              };
-        },
-      ),
       members: createMemberDirectory(
         rawContext.db,
         resolved.context.organization._id,
