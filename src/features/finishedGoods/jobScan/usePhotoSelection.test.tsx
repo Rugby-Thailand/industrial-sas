@@ -69,3 +69,22 @@ it("ignores stale acquisition callbacks after unmount without creating previews"
     "blob:collected.jpg",
   );
 });
+
+it("limits collected photos to the remaining ticket group capacity", () => {
+  const { result, rerender } = renderHook(
+    ({ capacity }) => usePhotoSelection(capacity),
+    { initialProps: { capacity: 2 } },
+  );
+  act(() =>
+    result.current.add([
+      photo("one.jpg"),
+      photo("two.jpg"),
+      photo("overflow.jpg"),
+    ]),
+  );
+  expect(result.current.photos).toHaveLength(2);
+  expect(result.current.problem).toBe("photoLimit");
+  rerender({ capacity: 1 });
+  expect(result.current.getFiles()).toHaveLength(2);
+  expect(result.current.canCapture()).toBe(false);
+});

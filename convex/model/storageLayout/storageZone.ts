@@ -190,3 +190,26 @@ export function makeStorageZoneCode(
 export function makeStorageZoneQrValue(locationId: string): string {
   return `ISAS:LOCATION:1:${locationId}`;
 }
+
+/**
+ * Optimistic-concurrency token for a spot or exact position. Every write
+ * bumps `version` and `updatedAt`; including both also detects a snapshot
+ * restore that reset an unversioned legacy row.
+ */
+export function storageRecordRevision(row: {
+  readonly version?: number | undefined;
+  readonly updatedAt: number;
+}): string {
+  return `${row.version ?? 0}:${row.updatedAt}`;
+}
+
+/** Every semantic change advances both tokens even when the clock is frozen. */
+export function nextStorageRecordRevision(row: {
+  readonly version?: number | undefined;
+  readonly updatedAt: number;
+}) {
+  return {
+    version: (row.version ?? 0) + 1,
+    updatedAt: Math.max(Date.now(), row.updatedAt + 1),
+  };
+}

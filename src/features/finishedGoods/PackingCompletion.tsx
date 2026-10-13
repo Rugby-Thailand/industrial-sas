@@ -1,10 +1,10 @@
 "use client";
+import { packageScanPath } from "@/lib/navigation";
 
 import { ArrowRight, PackageCheck, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import { FG_PATH } from "@/lib/navigation";
 
 type UnitAction = { id: string; label: string; href: string };
 
@@ -41,6 +41,8 @@ export function PackingCompletion({
   summary,
   units,
   simplePacking,
+  batchId,
+  labelMap,
   productHref,
   onReviewBatch,
   onPrepareAnother,
@@ -48,6 +50,11 @@ export function PackingCompletion({
   summary: string;
   units: readonly UnitAction[];
   simplePacking: boolean;
+  batchId?: string;
+  labelMap?: {
+    retired: readonly { id: string; code: string }[];
+    replacements: readonly { id: string; code: string }[];
+  };
   productHref: string;
   onReviewBatch: () => void;
   onPrepareAnother: () => void;
@@ -64,6 +71,18 @@ export function PackingCompletion({
           ? t("copy.scan-the-package-labels-in-order-then-scan-their-location")
           : t("copy.choose-an-exact-storage-position-for-each-unit")}
       </p>
+      {labelMap && labelMap.retired.length > 0 && (
+        <div className="space-y-2 text-sm">
+          <p>{t("copy.replace-retired-package-labels-before-storage")}</p>
+          <p>
+            {labelMap.retired.map((unit) => unit.code).join(", ")} →{" "}
+            {labelMap.replacements.map((unit) => unit.code).join(", ")}
+          </p>
+          <p className="text-muted">
+            {t("copy.labels-map-to-replacement-group")}
+          </p>
+        </div>
+      )}
       <ul className="flex flex-col items-start md:flex-row md:flex-wrap md:items-center md:gap-x-4">
         {units.map((unit, index) => (
           <li key={unit.id} className="max-w-full">
@@ -88,7 +107,7 @@ export function PackingCompletion({
       <div className="flex flex-wrap items-center gap-x-4 border-t border-border pt-1">
         {simplePacking ? (
           <PrimaryLink
-            href={`${FG_PATH}/scan`}
+            href={packageScanPath(batchId ? { batchId } : {})}
             label={t("copy.scan-packages")}
           />
         ) : (

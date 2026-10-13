@@ -1,4 +1,5 @@
 "use client";
+import { packageScanPath } from "@/lib/navigation";
 import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
@@ -26,6 +27,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { completeTask } from "@/lib/taskNavigation";
+import { useDraftGuard } from "@/components/providers/draftGuard";
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs, type PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import {
@@ -315,6 +318,14 @@ function Measurement({
   });
   const [dirty, setDirty] = useState(() => drafts.has(key));
   useUnsavedWarning(dirty);
+  useDraftGuard(
+    dirty,
+    () => {
+      setDirty(false);
+      drafts.remove(key);
+    },
+    op.busy,
+  );
   const factor = form.unit === "m" ? 1000 : 10;
   const dimensions = {
     widthMm: Math.round(Number(form.width) * factor),
@@ -383,10 +394,13 @@ function Measurement({
         setDirty(false);
         op.clearRequests();
         drafts.remove(key);
-        router.push(
-          find || returnToPlacement
-            ? storagePath(pallet._id)
-            : palletPath(pallet._id),
+        op.complete(() =>
+          completeTask(
+            find || returnToPlacement
+              ? storagePath(pallet._id)
+              : palletPath(pallet._id),
+            router.replace,
+          ),
         );
       },
     );
@@ -921,8 +935,9 @@ function PalletDetailScreen({
         );
       },
       () => {
-        setCancel(false);
-        router.push(storagePath(pallet._id));
+        op.complete(() =>
+          completeTask(storagePath(pallet._id), router.replace),
+        );
       },
     );
   }
@@ -988,7 +1003,7 @@ function PalletDetailScreen({
               href={
                 readyForStorage
                   ? storagePath(pallet._id)
-                  : "/finished-goods/scan"
+                  : packageScanPath({ unitId: pallet._id })
               }
             >
               {readyForStorage
@@ -1346,7 +1361,7 @@ function PalletDetailScreen({
             <>
               {readyForStorage ? (
                 <Button variant="outline" asChild>
-                  <Link href="/finished-goods/scan">
+                  <Link href={packageScanPath({ unitId: pallet._id })}>
                     {tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
                   </Link>
                 </Button>
@@ -1362,7 +1377,11 @@ function PalletDetailScreen({
         </div>
       </div>
       <MoveHistory detail={detail} />
-      <Dialog open={cancel && canManage && reserved} onOpenChange={setCancel}>
+      <Dialog
+        open={cancel && canManage && reserved}
+        onOpenChange={setCancel}
+        backPending={op.busy}
+      >
         <DialogContent closeLabel={tr("Close", "ปิด")}>
           <DialogHeader>
             <DialogTitle>

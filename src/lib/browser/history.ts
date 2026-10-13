@@ -61,13 +61,17 @@ export function updateBrowserQuery(
     mode?: "push" | "replace";
     metadata?: Record<string, unknown>;
     event?: string;
+    hash?: string;
   } = {},
 ) {
   const url = new URL(window.location.href);
+  const previousHash = url.hash;
   const previousQuery = url.searchParams.toString();
   change(url.searchParams);
+  if (options.hash !== undefined) url.hash = options.hash;
   const state = { ...window.history.state, ...options.metadata };
-  const changed = url.searchParams.toString() !== previousQuery;
+  const changed =
+    url.searchParams.toString() !== previousQuery || url.hash !== previousHash;
   const push = options.mode === "push" && changed;
   const index = appHistoryIndex();
   if (push && index !== undefined) state[APP_HISTORY_KEY] = index + 1;

@@ -1,4 +1,10 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
@@ -6,19 +12,33 @@ const state = vi.hoisted(() => ({
   allowed: true,
   status: "DRAFT",
   blocked: false,
+  ready: true,
   version: 7,
+  complete: true,
+  capacityExceeded: false,
+  canArchive: true,
   mutation: vi.fn(),
   query: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => {
     state.query(...args);
+    // One shape answers the status, lifecycle-impact and readiness reads.
     return {
       ok: true,
       value: {
+        found: true,
         status: state.status,
         version: state.version,
         blocked: state.blocked,
+        ready: state.ready,
+        zoneCount: 3,
+        positionCount: 4,
+        namedRegistrationCount: 1,
+        issues: [],
+        complete: state.complete,
+        capacityExceeded: state.capacityExceeded,
+        canArchive: state.canArchive,
       },
     };
   },
@@ -32,8 +52,19 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
       : [],
   }),
 }));
-vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
+vi.mock("@/i18n/navigation", () => ({
+  Link: "a",
+  useRouter: () => ({ push: vi.fn() }),
+}));
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
+
+/** The switch opens a whole-building confirmation; confirm runs the write. */
+function toggle(confirm = "Activate building") {
+  fireEvent.click(screen.getByRole("switch"));
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: confirm }),
+  );
+}
 
 function renderToggle() {
   return renderWithIntl(
@@ -51,7 +82,11 @@ beforeEach(() => {
   state.allowed = true;
   state.status = "DRAFT";
   state.blocked = false;
+  state.ready = true;
   state.version = 7;
+  state.complete = true;
+  state.capacityExceeded = false;
+  state.canArchive = true;
   state.mutation
     .mockReset()
     .mockResolvedValue({ ok: true, value: { written: true } });
@@ -60,7 +95,15 @@ describe("building status control", () => {
   it("submits the saved version and waits for the authoritative status", async () => {
     renderToggle();
     fireEvent.click(
-      screen.getByRole("switch", { name: "Active building: MAIN" }),
+      screen.getByRole("switch", { name: "Building status: MAIN" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Activate MAIN?" });
+    expect(within(dialog).getByTestId("status-impact")).toHaveTextContent(
+      "3 storage spots · 4 exact positions · 1 registered location",
+    );
+    expect(state.mutation).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Activate building" }),
     );
     await waitFor(() =>
       expect(state.mutation).toHaveBeenCalledWith(
@@ -71,7 +114,12 @@ describe("building status control", () => {
         }),
       ),
     );
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+    await waitFor(() =>
+      expect(screen.getByRole("switch")).toHaveAttribute(
+        "aria-checked",
+        "false",
+      ),
+    );
   });
   it("explains the stock guard and prevents deactivation", () => {
     state.status = "ACTIVE";
@@ -90,6 +138,33 @@ describe("building status control", () => {
     fireEvent.click(screen.getByRole("switch"));
     expect(state.mutation).not.toHaveBeenCalled();
   });
+  it("withholds activation until the server preflight passes and links to review", () => {
+    state.ready = false;
+    renderToggle();
+    fireEvent.click(screen.getByRole("switch"));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(/server check found issues/);
+    expect(
+      within(dialog).getByRole("button", { name: "Activate building" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("link", { name: "Review and activate" }),
+    ).toHaveAttribute("href", "/master-data/storage-layouts/building/review");
+    expect(state.mutation).not.toHaveBeenCalled();
+  });
+  it("confirms a whole-building return to Draft with the affected count", async () => {
+    state.status = "ACTIVE";
+    renderToggle();
+    fireEvent.click(screen.getByRole("switch"));
+    const dialog = screen.getByRole("dialog", {
+      name: "Return MAIN to Draft?",
+    });
+    expect(dialog).toHaveTextContent(/applies to the whole building/);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(state.mutation).not.toHaveBeenCalled();
+    toggle("Return building to Draft");
+    await waitFor(() => expect(state.mutation).toHaveBeenCalledTimes(1));
+  });
   it("keeps status read-only without activation permission", () => {
     state.allowed = false;
     renderToggle();
@@ -102,7 +177,7 @@ describe("building status control", () => {
       value: { written: false, error: { code: "STORAGE_STACK_REQUIRED" } },
     });
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
     expect(
       await screen.findByRole("link", { name: "Review building setup · MAIN" }),
     ).toHaveAttribute("href", "/master-data/storage-layouts/building/review");
@@ -111,7 +186,7 @@ describe("building status control", () => {
   it("handles transport errors without changing the displayed state", async () => {
     state.mutation.mockRejectedValue(new Error("offline"));
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Check your connection/,
     );
@@ -125,7 +200,7 @@ describe("building status control", () => {
       denial: { code: "PERMISSION_MISSING" },
     });
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /workspace administrator/,
     );
@@ -136,7 +211,7 @@ describe("building status control", () => {
     async (changed) => {
       state.mutation.mockRejectedValue(new Error("offline"));
       const view = renderToggle();
-      fireEvent.click(screen.getByRole("switch"));
+      toggle();
       await screen.findByRole("alert");
       if (changed === "version") state.version = 8;
       view.rerender(
@@ -170,10 +245,13 @@ describe("building status control", () => {
       }),
     );
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
-    expect(screen.getByRole("switch")).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Saving status");
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
+    const confirm = within(screen.getByRole("dialog")).getByRole("button", {
+      name: /Saving status/,
+    });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByRole("switch", { hidden: true })).toBeDisabled();
+    fireEvent.click(confirm);
     expect(state.mutation).toHaveBeenCalledTimes(1);
     finish({ ok: true, value: { written: true } });
     await waitFor(() => expect(screen.getByRole("switch")).not.toBeDisabled());
@@ -202,3 +280,124 @@ it("uses shared occupancy controls without a second status subscription", () => 
   expect(screen.getByRole("switch")).toBeDisabled();
   expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
 });
+
+it.each(["DRAFT", "ACTIVE"])(
+  "shows the capacity reason and minimum counts before blocking %s lifecycle confirmation",
+  (status) => {
+    state.status = status;
+    state.complete = false;
+    state.capacityExceeded = true;
+    state.canArchive = false;
+    renderToggle();
+    fireEvent.click(screen.getByRole("switch"));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(
+      "This building has more storage areas and positions than can be checked safely at once.",
+    );
+    expect(within(dialog).getByTestId("status-impact")).toHaveTextContent(
+      "Minimum counts; some addresses are not included.",
+    );
+    const confirm = within(dialog).getByRole("button", {
+      name:
+        status === "ACTIVE" ? "Return building to Draft" : "Activate building",
+    });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(state.mutation).not.toHaveBeenCalled();
+  },
+);
+
+it("uses the capacity recovery text for an actual server refusal", async () => {
+  state.mutation.mockResolvedValue({
+    ok: true,
+    value: { written: false, error: { code: "LAYOUT_CAPACITY_LIMIT" } },
+  });
+  renderToggle();
+  toggle();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Keep the current layout and contact an administrator",
+  );
+});
+
+it("honors the server archive capability even without a capacity flag", () => {
+  state.status = "ACTIVE";
+  state.canArchive = false;
+  renderToggle();
+  fireEvent.click(screen.getByRole("switch"));
+  expect(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Return building to Draft",
+    }),
+  ).toBeDisabled();
+  expect(state.mutation).not.toHaveBeenCalled();
+});
+
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
+import { trackAppHistory } from "@/lib/browser/appHistory";
+
+it.each(["DRAFT", "ACTIVE"])(
+  "protects pending %s lifecycle writes and consumes completion before the next Back",
+  async (status) => {
+    state.status = status;
+    window.history.replaceState(
+      null,
+      "",
+      "/en/finished-goods?origin=1#records",
+    );
+    const releaseHistory = trackAppHistory();
+    window.history.pushState(
+      null,
+      "",
+      "/en/master-data/storage-layouts?view=all#buildings",
+    );
+    let finish!: (value: unknown) => void;
+    state.mutation.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderWithIntl(
+      <NavigationGuardProvider>
+        <BuildingStatusToggle
+          warehouseId="warehouse"
+          buildingId="building"
+          code="MAIN"
+          status="DRAFT"
+        />
+      </NavigationGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    toggle(
+      status === "ACTIVE" ? "Return building to Draft" : "Activate building",
+    );
+    await waitFor(() => expect(state.mutation).toHaveBeenCalledTimes(1));
+    const leave = vi.fn();
+    act(() => guardedNavigate(leave));
+    expect(leave).not.toHaveBeenCalled();
+    expect(screen.getByTestId("navigation-guard-pending")).toBeVisible();
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    await act(async () => {
+      finish({ ok: true, value: { written: true } });
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(leave).not.toHaveBeenCalled();
+    act(() => guardedNavigate(leave));
+    await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(window.location.href).not.toMatch(/overlay/));
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods?origin=1#records"),
+    );
+    releaseHistory();
+  },
+);

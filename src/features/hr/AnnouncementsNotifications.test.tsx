@@ -10,6 +10,7 @@ import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 import { guardedNavigate } from "@/lib/navigationGuard";
 
 const state = vi.hoisted(() => ({
@@ -81,6 +82,7 @@ const manage = (items: unknown[] = [], active = true) => ({
     : null,
 });
 beforeEach(() => {
+  window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/hr/leave");
   state.query.mockReset();
   state.mutation.mockReset();
   state.access.permissions = ["hr.self.access", "hr.admin.manage"];
@@ -523,4 +525,106 @@ it("does not schedule a new or unsaved draft without an activated policy", () =>
     screen.getByRole("button", { name: "Schedule saved draft" }),
   ).toBeDisabled();
   expect(state.mutation).not.toHaveBeenCalled();
+});
+
+it.each(["native", "explicit"] as const)(
+  "%s close consumes announcement editing before the next Back restores the originating page",
+  async (method) => {
+    state.query.mockReturnValue(envelope(manage()));
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/th/hr/today?q=kept#origin",
+    );
+    const stop = trackAppHistory();
+    try {
+      window.history.pushState(
+        {},
+        "",
+        "/en/hr/announcements/manage?kept=yes#list",
+      );
+      renderWithIntl(
+        <DraftGuardProvider>
+          <HrAnnouncementManageScreen />
+        </DraftGuardProvider>,
+        { locale: "en" },
+      );
+      fireEvent.click(screen.getByRole("button", { name: "New draft" }));
+      expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
+      await act(async () => {
+        if (method === "native") window.history.back();
+        else
+          fireEvent.click(
+            screen.getByRole("button", { name: "Cancel editing" }),
+          );
+      });
+      await waitFor(() => expect(screen.queryByLabelText(/Title/)).toBeNull());
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/hr/announcements/manage?kept=yes#list");
+      await act(async () => {
+        window.history.back();
+      });
+      await waitFor(() =>
+        expect(
+          window.location.pathname +
+            window.location.search +
+            window.location.hash,
+        ).toBe("/th/hr/today?q=kept#origin"),
+      );
+    } finally {
+      stop();
+    }
+  },
+);
+
+it("nested receipt Back retains the announcement draft, while editor Back still requires discard", async () => {
+  state.query.mockImplementation((name: string) =>
+    name === "hr/announcements:receipts"
+      ? envelope({ ok: true, items: [], recipientCount: 0, nextCursor: null })
+      : envelope(manage([announcement()])),
+  );
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/hr/announcements/manage?kept=yes#list",
+  );
+  const stop = trackAppHistory();
+  try {
+    renderWithIntl(
+      <DraftGuardProvider>
+        <HrAnnouncementManageScreen />
+      </DraftGuardProvider>,
+      { locale: "en" },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "New draft" }));
+    fireEvent.change(screen.getByLabelText(/Title/), {
+      target: { value: "Unsent safety notice" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Recipient receipts" }));
+    expect(
+      screen.getByRole("button", { name: "Close receipts" }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      window.history.back();
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Close receipts" }),
+      ).toBeNull(),
+    );
+    expect(screen.getByLabelText(/Title/)).toHaveValue("Unsent safety notice");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await act(async () => {
+      window.history.back();
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Keep editing" }),
+    );
+    expect(screen.getByLabelText(/Title/)).toHaveValue("Unsent safety notice");
+  } finally {
+    stop();
+  }
 });

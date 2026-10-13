@@ -1,4 +1,6 @@
 "use client";
+import { completeTask } from "@/lib/taskNavigation";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -63,6 +65,28 @@ function Limits({
   const [stackable, setStackable] = useState(pallet.stackable ?? false);
   const [levels, setLevels] = useState(String(pallet.maxStackLevels ?? ""));
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [savedValues, setSavedValues] = useState({
+    stackable: pallet.stackable ?? false,
+    levels: String(pallet.maxStackLevels ?? ""),
+  });
+  function reportDirty(nextStackable: boolean, nextLevels: string) {
+    const changed =
+      nextStackable !== savedValues.stackable ||
+      (nextStackable && nextLevels !== savedValues.levels);
+    setDirty(changed);
+    onDirty(changed);
+  }
+  const draft = useNavigationDraft({
+    dirty,
+    pending: op.busy,
+    discard: () => {
+      setStackable(pallet.stackable ?? false);
+      setLevels(String(pallet.maxStackLevels ?? ""));
+      setDirty(false);
+      onDirty(false);
+    },
+  });
   return (
     <form
       className="space-y-3"
@@ -85,6 +109,9 @@ function Limits({
           },
           () => {
             setSaved(true);
+            setDirty(false);
+            setSavedValues({ stackable, levels });
+            draft.settle();
             onDirty(false);
             op.clearRequests();
           },
@@ -102,7 +129,7 @@ function Limits({
             onChange={(e) => {
               setStackable(e.target.checked);
               setSaved(false);
-              onDirty(true);
+              reportDirty(e.target.checked, levels);
             }}
           />
           {t("copy.may-support-another-pallet")}
@@ -120,7 +147,7 @@ function Limits({
               onChange={(v) => {
                 setLevels(v);
                 setSaved(false);
-                onDirty(true);
+                reportDirty(stackable, v);
               }}
             />
           </div>
@@ -243,7 +270,7 @@ function StackLoader({
         return palletPath(upper._id);
       },
       (destination) => {
-        router.push(destination);
+        op.complete(() => completeTask(destination, router.replace));
         op.clearRequests();
       },
     );

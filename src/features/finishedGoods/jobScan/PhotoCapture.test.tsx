@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { usePhotoSelection } from "./usePhotoSelection";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -234,3 +236,40 @@ it.each(["close", "submit", "unmount"])(
     expect(onSubmit).toHaveBeenCalledTimes(action === "submit" ? 1 : 0);
   },
 );
+
+function RetainedPhotoCollection({
+  onSubmit,
+}: {
+  onSubmit: (files: File[]) => void;
+}) {
+  const selection = usePhotoSelection();
+  const [open, setOpen] = useState(true);
+  return open ? (
+    <PhotoCapture
+      selection={selection}
+      onSubmit={onSubmit}
+      onClose={() => setOpen(false)}
+    />
+  ) : (
+    <button onClick={() => setOpen(true)}>Resume photos</button>
+  );
+}
+it("retains collected photos when acquisition closes and reopens", async () => {
+  const submit = vi.fn();
+  renderWithIntl(<RetainedPhotoCollection onSubmit={submit} />, {
+    locale: "en",
+    workspace: false,
+  });
+  const file = new File(["photo"], "retained.jpg", { type: "image/jpeg" });
+  fireEvent.change(
+    screen.getByLabelText("Choose photos", { selector: "input" }),
+    { target: { files: [file] } },
+  );
+  expect(screen.getByText("1 / 20 photos")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Resume photos" }));
+  expect(screen.getByText("1 / 20 photos")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Read 1 photo with AI" }));
+  expect(submit).toHaveBeenCalledWith([file]);
+});

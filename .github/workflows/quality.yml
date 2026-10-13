@@ -53,6 +53,9 @@ jobs:
       - name: Lint
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'lint' }}
         run: pnpm lint
+      - name: Back navigation contract and architecture fixtures
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'lint' }}
+        run: pnpm check:navigation
       - name: Runtime dependency audit
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: pnpm audit:prod

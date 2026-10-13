@@ -1,6 +1,7 @@
 import next from "eslint-config-next";
 import prettier from "eslint-config-prettier/flat";
 import tseslint from "typescript-eslint";
+import navigation from "./scripts/eslint/navigation.mjs";
 
 /**
  * Flat ESLint configuration.
@@ -37,6 +38,12 @@ export default tseslint.config(
     ],
   },
   ...next,
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    plugins: { navigation },
+    rules: { "navigation/architecture": "error" },
+  },
   {
     files: ["**/*.{ts,tsx}"],
     rules: {

@@ -22,7 +22,7 @@ export function useUploadThing() {
   };
 }
 export function useRouter() {
-  return { push: () => {}, back: () => {} };
+  return { push: () => {}, replace: () => {}, back: () => {} };
 }
 export function Link(props: ComponentProps<"a">) {
   return <a {...props} />;

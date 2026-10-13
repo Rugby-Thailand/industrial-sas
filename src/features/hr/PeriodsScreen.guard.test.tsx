@@ -32,7 +32,7 @@ vi.mock("@/i18n/navigation", () => ({
       {children as never}
     </a>
   ),
-  useRouter: () => ({ push: state.push, replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: state.push }),
 }));
 
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
@@ -84,14 +84,17 @@ it("asks nothing for an untouched form, and Discard restores the default range b
   expect(state.create).not.toHaveBeenCalled();
 });
 
-it("leaves Cancel as the explicit way to abandon a changed range, without a prompt", () => {
+it("leaves Cancel as the explicit way to abandon a changed range, without a prompt", async () => {
   openCreateForm();
   fireEvent.change(screen.getByLabelText("From"), {
     target: { value: "2026-02-02" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  settle();
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  expect(screen.queryByTestId("hr-period-create")).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.queryByTestId("hr-period-create")).not.toBeInTheDocument(),
+  );
   // Nothing is left registered: the next navigation is free.
   const leave = vi.fn();
   act(() => guardedNavigate(leave));

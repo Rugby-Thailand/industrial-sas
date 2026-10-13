@@ -6,9 +6,62 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
+import { DraftForegroundContext } from "@/components/providers/draftGuard";
 
-function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+export type DialogCompletionHandle = {
+  /** Consume this dialog's owned entry before closing a parent workflow. */
+  complete: (action: () => void) => void;
+};
+
+function Dialog({
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  managedBack = true,
+  backPending = false,
+  draftScope,
+  completionRef,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root> & {
+  managedBack?: boolean;
+  backPending?: boolean;
+  draftScope?: string;
+  completionRef?: React.Ref<DialogCompletionHandle>;
+}) {
+  const [local, setLocal] = React.useState(defaultOpen);
+  const disclosure = useBackDisclosure(
+    open ?? local,
+    (next) => {
+      setLocal(next);
+      onOpenChange?.(next);
+    },
+    {
+      managed: managedBack,
+      blocked: backPending,
+      ...(draftScope ? { draftScope } : {}),
+    },
+  );
+  const complete = React.useRef(disclosure.complete);
+  React.useLayoutEffect(() => {
+    complete.current = disclosure.complete;
+  });
+  // Keep the handle mounted while disclosure's own Back effects notify callers.
+  React.useImperativeHandle(
+    completionRef,
+    () => ({ complete: (action) => complete.current(action) }),
+    [],
+  );
+  return (
+    <DraftForegroundContext.Provider value={disclosure.scope}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        {...props}
+        open={open ?? local}
+        onOpenChange={disclosure.onOpenChange}
+      />
+    </DraftForegroundContext.Provider>
+  );
 }
 
 function DialogTrigger(

@@ -8,10 +8,12 @@ const unit = finishedGoodsList.pallets[0]!;
 
 describe("unit next action", () => {
   it("lets legacy and batch unmeasured units continue to scanning", () => {
-    expect(unitNextAction(unit, true).href).toBe("/finished-goods/scan");
+    expect(unitNextAction(unit, true).href).toBe(
+      "/finished-goods/packages/scan?unitId=pallet-a",
+    );
     expect(
       unitNextAction({ ...unit, preparationBatchId: "batch-a" }, true).href,
-    ).toBe("/finished-goods/scan");
+    ).toBe("/finished-goods/packages/scan?unitId=pallet-a");
   });
 
   it("takes measured units directly to storage and reservations to verification", () => {

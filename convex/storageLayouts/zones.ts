@@ -5,6 +5,7 @@ import {
   createMasterDataRow,
   normalizeDisplayName,
   normalizeField,
+  replayTenantWriteIfPresent,
   updateMasterDataRow,
 } from "../lib/masterDataStore";
 import {
@@ -12,12 +13,20 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import {
+  checkIdempotency,
+  fingerprintArguments,
+  sha256Hex,
+  writeIdempotencyRecord,
+} from "../lib/idempotency";
 import { refusal, writeContextOf } from "../lib/writeEnvelope";
 import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import {
   makeStorageZoneCode,
   makeStorageZoneQrValue,
   STORAGE_ZONE_LIMITS,
+  storageRecordRevision,
+  nextStorageRecordRevision,
   validateStorageZone,
 } from "../model/storageLayout/storageZone";
 import {
@@ -91,7 +100,7 @@ async function activePositions(
     .all(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
 }
 
-async function ensureDefaultPosition(
+export async function ensureDefaultPosition(
   ctx: TenantFunctionContext,
   zone: ZoneDocument,
   requestId: string,
@@ -147,6 +156,7 @@ async function ensureDefaultPosition(
       yMm: zone.yMm,
       widthMm: zone.widthMm,
       depthMm: zone.depthMm,
+      version: 1,
       status: "ACTIVE",
       createdAt: now,
       createdByUserId: ctx.tenant.actor._id,
@@ -596,12 +606,34 @@ export const updateStorageZone = mutationWithOrg({
     ),
     baseElevationMm: v.optional(v.number()),
     confirmOccupiedChange: v.optional(v.boolean()),
+    /**
+     * Optional in the wire validator so older clients receive actionable
+     * VERSION_CONFLICT; fresh edits always require a current revision.
+     */
+    expectedRevision: v.optional(v.string()),
   },
   returns: outcome,
   permissionCode: "masterData.storageLayout.manage",
   target: { table: "storageZones", id: ({ zoneId }) => zoneId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storageZones",
+        "storageLayout.zone.update",
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null)
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+      };
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -613,6 +645,8 @@ export const updateStorageZone = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
+    if (args.expectedRevision !== storageRecordRevision(zone))
+      return failure("VERSION_CONFLICT");
     const floor = await ctx.tenantDb.get<FloorDocument>(
       "storageFloors",
       zone.floorId,
@@ -707,6 +741,21 @@ export const updateStorageZone = mutationWithOrg({
       );
     }
     const positions = await activePositions(ctx, zone);
+    const previousMode = areaMode(zone);
+    const exactPositions = positions.filter((position) => !position.isDefault);
+    // Back to one automatic spot only after its exact positions are archived,
+    // so no scanned or printed exact address silently stops resolving.
+    if (mode === "SIMPLE" && previousMode !== "SIMPLE" && exactPositions.length)
+      return failure("AREA_HAS_EXACT_POSITIONS", "mode");
+    if (
+      mode !== previousMode &&
+      exactPositions.some(
+        (position) =>
+          position.kind !== kindForAreaMode(mode) &&
+          position.kind !== "DEFAULT",
+      )
+    )
+      return failure("POSITION_MODE_MISMATCH", "mode");
     const movedArea = {
       ...candidate,
       ...(baseElevationMm === undefined ? {} : { baseElevationMm }),
@@ -755,12 +804,12 @@ export const updateStorageZone = mutationWithOrg({
       patch: {
         label: label.value,
         storageCondition,
+        ...nextStorageRecordRevision(zone),
         mode,
         ...(mode === "PLATFORM"
           ? { baseElevationMm }
           : { baseElevationMm: undefined }),
         ...candidate,
-        updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });
@@ -777,12 +826,19 @@ export const updateStorageZone = mutationWithOrg({
             .unique();
     if (defaultPosition !== null) {
       await ctx.tenantDb.patch("storagePositions", defaultPosition._id, {
+        // The automatic leaf exists only in SIMPLE mode. Leaving SIMPLE retires
+        // that record; the spot's own location and QR remain active and now
+        // ask for an exact position. Returning to SIMPLE restores the same
+        // record, so its identity and QR are unchanged.
+        ...(mode === previousMode
+          ? {}
+          : { status: mode === "SIMPLE" ? "ACTIVE" : "INACTIVE" }),
+        ...nextStorageRecordRevision(defaultPosition),
         label: label.value,
         xMm: candidate.xMm,
         yMm: candidate.yMm,
         widthMm: candidate.widthMm,
         depthMm: candidate.depthMm,
-        updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       });
     }
@@ -907,6 +963,7 @@ async function createPositionRecords(
       ...(input.elevationMm === undefined
         ? {}
         : { elevationMm: input.elevationMm }),
+      version: 1,
       status: "ACTIVE",
       createdAt: now,
       createdByUserId: ctx.tenant.actor._id,
@@ -933,6 +990,34 @@ export const createStoragePosition = mutationWithOrg({
   target: { table: "storagePositions" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    // The command receipt uses submitted intent, independent of later parent
+    // edits. Keep the older per-row receipts compatible during rollout.
+    const operation = "storageLayout.position.createCommand";
+    const fingerprint = await fingerprintArguments(args);
+    if (!fingerprint.ok) return failure(fingerprint.error.code);
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storagePositions",
+        operation,
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null) {
+      const position = await ctx.tenantDb.get<PositionDocument>(
+        "storagePositions",
+        replay.value.documentId,
+      );
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+        ...(position ? { code: position.code } : {}),
+      };
+    }
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -1002,6 +1087,18 @@ export const createStoragePosition = mutationWithOrg({
       ...geometry,
     });
     if (!created.ok) return failure(created.error.code);
+    await writeIdempotencyRecord({
+      tenantDb: ctx.tenantDb,
+      operation,
+      requestId: args.requestId,
+      requestHash: fingerprint.value,
+      resultRef: created.value.documentId,
+      resultHash: await sha256Hex(
+        `storagePositions:${created.value.documentId}`,
+      ),
+      actorUserId: ctx.tenant.actor._id,
+      now: Date.now(),
+    });
     return {
       written: true as const,
       documentId: created.value.documentId,
@@ -1029,6 +1126,32 @@ export const generateRackStoragePositions = mutationWithOrg({
   target: { table: "storagePositions" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const operation = "storageLayout.rack.generate";
+    const fingerprint = await fingerprintArguments(args);
+    if (!fingerprint.ok) return failure(fingerprint.error.code);
+    const previous = await checkIdempotency({
+      tenantDb: ctx.tenantDb,
+      operation,
+      requestId: args.requestId,
+      requestHash: fingerprint.value,
+    });
+    if (!previous.ok) return failure(previous.error.code);
+    if (previous.value.kind === "REPLAY") {
+      const record = previous.value.record;
+      if (
+        !record.resultRef ||
+        record.status !== "SUCCEEDED" ||
+        !record.resultHash ||
+        (await sha256Hex(record.resultRef)) !== record.resultHash
+      )
+        return failure("REQUEST_REPLAY_INVALID");
+      const receipt = JSON.parse(record.resultRef) as {
+        documentId: string;
+        createdCount: number;
+        positionIds: string[];
+      };
+      return { written: true as const, replayed: true, ...receipt };
+    }
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -1075,8 +1198,31 @@ export const generateRackStoragePositions = mutationWithOrg({
     if (
       positions.length + generated.value.length >
       STORAGE_POSITION_LIMITS.maximumPositionsPerArea
-    ) {
+    )
       return failure("POSITION_LIMIT_EXCEEDED");
+    // Preflight every immutable address before creating any part of the rack.
+    for (const candidate of generated.value) {
+      const code = `${zone.code}-${candidate.codeSuffix}`;
+      const [location, position] = await Promise.all([
+        ctx.tenantDb
+          .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
+            { field: "warehouseId", value: args.warehouseId },
+            { field: "code", value: code },
+          ])
+          .first(),
+        ctx.tenantDb
+          .byIndex<PositionDocument>(
+            "storagePositions",
+            "by_orgId_warehouseId_code",
+            [
+              { field: "warehouseId", value: args.warehouseId },
+              { field: "code", value: code },
+            ],
+          )
+          .first(),
+      ]);
+      if (location !== null || position !== null)
+        return failure("RACK_CODE_CONFLICT", "fixtureCode");
     }
     const createdIds: string[] = [];
     for (const candidate of generated.value) {
@@ -1088,16 +1234,29 @@ export const generateRackStoragePositions = mutationWithOrg({
         label: `${candidate.fixtureCode} / Bay ${String(candidate.bayIndex).padStart(2, "0")} / Level ${String(candidate.levelIndex).padStart(2, "0")}${candidate.slotIndex > 1 ? ` / Slot ${String(candidate.slotIndex).padStart(2, "0")}` : ""}`,
         ...candidate,
       });
-      if (!created.ok) return failure(created.error.code);
+      // Unreachable after the preflight above; throwing rolls back every slot
+      // already written by this transaction instead of committing a partial rack.
+      if (!created.ok)
+        throw new Error(`RACK_GENERATION_FAILED:${created.error.code}`);
       createdIds.push(created.value.documentId);
     }
-    return {
-      written: true as const,
+    const receipt = {
       documentId: zone._id,
-      replayed: false,
       createdCount: createdIds.length,
       positionIds: createdIds,
     };
+    const resultRef = JSON.stringify(receipt);
+    await writeIdempotencyRecord({
+      tenantDb: ctx.tenantDb,
+      operation,
+      requestId: args.requestId,
+      requestHash: fingerprint.value,
+      resultRef,
+      resultHash: await sha256Hex(resultRef),
+      actorUserId: ctx.tenant.actor._id,
+      now: Date.now(),
+    });
+    return { written: true as const, replayed: false, ...receipt };
   },
 });
 
@@ -1112,6 +1271,7 @@ export const updateStoragePosition = mutationWithOrg({
     widthMm: v.number(),
     depthMm: v.number(),
     confirmOccupiedChange: v.optional(v.boolean()),
+    expectedRevision: v.optional(v.string()),
   },
   returns: outcome,
   permissionCode: "masterData.storageLayout.manage",
@@ -1121,6 +1281,23 @@ export const updateStoragePosition = mutationWithOrg({
   },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storagePositions",
+        "storageLayout.position.update",
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null)
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+      };
     const position = await ctx.tenantDb.get<PositionDocument>(
       "storagePositions",
       args.positionId,
@@ -1132,6 +1309,8 @@ export const updateStoragePosition = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
+    if (args.expectedRevision !== storageRecordRevision(position))
+      return failure("VERSION_CONFLICT");
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       position.zoneId,
@@ -1189,11 +1368,11 @@ export const updateStoragePosition = mutationWithOrg({
       uniqueness: [],
       patch: {
         label: label.value,
+        ...nextStorageRecordRevision(position),
         xMm: args.xMm,
         yMm: args.yMm,
         widthMm: args.widthMm,
         depthMm: args.depthMm,
-        updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });
@@ -1220,6 +1399,23 @@ export const archiveStoragePosition = mutationWithOrg({
   },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storagePositions",
+        "storageLayout.position.archive",
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null)
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+      };
     const position = await ctx.tenantDb.get<PositionDocument>(
       "storagePositions",
       args.positionId,
@@ -1247,20 +1443,33 @@ export const archiveStoragePosition = mutationWithOrg({
     if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
       return failure("LOCATION_OCCUPIED");
     const positions = await activePositions(ctx, zone);
-    if (positions.length <= 1) return failure("AREA_REQUIRES_LEAF_POSITION");
-    const location = await updateMasterDataRow({
-      ...writeContext(
-        ctx,
-        "locations",
-        "storageLayout.position.location.archive",
-        args.requestId,
-        args.warehouseId,
-      ),
-      documentId: position.locationId,
-      fingerprint: args,
-      uniqueness: [],
-      patch: { status: "INACTIVE" },
-    });
+    if (
+      positions.length <= 1 &&
+      !(
+        building.status === "DRAFT" &&
+        areaMode(zone) !== "SIMPLE" &&
+        !position.isDefault
+      )
+    )
+      return failure("AREA_REQUIRES_LEAF_POSITION");
+    // A legacy automatic leaf shares the spot's own location and QR. Retire
+    // only the leaf record; the spot address stays active.
+    const sharesSpotLocation = position.locationId === zone.locationId;
+    const location = sharesSpotLocation
+      ? ({ ok: true } as const)
+      : await updateMasterDataRow({
+          ...writeContext(
+            ctx,
+            "locations",
+            "storageLayout.position.location.archive",
+            args.requestId,
+            args.warehouseId,
+          ),
+          documentId: position.locationId,
+          fingerprint: args,
+          uniqueness: [],
+          patch: { status: "INACTIVE" },
+        });
     if (!location.ok) return failure(location.error.code);
     const updated = await updateMasterDataRow({
       ...writeContext(
@@ -1275,7 +1484,7 @@ export const archiveStoragePosition = mutationWithOrg({
       uniqueness: [],
       patch: {
         status: "INACTIVE",
-        updatedAt: Date.now(),
+        ...nextStorageRecordRevision(position),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });
@@ -1482,6 +1691,23 @@ export const archiveStorageZone = mutationWithOrg({
   target: { table: "storageZones", id: ({ zoneId }) => zoneId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "storageZones",
+        "storageLayout.zone.archive",
+        args.requestId,
+        args.warehouseId,
+      ),
+      fingerprint: args,
+    });
+    if (!replay.ok) return failure(replay.error.code);
+    if (replay.value !== null)
+      return {
+        written: true as const,
+        documentId: replay.value.documentId,
+        replayed: true,
+      };
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -1499,7 +1725,6 @@ export const archiveStorageZone = mutationWithOrg({
     if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
       return failure("LOCATION_OCCUPIED");
     const positions = await activePositions(ctx, zone);
-    const now = Date.now();
     const location = await updateMasterDataRow({
       ...writeContext(
         ctx,
@@ -1522,7 +1747,7 @@ export const archiveStorageZone = mutationWithOrg({
       }
       await ctx.tenantDb.patch("storagePositions", position._id, {
         status: "INACTIVE",
-        updatedAt: now,
+        ...nextStorageRecordRevision(position),
         updatedByUserId: ctx.tenant.actor._id,
       });
     }
@@ -1539,7 +1764,7 @@ export const archiveStorageZone = mutationWithOrg({
       uniqueness: [],
       patch: {
         status: "INACTIVE",
-        updatedAt: now,
+        ...nextStorageRecordRevision(zone),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });

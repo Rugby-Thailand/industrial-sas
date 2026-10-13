@@ -1,8 +1,12 @@
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { messagesFor } from "@/i18n/messages";
 import { axe } from "jest-axe";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -66,7 +70,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.push }),
 }));
 
 import {
@@ -179,7 +183,9 @@ it("reserves using explicit supporting pallet identity and server-derived previe
       expect.objectContaining({ palletId: "upper", supportPalletId: "lower" }),
     ),
   );
-  expect(mocks.push).toHaveBeenCalledWith("/finished-goods/pallets/upper");
+  await waitFor(() =>
+    expect(mocks.push).toHaveBeenCalledWith("/finished-goods/pallets/upper"),
+  );
 });
 it("uses the existing move workflow for a stored upper pallet", async () => {
   data = {
@@ -205,7 +211,11 @@ it("uses the existing move workflow for a stored upper pallet", async () => {
       }),
     ),
   );
-  expect(mocks.push).toHaveBeenCalledWith("/finished-goods/pallets/upper/move");
+  await waitFor(() =>
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/finished-goods/pallets/upper/move",
+    ),
+  );
 });
 it("shows level-limit failures and prevents confirmation", () => {
   data = { ...data, error: "STACK_LEVELS_EXCEEDED" };
@@ -433,4 +443,28 @@ it("stops following a stack choice scan that makes no progress", async () => {
   expect(
     new Set(calls.map((args) => args["scanCursor"])).size,
   ).toBeLessThanOrEqual(2);
+});
+
+it("guards unsent stack limits and clears the guard after values are reverted", async () => {
+  renderWithIntl(
+    <NavigationGuardProvider>
+      <StackScreen palletId="lower" />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  const checkbox = screen.getByRole("checkbox", {
+    name: "May support another pallet",
+  }) as HTMLInputElement;
+  const initial = checkbox.checked;
+  fireEvent.click(checkbox);
+  const leave = vi.fn();
+  act(() => guardedNavigate(leave));
+  expect(
+    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(checkbox.checked).toBe(!initial);
+  fireEvent.click(checkbox);
+  act(() => guardedNavigate(leave));
+  await waitFor(() => expect(leave).toHaveBeenCalledOnce());
 });

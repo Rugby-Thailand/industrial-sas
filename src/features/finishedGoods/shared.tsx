@@ -82,6 +82,7 @@ export function Heading({
   helpText,
   breadcrumbs,
   children,
+  backFallbackHref,
 }: {
   title: string;
   description?: string;
@@ -89,6 +90,7 @@ export function Heading({
   /** Pages above this one, nearest last. Top-level pages pass none. */
   breadcrumbs?: readonly Crumb[];
   children?: ReactNode;
+  backFallbackHref?: string | null;
 }) {
   return (
     <PageHeader
@@ -96,6 +98,7 @@ export function Heading({
       {...(description ? { summary: description } : {})}
       {...(helpText ? { helpText } : {})}
       {...(breadcrumbs ? { breadcrumbs } : {})}
+      {...(backFallbackHref !== undefined ? { backFallbackHref } : {})}
     >
       {children}
     </PageHeader>
@@ -301,6 +304,7 @@ export function useWriteError(storageFormat?: string) {
 export function useOperation(scope?: string, storageFormat?: string) {
   const describeError = useWriteError(storageFormat);
   return useAsyncOperation({
+    navigation: "write",
     ...(scope === undefined ? {} : { scope }),
     describeError,
   });

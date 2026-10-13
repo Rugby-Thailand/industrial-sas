@@ -34,7 +34,7 @@
     "test:e2e:workspace": "playwright test --config playwright.workspace.config.ts",
     "test:e2e:staging": "playwright test --config playwright.staging.config.ts",
     "test:e2e:production": "playwright test --config playwright.production.config.ts",
-    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "check": "pnpm check:navigation && pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     "audit:prod": "pnpm audit --prod --audit-level high",
     "audit:full": "pnpm audit --audit-level high",
     "ci:codegen": "node scripts/ci/check-convex-codegen.mjs",
@@ -44,7 +44,10 @@
     "preview:storage-workspace": "vite --config scripts/storage-workspace-preview/vite.config.mjs",
     "preview:ai-usage": "vite --config scripts/ai-usage-preview/vite.config.mjs",
     "build:navigation": "BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next build scripts/navigation-guard-preview",
-    "test:e2e:navigation": "playwright test --config playwright.navigation.config.ts"
+    "test:e2e:navigation": "playwright test --config playwright.navigation.config.ts",
+    "ci:navigation": "node scripts/ci/check-navigation-contract.mjs",
+    "test:navigation": "node --test scripts/eslint/navigation-tests.mjs scripts/ci/check-navigation-contract-tests.mjs",
+    "check:navigation": "pnpm test:navigation && pnpm ci:navigation"
   },
   "dependencies": {
     "@clerk/backend": "3.16.4",

@@ -1,4 +1,6 @@
 "use client";
+import { completeTask } from "@/lib/taskNavigation";
+import { packageScanPath } from "@/lib/navigation";
 import { updateBrowserQuery } from "@/lib/browser/history";
 
 import { useEffect, useRef, useState } from "react";
@@ -191,10 +193,11 @@ export function ProductBatches({
       returning.value.unit.retiredAt === undefined &&
       !["REPLACED", "CANCELLED"].includes(returning.value.unit.status)
     )
-      router.push(
+      completeTask(
         returning.value.unit.status === "AWAITING_MEASUREMENT"
-          ? "/finished-goods/scan"
+          ? packageScanPath({ unitId: returnId })
           : storagePath(returnId),
+        router.replace,
       );
     setManage(undefined);
     setCorrectionError(false);
@@ -249,7 +252,7 @@ export function ProductBatches({
   const reviewUnit = legacyUnits.find((unit) => unit._id === reviewId);
   const unitLink = (unit: (typeof legacyUnits)[number]) =>
     canManage && unit.status === "AWAITING_MEASUREMENT"
-      ? "/finished-goods/scan"
+      ? packageScanPath({ unitId: unit._id })
       : palletPath(unit._id);
   const renderUnit = (
     unit: (typeof legacyUnits)[number],

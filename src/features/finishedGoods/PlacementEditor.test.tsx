@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
+  replace: vi.fn(),
   write:
     vi.fn<
       (name: string, args: unknown) => Promise<ReturnType<typeof writeSuccess>>
@@ -48,7 +49,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
 import {
@@ -109,11 +110,12 @@ it("reserves a move and navigates on a current success", async () => {
   );
   await waitFor(() => expect(callsFor("reserveMove")).toHaveLength(1));
   await waitFor(() =>
-    expect(mocks.push).toHaveBeenCalledWith(
+    expect(mocks.replace).toHaveBeenCalledWith(
       "/finished-goods/pallets/pallet-a/move",
     ),
   );
   expect(onReserved).toHaveBeenCalledTimes(1);
+  expect(mocks.push).not.toHaveBeenCalled();
 });
 
 it("ignores a move reservation that resolves after unmount", async () => {
@@ -138,6 +140,7 @@ it("ignores a move reservation that resolves after unmount", async () => {
   // A reservation that settles after unmount must not navigate, must not call
   // the completion callback, and must not clear the persisted request id.
   expect(mocks.push).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   expect(onReserved).not.toHaveBeenCalled();
   expect(localStorage.length).toBe(persisted);
 });

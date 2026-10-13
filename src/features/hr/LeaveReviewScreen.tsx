@@ -15,7 +15,7 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { hrRefs } from "@/lib/convex/hrApi";
-import { HR_CODES } from "@/lib/navigation";
+import { HR_CODES, ROUTES } from "@/lib/navigation";
 import {
   HrGate,
   HrInlineError,
@@ -197,7 +197,11 @@ export function HrLeaveReviewDetailScreen({
   const t = useTranslations("Hr.leave");
   return (
     <>
-      <PageHeader title={t("reviewTitle")} summary={t("reviewSummary")} />
+      <PageHeader
+        title={t("reviewTitle")}
+        summary={t("reviewSummary")}
+        backFallbackHref={ROUTES.hrLeaveReview}
+      />
       <HrGate code={HR_CODES.review}>
         <ReviewDetailContent requestId={requestId} />
       </HrGate>

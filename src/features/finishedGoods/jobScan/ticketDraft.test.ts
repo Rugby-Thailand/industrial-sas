@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_JOB_SCAN_ITEMS,
+  applyBarcode,
   duplicateTicketKeys,
   hasInvalidQuantity,
   newTicket,
@@ -129,4 +131,19 @@ describe("field barcode validation", () => {
       "scanCodeTooLong",
     );
   });
+});
+
+it("caps every barcode intake at fifty and still fills an existing incomplete ticket", () => {
+  const tickets = Array.from({ length: MAX_JOB_SCAN_ITEMS }, (_, index) =>
+    newTicket("MANUAL", {
+      factoryOrder: `FO${100000 + index}`,
+      productBarcodeText: `SKU-${index}`,
+    }),
+  );
+  expect(applyBarcode(tickets, "FO999999").tickets).toBe(tickets);
+  expect(applyImageBarcodes(tickets, ["FO999999", "NEW-SKU"])).toBe(tickets);
+  tickets[49] = newTicket("MANUAL", { factoryOrder: "FO999999" });
+  const next = applyImageBarcodes(tickets, ["FO999999", "NEW-SKU"]);
+  expect(next).toHaveLength(50);
+  expect(next[49]!.values.productBarcodeText).toBe("NEW-SKU");
 });

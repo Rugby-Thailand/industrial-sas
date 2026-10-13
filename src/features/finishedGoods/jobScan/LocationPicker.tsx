@@ -1,5 +1,6 @@
 "use client";
 
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
 import { Popover } from "radix-ui";
@@ -111,6 +112,24 @@ function LocationPickerSession({
   const acquisitionOpen = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
+  const [qrBeforeAi, setQrBeforeAi] = useState(false);
+  const lastCameraMode = useRef<"QR" | "AI">("QR");
+  const lastAi = useRef<{ photo?: LocationPhoto }>({});
+  const aiDisclosure = useBackDisclosure(Boolean(ai) && qrBeforeAi, (open) => {
+    lookupVersion.current += 1;
+    acquisitionOpen.current = true;
+    setAi(open ? lastAi.current : undefined);
+  });
+  const cameraDisclosure = useBackDisclosure(camera, (open) => {
+    if (!open) cancelScan();
+    else {
+      acquisitionOpen.current = true;
+      setCamera(true);
+      setAi(lastCameraMode.current === "AI" ? lastAi.current : undefined);
+    }
+  });
+  const registrationDisclosure = useBackDisclosure(adding, setAdding);
+
   useEffect(
     () => () => {
       lookupVersion.current += 1;
@@ -129,9 +148,27 @@ function LocationPickerSession({
     setChecking(false);
     setAi(undefined);
   }
+  function finishAcquisition(action: () => void) {
+    // A manual choice or dismissal supersedes an earlier scan immediately,
+    // including while the owned history entry is still being consumed.
+    lookupVersion.current += 1;
+    acquisitionOpen.current = false;
+    const finish = () => {
+      cancelScan();
+      action();
+    };
+    if (camera && ai && qrBeforeAi)
+      aiDisclosure.complete(() => cameraDisclosure.complete(finish));
+    else if (camera) cameraDisclosure.complete(finish);
+    else finish();
+  }
   function choose(location: PickedLocation) {
-    cancelScan();
-    onPick(location);
+    if (adding) {
+      registrationDisclosure.complete(() => {
+        setAdding(false);
+        onPick(location);
+      });
+    } else finishAcquisition(() => onPick(location));
   }
   function changeBuilding(next: BuildingChoice | null) {
     // A building change invalidates any in-flight scan answer for the old scope.
@@ -150,7 +187,6 @@ function LocationPickerSession({
       return;
     const version = ++lookupVersion.current;
     acquisitionOpen.current = false;
-    setCamera(false);
     setChecking(true);
     setConfirmedMissing(undefined);
     setNotice(undefined);
@@ -164,7 +200,7 @@ function LocationPickerSession({
       // A cancelled picker or a newer scan must not apply a late lookup result.
       if (version !== lookupVersion.current) return;
       if (!result.ok) {
-        setNotice(t("locationLookupDenied"));
+        finishAcquisition(() => setNotice(t("locationLookupDenied")));
         return;
       }
       const location = result.value.ok ? result.value.location : undefined;
@@ -177,24 +213,28 @@ function LocationPickerSession({
       ) {
         // Never widen the filter silently: say where the label belongs.
         const found = result.value.location as Choice;
-        setMismatch({
-          code: found.code,
-          building: found.buildingName ?? found.buildingCode ?? "",
-        });
+        finishAcquisition(() =>
+          setMismatch({
+            code: found.code,
+            building: found.buildingName ?? found.buildingCode ?? "",
+          }),
+        );
       } else if (
         !result.value.ok &&
         result.value.error.code === "LOCATION_NOT_FOUND" &&
         !/^ISAS:/i.test(code) &&
         code.length <= 200
       ) {
-        setText(code);
-        setConfirmedMissing(code.trim());
+        finishAcquisition(() => {
+          setText(code);
+          setConfirmedMissing(code.trim());
+        });
       } else {
-        setNotice(t("locationScanNotFound"));
+        finishAcquisition(() => setNotice(t("locationScanNotFound")));
       }
     } catch {
       if (version === lookupVersion.current)
-        setNotice(t("locationLookupFailed"));
+        finishAcquisition(() => setNotice(t("locationLookupFailed")));
     } finally {
       if (version === lookupVersion.current) setChecking(false);
     }
@@ -229,6 +269,7 @@ function LocationPickerSession({
                   setNotice(undefined);
                   setMismatch(undefined);
                   if (opening) {
+                    lastCameraMode.current = "QR";
                     acquisitionOpen.current = true;
                     setCamera(true);
                   }
@@ -247,9 +288,12 @@ function LocationPickerSession({
                         setNotice(undefined);
                         setMismatch(undefined);
                         if (opening) {
+                          lastCameraMode.current = "AI";
+                          lastAi.current = {};
                           acquisitionOpen.current = true;
                           setCamera(true);
-                          setAi({});
+                          setQrBeforeAi(false);
+                          setAi(lastAi.current);
                         }
                       }}
                     >
@@ -315,7 +359,10 @@ function LocationPickerSession({
                 : { ok: false, error: { code: "AI_DENIED" } };
             }}
             onConfirm={(code) => void onScan(code, scannerVersion)}
-            onClose={cancelScan}
+            onClose={() => {
+              if (qrBeforeAi) aiDisclosure.onOpenChange(false);
+              else cameraDisclosure.onOpenChange(false);
+            }}
             retryOverPhoto={presentation === "jobScan"}
           />
         ) : (
@@ -324,13 +371,17 @@ function LocationPickerSession({
             startOnMount
             presentation={presentation === "jobScan" ? "expanded" : "default"}
             onCode={(code) => void onScan(code, scannerVersion)}
-            onClose={cancelScan}
+            onClose={() => cameraDisclosure.onOpenChange(false)}
             {...(canReadImage
               ? {
                   onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
                     if (!acquisitionOpen.current) return;
                     lookupVersion.current++;
-                    setAi(file ? { photo: locationPhoto(file, crop) } : {});
+                    lastAi.current = file
+                      ? { photo: locationPhoto(file, crop) }
+                      : {};
+                    setQrBeforeAi(true);
+                    setAi(lastAi.current);
                   },
                 }
               : {})}
@@ -369,9 +420,10 @@ function LocationPickerSession({
           key={warehouseId}
           warehouseId={warehouseId}
           initialCode={trimmed}
+          draftScope={registrationDisclosure.scope}
           onPick={choose}
           onCancel={() => {
-            setAdding(false);
+            registrationDisclosure.onOpenChange(false);
             document.getElementById(inputId)?.focus();
           }}
         />

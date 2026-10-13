@@ -1,3 +1,5 @@
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { messagesFor } from "@/i18n/messages";
 import type * as ScanContinuationModule from "@/hooks/useScanContinuation";
 import { clearCursorPositions } from "@/hooks/useCursorPagination";
@@ -98,7 +100,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.push }),
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -924,7 +926,7 @@ describe("finished goods catalogue", () => {
     if (!card) throw new Error("Pallet card missing");
     expect(
       within(card).getByRole("link", { name: "Scan Packages P-001" }),
-    ).toHaveAttribute("href", "/finished-goods/scan");
+    ).toHaveAttribute("href", "/finished-goods/packages/scan?unitId=pallet-a");
     expect(within(card).getByRole("link", { name: "P-001" })).toHaveAttribute(
       "href",
       "/finished-goods/pallets/pallet-a",
@@ -1560,7 +1562,11 @@ describe("column filter interactions", () => {
 
 describe("direct catalogue unit actions", () => {
   it.each([
-    ["AWAITING_MEASUREMENT", "Scan Packages", "/finished-goods/scan"],
+    [
+      "AWAITING_MEASUREMENT",
+      "Scan Packages",
+      "/finished-goods/packages/scan?unitId=pallet-a",
+    ],
     [
       "AWAITING_PLACEMENT",
       "Choose storage",
@@ -1616,11 +1622,11 @@ describe("direct catalogue unit actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Storage units" }));
     expect(
       screen.getByRole("link", { name: "Scan Packages P-001" }),
-    ).toHaveAttribute("href", "/finished-goods/scan");
+    ).toHaveAttribute("href", "/finished-goods/packages/scan?unitId=pallet-a");
     fireEvent.click(screen.getByRole("button", { name: "Table view" }));
     expect(
       screen.getByRole("link", { name: "Scan Packages P-001" }),
-    ).toHaveAttribute("href", "/finished-goods/scan");
+    ).toHaveAttribute("href", "/finished-goods/packages/scan?unitId=pallet-a");
   });
 
   it("resumes moves directly but keeps read-only users on unit details", () => {
@@ -1875,4 +1881,140 @@ describe("stale finished-good save lifecycle", () => {
     expect(mocks.push).not.toHaveBeenCalled();
     expect(localStorage.getItem(draftKey)).not.toBeNull();
   });
+});
+
+it("retains stale product edits and merges only locally changed fields into the reviewed server version", async () => {
+  mocks.save.mockRejectedValueOnce(new Error("VERSION_CONFLICT"));
+  const view = renderProduct("product-a");
+  fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
+    target: { value: "My product name" },
+  });
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getProduct")
+      ? querySuccess({
+          ...finishedGoodProduct,
+          notes: "Server notes",
+          updatedAt: finishedGoodProduct.updatedAt + 1,
+        })
+      : name.endsWith(":listProductBatches")
+        ? querySuccess({ batches: [], legacyUnits: [] })
+        : querySuccess(finishedGoodsList),
+  );
+  view.rerender(
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+      <ProductScreen productId="product-a" />
+    </NextIntlClientProvider>,
+  );
+  expect(screen.getByRole("textbox", { name: "Product name" })).toHaveValue(
+    "My product name",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+  expect(mocks.save.mock.calls[0]?.[0]).toEqual(
+    expect.objectContaining({
+      expectedUpdatedAt: finishedGoodProduct.updatedAt,
+    }),
+  );
+  expect(mocks.push).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Merge my changed fields" }),
+    ).toBeEnabled(),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Merge my changed fields" }),
+  );
+  expect(screen.getByRole("textbox", { name: "Storage notes" })).toHaveValue(
+    "Server notes",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
+  await waitFor(() =>
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedUpdatedAt: finishedGoodProduct.updatedAt + 1,
+        name: "My product name",
+        notes: "Server notes",
+      }),
+    ),
+  );
+});
+
+it("guards a merged product draft when browser storage fails during conflict resolution", async () => {
+  const view = renderWithIntl(
+    <NavigationGuardProvider>
+      <ProductScreen productId="product-a" />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
+    target: { value: "My product name" },
+  });
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getProduct")
+      ? querySuccess({
+          ...finishedGoodProduct,
+          notes: "Server notes",
+          updatedAt: finishedGoodProduct.updatedAt + 1,
+        })
+      : name.endsWith(":listProductBatches")
+        ? querySuccess({ batches: [], legacyUnits: [] })
+        : querySuccess(finishedGoodsList),
+  );
+  view.rerender(
+    <NavigationGuardProvider>
+      <ProductScreen productId="product-a" />
+    </NavigationGuardProvider>,
+  );
+  const storage = vi
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Merge my changed fields" }),
+  );
+  const leave = vi.fn();
+  act(() => guardedNavigate(leave));
+  expect(
+    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByRole("textbox", { name: "Product name" })).toHaveValue(
+    "My product name",
+  );
+  expect(leave).not.toHaveBeenCalled();
+  storage.mockRestore();
+});
+
+it("retries a committed product edit with its original request after a lost response advances the live version", async () => {
+  mocks.save.mockRejectedValueOnce(
+    new Error("Response lost after server committed"),
+  );
+  const view = renderProduct("product-a");
+  fireEvent.change(screen.getByRole("textbox", { name: "Product name" }), {
+    target: { value: "Committed new name" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+  await screen.findByRole("alert");
+  const firstRequest = mocks.save.mock.calls[0]![0].requestId;
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getProduct")
+      ? querySuccess({
+          ...finishedGoodProduct,
+          name: "Committed new name",
+          updatedAt: finishedGoodProduct.updatedAt + 1,
+        })
+      : name.endsWith(":listProductBatches")
+        ? querySuccess({ batches: [], legacyUnits: [] })
+        : querySuccess(finishedGoodsList),
+  );
+  view.rerender(
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+      <ProductScreen productId="product-a" />
+    </NextIntlClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save product details" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+  expect(mocks.save.mock.calls[1]![0].requestId).toBe(firstRequest);
 });

@@ -16,7 +16,13 @@ import {
 } from "@/lib/navigationGuard";
 
 /** One editor's unsaved work and in-flight write, as the shell guard sees it. */
+export const DraftForegroundContext = createContext<string | undefined>(
+  undefined,
+);
+
 export interface DraftRegistration {
+  readonly workflowScope?: string | undefined;
+  readonly foregroundScope?: string | undefined;
   /** Entered details that were not saved or sent; `discard` resets them. */
   readonly dirty: boolean;
   /** A write is in flight: nothing may be discarded or left until it settles. */
@@ -60,6 +66,8 @@ export function useNavigationDraft(
   entry: DraftRegistration,
 ): NavigationDraftControl {
   const owner = useContext(NavigationDraftContext);
+  const inheritedForeground = useContext(DraftForegroundContext);
+  const foregroundScope = entry.foregroundScope ?? inheritedForeground;
   const id = useId();
   const latest = useRef(entry);
   useLayoutEffect(() => {
@@ -89,11 +97,24 @@ export function useNavigationDraft(
     owner.update(id, {
       dirty,
       pending,
+      workflowScope: entry.workflowScope,
+      foregroundScope,
       discard,
       ...(saveable ? { save } : {}),
       ...(saveBlockedReason ? { saveBlockedReason } : {}),
     });
-  }, [owner, id, dirty, pending, discard, save, saveable, saveBlockedReason]);
+  }, [
+    owner,
+    id,
+    dirty,
+    pending,
+    discard,
+    save,
+    saveable,
+    saveBlockedReason,
+    entry.workflowScope,
+    foregroundScope,
+  ]);
   useLayoutEffect(() => {
     if (owner === null) return;
     return () => owner.update(id, null);

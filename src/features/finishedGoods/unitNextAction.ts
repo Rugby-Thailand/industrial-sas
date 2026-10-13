@@ -1,3 +1,4 @@
+import { packageScanPath } from "@/lib/navigation";
 import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
 import { palletPath, storagePath } from "./shared";
 
@@ -18,7 +19,7 @@ export function unitNextAction(unit: Unit, canManage: boolean): Action {
   switch (unit.status) {
     case "AWAITING_MEASUREMENT":
       return {
-        href: "/finished-goods/scan",
+        href: packageScanPath({ unitId: unit._id }),
         label: ["Scan Packages", "สแกนบรรจุภัณฑ์"],
       };
     case "AWAITING_PLACEMENT":
@@ -28,7 +29,7 @@ export function unitNextAction(unit: Unit, canManage: boolean): Action {
             label: ["Choose storage", "เลือกจุดจัดเก็บ"],
           }
         : {
-            href: "/finished-goods/scan",
+            href: packageScanPath({ unitId: unit._id }),
             label: ["Scan Packages", "สแกนบรรจุภัณฑ์"],
           };
     case "RESERVED":

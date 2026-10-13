@@ -88,7 +88,14 @@ export interface FloorMapProps {
   readonly zones: readonly StorageZoneRow[];
   readonly blocks: readonly Area[];
   readonly onEditZone?: ((zoneId: string) => void) | undefined;
+  /**
+   * The floor-position editor replaces the map while open. Its open state is
+   * owned by the caller's workflow step, so Back, Return and completion all
+   * consume the same history entry.
+   */
   readonly offsetEditor?: ReactNode;
+  readonly offsetEditing?: boolean;
+  readonly onOffsetEditingChange?: (open: boolean) => void;
   readonly locationActions?: ReactNode;
   readonly locationInspector?: ReactNode;
   readonly floorSelector?: ReactNode;
@@ -187,7 +194,9 @@ export function FloorMap(props: FloorMapProps) {
   );
   const [unitId, setUnitId] = useState<string>();
   const [areaIndex, setAreaIndex] = useState<number>();
-  const [offsetEditing, setOffsetEditing] = useState(false);
+  const offsetEditing = props.offsetEditing === true;
+  const setOffsetEditing = (open: boolean) =>
+    props.onOffsetEditingChange?.(open);
   const [qr, setQr] = useState(false);
   const matches = useMemo(
     () =>

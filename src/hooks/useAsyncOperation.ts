@@ -1,9 +1,11 @@
 "use client";
-import { useState, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type SetStateAction } from "react";
 import {
   useOperationLifecycle,
   type OperationTicket,
 } from "./useOperationLifecycle";
+import { usePendingGuard } from "@/components/providers/draftGuard";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { useRequestIdentity } from "./useRequestIdentity";
 
 export function operationErrorCode(error: unknown): string {
@@ -25,6 +27,7 @@ type AsyncOperationOptions =
   | {
       scope?: string | undefined;
       describeError: (code: string) => string;
+      navigation?: "write" | "owned" | "read";
     };
 
 const EMPTY_STATE = { busy: false, error: "", errorCode: "" };
@@ -47,6 +50,39 @@ export function useAsyncOperation(options: AsyncOperationOptions) {
     (entry.isCurrent === undefined || entry.isCurrent())
       ? entry.state
       : EMPTY_STATE;
+  const writeGuard = usePendingGuard(
+    busy && typeof options !== "function" && options.navigation === "write",
+  );
+  const successful = useRef<OperationTicket | null>(null);
+  const [completion, setCompletion] = useState<{
+    ticket: OperationTicket;
+    action: () => void;
+  }>();
+  const consumedCompletion = useRef<typeof completion>(undefined);
+  useEffect(() => {
+    if (busy || !completion || consumedCompletion.current === completion)
+      return;
+    consumedCompletion.current = completion;
+    if (
+      !completion.ticket.isCurrent() ||
+      successful.current !== completion.ticket
+    )
+      return;
+    const action = () => {
+      if (
+        completion.ticket.isCurrent() &&
+        successful.current === completion.ticket
+      )
+        completion.action();
+    };
+    writeGuard.settle(() => guardedNavigate(action));
+  }, [busy, completion, writeGuard]);
+  const complete = (action: () => void) => {
+    const ticket = successful.current;
+    const current = lifecycle.capture();
+    if (ticket && ticket.isCurrent() && current())
+      setCompletion({ ticket, action });
+  };
   const setError = (next: SetStateAction<string>) => {
     const isCurrent = lifecycle.capture();
     if (!isCurrent()) return;
@@ -72,6 +108,7 @@ export function useAsyncOperation(options: AsyncOperationOptions) {
   ): Promise<T | null> {
     const ticket = lifecycle.acquire();
     if (ticket === null) return null;
+    successful.current = null;
     let released = false;
     const release = () => {
       if (released) return;
@@ -94,6 +131,7 @@ export function useAsyncOperation(options: AsyncOperationOptions) {
       const value = await action();
       if (!ticket.isCurrent()) return null;
       release();
+      successful.current = ticket;
       onSuccess?.(value);
       return value;
     } catch (error) {
@@ -123,6 +161,7 @@ export function useAsyncOperation(options: AsyncOperationOptions) {
     errorCode,
     setError,
     run,
+    complete,
     request: identity.request,
     clearRequests: identity.clearRequests,
   };

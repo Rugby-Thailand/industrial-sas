@@ -1,62 +1,104 @@
+import {
+  cancelGuardedTransition,
+  guardedNavigate,
+} from "@/lib/navigationGuard";
+
 export const WAREHOUSE_STORAGE_KEY = "industrial-sas.warehouse";
-
 export const LEGACY_WAREHOUSE_STORAGE_KEY = "industrial-ssa.warehouse";
-
 type Listener = () => void;
-
 const listeners = new Set<Listener>();
+// A tab owns its accepted scope. Another tab changing localStorage cannot
+// replace this snapshot until this tab's draft/pending owner permits it.
+let accepted: { value: string | null } | undefined;
+let releaseStorage: (() => void) | undefined;
+let requestVersion = 0;
+const choiceOwner = {};
 
 const notify = (): void => {
   for (const listener of listeners) listener();
 };
 
-export function subscribeWarehouse(listener: Listener): () => void {
-  listeners.add(listener);
-  const onStorage = (event: StorageEvent) => {
-    if (
-      event.key === null ||
-      event.key === WAREHOUSE_STORAGE_KEY ||
-      event.key === LEGACY_WAREHOUSE_STORAGE_KEY
-    )
-      listener();
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-export function readStoredWarehouse(): string | null {
+function storedValue(): string | null {
   try {
-    const warehouseId = window.localStorage.getItem(WAREHOUSE_STORAGE_KEY);
-    if (warehouseId !== null) return warehouseId;
-
-    const legacyWarehouseId = window.localStorage.getItem(
-      LEGACY_WAREHOUSE_STORAGE_KEY,
-    );
-    if (legacyWarehouseId === null) return null;
-
+    const value = window.localStorage.getItem(WAREHOUSE_STORAGE_KEY);
+    if (value !== null) return value;
+    const legacy = window.localStorage.getItem(LEGACY_WAREHOUSE_STORAGE_KEY);
+    if (legacy === null) return null;
     try {
-      window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, legacyWarehouseId);
+      window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, legacy);
       window.localStorage.removeItem(LEGACY_WAREHOUSE_STORAGE_KEY);
     } catch {
-      // A readable but unwritable store can still supply the existing choice.
+      // Readable storage can still restore a choice when writes are blocked.
     }
-    return legacyWarehouseId;
+    return legacy;
   } catch {
     return null;
   }
 }
 
+function requestChoice(value: string | null, persist: boolean): void {
+  const version = ++requestVersion;
+  if (value === readStoredWarehouse()) {
+    cancelGuardedTransition(choiceOwner);
+    return;
+  }
+  guardedNavigate(
+    () => {
+      // A newer choice or provider lifetime supersedes an old approval.
+      if (version !== requestVersion) return;
+      if (persist && value !== null) {
+        try {
+          window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, value);
+          window.localStorage.removeItem(LEGACY_WAREHOUSE_STORAGE_KEY);
+        } catch {
+          // Keep this tab's accepted choice even when persistence is unavailable.
+        }
+      }
+      accepted = { value };
+      notify();
+    },
+    { intentOwner: choiceOwner },
+  );
+}
+
+export function subscribeWarehouse(listener: Listener): () => void {
+  listeners.add(listener);
+  if (!releaseStorage) {
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.storageArea !== null &&
+        event.storageArea !== window.localStorage
+      )
+        return;
+      if (event.key === WAREHOUSE_STORAGE_KEY)
+        requestChoice(event.newValue, false);
+      else if (event.key === null || event.key === LEGACY_WAREHOUSE_STORAGE_KEY)
+        requestChoice(storedValue(), false);
+    };
+    window.addEventListener("storage", onStorage);
+    releaseStorage = () => window.removeEventListener("storage", onStorage);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size > 0) return;
+    releaseStorage?.();
+    releaseStorage = undefined;
+    requestVersion++;
+    // React replays subscriptions in StrictMode; retain accepted scope if a
+    // successor subscribes in the same commit, reset only after real teardown.
+    queueMicrotask(() => {
+      if (listeners.size === 0) accepted = undefined;
+    });
+  };
+}
+
+export function readStoredWarehouse(): string | null {
+  accepted ??= { value: storedValue() };
+  return accepted.value;
+}
 export const serverWarehouseSnapshot = (): string | null => null;
 
+/** All same-tab callers, including non-shell entry points, ask the owner. */
 export function writeStoredWarehouse(warehouseId: string): void {
-  try {
-    window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, warehouseId);
-    window.localStorage.removeItem(LEGACY_WAREHOUSE_STORAGE_KEY);
-  } catch {
-    // Unwritable storage costs a re-selection; see `readStoredWarehouse`.
-  }
-  notify();
+  requestChoice(warehouseId, true);
 }

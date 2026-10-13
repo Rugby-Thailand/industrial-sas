@@ -18,7 +18,8 @@ function sameFile(a: File, b: File) {
 }
 
 /** Owns collection previews only; submitted tickets create their own previews. */
-export function usePhotoSelection() {
+export function usePhotoSelection(capacity = MAX_PHOTOS) {
+  const limit = Math.min(MAX_PHOTOS, Math.max(0, capacity));
   const nextId = useRef(0);
   // Camera delivery and gallery events can arrive before React renders the limit.
   const collected = useRef<Photo[]>([]);
@@ -58,7 +59,7 @@ export function usePhotoSelection() {
         continue;
       if (!file.type.startsWith("image/")) found = "imageType";
       else if (!file.size || file.size > MAX_BYTES) found = "imageSize";
-      else if (collected.current.length + accepted.length >= MAX_PHOTOS)
+      else if (collected.current.length + accepted.length >= limit)
         found = "photoLimit";
       else
         accepted.push({
@@ -89,12 +90,13 @@ export function usePhotoSelection() {
   }
 
   return {
+    limit,
     photos,
     problem,
     add,
     remove,
     clear,
     getFiles: () => collected.current.map((photo) => photo.file),
-    canCapture: () => active.current && collected.current.length < MAX_PHOTOS,
+    canCapture: () => active.current && collected.current.length < limit,
   };
 }

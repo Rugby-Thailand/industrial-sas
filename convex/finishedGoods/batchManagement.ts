@@ -244,3 +244,69 @@ export const repackAvailable = mutationWithOrg({
       },
     ),
 });
+
+/** Immutable revision receipt: retired labels map to the complete replacement group. */
+export const replacementLabels = queryWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    receiptId: v.optional(v.id("finishedGoodsBatchRevisions")),
+    batchId: v.optional(v.id("finishedGoodsBatches")),
+    revision: v.optional(v.number()),
+  },
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "finishedGoodsBatchRevisions" },
+  warehouseId: (args) => args.warehouseId,
+  handler: async (ctx, args) => {
+    const receipt = args.receiptId
+      ? await ctx.tenantDb.get<Doc<"finishedGoodsBatchRevisions">>(
+          "finishedGoodsBatchRevisions",
+          args.receiptId,
+        )
+      : args.batchId && args.revision
+        ? await ctx.tenantDb
+            .byIndex<Doc<"finishedGoodsBatchRevisions">>(
+              "finishedGoodsBatchRevisions",
+              "by_orgId_batchId_revision",
+              [
+                { field: "batchId", value: args.batchId },
+                { field: "revision", value: args.revision },
+              ],
+            )
+            .first()
+        : null;
+    if (!receipt || receipt.warehouseId !== args.warehouseId) return null;
+    const previous = await ctx.tenantDb
+      .byIndex<Doc<"finishedGoodsBatchRevisions">>(
+        "finishedGoodsBatchRevisions",
+        "by_orgId_batchId_revision",
+        [
+          { field: "batchId", value: receipt.batchId },
+          { field: "revision", value: receipt.revision - 1 },
+        ],
+      )
+      .first();
+    const before = new Set(previous?.palletIds ?? []);
+    const after = new Set(receipt.palletIds);
+    const describe = async (id: string) => {
+      const unit = await ctx.tenantDb.get<Doc<"finishedGoodsPallets">>(
+        "finishedGoodsPallets",
+        id,
+      );
+      return unit
+        ? { id: unit._id, code: unit.code, quantity: unit.quantity }
+        : null;
+    };
+    const retired = await Promise.all(
+      [...before].filter((id) => !after.has(id)).map(describe),
+    );
+    const replacements = await Promise.all(
+      [...after].filter((id) => !before.has(id)).map(describe),
+    );
+    return {
+      revision: receipt.revision,
+      retired: retired.filter((item) => item !== null),
+      replacements: replacements.filter((item) => item !== null),
+    };
+  },
+});

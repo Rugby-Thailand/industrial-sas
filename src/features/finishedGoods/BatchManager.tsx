@@ -1,8 +1,13 @@
 "use client";
+import { packageScanPath } from "@/lib/navigation";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { resolveWriteError } from "@/lib/resolveWriteError";
 import {
   useCallback,
+  useId,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
@@ -19,6 +24,7 @@ import {
 } from "lucide-react";
 import {
   Dialog,
+  type DialogCompletionHandle,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -89,17 +95,37 @@ export function BatchManager({
     busy: false,
   });
   const [discardOpen, setDiscardOpen] = useState(false);
+  const draftScope = useId();
+  const completion = useRef<DialogCompletionHandle>(null);
+  const discardCompletion = useRef<DialogCompletionHandle>(null);
+  const closing = useRef(false);
+  const closed = useRef(false);
+  const finishClose = () => {
+    if (closed.current) return;
+    closed.current = true;
+    onClose();
+  };
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   useUnsavedWarning(editorState.dirty || editorState.busy);
+  const guard = useNavigationDraft({
+    foregroundScope: draftScope,
+    workflowScope: `batch-repack:${warehouseId}:${batchId}`,
+    dirty: editorState.dirty,
+    pending: editorState.busy,
+    discard: () => setEditorState({ dirty: false, busy: false }),
+  });
   const reportEditorState = useCallback((next: EditorState) => {
     setEditorState(next);
   }, []);
   const requestClose = () => {
-    if (editorState.busy) return;
+    if (editorState.busy || closing.current) return;
     if (editorState.dirty) {
       setPendingHref(null);
       setDiscardOpen(true);
-    } else onClose();
+    } else {
+      closing.current = true;
+      completion.current?.complete(finishClose);
+    }
   };
   const guardNavigation = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -125,6 +151,9 @@ export function BatchManager({
   return (
     <Dialog
       open
+      completionRef={completion}
+      draftScope={draftScope}
+      backPending={editorState.busy}
       onOpenChange={(open) => {
         if (!open) requestClose();
       }}
@@ -206,12 +235,17 @@ export function BatchManager({
                   warehouseId={warehouseId}
                   initialUnitId={unitId}
                   onStateChange={reportEditorState}
+                  onSaved={guard.settle}
                 />
               </div>
             )}
           </>
         )}
-        <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <Dialog
+          open={discardOpen}
+          onOpenChange={setDiscardOpen}
+          completionRef={discardCompletion}
+        >
           <DialogContent showCloseButton={false} className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t("copy.discard-packing-changes")}</DialogTitle>
@@ -228,8 +262,15 @@ export function BatchManager({
               <Button
                 variant="destructive"
                 onClick={() => {
-                  onClose();
-                  if (pendingHref) router.push(pendingHref);
+                  closing.current = true;
+                  guard.settle(() =>
+                    discardCompletion.current?.complete(() =>
+                      completion.current?.complete(() => {
+                        finishClose();
+                        if (pendingHref) router.push(pendingHref);
+                      }),
+                    ),
+                  );
                 }}
               >
                 {t("copy.discard-changes")}
@@ -288,7 +329,7 @@ function StorageView({
     (unit.status === "AWAITING_MEASUREMENT" ||
       (unit.status === "AWAITING_PLACEMENT" && data.batch.simplePacking));
   const actionHref = scanReady
-    ? "/finished-goods/scan"
+    ? packageScanPath({ unitId: unit._id, batchId: data.batch._id })
     : locationOnly
       ? palletPath(unit._id)
       : unit.moveStatus || unit.status === "STORED"
@@ -480,13 +521,15 @@ function AvailableEditor({
   warehouseId,
   initialUnitId,
   onStateChange,
+  onSaved,
 }: {
   data: ManagedBatch;
   warehouseId: string;
   initialUnitId?: string | undefined;
   onStateChange: (state: EditorState) => void;
+  onSaved: () => void;
 }) {
-  const { t } = useFGText();
+  const { t, tr } = useFGText();
   const canManage = useCanManage();
   const initial = data.units.filter(
     (u) =>
@@ -516,15 +559,34 @@ function AvailableEditor({
     return () => cancelAnimationFrame(frame);
   }, [initialUnitId]);
   const [capacity, setCapacity] = useState("");
-  const [review, setReview] = useState(false);
   const [done, setDone] = useState(false);
+  const [undoRows, setUndoRows] = useState<EditRow[] | null>(null);
+  const [receiptId, setReceiptId] = useState<string>();
+  const labels = useQuery(
+    batchManagementRefs.replacementLabels,
+    receiptId ? { warehouseId, receiptId } : "skip",
+  );
   const scope = useDraftKey("batch-available");
   const op = useOperation(`${scope}:${warehouseId}:${data.batch._id}`);
+  const reviewStep = useWorkflowStep(
+    "batchReview",
+    `batch-repack:${warehouseId}:${data.batch._id}`,
+    !done || op.busy,
+    undefined,
+    { blocked: op.busy, priority: 200 },
+  );
+  const review = reviewStep.active;
+  const setReview = (next: boolean) => {
+    if (next) reviewStep.enter();
+    else reviewStep.back();
+  };
   const writeError = useTranslations("WriteError");
   const save = useMutation(batchManagementRefs.repackAvailable);
   const dirty =
     !done && (JSON.stringify(rows) !== originalRows || capacity !== "");
-  useEffect(() => {
+  // The modal's Close action must observe the same clean/pending state as the
+  // editor it displays; a passive report leaves one painted frame of stale guard.
+  useLayoutEffect(() => {
     onStateChange({ dirty, busy: op.busy });
   }, [dirty, op.busy, onStateChange]);
   const stale =
@@ -561,6 +623,35 @@ function AvailableEditor({
             "copy.stored-units-and-the-batch-total-are-unchanged-open-storage-to-view-the-",
           )}
         </p>
+        <p className="mt-3 text-sm font-medium">
+          {tr(
+            "Replace retired package labels with the new labels before storage.",
+            "เปลี่ยนฉลากบรรจุภัณฑ์เก่าเป็นฉลากใหม่ก่อนจัดเก็บ",
+          )}
+        </p>
+        {labels?.ok && labels.value && (
+          <div className="mt-3 space-y-2 text-left text-sm">
+            <p>
+              {tr("Retired labels", "ฉลากเก่าที่เลิกใช้")}:{" "}
+              {labels.value.retired.map((unit) => unit.code).join(", ")}
+            </p>
+            <p>
+              {tr("Replacement labels", "ฉลากใหม่")}:{" "}
+              {labels.value.replacements.map((unit) => unit.code).join(", ")}
+            </p>
+            <p>
+              {tr(
+                "Each retired label belongs to this replacement group; quantities may be split or combined.",
+                "ฉลากเก่าแต่ละใบถูกแทนที่ด้วยกลุ่มฉลากใหม่นี้ จำนวนอาจถูกแบ่งหรือรวม",
+              )}
+            </p>
+            {labels.value.replacements.map((unit) => (
+              <Button key={unit.id} asChild variant="link">
+                <Link href={palletPath(unit.id)}>{unit.code}</Link>
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     );
   if (!base.ids.length)
@@ -593,13 +684,19 @@ function AvailableEditor({
     };
     await op.run(
       async () => {
-        written(
+        return written(
           await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
         );
       },
-      () => {
-        setDone(true);
-        op.clearRequests();
+      (receipt) => {
+        onSaved();
+        op.complete(() =>
+          reviewStep.complete(() => {
+            setReceiptId(receipt);
+            setDone(true);
+            op.clearRequests();
+          }),
+        );
       },
     );
   }
@@ -661,6 +758,7 @@ function AvailableEditor({
             disabled={!split.length || split.length > maxNewUnits}
             onClick={() => {
               if (split.length) {
+                setUndoRows(rows);
                 setRows(
                   split.map((q) => ({ ...newRow(), quantity: String(q) })),
                 );
@@ -671,6 +769,29 @@ function AvailableEditor({
             {t("copy.split")}
           </Button>
         </div>
+        {undoRows && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center gap-3 text-sm"
+          >
+            <p>
+              {tr(
+                "Previous rows and measurements were replaced.",
+                "แถวและข้อมูลวัดเดิมถูกแทนที่",
+              )}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRows(undoRows);
+                setUndoRows(null);
+                setReview(false);
+              }}
+            >
+              {tr("Undo row change", "ยกเลิกการเปลี่ยนแถว")}
+            </Button>
+          </div>
+        )}
         <div className="max-h-[42dvh] space-y-3 overflow-y-auto pr-1">
           {rows.map((r, i) => (
             <div
@@ -691,6 +812,7 @@ function AvailableEditor({
                   variant="ghost"
                   aria-label={`${t("copy.remove-unit")} ${i + 1}`}
                   onClick={() => {
+                    setUndoRows(rows);
                     setRows(rows.filter((x) => x.id !== r.id));
                     setReview(false);
                   }}

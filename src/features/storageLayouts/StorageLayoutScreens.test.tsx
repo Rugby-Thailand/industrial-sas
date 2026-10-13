@@ -6,7 +6,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { messagesFor } from "@/i18n/messages";
@@ -16,6 +16,7 @@ const mutation = vi.hoisted(() => vi.fn());
 const navigate = vi.hoisted(() => vi.fn());
 const layoutAccess = vi.hoisted(() => ({
   manage: true,
+  activate: false,
   ready: true,
   query: vi.fn<() => unknown>(),
 }));
@@ -23,6 +24,7 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/");
   navigate.mockReset();
   layoutAccess.manage = true;
+  layoutAccess.activate = false;
   layoutAccess.ready = true;
   layoutAccess.query.mockReset().mockReturnValue(undefined);
   mutation
@@ -34,7 +36,9 @@ vi.mock("./useStorageBuilding", () => ({
   useStorageBuilding: () => layoutAccess.query(),
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigate }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: navigate, replace: navigate }),
+}));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "user-a", orgId: "org-a" }),
 }));
@@ -47,9 +51,12 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
   ...(await importOriginal<typeof WorkspaceModule>()),
   useWorkspace: () => ({
     permissionsReady: layoutAccess.ready,
-    navigationPermissions: layoutAccess.manage
-      ? ["masterData.storageLayout.manage"]
-      : ["masterData.storageLayout.read"],
+    navigationPermissions: [
+      layoutAccess.manage
+        ? "masterData.storageLayout.manage"
+        : "masterData.storageLayout.read",
+      ...(layoutAccess.activate ? ["masterData.storageLayout.activate"] : []),
+    ],
   }),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
@@ -61,7 +68,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: navigate }),
+  useRouter: () => ({ push: navigate, replace: navigate }),
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -86,6 +93,7 @@ import {
   StorageZoneDraftPreview,
   StorageZonesPanel,
   StorageFloorEditor,
+  StorageBuildingReview,
 } from "./StorageLayoutScreens";
 
 function floorButton(floor: number) {
@@ -269,6 +277,8 @@ describe("BuildingModelWorkspace", () => {
         name: "Close dialog",
       }),
     );
+    // Closing consumes the editor's own history entry before other actions.
+    await waitFor(() => expect(window.location.search).not.toMatch(/overlay/));
     fireEvent.click(
       within(
         screen.getByRole("complementary", { name: "Selected location" }),
@@ -360,7 +370,7 @@ describe("BuildingModelWorkspace", () => {
       screen.queryByRole("article", { name: `${zone.label} · ${zone.code}` }),
     ).not.toBeInTheDocument();
   });
-  it("opens the existing create editor from the compact location toolbar", () => {
+  it("opens the existing create editor from the compact location toolbar", async () => {
     renderWithIntl(
       <BuildingModelWorkspace building={building} floors={floors} />,
       { locale: "en", workspace: false },
@@ -375,12 +385,17 @@ describe("BuildingModelWorkspace", () => {
     expect(
       screen.getAllByRole("button", { name: "Display options" }),
     ).toHaveLength(1);
-    const add = screen.getByRole("button", { name: "Add storage stack" });
+    // Viewing is read-only; the add action belongs to the editing task.
+    expect(
+      screen.queryByRole("button", { name: "Add storage spot" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Edit floor \d$/ }));
+    const add = await screen.findByRole("button", { name: "Add storage spot" });
     expect(add).toHaveAttribute("type", "button");
     expect(add).toBeEnabled();
     fireEvent.click(add);
     expect(screen.getByRole("dialog")).toBeVisible();
-    expect(screen.getByLabelText("Zone label")).toBeVisible();
+    expect(screen.getByLabelText("Name")).toBeVisible();
     expect(mutation).not.toHaveBeenCalled();
   });
   it("puts the one building edit pen after the name and before the code", () => {
@@ -533,7 +548,7 @@ describe("unified floor editing", () => {
     });
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Save and continue to storage stacks",
+        name: "Save floor",
       }),
     );
     await waitFor(() =>
@@ -561,7 +576,7 @@ describe("unified floor editing", () => {
       screen.queryByRole("spinbutton", { name: "Width (m)" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Add storage stack" }),
+      screen.queryByRole("button", { name: "Add storage spot" }),
     ).not.toBeInTheDocument();
   });
 });
@@ -638,11 +653,23 @@ describe("IsometricBuilding", () => {
   });
 });
 
+/** FloorPlan's offset editor is caller-owned; tests hold the open state. */
+function OffsetFloorPlan(props: ComponentProps<typeof FloorPlan>) {
+  const [open, setOpen] = useState(false);
+  return (
+    <FloorPlan
+      {...props}
+      offsetEditing={open}
+      onOffsetEditingChange={setOpen}
+    />
+  );
+}
+
 describe("FloorPlan", () => {
   it("positions the floor on its previous floor and supports keyboard movement", () => {
     const onPlacementChange = vi.fn();
     renderWithIntl(
-      <FloorPlan
+      <OffsetFloorPlan
         widthMm={20_000}
         depthMm={18_000}
         heightMm={5_000}
@@ -781,7 +808,7 @@ describe("StorageZoneDraftPreview", () => {
 
     expect(screen.getByText("Fits within floor")).toBeInTheDocument();
     fireEvent.keyDown(
-      screen.getByRole("button", { name: "Drag storage zone" }),
+      screen.getByRole("button", { name: "Drag storage spot" }),
       { key: "ArrowRight" },
     );
     expect(onPositionChange).toHaveBeenCalledWith({ xMm: 100, yMm: 0 });
@@ -797,7 +824,7 @@ describe("StorageZoneDraftPreview", () => {
 
     onPositionChange.mockClear();
     fireEvent.keyDown(
-      screen.getByRole("button", { name: "Drag storage zone" }),
+      screen.getByRole("button", { name: "Drag storage spot" }),
       { key: "ArrowDown" },
     );
     expect(onPositionChange).toHaveBeenCalledWith({ xMm: 0, yMm: 100 });
@@ -923,13 +950,15 @@ describe("ReservedBlocks", () => {
     expect(
       screen.getByRole("dialog", { name: "Edit unavailable area" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
       "Lift core",
     );
     expect(
       screen.getByRole("spinbutton", { name: "X position (m)" }),
     ).toHaveValue(2);
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Apply to floor draft" }),
+    ).toBeVisible();
   });
 });
 
@@ -937,9 +966,13 @@ describe("Unavailable area color saving", () => {
   it.each([false, true])(
     "saves a color-only edit without changing geometry (occupied: %s)",
     async (occupied) => {
+      // Imported plans carry a type and display height without an input; a
+      // colour edit must keep both so it stays a colour-only change (F03).
       const block = {
         blockId: "lift",
         label: "Lift core",
+        areaKind: "STAIRS" as const,
+        displayHeightMm: 2_500,
         xMm: 22000,
         yMm: 16000,
         widthMm: 1000,
@@ -964,13 +997,17 @@ describe("Unavailable area color saving", () => {
         { locale: "en", workspace: false },
       );
       expect(
-        screen.getByRole("button", { name: "Floor changes saved" }),
+        screen.getByRole("button", { name: "Floor saved" }),
       ).toBeDisabled();
       fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
       fireEvent.click(screen.getByRole("button", { name: "Office" }));
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      // Cancel consumes the dialog's own entry before the next edit opens.
+      await waitFor(() =>
+        expect(window.location.search).not.toMatch(/overlay/),
+      );
       expect(
-        screen.getByRole("button", { name: "Floor changes saved" }),
+        screen.getByRole("button", { name: "Floor saved" }),
       ).toBeDisabled();
       expect(mutation).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
@@ -979,9 +1016,13 @@ describe("Unavailable area color saving", () => {
         "true",
       );
       fireEvent.click(screen.getByRole("button", { name: "Office" }));
-      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-      const save = screen.getByRole("button", {
-        name: "Save and continue to storage stacks",
+      expect(screen.getByText("Display height 2.5 m is kept.")).toBeVisible();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Apply to floor draft" }),
+      );
+      // The area dialog closes after its applied draft settles.
+      const save = await screen.findByRole("button", {
+        name: "Save floor",
       });
       expect(save).toBeEnabled();
       fireEvent.click(save);
@@ -993,6 +1034,8 @@ describe("Unavailable area color saving", () => {
               {
                 id: "lift",
                 label: "Lift core",
+                areaKind: "STAIRS",
+                displayHeightMm: 2_500,
                 color: "#145CA1",
                 xMm: 22000,
                 yMm: 16000,
@@ -1030,9 +1073,11 @@ describe("StorageZonesPanel", () => {
       const edit = screen.getByRole("button", { name: `Edit ${zone.label}` });
       expect(edit).toBeDisabled();
       expect(
-        screen.getByRole("button", { name: "Add storage stack" }),
+        screen.getByRole("button", { name: "Add storage spot" }),
       ).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Archive" })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: `Archive spot · ${zone.code}` }),
+      ).toBeDisabled();
       fireEvent.click(edit);
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(
@@ -1124,9 +1169,7 @@ describe("StorageZonesPanel", () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
     expect(mutation).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Floor changes saved" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Floor saved" })).toBeDisabled();
   });
 
   it("requires saving unavailable areas before storage stacks can be drawn", () => {
@@ -1145,10 +1188,10 @@ describe("StorageZonesPanel", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Add storage stack" }),
+      screen.getByRole("button", { name: "Add storage spot" }),
     ).toBeDisabled();
     expect(
-      screen.getByText("Save unavailable areas before drawing storage stacks"),
+      screen.getByText("Save the floor draft before editing storage spots"),
     ).toBeInTheDocument();
   });
 
@@ -1183,7 +1226,7 @@ describe("StorageZonesPanel", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Add storage stack" }).parentElement,
+      screen.getByRole("button", { name: "Add storage spot" }).parentElement,
     ).toHaveClass("grid-cols-[minmax(0,1fr)_auto]");
 
     fireEvent.click(
@@ -1191,9 +1234,9 @@ describe("StorageZonesPanel", () => {
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Edit storage stack" }),
+      screen.getByRole("dialog", { name: "Edit storage spot" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
       "QA Finished Goods Stack",
     );
     expect(
@@ -1220,6 +1263,7 @@ describe("StorageZonesPanel", () => {
       code: "BLDG-A-F04-Z01",
       label: "QA Finished Goods Stack",
       qrValue: "ISAS:LOCATION:1:location-a",
+      revision: "1:100",
       xMm: 3_500,
       yMm: 1_100,
       widthMm: 2_000,
@@ -1229,7 +1273,7 @@ describe("StorageZonesPanel", () => {
       positions: [],
       placements: [],
     };
-    renderWithIntl(
+    const panel = (zones: readonly StorageZoneRow[]) => (
       <StorageZonesPanel
         warehouseId="warehouse-a"
         buildingId="building-a"
@@ -1237,44 +1281,75 @@ describe("StorageZonesPanel", () => {
         floorWidthMm={10_000}
         floorDepthMm={10_000}
         floorHeightMm={3_000}
-        zones={[zone]}
-      />,
-      { locale: "en", workspace: false },
+        zones={zones}
+      />
     );
+    const view = renderWithIntl(panel([zone]), {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
 
     fireEvent.click(
       screen.getByRole("button", { name: "Edit QA Finished Goods Stack" }),
     );
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+      target: { value: "My rename" },
+    });
     mutation.mockResolvedValueOnce({
       ok: true,
       value: { written: false, error: { code: "VERSION_CONFLICT" } },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() => expect(mutation).toHaveBeenCalledOnce());
-    expect(mutation.mock.calls[0]?.[0]).toMatchObject({ zoneId: "zone-a" });
-    // A refusal keeps the editor open with its values.
-    expect(
-      await screen.findByRole("dialog", { name: "Edit storage stack" }),
-    ).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
-      "QA Finished Goods Stack",
+    expect(mutation.mock.calls[0]?.[0]).toMatchObject({
+      zoneId: "zone-a",
+      expectedRevision: "1:100",
+    });
+    expect(mutation.mock.calls[0]?.[0]).not.toHaveProperty(
+      "confirmOccupiedChange",
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    // A stale draft is kept, never silently overwritten or discarded (F19).
     expect(
-      await screen.findByText(
-        "Storage stack updated. Its location code and QR label are unchanged.",
+      await screen.findByTestId("zone-version-conflict"),
+    ).toHaveTextContent("Another manager changed this spot");
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+      "My rename",
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    view.rerender(
+      panel([{ ...zone, label: "Their rename", revision: "2:200" }]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Keep my draft" }));
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+      "My rename",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(mutation).toHaveBeenCalledTimes(2));
+    expect(mutation.mock.calls[1]?.[0]).toMatchObject({
+      label: "My rename",
+      expectedRevision: "2:200",
+    });
+    // The editor closes once the write and its draft have settled.
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(
+        "Storage spot saved. Its code and QR label are unchanged.",
       ),
     ).toBeVisible();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add storage stack" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add storage spot" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Create storage stack" }),
+      await screen.findByRole("button", { name: "Create storage spot" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(
-      await screen.findByText(
-        "Storage stack created. Its location code and QR label are ready for activation.",
+      screen.getByText(
+        "Storage spot created. Its code and QR label are ready.",
       ),
     ).toBeVisible();
     const created = mutation.mock.calls.at(-1)?.[0];
@@ -1314,7 +1389,7 @@ describe("StorageZonesPanel", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Add storage stack" }),
+      screen.getByRole("button", { name: "Add storage spot" }),
     ).toBeEnabled();
     expect(screen.getByText("Quick Change is available")).toBeVisible();
 
@@ -1509,7 +1584,7 @@ it("keeps exact pallets inside the floor viewport and translates local coordinat
     placements: [placement],
   };
   const { container } = renderWithIntl(
-    <FloorPlan
+    <OffsetFloorPlan
       widthMm={8_000}
       depthMm={8_000}
       heightMm={3_000}
@@ -1600,24 +1675,34 @@ it("disables confirmation for occupied zone geometry while allowing a label-only
     { locale: "en", workspace: false },
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Zone width (m)" }), {
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
     target: { value: "3" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Review impact" }));
+  // A stop with recovery, not a disabled Confirm that implies an override.
+  const stop = screen.getByTestId("layout-blocked-impact");
+  expect(stop).toHaveTextContent("Can't save while stock is here");
   expect(
-    screen.getByRole("button", { name: "Confirm changes" }),
-  ).toBeDisabled();
+    within(stop).getByRole("link", { name: "Open P-005 to move or release" }),
+  ).toHaveAttribute("href", "/finished-goods/pallets/held-pallet");
   expect(
-    screen.getByText(
-      "This area has reserved or stored pallets. Reassign them before changing its dimensions or position.",
-    ),
-  ).toBeInTheDocument();
+    screen.queryByRole("button", { name: "Confirm changes" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Save changes" }),
+  ).not.toBeInTheDocument();
   expect(mutation).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Zone width (m)" }), {
+  // Back to edit consumes the review step and returns to the same draft.
+  expect(
+    await screen.findByRole("button", { name: "Review impact" }),
+  ).toBeVisible();
+  expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(3);
+  expect(window.location.search).not.toContain("zoneImpact");
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
     target: { value: "4" },
   });
-  fireEvent.change(screen.getByRole("textbox", { name: "Zone label" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
     target: { value: "Renamed FG" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
@@ -1648,7 +1733,7 @@ it("localizes a concurrent occupancy refusal instead of displaying its raw code"
     { locale: "en", workspace: false },
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Zone width (m)" }), {
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
     target: { value: "3" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
@@ -1680,7 +1765,7 @@ it("allows widening an occupied building but blocks changing its floor height", 
   fireEvent.change(screen.getByRole("spinbutton", { name: "Width (m)" }), {
     target: { value: "31" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Save dimensions" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save building" }));
   expect(mutation).toHaveBeenCalledWith(
     expect.objectContaining({
       widthMm: 31_000,
@@ -1688,11 +1773,8 @@ it("allows widening an occupied building but blocks changing its floor height", 
       defaultFloorHeightMm: 4_000,
     }),
   );
-  await waitFor(() =>
-    expect(
-      screen.getByRole("button", { name: "Save dimensions" }),
-    ).toBeEnabled(),
-  );
+  expect(await screen.findByText("Building saved.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Save building" })).toBeDisabled();
 
   mutation.mockClear();
   fireEvent.change(
@@ -1700,9 +1782,12 @@ it("allows widening an occupied building but blocks changing its floor height", 
     { target: { value: "5" } },
   );
   fireEvent.click(screen.getByRole("button", { name: "Review impact" }));
+  expect(screen.getByTestId("layout-blocked-impact")).toHaveTextContent(
+    "Units without measurements",
+  );
   expect(
-    screen.getByRole("button", { name: "Confirm changes" }),
-  ).toBeDisabled();
+    screen.queryByRole("button", { name: "Confirm changes" }),
+  ).not.toBeInTheDocument();
   expect(mutation).not.toHaveBeenCalled();
 });
 
@@ -1851,16 +1936,16 @@ describe("searchable storage spots", () => {
     show([]);
     expect(screen.getByText("No storage locations yet")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Add storage stack" }),
+      screen.getByRole("button", { name: "Add storage spot" }),
     ).toBeEnabled();
   });
   it("keeps the zone QR scannable in compact details without child positions", async () => {
     const zone = { ...occupiedTestZone(), positions: [] };
     show([zone], "en", true);
-    fireEvent.click(screen.getByText("QR and position labels (1)"));
+    fireEvent.click(screen.getByText("QR labels (1)"));
     await waitFor(() =>
       expect(
-        screen.getByRole("img", { name: `QR code for zone ${zone.code}` }),
+        screen.getByRole("img", { name: `QR code for ${zone.code}` }),
       ).toBeVisible(),
     );
   });
@@ -2158,9 +2243,9 @@ describe("interactive floor map", () => {
       { locale: "en", workspace: false },
     );
     expect(
-      screen.getByRole("dialog", { name: "Edit storage stack" }),
+      screen.getByRole("dialog", { name: "Edit storage spot" }),
     ).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
       "Occupied FG",
     );
     expect(mutation).not.toHaveBeenCalled();
@@ -2410,7 +2495,7 @@ describe("mobile storage workspace", () => {
     expect(row).toHaveAttribute("aria-pressed", "true");
     await waitFor(() => expect(row).toHaveFocus());
     fireEvent.click(screen.getByRole("button", { name: "Edit Occupied FG" }));
-    await screen.findByRole("dialog", { name: "Edit storage stack" });
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
@@ -2439,10 +2524,10 @@ describe("mobile storage workspace", () => {
         name: "Edit Occupied FG",
       }),
     );
-    await screen.findByRole("dialog", { name: "Edit storage stack" });
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(document.querySelector('[data-slot="sheet-overlay"]')).toBeNull();
-    expect(screen.getByRole("textbox", { name: "Zone label" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
       "Occupied FG",
     );
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -2525,5 +2610,90 @@ describe("mobile storage workspace", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(document.body.style.pointerEvents).not.toBe("none");
+  });
+});
+
+describe("building lifecycle capacity feedback", () => {
+  it.each(["en", "th"] as const)(
+    "blocks archive and identifies partial counts in %s",
+    (locale) => {
+      layoutAccess.activate = true;
+      layoutAccess.query.mockReturnValue({
+        ok: true,
+        value: {
+          found: true,
+          version: 2,
+          zoneCount: 18,
+          positionCount: 1700,
+          namedRegistrationCount: 0,
+          complete: false,
+          capacityExceeded: true,
+          canArchive: false,
+          occupied: false,
+        },
+      });
+      renderWithIntl(
+        <BuildingSettingsDialog
+          warehouseId="warehouse-a"
+          building={building}
+        />,
+        { locale, workspace: false },
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name:
+            locale === "en" ? "Edit building settings" : "แก้ไขการตั้งค่าอาคาร",
+        }),
+      );
+      const archiveLabel =
+        locale === "en" ? "Archive building" : "เก็บถาวรอาคาร";
+      fireEvent.click(screen.getByRole("button", { name: archiveLabel }));
+      const dialog = screen.getByRole("dialog", {
+        name:
+          locale === "en"
+            ? "Archive Main storage?"
+            : "เก็บถาวร Main storage หรือไม่",
+      });
+      expect(dialog).toHaveTextContent(
+        locale === "en"
+          ? "This building has more storage areas and positions than can be checked safely at once."
+          : "อาคารนี้มีพื้นที่และตำแหน่งจัดเก็บมากเกินกว่าจะตรวจสอบอย่างปลอดภัยในครั้งเดียว",
+      );
+      expect(within(dialog).getByTestId("lifecycle-impact")).toHaveTextContent(
+        locale === "en"
+          ? "Minimum counts; some addresses are not included."
+          : "จำนวนขั้นต่ำ บางตำแหน่งยังไม่รวมอยู่ในยอดนี้",
+      );
+      const confirm = within(dialog).getByRole("button", {
+        name: archiveLabel,
+      });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(mutation).not.toHaveBeenCalled();
+    },
+  );
+  it("shows a useful capacity explanation in the server readiness review", () => {
+    layoutAccess.activate = true;
+    layoutAccess.query.mockReturnValue({
+      ok: true,
+      value: {
+        found: true,
+        building,
+        floors,
+        version: building.version,
+        ready: false,
+        issues: [{ code: "LAYOUT_CAPACITY_LIMIT", blocking: true }],
+      },
+    });
+    renderWithIntl(<StorageBuildingReview buildingId={building.buildingId} />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(
+      screen.getByText(/This building has more storage areas and positions/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Activate layout" }),
+    ).toBeDisabled();
   });
 });

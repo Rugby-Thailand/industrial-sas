@@ -17,6 +17,7 @@ import {
   writeIdempotencyRecord,
 } from "../lib/idempotency";
 import type { TenantTableName } from "../lib/schemaPolicy";
+import type { AuditChange } from "../lib/masterDataStore";
 import type { TenantIndexEquality, TenantOwnedDocument } from "../lib/tenantDb";
 import {
   dimensions,
@@ -129,7 +130,10 @@ export async function command(
   args: { warehouseId: Id<"warehouses">; requestId: string },
   operation: string,
   table: TenantTableName,
-  run: () => Promise<ReturnType<typeof refusal> | { documentId: string }>,
+  run: () => Promise<
+    | ReturnType<typeof refusal>
+    | { documentId: string; changes?: readonly AuditChange[] }
+  >,
 ) {
   if (!args.requestId.trim() || args.requestId.length > 200)
     return failure("REQUEST_IDENTITY_INVALID", "requestId");
@@ -186,6 +190,9 @@ export async function command(
     warehouseId: args.warehouseId,
     outcome: "ALLOWED",
     requestId: args.requestId,
+    ...(result.changes
+      ? { changes: result.changes.map((change) => ({ ...change })) }
+      : {}),
   });
   await writeIdempotencyRecord({
     tenantDb: ctx.tenantDb,
@@ -206,6 +213,7 @@ export const saveProduct = mutationWithOrg({
     ...productFields,
     requestId: v.string(),
     productId: v.optional(v.id("finishedGoodsProducts")),
+    expectedUpdatedAt: v.optional(v.number()),
     draft: v.boolean(),
   },
   returns: v.any(),
@@ -226,6 +234,8 @@ export const saveProduct = mutationWithOrg({
             })
           : null;
         if (args.productId && !before) return failure("NOT_FOUND");
+        if (before && args.expectedUpdatedAt !== before.updatedAt)
+          return failure("VERSION_CONFLICT");
         const sku = args.sku.trim().toUpperCase();
         const name = args.name.trim(),
           unit = args.unit.trim(),
@@ -333,6 +343,9 @@ export const saveProduct = mutationWithOrg({
           productReference: args.productReference?.trim(),
           status: args.draft ? "DRAFT" : "ACTIVE",
           ...stamp(ctx),
+          ...(before
+            ? { updatedAt: Math.max(Date.now(), before.updatedAt + 1) }
+            : {}),
         };
         if (before) {
           await ctx.tenantDb.patch("finishedGoodsProducts", before._id, fields);

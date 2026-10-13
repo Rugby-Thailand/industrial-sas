@@ -1,3 +1,5 @@
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import {
   act,
   fireEvent,
@@ -38,27 +40,32 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
 vi.mock("convex/react", () => ({
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref).endsWith("saveBatchDraft") ? mocks.save : mocks.commit,
-  useQuery: (_ref: unknown, args: { batchId?: string }) =>
-    args.batchId
-      ? querySuccess({
-          batch: mocks.batch ?? serverBatch("CREATED", 1),
-          product: {
+  useQuery: (
+    _ref: Parameters<typeof getFunctionName>[0],
+    args: { batchId?: string },
+  ) =>
+    getFunctionName(_ref).endsWith(":replacementLabels")
+      ? undefined
+      : args.batchId
+        ? querySuccess({
+            batch: mocks.batch ?? serverBatch("CREATED", 1),
+            product: {
+              ...finishedGoodProduct,
+              status: mocks.status,
+              unit: mocks.unit,
+            },
+            units: [],
+            history: [],
+            editable: mocks.batchEditable,
+            blockedReason: mocks.batchEditable
+              ? undefined
+              : "BATCH_UNITS_RESERVED",
+          })
+        : querySuccess({
             ...finishedGoodProduct,
             status: mocks.status,
             unit: mocks.unit,
-          },
-          units: [],
-          history: [],
-          editable: mocks.batchEditable,
-          blockedReason: mocks.batchEditable
-            ? undefined
-            : "BATCH_UNITS_RESERVED",
-        })
-      : querySuccess({
-          ...finishedGoodProduct,
-          status: mocks.status,
-          unit: mocks.unit,
-        }),
+          }),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
@@ -871,7 +878,7 @@ it("creates simple packages with fullness presets without requiring measurements
   ).toHaveAttribute("href", "/finished-goods/pallets/unit-a");
   expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
     "href",
-    "/finished-goods/scan",
+    "/finished-goods/packages/scan?batchId=batch-a",
   );
   expect(screen.queryByRole("link", { name: /Find storage/ })).toBeNull();
 });
@@ -995,4 +1002,64 @@ describe("stale batch save lifecycle", () => {
     ).toHaveValue(200);
     expect(mocks.replace).not.toHaveBeenCalled();
   });
+});
+
+it("copies dimensions without copying the source weight", () => {
+  show();
+  split("110", "100");
+  measure();
+  input("Weight (kg, optional)", "900");
+  const summary = screen.getByText("Copy dimensions to selected units");
+  fireEvent.click(summary);
+  fireEvent.click(screen.getByRole("checkbox", { name: "pallet 2" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Copy selected dimensions" }),
+  );
+  selectUnit(2);
+  expect(screen.getByRole("spinbutton", { name: "Length (m)" })).toHaveValue(
+    1.001,
+  );
+  expect(
+    screen.getByRole("spinbutton", { name: "Weight (kg, optional)" }),
+  ).toHaveValue(null);
+});
+it("undo restores measurements after applying a replacement split", () => {
+  show();
+  split("100", "25");
+  measure();
+  input("Quantity per pallet", "50");
+  fireEvent.click(screen.getByRole("button", { name: "Apply this split" }));
+  fireEvent.click(screen.getByRole("button", { name: "Undo row change" }));
+  expect(screen.getByRole("spinbutton", { name: "Length (m)" })).toHaveValue(
+    1.001,
+  );
+  expect(
+    screen.getByRole("button", { name: "pallet 4", pressed: false }),
+  ).toBeVisible();
+});
+
+it("guards an unsent packing draft when browser storage cannot retain it", () => {
+  renderWithIntl(
+    <NavigationGuardProvider>
+      <PackingScreen productId="product-a" />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  const storage = vi
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new DOMException("blocked", "SecurityError");
+    });
+  input("Batch total quantity", "100");
+  const leave = vi.fn();
+  act(() => guardedNavigate(leave));
+  expect(
+    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(
+    screen.getByRole("spinbutton", { name: "Batch total quantity" }),
+  ).toHaveValue(100);
+  expect(leave).not.toHaveBeenCalled();
+  storage.mockRestore();
 });

@@ -9,14 +9,12 @@ import { LocationDetailsHost } from "@/components/storageLayouts/LocationDetails
 
 import { StorageZoneDraftPreview } from "@/components/storageLayouts/StorageZoneDraftPreview";
 
-import { rectanglesOverlap } from "@/lib/storageLayouts/storagePlacementGeometry";
-import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
-
 import { useMutation } from "convex/react";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import {
   Archive,
   ArrowRightLeft,
-  CheckCircle2,
   Eye,
   PencilLine,
   Plus,
@@ -49,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,12 +70,20 @@ import { useCanManage } from "@/hooks/useCanManage";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 import { palletPath } from "@/lib/navigation";
 
+import { metres } from "./storageLayoutShared";
 import {
-  ChangeImpactSummary,
-  metres,
-  millimetres,
-  storageErrorMessage,
-} from "./storageLayoutShared";
+  BlockedImpact,
+  layoutFailure,
+  MeasureInput,
+  OperationFailure,
+  storageWriteMessage,
+} from "./layoutActions";
+import { ListTree } from "lucide-react";
+import { measuredMillimetres } from "./measure";
+import { findFreePlacement, placementProblem } from "./zonePlacement";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StoragePositionsDialog } from "./StoragePositionsDialog";
+import type { StorageAreaMode } from "@/lib/convex/storageLayoutApi";
 import type { EditableBlock } from "./types";
 import { PlacementStatusBadge } from "@/features/storageKit/PlacementStatusBadge";
 
@@ -137,6 +144,7 @@ export function StorageZonesPanel({
   const operation = useAsyncOperation({
     scope: `storage-zones:${warehouseId}:${buildingId}:${floorNumber}`,
     describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
   });
   const [label, setLabel] = useState("");
   const [storageCondition, setStorageCondition] = useState("ANY");
@@ -145,11 +153,34 @@ export function StorageZonesPanel({
   const [zoneWidth, setZoneWidth] = useState("2");
   const [zoneDepth, setZoneDepth] = useState("2");
   const [stackHeight, setStackHeight] = useState(String(metres(floorHeightMm)));
+  const [mode, setMode] = useState<StorageAreaMode>("SIMPLE");
+  const [baseElevation, setBaseElevation] = useState("");
+  const [refusal, setRefusal] = useState<string>();
+  const [noRoom, setNoRoom] = useState(false);
+  // The revision the open draft is based on; a conflict keeps the draft (F19).
+  const [draftRevision, setDraftRevision] = useState<string>();
+  const [conflict, setConflict] = useState(false);
+  const [archiving, setArchiving] = useState<StorageZoneRow>();
+  const [positionsZoneId, setPositionsZoneId] = useState<string>();
+  // Native Forward onto a closed editor/manager entry restores what it showed.
+  const lastPositionsZoneId = useRef<string | undefined>(undefined);
+  const lastEditorZoneId = useRef<string | null>(null);
+  const openingEditor = useRef(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string>();
+  // Each opened draft (new spot, edited spot, link intent) gets a generation.
+  // A save completes only the exact draft it sent, never a newer one.
+  const editorGeneration = useRef(0);
+  const editorDialogRef = useRef<DialogCompletionHandle>(null);
+  const editorOpen = createDialogOpen && editable;
+  // An explicit open (trigger, edit, link) has been delivered once open.
   useLayoutEffect(() => {
-    onEditorOpenChange?.(createDialogOpen && editable);
+    if (editorOpen) openingEditor.current = false;
+  }, [editorOpen]);
+  useLayoutEffect(() => {
+    onEditorOpenChange?.(editorOpen);
     return () => onEditorOpenChange?.(false);
-  }, [createDialogOpen, editable, onEditorOpenChange]);
+  }, [editorOpen, onEditorOpenChange]);
   const [editingZone, setEditingZone] = useState<StorageZoneRow>();
   const followedAnchor = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -182,8 +213,46 @@ export function StorageZonesPanel({
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [warehouseId, buildingId, floorNumber, zones, visibleZones]);
-  const [confirmingImpact, setConfirmingImpact] = useState(false);
-  const [pendingAction, setPendingAction] = useState<string>();
+  // The editor Dialog owns its foreground entry under this draft scope; the
+  // stock-blocked review is a later step inside it (F13), so Back returns to
+  // the same spot draft and leaves the editor open.
+  const editorScope = `storage-zone-editor:${warehouseId}:${buildingId}:${floorNumber}`;
+  const impactScope = `storage-zone-impact:${warehouseId}:${buildingId}:${floorNumber}`;
+  const impactStep = useWorkflowStep(
+    "zoneImpact",
+    impactScope,
+    editorOpen,
+    undefined,
+    { priority: 110, blocked: operation.busy },
+  );
+  const confirmingImpact = impactStep.active;
+  const setConfirmingImpact = (open: boolean) => {
+    if (open && !impactStep.active) impactStep.enter();
+    if (!open && impactStep.active) impactStep.back();
+  };
+  const [editorBaseline, setEditorBaseline] = useState("");
+  const editorSnapshot = JSON.stringify([
+    label,
+    storageCondition,
+    zoneX,
+    zoneY,
+    zoneWidth,
+    zoneDepth,
+    stackHeight,
+    mode,
+    baseElevation,
+  ]);
+  // The open editor's own unsent values: closing it (Cancel, Close, Back)
+  // asks first; its impact review retains them.
+  useNavigationDraft({
+    dirty: editorOpen && editorSnapshot !== editorBaseline,
+    pending: operation.busy,
+    // The approved navigation itself closes the editor; discarding only
+    // releases its protection so that close is not asked twice.
+    discard: () => setEditorBaseline(editorSnapshot),
+    foregroundScope: editorScope,
+    workflowScope: impactScope,
+  });
   useLayoutEffect(() => {
     onSavingChange?.(pendingAction !== undefined);
     return () => onSavingChange?.(false);
@@ -192,10 +261,50 @@ export function StorageZonesPanel({
     readonly tone: "success" | "warning";
     readonly text: string;
   }>();
+  function loadZone(zone: StorageZoneRow) {
+    editorGeneration.current += 1;
+    openingEditor.current = true;
+    lastEditorZoneId.current = zone.zoneId;
+    setEditingZone(zone);
+    setLabel(zone.label);
+    setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
+    setZoneX(String(metres(zone.xMm)));
+    setZoneY(String(metres(zone.yMm)));
+    setZoneWidth(String(metres(zone.widthMm)));
+    setZoneDepth(String(metres(zone.depthMm)));
+    setStackHeight(String(metres(zone.maxStackHeightMm)));
+    setMode(zone.mode);
+    setBaseElevation(
+      zone.baseElevationMm === undefined
+        ? ""
+        : String(metres(zone.baseElevationMm)),
+    );
+    setDraftRevision(zone.revision);
+    setConflict(false);
+    setRefusal(undefined);
+    setNoRoom(false);
+    setEditorBaseline(
+      JSON.stringify([
+        zone.label,
+        zone.storageCondition?.trim().toUpperCase() || "ANY",
+        String(metres(zone.xMm)),
+        String(metres(zone.yMm)),
+        String(metres(zone.widthMm)),
+        String(metres(zone.depthMm)),
+        String(metres(zone.maxStackHeightMm)),
+        zone.mode,
+        zone.baseElevationMm === undefined
+          ? ""
+          : String(metres(zone.baseElevationMm)),
+      ]),
+    );
+  }
   const zoneQuery = useWorkspaceQuery();
   const openedFromLink = useRef<string | number | undefined>(undefined);
-  function clearZoneIntent() {
-    if (!new URLSearchParams(window.location.search).has("editZone")) return;
+  /** Remove only this editor's own link intent; a newer one is kept. */
+  function clearZoneIntent(zoneId: string | undefined) {
+    const current = new URLSearchParams(window.location.search).get("editZone");
+    if (current === null || current !== zoneId) return;
     updateBrowserQuery((query) => query.delete("editZone"), {
       event: workspaceStateEvent,
     });
@@ -217,76 +326,169 @@ export function StorageZonesPanel({
     ) {
       openedFromLink.current = requestKey;
       setMessage(undefined);
-      setConfirmingImpact(false);
-      setEditingZone(zone);
-      setLabel(zone.label);
-      setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
-      setZoneX(String(metres(zone.xMm)));
-      setZoneY(String(metres(zone.yMm)));
-      setZoneWidth(String(metres(zone.widthMm)));
-      setZoneDepth(String(metres(zone.depthMm)));
-      setStackHeight(String(metres(zone.maxStackHeightMm)));
+      loadZone(zone);
       setCreateDialogOpen(true);
     }
   }, [editable, zones, editRequest, zoneQuery]);
-  const zoneDraft = {
-    xMm: millimetres(zoneX),
-    yMm: millimetres(zoneY),
-    widthMm: millimetres(zoneWidth),
-    depthMm: millimetres(zoneDepth),
+  const measured = {
+    xMm: measuredMillimetres(zoneX),
+    yMm: measuredMillimetres(zoneY),
+    widthMm: measuredMillimetres(zoneWidth),
+    depthMm: measuredMillimetres(zoneDepth),
   };
+  const zoneDraft = {
+    xMm: measured.xMm ?? Number.NaN,
+    yMm: measured.yMm ?? Number.NaN,
+    widthMm: measured.widthMm ?? Number.NaN,
+    depthMm: measured.depthMm ?? Number.NaN,
+  };
+  const stackHeightMm = measuredMillimetres(stackHeight);
+  const baseElevationMm =
+    mode === "PLATFORM" ? measuredMillimetres(baseElevation) : null;
   const normalizedCondition = (condition: string | undefined) => {
     const normalized = condition?.trim().toUpperCase();
     return normalized === "ANY" ? "" : (normalized ?? "");
   };
+  const editingStock =
+    editingZone === undefined
+      ? 0
+      : editingZone.placements.length +
+        (editingZone.unmeasuredPalletCount ?? 0);
   const occupiedChangeBlocked =
     editingZone !== undefined &&
-    editingZone.placements.length + (editingZone.unmeasuredPalletCount ?? 0) >
-      0 &&
+    editingStock > 0 &&
     (zoneDraft.xMm !== editingZone.xMm ||
       zoneDraft.yMm !== editingZone.yMm ||
       zoneDraft.widthMm !== editingZone.widthMm ||
       zoneDraft.depthMm !== editingZone.depthMm ||
-      millimetres(stackHeight) !== editingZone.maxStackHeightMm ||
+      stackHeightMm !== editingZone.maxStackHeightMm ||
+      mode !== editingZone.mode ||
+      (mode === "PLATFORM" &&
+        baseElevationMm !== (editingZone.baseElevationMm ?? null)) ||
       normalizedCondition(storageCondition) !==
         normalizedCondition(editingZone.storageCondition));
   const otherZones =
     editingZone === undefined
       ? zones
       : zones.filter((zone) => zone.zoneId !== editingZone.zoneId);
-  const storageDraftValid =
-    zoneDraft.xMm >= 0 &&
-    zoneDraft.yMm >= 0 &&
-    zoneDraft.widthMm > 0 &&
-    zoneDraft.depthMm > 0 &&
-    millimetres(stackHeight) > 0 &&
-    zoneDraft.xMm + zoneDraft.widthMm <= floorWidthMm &&
-    zoneDraft.yMm + zoneDraft.depthMm <= floorDepthMm &&
-    millimetres(stackHeight) <= floorHeightMm &&
-    !reservedBlocks.some(
-      (area) =>
-        rectanglesOverlap(zoneDraft, area) &&
-        !storageRectangleContains(zoneDraft, area),
-    ) &&
-    !otherZones.some((area) => rectanglesOverlap(zoneDraft, area));
+  const exactPositionCount = (zone: StorageZoneRow) =>
+    zone.positions.filter((position) => !position.isDefault).length;
+  // Mirrors the server rule: returning to SIMPLE needs exact positions archived.
+  const simpleBlocked =
+    editingZone !== undefined &&
+    editingZone.mode !== "SIMPLE" &&
+    mode === "SIMPLE" &&
+    exactPositionCount(editingZone) > 0;
+  const problem = placementProblem({
+    draft:
+      measured.xMm === null ||
+      measured.yMm === null ||
+      measured.widthMm === null ||
+      measured.depthMm === null
+        ? null
+        : (zoneDraft as {
+            xMm: number;
+            yMm: number;
+            widthMm: number;
+            depthMm: number;
+          }),
+    heightMm: stackHeightMm,
+    floorWidthMm,
+    floorDepthMm,
+    floorHeightMm,
+    areas: [
+      ...reservedBlocks.map((area) => ({
+        ...area,
+        kind: "unavailable" as const,
+      })),
+      ...otherZones.map((area) => ({
+        ...area,
+        label: `${area.code} ${area.label}`,
+        kind: "spot" as const,
+      })),
+    ],
+  });
+  const platformValid =
+    mode !== "PLATFORM" ||
+    (baseElevationMm !== null &&
+      stackHeightMm !== null &&
+      baseElevationMm + stackHeightMm <= floorHeightMm);
+  const storageDraftValid = problem === null && platformValid && !simpleBlocked;
+  const problemText =
+    problem === null
+      ? undefined
+      : problem.kind === "incomplete"
+        ? t("layoutActions.placement.incomplete")
+        : problem.kind === "outside"
+          ? t("layoutActions.placement.outside", {
+              width: metres(floorWidthMm),
+              depth: metres(floorDepthMm),
+            })
+          : problem.kind === "tooHigh"
+            ? t("layoutActions.placement.tooHigh", {
+                height: metres(floorHeightMm),
+              })
+            : t("layoutActions.placement.overlaps", {
+                names: problem.names.join(", "),
+              });
+
+  /** Place the requested footprint in the first free gap, or report no room. */
+  const placeDraft = (widthMm: number, depthMm: number) => {
+    const position = findFreePlacement(
+      floorWidthMm,
+      floorDepthMm,
+      widthMm,
+      depthMm,
+      [...reservedBlocks, ...otherZones],
+    );
+    setNoRoom(position === null);
+    if (position !== null) {
+      setZoneX(String(metres(position.xMm)));
+      setZoneY(String(metres(position.yMm)));
+    }
+    return position;
+  };
 
   const startNewStorageZone = () => {
     if (!editable || blocked) return;
-    const position = firstFreeStoragePosition(
+    editorGeneration.current += 1;
+    openingEditor.current = true;
+    lastEditorZoneId.current = null;
+    setEditingZone(undefined);
+    setLabel("");
+    setStorageCondition("ANY");
+    setZoneWidth("2");
+    setZoneDepth("2");
+    setStackHeight(String(metres(floorHeightMm)));
+    setMode("SIMPLE");
+    setBaseElevation("");
+    setDraftRevision(undefined);
+    setConflict(false);
+    setRefusal(undefined);
+    const position = findFreePlacement(
       floorWidthMm,
       floorDepthMm,
       2_000,
       2_000,
       [...reservedBlocks, ...zones],
     );
-    setEditingZone(undefined);
-    setLabel("");
-    setStorageCondition("ANY");
-    setZoneX(String(metres(position.xMm)));
-    setZoneY(String(metres(position.yMm)));
-    setZoneWidth("2");
-    setZoneDepth("2");
-    setStackHeight(String(metres(floorHeightMm)));
+    // No overlapping fallback (F17): leave X/Y empty and say why.
+    setNoRoom(position === null);
+    setZoneX(position === null ? "" : String(metres(position.xMm)));
+    setZoneY(position === null ? "" : String(metres(position.yMm)));
+    setEditorBaseline(
+      JSON.stringify([
+        "",
+        "ANY",
+        position === null ? "" : String(metres(position.xMm)),
+        position === null ? "" : String(metres(position.yMm)),
+        "2",
+        "2",
+        String(metres(floorHeightMm)),
+        "SIMPLE",
+        "",
+      ]),
+    );
     setConfirmingImpact(false);
     setMessage(undefined);
   };
@@ -301,48 +503,51 @@ export function StorageZonesPanel({
 
   const startEditingStorageZone = (zone: StorageZoneRow) => {
     if (!editable || blocked) return;
-    setEditingZone(zone);
-    setLabel(zone.label);
-    setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
-    setZoneX(String(metres(zone.xMm)));
-    setZoneY(String(metres(zone.yMm)));
-    setZoneWidth(String(metres(zone.widthMm)));
-    setZoneDepth(String(metres(zone.depthMm)));
-    setStackHeight(String(metres(zone.maxStackHeightMm)));
+    loadZone(zone);
     setConfirmingImpact(false);
     setMessage(undefined);
     setCreateDialogOpen(true);
   };
 
   const saveStorageZone = async () => {
-    if (!editable || blocked) return;
+    if (!editable || blocked || !storageDraftValid) return;
     if (occupiedChangeBlocked) {
       setConfirmingImpact(true);
       return;
     }
     const isEditing = editingZone !== undefined;
+    const generation = editorGeneration.current;
+    const submitted = editorSnapshot;
     setPendingAction(isEditing ? "update" : "create");
     setMessage(undefined);
+    setRefusal(undefined);
     try {
       const draft = {
         warehouseId,
         label: label || t("newStorageZoneLabel", { number: zones.length + 1 }),
-        xMm: millimetres(zoneX),
-        yMm: millimetres(zoneY),
-        widthMm: millimetres(zoneWidth),
-        depthMm: millimetres(zoneDepth),
-        maxStackHeightMm: millimetres(stackHeight),
+        xMm: zoneDraft.xMm,
+        yMm: zoneDraft.yMm,
+        widthMm: zoneDraft.widthMm,
+        depthMm: zoneDraft.depthMm,
+        maxStackHeightMm: stackHeightMm ?? Number.NaN,
         storageCondition: storageCondition === "ANY" ? "" : storageCondition,
+        mode,
+        ...(mode === "PLATFORM" && baseElevationMm !== null
+          ? { baseElevationMm }
+          : {}),
       };
       // Each branch keeps its own payload; one current completion handles
-      // the shared create/update outcome.
+      // the shared create/update outcome. The server refuses structural
+      // changes under stock, so no override flag is ever sent.
       const send =
         editingZone !== undefined
           ? () => {
               const payload = {
                 ...draft,
                 zoneId: editingZone.zoneId,
-                ...(confirmingImpact ? { confirmOccupiedChange: true } : {}),
+                ...(draftRevision === undefined
+                  ? {}
+                  : { expectedRevision: draftRevision }),
               };
               return updateZone({
                 ...payload,
@@ -357,37 +562,70 @@ export function StorageZonesPanel({
               });
             };
       await operation.run(send, (outcome) => {
-        if (!outcome.ok) {
-          setMessage({
-            tone: "warning",
-            text: storageErrorMessage(t, outcome.denial.code),
-          });
-        } else if (!outcome.value.written) {
-          setMessage({
-            tone: "warning",
-            text: storageErrorMessage(t, outcome.value.error.code),
-          });
-        } else {
-          operation.clearRequests();
-          setLabel("");
-          setConfirmingImpact(false);
-          setCreateDialogOpen(false);
-          setEditingZone(undefined);
-          setMessage({
-            tone: "success",
-            text: t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
+        const code = !outcome.ok
+          ? outcome.denial.code
+          : !outcome.value.written
+            ? outcome.value.error.code
+            : undefined;
+        if (code === "VERSION_CONFLICT" && isEditing) {
+          setConflict(true);
+          return;
+        }
+        if (code !== undefined) {
+          setRefusal(code);
+          return;
+        }
+        operation.clearRequests();
+        // A newer draft replaced the one this request saved: leave it alone.
+        if (editorGeneration.current === generation) {
+          // The sent values are saved; anything typed since stays protected.
+          setEditorBaseline(submitted);
+          // The live owner runs this after the write and draft have settled.
+          // The editor Dialog then consumes its own entry and closes, unless
+          // a newer draft has replaced this one in the meantime.
+          operation.complete(() => {
+            if (editorGeneration.current !== generation) return;
+            editorDialogRef.current?.complete(() => {
+              if (editorGeneration.current !== generation) return;
+              setCreateDialogOpen(false);
+            });
           });
         }
+        setMessage({
+          tone: "success",
+          text:
+            mode !== "SIMPLE" && !isEditing
+              ? `${t("storageZoneCreated")} ${t("layoutActions.modeExactRequired")}`
+              : t(isEditing ? "storageZoneUpdated" : "storageZoneCreated"),
+        });
       });
     } finally {
       setPendingAction(undefined);
     }
   };
 
+  /** Reload the latest saved spot into the editor, discarding the draft. */
+  const loadLatest = () => {
+    const latest = zones.find((zone) => zone.zoneId === editingZone?.zoneId);
+    if (latest) loadZone(latest);
+    else setCreateDialogOpen(false);
+  };
+  /** Keep the draft but base it on the latest version, for an explicit re-save. */
+  const keepDraft = () => {
+    const latest = zones.find((zone) => zone.zoneId === editingZone?.zoneId);
+    if (!latest) return;
+    setEditingZone(latest);
+    setDraftRevision(latest.revision);
+    setConflict(false);
+    setMessage({ tone: "success", text: t("layoutActions.conflict.rebased") });
+  };
+
+  const [archiveRefusal, setArchiveRefusal] = useState<string>();
   const removeStorageZone = async (zone: StorageZoneRow) => {
     if (!editable || blocked) return;
     setPendingAction(zone.zoneId);
     setMessage(undefined);
+    setArchiveRefusal(undefined);
     try {
       const payload = {
         warehouseId,
@@ -400,14 +638,12 @@ export function StorageZonesPanel({
             requestId: operation.request(JSON.stringify(payload)),
           }),
         (outcome) => {
-          if (!outcome.ok) {
-            const code = outcome.denial.code;
-            setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
-          } else if (!outcome.value.written) {
-            const code = outcome.value.error.code;
-            setMessage({ tone: "warning", text: storageErrorMessage(t, code) });
-          } else {
+          if (!outcome.ok) setArchiveRefusal(outcome.denial.code);
+          else if (!outcome.value.written)
+            setArchiveRefusal(outcome.value.error.code);
+          else {
             operation.clearRequests();
+            operation.complete(() => setArchiving(undefined));
             setMessage({ tone: "success", text: t("storageZoneArchived") });
           }
         },
@@ -416,18 +652,46 @@ export function StorageZonesPanel({
       setPendingAction(undefined);
     }
   };
+  const archiveFailure = layoutFailure(archiveRefusal, operation);
+  const requestArchive = (zone: StorageZoneRow) => {
+    if (!editable || blocked) return;
+    setArchiveRefusal(undefined);
+    setArchiving(zone);
+  };
 
   const editorDialog = (
     <Dialog
-      open={createDialogOpen && editable}
+      open={editorOpen}
+      draftScope={editorScope}
+      completionRef={editorDialogRef}
+      backPending={operation.busy}
       onOpenChange={(open) => {
         if (open && !editable) return;
+        // Closing during the impact review returns to the draft first.
+        if (!open && impactStep.active) {
+          impactStep.back();
+          return;
+        }
+        if (open && !openingEditor.current) {
+          // Forward restores the spot this entry edited, from saved values;
+          // an entry for a spot that no longer exists stays closed.
+          const last = zones.find(
+            (zone) => zone.zoneId === lastEditorZoneId.current,
+          );
+          if (last) loadZone(last);
+          else if (lastEditorZoneId.current === null) startNewStorageZone();
+          else return;
+        }
+        openingEditor.current = false;
         setCreateDialogOpen(open);
         if (open) setMessage(undefined);
         else {
-          clearZoneIntent();
+          editorGeneration.current += 1;
+          clearZoneIntent(editingZone?.zoneId);
           setEditingZone(undefined);
-          setConfirmingImpact(false);
+          setLabel("");
+          setConflict(false);
+          setRefusal(undefined);
         }
       }}
     >
@@ -495,30 +759,123 @@ export function StorageZonesPanel({
                 onChange={(event) => setLabel(event.target.value)}
               />
             </div>
-            {[
-              ["x", zoneX, setZoneX, 0, floorWidthMm],
-              ["y", zoneY, setZoneY, 0, floorDepthMm],
-              ["zoneWidth", zoneWidth, setZoneWidth, 0.1, floorWidthMm],
-              ["zoneDepth", zoneDepth, setZoneDepth, 0.1, floorDepthMm],
-            ].map(([key, value, setValue, min, max]) => (
-              <div key={String(key)}>
-                <Label htmlFor={`new-storage-zone-${String(key)}`}>
-                  {t(key as "x" | "y" | "zoneWidth" | "zoneDepth")}
-                </Label>
-                <Input
-                  id={`new-storage-zone-${String(key)}`}
+            {noRoom ? (
+              <div className="sm:col-span-2">
+                <Notice
+                  tone="warning"
+                  role="status"
+                  title={t("layoutActions.placement.noRoom", {
+                    width: zoneWidth || "—",
+                    depth: zoneDepth || "—",
+                  })}
+                  body={t("layoutActions.placement.noRoomHelp")}
+                />
+              </div>
+            ) : null}
+            {(
+              [
+                ["x", zoneX, setZoneX, 0, floorWidthMm],
+                ["y", zoneY, setZoneY, 0, floorDepthMm],
+                ["zoneWidth", zoneWidth, setZoneWidth, 0.001, floorWidthMm],
+                ["zoneDepth", zoneDepth, setZoneDepth, 0.001, floorDepthMm],
+              ] as const
+            ).map(([key, value, setValue, min, max]) => (
+              <div key={key}>
+                <Label htmlFor={`new-storage-zone-${key}`}>{t(key)}</Label>
+                <MeasureInput
+                  id={`new-storage-zone-${key}`}
                   className="mt-2"
-                  type="number"
-                  min={Number(min)}
-                  max={metres(Number(max))}
-                  step="0.1"
-                  value={String(value)}
-                  onChange={(event) =>
-                    (setValue as (value: string) => void)(event.target.value)
-                  }
+                  min={min}
+                  max={metres(max)}
+                  value={value}
+                  onChange={(event) => {
+                    setValue(event.target.value);
+                    setConflict(false);
+                  }}
                 />
               </div>
             ))}
+            <div className="sm:col-span-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={
+                  measured.widthMm === null || measured.depthMm === null
+                }
+                onClick={() =>
+                  measured.widthMm !== null &&
+                  measured.depthMm !== null &&
+                  placeDraft(measured.widthMm, measured.depthMm)
+                }
+              >
+                {t("layoutActions.placement.findSpace")}
+              </Button>
+              <p
+                className={`mt-1 text-xs ${problemText ? "text-warning" : "text-muted"}`}
+                aria-live="polite"
+                data-testid="zone-placement-status"
+              >
+                {problemText ?? t("zoneFitsFloor")}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="new-storage-zone-mode">{t("areaMode")}</Label>
+              <SelectControl
+                id="new-storage-zone-mode"
+                className="mt-2 w-full"
+                label={t("areaMode")}
+                value={mode}
+                onValueChange={(value) => setMode(value as StorageAreaMode)}
+                placeholder={t("modeSimple")}
+                emptyLabel={t("modeSimple")}
+                options={(
+                  [
+                    ["SIMPLE", "modeSimple"],
+                    ["FLOOR_POSITIONS", "modeFloorPositions"],
+                    ["RACK", "modeRack"],
+                    ["PLATFORM", "modePlatform"],
+                  ] as const
+                ).map(([value, key]) => ({ value, label: t(key) }))}
+              />
+              <p className="mt-2 text-xs text-muted">
+                {t(
+                  mode === "SIMPLE"
+                    ? "modeSimpleRule"
+                    : mode === "FLOOR_POSITIONS"
+                      ? "modeFloorPositionsRule"
+                      : mode === "RACK"
+                        ? "modeRackRule"
+                        : "modePlatformRule",
+                )}
+              </p>
+              {simpleBlocked ? (
+                <p className="mt-1 text-xs text-warning" role="status">
+                  {t("layoutActions.modeSimpleBlocked")}
+                </p>
+              ) : mode !== "SIMPLE" &&
+                (editingZone === undefined ||
+                  exactPositionCount(editingZone) === 0) ? (
+                <p className="mt-1 text-xs text-muted">
+                  {t("layoutActions.modeExactRequired")}
+                </p>
+              ) : null}
+            </div>
+            {mode === "PLATFORM" ? (
+              <div className="sm:col-span-2">
+                <Label htmlFor="new-storage-zone-base">
+                  {t("baseElevation")}
+                </Label>
+                <MeasureInput
+                  id="new-storage-zone-base"
+                  className="mt-2"
+                  min={0}
+                  max={metres(floorHeightMm)}
+                  value={baseElevation}
+                  onChange={(event) => setBaseElevation(event.target.value)}
+                />
+              </div>
+            ) : null}
             <div className="sm:col-span-2">
               <Label htmlFor="new-storage-zone-condition">
                 {t("storageCondition")}
@@ -552,13 +909,11 @@ export function StorageZonesPanel({
               <Label htmlFor="new-storage-zone-height">
                 {t("maxStackHeight")}
               </Label>
-              <Input
+              <MeasureInput
                 id="new-storage-zone-height"
                 className="mt-2"
-                type="number"
-                min="0.1"
+                min={0.001}
                 max={metres(floorHeightMm)}
-                step="0.1"
                 value={stackHeight}
                 onChange={(event) => setStackHeight(event.target.value)}
               />
@@ -568,59 +923,70 @@ export function StorageZonesPanel({
         {message === undefined ? null : (
           <Notice tone={message.tone} title={message.text} />
         )}
+        {conflict ? (
+          <Notice
+            tone="warning"
+            role="alert"
+            title={t("layoutActions.conflict.title")}
+            body={t("layoutActions.conflict.description")}
+            testId="zone-version-conflict"
+          >
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={loadLatest}
+              >
+                {t("layoutActions.conflict.loadLatest")}
+              </Button>
+              <Button type="button" size="sm" onClick={keepDraft}>
+                {t("layoutActions.conflict.keepDraft")}
+              </Button>
+            </div>
+          </Notice>
+        ) : null}
+        <OperationFailure
+          failure={layoutFailure(refusal, operation)}
+          onRetry={() => void saveStorageZone()}
+          retrying={pendingAction !== undefined}
+        />
         {confirmingImpact && editingZone !== undefined ? (
-          <ChangeImpactSummary
+          <BlockedImpact
             placements={editingZone.placements}
+            unmeasuredCount={editingZone.unmeasuredPalletCount ?? 0}
             currentPlan={`${metres(editingZone.widthMm)} × ${metres(editingZone.depthMm)} × ${metres(editingZone.maxStackHeightMm)} m`}
-            proposedPlan={`${metres(zoneDraft.widthMm)} × ${metres(zoneDraft.depthMm)} × ${metres(millimetres(stackHeight))} m`}
+            proposedPlan={`${zoneWidth} × ${zoneDepth} × ${stackHeight} m`}
+            onBack={() => setConfirmingImpact(false)}
           />
         ) : null}
         <DialogFooter>
-          {confirmingImpact ? (
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              {t("cancel")}
+            </Button>
+          </DialogClose>
+          {confirmingImpact ? null : (
             <Button
               type="button"
-              variant="outline"
-              onClick={() => setConfirmingImpact(false)}
-            >
-              {t("backToEdit")}
-            </Button>
-          ) : (
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("cancel")}
-              </Button>
-            </DialogClose>
-          )}
-          <Button
-            type="button"
-            onClick={() => {
-              if (occupiedChangeBlocked) {
-                setConfirmingImpact(true);
-                return;
+              onClick={() => void saveStorageZone()}
+              disabled={
+                pendingAction !== undefined ||
+                !editable ||
+                blocked ||
+                conflict ||
+                !storageDraftValid
               }
-              void saveStorageZone();
-            }}
-            disabled={
-              pendingAction !== undefined ||
-              !editable ||
-              blocked ||
-              !storageDraftValid ||
-              (confirmingImpact && occupiedChangeBlocked)
-            }
-          >
-            {editingZone === undefined ? (
-              <Plus className="size-4" />
-            ) : confirmingImpact ? (
-              <CheckCircle2 className="size-4" />
-            ) : (
-              <PencilLine className="size-4" />
-            )}
-            {pendingAction === "create"
-              ? t("creating")
-              : pendingAction === "update"
-                ? t("updating")
-                : confirmingImpact
-                  ? t("confirmChanges")
+            >
+              {editingZone === undefined ? (
+                <Plus className="size-4" />
+              ) : (
+                <PencilLine className="size-4" />
+              )}
+              {pendingAction === "create"
+                ? t("creating")
+                : pendingAction === "update"
+                  ? t("updating")
                   : occupiedChangeBlocked
                     ? t("reviewImpact")
                     : t(
@@ -628,11 +994,13 @@ export function StorageZonesPanel({
                           ? "createStorageZone"
                           : "saveStorageZoneChanges",
                       )}
-          </Button>
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+
   const locationDetails = (
     <div
       className={
@@ -812,6 +1180,27 @@ export function StorageZonesPanel({
                           <PencilLine className="size-3.5" />
                         </Button>
                       )}
+                      {zone.mode !== "SIMPLE" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            pendingAction !== undefined || !editable || blocked
+                          }
+                          onClick={() => {
+                            lastPositionsZoneId.current = zone.zoneId;
+                            setPositionsZoneId(zone.zoneId);
+                          }}
+                          aria-label={t("layoutActions.positions.manageTitle", {
+                            code: zone.code,
+                          })}
+                          title={t("layoutActions.positions.manage")}
+                          className="size-11 p-0"
+                        >
+                          <ListTree className="size-3.5" />
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         size="sm"
@@ -819,8 +1208,8 @@ export function StorageZonesPanel({
                         disabled={
                           pendingAction !== undefined || !editable || blocked
                         }
-                        onClick={() => removeStorageZone(zone)}
-                        aria-label={t("archiveZone")}
+                        onClick={() => requestArchive(zone)}
+                        aria-label={`${t("archiveZone")} · ${zone.code}`}
                         title={`${t("archiveZone")} · ${zone.label}`}
                         className="size-11 p-0"
                       >
@@ -836,13 +1225,29 @@ export function StorageZonesPanel({
                 <summary className="flex min-h-11 cursor-pointer items-center py-2">
                   {t("canvasLocationActions")}
                 </summary>
+                {zone.mode !== "SIMPLE" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={pendingAction !== undefined || blocked}
+                    onClick={() => {
+                      lastPositionsZoneId.current = zone.zoneId;
+                      setPositionsZoneId(zone.zoneId);
+                    }}
+                  >
+                    <ListTree className="size-4" />
+                    {t("layoutActions.positions.manage")}
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   className="min-h-11"
                   disabled={pendingAction !== undefined || blocked}
-                  onClick={() => removeStorageZone(zone)}
+                  onClick={() => requestArchive(zone)}
                 >
                   <Archive className="size-4" />
                   {t("archiveZone")}
@@ -863,6 +1268,13 @@ export function StorageZonesPanel({
               <summary className="flex min-h-11 cursor-pointer items-center text-xs font-medium text-link focus-visible:outline-2 focus-visible:outline-accent">
                 {t("spotLabels", { count: distinctPositions.length + 1 })}
               </summary>
+              <p className="mt-2 text-xs font-medium text-text">
+                {t(
+                  zone.positions.length > 1
+                    ? "layoutActions.qr.area"
+                    : "layoutActions.qr.areaAuto",
+                )}
+              </p>
               {compact && (
                 <LocationQrCode
                   value={zone.qrValue}
@@ -875,6 +1287,9 @@ export function StorageZonesPanel({
               <code className="mt-2 block text-xs break-all text-muted">
                 {zone.qrValue}
               </code>
+              <p className="mt-2 text-xs text-muted">
+                {t("layoutActions.qr.help")}
+              </p>
               {distinctPositions.length > 0 && (
                 <ul className="mt-3 space-y-2">
                   {distinctPositions.map((position) => (
@@ -889,6 +1304,9 @@ export function StorageZonesPanel({
                         label={t("qrForZone", { code: position.code })}
                       />
                       <div className="min-w-0">
+                        <p className="text-xs text-muted">
+                          {t("layoutActions.qr.exact")}
+                        </p>
                         <p className="text-sm font-medium break-words">
                           {position.label}
                         </p>
@@ -1048,6 +1466,62 @@ export function StorageZonesPanel({
       })}
     </div>
   );
+  const positionsZone = zones.find((zone) => zone.zoneId === positionsZoneId);
+  const lifecycleDialogs = (
+    <>
+      <ConfirmDialog
+        open={archiving !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setArchiving(undefined);
+        }}
+        title={
+          archiving
+            ? t("layoutActions.archiveZoneTitle", {
+                code: archiving.code,
+                label: archiving.label,
+              })
+            : ""
+        }
+        description={t("layoutActions.archiveZoneDescription", {
+          count: archiving ? exactPositionCount(archiving) : 0,
+        })}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("layoutActions.archiveZoneConfirm")}
+        pendingLabel={t("layoutActions.archivingZone")}
+        tone="destructive"
+        pending={pendingAction !== undefined}
+        confirmDisabled={
+          archiving === undefined ||
+          archiving.placements.length + (archiving.unmeasuredPalletCount ?? 0) >
+            0
+        }
+        onConfirm={() => archiving && void removeStorageZone(archiving)}
+        error={
+          archiveFailure === undefined
+            ? undefined
+            : archiveFailure.thrown
+              ? t("layoutActions.failure.network")
+              : storageWriteMessage(t, archiveFailure.code)
+        }
+      >
+        {archiving &&
+        archiving.placements.length + (archiving.unmeasuredPalletCount ?? 0) >
+          0 ? (
+          <Notice tone="warning" title={t("occupiedChangeBlocked")} />
+        ) : null}
+      </ConfirmDialog>
+      <StoragePositionsDialog
+        warehouseId={warehouseId}
+        zone={positionsZone}
+        onClose={() => setPositionsZoneId(undefined)}
+        onReopen={() => {
+          const id = lastPositionsZoneId.current;
+          if (id !== undefined && zones.some((zone) => zone.zoneId === id))
+            setPositionsZoneId(id);
+        }}
+      />
+    </>
+  );
   if (compact) {
     const details = (
       <>
@@ -1091,7 +1565,7 @@ export function StorageZonesPanel({
               />
             ) : null}
             {locationDetails}
-            {message && !createDialogOpen ? (
+            {message && !editorOpen ? (
               <Notice tone={message.tone} title={message.text} />
             ) : null}
           </div>
@@ -1101,6 +1575,7 @@ export function StorageZonesPanel({
     return (
       <>
         {editorDialog}
+        {lifecycleDialogs}
         {detailsHost
           ? detailsHost.target
             ? createPortal(details, detailsHost.target)
@@ -1133,6 +1608,7 @@ export function StorageZonesPanel({
           </div>
         </div>
         {editorDialog}
+        {lifecycleDialogs}
       </div>
 
       {blocked ? (
@@ -1244,7 +1720,7 @@ export function StorageZonesPanel({
       )}
       {locationDetails}
 
-      {message === undefined || createDialogOpen ? null : (
+      {message === undefined || editorOpen ? null : (
         <div className="mt-4">
           <Notice tone={message.tone} title={message.text} />
         </div>
@@ -1286,27 +1762,3 @@ function LocationOnlyInventory({ zone }: { zone: StorageZoneRow }) {
     </div>
   );
 }
-
-const firstFreeStoragePosition = (
-  floorWidthMm: number,
-  floorDepthMm: number,
-  widthMm: number,
-  depthMm: number,
-  areas: readonly {
-    readonly xMm: number;
-    readonly yMm: number;
-    readonly widthMm: number;
-    readonly depthMm: number;
-  }[],
-) => {
-  const stepMm = 500;
-  for (let yMm = 0; yMm + depthMm <= floorDepthMm; yMm += stepMm) {
-    for (let xMm = 0; xMm + widthMm <= floorWidthMm; xMm += stepMm) {
-      const candidate = { xMm, yMm, widthMm, depthMm };
-      if (!areas.some((area) => rectanglesOverlap(candidate, area))) {
-        return { xMm, yMm };
-      }
-    }
-  }
-  return { xMm: 0, yMm: 0 };
-};

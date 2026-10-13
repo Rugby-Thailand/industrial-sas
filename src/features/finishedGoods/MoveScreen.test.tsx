@@ -2,6 +2,7 @@ import { messagesFor } from "@/i18n/messages";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -11,7 +12,7 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { getFunctionName } from "convex/server";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
 
@@ -60,7 +61,15 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({
+    push: mocks.push,
+    replace: (href: string) => {
+      mocks.push(href);
+      const locale = window.location.pathname.startsWith("/th/") ? "th" : "en";
+      window.history.replaceState({}, "", `/${locale}${href}`);
+    },
+    back: () => window.history.back(),
+  }),
 }));
 
 import {
@@ -130,6 +139,11 @@ function renderMove(locale = "en") {
 const callsFor = (name: string) =>
   mocks.write.mock.calls.filter(([method]) => method.endsWith(`:${name}`));
 beforeEach(() => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/pallets/pallet-a/move",
+  );
   localStorage.clear();
   sessionStorage.clear();
   mocks.canManage = true;
@@ -758,4 +772,220 @@ it("does not navigate when a move completion resolves after unmount", async () =
   resolveComplete();
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
   expect(mocks.push).not.toHaveBeenCalled();
+});
+describe("native move foreground Back", () => {
+  it.each(["header", "native"])(
+    "%s Back returns from Change destination to the prepared move",
+    async (kind) => {
+      currentDetail = active();
+      window.history.replaceState(
+        { appNavigationIndex: 0 },
+        "",
+        "/en/finished-goods?origin=1#source",
+      );
+      window.history.pushState(
+        { appNavigationIndex: 1 },
+        "",
+        "/en/finished-goods/pallets/pallet-a/move?kept=yes#position",
+      );
+      renderMove();
+      expect(
+        screen.getByRole("heading", { name: "Move prepared" }),
+      ).toBeVisible();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Change destination" }),
+      );
+      expect(
+        screen.getByRole("button", { name: "Reserve this position" }),
+      ).toBeVisible();
+      await act(async () => {
+        const popped = new Promise<void>((resolve) =>
+          window.addEventListener("popstate", () => resolve(), { once: true }),
+        );
+        if (kind === "header")
+          fireEvent.click(screen.getByRole("button", { name: "Back" }));
+        else window.history.back();
+        await popped;
+      });
+      await waitFor(() =>
+        expect(
+          screen.getByRole("heading", { name: "Move prepared" }),
+        ).toBeVisible(),
+      );
+      expect(window.location.pathname).toBe(
+        "/en/finished-goods/pallets/pallet-a/move",
+      );
+      expect(window.location.search).toBe("?kept=yes");
+      expect(window.location.hash).toBe("#position");
+      expect(mocks.write).not.toHaveBeenCalled();
+    },
+  );
+});
+
+import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+describe("native move pending departure", () => {
+  it("blocks native Back while Start move is in flight", async () => {
+    currentDetail = active();
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/en/finished-goods?origin=1#source",
+    );
+    window.history.pushState(
+      { appNavigationIndex: 1 },
+      "",
+      "/en/finished-goods/pallets/pallet-a/move?kept=yes#position",
+    );
+    mocks.write.mockImplementation(() => new Promise(() => {}));
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        messages={messagesFor("en")}
+        timeZone="Asia/Bangkok"
+      >
+        <DraftGuardProvider>
+          <MoveScreen palletId="pallet-a" />
+        </DraftGuardProvider>
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Start move" }));
+    await waitFor(() => expect(callsFor("startMove")).toHaveLength(1));
+    await act(async () => {
+      window.history.back();
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    });
+    expect(window.location.pathname).toBe(
+      "/en/finished-goods/pallets/pallet-a/move",
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeVisible();
+  });
+});
+
+import { trackAppHistory } from "@/lib/browser/appHistory";
+let stopTracking: (() => void) | undefined;
+afterEach(() => {
+  stopTracking?.();
+  stopTracking = undefined;
+});
+function trackedMove(direct = false, selection = false) {
+  currentDetail = active();
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    direct
+      ? "/th/finished-goods/pallets/pallet-a/move?kept=yes&moveDestination=1#position"
+      : "/th/finished-goods?search=box#source",
+  );
+  stopTracking = trackAppHistory();
+  if (!direct)
+    window.history.pushState(
+      {},
+      "",
+      "/th/finished-goods/pallets/pallet-a/move?kept=yes#position",
+    );
+  const view = renderMove("th");
+  if (selection)
+    fireEvent.click(screen.getByRole("button", { name: "เปลี่ยนปลายทาง" }));
+  return view;
+}
+async function traverse(delta: "back" | "forward") {
+  await act(async () => {
+    window.history[delta]();
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+  });
+}
+it("explicit destination Cancel consumes its step and next Back restores the actual locale query and hash origin", async () => {
+  trackedMove(false, true);
+  fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));
+  await waitFor(() => expect(window.location.search).toBe("?kept=yes"));
+  await traverse("back");
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/finished-goods?search=box#source"),
+  );
+  expect(mocks.write).not.toHaveBeenCalled();
+});
+it("Forward restores the move destination step and remount retains its connected ownership", async () => {
+  const view = trackedMove(false, true);
+  await traverse("back");
+  expect(window.location.search).toBe("?kept=yes");
+  await traverse("forward");
+  expect(
+    new URLSearchParams(window.location.search).get("moveDestination"),
+  ).toBe("1");
+  expect(screen.getByRole("button", { name: "ยกเลิก" })).toBeVisible();
+  view.unmount();
+  renderMove("th");
+  expect(screen.getByRole("button", { name: "ยกเลิก" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));
+  await waitFor(() => expect(window.location.search).toBe("?kept=yes"));
+});
+it("direct destination links dismiss selection before using the safe pallet parent", async () => {
+  trackedMove(true);
+  fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));
+  expect(window.location.search).toBe("?kept=yes");
+  expect(window.location.hash).toBe("#position");
+  fireEvent.click(screen.getByRole("button", { name: "ย้อนกลับ" }));
+  expect(mocks.push).toHaveBeenCalledWith("/finished-goods/pallets/pallet-a");
+});
+
+it("explicit issue Close protects its unsent description and discarding consumes only that foreground", async () => {
+  currentDetail = active();
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods?origin=yes#list",
+  );
+  stopTracking = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/pallets/pallet-a/move?kept=yes#position",
+  );
+  render(
+    <NextIntlClientProvider
+      locale="en"
+      messages={messagesFor("en")}
+      timeZone="Asia/Bangkok"
+    >
+      <DraftGuardProvider>
+        <MoveScreen palletId="pallet-a" />
+      </DraftGuardProvider>
+    </NextIntlClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Report an issue" }));
+  const dialog = await screen.findByRole("dialog", { name: "Report an issue" });
+  fireEvent.change(
+    within(dialog).getByRole("textbox", { name: "Describe the issue" }),
+    { target: { value: "broken carton" } },
+  );
+  fireEvent.click(
+    within(dialog).getAllByRole("button", { name: "Close" }).at(-1)!,
+  );
+  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(
+    screen.getByRole("textbox", { name: "Describe the issue" }),
+  ).toHaveValue("broken carton");
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Report an issue" }))
+      .getAllByRole("button", { name: "Close" })
+      .at(-1)!,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(window.location.search).toBe("?kept=yes"));
+  await traverse("back");
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/en/finished-goods?origin=yes#list"),
+  );
+  expect(mocks.write).not.toHaveBeenCalled();
 });

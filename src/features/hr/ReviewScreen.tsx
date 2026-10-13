@@ -4,6 +4,9 @@ import { useQuery } from "convex/react";
 import { ArrowLeft, CalendarCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
+import { appHistoryIndex } from "@/lib/browser/appHistory";
+import { updateBrowserQuery } from "@/lib/browser/history";
+import { guardedNavigate, traverseBack } from "@/lib/navigationGuard";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { Button } from "@/components/ui/button";
@@ -12,14 +15,10 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 import { hrRefs } from "@/lib/convex/hrApi";
-import {
-  useGuardedUrl,
-  useQueryParams,
-  useUrlBackedState,
-} from "@/lib/deepLink";
+import { useQueryParams, useUrlBackedState } from "@/lib/deepLink";
 import {
   HR_CODES,
-  hrReviewPath,
+  ROUTES,
   readReviewUrl,
   type ReviewTab,
 } from "@/lib/navigation";
@@ -93,7 +92,6 @@ function ReviewContent() {
   const today = access.today ?? "";
   const params = useQueryParams();
   const url = readReviewUrl(params);
-  const navigate = useGuardedUrl();
   // Range, site and search follow the URL as well, so Back from another
   // page, a reload or Back/Forward return to the same filtered queue page.
   const [criteria, setCriteria, entry] = useHrListCriteria(
@@ -194,22 +192,51 @@ function ReviewContent() {
     selected !== undefined &&
     item.employeeId === selected.employeeId &&
     item.businessDate === selected.businessDate;
-  const select = (next: Selection | undefined, nextTab: ReviewTab = tab) =>
-    navigate(
-      withListCriteria(
-        hrReviewPath({
-          ...(next === undefined
-            ? {}
-            : { employeeId: next.employeeId, date: next.businessDate }),
-          tab: nextTab,
-        }),
-        criteria,
-      ),
-      () => {
-        setSelected(next);
-        setChosenTab(nextTab);
-      },
-    );
+  const select = (next: Selection | undefined, nextTab: ReviewTab = tab) => {
+    if (next === undefined && selected !== undefined && nextTab === tab) {
+      const origin = window.history.state?.hrReviewSelectionOrigin;
+      if (
+        typeof origin?.pathname === "string" &&
+        origin.pathname.replace(/^\/(en|th)(?=\/|$)/, "") === ROUTES.hrReview &&
+        window.location.pathname.replace(/^\/(en|th)(?=\/|$)/, "") ===
+          ROUTES.hrReview &&
+        Number.isSafeInteger(origin?.index) &&
+        origin.index > 0 &&
+        origin.index === appHistoryIndex()
+      ) {
+        traverseBack();
+        return;
+      }
+    }
+    guardedNavigate(() => {
+      const origin =
+        next !== undefined && selected === undefined
+          ? {
+              pathname: window.location.pathname,
+              index: (appHistoryIndex() ?? 0) + 1,
+            }
+          : undefined;
+      updateBrowserQuery(
+        (query) => {
+          if (next) {
+            query.set("employee", next.employeeId);
+            query.set("date", next.businessDate);
+          } else {
+            query.delete("employee");
+            query.delete("date");
+            query.delete("focus");
+          }
+          query.set("tab", nextTab);
+        },
+        {
+          mode: next === undefined ? "replace" : "push",
+          ...(origin ? { metadata: { hrReviewSelectionOrigin: origin } } : {}),
+        },
+      );
+      setSelected(next);
+      setChosenTab(nextTab);
+    });
+  };
   // Switching tabs keeps the open detail only if that record is in the new tab.
   const switchTab = (value: ReviewTab) =>
     select(selectedTab === value ? selected : undefined, value);
@@ -349,18 +376,6 @@ function ReviewContent() {
 }
 
 /** A review URL that keeps the queue's range, site and search. */
-function withListCriteria(
-  href: string,
-  criteria: Readonly<Record<keyof typeof LIST_DEFAULTS, string>>,
-): string {
-  const [path, search = ""] = href.split("?");
-  const query = new URLSearchParams(search);
-  for (const [key, value] of Object.entries(criteria))
-    if (value !== "") query.set(key, value);
-  const text = query.toString();
-  return text === "" ? path! : `${path}?${text}`;
-}
-
 function QueueList({
   items,
   tab,

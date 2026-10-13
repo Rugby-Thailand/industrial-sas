@@ -266,7 +266,11 @@ export function HrRequestDetailScreen({
   const t = useTranslations("Hr.requests");
   return (
     <>
-      <PageHeader title={t("detailTitle")} summary={t("detailSummary")} />
+      <PageHeader
+        title={t("detailTitle")}
+        summary={t("detailSummary")}
+        backFallbackHref={ROUTES.hrRequests}
+      />
       <HrGate code={HR_CODES.self}>
         <RequestDetail requestId={requestId} />
       </HrGate>

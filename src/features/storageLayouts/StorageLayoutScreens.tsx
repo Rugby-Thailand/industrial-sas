@@ -3,13 +3,11 @@ import { WorkspaceFloorSelector } from "./WorkspaceFloorSelector";
 import { useStorageBuilding } from "./useStorageBuilding";
 import { updateBrowserQuery } from "@/lib/browser/history";
 import {
-  ChangeImpactSummary,
   localEntityId,
   metres,
   Metric,
   millimetres,
   squareMetres,
-  storageErrorMessage,
 } from "./storageLayoutShared";
 import { StorageZonesPanel } from "./StorageZonesPanel";
 import type { EditableBlock } from "./types";
@@ -35,6 +33,18 @@ import { AreaOverview } from "./AreaOverview";
 import { BuildingAreaDetails } from "./BuildingAreaDetails";
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
+import { completeTask, returnFromTask } from "@/lib/taskNavigation";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { LayoutTaskBar } from "./LayoutTaskBar";
+import {
+  BlockedImpact,
+  layoutFailure,
+  MeasureInput,
+  measuredMillimetres,
+  OperationFailure,
+  storageWriteMessage,
+  zoneUnmeasuredCount,
+} from "./layoutActions";
 
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
@@ -86,6 +96,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
@@ -105,11 +116,15 @@ import {
   type StorageLayoutStatus,
   type StorageStackPlacementRow,
   type StorageZoneRow,
+  type BuildingLifecycleImpact,
+  type LayoutReadiness,
+  type LayoutReadinessIssue,
 } from "@/lib/convex/storageLayoutApi";
 import {
   ROUTES,
   storageBuildingPath,
   storageFloorPath,
+  storageReviewPath,
 } from "@/lib/navigation";
 import {
   buildIsometricBuilding,
@@ -120,6 +135,8 @@ import {
 import { locationInventory } from "@/lib/storageLayouts/locationSelectors";
 
 import { useCanManage } from "@/hooks/useCanManage";
+import { useCan } from "@/hooks/useCan";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   storagePlacementBoxes,
   storagePlacementCorners,
@@ -130,17 +147,6 @@ import {
   StorageLocationCatalogue,
   type CatalogueFilters,
 } from "./StorageLocationCatalogue";
-
-function statusLabel(
-  t: ReturnType<typeof useTranslations<"StorageLayouts">>,
-  status: StorageLayoutStatus,
-) {
-  return status === "DRAFT"
-    ? t("draft")
-    : status === "ACTIVE"
-      ? t("active")
-      : t("archived");
-}
 
 function LoadingCard() {
   return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
@@ -249,6 +255,11 @@ function CatalogueContent({
         tone="muted"
         title={t("planningNotice")}
         body={t("planningNoticeBody")}
+      />
+      <Notice
+        tone="muted"
+        title={t("layoutActions.vocab.title")}
+        body={t("layoutActions.vocab.body")}
       />
     </div>
   );
@@ -383,23 +394,45 @@ export function NewStorageBuildingForm() {
 function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
   const t = useTranslations("StorageLayouts");
   const router = useRouter();
+  const canManage = useCanManage();
+  const { permissionsReady, warehouses } = useWorkspace();
+  const warehouse = warehouses?.find((option) => option.id === warehouseId);
   const create = useMutation(storageLayoutRefs.create);
   const operation = useAsyncOperation({
     scope: `new-building:${warehouseId}`,
     describeError: (code) => code || "UNKNOWN",
+    navigation: "write",
   });
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [dirty, setDirty] = useState(false);
+  const [floorCount, setFloorCount] = useState("1");
+  const [refusal, setRefusal] = useState<string>();
+  useNavigationDraft({
+    dirty,
+    pending: operation.busy,
+    discard: () => {
+      formRef.current?.reset();
+      setFloorCount("1");
+      setDirty(false);
+    },
+  });
+  async function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const form = formRef.current;
+    if (!form || operation.busy) return;
+    const data = new FormData(form);
+    const measure = (name: string) =>
+      measuredMillimetres(String(data.get(name) ?? "")) ?? Number.NaN;
     const payload = {
       warehouseId,
       code: String(data.get("code") ?? ""),
       name: String(data.get("name") ?? ""),
-      widthMm: millimetres(String(data.get("width") ?? "")),
-      depthMm: millimetres(String(data.get("depth") ?? "")),
-      defaultFloorHeightMm: millimetres(String(data.get("height") ?? "")),
+      widthMm: measure("width"),
+      depthMm: measure("depth"),
+      defaultFloorHeightMm: measure("height"),
       floorCount: Number(data.get("floors")),
     };
+    setRefusal(undefined);
     await operation.run(
       async () =>
         create({
@@ -407,83 +440,133 @@ function NewBuildingContent({ warehouseId }: { readonly warehouseId: string }) {
           requestId: operation.request(JSON.stringify(payload)),
         }),
       (outcome) => {
-        if (!outcome.ok) operation.setError(outcome.denial.code);
-        else if (!outcome.value.written)
-          operation.setError(outcome.value.error.code);
+        if (!outcome.ok) setRefusal(outcome.denial.code);
+        else if (!outcome.value.written) setRefusal(outcome.value.error.code);
         else {
           operation.clearRequests();
-          router.push(storageBuildingPath(outcome.value.documentId));
+          setDirty(false);
+          const destination = storageBuildingPath(outcome.value.documentId);
+          // The creation entry is consumed: Back from the new building
+          // returns to the catalogue the form was opened from.
+          operation.complete(() => completeTask(destination, router.replace));
         }
       },
     );
   }
+  if (permissionsReady && !canManage)
+    return (
+      <div className="max-w-3xl space-y-3">
+        <Notice tone="muted" title={t("layoutActions.newBuildingDenied")} />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => returnFromTask(ROUTES.storageLayouts, router.replace)}
+        >
+          {t("back")}
+        </Button>
+      </div>
+    );
+  const count = Number(floorCount);
   return (
     <form
+      ref={formRef}
       onSubmit={submit}
+      onInput={() => setDirty(true)}
       className="grid max-w-3xl gap-4 rounded-lg border border-border bg-surface p-4 sm:p-6"
     >
+      {warehouse ? (
+        <p className="text-sm text-muted">
+          {t("layoutActions.newBuildingDestination", {
+            warehouse: `${warehouse.code} · ${warehouse.name}`,
+          })}
+        </p>
+      ) : null}
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label={t("code")} name="code" defaultValue="BLDG-A" required />
+        <Field
+          label={t("code")}
+          name="code"
+          placeholder={t("layoutActions.newBuildingCodePlaceholder")}
+          autoComplete="off"
+          required
+        />
         <Field
           label={t("name")}
           name="name"
-          defaultValue="Main storage"
+          placeholder={t("layoutActions.newBuildingNamePlaceholder")}
+          autoComplete="off"
           required
         />
-        <Field
-          label={t("width")}
-          name="width"
-          type="number"
-          defaultValue="30"
-          min="0.1"
-          step="0.1"
-          required
-        />
-        <Field
-          label={t("depth")}
-          name="depth"
-          type="number"
-          defaultValue="20"
-          min="0.1"
-          step="0.1"
-          required
-        />
-        <Field
-          label={t("height")}
-          name="height"
-          type="number"
-          defaultValue="4"
-          min="0.1"
-          step="0.1"
-          required
-        />
+        {(["width", "depth", "height"] as const).map((name) => (
+          <MeasureField
+            key={name}
+            label={t(name)}
+            name={name}
+            min={0.001}
+            placeholder={t("layoutActions.newBuildingMeasurePlaceholder")}
+            required
+          />
+        ))}
         <Field
           label={t("floors")}
           name="floors"
           type="number"
-          defaultValue="4"
           min="1"
           max="50"
+          step="1"
+          value={floorCount}
+          onChange={(event) => setFloorCount(event.target.value)}
+          {...(Number.isSafeInteger(count) && count >= 1
+            ? { hint: t("layoutActions.newBuildingFloorsHint", { count }) }
+            : {})}
           required
         />
-        {!operation.error ? null : (
-          <div className="sm:col-span-2">
-            <Notice
-              tone="warning"
-              title={storageErrorMessage(t, operation.error)}
-            />
-          </div>
-        )}
+        <div className="sm:col-span-2">
+          <OperationFailure
+            failure={layoutFailure(refusal, operation)}
+            onRetry={() => void submit()}
+            retrying={operation.busy}
+          />
+        </div>
         <div className="flex gap-3 sm:col-span-2">
           <Button disabled={operation.busy}>
             {operation.busy ? t("creating") : t("create")}
           </Button>
-          <Button variant="outline" asChild>
-            <Link href={ROUTES.storageLayouts}>{t("back")}</Link>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={operation.busy}
+            onClick={() =>
+              returnFromTask(ROUTES.storageLayouts, router.replace)
+            }
+          >
+            {t("back")}
           </Button>
         </div>
       </div>
     </form>
+  );
+}
+
+function MeasureField({
+  label,
+  name,
+  hint,
+  ...props
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly hint?: string;
+} & React.ComponentProps<typeof MeasureInput>) {
+  const t = useTranslations("StorageLayouts.layoutActions");
+  return (
+    <FormField
+      id={name}
+      label={label}
+      required={props.required ?? false}
+      hint={hint ?? t("measureHint")}
+    >
+      {(field) => <MeasureInput {...field} name={name} {...props} />}
+    </FormField>
   );
 }
 
@@ -564,21 +647,26 @@ function BuildingContent({
           building={building}
           floors={floors}
           statusAction={
-            <BuildingStatusToggle
-              warehouseId={warehouseId}
-              buildingId={buildingId}
-              code={building.code}
-              status={building.status}
-            />
+            <>
+              <BuildingStatusToggle
+                warehouseId={warehouseId}
+                buildingId={buildingId}
+                code={building.code}
+                status={building.status}
+              />
+              <BuildingReviewAction
+                buildingId={buildingId}
+                status={building.status}
+              />
+            </>
           }
           settingsAction={
-            building.status !== "ARCHIVED" ? (
-              <BuildingSettingsDialog
-                warehouseId={warehouseId}
-                building={building}
-                placements={placements}
-              />
-            ) : undefined
+            <BuildingSettingsDialog
+              warehouseId={warehouseId}
+              building={building}
+              placements={placements}
+              topFloor={floors.at(-1)}
+            />
           }
         />
       </div>
@@ -586,16 +674,42 @@ function BuildingContent({
   );
 }
 
+/** The discoverable server-checked path to activation (F15). */
+function BuildingReviewAction({
+  buildingId,
+  status,
+}: {
+  readonly buildingId: string;
+  readonly status: StorageLayoutStatus;
+}) {
+  const t = useTranslations("StorageLayouts");
+  if (!useCan("masterData.storageLayout.activate") || status === "ACTIVE")
+    return null;
+  return (
+    <Button asChild size="sm" variant="outline" className="min-h-11">
+      <Link href={storageReviewPath(buildingId)}>
+        {status === "ARCHIVED" ? t("layoutActions.reactivate") : t("review")}
+      </Link>
+    </Button>
+  );
+}
+
 export function BuildingSettingsDialog({
   warehouseId,
   building,
   placements = [],
+  topFloor,
 }: {
   readonly warehouseId: string;
   readonly building: StorageBuildingRow;
   readonly placements?: readonly StorageStackPlacementRow[];
+  /** New floors copy the top floor's footprint; shown in the preview. */
+  readonly topFloor?: Pick<StorageFloorRow, "widthMm" | "depthMm"> | undefined;
 }) {
   const t = useTranslations("StorageLayouts");
+  // Read-only users get no editable-looking settings (F08); the header
+  // already shows the building's dimensions. The server still authorizes.
+  if (!useCanManage()) return null;
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -618,19 +732,76 @@ export function BuildingSettingsDialog({
           <DialogTitle>{t("dimensions")}</DialogTitle>
           <DialogDescription>{t("settingsDescription")}</DialogDescription>
         </DialogHeader>
-        <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto p-6">
-          <BuildingSettings
-            warehouseId={warehouseId}
-            building={building}
-            placements={placements}
-          />
+        <div className="max-h-[calc(100dvh-10rem)] space-y-6 overflow-y-auto p-6">
+          {building.status === "ARCHIVED" ? (
+            <ArchivedBuildingNotice buildingId={building.buildingId} />
+          ) : (
+            <>
+              <BuildingDimensionsForm
+                warehouseId={warehouseId}
+                building={building}
+                placements={placements}
+              />
+              <BuildingFloorCountForm
+                warehouseId={warehouseId}
+                building={building}
+                topFloor={topFloor}
+              />
+              <BuildingArchiveSection
+                warehouseId={warehouseId}
+                building={building}
+              />
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function BuildingSettings({
+function ArchivedBuildingNotice({
+  buildingId,
+}: {
+  readonly buildingId: string;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const canActivate = useCan("masterData.storageLayout.activate");
+  return (
+    <Notice tone="muted" title={t("layoutActions.archivedNotice")}>
+      {canActivate ? (
+        <Button asChild variant="outline" size="sm" className="mt-3">
+          <Link href={storageReviewPath(buildingId)}>
+            {t("layoutActions.reactivate")}
+          </Link>
+        </Button>
+      ) : null}
+    </Notice>
+  );
+}
+
+type DimensionDraft = {
+  readonly name: string;
+  readonly width: string;
+  readonly depth: string;
+  readonly height: string;
+};
+const dimensionDraft = (building: StorageBuildingRow): DimensionDraft => ({
+  name: building.name,
+  width: String(metres(building.widthMm)),
+  depth: String(metres(building.depthMm)),
+  height: String(metres(building.defaultFloorHeightMm)),
+});
+const sameDraft = (a: DimensionDraft, b: DimensionDraft) =>
+  a.name === b.name &&
+  a.width === b.width &&
+  a.depth === b.depth &&
+  a.height === b.height;
+
+/**
+ * Name and envelope, with their own saved baseline and draft registration.
+ * Saving here never clears or replaces the floor-count draft (F11).
+ */
+function BuildingDimensionsForm({
   warehouseId,
   building,
   placements,
@@ -641,187 +812,509 @@ function BuildingSettings({
 }) {
   const t = useTranslations("StorageLayouts");
   const update = useMutation(storageLayoutRefs.update);
-  const changeFloorCount = useMutation(storageLayoutRefs.changeFloorCount);
   const operation = useAsyncOperation({
-    scope: `building-settings:${warehouseId}:${building.buildingId}`,
+    scope: `building-dimensions:${warehouseId}:${building.buildingId}`,
     describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
   });
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
-  const [confirmingImpact, setConfirmingImpact] = useState(false);
-  const [floorHeightChanged, setFloorHeightChanged] = useState(false);
-
-  async function saveDimensions(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const heightChanged =
-      millimetres(String(data.get("height"))) !== building.defaultFloorHeightMm;
-    if (
-      placements.length + (building.unmeasuredPalletCount ?? 0) > 0 &&
-      heightChanged
-    ) {
-      setConfirmingImpact(true);
-      setError(undefined);
+  const [baseline, setBaseline] = useState(() => ({
+    version: building.version,
+    draft: dimensionDraft(building),
+  }));
+  const [draft, setDraft] = useState(baseline.draft);
+  const [refusal, setRefusal] = useState<string>();
+  const [blocked, setBlocked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const dirty = !sameDraft(draft, baseline.draft);
+  // A newer server version replaces a clean form only; a dirty draft keeps
+  // its values and is protected by the version check on save.
+  if (building.version > baseline.version && !dirty) {
+    const next = dimensionDraft(building);
+    setBaseline({ version: building.version, draft: next });
+    setDraft(next);
+  }
+  useNavigationDraft({
+    dirty,
+    pending: operation.busy,
+    discard: () => {
+      setDraft(baseline.draft);
+      setBlocked(false);
+    },
+  });
+  const stockCount = placements.length + (building.unmeasuredPalletCount ?? 0);
+  const heightMm = measuredMillimetres(draft.height);
+  const heightChanged = heightMm !== building.defaultFloorHeightMm;
+  const change = (field: keyof DimensionDraft) => (value: string) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setBlocked(false);
+    setSaved(false);
+  };
+  async function save(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (operation.busy) return;
+    if (stockCount > 0 && heightChanged) {
+      setBlocked(true);
       return;
     }
-    setPending(true);
-    setError(undefined);
-    try {
-      const payload = {
-        warehouseId,
-        buildingId: building.buildingId,
-        expectedVersion: building.version,
-        name: String(data.get("name") ?? building.name),
-        widthMm: millimetres(String(data.get("width"))),
-        depthMm: millimetres(String(data.get("depth"))),
-        defaultFloorHeightMm: millimetres(String(data.get("height"))),
-      };
-      await operation.run(
-        () =>
-          update({
-            ...payload,
-            requestId: operation.request(JSON.stringify(payload)),
-          }),
-        (result) => {
-          if (!result.ok) setError(result.denial.code);
-          else if (!result.value.written) setError(result.value.error.code);
-          else {
-            operation.clearRequests();
-            setConfirmingImpact(false);
-          }
-        },
-      );
-    } finally {
-      setPending(false);
-    }
+    const submitted = draft;
+    const payload = {
+      warehouseId,
+      buildingId: building.buildingId,
+      expectedVersion: baseline.version,
+      name: submitted.name,
+      widthMm: measuredMillimetres(submitted.width) ?? Number.NaN,
+      depthMm: measuredMillimetres(submitted.depth) ?? Number.NaN,
+      defaultFloorHeightMm: heightMm ?? Number.NaN,
+    };
+    setRefusal(undefined);
+    setSaved(false);
+    await operation.run(
+      () =>
+        update({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      (result) => {
+        if (!result.ok) setRefusal(result.denial.code);
+        else if (!result.value.written) setRefusal(result.value.error.code);
+        else {
+          operation.clearRequests();
+          setBaseline({ version: baseline.version + 1, draft: submitted });
+          setSaved(true);
+        }
+      },
+    );
   }
-
-  async function addFloors(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    setError(undefined);
-    const data = new FormData(event.currentTarget);
-    try {
-      const payload = {
-        warehouseId,
-        buildingId: building.buildingId,
-        expectedVersion: building.version,
-        floorCount: Number(data.get("floorCount")),
-      };
-      await operation.run(
-        () =>
-          changeFloorCount({
-            ...payload,
-            requestId: operation.request(JSON.stringify(payload)),
-          }),
-        (result) => {
-          if (!result.ok) setError(result.denial.code);
-          else if (!result.value.written) setError(result.value.error.code);
-          else operation.clearRequests();
-        },
-      );
-    } finally {
-      setPending(false);
-    }
-  }
-
   return (
-    <div>
-      <form
-        onSubmit={saveDimensions}
-        onChange={(event) => {
-          setConfirmingImpact(false);
-          const data = new FormData(event.currentTarget);
-          setFloorHeightChanged(
-            millimetres(String(data.get("height"))) !==
-              building.defaultFloorHeightMm,
-          );
-        }}
-        className="grid gap-4"
-      >
-        <Field label={t("name")} name="name" defaultValue={building.name} />
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field
-            label={t("width")}
-            name="width"
-            type="number"
-            min="0.1"
-            step="0.1"
-            defaultValue={metres(building.widthMm)}
+    <form onSubmit={save} className="grid gap-4" aria-label={t("dimensions")}>
+      <FormField id="building-settings-name" label={t("name")} required>
+        {(field) => (
+          <Input
+            {...field}
+            name="name"
+            value={draft.name}
+            onChange={(event) => change("name")(event.target.value)}
+            required
           />
-          <Field
-            label={t("depth")}
-            name="depth"
-            type="number"
-            min="0.1"
-            step="0.1"
-            defaultValue={metres(building.depthMm)}
+        )}
+      </FormField>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {(["width", "depth", "height"] as const).map((field) => (
+          <MeasureField
+            key={field}
+            label={t(field)}
+            name={field}
+            min={0.001}
+            value={draft[field]}
+            onChange={(event) => change(field)(event.target.value)}
+            required
           />
-          <Field
-            label={t("height")}
-            name="height"
-            type="number"
-            min="0.1"
-            step="0.1"
-            defaultValue={metres(building.defaultFloorHeightMm)}
-          />
-        </div>
-        {confirmingImpact ? (
-          <ChangeImpactSummary placements={placements} />
-        ) : null}
-        {confirmingImpact ? (
-          <Button
-            type="button"
-            size="default"
-            variant="outline"
-            disabled={pending}
-            onClick={() => setConfirmingImpact(false)}
-          >
-            {t("backToEdit")}
-          </Button>
-        ) : null}
-        <Button
-          size="default"
-          disabled={
-            pending ||
-            (confirmingImpact &&
-              placements.length + (building.unmeasuredPalletCount ?? 0) > 0)
-          }
-        >
-          {pending
+        ))}
+      </div>
+      {blocked ? (
+        <BlockedImpact
+          placements={placements}
+          unmeasuredCount={building.unmeasuredPalletCount ?? 0}
+          currentPlan={`${metres(building.defaultFloorHeightMm)} m`}
+          proposedPlan={`${draft.height} m`}
+          onBack={() => setBlocked(false)}
+        />
+      ) : null}
+      <OperationFailure
+        failure={layoutFailure(refusal, operation)}
+        onRetry={() => void save()}
+        retrying={operation.busy}
+      />
+      {saved && !dirty ? (
+        <p role="status" className="text-sm text-success">
+          {t("layoutActions.buildingSaved")}
+        </p>
+      ) : null}
+      {blocked ? null : (
+        <Button size="default" disabled={operation.busy || !dirty}>
+          {operation.busy
             ? t("saving")
-            : confirmingImpact
-              ? t("confirmChanges")
-              : floorHeightChanged &&
-                  placements.length + (building.unmeasuredPalletCount ?? 0) > 0
-                ? t("reviewImpact")
-                : t("saveBuilding")}
+            : heightChanged && stockCount > 0
+              ? t("reviewImpact")
+              : t("saveBuilding")}
         </Button>
-      </form>
-      <form
-        onSubmit={addFloors}
-        className="mt-4 flex items-end gap-2 border-t border-border pt-4"
-      >
+      )}
+    </form>
+  );
+}
+
+/** Adds floors by final total, with an explicit before/after preview (F10). */
+function BuildingFloorCountForm({
+  warehouseId,
+  building,
+  topFloor,
+}: {
+  readonly warehouseId: string;
+  readonly building: StorageBuildingRow;
+  readonly topFloor?: Pick<StorageFloorRow, "widthMm" | "depthMm"> | undefined;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const changeFloorCount = useMutation(storageLayoutRefs.changeFloorCount);
+  const operation = useAsyncOperation({
+    scope: `building-floors:${warehouseId}:${building.buildingId}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
+  });
+  const suggested = String(building.floorCount + 1);
+  const [base, setBase] = useState(building.floorCount);
+  const [total, setTotal] = useState(suggested);
+  const [refusal, setRefusal] = useState<string>();
+  const [added, setAdded] = useState<number>();
+  const lastCommand = useRef<Parameters<typeof changeFloorCount>[0]>(undefined);
+  const dirty = total !== String(base + 1);
+  if (building.floorCount !== base && !dirty) {
+    setBase(building.floorCount);
+    setTotal(suggested);
+  }
+  useNavigationDraft({
+    dirty,
+    pending: operation.busy,
+    discard: () => setTotal(String(base + 1)),
+  });
+  const next = Number(total);
+  const valid =
+    Number.isSafeInteger(next) && next > building.floorCount && next <= 50;
+  async function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (!valid || operation.busy) return;
+    const payload = {
+      warehouseId,
+      buildingId: building.buildingId,
+      expectedVersion: building.version,
+      floorCount: next,
+    };
+    const command = {
+      ...payload,
+      requestId: operation.request(JSON.stringify(payload)),
+    };
+    lastCommand.current = command;
+    await send(command);
+  }
+  async function send(command: Parameters<typeof changeFloorCount>[0]) {
+    if (operation.busy) return;
+    setRefusal(undefined);
+    setAdded(undefined);
+    await operation.run(
+      () => changeFloorCount(command),
+      (result) => {
+        if (!result.ok) setRefusal(result.denial.code);
+        else if (!result.value.written) setRefusal(result.value.error.code);
+        else {
+          operation.clearRequests();
+          lastCommand.current = undefined;
+          setBase(command.floorCount);
+          setTotal(String(command.floorCount + 1));
+          setAdded(command.floorCount);
+        }
+      },
+    );
+  }
+  return (
+    <form
+      onSubmit={submit}
+      className="grid gap-3 border-t border-border pt-4"
+      aria-label={t("addFloors")}
+    >
+      <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-0 flex-1">
           <Field
-            label={t("floors")}
+            label={t("layoutActions.floorCountTotal")}
             name="floorCount"
             type="number"
             min={building.floorCount + 1}
             max="50"
-            defaultValue={building.floorCount + 1}
+            step="1"
+            value={total}
+            onChange={(event) => {
+              setTotal(event.target.value);
+              setAdded(undefined);
+            }}
           />
         </div>
-        <Button size="default" variant="outline" disabled={pending}>
-          {t("addFloors")}
+        <Button
+          size="default"
+          variant="outline"
+          disabled={operation.busy || !valid}
+        >
+          {operation.busy ? t("saving") : t("addFloors")}
         </Button>
-      </form>
-      {error === undefined ? null : (
-        <div className="mt-3">
-          <Notice tone="warning" title={storageErrorMessage(t, error)} />
-        </div>
-      )}
+      </div>
+      <p className="text-sm text-muted" aria-live="polite">
+        {valid
+          ? t("layoutActions.floorCountPreview", {
+              current: building.floorCount,
+              next,
+              first: building.floorCount + 1,
+              added: next - building.floorCount,
+              width: metres(topFloor?.widthMm ?? building.widthMm),
+              depth: metres(topFloor?.depthMm ?? building.depthMm),
+            })
+          : t("layoutActions.floorCountUnchanged", {
+              current: building.floorCount,
+            })}
+      </p>
+      <OperationFailure
+        failure={layoutFailure(refusal, operation)}
+        onRetry={() => {
+          // A refreshed count/version must never turn Retry into another add.
+          if (lastCommand.current) void send(lastCommand.current);
+        }}
+        retrying={operation.busy}
+      />
+      {added !== undefined && !dirty ? (
+        <p role="status" className="text-sm text-success">
+          {t("layoutActions.floorsAdded", { count: added })}
+        </p>
+      ) : null}
+      <RemoveTopFloor warehouseId={warehouseId} building={building} />
+    </form>
+  );
+}
+
+/** Safe correction of an over-created floor; the server proves it is empty. */
+function RemoveTopFloor({
+  warehouseId,
+  building,
+}: {
+  readonly warehouseId: string;
+  readonly building: StorageBuildingRow;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const remove = useMutation(storageLayoutRefs.removeTopFloor);
+  const operation = useAsyncOperation({
+    scope: `building-remove-floor:${warehouseId}:${building.buildingId}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
+  });
+  const [open, setOpen] = useState(false);
+  const [refusal, setRefusal] = useState<string>();
+  const [removed, setRemoved] = useState<number>();
+  const [reviewedFloor, setReviewedFloor] = useState(building.floorCount);
+  const reviewedCommand = useRef<Parameters<typeof remove>[0]>(undefined);
+  const floor = building.floorCount;
+  if (floor <= 1 && !open) return null;
+  async function confirm() {
+    const command = reviewedCommand.current;
+    if (!command || operation.busy) return;
+    setRefusal(undefined);
+    await operation.run(
+      () => remove(command),
+      (result) => {
+        if (!result.ok) setRefusal(result.denial.code);
+        else if (!result.value.written) setRefusal(result.value.error.code);
+        else {
+          operation.clearRequests();
+          setRemoved(command.floorNumber);
+          operation.complete(() => setOpen(false));
+        }
+      },
+    );
+  }
+  const failure = layoutFailure(refusal, operation);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={floor <= 1}
+        onClick={() => {
+          // Confirm and retry refer to the floor actually reviewed on open.
+          // Reactive counts must not advance an uncertain destructive command.
+          const payload = {
+            warehouseId,
+            buildingId: building.buildingId,
+            expectedVersion: building.version,
+            floorNumber: floor,
+          };
+          reviewedCommand.current = {
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          };
+          setReviewedFloor(floor);
+          setRefusal(undefined);
+          setOpen(true);
+        }}
+      >
+        <Trash2 aria-hidden="true" className="size-4" />
+        {t("layoutActions.removeTopFloor", { floor })}
+      </Button>
+      {removed !== undefined ? (
+        <p role="status" className="text-sm text-success">
+          {t("layoutActions.floorRemoved", { floor: removed })}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("layoutActions.removeTopFloorTitle", { floor: reviewedFloor })}
+        description={t("layoutActions.removeTopFloorDescription")}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("layoutActions.removeTopFloorConfirm")}
+        pendingLabel={t("layoutActions.removingFloor")}
+        tone="destructive"
+        pending={operation.busy}
+        onConfirm={() => void confirm()}
+        error={
+          failure === undefined
+            ? undefined
+            : failure.thrown
+              ? t("layoutActions.failure.network")
+              : storageWriteMessage(t, failure.code)
+        }
+      />
     </div>
+  );
+}
+
+/** Archive is reachable, scoped and explained; the server enforces occupancy. */
+function BuildingArchiveSection({
+  warehouseId,
+  building,
+}: {
+  readonly warehouseId: string;
+  readonly building: StorageBuildingRow;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const canActivate = useCan("masterData.storageLayout.activate");
+  const archive = useMutation(storageLayoutRefs.archive);
+  const operation = useAsyncOperation({
+    scope: `building-archive:${warehouseId}:${building.buildingId}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
+  });
+  const [open, setOpen] = useState(false);
+  const [refusal, setRefusal] = useState<string>();
+  const impact = useQuery(
+    storageLayoutRefs.lifecycleImpact,
+    open && canActivate
+      ? { warehouseId, buildingId: building.buildingId }
+      : "skip",
+  );
+  if (!canActivate) return null;
+  const value = impact?.ok ? impact.value : undefined;
+  async function confirm() {
+    if (
+      !value?.found ||
+      value.version === undefined ||
+      value.capacityExceeded === true ||
+      value.canArchive === false ||
+      value.occupied === true
+    )
+      return;
+    const payload = {
+      warehouseId,
+      buildingId: building.buildingId,
+      expectedVersion: value.version,
+    };
+    setRefusal(undefined);
+    await operation.run(
+      () =>
+        archive({
+          ...payload,
+          requestId: operation.request(JSON.stringify(payload)),
+        }),
+      (result) => {
+        if (!result.ok) setRefusal(result.denial.code);
+        else if (!result.value.written) setRefusal(result.value.error.code);
+        else {
+          operation.clearRequests();
+          operation.complete(() => setOpen(false));
+        }
+      },
+    );
+  }
+  const failure = layoutFailure(refusal, operation);
+  return (
+    <section className="space-y-2 border-t border-border pt-4">
+      <h3 className="text-sm font-semibold">
+        {t("layoutActions.lifecycleSection")}
+      </h3>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setRefusal(undefined);
+          setOpen(true);
+        }}
+      >
+        {t("layoutActions.archiveBuilding")}
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("layoutActions.archiveBuildingTitle", { name: building.name })}
+        description={t("layoutActions.archiveBuildingDescription")}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("layoutActions.archiveBuilding")}
+        pendingLabel={t("layoutActions.archiving")}
+        tone="destructive"
+        pending={operation.busy}
+        confirmDisabled={
+          !value?.found ||
+          value.occupied === true ||
+          value.capacityExceeded === true ||
+          value.canArchive === false
+        }
+        onConfirm={() => void confirm()}
+        error={
+          failure === undefined
+            ? undefined
+            : failure.thrown
+              ? t("layoutActions.failure.network")
+              : storageWriteMessage(t, failure.code)
+        }
+      >
+        <LifecycleImpactSummary impact={value} loading={impact === undefined} />
+        {value?.capacityExceeded ? (
+          <Notice
+            tone="warning"
+            title={storageWriteMessage(t, "LAYOUT_CAPACITY_LIMIT")}
+          />
+        ) : null}
+        {value?.occupied ? (
+          <Notice tone="warning" title={t("layoutActions.archiveOccupied")} />
+        ) : null}
+      </ConfirmDialog>
+    </section>
+  );
+}
+
+export function LifecycleImpactSummary({
+  impact,
+  loading,
+}: {
+  readonly impact: BuildingLifecycleImpact | undefined;
+  readonly loading: boolean;
+}) {
+  const t = useTranslations("StorageLayouts");
+  if (loading)
+    return (
+      <p role="status" className="text-sm text-muted">
+        {t("layoutActions.impactLoading")}
+      </p>
+    );
+  if (!impact?.found) return null;
+  return (
+    <p className="text-sm font-medium" data-testid="lifecycle-impact">
+      {impact.complete === false ||
+      impact.namedRegistrationCountComplete === false ? (
+        <span className="mb-1 block font-normal text-muted">
+          {t("layoutActions.impactCountsMinimum")}
+        </span>
+      ) : null}
+      {t("layoutActions.impactCounts", {
+        zones: impact.zoneCount ?? 0,
+        positions: impact.positionCount ?? 0,
+        named: impact.namedRegistrationCount ?? 0,
+      })}
+    </p>
   );
 }
 
@@ -988,16 +1481,32 @@ export function BuildingModelWorkspace({
     defaultFloor;
   const selectedFloorNumber = selectedFloor?.floorNumber ?? 1;
   const view = params.get("view") === "building" ? "building" : "storage";
-  const editing =
-    canManage &&
-    building.status !== "ARCHIVED" &&
-    params.get("editing") === "1";
+  const { permissionsReady } = useWorkspace();
+  const editable = canManage && building.status !== "ARCHIVED";
   const [dirty, setDirty] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [reset, setReset] = useState(0);
   const editorRef = useRef<FloorEditorHandle>(null);
+  // The floor editor is an owned workflow step (`editing=1`). Opening pushes
+  // it; Close, Cancel and native/header Back consume it. A direct
+  // `editing=1` link has no owned entry, so closing replaces the query and
+  // returns to the same building view. Permissions are still loading on a
+  // direct link, so the step stays available until they are known.
+  const editorScope = `storage-floor-editor:${building.buildingId}`;
+  const floorDraftScope = `storage-floor-draft:${building.buildingId}`;
+  const editStep = useWorkflowStep(
+    "editing",
+    editorScope,
+    !permissionsReady || editable,
+    undefined,
+    { priority: 10, blocked: pending },
+  );
+  const editing = editable && editStep.active;
   const guard = useNavigationDraft({
+    // Earlier steps inside the floor editor (impact review, offset editor)
+    // retain this draft; closing the editor itself asks first.
+    workflowScope: floorDraftScope,
     dirty: dirty || dialogOpen,
     pending,
     ...(dialogOpen ? { saveBlockedReason: t("finishOpenEditor") } : {}),
@@ -1007,24 +1516,29 @@ export function BuildingModelWorkspace({
       setReset((value) => value + 1);
     },
   });
-  function transition(change: {
-    floor?: number;
-    view?: string;
-    editing?: boolean;
-  }) {
-    guard.requestTransition(() => {
+  function select(change: { floor?: number; view?: string }) {
+    const apply = () =>
       updateBrowserQuery(
         (query) => {
           query.set("floor", String(change.floor ?? selectedFloorNumber));
           query.set("view", change.view ?? view);
-          if (change.editing ?? editing) query.set("editing", "1");
-          else query.delete("editing");
           query.delete("editZone");
         },
         { event: workspaceStateEvent },
       );
-    });
+    // Leaving the editor for another floor or view consumes its entry first,
+    // so the next Back never reopens a stale editor.
+    if (editStep.active) editStep.complete(apply);
+    else guard.requestTransition(apply);
   }
+  const openEditor = () => {
+    if (!editable || pending || editStep.active) return;
+    editStep.enter();
+  };
+  const closeEditor = () => {
+    if (pending) return;
+    editStep.back();
+  };
   return (
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1067,9 +1581,12 @@ export function BuildingModelWorkspace({
               title={t("storageFloorView")}
               className="min-h-11 min-w-11"
               aria-pressed={view === "storage"}
-              onClick={() => transition({ view: "storage" })}
+              onClick={() => select({ view: "storage" })}
             >
               <MapIcon aria-hidden="true" className="size-4" />
+              <span aria-hidden="true" className="hidden sm:inline">
+                {t("layoutActions.task.storageMapLabel")}
+              </span>
             </Button>
             <Button
               type="button"
@@ -1079,13 +1596,26 @@ export function BuildingModelWorkspace({
               title={t("buildingModelView")}
               className="min-h-11 min-w-11"
               aria-pressed={view === "building"}
-              onClick={() => transition({ view: "building", editing: false })}
+              onClick={() => select({ view: "building" })}
             >
               <Building2 aria-hidden="true" className="size-4" />
+              <span aria-hidden="true" className="hidden sm:inline">
+                {t("layoutActions.task.buildingModelLabel")}
+              </span>
             </Button>
           </div>
         </div>
       </div>
+      <LayoutTaskBar
+        building={building}
+        floors={floors}
+        editing={editing}
+        editable={editable}
+        pending={pending}
+        floorNumber={selectedFloorNumber}
+        onView={closeEditor}
+        onEdit={openEditor}
+      />
       {view === "building" ? (
         <IsometricBuilding
           building={building}
@@ -1104,35 +1634,18 @@ export function BuildingModelWorkspace({
                 building={building}
                 floors={floors}
                 selectedFloorNumber={selectedFloorNumber}
-                onSelect={(floor) => transition({ floor, editing: false })}
-                editAction={
-                  canManage && building.status !== "ARCHIVED" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={pending}
-                      className="min-h-11 shrink-0 px-2 text-xs min-[851px]:w-full min-[851px]:whitespace-normal"
-                      onClick={() => transition({ editing: !editing })}
-                    >
-                      <PencilLine
-                        className="size-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      {editing
-                        ? t("closeFloorEditing")
-                        : t("editFloor", { floor: selectedFloorNumber })}
-                    </Button>
-                  ) : null
-                }
+                onSelect={(floor) => select({ floor })}
+                editAction={null}
               />
             }
             workspace={{
               editing,
               editorRef,
+              draftScope: floorDraftScope,
               onDirtyChange: setDirty,
               onPendingChange: setPending,
               onDialogChange: setDialogOpen,
-              onCancel: () => transition({ editing: false }),
+              onCancel: closeEditor,
             }}
           />
         </>
@@ -1185,7 +1698,9 @@ function FloorQuery({
     return <Notice tone="warning" title={t("notFound")} />;
   return (
     <FloorForm
-      key={`${floor.floorId}:${floor.version}`}
+      // Stable per floor: a newer saved version is reconciled inside the form
+      // and never remounts (and discards) an unsent draft.
+      key={floor.floorId}
       warehouseId={warehouseId}
       detail={outcome.value}
       floor={floor}
@@ -1207,6 +1722,7 @@ function FloorForm({
   readonly workspace?: {
     editing: boolean;
     editorRef: Ref<FloorEditorHandle>;
+    draftScope: string;
     onDirtyChange: (dirty: boolean) => void;
     onPendingChange: (pending: boolean) => void;
     onDialogChange: (open: boolean) => void;
@@ -1284,7 +1800,33 @@ function FloorForm({
     })),
   );
   const [pending, setPending] = useState(false);
-  const [confirmingImpact, setConfirmingImpact] = useState(false);
+  // Stock-blocked review is an owned step on top of the dirty floor form:
+  // Back returns to the same draft (retained through the draft scope).
+  const floorDraftScope =
+    workspace?.draftScope ??
+    `storage-floor-draft:${detail.building.buildingId}`;
+  const impactStep = useWorkflowStep(
+    "floorImpact",
+    floorDraftScope,
+    editable,
+    undefined,
+    { priority: 20, blocked: pending },
+  );
+  const confirmingImpact = impactStep.active;
+  // The floor-position editor replaces the map. It is an earlier step of the
+  // same floor draft, so Back returns to the map with placement retained.
+  const offsetStep = useWorkflowStep(
+    "floorOffset",
+    floorDraftScope,
+    editable,
+    undefined,
+    { priority: 20, blocked: pending },
+  );
+  const setConfirmingImpact = (open: boolean) => {
+    if (open && !impactStep.active) impactStep.enter();
+    if (!open && impactStep.active) impactStep.back();
+  };
+  const [refusal, setRefusal] = useState<string>();
   const [message, setMessage] = useState<{
     tone: "success" | "warning";
     text: string;
@@ -1315,8 +1857,12 @@ function FloorForm({
       floor.offsetYMm ??
       Math.max(0, Math.floor((baseDepthMm - initialDepthMm) / 2)),
   };
+  // Hidden metadata counts as a change too, so an editor can never drop it
+  // silently (F03).
   const blockShape = (block: {
     readonly color?: string;
+    readonly areaKind?: string;
+    readonly displayHeightMm?: number;
     readonly label: string;
     readonly xMm: number;
     readonly yMm: number;
@@ -1324,6 +1870,8 @@ function FloorForm({
     readonly depthMm: number;
   }) => [
     block.label,
+    block.areaKind ?? null,
+    block.displayHeightMm ?? null,
     resolveAreaColor(block.color),
     block.xMm,
     block.yMm,
@@ -1393,13 +1941,8 @@ function FloorForm({
   useLayoutEffect(() => {
     pendingChange?.(pending || zonePending);
   }, [pendingChange, pending, zonePending]);
-  // Reconcile external updates only when the local draft is clean.
-  if (
-    (savedFloor.version > receivedVersion ||
-      detail.building.version > geometryContext.building.version) &&
-    savedFloor.version >= baseline.version &&
-    !hasUnsavedFloorChanges
-  ) {
+  /** Replace the form with the latest saved floor (discarding any draft). */
+  function adoptSaved() {
     setReceivedVersion(savedFloor.version);
     setGeometryContext(detail);
     setBaseline(savedFloor);
@@ -1450,6 +1993,20 @@ function FloorForm({
       })),
     );
   }
+  // Reconcile external updates only when the local draft is clean.
+  if (
+    (savedFloor.version > receivedVersion ||
+      detail.building.version > geometryContext.building.version) &&
+    savedFloor.version >= baseline.version &&
+    !hasUnsavedFloorChanges
+  )
+    adoptSaved();
+  // A newer saved version arrived while this draft was dirty: keep the draft
+  // and say so instead of remounting or silently rebasing it.
+  const staleDraft =
+    hasUnsavedFloorChanges &&
+    (savedFloor.version > baseline.version ||
+      detail.building.version > geometryContext.building.version);
   async function saveDraft(): Promise<boolean> {
     if (!editable || pending || areaEditorOpen || zoneEditorOpen) return false;
     if (!hasUnsavedFloorChanges) return true;
@@ -1461,6 +2018,7 @@ function FloorForm({
     }
     setPending(true);
     setMessage(undefined);
+    setRefusal(undefined);
     try {
       const payload = {
         warehouseId,
@@ -1484,19 +2042,10 @@ function FloorForm({
             requestId: operation.request(JSON.stringify(payload)),
           }),
         (outcome) => {
-          if (!outcome.ok)
-            setMessage({
-              tone: "warning",
-              text: storageErrorMessage(t, outcome.denial.code),
-            });
-          else if (!outcome.value.written)
-            setMessage({
-              tone: "warning",
-              text: storageErrorMessage(t, outcome.value.error.code),
-            });
+          if (!outcome.ok) setRefusal(outcome.denial.code);
+          else if (!outcome.value.written) setRefusal(outcome.value.error.code);
           else {
             operation.clearRequests();
-            setConfirmingImpact(false);
             const nextFloor = {
               ...floor,
               widthMm: actualWidth,
@@ -1526,6 +2075,13 @@ function FloorForm({
               ...(height === "" ? {} : { heightMm: actualHeight }),
             };
             setBaseline(inheritedFloor);
+            setGeometryContext((current) => ({
+              ...current,
+              building: {
+                ...current.building,
+                version: current.building.version + 1,
+              },
+            }));
             setPlacement(actualPlacement);
             dirtyChange?.(false);
             setMessage({ tone: "success", text: t("savedContinueToStorage") });
@@ -1539,9 +2095,6 @@ function FloorForm({
       );
       if (!outcome || !outcome.ok || !outcome.value.written) return false;
       return true;
-    } catch {
-      setMessage({ tone: "warning", text: t("statusNetworkError") });
-      return false;
     } finally {
       setPending(false);
     }
@@ -1588,7 +2141,8 @@ function FloorForm({
             floorSelector={floorSelector}
             locationInspector={workspace ? locationInspector : undefined}
             locationActions={
-              workspace && editable ? (
+              // Adding is an editing task; viewing stays read-only (F28).
+              workspace && editable && showEditing ? (
                 <IconButton
                   label={t("addStorageZone")}
                   tooltip={t("addStorageZone")}
@@ -1621,8 +2175,17 @@ function FloorForm({
             floorNumber={floor.floorNumber}
             offsetXMm={actualPlacement.xMm}
             offsetYMm={actualPlacement.yMm}
-            {...(editable && showEditing && !pending
-              ? { onPlacementChange: setPlacement }
+            {...(editable && showEditing
+              ? {
+                  onPlacementChange: (next: { xMm: number; yMm: number }) => {
+                    if (!pending) setPlacement(next);
+                  },
+                  offsetEditing: offsetStep.active,
+                  onOffsetEditingChange: (open: boolean) => {
+                    if (open) offsetStep.enter();
+                    else offsetStep.back();
+                  },
+                }
               : {})}
             blocks={blocks}
             zones={floor.storageZones}
@@ -1728,52 +2291,68 @@ function FloorForm({
             </section>
           )}
           {confirmingImpact ? (
-            <ChangeImpactSummary
+            <BlockedImpact
               placements={placements}
+              unmeasuredCount={unmeasuredCount}
               currentPlan={`${metres(initialWidthMm)} × ${metres(initialDepthMm)} × ${metres(floor.heightMm ?? geometryContext.building.defaultFloorHeightMm)} m`}
               proposedPlan={`${metres(actualWidth)} × ${metres(actualDepth)} × ${metres(actualHeight)} m`}
+              onBack={() => setConfirmingImpact(false)}
             />
           ) : null}
-          {confirmingImpact ? (
-            <Button
-              type="button"
-              className="w-full"
-              variant="outline"
-              disabled={pending}
-              onClick={() => setConfirmingImpact(false)}
+          {staleDraft ? (
+            <Notice
+              tone="warning"
+              role="alert"
+              title={t("layoutActions.floorConflict.title")}
+              body={t("layoutActions.floorConflict.description")}
+              testId="floor-version-conflict"
             >
-              {t("backToEdit")}
-            </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                disabled={pending}
+                onClick={() => {
+                  setConfirmingImpact(false);
+                  adoptSaved();
+                }}
+              >
+                {t("layoutActions.floorConflict.reload")}
+              </Button>
+            </Notice>
           ) : null}
-          <Button
-            className={workspace ? "" : "w-full"}
-            disabled={
-              !editable ||
-              pending ||
-              !hasUnsavedFloorChanges ||
-              (confirmingImpact &&
-                placements.length + unmeasuredCount > 0 &&
-                !colorOnlyChange)
-            }
-          >
-            {pending
-              ? t("saving")
-              : confirmingImpact && !colorOnlyChange
-                ? t("confirmChanges")
+          <OperationFailure
+            failure={layoutFailure(refusal, operation)}
+            onRetry={() => void saveDraft()}
+            retrying={pending}
+          />
+          {confirmingImpact ? null : (
+            <Button
+              className={workspace ? "" : "w-full"}
+              disabled={!editable || pending || !hasUnsavedFloorChanges}
+            >
+              {pending
+                ? t("saving")
                 : !hasUnsavedFloorChanges
                   ? t("floorSaved")
-                  : detail.building.status === "ACTIVE" &&
-                      placements.length + unmeasuredCount > 0 &&
-                      !colorOnlyChange
+                  : placements.length + unmeasuredCount > 0 && !colorOnlyChange
                     ? t("reviewImpact")
                     : t("saveAndContinue")}
-          </Button>
+            </Button>
+          )}
           {workspace ? (
             <Button
               type="button"
               variant="outline"
               disabled={pending}
-              onClick={workspace.onCancel}
+              onClick={() => {
+                // Consume nested steps of this floor draft before closing.
+                if (offsetStep.active) offsetStep.complete(workspace.onCancel);
+                else if (impactStep.active)
+                  impactStep.complete(workspace.onCancel);
+                else workspace.onCancel();
+              }}
             >
               {t("cancel")}
             </Button>
@@ -1806,12 +2385,10 @@ function OverrideField({
   return (
     <FormField id={inputId} label={label}>
       {(field) => (
-        <Input
+        <MeasureInput
           disabled={disabled}
           {...field}
-          type="number"
-          min="0.1"
-          step="0.1"
+          min={0.001}
           value={value}
           placeholder={t("inherits")}
           onChange={(event) => onChange(event.target.value)}
@@ -1827,6 +2404,8 @@ export function FloorPlan(
     readonly buildingCode?: string;
     readonly locationActions?: ReactNode;
     readonly locationInspector?: ReactNode;
+    readonly offsetEditing?: boolean;
+    readonly onOffsetEditingChange?: (open: boolean) => void;
     readonly onEditZone?: ((zoneId: string) => void) | undefined;
     readonly selectedZoneId?: string | undefined;
     readonly onSelectionChange?:
@@ -2576,9 +3155,26 @@ export function ReservedBlocks({
     return () => onEditorOpenChange?.(false);
   }, [dialogOpen, editable, onEditorOpenChange]);
   const [editingBlockId, setEditingBlockId] = useState<string>();
-  const [draft, setDraft] = useState({
+  // The area dialog's own values: closing it asks before discarding them,
+  // while the floor draft underneath is retained.
+  const areaScope = `storage-area-editor:${useId()}`;
+  const [draftBaseline, setDraftBaseline] = useState("");
+  // The shared Dialog consumes its own entry when an applied area closes it;
+  // each opened area draft has a generation so only that draft is closed.
+  const areaDialogRef = useRef<DialogCompletionHandle>(null);
+  const areaGeneration = useRef(0);
+  const [draft, setDraft] = useState<{
+    label: string;
+    color: string;
+    areaKind: EditableBlock["areaKind"];
+    x: string;
+    y: string;
+    width: string;
+    depth: string;
+  }>({
     label: "",
     color: resolveAreaColor(),
+    areaKind: undefined,
     x: "0",
     y: "0",
     width: "1",
@@ -2587,33 +3183,50 @@ export function ReservedBlocks({
   const openDialog = (open: boolean) => {
     if (open && !editable) return;
     setDialogOpen(open);
-    if (!open) setEditingBlockId(undefined);
+    if (!open) {
+      areaGeneration.current += 1;
+      setEditingBlockId(undefined);
+    }
   };
   const startNewReservedBlock = () => {
     if (!editable) return;
+    areaGeneration.current += 1;
     setEditingBlockId(undefined);
-    setDraft({
+    const next = {
       label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
       color: resolveAreaColor(),
+      areaKind: "NO_STORAGE" as const,
       x: "0",
       y: "0",
       width: "1",
       depth: "1",
-    });
+    };
+    setDraft(next);
+    setDraftBaseline(JSON.stringify(next));
   };
   const startEditingReservedBlock = (block: EditableBlock) => {
     if (!editable) return;
+    areaGeneration.current += 1;
     setEditingBlockId(block.id);
-    setDraft({
+    const next = {
       label: block.label,
       color: resolveAreaColor(block.color),
+      areaKind: block.areaKind,
       x: String(metres(block.xMm)),
       y: String(metres(block.yMm)),
       width: String(metres(block.widthMm)),
       depth: String(metres(block.depthMm)),
-    });
+    };
+    setDraft(next);
+    setDraftBaseline(JSON.stringify(next));
     setDialogOpen(true);
   };
+  const areaDraft = useNavigationDraft({
+    dirty: dialogOpen && editable && JSON.stringify(draft) !== draftBaseline,
+    pending: false,
+    discard: () => setDraftBaseline(JSON.stringify(draft)),
+    foregroundScope: areaScope,
+  });
   const draftBlock = {
     id: editingBlockId ?? "draft",
     label: draft.label.trim(),
@@ -2649,10 +3262,16 @@ export function ReservedBlocks({
     draftBlock.xMm + draftBlock.widthMm <= floorWidthMm &&
     draftBlock.yMm + draftBlock.depthMm <= floorDepthMm &&
     !overlaps;
+  const editingBlock = blocks.find((block) => block.id === editingBlockId);
   const saveReservedBlock = () => {
     if (!editable) return;
-    const nextBlock = {
+    // Merge only the edited fields into the original block. Its identity and
+    // any metadata without an input (display height) are kept, so a colour or
+    // name change stays a colour or name change (F03).
+    const nextBlock: EditableBlock = {
+      ...(editingBlock ?? {}),
       ...draftBlock,
+      ...(draft.areaKind === undefined ? {} : { areaKind: draft.areaKind }),
       id: editingBlockId ?? localEntityId(),
     };
     setBlocks(
@@ -2662,14 +3281,31 @@ export function ReservedBlocks({
             block.id === editingBlockId ? nextBlock : block,
           ),
     );
-    setDialogOpen(false);
-    setEditingBlockId(undefined);
+    // Applied to the floor draft: this dialog has nothing left unsent, so it
+    // stops guarding now and its Dialog consumes only its own entry. The
+    // floor draft underneath stays guarded by its own registration.
+    setDraftBaseline(JSON.stringify(draft));
+    areaDraft.settle();
+    const generation = areaGeneration.current;
+    const close = () => {
+      if (areaGeneration.current !== generation) return;
+      areaGeneration.current += 1;
+      setDialogOpen(false);
+      setEditingBlockId(undefined);
+    };
+    if (areaDialogRef.current) areaDialogRef.current.complete(close);
+    else close();
   };
   return (
     <section className="min-w-0 rounded-lg border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold text-text">{t("reservedZones")}</h2>
-        <Dialog open={dialogOpen && editable} onOpenChange={openDialog}>
+        <Dialog
+          open={dialogOpen && editable}
+          onOpenChange={openDialog}
+          draftScope={areaScope}
+          completionRef={areaDialogRef}
+        >
           <DialogTrigger asChild>
             <Button
               type="button"
@@ -2746,6 +3382,38 @@ export function ReservedBlocks({
                     }
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="reserved-zone-dialog-kind">
+                    {t("layoutActions.areaKind.label")}
+                  </Label>
+                  <SelectControl
+                    id="reserved-zone-dialog-kind"
+                    className="mt-2 w-full"
+                    label={t("layoutActions.areaKind.label")}
+                    value={draft.areaKind ?? ""}
+                    onValueChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        areaKind: value as EditableBlock["areaKind"],
+                      }))
+                    }
+                    placeholder={t("layoutActions.areaKind.NO_STORAGE")}
+                    emptyLabel={t("layoutActions.areaKind.NO_STORAGE")}
+                    options={(
+                      ["NO_STORAGE", "AISLE", "STAIRS", "PLATFORM"] as const
+                    ).map((kind) => ({
+                      value: kind,
+                      label: t(`layoutActions.areaKind.${kind}`),
+                    }))}
+                  />
+                  {editingBlock?.displayHeightMm === undefined ? null : (
+                    <p className="mt-2 text-xs text-muted">
+                      {t("layoutActions.areaKind.keptHeight", {
+                        height: metres(editingBlock.displayHeightMm),
+                      })}
+                    </p>
+                  )}
+                </div>
                 {(
                   [
                     ["x", "x", 0, floorWidthMm],
@@ -2758,13 +3426,11 @@ export function ReservedBlocks({
                     <Label htmlFor={`reserved-zone-dialog-${field}`}>
                       {t(labelKey)}
                     </Label>
-                    <Input
+                    <MeasureInput
                       id={`reserved-zone-dialog-${field}`}
                       className="mt-2"
-                      type="number"
-                      min={min}
+                      min={min === 0 ? 0 : 0.001}
                       max={metres(max)}
-                      step="0.1"
                       value={draft[field]}
                       onChange={(event) =>
                         setDraft((current) => ({
@@ -2882,32 +3548,27 @@ function ReviewContent({
 }) {
   const t = useTranslations("StorageLayouts");
   const router = useRouter();
-  const workspace = useWorkspace();
-  const canActivate =
-    workspace.permissionsReady &&
-    workspace.navigationPermissions.includes(
-      "masterData.storageLayout.activate",
-    );
+  const canActivate = useCan("masterData.storageLayout.activate");
   const outcome = useStorageBuilding(warehouseId, buildingId);
+  const readinessOutcome = useQuery(storageLayoutRefs.readiness, {
+    warehouseId,
+    buildingId,
+  });
   const activate = useMutation(storageLayoutRefs.activate);
+  const lastActivation = useRef<Parameters<typeof activate>[0]>(undefined);
   const operation = useAsyncOperation({
     scope: `building-review:${warehouseId}:${buildingId}`,
     describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
   });
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
+  const [refusal, setRefusal] = useState<string>();
   if (outcome === undefined) return <LoadingCard />;
   if (!outcome.ok) return <QueryFailure />;
   if (!outcome.value.found)
     return <Notice tone="warning" title={t("notFound")} />;
   const { building: savedBuilding, floors } = outcome.value;
   const unmeasuredPalletCount = floors.reduce(
-    (sum, floor) =>
-      sum +
-      floor.storageZones.reduce(
-        (count, zone) => count + (zone.unmeasuredPalletCount ?? 0),
-        0,
-      ),
+    (sum, floor) => sum + zoneUnmeasuredCount(floor.storageZones),
     0,
   );
   const building = {
@@ -2915,40 +3576,87 @@ function ReviewContent({
     unmeasuredPalletCount,
     measuredAreaPartial: unmeasuredPalletCount > 0,
   };
-  const storageStackCount = floors.reduce(
-    (total, floor) => total + floor.storageZones.length,
-    0,
-  );
-  async function submit() {
-    setPending(true);
-    setError(undefined);
-    try {
-      const payload = {
-        warehouseId,
-        buildingId,
-        expectedVersion: building.version,
-      };
-      await operation.run(
-        () =>
-          activate({
-            ...payload,
-            requestId: operation.request(JSON.stringify(payload)),
-          }),
-        (result) => {
-          if (!result.ok) setError(result.denial.code);
-          else if (!result.value.written) setError(result.value.error.code);
-          else {
-            operation.clearRequests();
-            router.push(storageBuildingPath(buildingId));
-          }
-        },
-      );
-    } catch {
-      setError("NETWORK_ERROR");
-    } finally {
-      setPending(false);
-    }
+  // "Ready" is only ever the server preflight's answer for this version (F15).
+  const readiness: LayoutReadiness | undefined = readinessOutcome?.ok
+    ? readinessOutcome.value
+    : undefined;
+  const readinessFailed = readinessOutcome !== undefined && !readiness?.found;
+  const current =
+    readiness?.found === true && readiness.version === building.version;
+  const issues = current ? (readiness.issues ?? []) : [];
+  const blocking = issues.filter((issue) => issue.blocking);
+  const advisory = issues.filter((issue) => !issue.blocking);
+  const ready = current && readiness.ready === true;
+  async function submit(retryCommand?: Parameters<typeof activate>[0]) {
+    if ((!retryCommand && !ready) || operation.busy) return;
+    const payload = {
+      warehouseId,
+      buildingId,
+      expectedVersion: building.version,
+    };
+    const command = retryCommand ?? {
+      ...payload,
+      requestId: operation.request(JSON.stringify(payload)),
+    };
+    lastActivation.current = command;
+    setRefusal(undefined);
+    await operation.run(
+      () => activate(command),
+      (result) => {
+        if (!result.ok) setRefusal(result.denial.code);
+        else if (!result.value.written) setRefusal(result.value.error.code);
+        else {
+          operation.clearRequests();
+          lastActivation.current = undefined;
+          operation.complete(() =>
+            completeTask(storageBuildingPath(buildingId), router.replace),
+          );
+        }
+      },
+    );
   }
+  const issueText = (issue: LayoutReadinessIssue) => {
+    if (issue.code === "LAYOUT_CAPACITY_LIMIT")
+      return storageWriteMessage(t, issue.code);
+    const key = `layoutActions.issue.${issue.code}` as Parameters<typeof t>[0];
+    return t.has(key)
+      ? t(key)
+      : t("layoutActions.issue.other", { code: issue.code });
+  };
+  const issueWhere = (issue: LayoutReadinessIssue) =>
+    issue.zoneCode !== undefined && issue.floorNumber !== undefined
+      ? t("layoutActions.issueWhereSpot", {
+          floor: issue.floorNumber,
+          code: issue.zoneCode,
+          label: issue.zoneLabel ?? "",
+        })
+      : issue.floorNumber !== undefined
+        ? t("layoutActions.issueWhereFloor", { floor: issue.floorNumber })
+        : null;
+  const issueList = (list: readonly LayoutReadinessIssue[]) => (
+    <ul className="mt-3 space-y-2 text-sm">
+      {list.map((issue, index) => (
+        <li
+          key={`${issue.code}:${issue.floorNumber ?? ""}:${issue.zoneCode ?? ""}:${index}`}
+          className="flex flex-wrap items-center justify-between gap-2"
+        >
+          <span>
+            {issueWhere(issue) ? (
+              <span className="font-medium">{issueWhere(issue)} · </span>
+            ) : null}
+            {issueText(issue)}
+          </span>
+          {issue.floorNumber !== undefined && building.status !== "ARCHIVED" ? (
+            <Button asChild size="sm" variant="ghost">
+              <Link href={storageFloorPath(buildingId, issue.floorNumber)}>
+                {t("layoutActions.fixFloor", { floor: issue.floorNumber })}
+              </Link>
+            </Button>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <div className="space-y-4">
       <PageHeader
@@ -3013,40 +3721,74 @@ function ReviewContent({
           ]}
         />
       </div>
-      <aside className="space-y-4">
-        <Notice
-          tone={
-            building.status === "DRAFT" && storageStackCount > 0
-              ? "success"
-              : building.status === "DRAFT"
-                ? "warning"
-                : "muted"
-          }
-          title={
-            building.status === "DRAFT"
-              ? storageStackCount > 0
-                ? t("readyToActivate")
-                : t("storageStackRequired")
-              : statusLabel(t, building.status)
-          }
-          body={
-            storageStackCount > 0
-              ? t("validationPassed")
-              : t("storageStackRequiredHelp")
-          }
-        />
-        {error === undefined ? null : (
-          <Notice tone="warning" title={storageErrorMessage(t, error)} />
-        )}
-        {building.status === "DRAFT" && canActivate ? (
-          <Button
-            className="w-full"
-            variant="success"
-            disabled={pending || storageStackCount === 0}
-            onClick={submit}
+      <aside className="space-y-4" aria-label={t("review")}>
+        {building.status === "ARCHIVED" ? (
+          <Notice tone="muted" title={t("layoutActions.archivedNotice")} />
+        ) : building.status === "ACTIVE" ? (
+          <Notice
+            tone="muted"
+            title={t("layoutActions.readinessActiveNotice")}
+          />
+        ) : null}
+        {readinessFailed ? (
+          <Notice
+            tone="warning"
+            title={t("layoutActions.readinessUnavailable")}
+          />
+        ) : !current ? (
+          <p role="status" className="text-sm text-muted">
+            {t("layoutActions.readinessChecking")}
+          </p>
+        ) : blocking.length > 0 ? (
+          <Notice
+            tone="warning"
+            title={t("layoutActions.readinessBlocked")}
+            testId="readiness-blocking"
           >
-            {pending ? t("activating") : t("activate")}
-          </Button>
+            {issueList(blocking)}
+          </Notice>
+        ) : (
+          <Notice
+            tone="success"
+            title={t("readyToActivate")}
+            body={t("validationPassed")}
+            testId="readiness-ready"
+          />
+        )}
+        {current && advisory.length > 0 ? (
+          <Notice tone="muted" title={t("layoutActions.readinessAdvisory")}>
+            {issueList(advisory)}
+          </Notice>
+        ) : null}
+        <OperationFailure
+          failure={layoutFailure(refusal, operation)}
+          onRetry={() => {
+            // The live preflight becomes not-ready once activation commits.
+            // Recover its accepted result with the exact original command.
+            if (lastActivation.current) void submit(lastActivation.current);
+          }}
+          retrying={operation.busy}
+        />
+        {building.status !== "ACTIVE" && canActivate ? (
+          <>
+            <Button
+              className="w-full"
+              variant="success"
+              disabled={operation.busy || !ready}
+              onClick={() => void submit()}
+            >
+              {operation.busy
+                ? t("activating")
+                : building.status === "ARCHIVED"
+                  ? t("layoutActions.reactivate")
+                  : t("activate")}
+            </Button>
+            {current && !ready ? (
+              <p className="text-xs text-muted">
+                {t("layoutActions.activateBlocked")}
+              </p>
+            ) : null}
+          </>
         ) : null}
       </aside>
     </div>

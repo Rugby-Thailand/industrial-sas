@@ -1,3 +1,4 @@
+import { currentStorageRevision } from "../fixtures/storage-record-revision";
 import { recommend } from "../../convex/finishedGoods/workflow";
 import {
   trackFinishedGoodsWrites,
@@ -605,6 +606,23 @@ describe("planner protects finished goods occupancy", () => {
           value(
             await call(world, fn, {
               ...args,
+              ...(fn === updateStorageZone
+                ? {
+                    expectedRevision: await currentStorageRevision(
+                      world,
+                      "storageZones",
+                      zone._id,
+                    ),
+                  }
+                : fn === updateStoragePosition
+                  ? {
+                      expectedRevision: await currentStorageRevision(
+                        world,
+                        "storagePositions",
+                        position._id,
+                      ),
+                    }
+                  : {}),
               warehouseId,
               requestId: `blocked-${index}`,
             }),
@@ -701,6 +719,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            args.zoneId as string,
+          ),
           ...args,
           requestId: "same-condition-case",
           storageCondition: " DRY ",
@@ -710,6 +733,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            args.zoneId as string,
+          ),
           ...args,
           requestId: "occupied-condition",
           storageCondition: "COLD",
@@ -722,6 +750,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            args.zoneId as string,
+          ),
           ...args,
           requestId: "long-condition",
           storageCondition: "x".repeat(101),
@@ -734,6 +767,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            args.zoneId as string,
+          ),
           ...args,
           requestId: "set-condition",
           storageCondition: " COLD ",
@@ -743,6 +781,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            args.zoneId as string,
+          ),
           ...args,
           requestId: "retain-condition",
         }),
@@ -754,6 +797,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            args.zoneId as string,
+          ),
           ...args,
           requestId: "clear-condition",
           storageCondition: "  ",
@@ -800,6 +848,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStorageZone, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storageZones",
+            zone._id as string,
+          ),
           warehouseId,
           zoneId: zone._id,
           requestId: "rename-zone",
@@ -815,6 +868,11 @@ describe("planner protects finished goods occupancy", () => {
     expect(
       value(
         await call(world, updateStoragePosition, {
+          expectedRevision: await currentStorageRevision(
+            world,
+            "storagePositions",
+            position._id as string,
+          ),
           warehouseId,
           positionId: position._id,
           requestId: "rename-position",

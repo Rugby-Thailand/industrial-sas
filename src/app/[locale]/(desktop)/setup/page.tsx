@@ -19,6 +19,7 @@ export default async function SetupPage({
   return (
     <>
       <PageHeader
+        backFallbackHref={null}
         title={t(configured ? "configuredTitle" : "title")}
         summary={t(configured ? "configuredIntro" : "intro")}
       />

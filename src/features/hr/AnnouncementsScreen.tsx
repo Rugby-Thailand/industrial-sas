@@ -16,7 +16,7 @@ import { Panel } from "@/components/ui/Panel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
-import { HR_CODES } from "@/lib/navigation";
+import { HR_CODES, ROUTES } from "@/lib/navigation";
 import { formatDateTime } from "./format";
 import { HrGate, HrInlineError, useHrBack, WriteFeedback } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
@@ -243,7 +243,11 @@ export function HrAnnouncementDetailScreen({
   const t = useTranslations("Hr.announcements");
   return (
     <>
-      <PageHeader title={t("detailTitle")} summary={t("detailSummary")} />
+      <PageHeader
+        title={t("detailTitle")}
+        summary={t("detailSummary")}
+        backFallbackHref={ROUTES.hrAnnouncements}
+      />
       <HrGate code={HR_CODES.self}>
         <AnnouncementDetail announcementId={announcementId} />
       </HrGate>

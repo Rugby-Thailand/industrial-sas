@@ -1,9 +1,10 @@
+import { currentStorageRevision } from "../fixtures/storage-record-revision";
 import type { Id } from "../../convex/_generated/dataModel";
 import { readCurrent } from "../../convex/workspace/current";
 import { v } from "convex/values";
 import { queryWithOrg } from "../../convex/lib/tenantFunctions";
 import type { GenericMutationCtx } from "convex/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as workflow from "../../convex/finishedGoods/workflow";
 import type { DataModel } from "../../convex/schema";
 import { archiveStorageBuilding } from "../../convex/storageLayouts/writes";
@@ -260,6 +261,11 @@ describe("finished goods workflow", () => {
     const result = await Promise.all([
       reserve(world, palletId, "race-layout-reserve"),
       call(world, updateStorageZone, {
+        expectedRevision: await currentStorageRevision(
+          world,
+          "storageZones",
+          world.zoneId as string,
+        ),
         warehouseId: world.warehouseId,
         zoneId: world.zoneId,
         requestId: "race-layout-edit",
@@ -351,6 +357,9 @@ describe("finished goods workflow", () => {
         ...fields,
         warehouseId: world.warehouseId,
         productId,
+        expectedUpdatedAt: (await world.t.run((ctx) =>
+          ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+        ))!.updatedAt,
         sku: "FG-1",
       };
       error(
@@ -392,6 +401,11 @@ describe("finished goods workflow", () => {
           await call(world, workflow.saveProduct, {
             ...args,
             requestId: "change-after-release",
+            expectedUpdatedAt: (await world.t.run((ctx) =>
+              ctx.db.get(
+                ctx.db.normalizeId("finishedGoodsProducts", productId)!,
+              ),
+            ))!.updatedAt,
             storageCondition: "COLD",
           }),
         );
@@ -535,6 +549,9 @@ describe("finished goods workflow", () => {
       await call(world, workflow.saveProduct, {
         warehouseId: world.warehouseId,
         requestId: "activate",
+        expectedUpdatedAt: (await world.t.run((ctx) =>
+          ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+        ))!.updatedAt,
         productId,
         ...fields,
       }),
@@ -1038,4 +1055,50 @@ describe("finished goods workflow", () => {
       value(await call(supervisor, readCurrent, {}))["navigationPermissions"],
     ).toContain("masterData.storageLayout.read");
   });
+});
+
+it("requires product edit versions and rejects stale writes even within one frozen millisecond", async () => {
+  const clock = vi.spyOn(Date, "now").mockReturnValue(1760000000000);
+  try {
+    const world = await setup();
+    const { productId } = await measuredPallet(world, "concurrent");
+    const product = await world.t.run((ctx) =>
+      ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+    );
+    const args = {
+      ...fields,
+      warehouseId: world.warehouseId,
+      productId,
+      sku: product!.sku,
+      expectedUpdatedAt: product!.updatedAt,
+    };
+    const first = { ...args, name: "First editor", requestId: "editor-one" };
+    id(await call(world, workflow.saveProduct, first));
+    error(
+      await call(world, workflow.saveProduct, {
+        ...args,
+        notes: "Second editor",
+        requestId: "editor-two",
+      }),
+      "VERSION_CONFLICT",
+    );
+    error(
+      await call(world, workflow.saveProduct, {
+        ...args,
+        expectedUpdatedAt: undefined,
+        requestId: "old-client",
+      }),
+      "VERSION_CONFLICT",
+    );
+    expect(value(await call(world, workflow.saveProduct, first))).toMatchObject(
+      { replayed: true },
+    );
+    const current = await world.t.run((ctx) =>
+      ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+    );
+    expect(current!.updatedAt).toBe(product!.updatedAt + 1);
+    expect(current!.name).toBe("First editor");
+  } finally {
+    clock.mockRestore();
+  }
 });

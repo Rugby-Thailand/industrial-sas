@@ -19,6 +19,7 @@ import {
 } from "../lib/tenantFunctions";
 import { command, created, failure, rows, stamp } from "./workflow";
 import {
+  MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
   jobTicketError,
@@ -27,6 +28,7 @@ import {
 
 import { jobLocationReader } from "./jobScanLocations";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
+import { diffFields } from "../lib/masterDataStore";
 const batchFormat = v.union(
   v.literal("PALLET"),
   v.literal("BOX"),
@@ -37,12 +39,26 @@ const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const TABLE = "finishedGoodsJobScans";
 const DEFAULT_MODEL = "openai/gpt-6-luna";
-const MAX_ITEMS = 50;
+const MAX_ITEMS = MAX_JOB_SCAN_ITEMS;
 const LIST_LIMIT = 300;
 const LOCATION_PAGE_SIZE = 10;
 
 const optionalText = v.optional(v.string());
 const optionalNumber = v.optional(v.number());
+// Only ticket metadata is editable. Location, provenance and inventory are
+// deliberately absent from this validator and the corresponding patch.
+const correctionFields = v.object({
+  factoryOrder: v.string(),
+  productBarcodeText: v.string(),
+  deliveryDate: optionalText,
+  partName: optionalText,
+  customer: optionalText,
+  manufacturingDate: optionalText,
+  quantity: optionalNumber,
+  factoryQuantity: optionalNumber,
+  customerQuantity: optionalNumber,
+  storageFormat: v.optional(batchFormat),
+});
 const ticketItem = v.object({
   factoryOrder: v.string(),
   productBarcodeText: v.string(),
@@ -359,11 +375,142 @@ export const saveJobScans = mutationWithOrg({
     }),
 });
 
+export const updateJobScan = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    jobScanId: v.id("finishedGoodsJobScans"),
+    requestId: v.string(),
+    expectedVersion: v.number(),
+    fields: correctionFields,
+  },
+  returns: v.any(),
+  permissionCode: MANAGE,
+  target: { table: TABLE },
+  warehouseId: (args) => args.warehouseId,
+  handler: (ctx, args) =>
+    command(ctx, args, "finishedGoods.jobScan.correct", TABLE, async () => {
+      const before = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+        TABLE,
+        args.jobScanId,
+      );
+      if (!before || before.warehouseId !== args.warehouseId || before.voided)
+        return failure("NOT_FOUND");
+      const version = before.version ?? 1;
+      if (
+        !Number.isSafeInteger(args.expectedVersion) ||
+        args.expectedVersion !== version
+      )
+        return failure("STALE_REVISION");
+      const error = jobTicketError(args.fields);
+      if (error) return failure(error);
+      for (const [field, limit] of [
+        ["partName", 500],
+        ["customer", 500],
+        ["deliveryDate", 100],
+        ["manufacturingDate", 100],
+      ] as const) {
+        if ((args.fields[field]?.length ?? 0) > limit)
+          return failure("FIELD_TOO_LONG", field);
+      }
+      for (const field of [
+        "quantity",
+        "factoryQuantity",
+        "customerQuantity",
+      ] as const) {
+        const value = args.fields[field];
+        if (
+          value !== undefined &&
+          (!Number.isFinite(value) || value < 0 || value > 1_000_000_000)
+        )
+          return failure("FIELD_INVALID", field);
+      }
+      // Materialize optional fields so deleting an old value is intentional,
+      // version-checked and included in the immutable audit event.
+      const fields = {
+        factoryOrder: args.fields.factoryOrder.trim(),
+        productBarcodeText: args.fields.productBarcodeText.trim(),
+        partName: args.fields.partName?.trim() || undefined,
+        customer: args.fields.customer?.trim() || undefined,
+        deliveryDate: args.fields.deliveryDate?.trim() || undefined,
+        manufacturingDate: args.fields.manufacturingDate?.trim() || undefined,
+        quantity: args.fields.quantity,
+        factoryQuantity: args.fields.factoryQuantity,
+        customerQuantity: args.fields.customerQuantity,
+        storageFormat: args.fields.storageFormat,
+      };
+      const changes = diffFields(before, fields);
+      if (changes.length) {
+        const now = Math.max(Date.now(), before.updatedAt + 1);
+        await ctx.tenantDb.patch(TABLE, before._id, {
+          ...fields,
+          version: version + 1,
+          correctedAt: now,
+          correctedByUserId: ctx.tenant.actor._id,
+          updatedAt: now,
+          updatedByUserId: ctx.tenant.actor._id,
+        });
+      }
+      return { documentId: before._id, changes };
+    }),
+});
+
+/** Recent corrections are read independently from the inventory and location. */
+export const listJobScanCorrections = queryWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    jobScanId: v.id("finishedGoodsJobScans"),
+  },
+  permissionCode: READ,
+  target: { table: TABLE },
+  warehouseId: (args) => args.warehouseId,
+  handler: async (ctx, args) => {
+    const record = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+      TABLE,
+      args.jobScanId,
+    );
+    if (!record || record.warehouseId !== args.warehouseId) return null;
+    const history = await ctx.tenantDb
+      .byIndex<Doc<"auditEvents">>(
+        "auditEvents",
+        "by_orgId_entityTable_entityId_occurredAt",
+        [
+          { field: "entityTable", value: TABLE },
+          { field: "entityId", value: record._id },
+        ],
+      )
+      .page({ limit: 50, order: "desc" });
+    return {
+      complete: history.isDone,
+      items: history.page
+        .filter(
+          (event) =>
+            event.action === "finishedGoods.jobScan.correct" &&
+            event.outcome === "ALLOWED" &&
+            event.warehouseId === args.warehouseId &&
+            (event.changes?.length ?? 0) > 0,
+        )
+        .map((event) => ({
+          id: event._id,
+          at: event.occurredAt,
+          actorUserId: event.actorUserId,
+          changes: event.changes ?? [],
+        })),
+    };
+  },
+});
+
 export const assignJobScanLocation = mutationWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),
     ids: v.array(v.id("finishedGoodsJobScans")),
+    // Optional only for clients predating the review step. New clients send
+    // the complete reviewed selection, checked atomically before any write.
+    expectedVersions: v.optional(
+      v.array(
+        v.object({ id: v.id("finishedGoodsJobScans"), version: v.number() }),
+      ),
+    ),
     location: mappedLocation,
   },
   returns: v.any(),
@@ -378,9 +525,38 @@ export const assignJobScanLocation = mutationWithOrg({
         args.ids,
       );
       if (invalidSelection) return invalidSelection;
+      if (args.expectedVersions) {
+        const versions = new Map(
+          args.expectedVersions.map((item) => [item.id, item.version]),
+        );
+        const selected = new Set(args.ids);
+        if (
+          versions.size !== selected.size ||
+          versions.size !== args.expectedVersions.length
+        )
+          return failure("STALE_REVISION");
+        for (const id of selected) {
+          const expected = versions.get(id);
+          const record = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+            TABLE,
+            id,
+          );
+          if (
+            !record ||
+            !Number.isSafeInteger(expected) ||
+            expected !== (record.version ?? 1)
+          )
+            return failure("STALE_REVISION");
+        }
+      }
       const mapped = await mapLocation(ctx, args.warehouseId, args.location);
       if (!mapped) return failure("LOCATION_UNAVAILABLE");
-      for (const id of new Set(args.ids))
+      for (const id of new Set(args.ids)) {
+        const before = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+          TABLE,
+          id,
+        );
+        if (!before) return failure("NOT_FOUND");
         await ctx.tenantDb.patch(TABLE, id, {
           mapped: true,
           zoneId: undefined,
@@ -388,7 +564,10 @@ export const assignJobScanLocation = mutationWithOrg({
           floorId: undefined,
           ...mapped,
           ...stamp(ctx),
+          version: (before.version ?? 1) + 1,
+          updatedAt: Math.max(Date.now(), before.updatedAt + 1),
         });
+      }
       return { documentId: args.ids[0]! };
     }),
 });
@@ -553,6 +732,8 @@ export const listJobScans = queryWithOrg({
         locationCode: scan.locationCode,
         locationName: scan.locationName,
         createdAt: scan.createdAt,
+        updatedAt: scan.updatedAt,
+        version: scan.version ?? 1,
       };
     }
   },

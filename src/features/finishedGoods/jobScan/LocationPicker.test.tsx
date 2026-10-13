@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -401,7 +407,9 @@ it("does not silently override the filter for a scanned label in another buildin
   });
   expect(onPick).not.toHaveBeenCalled();
   expect(
-    screen.getByText("“ZONE-A” is in Building A, outside the building filter."),
+    await screen.findByText(
+      "“ZONE-A” is in Building A, outside the building filter.",
+    ),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Show all buildings" }));
   expect(search()).toHaveValue("ZONE-A");
@@ -469,7 +477,7 @@ it("accepts one resolved location, suppressing repeated frames before lookup com
     decode("ZONE-A");
   });
   expect(mocks.query).toHaveBeenCalledTimes(1);
-  expect(onPick).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(onPick).toHaveBeenCalledTimes(1));
   expect(onPick).toHaveBeenCalledWith({
     text: "ZONE-A",
     zoneId: "zone-a",
@@ -517,7 +525,7 @@ it("keeps a manually chosen location when an earlier lookup arrives", async () =
   act(() => mocks.decode!("ZONE-A"));
   fireEvent.click(choice);
   await act(async () => finish(location()));
-  expect(onPick).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(onPick).toHaveBeenCalledTimes(1));
   expect(onPick.mock.calls[0]![0].code).toBe("ZONE-B");
 });
 it("reports network failures and retains typing and scan retry", async () => {
@@ -549,6 +557,8 @@ it("offers a scan-confirmed missing label for registration immediately, before s
     mocks.search.mockReturnValue(undefined);
     const { onPick } = start();
     await act(async () => mocks.decode!("FO69100125"));
+    // Flush native owned-entry traversal, still before the 250 ms search debounce.
+    await act(async () => vi.advanceTimersByTimeAsync(10));
     expect(search()).toHaveValue("FO69100125");
     expect(screen.getByRole("button", { name: "Add location" })).toBeVisible();
     expect(

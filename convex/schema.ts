@@ -741,6 +741,11 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
+    .index("by_orgId_floorId", byOrg("floorId"))
+    .index(
+      "by_orgId_buildingId_status_locationType_code",
+      byOrg("buildingId", "status", "locationType", "code"),
+    )
     .index(
       "by_orgId_warehouseId_status_code",
       byOrg("warehouseId", "status", "code"),
@@ -1210,6 +1215,8 @@ const schema = defineSchema({
           v.literal("PLATFORM"),
         ),
       ),
+      /** Optional for online migration; a missing value is version 0. */
+      version: v.optional(v.number()),
       baseElevationMm: v.optional(v.number()),
       xMm: v.number(),
       yMm: v.number(),

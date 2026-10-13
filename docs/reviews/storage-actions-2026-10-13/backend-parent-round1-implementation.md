@@ -1,0 +1,18 @@
+# Backend parent audit round 1 — implementation
+
+This isolated fix is based on the Kiro backend checkpoint captured at ab372d4f. That commit is a review baseline, not the fix to integrate. The next commit contains only the changes below and additional regressions; no active Kiro workspace or live data was changed.
+
+The four independently reported regressions reproduced before editing: changed rack input appended slots under a committed request, inactive location references allowed floor deletion, omitted zone revisions allowed writes, and 201 named registrations triggered multiple native paginations. The existing eight checkpoint cases passed at that baseline.
+
+- Building impact now uses a building/status/type index and one bounded batch read. It reads only that building's active name registrations, returns an exact count up to 1000, and explicitly reports a 1000 lower bound on overflow. It performs no native pagination. Floor deletion uses a floor index and refuses any referencing location regardless of status or type.
+- Rack generation records a full-command argument fingerprint and durable, integrity-checked receipt. Replay precedes live geometry/mode/occupancy checks; changed input refuses with REQUEST_ARGUMENT_CONFLICT before any slot is written. Fresh creation still preflights every address and commits all slots atomically.
+- Zone and position edits retain optional wire validators for old clients but reject a missing revision with VERSION_CONFLICT. Accepted retries replay before revision checks. New leaf rows start versioned; edits, default leaf synchronization, and archival advance version and updatedAt monotonically even under a frozen clock.
+- The final exact leaf may be archived only in an empty draft building with a non-SIMPLE area. Active buildings still require a leaf, and occupancy blocks both retirement and structural conversion. Returning that empty draft area to SIMPLE restores/creates its automatic leaf while retaining archived address history.
+- Completing a name registration preserves an already assigned floor, refusing another floor with NAMED_LOCATION_FLOOR_CONFLICT on floorNumber. A location without a registered floor can still select one. A real saved job ticket regression confirms the stable location ID/code and floor projection after same-floor conversion.
+- Activation assesses every active leaf within the existing per-area bound, refusing invalid legacy geometry, kind, or elevation. Overflow is an explicit readiness issue. Platform base elevation and height also participate in preflight.
+
+Validation: all 25 action safety cases pass; 121 tests across nine action/layout/occupancy/Finished Goods/job ticket/isolation/model suites pass. Scoped normal ESLint, whole-tree TypeScript, and git diff --check pass. The old valid edit fixtures now explicitly prepare current revisions without weakening occupancy assertions or automatically bypassing server requirements.
+
+Frontend integration must send current zone/position revisions, retain drafts on conflict, and lock an already assigned floor when completing its layout. Older clients that omit tokens must refresh to the updated client. The active Kiro UI owner is handling those caller changes and bilingual error copy; this backend snapshot cannot establish their runtime behavior. These tests run against convex-test, not production data. The new scoped indexes must be included with the eventual backend deployment.
+
+The underlying failures came from using one leaf's request as a compound-command receipt, treating an active catalogue as a historical reference check, and making concurrency tokens advisory. Command-level receipts, scoped reference queries, and monotonic required edit tokens now express those invariants directly.

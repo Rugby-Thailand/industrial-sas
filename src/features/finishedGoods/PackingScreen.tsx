@@ -1,9 +1,11 @@
 "use client";
+import { completeTask } from "@/lib/taskNavigation";
 import { resolveWriteError } from "@/lib/resolveWriteError";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Copy } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
@@ -21,8 +23,10 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { Link, useRouter } from "@/i18n/navigation";
+import { batchManagementRefs } from "@/lib/convex/batchManagementApi";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
 import {
   MAX_FG_PACKAGES,
@@ -412,7 +416,24 @@ function PackingForm({
   const [storageWarning, setStorageWarning] = useState(false);
   const [saved, setSaved] = useState(false);
   const [review, setReview] = useState(false);
+  const reviewCompletion = useRef<DialogCompletionHandle>(null);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
+  const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
+  const replacementLabels = useQuery(
+    batchManagementRefs.replacementLabels,
+    draft.completed && draft.batchId && draft.revision && draft.revision > 1
+      ? { warehouseId, batchId: draft.batchId, revision: draft.revision }
+      : "skip",
+  );
+  useNavigationDraft({
+    dirty: storageWarning && !draft.completed,
+    pending: op.busy,
+    discard: () => {
+      setDraft(initialDraft(product, batch));
+      setStorageWarning(false);
+      drafts.remove(key);
+    },
+  });
   const noun =
     draft.storageFormat === "PALLET"
       ? t("copy.pallet")
@@ -474,6 +495,15 @@ function PackingForm({
     `${field === "length" ? t("copy.length") : field === "width" ? t("copy.width") : t("copy.height")} (${draft.displayUnit === "m" ? t("copy.m") : t("copy.cm")})`;
   const issueText = resolveWriteError(issue, writeError, "packing");
   function persist(next: Draft, required = false) {
+    if (
+      !next.completed &&
+      draft.rows.some(
+        (row) =>
+          (row.length || row.width || row.height || row.weight) &&
+          !next.rows.some((replacement) => replacement.id === row.id),
+      )
+    )
+      setUndoDraft(draft);
     const persisted = drafts.write(key, next);
     setStorageWarning(!persisted);
     if (!persisted && required) return false;
@@ -588,29 +618,39 @@ function PackingForm({
           return;
         }
         const result = outcome.value;
-        setReview(false);
-        const next: Draft = {
-          ...draft,
-          pending: undefined,
-          batchId: result.batchId,
-          revision: result.revision,
-          ...(pending.kind === "commit" ? { completed: result.palletIds } : {}),
-        };
-        persist(next);
-        setSaved(true);
-        setLocalError("");
         op.clearRequests();
-        if (!batch && pending.kind === "save") {
-          if (
-            !drafts.write(
-              `${scope}:${warehouseId}:batch:${result.batchId}`,
-              next,
-            ) ||
-            !drafts.remove(key)
-          )
-            setStorageWarning(true);
-          router.replace(batchPath(result.batchId));
-        }
+        op.complete(() => {
+          const finish = () => {
+            setReview(false);
+            const next: Draft = {
+              ...draft,
+              pending: undefined,
+              batchId: result.batchId,
+              revision: result.revision,
+              ...(pending.kind === "commit"
+                ? { completed: result.palletIds }
+                : {}),
+            };
+            persist(next);
+            setSaved(true);
+            setLocalError("");
+            if (!batch && pending.kind === "save") {
+              if (
+                !drafts.write(
+                  `${scope}:${warehouseId}:batch:${result.batchId}`,
+                  next,
+                ) ||
+                !drafts.remove(key)
+              )
+                setStorageWarning(true);
+              completeTask(batchPath(result.batchId), router.replace);
+            }
+          };
+          // Keep the review mounted until its owner consumes the entry. A
+          // pending-write Back buffer must settle before the receipt replaces it.
+          if (review) reviewCompletion.current?.complete(finish);
+          else finish();
+        });
       },
     );
   }
@@ -686,12 +726,16 @@ function PackingForm({
         />
         <PackingCompletion
           summary={`${draft.total} ${product.unit} · ${draft.completed.length} ${plural}`}
+          {...(draft.batchId ? { batchId: draft.batchId } : {})}
           simplePacking={draft.simplePacking}
           units={draft.completed.map((id, i) => ({
             id,
             href: draft.simplePacking ? palletPath(id) : storagePath(id),
             label: `${draft.simplePacking ? t("copy.view-package-label") : t("copy.find-storage-eaab68")} · ${rowName(i)}`,
           }))}
+          {...(replacementLabels?.ok && replacementLabels.value
+            ? { labelMap: replacementLabels.value }
+            : {})}
           productHref={productPath(product._id)}
           onReviewBatch={() => {
             if (batch) persist(initialDraft(product, batch));
@@ -870,6 +914,29 @@ function PackingForm({
               {t("copy.packing-preview")}: {draft.total || "—"} {product.unit} →{" "}
               {preview.length} {plural} ({preview.join(" + ")})
             </p>
+          )}
+          {undoDraft && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-3 text-sm"
+            >
+              <p>
+                {tr(
+                  "Rows and their measurements were removed.",
+                  "แถวและข้อมูลวัดถูกลบ",
+                )}
+              </p>
+              <Button
+                variant="outline"
+                disabled={op.busy}
+                onClick={() => {
+                  persist(undoDraft);
+                  setUndoDraft(null);
+                }}
+              >
+                {tr("Undo row change", "ยกเลิกการเปลี่ยนแถว")}
+              </Button>
+            </div>
           )}
           {draft.splitPending && (
             <Notice
@@ -1284,7 +1351,6 @@ function PackingForm({
                                         length: selected.length,
                                         width: selected.width,
                                         height: selected.height,
-                                        weight: selected.weight,
                                         checked: false,
                                       }
                                     : r,
@@ -1456,6 +1522,8 @@ function PackingForm({
         </StickyActionBar>
       </div>
       <Dialog
+        completionRef={reviewCompletion}
+        backPending={op.busy}
         open={review}
         onOpenChange={(open) => {
           if (!op.busy) setReview(open);

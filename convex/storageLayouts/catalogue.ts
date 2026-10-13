@@ -16,7 +16,10 @@ import {
 import { storageLayoutStatus } from "../lib/validators";
 import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import { effectiveStorageAreaMode } from "../model/storageLayout/storagePosition";
-import { STORAGE_ZONE_LIMITS } from "../model/storageLayout/storageZone";
+import {
+  STORAGE_ZONE_LIMITS,
+  storageRecordRevision,
+} from "../model/storageLayout/storageZone";
 import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
 import { readMoveOccupancy, type MoveOccupancy } from "./moveOccupancy";
 
@@ -242,6 +245,9 @@ async function readFloor(
               : `Floor ${floor.floorNumber} › ${zone.label}${position.isDefault ? "" : ` › ${position.label}`}`;
           return {
             ...(positionId === undefined ? {} : { positionId }),
+            ...("updatedAt" in position
+              ? { revision: storageRecordRevision(position) }
+              : {}),
             locationId: position.locationId,
             code: position.code,
             label: position.label,
@@ -278,6 +284,7 @@ async function readFloor(
         code: zone.code,
         label: zone.label,
         qrValue: zone.qrValue,
+        revision: storageRecordRevision(zone),
         mode: effectiveStorageAreaMode(zone.mode),
         ...(zone.storageCondition === undefined
           ? {}

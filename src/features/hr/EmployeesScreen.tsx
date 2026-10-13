@@ -3,7 +3,10 @@
 import { useQuery } from "convex/react";
 import { Pencil, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useLayoutEffect, useRef } from "react";
+import { appHistoryIndex } from "@/lib/browser/appHistory";
+import { updateHistoryMetadata } from "@/lib/browser/history";
+import { traverseBack } from "@/lib/navigationGuard";
 import { flushSync } from "react-dom";
 
 import { useHrAccess, useHrCan } from "@/components/providers/HrAccessProvider";
@@ -85,6 +88,7 @@ export function HrEmployeesScreen() {
   const params = useQueryParams();
   const url = readEmployeesUrl(params);
   const navigate = useGuardedUrl();
+  const openedFrom = useRef<{ url: string; index: number } | null>(null);
   // The open editor follows the URL (`?employee=<id>&mode=edit`), so a link
   // opens any employee by ID, beyond the bounded registry list.
   const [editing, setEditing] = useUrlBackedState<Editing | undefined>(
@@ -112,17 +116,72 @@ export function HrEmployeesScreen() {
           }) ?? ROUTES.hrEmployees),
       criteria,
     );
-    navigate(href, () => {
+    navigate(`${href}${window.location.hash}`, () => {
+      const index = appHistoryIndex();
+      openedFrom.current =
+        index !== undefined &&
+        readEmployeesUrl(new URLSearchParams(window.location.search)).mode ===
+          "LIST"
+          ? {
+              url:
+                window.location.pathname +
+                window.location.search +
+                window.location.hash,
+              index: index + 1,
+            }
+          : null;
       carry(href);
       setEditing(next);
     });
   };
+  useLayoutEffect(() => {
+    const origin = openedFrom.current;
+    if (
+      origin &&
+      appHistoryIndex() === origin.index &&
+      new URLSearchParams(window.location.search).has("mode")
+    ) {
+      updateHistoryMetadata((state) => {
+        state.hrEmployeeEditorOrigin = origin;
+      });
+      openedFrom.current = null;
+    }
+  });
   // Closing unmounts the form first (Cancel deliberately discards its draft;
   // a save has already persisted it), so leaving the editor URL afterwards
   // passes the unsaved-work guard without a prompt.
   const close = (criteria: ListCriteria = listCriteria) => {
     flushSync(() => setEditing(undefined));
-    const href = listHref(criteria);
+    const origin: unknown = window.history.state?.hrEmployeeEditorOrigin;
+    if (
+      origin &&
+      typeof origin === "object" &&
+      "url" in origin &&
+      typeof origin.url === "string" &&
+      "index" in origin &&
+      typeof origin.index === "number" &&
+      Number.isSafeInteger(origin.index) &&
+      origin.index > 0 &&
+      origin.index === appHistoryIndex()
+    ) {
+      let source: URL | null = null;
+      try {
+        source = new URL(origin.url, window.location.href);
+      } catch {
+        /* Invalid provenance uses a direct list fallback. */
+      }
+      if (
+        source &&
+        source.origin === window.location.origin &&
+        source.pathname.replace(/^\/(en|th)(?=\/|$)/, "") ===
+          window.location.pathname.replace(/^\/(en|th)(?=\/|$)/, "") &&
+        readEmployeesUrl(source.searchParams).mode === "LIST"
+      ) {
+        traverseBack();
+        return;
+      }
+    }
+    const href = `${listHref(criteria)}${window.location.hash}`;
     navigate(href, () => carry(href), "replace");
   };
   return (

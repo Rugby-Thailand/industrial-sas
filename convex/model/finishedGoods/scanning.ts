@@ -7,6 +7,7 @@ export type ScanUnit = {
   code: string;
   storageFormat: "PALLET" | "BOX" | "OTHER";
   productId: Id<"finishedGoodsProducts">;
+  batchId?: Id<"finishedGoodsBatches">;
   productName: string;
   status: Doc<"finishedGoodsPallets">["status"];
   version: number;

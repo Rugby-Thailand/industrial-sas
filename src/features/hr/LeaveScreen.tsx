@@ -1,5 +1,7 @@
 "use client";
 
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -72,7 +74,12 @@ function LeaveContent() {
 }
 function LeaveView({ result }: { readonly result: SelfLeave }) {
   const t = useTranslations("Hr.leave");
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const history = useWorkflowStep(
+    "leaveHistory",
+    `hr-leave-history:${result.employeeId}`,
+    true,
+  );
+  const historyOpen = history.active;
   return (
     <div className="space-y-6">
       {result.gate ? (
@@ -129,10 +136,7 @@ function LeaveView({ result }: { readonly result: SelfLeave }) {
       <Panel className="space-y-4">
         <SectionTitle>{t("requests")}</SectionTitle>
         {historyOpen ? (
-          <LeaveHistory
-            today={result.today}
-            close={() => setHistoryOpen(false)}
-          />
+          <LeaveHistory today={result.today} close={history.back} />
         ) : (
           <>
             {result.requests.length === 0 ? (
@@ -152,10 +156,7 @@ function LeaveView({ result }: { readonly result: SelfLeave }) {
               </ul>
             )}
             {result.requestsComplete === false ? (
-              <Button
-                variant="outline"
-                onClick={() => guardedNavigate(() => setHistoryOpen(true))}
-              >
+              <Button variant="outline" onClick={history.enter}>
                 {t("browse")}
               </Button>
             ) : null}
@@ -242,6 +243,7 @@ export function LeaveForm({
         draft.eventDate !== ""),
     reset,
     write.pending || previewing,
+    retained ? undefined : `hr-leave-history:${employeeId}`,
   );
   const payload = () => ({
     type: draft.type,
@@ -639,7 +641,7 @@ function LeaveHistory({
   });
   return (
     <div className="space-y-4">
-      <Button variant="outline" onClick={() => guardedNavigate(close)}>
+      <Button variant="outline" onClick={close}>
         {t("returnCurrent")}
       </Button>
       <HrQueryState outcome={outcome}>

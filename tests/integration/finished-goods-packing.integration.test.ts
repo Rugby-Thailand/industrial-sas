@@ -220,6 +220,7 @@ describe("atomic finished goods packing", () => {
         ...productFields,
         ...args,
         requestId: "edit",
+        expectedUpdatedAt: 1,
         name: "New name",
         defaultQuantity: 42,
       }),
@@ -232,6 +233,9 @@ describe("atomic finished goods packing", () => {
           warehouseId: args.warehouseId,
           productId: args.productId,
           requestId: "invalid-edit",
+          expectedUpdatedAt: (await world.t.run((ctx) =>
+            ctx.db.get(args.productId),
+          ))!.updatedAt,
           ...changed,
         }),
       ).toMatchObject({

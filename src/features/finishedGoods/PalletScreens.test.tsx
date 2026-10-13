@@ -12,7 +12,7 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { getFunctionName } from "convex/server";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
 
@@ -61,7 +61,15 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({
+    push: mocks.push,
+    replace: (href: string) => {
+      mocks.push(href);
+      const locale = window.location.pathname.startsWith("/th/") ? "th" : "en";
+      window.history.replaceState({}, "", `/${locale}${href}`);
+    },
+    back: () => window.history.back(),
+  }),
 }));
 
 import {
@@ -99,6 +107,11 @@ const callsFor = (name: string) =>
   mocks.write.mock.calls.filter(([method]) => method.endsWith(`:${name}`));
 
 beforeEach(() => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/pallets/pallet-a",
+  );
   localStorage.clear();
   sessionStorage.clear();
   mocks.canManage = true;
@@ -192,7 +205,7 @@ describe("pallet next-action hierarchy", () => {
     ).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
       "href",
-      "/finished-goods/scan",
+      "/finished-goods/packages/scan?unitId=pallet-a",
     );
   });
 
@@ -205,7 +218,7 @@ describe("pallet next-action hierarchy", () => {
     const header = screen.getByRole("heading", { level: 1 }).closest("header");
     expect(
       within(header!).getByRole("link", { name: "Scan Packages" }),
-    ).toHaveAttribute("href", "/finished-goods/scan");
+    ).toHaveAttribute("href", "/finished-goods/packages/scan?unitId=pallet-a");
     expect(screen.getAllByRole("link", { name: "Scan Packages" })).toHaveLength(
       1,
     );
@@ -1427,4 +1440,122 @@ describe("stale measurement save lifecycle", () => {
     expect(mocks.push).not.toHaveBeenCalled();
     expect(localStorage.getItem(draftKey)).not.toBeNull();
   });
+});
+
+import { trackAppHistory } from "@/lib/browser/appHistory";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+let stopPalletTracking: (() => void) | undefined;
+afterEach(() => {
+  stopPalletTracking?.();
+  stopPalletTracking = undefined;
+});
+function ownedPallet(view: "detail" | "measure" = "detail") {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/th/finished-goods?search=box#origin",
+  );
+  stopPalletTracking = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    `/th/finished-goods/pallets/pallet-a${view === "measure" ? "/measure" : ""}?kept=yes#position`,
+  );
+  return render(
+    <NextIntlClientProvider
+      locale="en"
+      messages={messagesFor("en")}
+      timeZone="Asia/Bangkok"
+    >
+      <NavigationGuardProvider>
+        <PalletScreen palletId="pallet-a" view={view} />
+      </NavigationGuardProvider>
+    </NextIntlClientProvider>,
+  );
+}
+async function palletBack() {
+  await act(async () => {
+    window.history.back();
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+  });
+}
+it("measurement native Back retains the dirty draft and discard restores the actual catalogue origin", async () => {
+  ownedPallet("measure");
+  number("Length (m)", "1.3");
+  await palletBack();
+  expect(
+    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByRole("spinbutton", { name: "Length (m)" })).toHaveValue(
+    1.3,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/finished-goods?search=box#origin"),
+  );
+});
+it("reservation explicit Close consumes its dialog before the next native Back", async () => {
+  currentDetail = reservedPalletDetail;
+  ownedPallet();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel reservation" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Release this reserved space?",
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+  await waitFor(() =>
+    expect(
+      [...new URLSearchParams(window.location.search).keys()].some((key) =>
+        key.startsWith("overlay"),
+      ),
+    ).toBe(false),
+  );
+  await palletBack();
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/finished-goods?search=box#origin"),
+  );
+  expect(mocks.write).not.toHaveBeenCalled();
+});
+it("pending reservation release blocks native Back and success consumes its modal and task entry", async () => {
+  currentDetail = reservedPalletDetail;
+  let resolveRelease!: () => void;
+  mocks.write.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveRelease = () => resolve(success("pallet-a"));
+      }),
+  );
+  ownedPallet();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel reservation" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Release this reserved space?",
+  });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Release space" }),
+  );
+  await waitFor(() => expect(callsFor("cancelReservation")).toHaveLength(1));
+  await palletBack();
+  expect(window.location.pathname).toBe("/th/finished-goods/pallets/pallet-a");
+  expect(
+    screen.getByRole("dialog", { name: "Release this reserved space?" }),
+  ).toBeVisible();
+  await act(async () => resolveRelease());
+  await waitFor(() =>
+    expect(window.location.pathname).toBe(
+      "/th/finished-goods/pallets/pallet-a/storage",
+    ),
+  );
+  expect(window.history.state.appNavigationIndex).toBe(1);
+  await palletBack();
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/finished-goods?search=box#origin"),
+  );
 });

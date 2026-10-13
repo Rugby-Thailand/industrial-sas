@@ -38,7 +38,7 @@ vi.mock("./shared", async (importOriginal) => ({
   }),
 }));
 vi.mock("@/i18n/navigation", () => ({
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.push }),
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
@@ -305,7 +305,7 @@ it("sends the legacy unmeasured unit to scanning", () => {
   render(component());
   expect(screen.getByRole("link", { name: /P-A/ })).toHaveAttribute(
     "href",
-    "/finished-goods/scan",
+    "/finished-goods/packages/scan?unitId=unit-a",
   );
 });
 it("clears an unavailable-target message after manually choosing an editable unit", () => {

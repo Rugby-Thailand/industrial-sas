@@ -11,6 +11,7 @@ import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { trackAppHistory } from "@/lib/browser/appHistory";
 import { guardedNavigate } from "@/lib/navigationGuard";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { thailandDefaults } from "../../../convex/model/hr/policy";
@@ -100,6 +101,7 @@ const request = (type = "ANNUAL") => ({
   employeeCode: "EMP-1",
 });
 beforeEach(() => {
+  window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/hr/leave");
   state.query.mockReset();
   state.mutation.mockReset();
   state.preview.mockReset();
@@ -697,3 +699,122 @@ it("never reuses an uncertain request ID or receipt on a newly linked employee",
   await waitFor(() => expect(state.mutation).toHaveBeenCalledTimes(2));
   expect(state.mutation.mock.calls[1]?.[1].requestId).not.toBe(oldId);
 });
+
+it("native Back protects returned-leave editing and consumes it after explicit discard before restoring the caller", async () => {
+  state.query.mockReturnValue(
+    envelope({
+      ok: true,
+      item: { ...request(), status: "RETURNED", version: 4 },
+      today: "2026-10-12",
+      revisions: [],
+    }),
+  );
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/th/hr/leave?status=returned#list",
+  );
+  const stop = trackAppHistory();
+  try {
+    window.history.pushState({}, "", "/en/hr/leave/request-1?kept=yes#request");
+    renderWithIntl(
+      <NavigationGuardProvider>
+        <HrLeaveDetailScreen requestId="request-1" />
+      </NavigationGuardProvider>,
+      { locale: "en" },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit returned request" }),
+    );
+    expect(screen.getByLabelText(/Reason/)).toHaveValue("Family appointment");
+    await act(async () => {
+      window.history.back();
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Keep editing" }),
+    );
+    expect(screen.getByLabelText(/Reason/)).toHaveValue("Family appointment");
+    await act(async () => {
+      window.history.back();
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Discard changes" }),
+    );
+    await waitFor(() => expect(screen.queryByLabelText(/Reason/)).toBeNull());
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/en/hr/leave/request-1?kept=yes#request");
+    await act(async () => {
+      window.history.back();
+    });
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/th/hr/leave?status=returned#list"),
+    );
+  } finally {
+    stop();
+  }
+});
+
+it.each(["native", "explicit"] as const)(
+  "%s leave-history close retains the unsent request and the next Back protects that draft",
+  async (method) => {
+    state.query.mockImplementation((name: string) =>
+      name === "hr/leave:history"
+        ? envelope({ ok: true, page: [], isDone: true, continueCursor: "" })
+        : envelope({ ...leave(), gate: null, requestsComplete: false }),
+    );
+    window.history.replaceState(
+      { appNavigationIndex: 0 },
+      "",
+      "/th/hr/today?q=kept#origin",
+    );
+    const stop = trackAppHistory();
+    try {
+      window.history.pushState({}, "", "/en/hr/leave?kept=yes#form");
+      renderWithIntl(
+        <NavigationGuardProvider>
+          <HrLeaveScreen />
+        </NavigationGuardProvider>,
+        { locale: "en" },
+      );
+      fireEvent.change(screen.getByLabelText(/Reason/), {
+        target: { value: "Retained request" },
+      });
+      fireEvent.click(
+        screen.getByRole("button", { name: "Browse all leave requests" }),
+      );
+      expect(screen.queryByRole("dialog")).toBeNull();
+      await act(async () => {
+        if (method === "native") window.history.back();
+        else
+          fireEvent.click(
+            screen.getByRole("button", { name: "Return to recent requests" }),
+          );
+      });
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("button", { name: "Return to recent requests" }),
+        ).toBeNull(),
+      );
+      expect(screen.getByLabelText(/Reason/)).toHaveValue("Retained request");
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/hr/leave?kept=yes#form");
+      await act(async () => {
+        window.history.back();
+      });
+      expect(
+        await screen.findByRole("button", { name: "Keep editing" }),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText(/Reason/)).toHaveValue("Retained request");
+    } finally {
+      stop();
+    }
+  },
+);
