@@ -1,3 +1,4 @@
+import { trackDocumentReads } from "../fixtures/document-reads";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 import * as batches from "../../convex/finishedGoods/batches";
@@ -170,6 +171,34 @@ describe("partial batch management", () => {
           });
         return placementId;
       });
+      await world.t.run(async (ctx) => {
+        const template = (await ctx.db.get("finishedGoodsPlacements", hold))!;
+        const { _id, _creationTime, ...history } = template;
+        void _id;
+        void _creationTime;
+        for (let index = 0; index < 100; index++)
+          await ctx.db.insert("finishedGoodsPlacements", {
+            ...history,
+            status: "RELEASED",
+          });
+      });
+      const measured = await world.t
+        .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+        .run(async (ctx) => {
+          const tracked = trackDocumentReads(ctx.db);
+          const result = await (
+            management.get as unknown as RuntimeFunction
+          )._handler(
+            { ...ctx, db: tracked.db },
+            { warehouseId: request.warehouseId, batchId: request.batchId },
+          );
+          return { result, rows: tracked.queryRows };
+        });
+      expect(
+        measured.rows
+          .filter((row) => row.table === "finishedGoodsPlacements")
+          .reduce((sum, row) => sum + row.count, 0),
+      ).toBeLessThan(10);
       const before = await pallets(world);
       expect(
         await call(world, management.repackAvailable, request),

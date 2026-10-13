@@ -2272,6 +2272,49 @@ async function stackChildren(
     value: palletId,
   });
 }
+/** Presence checks exclude released history and read at most one row per status. */
+export async function hasHeldPlacement(
+  ctx: TenantFunctionContext,
+  owner: { field: "supportPalletId" | "palletId"; value: string },
+) {
+  const found = await Promise.all(
+    (["RESERVED", "STORED"] as const).map((status) =>
+      ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsPlacements">>(
+          "finishedGoodsPlacements",
+          `by_orgId_${owner.field}_status`,
+          [owner, { field: "status", value: status }],
+        )
+        .first(),
+    ),
+  );
+  return found.some((row) => row !== null);
+}
+
+/** Preserve the original oldest-active selection, including RESERVED-first ties. */
+export async function firstActiveMove(
+  ctx: TenantFunctionContext,
+  palletId: string,
+) {
+  const moves = await Promise.all(
+    (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
+      ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsMoves">>(
+          "finishedGoodsMoves",
+          "by_orgId_palletId_status",
+          [
+            { field: "palletId", value: palletId },
+            { field: "status", value: status },
+          ],
+        )
+        .first(),
+    ),
+  );
+  return moves
+    .filter((move) => move !== null)
+    .sort((a, b) => a._creationTime - b._creationTime)[0];
+}
+
 /**
  * Reserved and stored placements in creation order. Released placements are
  * history: reading them only grows the cost of every occupancy check.
