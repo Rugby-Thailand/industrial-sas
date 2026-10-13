@@ -60,6 +60,7 @@ it("clears a previously measured height when Save and exit omits the emptied fie
     {
       warehouseId: world.warehouses.alphaA,
       palletId,
+      expectedMeasurementUpdatedAt: 1000,
       requestId: "clear-height",
       quantity: 500,
       lengthMm: 1200,
@@ -84,6 +85,7 @@ it("clears all dimensions without retaining measured status, and can later be co
   await authenticated.mutation(api.finishedGoods.workflow.saveMeasurement, {
     warehouseId: world.warehouses.alphaA,
     palletId,
+    expectedMeasurementUpdatedAt: 1000,
     requestId: "clear-all",
     quantity: 250,
   });
@@ -99,6 +101,7 @@ it("clears all dimensions without retaining measured status, and can later be co
     {
       warehouseId: world.warehouses.alphaA,
       palletId,
+      expectedMeasurementUpdatedAt: incomplete!.updatedAt,
       requestId: "remeasure",
       quantity: 250,
       lengthMm: 1000,

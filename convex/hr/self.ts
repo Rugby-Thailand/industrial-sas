@@ -180,7 +180,7 @@ const employeeSummary = async (
 });
 
 export const today = queryWithOrg({
-  args: {},
+  args: { clockRefresh: v.optional(v.number()) },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrAttendanceDays" },
@@ -296,7 +296,7 @@ export async function yearHolidays(
  * administrator list's paging. No site ID is accepted.
  */
 export const holidays = queryWithOrg({
-  args: { year: v.number() },
+  args: { clockRefresh: v.optional(v.number()), year: v.number() },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrHolidays" },
@@ -337,6 +337,7 @@ export const holidays = queryWithOrg({
 /** Complete personal correction history, accessed one bounded page at a time. */
 export const requests = queryWithOrg({
   args: {
+    clockRefresh: v.optional(v.number()),
     cursor: v.optional(v.string()),
     from: v.optional(v.string()),
     to: v.optional(v.string()),
@@ -424,7 +425,8 @@ export const requests = queryWithOrg({
 
 /** An exact owned request, including every retained resubmission/decision. */
 export const requestDetail = queryWithOrg({
-  args: { correctionId: v.id("hrCorrectionRequests") },
+  // URL segments are untrusted strings; tenantDb normalizes before reading.
+  args: { clockRefresh: v.optional(v.number()), correctionId: v.string() },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrCorrectionRequests" },
@@ -640,7 +642,11 @@ export const clockOut = mutationWithOrg({
 });
 
 export const history = queryWithOrg({
-  args: { from: v.string(), to: v.string() },
+  args: {
+    clockRefresh: v.optional(v.number()),
+    from: v.string(),
+    to: v.string(),
+  },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrAttendanceDays" },
@@ -724,7 +730,7 @@ export const history = queryWithOrg({
 });
 
 export const dayDetail = queryWithOrg({
-  args: { businessDate: v.string() },
+  args: { clockRefresh: v.optional(v.number()), businessDate: v.string() },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrAttendanceDays" },
@@ -746,7 +752,7 @@ export const dayDetail = queryWithOrg({
 });
 
 export const profile = queryWithOrg({
-  args: {},
+  args: { clockRefresh: v.optional(v.number()) },
   returns: v.any(),
   permissionCode: SELF,
   target: { table: "hrEmployees" },

@@ -33,6 +33,8 @@ import {
   MAX_SITE_EMPLOYEES,
   fail,
   hrCommand,
+  employeeReviewIdentities,
+  reviewedByActor,
   inScope,
   memberName,
   authorizedSiteLanes,
@@ -604,11 +606,28 @@ export const saveEmployee = mutationWithOrg({
             return fail("SUPERVISOR_UNAVAILABLE", "supervisorUserId");
         }
 
+        const identities =
+          before === null
+            ? new Set<Id<"users">>()
+            : await employeeReviewIdentities(ctx, before);
+        if (identities === null) return fail("LIMIT_EXCEEDED", "userId");
+        if (
+          args.userId === ctx.tenant.actor._id &&
+          !identities.has(args.userId) &&
+          before !== null
+        ) {
+          const reviewed = await reviewedByActor(ctx, before);
+          if (reviewed === null) return fail("LIMIT_EXCEEDED", "userId");
+          if (reviewed) return fail("EMPLOYEE_SELF_LINK_REVIEWED", "userId");
+        }
+        if (args.userId !== undefined) identities.add(args.userId);
+
         const fields = {
           warehouseId: site._id,
           code: draft.value.code,
           displayName: draft.value.displayName,
           userId: args.userId,
+          reviewExcludedUserIds: [...identities],
           supervisorUserId: args.supervisorUserId,
           employmentStartDate: args.employmentStartDate,
           employmentEndDate: args.employmentEndDate,

@@ -40,6 +40,12 @@ async function expectClosedAndBack(page: Page) {
     page.getByRole("heading", { name: "Storage editor fixture", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // Native traversal bypasses Playwright's interaction auto-waiting. The
+  // heading above is SSR content; wait for the fresh shell's history listeners.
+  await expect(page.getByTestId("navigation-ready")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   await page.goBack();
   await expect(page).toHaveURL(/\/en\/previous$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);

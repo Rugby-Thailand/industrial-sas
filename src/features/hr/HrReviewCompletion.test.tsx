@@ -482,6 +482,10 @@ describe("write intent isolation (HR-022, HR-023)", () => {
         return { ok: true, value: { written: true } };
       });
     });
+    expect(sent.map((entry) => entry.payload)).toEqual(["original"]);
+    await act(async () => {
+      await hook.result.current.retry();
+    });
     expect(sent.map((entry) => entry.payload)).toEqual([
       "original",
       "original",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { CalendarDays, Download } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
@@ -49,7 +49,7 @@ function HolidaysContent() {
     /^\d{4}$/.test(year) &&
     Number(year) - yearOffset >= 1900 &&
     Number(year) - yearOffset <= 2200;
-  const outcome = useQuery(
+  const outcome = useHrQuery(
     hrRefs.holidays,
     valid ? { year: Number(year) - yearOffset } : "skip",
   );
@@ -179,12 +179,12 @@ export function HrUpcomingHoliday({ today }: { readonly today: string }) {
   const t = useTranslations("Hr.holidays");
   const locale = useLocale();
   const year = Number(today.slice(0, 4));
-  const outcome = useQuery(hrRefs.holidays, { year });
+  const outcome = useHrQuery(hrRefs.holidays, { year });
   const current =
     outcome?.ok && outcome.value.ok && "holidays" in outcome.value
       ? outcome.value
       : null;
-  const nextOutcome = useQuery(
+  const nextOutcome = useHrQuery(
     hrRefs.holidays,
     current?.nextHoliday === null && year < 2200 ? { year: year + 1 } : "skip",
   );

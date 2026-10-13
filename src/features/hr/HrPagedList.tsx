@@ -11,7 +11,7 @@
  * the same page, while any criteria or page-size change starts at page 1.
  * Records always come from the live, authorized query.
  */
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import type {
   FunctionArgs,
   FunctionReference,
@@ -120,6 +120,7 @@ export function useHrPagedQuery<Ref extends PageQuery>(
   surface: string,
   /** The history entry of URL criteria (`useHrListCriteria`), if any. */
   entry: string | null = null,
+  timeDependent = false,
 ): { readonly view: HrPagedView<Ref>; readonly paging: HrPaging } {
   const access = useHrAccess();
   const scope = `hr:${surface}:${access.identityKey ?? "anonymous"}`;
@@ -130,7 +131,7 @@ export function useHrPagedQuery<Ref extends PageQuery>(
   const recovery = useScanRecovery(
     JSON.stringify([fingerprint, paging.cursor]),
   );
-  const outcome = useQuery(
+  const outcome = useHrQuery(
     reference,
     (args === "skip"
       ? "skip"
@@ -141,6 +142,7 @@ export function useHrPagedQuery<Ref extends PageQuery>(
           ...(recovery.cursor ? { scanCursor: recovery.cursor } : {}),
           ...(recovery.attempt ? { attempt: recovery.attempt } : {}),
         }) as never,
+    timeDependent,
   ) as
     | undefined
     | { ok: false; requestId: string }

@@ -163,6 +163,8 @@ export function useAsyncOperation(options: AsyncOperationOptions) {
     run,
     complete,
     request: identity.request,
-    clearRequests: identity.clearRequests,
+    clearRequests: () => {
+      if (lifecycle.capture()()) identity.clearRequests();
+    },
   };
 }

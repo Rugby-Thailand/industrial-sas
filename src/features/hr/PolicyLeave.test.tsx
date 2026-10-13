@@ -100,7 +100,11 @@ const request = (type = "ANNUAL") => ({
   employeeName: "Employee One",
   employeeCode: "EMP-1",
 });
+let testActor = 0;
 beforeEach(() => {
+  // Recovery belongs to the actor across remounts. Separate cases represent
+  // separate actors so an intentionally uncertain command cannot lock them.
+  state.access.identityKey = `org:user-${++testActor}`;
   window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/hr/leave");
   state.query.mockReset();
   state.mutation.mockReset();

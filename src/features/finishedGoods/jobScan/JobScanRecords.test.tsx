@@ -1188,4 +1188,75 @@ it("retries the immutable reviewed location command after response loss and adva
     { id: "scan-a", version: 1 },
     { id: "scan-c", version: 1 },
   ]);
+  // The successful retry also completes two asynchronous native traversals.
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("region", { name: "Choose a location" }),
+    ).toBeNull(),
+  );
+  await waitFor(() =>
+    expect(
+      new URLSearchParams(window.location.search).has("jobRecordsLocation"),
+    ).toBe(false),
+  );
+});
+
+it("a delayed picker focus must not steal a user's newly focused search field", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/en/finished-goods/scan/records?source=keep",
+  );
+  const frames = new Map<number, FrameRequestCallback>();
+  let sequence = 0;
+  const request = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((callback) => {
+      const id = ++sequence;
+      frames.set(id, callback);
+      return id;
+    });
+  const cancel = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation((id) => {
+      frames.delete(id);
+    });
+  try {
+    const user = userEvent.setup();
+    renderWithIntl(<JobScanRecordsScreen />, {
+      locale: "en",
+      workspace: false,
+    });
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Set location for 1 record" }),
+    );
+    const search = screen.getByRole("textbox", {
+      name: /Search Job No/,
+      hidden: true,
+    });
+    act(() => search.focus());
+    act(() => {
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const callback of pending) callback(performance.now());
+    });
+    expect(search).toHaveFocus();
+    await user.type(search, "FO00", { skipClick: true });
+    expect(search).toHaveValue("FO00");
+    await waitFor(() =>
+      expect(
+        new URLSearchParams(window.location.search).has("jobRecordsLocation"),
+      ).toBe(false),
+    );
+    expect(new URLSearchParams(window.location.search).get("source")).toBe(
+      "keep",
+    );
+    expect(
+      screen.queryByRole("region", { name: "Choose a location" }),
+    ).not.toBeInTheDocument();
+  } finally {
+    request.mockRestore();
+    cancel.mockRestore();
+  }
 });

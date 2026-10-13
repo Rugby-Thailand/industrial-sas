@@ -232,6 +232,10 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("hr/setup:listEmployees", "query", () => ({})),
   example("hr/setup:employeesPage", "query", () => ({ search: "fixture" })),
   example("hr/preferences:current", "query", () => ({})),
+  example("hr/recovery:reconcileRequest", "mutation", () => ({
+    operation: "hr.preferences.save",
+    requestId: "public-uncertain-preferences",
+  })),
   example("hr/policies:current", "query", () => ({
     capability: "ANNOUNCEMENTS",
   })),

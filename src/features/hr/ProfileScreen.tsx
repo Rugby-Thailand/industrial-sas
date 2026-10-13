@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Notice } from "@/components/ui/Notice";
@@ -30,7 +30,7 @@ export function HrProfileScreen() {
 function ProfileContent() {
   const t = useTranslations("Hr.profile");
   const locale = useLocale();
-  const outcome = useQuery(hrRefs.profile, {});
+  const outcome = useHrQuery(hrRefs.profile, {});
   return (
     <HrQueryState outcome={outcome}>
       {() => {

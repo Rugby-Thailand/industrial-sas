@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { ArrowLeft, CalendarCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
@@ -145,7 +145,7 @@ function ReviewContent() {
   }
   // The open day's own detail (shared with the detail pane's query) tells
   // which tab it belongs to, independently of the page being listed.
-  const detail = useQuery(
+  const detail = useHrQuery(
     hrRefs.reviewDayDetail,
     selected === undefined
       ? "skip"
@@ -175,6 +175,7 @@ function ReviewContent() {
     },
     "review-queue",
     entry,
+    true,
   );
   const items: readonly QueueItem[] =
     view.kind === "ready"

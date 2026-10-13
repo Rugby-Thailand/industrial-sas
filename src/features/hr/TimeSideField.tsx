@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
-import { CheckboxControl } from "@/components/ui/CheckboxControl";
+import { CheckboxField } from "@/components/ui/CheckboxControl";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 
@@ -12,6 +12,8 @@ import { addDays, businessDateIn, formatTime, parseTimeInput } from "./format";
 export interface TimeSide {
   readonly value: string;
   readonly nextDay: boolean;
+  /** Omit this side so the server retains the exact saved event instant. */
+  readonly untouched?: boolean;
 }
 
 export const EMPTY_SIDE: TimeSide = { value: "", nextDay: false };
@@ -19,8 +21,10 @@ export const EMPTY_SIDE: TimeSide = { value: "", nextDay: false };
 /** A local time for a business date, as the server expects it. */
 export function toLocalTimeInput(
   side: TimeSide,
+  retainOriginal = true,
 ): { minute: number; nextDay: boolean } | undefined | null {
   if (side.value === "") return undefined;
+  if (retainOriginal && side.untouched) return undefined;
   const minute = parseTimeInput(side.value);
   return minute === null ? null : { minute, nextDay: side.nextDay };
 }
@@ -35,6 +39,7 @@ export function sideFromInstant(
   return {
     value: formatTime(instant, "en", timeZone),
     nextDay: businessDateIn(instant, timeZone) === addDays(businessDate, 1),
+    untouched: true,
   };
 }
 
@@ -71,21 +76,19 @@ export function TimeSideField({
             value={side.value}
             disabled={disabled}
             onChange={(event) =>
-              onChange({ ...side, value: event.target.value })
+              onChange({ ...side, value: event.target.value, untouched: false })
             }
           />
         )}
       </FormField>
-      <label className="flex min-h-touch items-center gap-2 text-sm text-text">
-        <CheckboxControl
-          checked={side.nextDay}
-          disabled={disabled}
-          onChange={(event) =>
-            onChange({ ...side, nextDay: event.target.checked })
-          }
-        />
-        {t("nextDay")}
-      </label>
+      <CheckboxField
+        label={t("nextDay")}
+        checked={side.nextDay}
+        disabled={disabled}
+        onChange={(event) =>
+          onChange({ ...side, nextDay: event.target.checked, untouched: false })
+        }
+      />
     </div>
   );
 }

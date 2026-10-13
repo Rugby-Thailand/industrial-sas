@@ -131,8 +131,10 @@ it("enforces the 20-photo limit for gallery selections and in-app captures", asy
 
 it("reports photos beyond the limit without dropping accepted ones", async () => {
   await setup();
-  gallery(MAX_PHOTOS + 2);
-  expect(screen.getByText("20 / 20 photos")).toBeVisible();
+  gallery(MAX_PHOTOS - 1);
+  gallery(2);
+  expect(screen.getByText("19 / 20 photos")).toBeVisible();
+  expect(URL.createObjectURL).toHaveBeenCalledTimes(19);
   expect(screen.getByRole("alert")).toHaveTextContent(
     "You can add up to 20 photos.",
   );
@@ -272,4 +274,20 @@ it("retains collected photos when acquisition closes and reopens", async () => {
   expect(screen.getByText("1 / 20 photos")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Read 1 photo with AI" }));
   expect(submit).toHaveBeenCalledWith([file]);
+});
+
+it("keeps collection previews when the parent refuses a photo group", async () => {
+  const submit = vi.fn(() => false);
+  renderWithIntl(<PhotoCapture onSubmit={submit} onClose={vi.fn()} />, {
+    locale: "en",
+    workspace: false,
+  });
+  await screen.findByRole("button", { name: "Take photo" });
+  gallery(2);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Read 2 photos with AI" }),
+  );
+  expect(submit).toHaveBeenCalledOnce();
+  expect(screen.getByText("2 / 20 photos")).toBeVisible();
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
 });

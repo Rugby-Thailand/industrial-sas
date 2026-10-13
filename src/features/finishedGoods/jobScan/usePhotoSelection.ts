@@ -46,29 +46,35 @@ export function usePhotoSelection(capacity = MAX_PHOTOS) {
     source: "gallery" | "camera" = "gallery",
   ) {
     if (!active.current) return;
-    const accepted: Photo[] = [];
+    const accepted: File[] = [];
     let found: PhotoProblem | undefined;
     for (const file of files) {
       // Distinct camera shots remain separate even when name and size coincide.
       if (
         source === "gallery" &&
-        [...collected.current, ...accepted].some((photo) =>
-          sameFile(photo.file, file),
-        )
+        (collected.current.some((photo) => sameFile(photo.file, file)) ||
+          accepted.some((candidate) => sameFile(candidate, file)))
       )
         continue;
       if (!file.type.startsWith("image/")) found = "imageType";
       else if (!file.size || file.size > MAX_BYTES) found = "imageSize";
-      else if (collected.current.length + accepted.length >= limit)
-        found = "photoLimit";
-      else
-        accepted.push({
+      else accepted.push(file);
+    }
+    // Keep an oversized gallery/camera acquisition atomic and allocate no
+    // previews until its complete valid set fits the remaining group.
+    if (collected.current.length + accepted.length > limit) {
+      setProblem("photoLimit");
+      return;
+    }
+    if (accepted.length)
+      commit([
+        ...collected.current,
+        ...accepted.map((file) => ({
           id: nextId.current++,
           file,
           preview: URL.createObjectURL(file),
-        });
-    }
-    if (accepted.length) commit([...collected.current, ...accepted]);
+        })),
+      ]);
     setProblem(found);
   }
 

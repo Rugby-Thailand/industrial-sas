@@ -139,6 +139,34 @@ describe("compatibility rules", () => {
     expect(breakingChanges(before, after)).toEqual([]);
   });
 
+  it("accepts ID-to-string argument widening but rejects narrowing and widened ID results", () => {
+    const id: ExportedValidator = {
+      type: "id",
+      tableName: "hrCorrectionRequests",
+    };
+    const before = contract(object({ id: [id] }), object({ id: [id] }));
+    const widerArgs = contract(object({ id: [string] }), object({ id: [id] }));
+    expect(breakingChanges(before, widerArgs)).toEqual([]);
+    expect(breakingChanges(widerArgs, before)).toEqual([
+      "m:f: arguments no longer accept every old-client call",
+    ]);
+    expect(
+      breakingChanges(
+        before,
+        contract(object({ id: [id] }), object({ id: [string] })),
+      ),
+    ).toEqual(["m:f: result can now contain values old clients lack"]);
+    expect(
+      breakingChanges(
+        before,
+        contract(
+          object({ id: [{ type: "id", tableName: "users" }] }),
+          object({ id: [id] }),
+        ),
+      ),
+    ).toEqual(["m:f: arguments no longer accept every old-client call"]);
+  });
+
   it("flags removed functions, required or removed arguments and narrowed types", () => {
     const before = contract(object({ a: [string] }), object({ x: [number] }));
     expect(breakingChanges(before, {})).toEqual([

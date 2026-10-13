@@ -229,7 +229,13 @@ function Records({
   useEffect(() => {
     if (!isPicking) return;
     // The menu must release its focus trap before the picker receives focus.
+    const opener = document.activeElement;
     const frame = requestAnimationFrame(() => {
+      if (
+        document.activeElement !== opener &&
+        document.activeElement !== document.body
+      )
+        return;
       locationPanel.current?.scrollIntoView({
         block: "start",
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches

@@ -1,5 +1,7 @@
 "use client";
 
+import { useMutation } from "convex/react";
+import { hrRefs } from "@/lib/convex/hrApi";
 import { useLocale, useTranslations } from "next-intl";
 import { useSyncExternalStore, type ReactNode } from "react";
 
@@ -198,16 +200,33 @@ export function WriteFeedback({
           testId="hr-write-denied"
         />
       );
+    case "RECONCILED":
+      return (
+        <Notice
+          tone="neutral"
+          role="status"
+          title={t(state.applied ? "recoveredSaved" : "recoveredUnsent")}
+          body={t("recoveredHint")}
+        />
+      );
     case "UNCERTAIN":
       return (
         <Notice
           tone="warning"
           role="alert"
           title={t("uncertain")}
-          body={t("uncertainHint")}
+          body={t(
+            state.recoveryUnavailable
+              ? "recoveryUnavailable"
+              : state.recovery
+                ? "recoveryHint"
+                : "uncertainHint",
+          )}
           testId="hr-write-uncertain"
         >
-          {onRetry === undefined ? null : (
+          {state.recovery ? (
+            <RecoverWrite recovery={state.recovery} />
+          ) : onRetry === undefined || state.recoveryUnavailable ? null : (
             <Button type="button" variant="outline" onClick={onRetry}>
               {t("retrySafely")}
             </Button>
@@ -215,6 +234,33 @@ export function WriteFeedback({
         </Notice>
       );
   }
+}
+
+function RecoverWrite({
+  recovery,
+}: {
+  readonly recovery: NonNullable<
+    Extract<HrWriteState<unknown>, { kind: "UNCERTAIN" }>["recovery"]
+  >;
+}) {
+  const t = useTranslations("Hr.write");
+  const reconcile = useMutation(hrRefs.reconcileRequest);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() =>
+        void recovery.reconcile(() =>
+          reconcile({
+            operation: recovery.operation,
+            requestId: recovery.requestId,
+          }),
+        )
+      }
+    >
+      {t("checkPrevious")}
+    </Button>
+  );
 }
 
 const STATUS_TONES: Readonly<Record<string, BadgeTone>> = {

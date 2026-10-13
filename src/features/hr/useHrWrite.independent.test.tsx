@@ -1,300 +1,266 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  clearHrClockRecoveryExcept,
-  useHrClockWrite,
-  useHrWrite,
-} from "./useHrWrite";
-
-const access = vi.hoisted(() => ({ identityKey: "org-a:actor-a:employee-a" }));
-vi.mock("@/components/providers/HrAccessProvider", () => ({
-  useHrAccess: () => access,
-}));
+import { useHrWrite } from "./useHrWrite";
 
 afterEach(() => {
   cleanup();
-  clearHrClockRecoveryExcept();
   vi.restoreAllMocks();
   sessionStorage.clear();
-  access.identityKey = "org-a:actor-a:employee-a";
 });
 
 describe("HR write recovery contract", () => {
-  it("does not let an unmounted write remove the scalar ID retained by a newer uncertain retry", async () => {
-    const intent = "overlapping-retry";
-    const key = `hr-request:${access.identityKey}|${intent}`;
-    const sent: string[] = [];
-    let finishOld!: (value: unknown) => void;
-    const old = renderHook(() => useHrWrite(intent));
-    let oldResult!: Promise<{ kind: string }>;
-    act(() => {
-      oldResult = old.result.current.submit((requestId) => {
-        sent.push(requestId);
-        return new Promise((resolve) => {
-          finishOld = resolve;
-        });
-      });
-    });
-    old.unmount();
-    const next = renderHook(() => useHrWrite(intent));
-    await act(async () => {
-      expect(
-        (
-          await next.result.current.submit(async (requestId) => {
-            sent.push(requestId);
-            throw new Error("Retry response was lost");
-          })
-        ).kind,
-      ).toBe("UNCERTAIN");
-    });
-    expect(sent[1]).toBe(sent[0]);
-    await act(async () => {
-      finishOld({
-        ok: true,
-        value: { written: true, documentId: "saved-document" },
-      });
-      expect((await oldResult).kind).toBe("IDLE");
-    });
-    expect(sessionStorage.getItem(key)).toBe(JSON.stringify(sent[0]));
-    next.unmount();
-    const remounted = renderHook(() => useHrWrite(intent));
-    await act(async () => {
-      await remounted.result.current.submit(async (requestId) => {
-        sent.push(requestId);
-        return {
-          ok: true,
-          value: { written: true, documentId: "saved-document" },
-        };
-      });
-    });
-    expect(sent[2]).toBe(sent[0]);
-    expect(sessionStorage.getItem(key)).toBeNull();
-  });
-
-  it("restores the existing scalar request ID and keeps it on denial until a definite refusal", async () => {
-    const key = `hr-request:${access.identityKey}|scalar-format`;
-    const id = "existing_request_123";
-    sessionStorage.setItem(key, JSON.stringify(id));
-    const hook = renderHook(() => useHrWrite("scalar-format"));
-    const sent: string[] = [];
-    await act(async () => {
-      expect(
-        (
-          await hook.result.current.submit(async (requestId) => {
-            sent.push(requestId);
-            return { ok: false };
-          })
-        ).kind,
-      ).toBe("DENIED");
-    });
-    expect(sent).toEqual([id]);
-    expect(JSON.parse(sessionStorage.getItem(key)!)).toBe(id);
-    await act(async () => {
-      expect(
-        (
-          await hook.result.current.submit(async (requestId) => {
-            sent.push(requestId);
-            return {
-              ok: true,
-              value: { written: false, error: { code: "LOCKED" } },
-            };
-          })
-        ).kind,
-      ).toBe("REFUSED");
-    });
-    expect(sent).toEqual([id, id]);
-    expect(sessionStorage.getItem(key)).toBeNull();
-  });
-
-  it("does not revive an already settled HR receipt after leaving and returning to its intent", async () => {
-    const hook = renderHook(({ scope }) => useHrWrite(scope), {
-      initialProps: { scope: "A" },
-    });
-    await act(async () => {
-      await hook.result.current.submit(async () => ({
-        ok: true,
-        value: { written: true },
-      }));
-    });
-    expect(hook.result.current.state.kind).toBe("SAVED");
-    hook.rerender({ scope: "B" });
-    hook.rerender({ scope: "A" });
-    expect(hook.result.current.state.kind).toBe("IDLE");
-  });
-
-  it("an unmounted clock completion cannot clear a newer descriptor after signing in again", async () => {
-    let finishOld!: (value: unknown) => void;
-    const old = renderHook(() =>
-      useHrClockWrite(
-        "employee-a",
-        "2026-10-12",
-        () =>
-          new Promise((resolve) => {
-            finishOld = resolve;
-          }),
-      ),
-    );
-    let oldResult!: Promise<{ kind: string }>;
-    act(() => {
-      oldResult = old.result.current.submit("CLOCK_IN");
-    });
-    const oldId = JSON.parse(
-      sessionStorage.getItem("hr-clock-command:v1")!,
-    ).requestId;
-    old.unmount();
-    clearHrClockRecoveryExcept();
-    let finishNew!: (value: unknown) => void;
-    const next = renderHook(() =>
-      useHrClockWrite(
-        "employee-a",
-        "2026-10-12",
-        () =>
-          new Promise((resolve) => {
-            finishNew = resolve;
-          }),
-      ),
-    );
-    let nextResult!: Promise<{ kind: string }>;
-    act(() => {
-      nextResult = next.result.current.submit("CLOCK_IN");
-    });
-    const descriptor = sessionStorage.getItem("hr-clock-command:v1");
-    expect(JSON.parse(descriptor!).requestId).not.toBe(oldId);
-    await act(async () => {
-      finishOld({ ok: true, value: { written: true } });
-      expect((await oldResult).kind).toBe("IDLE");
-    });
-    expect(sessionStorage.getItem("hr-clock-command:v1")).toBe(descriptor);
-    expect(next.result.current.pending).toBe(true);
-    await act(async () => {
-      finishNew(null);
-      expect((await nextResult).kind).toBe("UNCERTAIN");
-    });
-    expect(sessionStorage.getItem("hr-clock-command:v1")).toBe(descriptor);
-  });
-
-  it("does not restore a delayed success after an intent changes A to B to A", async () => {
-    let finish!: (value: unknown) => void;
-    const hook = renderHook(({ scope }) => useHrWrite(scope), {
-      initialProps: { scope: "A" },
-    });
-    let pending!: Promise<{ kind: string }>;
-    act(() => {
-      pending = hook.result.current.submit(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve;
-          }),
-      );
-    });
-    hook.rerender({ scope: "B" });
-    hook.rerender({ scope: "A" });
-    await act(async () => {
-      finish({
-        ok: true,
-        value: { written: true, documentId: "old-document" },
-      });
-      expect((await pending).kind).toBe("IDLE");
-    });
-    expect(hook.result.current.state.kind).toBe("IDLE");
-  });
-
-  it("does not restore a clock receipt after organization A to B to A", async () => {
-    let finish!: (value: unknown) => void;
-    const send = vi.fn(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
-    const hook = renderHook(() =>
-      useHrClockWrite("employee-a", "2026-10-12", send),
-    );
-    let pending!: Promise<{ kind: string }>;
-    act(() => {
-      pending = hook.result.current.submit("CLOCK_IN");
-    });
-    access.identityKey = "org-b:actor-a:employee-a";
-    hook.rerender();
-    access.identityKey = "org-a:actor-a:employee-a";
-    hook.rerender();
-    await act(async () => {
-      finish({ ok: true, value: { written: true, kind: "CLOCK_IN" } });
-      expect((await pending).kind).toBe("IDLE");
-    });
-    expect(hook.result.current.state.kind).toBe("IDLE");
-    expect(hook.result.current.command).toBeNull();
-    expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
-  });
-
-  it("blocks duplicates locally under StrictMode and permits another intent while pending", async () => {
-    const hook = renderHook(({ scope }) => useHrWrite(scope), {
-      initialProps: { scope: "A" },
-      wrapper: StrictMode,
-    });
-    let finish!: (value: unknown) => void;
-    let pending!: Promise<{ kind: string }>;
-    act(() => {
-      pending = hook.result.current.submit(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve;
-          }),
-      );
-    });
-    const duplicate = vi.fn();
-    await act(async () => {
-      expect((await hook.result.current.submit(duplicate)).kind).toBe(
-        "PENDING",
-      );
-    });
-    expect(duplicate).not.toHaveBeenCalled();
-    hook.rerender({ scope: "B" });
-    await act(async () => {
-      expect(
-        (
-          await hook.result.current.submit(async () => ({
-            ok: true,
-            value: { written: true },
-          }))
-        ).kind,
-      ).toBe("SAVED");
-      finish({ ok: true, value: { written: true } });
-      expect((await pending).kind).toBe("IDLE");
-    });
-    expect(hook.result.current.state.kind).toBe("SAVED");
-  });
-
   it("retries a lost response with the same request ID when session storage is unavailable", async () => {
+    const sentIds: string[] = [];
+    const send = vi.fn(async (requestId: string) => {
+      sentIds.push(requestId);
+      if (sentIds.length === 1)
+        throw new Error("Connection lost after server committed");
+      return { ok: true, value: { written: true, documentId: "saved-event" } };
+    });
+    const hook = renderHook(() => useHrWrite("attendance-retry-contract"));
+    await act(async () => {
+      await hook.result.current.run(send);
+    });
+    expect(hook.result.current.state.kind).toBe("UNCERTAIN");
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("Storage unavailable");
     });
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("Storage unavailable");
     });
-    const sentIds: string[] = [];
-    const hook = renderHook(() => useHrWrite("attendance-retry-contract"));
     await act(async () => {
-      await hook.result.current.run(async (requestId) => {
-        sentIds.push(requestId);
-        throw new Error("Connection lost after server committed");
-      });
-    });
-    expect(hook.result.current.state.kind).toBe("UNCERTAIN");
-    await act(async () => {
-      await hook.result.current.run(async (requestId) => {
-        sentIds.push(requestId);
-        return {
-          ok: true,
-          value: { written: true, documentId: "saved-event" },
-        };
-      });
+      await hook.result.current.retry();
     });
     expect(sentIds).toHaveLength(2);
     expect(sentIds[1]).toBe(sentIds[0]);
     expect(hook.result.current.state.kind).toBe("SAVED");
+  });
+
+  it("rehydrates an exact command after a cold mount and requires retry before a fresh submission", async () => {
+    const scope = "cold-command";
+    sessionStorage.setItem(
+      `hr-request:anonymous|${scope}`,
+      JSON.stringify({
+        version: 1,
+        requestId: "cold_request_123",
+        payload: { value: "original" },
+      }),
+    );
+    const send = vi.fn(
+      async (payload: { value: string }, requestId: string) => ({
+        ok: true,
+        value: { written: true, payload, requestId },
+      }),
+    );
+    const hook = renderHook(() =>
+      useHrWrite<Record<string, unknown>, { value: string }>(scope, {
+        decode: (value) =>
+          typeof value === "object" &&
+          value !== null &&
+          "value" in value &&
+          typeof value.value === "string"
+            ? (value as { value: string })
+            : undefined,
+        send,
+      }),
+    );
+    expect(hook.result.current.state.kind).toBe("UNCERTAIN");
+    expect(hook.result.current.locked).toBe(true);
+    await act(async () => {
+      await hook.result.current.submitCommand({ value: "new" });
+    });
+    expect(send).not.toHaveBeenCalled();
+    await act(async () => {
+      await hook.result.current.retry();
+    });
+    expect(send).toHaveBeenCalledWith(
+      { value: "original" },
+      "cold_request_123",
+    );
+    await act(async () => {
+      await hook.result.current.submitCommand({ value: "new" });
+    });
+    expect(send.mock.calls[1]![0]).toEqual({ value: "new" });
+    expect(send.mock.calls[1]![1]).not.toBe("cold_request_123");
+  });
+
+  it("a pending command keeps its live owner across remounts and ignores duplicate submissions", async () => {
+    let finish!: (outcome: unknown) => void;
+    const send = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const first = renderHook(() => useHrWrite("pending-remount"));
+    let original!: Promise<unknown>;
+    act(() => {
+      original = first.result.current.submit(send);
+    });
+    first.unmount();
+    const second = renderHook(() => useHrWrite("pending-remount"));
+    expect(second.result.current.state.kind).toBe("PENDING");
+    await act(async () => {
+      await second.result.current.submit(send);
+    });
+    expect(send).toHaveBeenCalledOnce();
+    await act(async () => {
+      finish({ ok: true, value: { written: true } });
+      await original;
+    });
+    expect(await original).toEqual({ kind: "IDLE" });
+    expect(second.result.current.state.kind).toBe("SAVED");
+  });
+
+  it("an uncertain command survives a remount when browser storage is unavailable", async () => {
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Response lost"))
+      .mockResolvedValue({ ok: true, value: { written: true } });
+    const first = renderHook(() => useHrWrite("storage-remount"));
+    await act(async () => {
+      await first.result.current.submit(send);
+    });
+    const originalId = send.mock.calls[0]![0];
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("Storage unavailable");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("Storage unavailable");
+    });
+    first.unmount();
+    const second = renderHook(() => useHrWrite("storage-remount"));
+    expect(second.result.current.locked).toBe(true);
+    await act(async () => {
+      await second.result.current.retry();
+    });
+    expect(send.mock.calls[1]![0]).toBe(originalId);
+    expect(second.result.current.state.kind).toBe("SAVED");
+  });
+
+  it("legacy ID-only recovery remains locked until definitive reconciliation and never reports a new-form success", async () => {
+    sessionStorage.setItem(
+      "hr-request:anonymous|shortcut-preferences",
+      JSON.stringify("legacy_request_123"),
+    );
+    const hook = renderHook(() => useHrWrite("shortcut-preferences"));
+    const newCommand = vi.fn(async (_requestId: string) => ({
+      ok: true,
+      value: { written: true },
+    }));
+    await act(async () => {
+      await hook.result.current.submit(newCommand);
+    });
+    expect(newCommand).not.toHaveBeenCalled();
+    const recovery =
+      hook.result.current.state.kind === "UNCERTAIN"
+        ? hook.result.current.state.recovery
+        : undefined;
+    expect(recovery).toMatchObject({
+      requestId: "legacy_request_123",
+      operation: "hr.preferences.save",
+    });
+    await act(async () => {
+      await recovery!.reconcile(async () => {
+        throw new Error("Recovery response lost");
+      });
+    });
+    expect(hook.result.current.locked).toBe(true);
+    expect(
+      sessionStorage.getItem("hr-request:anonymous|shortcut-preferences"),
+    ).not.toBeNull();
+    await act(async () => {
+      await recovery!.reconcile(async () => ({
+        ok: true,
+        value: { resolved: true, status: "COMMITTED" },
+      }));
+    });
+    expect(hook.result.current.state).toEqual({
+      kind: "RECONCILED",
+      applied: true,
+    });
+    expect(hook.result.current.locked).toBe(false);
+    await act(async () => {
+      await hook.result.current.submit(newCommand);
+    });
+    expect(newCommand).toHaveBeenCalledOnce();
+    expect(newCommand.mock.calls[0]![0]).not.toBe("legacy_request_123");
+  });
+
+  it("refuses before sending when durable recovery cannot be saved and allows an explicit new attempt after storage returns", async () => {
+    const unavailable = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("Storage unavailable");
+      });
+    const send = vi.fn(async (_requestId: string) => ({
+      ok: true,
+      value: { written: true },
+    }));
+    const hook = renderHook(() => useHrWrite("no-storage-new-command"));
+    await act(async () => {
+      await hook.result.current.submit(send);
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(hook.result.current.state).toEqual({
+      kind: "REFUSED",
+      code: "REQUEST_RECOVERY_UNAVAILABLE",
+    });
+    expect(hook.result.current.locked).toBe(false);
+    unavailable.mockRestore();
+    await act(async () => {
+      await hook.result.current.submit(send);
+    });
+    expect(send).toHaveBeenCalledOnce();
+    expect(hook.result.current.state.kind).toBe("SAVED");
+  });
+
+  it("unreadable storage cannot overwrite an unknown persisted command even when writes work", async () => {
+    const key = "hr-request:anonymous|employee:unreadable:1";
+    sessionStorage.setItem(key, JSON.stringify("unreadable_old_request"));
+    const read = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new Error("Cannot read storage");
+      });
+    const send = vi.fn();
+    const hook = renderHook(() => useHrWrite("employee:unreadable:1"));
+    await act(async () => {
+      await hook.result.current.submit(send);
+    });
+    expect(send).not.toHaveBeenCalled();
+    read.mockRestore();
+    expect(sessionStorage.getItem(key)).toBe(
+      JSON.stringify("unreadable_old_request"),
+    );
+    await act(async () => {
+      await hook.result.current.submit(send);
+    });
+    expect(hook.result.current.locked).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("malformed recovery storage never manufactures an ID or sends a fresh command", async () => {
+    sessionStorage.setItem(
+      "hr-request:anonymous|employee:malformed:1",
+      "{not json",
+    );
+    const send = vi.fn();
+    const hook = renderHook(() => useHrWrite("employee:malformed:1"));
+    expect(hook.result.current.locked).toBe(true);
+    expect(hook.result.current.state).toMatchObject({
+      kind: "UNCERTAIN",
+      recoveryUnavailable: true,
+    });
+    await act(async () => {
+      await hook.result.current.submit(send);
+      await hook.result.current.retry();
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(
+      sessionStorage.getItem("hr-request:anonymous|employee:malformed:1"),
+    ).toBe("{not json");
   });
 
   it("does not display a previous intent's delayed success after switching records", async () => {
@@ -317,4 +283,36 @@ describe("HR write recovery contract", () => {
     });
     expect(hook.result.current.state.kind).toBe("IDLE");
   });
+});
+
+it("an opaque multi-action command restores its persisted registered operation without storing form evidence", async () => {
+  sessionStorage.setItem(
+    "hr-request:anonymous|announcement-editor:restored",
+    JSON.stringify({
+      version: 1,
+      requestId: "announcement_publish_original",
+      operation: "hr.announcements.publish",
+    }),
+  );
+  const hook = renderHook(() => useHrWrite("announcement-editor:restored"));
+  expect(hook.result.current.locked).toBe(true);
+  const state = hook.result.current.state;
+  expect(state.kind).toBe("UNCERTAIN");
+  if (state.kind !== "UNCERTAIN") throw new Error("Expected recovery");
+  expect(state.recovery).toMatchObject({
+    operation: "hr.announcements.publish",
+    requestId: "announcement_publish_original",
+  });
+  const fresh = vi.fn();
+  await act(async () => {
+    await hook.result.current.submit(fresh);
+  });
+  expect(fresh).not.toHaveBeenCalled();
+  expect(
+    JSON.parse(
+      sessionStorage.getItem(
+        "hr-request:anonymous|announcement-editor:restored",
+      )!,
+    ),
+  ).not.toHaveProperty("payload");
 });

@@ -245,6 +245,7 @@ describe("atomic finished goods packing", () => {
     const measurement = {
       warehouseId: args.warehouseId,
       palletId: pallet!._id,
+      expectedMeasurementUpdatedAt: pallet!.updatedAt,
       requestId: "measure",
       quantity: 501,
       lengthMm: 1000,

@@ -7,7 +7,8 @@
     "aboutPage": "About this page",
     "close": "Close",
     "breadcrumb": "Breadcrumb",
-    "back": "Back"
+    "back": "Back",
+    "navigationGuard": {}
   },
   "Locale": {
     "label": "Language",
@@ -292,7 +293,8 @@
     "FG_NOT_FOUND": "This record is unavailable in the selected warehouse.",
     "FG_STORED_PALLET": "A stored pallet cannot be measured or reserved again.",
     "FG_UNKNOWN": "The change could not be saved. Check your input and connection, then retry.",
-    "FG_VERSION_CONFLICT": "This product changed or its edit version is missing. Your draft is retained. Reload the current product and review your changes before saving."
+    "FG_VERSION_CONFLICT": "This product changed or its edit version is missing. Your draft is retained. Reload the current product and review your changes before saving.",
+    "FG_QUANTITY_INVALID": "Enter positive quantities with the precision allowed for this unit."
   },
   "StorageLayouts": {
     "canvasMaxHeight": "Maximum height",
@@ -896,7 +898,10 @@
         "description": "Your draft is kept and nothing was saved. Saving it now is refused; load the latest floor to start again from the saved version.",
         "reload": "Load latest floor (discard my draft)"
       }
-    }
+    },
+    "areaSummary": {},
+    "spaceDetails": {},
+    "catalogue": {}
   },
   "FinishedGoods": {
     "title": "Finished goods",
@@ -1799,7 +1804,9 @@
     "retryCorrection": "Retry correction",
     "correctionRecovery": "The correction result is uncertain. Retry the same correction to recover its result before editing again.",
     "saveCorrection": "Save correction",
-    "sendPhotosFirst": "Send or remove the collected photos before saving this group."
+    "sendPhotosFirst": "Send or remove the collected photos before saving this group.",
+    "groupLimit": "This group holds up to {max} tickets. Save or remove a ticket before adding more.",
+    "searchContinue": "No matches on this page. Continue to search older records."
   },
   "Hr": {
     "duration": "{hours} h {minutes} min",
@@ -1823,7 +1830,13 @@
       "deniedHint": "Nothing was saved. Ask your HR administrator.",
       "uncertain": "We could not confirm whether this was saved",
       "uncertainHint": "The connection dropped before the reply. Retrying is safe and will not record it twice.",
-      "retrySafely": "Try again safely"
+      "retrySafely": "Try again safely",
+      "recoveryHint": "The earlier command needs to be checked before you can save new changes.",
+      "checkPrevious": "Check previous write",
+      "recoveredSaved": "The previous write was saved",
+      "recoveredUnsent": "The previous write did not apply",
+      "recoveredHint": "Check the latest record before saving a new change.",
+      "recoveryUnavailable": "The saved request reference could not be read. Contact HR to check the record before starting another write."
     },
     "form": {
       "nextDay": "On the following day",
@@ -1914,7 +1927,8 @@
       "outsideEmployment": "Today is outside your employment dates, so you cannot clock in.",
       "nonworkingHint": "No shift today. Clocking in sends the day for review as unplanned work.",
       "doneHint": "Today's attendance is complete.",
-      "notRecorded": "Not recorded yet"
+      "notRecorded": "Not recorded yet",
+      "recoveredEarlier": "Recovered the clock for {date}. Today still needs its own clock."
     },
     "history": {
       "title": "Attendance history",
@@ -2466,7 +2480,11 @@
       "HR_CLOCK_DAY_CHANGED": "This clock action belongs to another work date. Check attendance history before starting a new action.",
       "PAGE_SIZE_INVALID": "This page size is not available. Reload the page",
       "SEARCH_INVALID": "Use a search of up to 100 characters",
-      "YEAR_INVALID": "Enter a year between 1900 and 2200"
+      "YEAR_INVALID": "Enter a year between 1900 and 2200",
+      "EMPLOYEE_SELF_LINK_REVIEWED": "Ask another HR administrator to link your account: you have already reviewed this employee's attendance",
+      "CLOCK_DATE_CHANGED": "The workday changed before this clock could be saved. Check today and start a new clock command.",
+      "REQUEST_RETIRED": "The earlier request was safely retired. Check the current record before saving a new command.",
+      "REQUEST_RECOVERY_UNAVAILABLE": "The request could not be stored in this browser, so nothing was sent. Enable browser storage and try again."
     },
     "selfService": {
       "title": "Your tasks",

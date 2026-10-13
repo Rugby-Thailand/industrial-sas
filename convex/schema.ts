@@ -136,6 +136,10 @@ const schema = defineSchema({
       code: v.string(),
       displayName: v.string(),
       userId: v.optional(v.id("users")),
+      /** Current and former account identities may never review this employee. */
+      reviewExcludedUserIds: v.optional(v.array(v.id("users"))),
+      /** Reviewers cannot subsequently turn a reviewed record into their own. */
+      reviewerUserIds: v.optional(v.array(v.id("users"))),
       supervisorUserId: v.optional(v.id("users")),
       employmentStartDate: v.string(),
       employmentEndDate: v.optional(v.string()),

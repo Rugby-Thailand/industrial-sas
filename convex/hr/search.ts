@@ -250,11 +250,19 @@ export const reviewEmployees = queryWithOrg({
   target: { table: "hrEmployees" },
   handler: async (ctx, args): Promise<EmployeeSearchResult> => {
     const scope = await reviewScope(ctx);
-    return await search(
+    let identitiesComplete = true;
+    const result = await search(
       ctx,
       args,
-      async (employees) =>
-        employees.filter((employee) => reviewBlocker(scope, employee) === null),
+      async (employees) => {
+        const visible: Employee[] = [];
+        for (const employee of employees) {
+          const blocker = await reviewBlocker(ctx, scope, employee);
+          if (blocker === "LIMIT_EXCEEDED") identitiesComplete = false;
+          if (blocker === null) visible.push(employee);
+        }
+        return visible;
+      },
       async () => {
         if (scope.admin) return await adminCandidates(ctx, scope.sites);
         const rows = await ctx.tenantDb
@@ -268,6 +276,7 @@ export const reviewEmployees = queryWithOrg({
         };
       },
     );
+    return { ...result, complete: result.complete && identitiesComplete };
   },
 });
 

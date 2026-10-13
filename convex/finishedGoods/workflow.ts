@@ -1,7 +1,10 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
-import { validatePacking } from "../model/finishedGoods/packing";
+import {
+  quantityToMinor,
+  validatePacking,
+} from "../model/finishedGoods/packing";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -259,11 +262,10 @@ export const saveProduct = mutationWithOrg({
         }
         if (sku && !/^[\p{L}\p{N}_.\-/]+$/u.test(sku))
           return failure("FIELD_INVALID", "sku");
+        const defaultQuantity = args.defaultQuantity ?? before?.defaultQuantity;
         if (
-          args.defaultQuantity !== undefined &&
-          (!Number.isFinite(args.defaultQuantity) ||
-            args.defaultQuantity <= 0 ||
-            args.defaultQuantity > 1_000_000_000)
+          defaultQuantity !== undefined &&
+          quantityToMinor(defaultQuantity, unit) === null
         )
           return failure("FIELD_INVALID", "defaultQuantity");
         if (sku) {
@@ -336,7 +338,7 @@ export const saveProduct = mutationWithOrg({
           unit,
           storageFormat:
             args.storageFormat ?? before?.storageFormat ?? "PALLET",
-          defaultQuantity: args.defaultQuantity ?? before?.defaultQuantity,
+          defaultQuantity,
           storageCondition,
           notes: args.notes?.trim(),
           customerReference: args.customerReference?.trim(),
@@ -382,6 +384,10 @@ export const createPallet = mutationWithOrg({
         const product = await productOf(ctx, args);
         if (!product) return failure("NOT_FOUND");
         if (product.status !== "ACTIVE") return failure("PRODUCT_DRAFT");
+        if (
+          quantityToMinor(product.defaultQuantity ?? 1, product.unit) === null
+        )
+          return failure("FIELD_INVALID", "defaultQuantity");
         return {
           documentId: await ctx.tenantDb.insert("finishedGoodsPallets", {
             warehouseId: args.warehouseId,
@@ -478,6 +484,7 @@ export const createPacking = mutationWithOrg({
 export const saveMeasurement = mutationWithOrg({
   args: {
     ...writeArgs,
+    expectedMeasurementUpdatedAt: v.optional(v.number()),
     quantity: v.number(),
     dimensionsChecked: v.optional(v.boolean()),
     lot: v.optional(v.string()),
@@ -499,6 +506,11 @@ export const saveMeasurement = mutationWithOrg({
       async () => {
         const pallet = await palletOf(ctx, args);
         if (!pallet) return failure("NOT_FOUND");
+        if (
+          !Number.isSafeInteger(args.expectedMeasurementUpdatedAt) ||
+          args.expectedMeasurementUpdatedAt !== (pallet.updatedAt ?? 0)
+        )
+          return failure("VERSION_CONFLICT");
         if (pallet.preparationBatchId)
           return failure("BATCH_MEASUREMENT_LOCKED");
         if (pallet.status === "RESERVED" || pallet.status === "STORED")
@@ -508,11 +520,12 @@ export const saveMeasurement = mutationWithOrg({
           args.quantity !== pallet.quantity
         )
           return failure("BATCH_QUANTITY_LOCKED", "quantity");
-        if (
-          !Number.isFinite(args.quantity) ||
-          args.quantity <= 0 ||
-          args.quantity > 1_000_000_000
-        )
+        const product = await productOf(ctx, {
+          warehouseId: args.warehouseId,
+          productId: pallet.productId,
+        });
+        if (!product) return failure("NOT_FOUND");
+        if (quantityToMinor(args.quantity, product.unit) === null)
           return failure("FIELD_INVALID", "quantity");
         for (const field of ["lengthMm", "widthMm", "heightMm"] as const)
           if (args[field] !== undefined && !validDimension(args[field]))
@@ -543,6 +556,7 @@ export const saveMeasurement = mutationWithOrg({
             ? "AWAITING_PLACEMENT"
             : "AWAITING_MEASUREMENT",
           ...stamp(ctx),
+          updatedAt: Math.max(Date.now(), (pallet.updatedAt ?? 0) + 1),
         });
         return { documentId: pallet._id };
       },

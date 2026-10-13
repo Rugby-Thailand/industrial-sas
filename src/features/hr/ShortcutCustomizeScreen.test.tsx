@@ -429,7 +429,12 @@ describe("write recovery and identity", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again safely" }));
     await screen.findByText("Shortcut preferences saved.");
     expect(state.save.mock.calls[1]![0]).toEqual(original);
-    expect(show("Profile")).not.toBeChecked();
+    // A newer query remains authoritative after the older command receipt.
+    expect(show("Profile")).toBeChecked();
+    expect(order()).toEqual([...KEYS].reverse());
+    fireEvent.click(show("Profile"));
+    fireEvent.click(saveButton());
+    expect(state.save.mock.calls[2]![0].expectedVersion).toBe(8);
   });
 
   it("treats a success without saved preference extras as uncertain rather than discarding the draft", async () => {

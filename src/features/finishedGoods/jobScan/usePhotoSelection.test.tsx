@@ -20,10 +20,15 @@ it("applies the photo limit synchronously across additions in one render", () =>
       Array.from({ length: MAX_PHOTOS - 1 }, (_, i) => photo(`${i}.jpg`)),
     );
     result.current.add([photo("last.jpg"), photo("overflow.jpg")]);
+    expect(result.current.canCapture()).toBe(true);
+  });
+  expect(result.current.photos).toHaveLength(MAX_PHOTOS - 1);
+  expect(result.current.problem).toBe("photoLimit");
+  act(() => {
+    result.current.add([photo("last.jpg")]);
     expect(result.current.canCapture()).toBe(false);
   });
   expect(result.current.photos).toHaveLength(MAX_PHOTOS);
-  expect(result.current.problem).toBe("photoLimit");
   expect(URL.createObjectURL).toHaveBeenCalledTimes(MAX_PHOTOS);
 });
 
@@ -82,8 +87,10 @@ it("limits collected photos to the remaining ticket group capacity", () => {
       photo("overflow.jpg"),
     ]),
   );
-  expect(result.current.photos).toHaveLength(2);
+  expect(result.current.photos).toHaveLength(0);
   expect(result.current.problem).toBe("photoLimit");
+  expect(URL.createObjectURL).not.toHaveBeenCalled();
+  act(() => result.current.add([photo("one.jpg"), photo("two.jpg")]));
   rerender({ capacity: 1 });
   expect(result.current.getFiles()).toHaveLength(2);
   expect(result.current.canCapture()).toBe(false);

@@ -8026,6 +8026,12 @@
           },
           "optional": false
         },
+        "expectedMeasurementUpdatedAt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "quantity": {
           "fieldType": {
             "type": "number"
@@ -15708,6 +15714,109 @@
       }
     }
   },
+  "hr/recovery:reconcileRequest": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "operation": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "hr/review:dayCorrectionsPage": {
     "kind": "query",
     "visibility": "public",
@@ -15841,6 +15950,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "employeeId": {
           "fieldType": {
             "type": "string"
@@ -16262,6 +16377,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "from": {
           "fieldType": {
             "type": "string"
@@ -16372,6 +16493,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "pageSize": {
           "fieldType": {
             "type": "number"
@@ -17048,6 +17175,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "businessDate": {
           "fieldType": {
             "type": "string"
@@ -17145,6 +17278,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "from": {
           "fieldType": {
             "type": "string"
@@ -17248,6 +17387,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "year": {
           "fieldType": {
             "type": "number"
@@ -17344,7 +17489,14 @@
     "visibility": "public",
     "args": {
       "type": "object",
-      "value": {}
+      "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
     },
     "returns": {
       "type": "union",
@@ -17435,10 +17587,15 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "correctionId": {
           "fieldType": {
-            "type": "id",
-            "tableName": "hrCorrectionRequests"
+            "type": "string"
           },
           "optional": false
         }
@@ -17533,6 +17690,12 @@
     "args": {
       "type": "object",
       "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
         "cursor": {
           "fieldType": {
             "type": "string"
@@ -17829,7 +17992,14 @@
     "visibility": "public",
     "args": {
       "type": "object",
-      "value": {}
+      "value": {
+        "clockRefresh": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
     },
     "returns": {
       "type": "union",

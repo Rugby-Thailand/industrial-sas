@@ -58,12 +58,12 @@ vi.mock("./HrShared", () => ({
     state,
     onRetry,
   }: {
-    state: { kind: string };
+    state: { kind: string; recoveryUnavailable?: boolean };
     onRetry: () => void;
   }) => (
     <div>
       {state.kind}
-      {state.kind === "UNCERTAIN" ? (
+      {state.kind === "UNCERTAIN" && !state.recoveryUnavailable ? (
         <button onClick={onRetry}>Retry original clock</button>
       ) : null}
     </div>
@@ -282,7 +282,8 @@ it("restores the original clock-in and exact date after navigation/remount despi
   await waitFor(() => expect(mocks.clockIn).toHaveBeenCalledTimes(2));
   expect(mocks.clockIn.mock.calls[1]?.[0]).toEqual(original);
   expect(mocks.clockOut).not.toHaveBeenCalled();
-  await screen.findByTestId("hr-clock-saved");
+  await screen.findByText("recoveredEarlier");
+  expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
   expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
 });
 it("keeps the old date on an uncommitted remount retry and clears a definite day-changed refusal", async () => {
@@ -366,20 +367,16 @@ it.each(["actor", "organization", "employee"])(
   },
 );
 it("retries exactly from tab memory when storage is unavailable, including a remount", async () => {
-  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-    throw new Error("Blocked");
-  });
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new Error("Blocked");
-  });
-  vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
-    throw new Error("Blocked");
-  });
   mocks.clockIn
     .mockRejectedValueOnce(new Error("Lost reply"))
     .mockResolvedValue({
       ok: true,
-      value: { written: true, occurredAt: base.now, kind: "CLOCK_IN" },
+      value: {
+        written: true,
+        occurredAt: base.now,
+        businessDate: base.businessDate,
+        kind: "CLOCK_IN",
+      },
     });
   mocks.query.mockReturnValue({
     ok: true,
@@ -389,6 +386,15 @@ it("retries exactly from tab memory when storage is unavailable, including a rem
   fireEvent.click(screen.getByTestId("hr-clock-action"));
   await screen.findByRole("button", { name: "Retry original clock" });
   const original = mocks.clockIn.mock.calls[0]?.[0];
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new Error("Blocked");
+  });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("Blocked");
+  });
+  vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+    throw new Error("Blocked");
+  });
   view.unmount();
   mocks.query.mockReturnValue({
     ok: true,
@@ -428,6 +434,7 @@ it("rejects a stored descriptor containing unrelated private fields", () => {
     screen.queryByRole("button", { name: "Retry original clock" }),
   ).not.toBeInTheDocument();
   expect(screen.getByTestId("hr-clock-action")).toHaveTextContent("clockOut");
+  expect(screen.getByTestId("hr-clock-action")).toBeDisabled();
   expect(mocks.clockIn).not.toHaveBeenCalled();
 });
 
@@ -493,7 +500,8 @@ it("preserves an uncertain clock during initial access loading and restores its 
   fireEvent.click(
     await screen.findByRole("button", { name: "Retry original clock" }),
   );
-  await screen.findByTestId("hr-clock-saved");
+  await screen.findByText("recoveredEarlier");
+  expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
   expect(mocks.clockIn).toHaveBeenCalledWith(recoveredArgs);
   expect(mocks.clockOut).not.toHaveBeenCalled();
   expect(sessionStorage.getItem("hr-clock-command:v1")).toBeNull();
@@ -521,7 +529,8 @@ it("retains an uncertain exact clock through a READY to LOADING access refresh a
   fireEvent.click(
     await screen.findByRole("button", { name: "Retry original clock" }),
   );
-  await screen.findByTestId("hr-clock-saved");
+  await screen.findByText("recoveredEarlier");
+  expect(screen.queryByTestId("hr-clock-saved")).not.toBeInTheDocument();
   expect(mocks.clockIn.mock.calls[1]?.[0]).toEqual(original);
   expect(mocks.clockOut).not.toHaveBeenCalled();
 });

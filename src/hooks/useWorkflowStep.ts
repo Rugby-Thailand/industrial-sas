@@ -203,9 +203,16 @@ export function useWorkflowStep(
     destination.searchParams.delete(queryKey);
     let cancelled = false;
     const version = enterVersion.current;
+    const rememberIntent = () => {
+      if (window.location.pathname !== destination.pathname) return;
+      destination.search = window.location.search;
+      destination.hash = window.location.hash;
+      destination.searchParams.delete(queryKey);
+    };
     const finish = () => {
       if (cancelled || !mounted.current || version !== enterVersion.current)
         return;
+      cleanupInvalidTraversal();
       moving.current = false;
       if (window.location.pathname !== destination.pathname) return;
       updateBrowserQuery(
@@ -219,7 +226,8 @@ export function useWorkflowStep(
     };
     const cleanupInvalidTraversal = () => {
       cancelled = true;
-      window.removeEventListener("popstate", finish);
+      window.removeEventListener(event, rememberIntent);
+      window.removeEventListener("popstate", finish, true);
       if (traversalCleanup.current === cleanupInvalidTraversal)
         traversalCleanup.current = null;
     };
@@ -230,7 +238,14 @@ export function useWorkflowStep(
         () => {
           if (cancelled) return;
           moving.current = true;
-          window.addEventListener("popstate", finish, { once: true });
+          // Preserve keystrokes/query intent while native traversal is pending,
+          // then restore it before router/popstate subscribers read the URL.
+          rememberIntent();
+          window.addEventListener(event, rememberIntent);
+          window.addEventListener("popstate", finish, {
+            once: true,
+            capture: true,
+          });
           window.history.back();
         },
         { preserveDraftScope: scope },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { ArrowRight, CheckCircle2, Clock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -34,7 +35,9 @@ import { HrUpcomingHoliday } from "./HolidaysScreen";
 import {
   clearHrClockRecoveryExcept,
   useHrClockWrite,
+  useHrWrite,
   type HrWriteState,
+  type HrClockCommand,
 } from "./useHrWrite";
 
 interface ClockResult {
@@ -67,7 +70,7 @@ export function HrTodayScreen() {
 
 function TodayContent() {
   const identity = useHrAccess().identityKey;
-  const outcome = useQuery(hrRefs.today, {});
+  const outcome = useHrQuery(hrRefs.today, {});
   return (
     <HrQueryState outcome={outcome}>
       {() =>
@@ -94,29 +97,105 @@ function TodayView({ today }: { readonly today: TodayValue }) {
       ? today.nextAction
       : undefined;
   const employeeKey = "employee" in today ? today.employee.id : "";
-  const write = useHrClockWrite<ClockResult>(
-    employeeKey,
-    "businessDate" in today ? today.businessDate : "",
-    (command) =>
+  async function sendClock(command: HrClockCommand) {
+    const outcome =
       command.kind === "CLOCK_IN"
-        ? clockIn({
+        ? await clockIn({
             requestId: command.requestId,
             expectedBusinessDate: command.expectedBusinessDate,
           })
-        : clockOut({
+        : await clockOut({
             requestId: command.requestId,
             expectedBusinessDate: command.expectedBusinessDate,
-          }),
+          });
+    if (
+      outcome.ok &&
+      outcome.value.written === true &&
+      (outcome.value.kind !== command.kind ||
+        outcome.value.businessDate !== command.expectedBusinessDate ||
+        typeof outcome.value.occurredAt !== "number" ||
+        !Number.isFinite(outcome.value.occurredAt))
+    )
+      return undefined;
+    return outcome;
+  }
+  const clock = useHrClockWrite<ClockResult>(
+    employeeKey,
+    "businessDate" in today ? today.businessDate : "",
+    sendClock,
   );
-  const action = write.command?.kind ?? liveAction;
+  // Older tabs used action-scoped scalar IDs. They must be reconciled rather
+  // than silently borrowed by the newer clock-only descriptor.
+  const legacy = (action: "CLOCK_IN" | "CLOCK_OUT") => ({
+    decode: (
+      value: unknown,
+    ):
+      | { action: "CLOCK_IN" | "CLOCK_OUT"; expectedBusinessDate: string }
+      | undefined => {
+      if (
+        typeof value !== "object" ||
+        value === null ||
+        !("action" in value) ||
+        value.action !== action ||
+        !("expectedBusinessDate" in value) ||
+        typeof value.expectedBusinessDate !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(value.expectedBusinessDate)
+      )
+        return undefined;
+      return { action, expectedBusinessDate: value.expectedBusinessDate };
+    },
+    send: (
+      payload: {
+        action: "CLOCK_IN" | "CLOCK_OUT";
+        expectedBusinessDate: string;
+      },
+      requestId: string,
+    ) =>
+      sendClock({
+        kind: payload.action,
+        expectedBusinessDate: payload.expectedBusinessDate,
+        employeeId: employeeKey,
+        requestId,
+      }),
+  });
+  const entering = useHrWrite<
+    ClockResult,
+    { action: "CLOCK_IN" | "CLOCK_OUT"; expectedBusinessDate: string }
+  >(`clock:CLOCK_IN:${employeeKey}`, legacy("CLOCK_IN"));
+  const leaving = useHrWrite<
+    ClockResult,
+    { action: "CLOCK_IN" | "CLOCK_OUT"; expectedBusinessDate: string }
+  >(`clock:CLOCK_OUT:${employeeKey}`, legacy("CLOCK_OUT"));
+  const action =
+    clock.command?.kind ??
+    (entering.locked ? "CLOCK_IN" : leaving.locked ? "CLOCK_OUT" : liveAction);
+  const write =
+    clock.state.kind !== "IDLE"
+      ? clock
+      : entering.state.kind !== "IDLE"
+        ? entering
+        : leaving;
   // Leaving cannot cancel a clock write: hold search, AI and links until
   // the server answers, like every other HR write.
-  usePendingGuard(write.pending);
+  usePendingGuard(clock.pending || entering.pending || leaving.pending);
   const [receipt, setReceipt] = useState<{
     readonly employee: string;
     readonly result: ClockResult;
   } | null>(null);
-  const saved = receipt?.employee === employeeKey ? receipt.result : null;
+  // A shared command can settle after remount, without this view's submit callback.
+  const ownReceipt =
+    clock.pending || entering.pending || leaving.pending
+      ? null
+      : write.state.kind === "SAVED"
+        ? write.state.value
+        : receipt?.employee === employeeKey
+          ? receipt.result
+          : null;
+  const saved =
+    ownReceipt?.businessDate ===
+    ("businessDate" in today ? today.businessDate : undefined)
+      ? ownReceipt
+      : null;
 
   if (today.state === "TIMEZONE_UNSUPPORTED")
     return (
@@ -143,11 +222,17 @@ function TodayView({ today }: { readonly today: TodayValue }) {
     );
 
   const submit = async () => {
-    if (action === undefined) return;
+    if (
+      action === undefined ||
+      clock.locked ||
+      entering.locked ||
+      leaving.locked
+    )
+      return;
     const command = action;
     const employee = employeeKey;
     setReceipt(null);
-    finish(employee, await write.submit(command));
+    finish(employee, await clock.submit(command));
   };
   function finish(employee: string, result: HrWriteState<ClockResult>) {
     if (result.kind === "PENDING") return;
@@ -225,7 +310,7 @@ function TodayView({ today }: { readonly today: TodayValue }) {
               <Button
                 type="button"
                 className="min-h-14 w-full text-base sm:w-auto sm:min-w-56 md:min-h-14"
-                disabled={write.pending}
+                disabled={clock.locked || entering.locked || leaving.locked}
                 onClick={() => void submit()}
                 data-testid="hr-clock-action"
               >
@@ -235,7 +320,20 @@ function TodayView({ today }: { readonly today: TodayValue }) {
                   : t(action === "CLOCK_IN" ? "clockIn" : "clockOut")}
               </Button>
             )}
-            {saved?.occurredAt === undefined ? (
+            {saved?.occurredAt !== undefined ? (
+              <SavedClock result={saved} timezone={timezone} />
+            ) : ownReceipt?.businessDate &&
+              ownReceipt.occurredAt !== undefined ? (
+              <Notice
+                tone="neutral"
+                role="status"
+                title={t("recoveredEarlier", {
+                  date: formatBusinessDate(ownReceipt.businessDate, locale, {
+                    weekday: true,
+                  }),
+                })}
+              />
+            ) : (
               <WriteFeedback
                 state={write.state}
                 onRetry={() => {
@@ -243,8 +341,6 @@ function TodayView({ today }: { readonly today: TodayValue }) {
                   void write.retry().then((result) => finish(employee, result));
                 }}
               />
-            ) : (
-              <SavedClock result={saved} timezone={timezone} />
             )}
             {done && saved?.occurredAt === undefined ? (
               <p

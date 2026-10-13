@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useHrQuery } from "@/hooks/useHrQuery";
 import { ArrowLeft, ArrowRight, ClipboardList, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId } from "react";
@@ -84,7 +84,7 @@ function RequestsContent() {
     criteria: { status, ...filters, entry },
   });
   const cursor = paging.cursor ?? undefined;
-  const outcome = useQuery(hrRefs.requests, {
+  const outcome = useHrQuery(hrRefs.requests, {
     limit: 20,
     ...(filters.from === "" ? {} : { from: filters.from }),
     ...(filters.to === "" ? {} : { to: filters.to }),
@@ -279,7 +279,7 @@ export function HrRequestDetailScreen({
 }
 
 function RequestDetail({ requestId }: { readonly requestId: string }) {
-  const outcome = useQuery(hrRefs.requestDetail, { correctionId: requestId });
+  const outcome = useHrQuery(hrRefs.requestDetail, { correctionId: requestId });
   return (
     <OutcomeGate outcome={outcome}>
       {({ value }) => <RequestDetailView result={value} />}

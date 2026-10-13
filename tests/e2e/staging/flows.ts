@@ -166,11 +166,16 @@ export async function runStorageFlow(
     }),
   );
   const pallet = { warehouseId, palletId };
+  const unmeasured = allowed(
+    "read measurement baseline",
+    await execute("query", "finishedGoods/workflow:getPallet", pallet),
+  ) as { pallet: { updatedAt?: number } };
   written(
     "measure pallet",
     await execute("mutation", "finishedGoods/workflow:saveMeasurement", {
       ...pallet,
       requestId: request("measure"),
+      expectedMeasurementUpdatedAt: unmeasured.pallet.updatedAt ?? 0,
       quantity: 10,
       lengthMm: 1_200,
       widthMm: 1_000,

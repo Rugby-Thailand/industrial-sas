@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(34);
+    expect(coveredModules).toHaveLength(35);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 39 representative functions, not every public export
+    // The inventory covers 40 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(39);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(40);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -225,6 +225,7 @@ describe("representative registered payloads and safe HR capability gates", () =
         sitesComplete: true,
       },
       "hr/preferences:current": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/recovery:reconcileRequest": { resolved: true, status: "FENCED" },
       "hr/policies:current": { ok: false, code: "POLICY_ORG_SCOPE_REQUIRED" },
       "hr/leave:self": { ok: false, code: "HR_NOT_LINKED" },
       "hr/announcements:self": { ok: false, code: "HR_NOT_LINKED" },

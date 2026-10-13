@@ -43,6 +43,11 @@ import {
 } from "./pagination";
 import {
   MAX_SITE_EMPLOYEES,
+  MAX_HR_EMPLOYEE_SCAN,
+  employeesInRange,
+  employedInRange,
+  siteEmployeesInRange,
+  retainReviewer,
   closedPeriodCovering,
   dayOf,
   employeeDaysInRange,
@@ -77,43 +82,59 @@ async function reviewableEmployees(
   ctx: TenantFunctionContext,
   scope: ReviewScope,
   warehouseId: string | undefined,
+  from: string,
+  to: string,
 ): Promise<readonly Employee[] | null> {
   let candidates: Employee[] = [];
   // An incomplete site scope could hide reports: refuse visibly instead.
   if (!scope.sites.complete) return null;
+  const budget = { remaining: MAX_HR_EMPLOYEE_SCAN };
   if (scope.admin) {
     const { sites, complete } = await scopedSites(ctx, scope.sites);
     if (!complete) return null;
     for (const site of sites) {
       if (warehouseId !== undefined && site._id !== warehouseId) continue;
-      const rows = await ctx.tenantDb
-        .byIndex<Employee>("hrEmployees", "by_orgId_warehouseId_code", [
-          { field: "warehouseId", value: site._id },
-        ])
-        .take(MAX_SITE_EMPLOYEES + 1);
-      if (rows.length > MAX_SITE_EMPLOYEES) return null;
+      const rows = await siteEmployeesInRange(
+        ctx,
+        site._id,
+        from,
+        to,
+        MAX_SITE_EMPLOYEES,
+        budget,
+      );
+      if (rows === null) return null;
       candidates.push(...rows);
     }
   } else {
-    const rows = await ctx.tenantDb
-      .byIndex<Employee>("hrEmployees", "by_orgId_supervisorUserId", [
-        { field: "supervisorUserId", value: scope.actorUserId },
-      ])
-      .take(MAX_SITE_EMPLOYEES + 1);
-    if (rows.length > MAX_SITE_EMPLOYEES) return null;
+    const rows = await employeesInRange(
+      ctx.tenantDb.byIndex<Employee>(
+        "hrEmployees",
+        "by_orgId_supervisorUserId",
+        [{ field: "supervisorUserId", value: scope.actorUserId }],
+      ),
+      from,
+      to,
+      MAX_SITE_EMPLOYEES,
+      budget,
+    );
+    if (rows === null) return null;
     candidates = rows.filter(
       (employee) =>
         warehouseId === undefined || employee.warehouseId === warehouseId,
     );
   }
-  const visible = candidates.filter(
-    (employee) => reviewBlocker(scope, employee) === null,
-  );
+  const visible: Employee[] = [];
+  for (const employee of candidates) {
+    const blocker = await reviewBlocker(ctx, scope, employee);
+    if (blocker === "LIMIT_EXCEEDED") return null;
+    if (blocker === null) visible.push(employee);
+  }
   return visible.length > MAX_QUEUE_EMPLOYEES ? null : visible;
 }
 
 export const queue = queryWithOrg({
   args: {
+    clockRefresh: v.optional(v.number()),
     from: v.string(),
     to: v.string(),
     warehouseId: v.optional(v.id("warehouses")),
@@ -133,7 +154,13 @@ export const queue = queryWithOrg({
       return { ok: false as const, code: "RANGE_TOO_LARGE" };
     const to = compareDates(args.to, clock.today) > 0 ? clock.today : args.to;
     const scope = await reviewScope(ctx);
-    const employees = await reviewableEmployees(ctx, scope, args.warehouseId);
+    const employees = await reviewableEmployees(
+      ctx,
+      scope,
+      args.warehouseId,
+      args.from,
+      to,
+    );
     if (employees === null)
       return { ok: false as const, code: "LIMIT_EXCEEDED" };
     if (compareDates(args.from, to) > 0)
@@ -224,6 +251,7 @@ export const REVIEW_PAGE_CHUNK = 20;
  */
 export const queuePage = queryWithOrg({
   args: {
+    clockRefresh: v.optional(v.number()),
     ...hrPageArgs,
     from: v.string(),
     to: v.string(),
@@ -332,6 +360,7 @@ export const queuePage = queryWithOrg({
       return entry;
     };
 
+    let identitiesComplete = true;
     const page = await hrScanPage(ctx, {
       surface: "review-queue",
       criteria: {
@@ -351,12 +380,18 @@ export const queuePage = queryWithOrg({
       // Each candidate costs its range's day reads: never more per request.
       peekLanes: 0,
       // Authorization, site and search before any day is read.
-      match: async (employee: Employee) =>
-        (args.warehouseId === undefined ||
-          employee.warehouseId === args.warehouseId) &&
-        containsSearch(input.search, employee.code, employee.displayName) &&
-        (await reviewAccess(ctx, scope, employee, grants)) === null &&
-        (await daysOf(employee)).length > 0,
+      match: async (employee: Employee) => {
+        if (
+          (args.warehouseId !== undefined &&
+            employee.warehouseId !== args.warehouseId) ||
+          !containsSearch(input.search, employee.code, employee.displayName) ||
+          !employedInRange(employee, args.from, to)
+        )
+          return false;
+        const blocker = await reviewAccess(ctx, scope, employee, grants);
+        if (blocker === "LIMIT_EXCEEDED") identitiesComplete = false;
+        return blocker === null && (await daysOf(employee)).length > 0;
+      },
       hydrate: async (employee) => ({
         employeeId: employee._id,
         employeeCode: employee.code,
@@ -365,6 +400,8 @@ export const queuePage = queryWithOrg({
         items: await daysOf(employee),
       }),
     });
+    if (!identitiesComplete)
+      return { ok: false as const, code: "LIMIT_EXCEEDED" };
     return { ok: true as const, today: clock.today, tab, ...page };
   },
 });
@@ -448,7 +485,11 @@ async function evaluateEmployee(
 
 export const dayDetail = queryWithOrg({
   // A string, so a malformed deep link answers NOT_FOUND instead of throwing.
-  args: { employeeId: v.string(), businessDate: v.string() },
+  args: {
+    clockRefresh: v.optional(v.number()),
+    employeeId: v.string(),
+    businessDate: v.string(),
+  },
   returns: v.any(),
   permissionCode: REVIEW,
   target: { table: "hrAttendanceDays" },
@@ -583,6 +624,7 @@ async function reviewTarget(ctx: TenantFunctionContext, employeeId: string) {
   if (employee === null) return fail("NOT_FOUND", "employeeId");
   const blocker = await reviewAccess(ctx, await reviewScope(ctx), employee);
   if (blocker === "SELF_REVIEW") return fail("SELF_REVIEW");
+  if (blocker === "LIMIT_EXCEEDED") return fail("LIMIT_EXCEEDED");
   if (blocker !== null) return fail("NOT_FOUND", "employeeId");
   return employee;
 }
@@ -670,6 +712,7 @@ export const decideCorrection = mutationWithOrg({
             pendingCorrectionId: undefined,
             updatedAt: decidedAt,
           });
+          await retainReviewer(ctx, employee);
           await deliverNotification(ctx, {
             employeeId: employee._id,
             event: "CORRECTION_DECIDED",
@@ -730,6 +773,7 @@ export const decideCorrection = mutationWithOrg({
             },
           ],
         });
+        await retainReviewer(ctx, employee);
         await deliverNotification(ctx, {
           employeeId: employee._id,
           event: "CORRECTION_DECIDED",
@@ -865,6 +909,7 @@ export const disposeDay = mutationWithOrg({
           open: false,
           updatedAt: clock.now,
         });
+        await retainReviewer(ctx, employee);
         return {
           documentId: day._id,
           warehouseId: employee.warehouseId,
