@@ -57,7 +57,7 @@ vi.mock("convex/react", () => ({
     (ref: Parameters<typeof getFunctionName>[0]) => (args: unknown) =>
       mocks.write(getFunctionName(ref), args),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
-    args === "skip"
+    args === "skip" || getFunctionName(ref).endsWith(":replacementLabels")
       ? undefined
       : batchTestResponse(
           getFunctionName(ref),
@@ -811,4 +811,18 @@ it("does not clear the pending request when the repack commit resolves after unm
   });
   expect(mocks.push).not.toHaveBeenCalled();
   expect(localStorage.getItem(requestKey)).not.toBeNull();
+});
+
+it("undo restores measured correction rows after splitting them", () => {
+  render(component("edit"));
+  const original = screen.getByLabelText("Length (m) · 1");
+  expect(original).toHaveValue(1.2);
+  fireEvent.change(screen.getByLabelText("Quantity per unit"), {
+    target: { value: "30" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Split" }));
+  expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(null);
+  fireEvent.click(screen.getByRole("button", { name: "Undo row change" }));
+  expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(1.2);
+  expect(screen.getByLabelText("Quantity · 1")).toHaveValue(50);
 });

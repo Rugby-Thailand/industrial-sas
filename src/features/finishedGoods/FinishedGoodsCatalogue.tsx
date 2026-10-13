@@ -1,4 +1,5 @@
 "use client";
+import { packageScanPath } from "@/lib/navigation";
 
 import { useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
@@ -163,7 +164,7 @@ function Catalogue({
             label={t("copy.scan-packages-27bf0c")}
             tooltip={t("copy.scan-packages-27bf0c")}
           >
-            <Link href={`${FG_PATH}/scan`}>
+            <Link href={packageScanPath()}>
               <ScanIcon className="size-5" aria-hidden="true" />
             </Link>
           </IconButton>

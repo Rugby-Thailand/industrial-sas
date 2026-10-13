@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type * as ClerkModule from "@clerk/nextjs";
 import { getFunctionName } from "convex/server";
@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
       mapped: false,
       source: "MANUAL",
       createdAt: 1000,
+      version: 1,
     },
     {
       id: "scan-b",
@@ -36,6 +37,7 @@ const mocks = vi.hoisted(() => ({
       mapped: true,
       source: "BARCODE",
       createdAt: 2000,
+      version: 1,
     },
     {
       id: "scan-c",
@@ -45,6 +47,7 @@ const mocks = vi.hoisted(() => ({
       mapped: false,
       source: "AI",
       createdAt: 3000,
+      version: 1,
     },
   ],
   deleteScans:
@@ -158,11 +161,17 @@ describe("scanned record deletion", () => {
     );
     const location = screen.getByRole("button", { name: /ZONE-A/ });
     await user.click(location);
-    await waitFor(() => expect(location).toBeEnabled());
+    expect(mocks.assign).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Change 1 tickets" }),
+      ).toBeEnabled(),
+    );
     expect(
-      screen.getByRole("checkbox", { name: "Select FO001" }),
+      screen.getByRole("checkbox", { name: "Select FO001", hidden: true }),
     ).toBeChecked();
-    await user.click(location);
+    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledTimes(2));
     expect(mocks.assign.mock.calls[0]).toEqual(mocks.assign.mock.calls[1]);
     await waitFor(() =>
@@ -226,12 +235,15 @@ describe("scanned record deletion", () => {
       screen.getByRole("checkbox", { name: "Select FO003" }),
     ).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
+    expect(mocks.assign).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
     await waitFor(() =>
       expect(mocks.assign).toHaveBeenCalledWith({
         warehouseId: "warehouse-a",
         requestId: expect.any(String),
         ids: ["scan-a"],
         location: { zoneId: "zone-a" },
+        expectedVersions: [{ id: "scan-a", version: 1 }],
       }),
     );
   });
@@ -331,16 +343,22 @@ describe("scanned record deletion", () => {
     );
     const location = screen.getByRole("button", { name: /ZONE-A/ });
     await user.click(location);
+    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
     expect(location).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "All" })).toBeDisabled();
+    for (const cancel of screen.getAllByRole("button", { name: "Cancel" }))
+      expect(cancel).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "All", hidden: true }),
+    ).toBeDisabled();
     // Records pager and the picker's always-visible pager are both locked.
-    for (const next of screen.getAllByRole("button", { name: "Next page" }))
+    for (const next of document.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label="Next page"]',
+    ))
       expect(next).toBeDisabled();
     expect(
-      screen.getByRole("textbox", { name: /Search Job No/ }),
+      screen.getByRole("textbox", { name: /Search Job No/, hidden: true }),
     ).toBeDisabled();
-    await user.click(location);
+    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
     expect(mocks.assign).toHaveBeenCalledTimes(1);
     finish(writeSuccess("scan-a"));
     await waitFor(() =>
@@ -598,7 +616,7 @@ describe("saved record search and paging", () => {
       preserveProviders: true,
     });
     await user.type(
-      screen.getByRole("textbox", { name: /Search Job No/ }),
+      screen.getByRole("textbox", { name: /Search Job No/, hidden: true }),
       "tray",
     );
     // No request for partial keystrokes; feedback starts immediately.
@@ -653,7 +671,7 @@ describe("saved record search and paging", () => {
       workspace: false,
     });
     await user.type(
-      screen.getByRole("textbox", { name: /Search Job No/ }),
+      screen.getByRole("textbox", { name: /Search Job No/, hidden: true }),
       "zzz",
     );
     expect(
@@ -674,7 +692,7 @@ describe("saved record search and paging", () => {
     });
     await user.click(screen.getByRole("button", { name: "All" }));
     await user.type(
-      screen.getByRole("textbox", { name: /Search Job No/ }),
+      screen.getByRole("textbox", { name: /Search Job No/, hidden: true }),
       "FO00",
     );
     await waitFor(() =>
@@ -948,4 +966,67 @@ it("renders a saved provider URL in the record thumbnail and full photo dialog",
       { name: "Open photo" },
     ),
   ).toHaveAttribute("src", imageUrl);
+});
+
+it("native Back closes Location assignment and retains the selected records", async () => {
+  const user = userEvent.setup();
+  renderWithIntl(<JobScanRecordsScreen />, { locale: "en", workspace: false });
+  await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+  await user.click(
+    screen.getByRole("button", { name: "Set location for 1 record" }),
+  );
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("region", { name: "Choose a location" }),
+    ).toBeNull(),
+  );
+  expect(screen.getByRole("checkbox", { name: "Select FO001" })).toBeChecked();
+});
+it("explicit location Cancel consumes its step before the next Back", async () => {
+  const user = userEvent.setup();
+  renderWithIntl(<JobScanRecordsScreen />, { locale: "en", workspace: false });
+  await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+  await user.click(
+    screen.getByRole("button", { name: "Set location for 1 record" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() =>
+    expect(
+      new URLSearchParams(window.location.search).has("jobRecordsLocation"),
+    ).toBe(false),
+  );
+  expect(
+    screen.queryByRole("region", { name: "Choose a location" }),
+  ).toBeNull();
+  expect(mocks.assign).not.toHaveBeenCalled();
+});
+it("requires review and blocks a stale multi-ticket location snapshot without writing", async () => {
+  const user = userEvent.setup();
+  const view = renderWithIntl(<JobScanRecordsScreen />, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+  await user.click(
+    screen.getByRole("checkbox", { name: "Select all on this page" }),
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Set location for 2 records" }),
+  );
+  await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
+  expect(mocks.assign).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("dialog", {
+      name: "Review location change for 2 tickets",
+    }),
+  ).toHaveTextContent("Dock → ZONE-A");
+  mocks.records = mocks.records.map((record) =>
+    record.id === "scan-a" ? { ...record, version: 2 } : record,
+  );
+  view.rerender(<JobScanRecordsScreen />);
+  expect(
+    screen.getByRole("button", { name: "Change 2 tickets" }),
+  ).toBeDisabled();
+  expect(mocks.assign).not.toHaveBeenCalled();
 });

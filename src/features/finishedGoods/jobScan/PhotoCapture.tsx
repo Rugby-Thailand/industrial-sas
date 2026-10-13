@@ -11,7 +11,7 @@ import {
   StillPhotoCamera,
   type StillPhotoCameraHandle,
 } from "./StillPhotoCamera";
-import { MAX_PHOTOS, usePhotoSelection } from "./usePhotoSelection";
+import { usePhotoSelection } from "./usePhotoSelection";
 
 export { MAX_PHOTOS } from "./usePhotoSelection";
 
@@ -21,19 +21,22 @@ const ticketFileName = () => `job-ticket-${Date.now()}.jpg`;
 export function PhotoCapture({
   onSubmit,
   onClose,
+  selection,
 }: {
   onSubmit: (files: File[]) => void;
   onClose: () => void;
+  selection?: ReturnType<typeof usePhotoSelection>;
 }) {
   const t = useTranslations("JobScan");
   const input = useRef<HTMLInputElement>(null);
   const camera = useRef<StillPhotoCameraHandle>(null);
-  const { photos, problem, add, remove, clear, getFiles, canCapture } =
-    usePhotoSelection();
+  const localSelection = usePhotoSelection();
+  const { photos, problem, add, remove, clear, getFiles, canCapture, limit } =
+    selection ?? localSelection;
 
   function close() {
     camera.current?.stop();
-    clear();
+    if (!selection) clear();
     onClose();
   }
 
@@ -42,7 +45,7 @@ export function PhotoCapture({
     add([...event.dataTransfer.files]);
   }
 
-  const full = photos.length >= MAX_PHOTOS;
+  const full = photos.length >= limit;
 
   return (
     <div
@@ -103,7 +106,7 @@ export function PhotoCapture({
             role="status"
             className="shrink-0 text-sm whitespace-nowrap text-muted"
           >
-            {t("photoCount", { count: photos.length, max: MAX_PHOTOS })}
+            {t("photoCount", { count: photos.length, max: limit })}
           </p>
         </div>
       )}
@@ -112,7 +115,7 @@ export function PhotoCapture({
         <Notice
           tone="warning"
           role="alert"
-          title={t(problem, { max: MAX_PHOTOS })}
+          title={t(problem, { max: limit })}
         />
       )}
 
@@ -128,7 +131,7 @@ export function PhotoCapture({
         <Button
           type="button"
           className="min-h-12 min-w-0 flex-1 whitespace-normal"
-          disabled={!photos.length}
+          disabled={!photos.length || photos.length > limit}
           onClick={() => {
             const files = getFiles();
             if (!files.length) return;

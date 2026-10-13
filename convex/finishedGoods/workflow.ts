@@ -213,6 +213,7 @@ export const saveProduct = mutationWithOrg({
     ...productFields,
     requestId: v.string(),
     productId: v.optional(v.id("finishedGoodsProducts")),
+    expectedUpdatedAt: v.optional(v.number()),
     draft: v.boolean(),
   },
   returns: v.any(),
@@ -233,6 +234,8 @@ export const saveProduct = mutationWithOrg({
             })
           : null;
         if (args.productId && !before) return failure("NOT_FOUND");
+        if (before && args.expectedUpdatedAt !== before.updatedAt)
+          return failure("VERSION_CONFLICT");
         const sku = args.sku.trim().toUpperCase();
         const name = args.name.trim(),
           unit = args.unit.trim(),
@@ -340,6 +343,9 @@ export const saveProduct = mutationWithOrg({
           productReference: args.productReference?.trim(),
           status: args.draft ? "DRAFT" : "ACTIVE",
           ...stamp(ctx),
+          ...(before
+            ? { updatedAt: Math.max(Date.now(), before.updatedAt + 1) }
+            : {}),
         };
         if (before) {
           await ctx.tenantDb.patch("finishedGoodsProducts", before._id, fields);

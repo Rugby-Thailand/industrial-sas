@@ -1,4 +1,5 @@
 "use client";
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 
 import {
   useCallback,
@@ -64,6 +65,7 @@ export function LocationImageReader({
   const photoCamera = useRef<LocationPhotoCameraHandle>(null);
   const [photo, setPhoto] = useState(initialPhoto);
   const [cameraOpen, setCameraOpen] = useState(!initialPhoto);
+  useBackDisclosure(cameraOpen && photo !== undefined, setCameraOpen);
   const [previewUrl, setPreviewUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [candidates, setCandidates] = useState<

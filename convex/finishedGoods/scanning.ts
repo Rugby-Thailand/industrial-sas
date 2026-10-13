@@ -99,6 +99,9 @@ export const resolvePackageCode = queryWithOrg({
         storageFormat:
           pallet.storageFormat ?? product.storageFormat ?? "PALLET",
         productId: product._id,
+        ...(pallet.preparationBatchId
+          ? { batchId: pallet.preparationBatchId }
+          : {}),
         productName: product.name,
         status: pallet.status,
         version: pallet.updatedAt,

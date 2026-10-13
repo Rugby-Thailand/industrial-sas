@@ -8,12 +8,21 @@ import { guardedNavigate } from "@/lib/navigationGuard";
 import { JobScanScreen } from "./JobScanScreen";
 
 const mocks = vi.hoisted(() => ({ save: vi.fn(), push: vi.fn() }));
+// These cases isolate departure protection; real local predecessors have caller coverage in JobScanScreen.test.tsx.
+vi.mock("@/hooks/useWorkflowStep", () => ({
+  useWorkflowStep: (_key: string, _scope: string, available: boolean) => ({
+    active: available,
+    enter: vi.fn(),
+    back: vi.fn(),
+    complete: (action: () => void) => action(),
+  }),
+}));
 vi.mock("../BarcodeCameraBox", () => ({ BarcodeCameraBox: () => null }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push, back: vi.fn() }),
+  useRouter: () => ({ push: mocks.push, back: vi.fn(), replace: mocks.push }),
 }));
 vi.mock("convex/react", () => ({
   useMutation: () => mocks.save,
@@ -176,7 +185,10 @@ it("blocks leaving while tickets are being saved, then clears the guard on succe
   ).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await act(async () => resolve(writeSuccess("scan-a")));
-  expect(screen.getByRole("button", { name: "Scan more" })).toBeVisible();
+  bufferTraversal();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Scan more" })).toBeVisible(),
+  );
   // The save settled the draft: its buffer is removed once.
   expect(back).toHaveBeenCalledOnce();
   bufferTraversal();

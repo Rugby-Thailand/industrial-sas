@@ -19,6 +19,7 @@ import {
 } from "../lib/tenantFunctions";
 import { command, created, failure, rows, stamp } from "./workflow";
 import {
+  MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
   jobTicketError,
@@ -38,7 +39,7 @@ const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const TABLE = "finishedGoodsJobScans";
 const DEFAULT_MODEL = "openai/gpt-6-luna";
-const MAX_ITEMS = 50;
+const MAX_ITEMS = MAX_JOB_SCAN_ITEMS;
 const LIST_LIMIT = 300;
 const LOCATION_PAGE_SIZE = 10;
 

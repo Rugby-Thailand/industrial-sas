@@ -1,4 +1,5 @@
 "use client";
+import { packageScanPath } from "@/lib/navigation";
 import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
@@ -1002,7 +1003,7 @@ function PalletDetailScreen({
               href={
                 readyForStorage
                   ? storagePath(pallet._id)
-                  : "/finished-goods/scan"
+                  : packageScanPath({ unitId: pallet._id })
               }
             >
               {readyForStorage
@@ -1360,7 +1361,7 @@ function PalletDetailScreen({
             <>
               {readyForStorage ? (
                 <Button variant="outline" asChild>
-                  <Link href="/finished-goods/scan">
+                  <Link href={packageScanPath({ unitId: pallet._id })}>
                     {tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
                   </Link>
                 </Button>

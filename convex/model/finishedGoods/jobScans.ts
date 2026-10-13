@@ -1,3 +1,5 @@
+export const MAX_JOB_SCAN_ITEMS = 50;
+
 /** Fields read from a Top Gold job ticket (FM-PD-02). Only the two identities are required. */
 export type JobTicketFields = {
   factoryOrder: string;

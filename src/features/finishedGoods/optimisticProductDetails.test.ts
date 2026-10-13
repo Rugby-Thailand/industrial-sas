@@ -11,6 +11,7 @@ import { optimisticProductDetails } from "./optimisticProductDetails";
 const payload: FunctionArgs<typeof fgRefs.saveProduct> = {
   warehouseId: "warehouse-a",
   productId: finishedGoodProduct._id,
+  expectedUpdatedAt: finishedGoodProduct.updatedAt,
   sku: finishedGoodProduct.sku,
   name: "New description",
   unit: finishedGoodProduct.unit,
@@ -55,6 +56,7 @@ describe("descriptive product optimism", () => {
     expect(setQuery).toHaveBeenCalledTimes(1);
   });
   it.each([
+    { expectedUpdatedAt: finishedGoodProduct.updatedAt - 1 },
     { draft: true },
     { productId: undefined },
     { sku: "other" },

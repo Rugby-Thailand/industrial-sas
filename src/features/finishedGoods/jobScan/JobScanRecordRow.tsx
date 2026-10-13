@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { ImageOff, MapPin, MoreVertical, Trash2 } from "lucide-react";
+import { ImageOff, MapPin, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useFormatter, useTranslations } from "next-intl";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
@@ -21,6 +21,7 @@ export function JobScanRecordRow({
   onToggle,
   onChangeLocation,
   onDelete,
+  onEdit,
 }: {
   record: JobScanRecord;
   canManage: boolean;
@@ -29,6 +30,7 @@ export function JobScanRecordRow({
   onToggle: () => void;
   onChangeLocation: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const t = useTranslations("JobScan");
   const format = useFormatter();
@@ -155,6 +157,13 @@ export function JobScanRecordRow({
                 }}
                 className="z-50 min-w-44 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
               >
+                <DropdownMenu.Item
+                  onSelect={onEdit}
+                  className="flex min-h-touch cursor-pointer items-center gap-2 rounded-md px-3 text-sm outline-none data-highlighted:bg-raised"
+                >
+                  <Pencil aria-hidden="true" className="size-4" />
+                  {t("editRecord")}
+                </DropdownMenu.Item>
                 <DropdownMenu.Item
                   onSelect={() => {
                     changingLocation.current = true;

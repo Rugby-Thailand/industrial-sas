@@ -985,3 +985,12 @@ export const palletPath = (id: string) =>
   `${FG_PATH}/pallets/${encodeURIComponent(id)}`;
 export const measurePath = (id: string) => `${palletPath(id)}/measure`;
 export const storagePath = (id: string) => `${palletPath(id)}/storage`;
+
+export function packageScanPath(
+  context: { unitId?: string; batchId?: string } = {},
+) {
+  const query = new URLSearchParams();
+  if (context.unitId) query.set("unitId", context.unitId);
+  if (context.batchId) query.set("batchId", context.batchId);
+  return `/finished-goods/packages/scan${query.size ? `?${query}` : ""}`;
+}

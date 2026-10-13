@@ -1,5 +1,6 @@
 "use client";
 
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
 import { Popover } from "radix-ui";
@@ -111,6 +112,16 @@ function LocationPickerSession({
   const acquisitionOpen = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
+  const [qrBeforeAi, setQrBeforeAi] = useState(false);
+  const aiDisclosure = useBackDisclosure(Boolean(ai) && qrBeforeAi, (open) => {
+    if (!open) setAi(undefined);
+  });
+  const cameraDisclosure = useBackDisclosure(camera, (open) => {
+    if (!open) cancelScan();
+    else setCamera(true);
+  });
+  const registrationDisclosure = useBackDisclosure(adding, setAdding);
+
   useEffect(
     () => () => {
       lookupVersion.current += 1;
@@ -249,6 +260,7 @@ function LocationPickerSession({
                         if (opening) {
                           acquisitionOpen.current = true;
                           setCamera(true);
+                          setQrBeforeAi(false);
                           setAi({});
                         }
                       }}
@@ -315,7 +327,10 @@ function LocationPickerSession({
                 : { ok: false, error: { code: "AI_DENIED" } };
             }}
             onConfirm={(code) => void onScan(code, scannerVersion)}
-            onClose={cancelScan}
+            onClose={() => {
+              if (qrBeforeAi) aiDisclosure.onOpenChange(false);
+              else cameraDisclosure.onOpenChange(false);
+            }}
             retryOverPhoto={presentation === "jobScan"}
           />
         ) : (
@@ -324,12 +339,13 @@ function LocationPickerSession({
             startOnMount
             presentation={presentation === "jobScan" ? "expanded" : "default"}
             onCode={(code) => void onScan(code, scannerVersion)}
-            onClose={cancelScan}
+            onClose={() => cameraDisclosure.onOpenChange(false)}
             {...(canReadImage
               ? {
                   onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
                     if (!acquisitionOpen.current) return;
                     lookupVersion.current++;
+                    setQrBeforeAi(true);
                     setAi(file ? { photo: locationPhoto(file, crop) } : {});
                   },
                 }
@@ -369,9 +385,10 @@ function LocationPickerSession({
           key={warehouseId}
           warehouseId={warehouseId}
           initialCode={trimmed}
+          draftScope={registrationDisclosure.scope}
           onPick={choose}
           onCancel={() => {
-            setAdding(false);
+            registrationDisclosure.onOpenChange(false);
             document.getElementById(inputId)?.focus();
           }}
         />

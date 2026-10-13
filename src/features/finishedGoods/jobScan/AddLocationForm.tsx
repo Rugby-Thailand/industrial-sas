@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { useId, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
@@ -18,11 +19,13 @@ export function AddLocationForm({
   initialCode,
   onPick,
   onCancel,
+  draftScope,
 }: {
   warehouseId: string;
   initialCode: string;
   onPick: (location: PickedLocation) => void;
   onCancel: () => void;
+  draftScope?: string;
 }) {
   const t = useTranslations("JobScan");
   const id = useId();
@@ -35,6 +38,22 @@ export function AddLocationForm({
   const [buildingId, setBuildingId] = useState("");
   const [floorId, setFloorId] = useState("");
   const [errorField, setErrorField] = useState<string>();
+  const guard = useNavigationDraft({
+    dirty:
+      code !== initialCode ||
+      name !== "" ||
+      buildingId !== "" ||
+      floorId !== "",
+    pending: operation.busy,
+    foregroundScope: draftScope,
+    discard: () => {
+      setCode(initialCode);
+      setName("");
+      setBuildingId("");
+      setFloorId("");
+    },
+  });
+
   function clearError() {
     operation.setError("");
     setErrorField(undefined);
@@ -88,10 +107,14 @@ export function AddLocationForm({
           written(result);
           return;
         }
-        onPick({
-          ...outcome.location,
-          text: outcome.location.code,
-        });
+        operation.complete(() =>
+          guard.settle(() =>
+            onPick({
+              ...outcome.location,
+              text: outcome.location.code,
+            }),
+          ),
+        );
       },
     );
   }
@@ -256,7 +279,11 @@ export function AddLocationForm({
         >
           {operation.busy ? t("creatingLocation") : t("createAndUseLocation")}
         </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => guard.requestTransition(onCancel)}
+        >
           {t("cancel")}
         </Button>
       </div>

@@ -1,9 +1,14 @@
 import {
+  MAX_JOB_SCAN_ITEMS,
   classifyTicketBarcode,
   JOB_TICKET_CODE_LIMITS,
 } from "../../../../convex/model/finishedGoods/jobScans";
 
-export { classifyTicketBarcode, JOB_TICKET_CODE_LIMITS as TICKET_CODE_LIMITS };
+export {
+  MAX_JOB_SCAN_ITEMS,
+  classifyTicketBarcode,
+  JOB_TICKET_CODE_LIMITS as TICKET_CODE_LIMITS,
+};
 
 export const REQUIRED_FIELDS = ["factoryOrder", "productBarcodeText"] as const;
 export type TicketCodeField = (typeof REQUIRED_FIELDS)[number];
@@ -152,7 +157,10 @@ export function applyBarcode(
     index--;
   if (index === -1)
     return {
-      tickets: [...tickets, newTicket("BARCODE", { [field]: code })],
+      tickets:
+        tickets.length >= MAX_JOB_SCAN_ITEMS
+          ? tickets
+          : [...tickets, newTicket("BARCODE", { [field]: code })],
       field,
     };
   return {
@@ -193,7 +201,10 @@ export function applyImageBarcodes(
     )
   )
     index--;
-  if (index < 0) return [...tickets, newTicket("BARCODE", fields)];
+  if (index < 0)
+    return tickets.length >= MAX_JOB_SCAN_ITEMS
+      ? tickets
+      : [...tickets, newTicket("BARCODE", fields)];
   return tickets.map((ticket, i) =>
     i === index
       ? { ...ticket, values: { ...ticket.values, ...fields } }

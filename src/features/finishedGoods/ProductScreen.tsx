@@ -1,5 +1,7 @@
 "use client";
 import { useForm, useStore } from "@tanstack/react-form";
+import { completeTask, returnFromTask } from "@/lib/taskNavigation";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { drafts } from "@/lib/browser/storage";
 
 import { useMutation, useQuery } from "convex/react";
@@ -51,6 +53,8 @@ type ProductDraft = {
   customerReference: string;
   productReference: string;
   savedProductId?: string;
+  expectedUpdatedAt?: number;
+  baseValues?: Record<string, string>;
 };
 function initialDraft(
   product?: Product,
@@ -64,7 +68,21 @@ function initialDraft(
     notes: product?.notes ?? "",
     customerReference: product?.customerReference ?? "",
     productReference: product?.productReference ?? "",
-    ...(product ? { savedProductId: product._id } : {}),
+    ...(product
+      ? {
+          savedProductId: product._id,
+          expectedUpdatedAt: product.updatedAt,
+          baseValues: {
+            sku: product.sku,
+            name: product.name,
+            unit: product.unit,
+            storageCondition: product.storageCondition,
+            notes: product.notes ?? "",
+            customerReference: product.customerReference ?? "",
+            productReference: product.productReference ?? "",
+          },
+        }
+      : {}),
   };
 }
 function readDraft(key: string, fallback: ProductDraft): ProductDraft {
@@ -91,6 +109,17 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
         if (typeof candidate[field] === "string")
           clean[field] = candidate[field];
       }
+      if (typeof candidate.expectedUpdatedAt === "number")
+        clean.expectedUpdatedAt = candidate.expectedUpdatedAt;
+      else if (fallback.savedProductId) delete clean.expectedUpdatedAt;
+      if (
+        typeof candidate.baseValues === "object" &&
+        candidate.baseValues !== null &&
+        Object.values(candidate.baseValues).every(
+          (value) => typeof value === "string",
+        )
+      )
+        clean.baseValues = candidate.baseValues as Record<string, string>;
       if (typeof candidate.savedProductId === "string")
         clean.savedProductId = candidate.savedProductId;
       return clean;
@@ -209,7 +238,7 @@ function ProductForm({
   resumePalletId?: string;
 }) {
   const fgCrumb = useFGCrumb();
-  const { t, locale } = useFGText();
+  const { t, tr, locale } = useFGText();
   const canManage = useCanManage();
   const router = useRouter();
   const saveProduct = useMutation(fgRefs.saveProduct).withOptimisticUpdate(
@@ -217,7 +246,7 @@ function ProductForm({
   );
   const key = `${draftScope}:${warehouseId}:${product?._id ?? "new"}`;
   const op = useOperation(key);
-  const [defaultValues] = useState(() =>
+  const [defaultValues, setDefaultValues] = useState(() =>
     canManage
       ? readDraft(key, initialDraft(product, locale))
       : initialDraft(product, locale),
@@ -225,12 +254,14 @@ function ProductForm({
   const [confirmedValues, setConfirmedValues] = useState(() =>
     initialDraft(product, locale),
   );
+  const [storageWarning, setStorageWarning] = useState(false);
   const productForm = useForm({
     defaultValues,
     onSubmitMeta: { next: false, packing: false },
     listeners: {
       onChange: ({ formApi }) => {
-        if (canManage) drafts.write(key, formApi.state.values);
+        if (canManage)
+          setStorageWarning(!drafts.write(key, formApi.state.values));
       },
     },
     onSubmit: async ({ value, meta }) => {
@@ -270,7 +301,16 @@ function ProductForm({
       ? duplicateCatalogue.value
       : undefined;
   const productId = useRef(product?._id ?? form.savedProductId);
-  useUnsavedWarning(dirty || busy);
+  const navigationDraft = useNavigationDraft({
+    dirty: dirty && storageWarning,
+    pending: busy,
+    discard: () => {
+      drafts.remove(key);
+      productForm.reset(initialDraft(product, locale));
+      setStorageWarning(false);
+    },
+  });
+  useUnsavedWarning((dirty && storageWarning) || busy);
   async function saveValues(
     form: ProductDraft,
     next: boolean,
@@ -279,6 +319,8 @@ function ProductForm({
     await op.run(
       async () => {
         if (!canManage) throw new Error("ACCESS_DENIED");
+        if (product && form.expectedUpdatedAt !== product.updatedAt)
+          throw new Error("VERSION_CONFLICT");
         if (
           next &&
           (!form.sku.trim() || !form.name.trim() || !form.unit.trim())
@@ -287,6 +329,9 @@ function ProductForm({
         const payload = {
           warehouseId,
           ...(productId.current ? { productId: productId.current } : {}),
+          ...(productId.current
+            ? { expectedUpdatedAt: form.expectedUpdatedAt }
+            : {}),
           sku: form.sku,
           name: form.name,
           unit: form.unit,
@@ -310,15 +355,48 @@ function ProductForm({
         productForm.reset(form);
         op.clearRequests();
         drafts.remove(key);
-        router.push(
-          next && packing
-            ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
-            : next && resumePalletId
-              ? measurePath(resumePalletId)
-              : FG_PATH,
+        op.complete(() =>
+          navigationDraft.settle(() =>
+            completeTask(
+              next && packing
+                ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
+                : next && resumePalletId
+                  ? measurePath(resumePalletId)
+                  : FG_PATH,
+              router.replace,
+            ),
+          ),
         );
       },
     );
+  }
+  const conflict = Boolean(
+    product && form.expectedUpdatedAt !== product.updatedAt,
+  );
+  const latestValues = initialDraft(product, locale);
+  function resolveConflict(merge: boolean) {
+    const latest = initialDraft(product, locale);
+    const resolved = { ...latest };
+    if (merge) {
+      for (const field of [
+        "sku",
+        "name",
+        "unit",
+        "storageCondition",
+        "notes",
+        "customerReference",
+        "productReference",
+      ] as const) {
+        if (form[field] !== form.baseValues?.[field])
+          resolved[field] = form[field];
+      }
+    }
+    setDefaultValues(resolved);
+    productForm.reset(resolved);
+    setConfirmedValues(latest);
+    setStorageWarning(!drafts.write(key, resolved));
+    op.setError("");
+    op.clearRequests();
   }
   function save(next: boolean, packing = false) {
     return productForm.handleSubmit({ next, packing });
@@ -342,6 +420,86 @@ function ProductForm({
       >
         {product ? <Status value={product.status} /> : null}
       </Heading>
+      {conflict && (
+        <div
+          role="alert"
+          className="space-y-3 rounded-lg border border-border p-4"
+        >
+          <p className="font-semibold">
+            {tr(
+              "This product changed while you were editing.",
+              "สินค้านี้ถูกแก้ไขระหว่างที่คุณกำลังแก้ไข",
+            )}
+          </p>
+          <p className="text-sm text-muted">
+            {tr(
+              "Your draft is retained. Review the current values before merging your edits or loading the saved product.",
+              "ฉบับร่างยังอยู่ ตรวจค่าปัจจุบันก่อนรวมการแก้ไขหรือโหลดข้อมูลที่บันทึก",
+            )}
+          </p>
+          <dl className="space-y-2 text-sm">
+            {(
+              [
+                "sku",
+                "name",
+                "unit",
+                "storageCondition",
+                "notes",
+                "customerReference",
+                "productReference",
+              ] as const
+            )
+              .filter(
+                (field) => latestValues[field] !== form.baseValues?.[field],
+              )
+              .map((field) => (
+                <div key={field}>
+                  <dt className="font-medium">
+                    {
+                      {
+                        sku: t("copy.sku"),
+                        name: t("copy.product-name"),
+                        unit: t("copy.counting-unit-78d38c"),
+                        storageCondition: t("copy.storage-condition"),
+                        notes: t("copy.storage-notes"),
+                        customerReference: t("copy.customer-reference"),
+                        productReference: t("copy.product-reference"),
+                      }[field]
+                    }
+                  </dt>
+                  <dd className="break-words">
+                    {form.baseValues?.[field] || "—"} →{" "}
+                    {latestValues[field] || "—"}
+                    {form[field] !== latestValues[field] && (
+                      <span className="block text-muted">
+                        {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
+                        {form[field] || "—"}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+          </dl>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => resolveConflict(false)}
+            >
+              {tr("Load saved product", "โหลดสินค้าที่บันทึก")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => resolveConflict(true)}
+            >
+              {tr("Merge my changed fields", "รวมฟิลด์ที่ฉันแก้ไข")}
+            </Button>
+          </div>
+        </div>
+      )}
       {canManage ? (
         <Steps step={1} packing={!resumePalletId} />
       ) : (
@@ -501,7 +659,11 @@ function ProductForm({
                 type="button"
                 variant="ghost"
                 disabled={busy}
-                onClick={() => (dirty ? setCancel(true) : router.push(FG_PATH))}
+                onClick={() =>
+                  dirty
+                    ? setCancel(true)
+                    : returnFromTask(FG_PATH, router.replace)
+                }
               >
                 {t("copy.cancel")}
               </Button>
@@ -567,7 +729,10 @@ function ProductForm({
                 drafts.remove(key);
                 setConfirmedValues(productForm.state.values);
                 productForm.reset(productForm.state.values);
-                router.push(FG_PATH);
+                setCancel(false);
+                navigationDraft.settle(() =>
+                  returnFromTask(FG_PATH, router.replace),
+                );
               }}
             >
               {t("copy.discard-changes-d093b0")}

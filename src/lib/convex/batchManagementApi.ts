@@ -1,6 +1,9 @@
 import { api } from "../../../convex/_generated/api";
 import { clientRef, type RefValue } from "./clientRef";
 export const batchManagementRefs = {
+  replacementLabels: clientRef(
+    api.finishedGoods.batchManagement.replacementLabels,
+  ),
   get: clientRef(api.finishedGoods.batchManagement.get),
   repackAvailable: clientRef(api.finishedGoods.batchManagement.repackAvailable),
 };

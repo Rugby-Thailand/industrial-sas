@@ -291,7 +291,8 @@
     "FG_NOT_VERIFIED": "Verify the destination before confirming storage.",
     "FG_NOT_FOUND": "This record is unavailable in the selected warehouse.",
     "FG_STORED_PALLET": "A stored pallet cannot be measured or reserved again.",
-    "FG_UNKNOWN": "The change could not be saved. Check your input and connection, then retry."
+    "FG_UNKNOWN": "The change could not be saved. Check your input and connection, then retry.",
+    "FG_VERSION_CONFLICT": "This product changed or its edit version is missing. Your draft is retained. Reload the current product and review your changes before saving."
   },
   "StorageLayouts": {
     "canvasMaxHeight": "Maximum height",
@@ -1482,7 +1483,9 @@
       "ready": "Ready",
       "awaiting-placement": "Awaiting placement",
       "reserved-awaiting-storage": "Reserved · Awaiting storage",
-      "storage-unit-ced501": "Storage unit"
+      "storage-unit-ced501": "Storage unit",
+      "replace-retired-package-labels-before-storage": "Replace retired package labels before storage.",
+      "labels-map-to-replacement-group": "Retired labels map to this complete replacement group. Quantities may be split or combined."
     },
     "paging": {
       "historyPages": "Movement history pages",
@@ -1740,7 +1743,20 @@
     "locationSearchStalled": "The search stopped making progress. Try again.",
     "locationSearchPaused": "Many locations checked and the search is not finished yet.",
     "keepSearching": "Keep searching",
-    "buildingsFailed": "Buildings could not be loaded. Check your connection and try again."
+    "buildingsFailed": "Buildings could not be loaded. Check your connection and try again.",
+    "groupCapacity": "{count}/{max} tickets · {remaining} places left. Save this group, then scan more.",
+    "remapReviewTitle": "Review location change for {count} tickets",
+    "remapConfirm": "Change {count} tickets",
+    "editRecord": "Correct ticket details",
+    "editRecordTitle": "Correct saved job ticket",
+    "editRecordDescription": "Only ticket details change. Inventory, quantities in stock, and the mapped location are unchanged. Corrections are recorded in history.",
+    "recordConflict": "This ticket changed. Your draft is retained; load the current ticket before saving.",
+    "reloadRecord": "Load current ticket",
+    "formatUnset": "Not recorded",
+    "correctionHistory": "Correction history",
+    "recentCorrections": "Showing recent corrections.",
+    "saveCorrection": "Save correction",
+    "sendPhotosFirst": "Send or remove the collected photos before saving this group."
   },
   "Hr": {
     "duration": "{hours} h {minutes} min",

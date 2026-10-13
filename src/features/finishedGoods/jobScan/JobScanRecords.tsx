@@ -9,6 +9,7 @@ import { QueryGate } from "@/components/system/QueryGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { useDraftKey } from "@/hooks/useDraftKey";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { useScanRecovery } from "@/hooks/useScanRecovery";
@@ -39,8 +40,9 @@ import {
   useOperation,
   written,
 } from "../shared";
+import { JobScanRecordEditor } from "./JobScanRecordEditor";
 import { JobScanRecordRow } from "./JobScanRecordRow";
-import { pickedLocationPayload } from "./ticketDraft";
+import { pickedLocationPayload, type PickedLocation } from "./ticketDraft";
 import { LocationPicker } from "./LocationPicker";
 import { useJobScanRecordState } from "./useJobScanRecordState";
 
@@ -92,6 +94,13 @@ function Records({
     ids: string[];
   } | null>(null);
   const locationPanel = useRef<HTMLDivElement>(null);
+  const [editing, setEditing] = useState<RecordPage["items"][number] | null>(
+    null,
+  );
+  const [remapReview, setRemapReview] = useState<{
+    location: PickedLocation;
+    records: RecordPage["items"];
+  } | null>(null);
   const [deletion, setDeletion] = useState<{
     ids: string[];
     requestId: string;
@@ -198,11 +207,19 @@ function Records({
     selection.scope === selectionScope
       ? selection.ids.filter((id) => visibleIdSet.has(id))
       : [];
-  const picking =
+  const availablePicking =
     locationSelection?.scope === selectionScope &&
     locationSelection.ids.every((id) => visibleIdSet.has(id))
       ? locationSelection
       : null;
+  const locationStep = useWorkflowStep(
+    "jobRecordsLocation",
+    `job-records:${warehouseId}`,
+    availablePicking !== null,
+    undefined,
+    { blocked: operation.busy },
+  );
+  const picking = locationStep.active ? availablePicking : null;
   const isPicking = picking !== null;
   useEffect(() => {
     if (!isPicking) return;
@@ -250,6 +267,7 @@ function Records({
     if (!actionable || !ids.length) return;
     updateSelection(() => ids);
     setLocationSelection({ scope: selectionScope, ids: [...ids] });
+    locationStep.enter();
     operation.setError("");
     operation.clearRequests();
   }
@@ -279,6 +297,7 @@ function Records({
   return (
     <PageContainer size="wide" actionInset="responsive">
       <Heading
+        backFallbackHref="/finished-goods/scan"
         title={t("records")}
         helpText={t("recordsSubtitle")}
         description={t("locationNotStock")}
@@ -294,7 +313,7 @@ function Records({
               key={value}
               type="button"
               aria-pressed={filter === value}
-              disabled={operation.busy}
+              disabled={operation.busy || editing !== null}
               onClick={() => {
                 updateCriteria({ filter: value });
                 clearSelection();
@@ -322,7 +341,7 @@ function Records({
           />
           <Input
             value={search}
-            disabled={operation.busy}
+            disabled={operation.busy || editing !== null}
             maxLength={200}
             onChange={(event) => {
               updateCriteria({ search: event.target.value });
@@ -342,7 +361,10 @@ function Records({
           aria-label={t("selectLocation")}
         >
           <Panel className="space-y-3">
-            <fieldset disabled={operation.busy} className="space-y-3">
+            <fieldset
+              disabled={operation.busy || editing !== null}
+              className="space-y-3"
+            >
               <h2 className="text-lg font-semibold">{t("selectLocation")}</h2>
               {!fresh && (
                 <p role="status" className="text-sm text-muted">
@@ -355,34 +377,21 @@ function Records({
                   allowUnmapped={false}
                   canReadImage={canManage}
                   browseWithoutSearch
-                  onPick={async (location) => {
-                    const mapped = pickedLocationPayload(location);
-                    // The chosen records must still be current when assigning.
-                    if (!actionable || !mapped) return;
-                    const target = { ids: picking.ids, location: mapped };
-                    await operation.run(
-                      async () =>
-                        written(
-                          await assign({
-                            warehouseId,
-                            requestId: operation.request(
-                              JSON.stringify(target),
-                            ),
-                            ...target,
-                          }),
-                        ),
-                      () => {
-                        clearSelection();
-                        operation.clearRequests();
-                      },
-                    );
+                  onPick={(location) => {
+                    if (!actionable || !pickedLocationPayload(location)) return;
+                    const chosen =
+                      records?.filter((record) =>
+                        picking.ids.includes(record.id),
+                      ) ?? [];
+                    if (chosen.length !== picking.ids.length) return;
+                    setRemapReview({ location, records: chosen });
                   }}
                 />
               </fieldset>
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => setLocationSelection(null)}
+                onClick={locationStep.back}
               >
                 {t("cancel")}
               </Button>
@@ -464,7 +473,7 @@ function Records({
               action={
                 <Button
                   variant="outline"
-                  disabled={operation.busy}
+                  disabled={operation.busy || editing !== null}
                   onClick={() => {
                     updateCriteria({ search: "" });
                     clearSelection();
@@ -506,6 +515,9 @@ function Records({
                     onToggle={() => toggle(record.id)}
                     onChangeLocation={() => openLocationPicker([record.id])}
                     onDelete={() => confirmDelete([record.id])}
+                    onEdit={() => {
+                      if (actionable) setEditing(record);
+                    }}
                   />
                 ))}
               </ul>
@@ -558,6 +570,110 @@ function Records({
 
       {!deletion && <ErrorNotice message={operation.error} />}
 
+      {editing && (
+        <JobScanRecordEditor
+          key={editing.id}
+          warehouseId={warehouseId}
+          record={
+            records?.find((record) => record.id === editing.id) ?? editing
+          }
+          onClose={() => setEditing(null)}
+        />
+      )}
+      <Dialog
+        open={remapReview !== null}
+        onOpenChange={(open) => {
+          if (!open && !operation.busy) setRemapReview(null);
+        }}
+      >
+        {remapReview && (
+          <DialogContent
+            closeLabel={t("cancel")}
+            showCloseButton={!operation.busy}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {t("remapReviewTitle", { count: remapReview.records.length })}
+              </DialogTitle>
+              <DialogDescription>{t("locationNotStock")}</DialogDescription>
+            </DialogHeader>
+            <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
+              {remapReview.records.map((record) => (
+                <li key={record.id}>
+                  {record.factoryOrder}:{" "}
+                  {record.locationCode ?? record.locationText} →{" "}
+                  {remapReview.location.code}
+                </li>
+              ))}
+            </ul>
+            <ErrorNotice message={operation.error} />
+            {remapReview.records.some(
+              (snapshot) =>
+                !records?.some(
+                  (record) =>
+                    record.id === snapshot.id &&
+                    record.version === snapshot.version,
+                ),
+            ) && (
+              <p role="alert" className="text-sm text-warning">
+                {t("recordConflict")}
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={operation.busy || editing !== null}
+                onClick={() => setRemapReview(null)}
+              >
+                {t("cancel")}
+              </Button>
+              <Button
+                disabled={
+                  !actionable ||
+                  remapReview.records.some(
+                    (snapshot) =>
+                      !records?.some(
+                        (record) =>
+                          record.id === snapshot.id &&
+                          record.version === snapshot.version,
+                      ),
+                  )
+                }
+                onClick={() => {
+                  const location = pickedLocationPayload(remapReview.location);
+                  if (!location || !actionable) return;
+                  const target = {
+                    ids: remapReview.records.map((record) => record.id),
+                    location,
+                    expectedVersions: remapReview.records.map((record) => ({
+                      id: record.id,
+                      version: record.version,
+                    })),
+                  };
+                  void operation.run(
+                    async () =>
+                      written(
+                        await assign({
+                          warehouseId,
+                          requestId: operation.request(JSON.stringify(target)),
+                          ...target,
+                        }),
+                      ),
+                    () => {
+                      setRemapReview(null);
+                      clearSelection();
+                      operation.clearRequests();
+                    },
+                  );
+                }}
+              >
+                {t("remapConfirm", { count: remapReview.records.length })}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+
       <Dialog
         open={deletion !== null}
         onOpenChange={(open) => {
@@ -585,7 +701,7 @@ function Records({
             <DialogFooter>
               <Button
                 variant="outline"
-                disabled={operation.busy}
+                disabled={operation.busy || editing !== null}
                 onClick={() => setDeletion(null)}
               >
                 {t("cancel")}

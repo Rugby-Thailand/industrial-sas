@@ -8,6 +8,7 @@ import { querySuccess, writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { JobScanScreen } from "./JobScanScreen";
 
 const mocks = vi.hoisted(() => ({
+  replace: vi.fn(),
   save: vi.fn(),
   resize: vi.fn(),
   upload: vi.fn(),
@@ -40,7 +41,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), back: vi.fn(), replace: mocks.replace }),
 }));
 vi.mock("convex/react", () => ({
   useMutation: () => mocks.save,
@@ -104,6 +105,7 @@ vi.mock("./resizeImage", () => ({
 }));
 
 beforeEach(() => {
+  window.history.replaceState({ __NA: true }, "", "/en/finished-goods/scan");
   mocks.upload.mockReset().mockResolvedValue(undefined);
   mocks.extract.mockReset().mockResolvedValue(querySuccess({ ok: false }));
   mocks.toDataUrl.mockReset().mockResolvedValue("data:image/jpeg;base64,AA");
@@ -426,7 +428,11 @@ it("keeps drafts when the location changes and saves them at the new location", 
   start();
   addTicket();
   fireEvent.click(screen.getByRole("button", { name: "Change" }));
-  expect(screen.getByRole("heading", { name: "Where are we?" })).toBeVisible();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { name: "Where are we?" }),
+    ).toBeVisible(),
+  );
   fireEvent.click(
     screen.getByRole("button", { name: "Choose mapped location" }),
   );
@@ -604,3 +610,74 @@ it.each(["remove", "unmount"])(
     expect(mocks.save).not.toHaveBeenCalled();
   },
 );
+
+it("returns to the location question when page Back follows a location choice", async () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Choose demo location" }),
+    ).toBeVisible(),
+  );
+  expect(new URLSearchParams(window.location.search).has("jobScanStep")).toBe(
+    false,
+  );
+});
+it("browser Back restores the question with the locale, search and hash intact", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/th/finished-goods/scan?source=keep#question",
+  );
+  start();
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Choose demo location" }),
+    ).toBeVisible(),
+  );
+  expect(window.location.pathname).toBe("/th/finished-goods/scan");
+  expect(window.location.search).toBe("?source=keep");
+  expect(window.location.hash).toBe("#question");
+});
+it("explicit Change consumes the ticket step and the next Back uses the safe parent", async () => {
+  start();
+  fireEvent.click(screen.getByRole("button", { name: "Change" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Choose demo location" }),
+    ).toBeVisible(),
+  );
+  mocks.replace.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(mocks.replace).toHaveBeenCalledWith("/finished-goods");
+});
+it("Forward restores the retained ticket draft after returning to the location question", async () => {
+  start();
+  addTicket();
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Choose demo location" }),
+    ).toBeVisible(),
+  );
+  act(() => window.history.forward());
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: /Job No/ })).toHaveValue(
+      "FO69070073",
+    ),
+  );
+});
+it("a refresh or deep link without local data falls back to the location question", () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?jobScanStep=1&source=keep#question",
+  );
+  renderWithIntl(<JobScanScreen />, { locale: "en" });
+  expect(
+    screen.getByRole("button", { name: "Choose demo location" }),
+  ).toBeVisible();
+  expect(window.location.search).toBe("?source=keep");
+  expect(window.location.hash).toBe("#question");
+});

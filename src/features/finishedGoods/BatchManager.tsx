@@ -1,4 +1,6 @@
 "use client";
+import { packageScanPath } from "@/lib/navigation";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { resolveWriteError } from "@/lib/resolveWriteError";
 import {
   useCallback,
@@ -288,7 +290,7 @@ function StorageView({
     (unit.status === "AWAITING_MEASUREMENT" ||
       (unit.status === "AWAITING_PLACEMENT" && data.batch.simplePacking));
   const actionHref = scanReady
-    ? "/finished-goods/scan"
+    ? packageScanPath({ unitId: unit._id, batchId: data.batch._id })
     : locationOnly
       ? palletPath(unit._id)
       : unit.moveStatus || unit.status === "STORED"
@@ -486,7 +488,7 @@ function AvailableEditor({
   initialUnitId?: string | undefined;
   onStateChange: (state: EditorState) => void;
 }) {
-  const { t } = useFGText();
+  const { t, tr } = useFGText();
   const canManage = useCanManage();
   const initial = data.units.filter(
     (u) =>
@@ -516,10 +518,27 @@ function AvailableEditor({
     return () => cancelAnimationFrame(frame);
   }, [initialUnitId]);
   const [capacity, setCapacity] = useState("");
-  const [review, setReview] = useState(false);
   const [done, setDone] = useState(false);
+  const [undoRows, setUndoRows] = useState<EditRow[] | null>(null);
+  const [receiptId, setReceiptId] = useState<string>();
+  const labels = useQuery(
+    batchManagementRefs.replacementLabels,
+    receiptId ? { warehouseId, receiptId } : "skip",
+  );
   const scope = useDraftKey("batch-available");
   const op = useOperation(`${scope}:${warehouseId}:${data.batch._id}`);
+  const reviewStep = useWorkflowStep(
+    "batchReview",
+    `batch-repack:${warehouseId}:${data.batch._id}`,
+    !done || op.busy,
+    undefined,
+    { blocked: op.busy, priority: 200 },
+  );
+  const review = reviewStep.active;
+  const setReview = (next: boolean) => {
+    if (next) reviewStep.enter();
+    else reviewStep.back();
+  };
   const writeError = useTranslations("WriteError");
   const save = useMutation(batchManagementRefs.repackAvailable);
   const dirty =
@@ -561,6 +580,35 @@ function AvailableEditor({
             "copy.stored-units-and-the-batch-total-are-unchanged-open-storage-to-view-the-",
           )}
         </p>
+        <p className="mt-3 text-sm font-medium">
+          {tr(
+            "Replace retired package labels with the new labels before storage.",
+            "เปลี่ยนฉลากบรรจุภัณฑ์เก่าเป็นฉลากใหม่ก่อนจัดเก็บ",
+          )}
+        </p>
+        {labels?.ok && labels.value && (
+          <div className="mt-3 space-y-2 text-left text-sm">
+            <p>
+              {tr("Retired labels", "ฉลากเก่าที่เลิกใช้")}:{" "}
+              {labels.value.retired.map((unit) => unit.code).join(", ")}
+            </p>
+            <p>
+              {tr("Replacement labels", "ฉลากใหม่")}:{" "}
+              {labels.value.replacements.map((unit) => unit.code).join(", ")}
+            </p>
+            <p>
+              {tr(
+                "Each retired label belongs to this replacement group; quantities may be split or combined.",
+                "ฉลากเก่าแต่ละใบถูกแทนที่ด้วยกลุ่มฉลากใหม่นี้ จำนวนอาจถูกแบ่งหรือรวม",
+              )}
+            </p>
+            {labels.value.replacements.map((unit) => (
+              <Button key={unit.id} asChild variant="link">
+                <Link href={palletPath(unit.id)}>{unit.code}</Link>
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     );
   if (!base.ids.length)
@@ -593,11 +641,12 @@ function AvailableEditor({
     };
     await op.run(
       async () => {
-        written(
+        return written(
           await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
         );
       },
-      () => {
+      (receipt) => {
+        setReceiptId(receipt);
         setDone(true);
         op.clearRequests();
       },
@@ -661,6 +710,7 @@ function AvailableEditor({
             disabled={!split.length || split.length > maxNewUnits}
             onClick={() => {
               if (split.length) {
+                setUndoRows(rows);
                 setRows(
                   split.map((q) => ({ ...newRow(), quantity: String(q) })),
                 );
@@ -671,6 +721,29 @@ function AvailableEditor({
             {t("copy.split")}
           </Button>
         </div>
+        {undoRows && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center gap-3 text-sm"
+          >
+            <p>
+              {tr(
+                "Previous rows and measurements were replaced.",
+                "แถวและข้อมูลวัดเดิมถูกแทนที่",
+              )}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRows(undoRows);
+                setUndoRows(null);
+                setReview(false);
+              }}
+            >
+              {tr("Undo row change", "ยกเลิกการเปลี่ยนแถว")}
+            </Button>
+          </div>
+        )}
         <div className="max-h-[42dvh] space-y-3 overflow-y-auto pr-1">
           {rows.map((r, i) => (
             <div
@@ -691,6 +764,7 @@ function AvailableEditor({
                   variant="ghost"
                   aria-label={`${t("copy.remove-unit")} ${i + 1}`}
                   onClick={() => {
+                    setUndoRows(rows);
                     setRows(rows.filter((x) => x.id !== r.id));
                     setReview(false);
                   }}

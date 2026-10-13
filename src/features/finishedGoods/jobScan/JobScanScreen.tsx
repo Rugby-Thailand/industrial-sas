@@ -10,6 +10,10 @@ import {
   MapPin,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { completeTask } from "@/lib/taskNavigation";
+import { FG_PATH } from "@/lib/navigation";
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
@@ -19,7 +23,7 @@ import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { ScanIcon } from "@/components/ui/ScanIcon";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { useUploadThing } from "@/lib/uploadthing";
 import {
@@ -35,11 +39,13 @@ import {
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import { AcquisitionModes } from "./AcquisitionModes";
 import { LocationPicker } from "./LocationPicker";
+import { usePhotoSelection } from "./usePhotoSelection";
 import { PhotoCapture } from "./PhotoCapture";
 import { TicketCard } from "./TicketCard";
 import { TicketFieldScanner } from "./TicketFieldScanner";
 import { resizeImage, toDataUrl } from "./resizeImage";
 import {
+  MAX_JOB_SCAN_ITEMS,
   applyBarcode,
   applyImageBarcodes,
   classifyTicketBarcode,
@@ -108,15 +114,26 @@ export function LocationSummary({
 
 function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
+  const router = useRouter();
   const canManage = useCanManage();
   const operation = useOperation();
   const extract = useAction(fgRefs.extractJobTicket);
   const save = useMutation(fgRefs.saveJobScans);
   const { startUpload } = useUploadThing("jobTicketImage");
   const [location, setLocation] = useState<PickedLocation>();
-  const [tickets, setTickets] = useState<TicketDraft[]>([]);
+  const [tickets, setTicketState] = useState<TicketDraft[]>([]);
+  const ticketsRef = useRef<TicketDraft[]>([]);
+  function setTickets(
+    change: TicketDraft[] | ((current: TicketDraft[]) => TicketDraft[]),
+  ) {
+    ticketsRef.current =
+      typeof change === "function" ? change(ticketsRef.current) : change;
+    setTicketState(ticketsRef.current);
+  }
+  const photos = usePhotoSelection(MAX_JOB_SCAN_ITEMS - tickets.length);
   const [panel, setPanel] = useState<"PHOTO" | "BARCODE" | null>(null);
   const panelRef = useRef<typeof panel>(null);
+  const lastPanel = useRef<"PHOTO" | "BARCODE">("PHOTO");
   const [fieldScan, setFieldScan] = useState<FieldScanTarget | null>(null);
   const fieldScanRef = useRef<FieldScanTarget | null>(null);
   const [feedback, setFeedback] = useState<string>();
@@ -151,12 +168,38 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   };
   // Captured tickets survive in-app links, Back and search unless discarded;
   // a save in flight must finish first.
+  function closeFieldScan() {
+    fieldScanRef.current = null;
+    setFieldScan(null);
+  }
+  function changePanel(next: typeof panel) {
+    closeFieldScan();
+    setFeedback(undefined);
+    panelRef.current = next;
+    if (next) lastPanel.current = next;
+    setPanel(next);
+  }
+  useBackDisclosure(panel !== null, (open) =>
+    changePanel(open ? lastPanel.current : null),
+  );
+  const locationStep = useWorkflowStep(
+    "jobScanStep",
+    `job-scan:${warehouseId}`,
+    Boolean(location),
+    () => {
+      changePanel(null);
+      acquisitionBlocked.current = false;
+    },
+    { blocked: saving },
+  );
   const draft = useNavigationDraft({
-    dirty: tickets.length > 0,
+    workflowScope: `job-scan:${warehouseId}`,
+    dirty: tickets.length > 0 || photos.photos.length > 0,
     pending: saving,
     discard: () => {
       tickets.forEach(releasePreview);
       setTickets([]);
+      photos.clear();
       changePanel(null);
     },
   });
@@ -166,16 +209,6 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       current.map((ticket) => (ticket.key === key ? change(ticket) : ticket)),
     );
 
-  function closeFieldScan() {
-    fieldScanRef.current = null;
-    setFieldScan(null);
-  }
-  function changePanel(next: typeof panel) {
-    closeFieldScan();
-    setFeedback(undefined);
-    panelRef.current = next;
-    setPanel(next);
-  }
   function openFieldScan(
     ticket: TicketDraft,
     field: TicketCodeField,
@@ -218,7 +251,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   }
 
   async function onPhoto(file: File) {
-    if (acquisitionBlocked.current) return;
+    if (
+      acquisitionBlocked.current ||
+      ticketsRef.current.length >= MAX_JOB_SCAN_ITEMS
+    )
+      return;
     const previewUrl = URL.createObjectURL(file);
     previewUrls.current.add(previewUrl);
     const ticket = {
@@ -297,6 +334,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
 
   async function submit() {
     if (
+      photos.photos.length > 0 ||
       !location ||
       acquisitionBlocked.current ||
       !tickets.length ||
@@ -317,7 +355,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       items: tickets.map(toPayload),
     };
     acquisitionBlocked.current = true;
-    changePanel(null);
+    closeFieldScan();
     const result = await operation.run(
       async () =>
         written(
@@ -331,9 +369,10 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         operation.clearRequests();
         tickets.forEach(releasePreview);
         draft.settle();
-        setSaved({ count: tickets.length, location });
         setTickets([]);
+        setSaved({ count: tickets.length, location });
         changePanel(null);
+        operation.complete(() => completeTask(JOB_SCAN_PATH, router.replace));
       },
     );
     if (result === null) acquisitionBlocked.current = false;
@@ -372,6 +411,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               onClick={() => {
                 acquisitionBlocked.current = false;
                 setSaved(undefined);
+                locationStep.enter();
               }}
             >
               {t("scanMore")}
@@ -384,16 +424,20 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       </PageContainer>
     );
 
-  if (!location)
+  if (!location || !locationStep.active)
     return (
       <PageContainer size="form">
         <Heading
+          backFallbackHref={FG_PATH}
           title={t("locationStepTitle")}
           description={t("locationStepHint")}
         />
         <LocationPicker
           warehouseId={warehouseId}
-          onPick={setLocation}
+          onPick={(value) => {
+            setLocation(value);
+            locationStep.enter();
+          }}
           canReadImage={canManage}
           presentation="jobScan"
         />
@@ -403,15 +447,17 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const reading = tickets.some((ticket) => ticket.status === "reading");
   const incomplete = tickets.some((ticket) => !isComplete(ticket));
   const invalidQuantity = tickets.some(hasInvalidQuantity);
-  const blocker = reading
-    ? t("waitReading")
-    : incomplete
-      ? t("saveBlocked")
-      : invalidQuantity
-        ? t("invalidQuantity")
-        : duplicateKeys.length > 0 && !duplicatesReviewed
-          ? t("duplicateTickets")
-          : null;
+  const blocker = photos.photos.length
+    ? t("sendPhotosFirst")
+    : reading
+      ? t("waitReading")
+      : incomplete
+        ? t("saveBlocked")
+        : invalidQuantity
+          ? t("invalidQuantity")
+          : duplicateKeys.length > 0 && !duplicatesReviewed
+            ? t("duplicateTickets")
+            : null;
 
   const mapped = Boolean(location.locationId || location.zoneId);
   const place = [
@@ -427,7 +473,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       size="form"
       {...(tickets.length ? { actionInset: "responsive" as const } : {})}
     >
-      <Heading title={t("palletStepTitle")} description={t("palletStepHint")} />
+      <Heading
+        backFallbackHref={FG_PATH}
+        title={t("palletStepTitle")}
+        description={t("palletStepHint")}
+      />
       <Panel
         padding="compact"
         aria-label={t("location")}
@@ -461,10 +511,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             variant="ghost"
             className="ml-auto shrink-0 px-2 text-link sm:ml-0"
             disabled={saving}
-            onClick={() => {
-              changePanel(null);
-              setLocation(undefined);
-            }}
+            onClick={locationStep.back}
           >
             {t("change")}
           </Button>
@@ -476,11 +523,20 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         aria-busy={saving}
         className="min-w-0 space-y-3"
       >
+        <p role="status" className="text-sm text-muted">
+          {t("groupCapacity", {
+            count: tickets.length,
+            max: MAX_JOB_SCAN_ITEMS,
+            remaining: MAX_JOB_SCAN_ITEMS - tickets.length,
+          })}
+        </p>
         <AcquisitionModes
           label={t("ticketModes")}
           modes={[
             {
               key: "PHOTO",
+              disabled:
+                tickets.length >= MAX_JOB_SCAN_ITEMS && !photos.photos.length,
               label: t("photoAi"),
               icon: Camera,
               pressed: panel === "PHOTO",
@@ -496,19 +552,25 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             },
             {
               key: "MANUAL",
+              disabled: tickets.length >= MAX_JOB_SCAN_ITEMS,
               label: t("manual"),
               icon: Keyboard,
               onSelect: () => {
                 if (acquisitionBlocked.current) return;
                 // Keep collected photos mounted when adding a typed ticket.
                 if (panelRef.current !== "PHOTO") changePanel(null);
-                setTickets((current) => [...current, newTicket("MANUAL")]);
+                setTickets((current) =>
+                  current.length >= MAX_JOB_SCAN_ITEMS
+                    ? current
+                    : [...current, newTicket("MANUAL")],
+                );
               },
             },
           ]}
         />
         {panel === "PHOTO" && (
           <PhotoCapture
+            selection={photos}
             onClose={() => changePanel(null)}
             onSubmit={(files) => {
               changePanel(null);

@@ -15,6 +15,7 @@ export function optimisticProductDetails(
     !result?.ok ||
     !product ||
     product.status !== "ACTIVE" ||
+    product.updatedAt !== args.expectedUpdatedAt ||
     product.sku !== args.sku ||
     product.unit !== args.unit ||
     product.storageCondition !== args.storageCondition

@@ -480,3 +480,30 @@ async function storageFixture(world: ConvexTenantWorld) {
   });
   return location;
 }
+
+it("returns an immutable retired-to-replacement label group and excludes retained stored labels", async () => {
+  const { world, original, request } = await partialWorld();
+  const outcome = (await call(world, management.repackAvailable, request)) as {
+    ok: true;
+    value: { documentId: string };
+  };
+  const receipt = (await call(world, management.replacementLabels, {
+    warehouseId: request.warehouseId,
+    receiptId: outcome.value.documentId,
+  })) as {
+    ok: true;
+    value: { retired: { code: string }[]; replacements: { code: string }[] };
+  };
+  expect(receipt.value.retired.map((unit) => unit.code)).toEqual(
+    original.slice(1).map((unit) => unit.code),
+  );
+  expect(receipt.value.replacements).toHaveLength(2);
+  expect(receipt.value.replacements.map((unit) => unit.code)).not.toContain(
+    original[0]!.code,
+  );
+  const later = await call(world, management.replacementLabels, {
+    warehouseId: request.warehouseId,
+    receiptId: outcome.value.documentId,
+  });
+  expect(later).toMatchObject({ ok: true, value: receipt.value });
+});
