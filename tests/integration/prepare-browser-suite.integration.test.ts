@@ -62,6 +62,10 @@ setInterval(()=>{if(fs.existsSync(directory+'/'+role+'.go')) process.exit(role==
     },
   );
   children.push(child);
+  let stdout = "";
+  child.stdout?.on("data", (data) => {
+    stdout += data;
+  });
   let stderr = "";
   child.stderr?.on("data", (data) => {
     stderr += data;
@@ -77,7 +81,14 @@ setInterval(()=>{if(fs.existsSync(directory+'/'+role+'.go')) process.exit(role==
     );
   const complete = (role: string) =>
     writeFile(join(directory, `${role}.go`), "go");
-  return { child, closed, started, complete, stderr: () => stderr };
+  return {
+    child,
+    closed,
+    started,
+    complete,
+    stdout: () => stdout,
+    stderr: () => stderr,
+  };
 }
 
 describe.skipIf(process.platform === "win32")(
@@ -97,6 +108,25 @@ describe.skipIf(process.platform === "win32")(
         expect(result.status).toBe(1);
         expect(result.stderr).toContain("Usage:");
       }
+    });
+
+    it("reports executable-not-found using fixed spawn labels and exits unsuccessfully", () => {
+      const result = spawnSync(
+        process.execPath,
+        [resolve("scripts/ci/prepare-browser-suite.mjs"), "--suite=smoke"],
+        {
+          env: {
+            PATH: "/nonexistent-browser-fixture",
+            HOME: tmpdir(),
+            NODE_ENV: "test",
+          },
+          encoding: "utf8",
+        },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("build: spawn-failed");
+      expect(result.stdout).toContain("install: spawn-failed");
+      expect(result.stdout).toContain("status=none");
     });
 
     it("starts both operations together and joins both before success with exact anonymous smoke inputs", async () => {
@@ -159,8 +189,40 @@ describe.skipIf(process.platform === "win32")(
         expect(world.child.exitCode).toBeNull();
         await world.complete(fail === "build" ? "install" : "build");
         expect(await world.closed, world.stderr()).toBe(1);
+        expect(world.stdout()).toContain(`${fail}: exit-failed`);
+        expect(world.stdout()).toContain("status=1");
       },
     );
+
+    it("accepts successful commands with residual workers while cleaning their owned groups", async () => {
+      const world = await fixture("smoke", "", true);
+      const started = await Promise.all([
+        world.started("build"),
+        world.started("install"),
+      ]);
+      await Promise.all([world.complete("build"), world.complete("install")]);
+      expect(await world.closed, world.stderr()).toBe(0);
+      expect(world.stdout()).toContain(
+        "build: success; cleanup=residual-group",
+      );
+      expect(world.stdout()).toContain(
+        "install: success; cleanup=residual-group",
+      );
+      expect(world.stdout()).not.toContain("do-not-inherit");
+      for (const processInfo of started) {
+        await eventually(
+          async () => {
+            try {
+              process.kill(-processInfo.pid, 0);
+              return false;
+            } catch {
+              return true;
+            }
+          },
+          (value) => value,
+        );
+      }
+    });
 
     it("native cancellation synchronously kills only owned children and descendants and cannot report success", async () => {
       const world = await fixture("smoke", "", true);

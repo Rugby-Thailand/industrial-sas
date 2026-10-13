@@ -49,6 +49,9 @@ export async function prepareBrowserSuite({
   };
   const terminate = (code) => {
     canceled = true;
+    console.log(
+      `[browser-preparation] canceled (${code === 143 ? "SIGTERM" : "SIGINT"})`,
+    );
     // Synchronous cancellation cannot race a later successful join. Signal
     // only our freshly-created Unix groups, including their descendants.
     for (const child of owned) kill(child);
@@ -74,14 +77,19 @@ export async function prepareBrowserSuite({
         });
         owned.add(child);
       } catch {
+        console.log(
+          `[browser-preparation] ${build ? "build" : "install"}: spawn-failed`,
+        );
         resolveResult(false);
         return;
       }
       let settled = false;
-      const finish = (ok) => {
+      const finish = (ok, reason, status = null) => {
         if (settled) return;
         settled = true;
-        // Successful command exit must not leave any owned background work.
+        // pnpm exit status defines command success. Its process group can
+        // still contain reaping zombies or nonblocking compiler workers;
+        // clean those up without overriding a well-formed successful exit.
         let descendants = false;
         if (child.pid) {
           try {
@@ -93,10 +101,16 @@ export async function prepareBrowserSuite({
         }
         if (descendants) kill(child);
         owned.delete(child);
-        resolveResult(ok && !descendants && !canceled);
+        const result = canceled ? "canceled" : reason;
+        console.log(
+          `[browser-preparation] ${build ? "build" : "install"}: ${result}; cleanup=${descendants ? "residual-group" : "not-needed"}; status=${status === null ? "none" : status}`,
+        );
+        resolveResult(ok && !canceled);
       };
-      child.once("error", () => finish(false));
-      child.once("close", (code) => finish(code === 0));
+      child.once("error", () => finish(false, "spawn-failed"));
+      child.once("close", (code) =>
+        finish(code === 0, code === 0 ? "success" : "exit-failed", code),
+      );
     });
   }
   try {
