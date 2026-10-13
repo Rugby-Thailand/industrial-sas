@@ -46,19 +46,19 @@ export function createPermissionGrants(
         role !== null && role.orgId === orgId && role.status === "ACTIVE",
     );
     const result: string[] = [];
-    // At most 32 independent role lookups at once, even for a long code list.
+    // Stop at the first grant so additional roles do not add permission reads.
     for (const permissionCode of codes) {
-      const rows = await Promise.all(
-        active.map((role) =>
-          lookups.findRolePermission({
-            orgId,
-            roleId: role._id,
-            permissionCode,
-          }),
-        ),
-      );
-      if (rows.some((row) => row?.permissionCode === permissionCode))
-        result.push(permissionCode);
+      for (const role of active) {
+        const row = await lookups.findRolePermission({
+          orgId,
+          roleId: role._id,
+          permissionCode,
+        });
+        if (row?.permissionCode === permissionCode) {
+          result.push(permissionCode);
+          break;
+        }
+      }
     }
     return result;
   };
@@ -93,21 +93,20 @@ export async function grantedPermissionsAmong<Code extends string>(
   );
   const granted = await Promise.all(
     codes.map(async (permissionCode) => {
-      const permissions = await Promise.all(
-        activeRoles.map((role) =>
-          ctx.tenantDb
-            .byIndex<RolePermissionDocument>(
-              "rolePermissions",
-              "by_orgId_roleId_permissionCode",
-              [
-                { field: "roleId", value: role._id },
-                { field: "permissionCode", value: permissionCode },
-              ],
-            )
-            .unique(),
-        ),
-      );
-      return permissions.some((row) => row?.permissionCode === permissionCode);
+      for (const role of activeRoles) {
+        const row = await ctx.tenantDb
+          .byIndex<RolePermissionDocument>(
+            "rolePermissions",
+            "by_orgId_roleId_permissionCode",
+            [
+              { field: "roleId", value: role._id },
+              { field: "permissionCode", value: permissionCode },
+            ],
+          )
+          .unique();
+        if (row?.permissionCode === permissionCode) return true;
+      }
+      return false;
     }),
   );
   return codes.filter((_, index) => granted[index]);
