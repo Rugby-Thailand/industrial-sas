@@ -1,17 +1,8 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const query = "(max-width: 580px)";
-function subscribe(listener: () => void) {
-  const media = window.matchMedia(query);
-  media.addEventListener("change", listener);
-  return () => media.removeEventListener("change", listener);
-}
 export function useStorageLayoutMobile() {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
+  return useMediaQuery(query);
 }

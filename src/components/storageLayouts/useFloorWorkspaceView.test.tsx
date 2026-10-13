@@ -69,4 +69,42 @@ describe("workspace presentation query", () => {
     act(() => result.current.setView("list"));
     expect(window.location.search).toContain("view=storage&editing=1");
   });
+  describe("viewport breakpoints without a measured container", () => {
+    let viewport: number;
+    beforeEach(() => {
+      vi.spyOn(window, "matchMedia").mockImplementation((query) => {
+        const max = /\(max-width: (\d+)px\)/.exec(query)?.[1];
+        return {
+          media: query,
+          matches: max !== undefined && viewport <= Number(max),
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        } as unknown as MediaQueryList;
+      });
+    });
+
+    it.each([
+      { width: 849, canSplit: false, compact: true },
+      { width: 850, canSplit: false, compact: true },
+      { width: 851, canSplit: false, compact: false },
+      { width: 1099, canSplit: false, compact: false },
+      { width: 1100, canSplit: true, compact: false },
+    ])("at $width px", ({ width, canSplit, compact }) => {
+      viewport = width;
+      const { result } = renderHook(useFloorWorkspaceView);
+      expect(result.current.canSplit).toBe(canSplit);
+      expect(result.current.compactInspector).toBe(compact);
+    });
+
+    it.each([
+      [1399, true],
+      [1400, false],
+    ])("keeps a split inspector compact at %ipx: %s", (width, compact) => {
+      window.history.replaceState(null, "", "/planner?panel=split");
+      viewport = width;
+      const { result } = renderHook(useFloorWorkspaceView);
+      expect(result.current.view).toBe("split");
+      expect(result.current.compactInspector).toBe(compact);
+    });
+  });
 });

@@ -1,34 +1,14 @@
 "use client";
-import {
-  useCallback,
-  useSyncExternalStore,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { updateBrowserQuery } from "@/lib/browser/history";
 import { useBrowserQuery } from "@/hooks/useBrowserQuery";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 export type FloorWorkspaceView = "map" | "list" | "split";
 const event = "storage-floor-panel";
 const read = (search: string): FloorWorkspaceView => {
   const value = new URLSearchParams(search).get("panel");
   return value === "list" || value === "split" ? value : "map";
 };
-function useWorkspaceMedia(query: string) {
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      const media = window.matchMedia(query);
-      media.addEventListener("change", listener);
-      return () => media.removeEventListener("change", listener);
-    },
-    [query],
-  );
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
-}
 /** Presentation state owns only `panel`; building mode and floor navigation remain independent. */
 export function useFloorWorkspaceView() {
   const requested = read(useBrowserQuery(event).search);
@@ -44,9 +24,9 @@ export function useFloorWorkspaceView() {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const narrowScreen = useWorkspaceMedia("(max-width: 1099px)");
-  const narrowInspector = useWorkspaceMedia("(max-width: 850px)");
-  const narrowSplitInspector = useWorkspaceMedia("(max-width: 1399px)");
+  const narrowScreen = useMediaQuery("(max-width: 1099px)");
+  const narrowInspector = useMediaQuery("(max-width: 850px)");
+  const narrowSplitInspector = useMediaQuery("(max-width: 1399px)");
   const narrow = width === undefined ? narrowScreen : width < 1100;
   const view = requested === "split" && narrow ? "map" : requested;
   const setView = useCallback((next: FloorWorkspaceView) => {
