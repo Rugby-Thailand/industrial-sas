@@ -70,21 +70,24 @@ export function useWorkflowStep(
       if (action) {
         const path = window.location.pathname;
         const version = enterVersion.current;
-        queueMicrotask(() => {
+        // Browsers run microtasks between popstate listeners. A successor
+        // dispatched from a microtask (a router push) would precede Next's own
+        // listener, whose RESTORE then cancels it. A task runs after them all.
+        setTimeout(() => {
           if (
             mounted.current &&
             path === window.location.pathname &&
             version === enterVersion.current
           )
             action();
-        });
+        }, 0);
       }
     }
     if (!previousActive.current && active) options.onForward?.();
     previousActive.current = active;
   });
 
-  function back() {
+  function requestBack(onCancel?: () => void) {
     if (entering.current) {
       entering.current = false;
       enterVersion.current++;
@@ -158,10 +161,14 @@ export function useWorkflowStep(
         onCancel: () => {
           afterBack.current = undefined;
           moving.current = false;
+          onCancel?.();
         },
       },
     );
     return true;
+  }
+  function back() {
+    return requestBack();
   }
   const latestBack = useRef(back);
   useLayoutEffect(() => {
@@ -267,19 +274,26 @@ export function useWorkflowStep(
       },
     );
   }
-  function complete(action: () => void) {
-    if (!mounted.current || moving.current || options.blocked) return;
+  function complete(action: () => void, onCancel?: () => void) {
+    if (!mounted.current || options.blocked) {
+      onCancel?.();
+      return;
+    }
+    if (moving.current) return;
     // Native Back delivers onBack before a parent's imperative completion handle
     // has refreshed. Its old active closure must not traverse the consumed entry.
     if (
       !active ||
       new URLSearchParams(window.location.search).get(queryKey) !== "1"
     ) {
-      guardedNavigate(action);
+      guardedNavigate(action, { ...(onCancel ? { onCancel } : {}) });
       return;
     }
     afterBack.current = action;
-    if (!back()) afterBack.current = undefined;
+    if (!requestBack(onCancel)) {
+      afterBack.current = undefined;
+      onCancel?.();
+    }
   }
   return { active, enter, back, complete };
 }

@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,6 +15,7 @@ import {
 import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import type { DialogCompletionHandle } from "@/components/ui/dialog";
 import { useRouter } from "@/i18n/navigation";
 import {
   destinationHref,
@@ -71,6 +73,8 @@ export function GlobalSearchProvider({
 }) {
   const t = useTranslations("Search");
   const router = useRouter();
+  // Lives with the provider, so a choice survives the dialog body unmounting.
+  const completion = useRef<DialogCompletionHandle>(null);
   const hr = useHrAccess();
   const granted = useGrantedPermissions();
   const [state, setState] = useState<{ open: boolean; mode: SearchMode }>({
@@ -115,10 +119,20 @@ export function GlobalSearchProvider({
         !hasNavigationPermission(targetPermissions(target), granted)
       )
         return false;
-      setState((current) => ({ ...current, open: false }));
-      guardedNavigate(() => {
-        setAnnouncement(t("navigating", { trail }));
-        router.push(href);
+      // The dialog consumes its own entry (retaining the underlay's draft)
+      // before the guarded push asks about leaving. Closing and pushing
+      // together would traverse while the push is pending, and Next's restore
+      // of the origin would cancel it. Results render only inside the
+      // dialog, so its handle is mounted.
+      completion.current?.complete(() => {
+        // Normally already closed by its own Back; never left open otherwise.
+        setState((current) =>
+          current.open ? { ...current, open: false } : current,
+        );
+        guardedNavigate(() => {
+          setAnnouncement(t("navigating", { trail }));
+          router.push(href);
+        });
       });
       return true;
     },
@@ -131,6 +145,7 @@ export function GlobalSearchProvider({
       <PageContextSetter.Provider value={setPageContext}>
         {children}
         <SearchDialog
+          completionRef={completion}
           open={state.open}
           mode={state.mode}
           aiAvailable={aiAvailable}

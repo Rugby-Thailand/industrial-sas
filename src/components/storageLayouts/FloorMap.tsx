@@ -30,6 +30,8 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  useSheetHandoff,
+  type SheetCompletionHandle,
 } from "@/components/ui/sheet";
 import { preferences } from "@/lib/browser/storage";
 import { resolveAreaColor } from "@/lib/storageLayouts/areaColors";
@@ -160,7 +162,7 @@ export function FloorMap(props: FloorMapProps) {
   const [sheetTarget, setSheetTarget] = useState<HTMLDivElement | null>(null);
   const opener = useRef<Element | null>(null);
   const interaction = useRef<Element | null>(null);
-  const pendingAction = useRef<(() => void) | undefined>(undefined);
+  const detailsSheet = useRef<SheetCompletionHandle>(null);
   const canManage = useCanManage();
   const showLocationLabels = useSyncExternalStore(
     subscribeLocationLabels,
@@ -224,18 +226,24 @@ export function FloorMap(props: FloorMapProps) {
     sheetSelection === detailKey;
   if (sheetSelection && (!compactInspector || sheetSelection !== detailKey))
     setSheetSelection(undefined);
+  // A follow-up (the zone editor) opens only after the sheet has consumed its
+  // own entry and finished closing; the editor then takes focus itself.
+  const {
+    handOff: handOffDetail,
+    cancel: cancelDetailHandoff,
+    closeFocus: detailHandoffFocus,
+  } = useSheetHandoff(detailsSheet, () => setSheetSelection(undefined));
   function openDetails() {
     opener.current = interaction.current ?? document.activeElement;
+    cancelDetailHandoff();
     if (detailKey) setSheetSelection(detailKey);
   }
   const runDetailAction = useCallback(
     (action: () => void) => {
-      if (sheetOpen) {
-        pendingAction.current = action;
-        setSheetSelection(undefined);
-      } else action();
+      if (sheetOpen) handOffDetail(action);
+      else action();
     },
-    [sheetOpen],
+    [sheetOpen, handOffDetail],
   );
   const {
     legacyPositionCount,
@@ -984,6 +992,7 @@ export function FloorMap(props: FloorMapProps) {
         )}
         <Sheet
           open={sheetOpen}
+          completionRef={detailsSheet}
           onOpenChange={(open) => {
             if (!open) setSheetSelection(undefined);
           }}
@@ -994,10 +1003,8 @@ export function FloorMap(props: FloorMapProps) {
             className={`${styles.theme} max-h-[85dvh] gap-0 rounded-t-2xl pb-[env(safe-area-inset-bottom)]`}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
-              const action = pendingAction.current;
-              pendingAction.current = undefined;
-              if (action) requestAnimationFrame(action);
-              else {
+              // A handoff's successor takes focus itself.
+              if (!detailHandoffFocus(event)) {
                 const target = opener.current;
                 if (
                   target?.isConnected &&

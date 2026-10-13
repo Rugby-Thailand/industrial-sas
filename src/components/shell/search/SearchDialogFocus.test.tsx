@@ -135,7 +135,9 @@ describe("focus after the search dialog closes", () => {
     await open();
     await type("holidays");
     fireEvent.keyDown(input(), { key: "Enter" });
-    expect(state.push).toHaveBeenCalledWith("/hr/settings?section=holidays");
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith("/hr/settings?section=holidays"),
+    );
     await afterClose();
     expect(destination()).toHaveFocus();
 

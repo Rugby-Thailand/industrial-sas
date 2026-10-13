@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type Ref,
 } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
@@ -20,6 +21,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { formatBusinessDate } from "@/features/hr/format";
 import {
@@ -58,6 +60,7 @@ function useSettledText(text: string, composing: boolean): string {
 }
 
 export function SearchDialog({
+  completionRef,
   open,
   mode,
   aiAvailable,
@@ -67,6 +70,8 @@ export function SearchDialog({
   onModeChange,
   onNavigate,
 }: {
+  /** Consumes this dialog's entry before a chosen destination is pushed. */
+  readonly completionRef?: Ref<DialogCompletionHandle>;
   readonly open: boolean;
   readonly mode: SearchMode;
   readonly aiAvailable: boolean;
@@ -86,7 +91,11 @@ export function SearchDialog({
     return accepted;
   };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      {...(completionRef === undefined ? {} : { completionRef })}
+    >
       <DialogContent
         size="lg"
         showCloseButton={false}

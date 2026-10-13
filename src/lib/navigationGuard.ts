@@ -76,6 +76,31 @@ export function onNavigationIntent(listener: () => void): () => void {
   };
 }
 
+// A link inside a foreground (the mobile drawer) must consume that entry
+// before routing. The owner's document click guard runs before the Link's
+// own handler; it requests this transition instead of a plain route push.
+// Registrations live only as long as their anchor.
+const linkNavigations = new WeakMap<HTMLAnchorElement, Transition>();
+
+/** Internal: register the transition a guarded click on `anchor` runs. */
+export function registerLinkNavigation(
+  anchor: HTMLAnchorElement,
+  transition: Transition,
+): () => void {
+  linkNavigations.set(anchor, transition);
+  return () => {
+    if (linkNavigations.get(anchor) === transition)
+      linkNavigations.delete(anchor);
+  };
+}
+
+/** Internal: the owner's click guard reads the anchor's own transition. */
+export function registeredLinkNavigation(
+  anchor: HTMLAnchorElement,
+): Transition | undefined {
+  return linkNavigations.get(anchor);
+}
+
 export function isGuardTraversal(): boolean {
   return owner?.isTraversing() ?? false;
 }

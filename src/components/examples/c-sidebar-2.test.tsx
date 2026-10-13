@@ -58,18 +58,22 @@ vi.mock("@/i18n/navigation", () => ({
     href,
     children,
     onClick,
+    onNavigate,
     ...rest
   }: {
     readonly href: string;
     readonly children: ReactNode;
     readonly onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+    readonly onNavigate?: (event: { preventDefault: () => void }) => void;
   } & Record<string, unknown>) => (
     <a
       href={href}
       {...rest}
       onClick={(event) => {
         onClick?.(event);
+        if (event.defaultPrevented) return;
         event.preventDefault();
+        onNavigate?.({ preventDefault: () => undefined });
       }}
     >
       {children}
@@ -384,7 +388,9 @@ describe("sidebar hierarchy", () => {
     const option = await screen.findByRole("option", { name: /Review leave/ });
     expect(leave).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(option);
-    expect(state.push).toHaveBeenCalledWith("/hr/leave/review");
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith("/hr/leave/review"),
+    );
     state.pathname = "/hr/leave/review";
     view.rerender(shell());
     await waitFor(() => expect(searchDialog()).toBeNull());

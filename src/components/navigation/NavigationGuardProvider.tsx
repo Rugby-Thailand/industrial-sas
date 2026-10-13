@@ -24,6 +24,7 @@ import {
   announceNavigationIntent,
   backWithinPage,
   hasBackWithinPage,
+  registeredLinkNavigation,
   type TransitionOptions,
   registerNavigationGuardOwner,
   type Transition,
@@ -967,7 +968,10 @@ function createGuardMachine(deps: MachineDeps) {
       return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    requestTransition(() => navigate(destination));
+    // A drawer link consumes its foreground entry before it routes.
+    requestTransition(
+      registeredLinkNavigation(anchor) ?? (() => navigate(destination)),
+    );
   }
 
   function onBeforeUnload(event: BeforeUnloadEvent) {
