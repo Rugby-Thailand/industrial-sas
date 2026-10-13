@@ -5828,11 +5828,18 @@
           "falsy": []
         }
       ],
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back keeps a pending floor removal confirmation and its settings open"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s confirmation without a stale pending prompt"
         }
       ]
     },
@@ -5927,95 +5934,128 @@
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#BuildingStatusToggle:confirming",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The actual shared lifecycle confirmation protects the in-flight write, retains the current intent when leaving is canceled, and consumes successful completion before the next native Back restores the real origin locale/query/hash.",
       "integration": "confirmation",
       "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
       "cases": [
         {
           "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
           "name": "confirms a whole-building return to Draft with the affected count"
+        },
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+          "name": "protects pending %s lifecycle writes and consumes completion before the next Back"
         }
-      ],
-      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
+      ]
     },
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#StatusConfirmation:$overlay:ConfirmDialog:confirming",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The actual shared lifecycle confirmation protects the in-flight write, retains the current intent when leaving is canceled, and consumes successful completion before the next native Back restores the real origin locale/query/hash.",
       "integration": "confirmation",
       "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
       "cases": [
         {
           "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
           "name": "confirms a whole-building return to Draft with the affected count"
+        },
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+          "name": "protects pending %s lifecycle writes and consumes completion before the next Back"
         }
-      ],
-      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:open",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The actual shared confirmation protects its pending command and consumes successful completion while retaining building settings; the next native Back closes settings before restoring the real catalogue origin.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back keeps a pending floor removal confirmation and its settings open"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s confirmation without a stale pending prompt"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:$overlay:ConfirmDialog:open",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The actual shared confirmation protects its pending command and consumes successful completion while retaining building settings; the next native Back closes settings before restoring the real catalogue origin.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back keeps a pending floor removal confirmation and its settings open"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s confirmation without a stale pending prompt"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingArchiveSection:open",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The actual shared confirmation protects its pending command and consumes successful completion while retaining building settings; the next native Back closes settings before restoring the real catalogue origin.",
       "integration": "confirmation",
       "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
           "name": "archives with counted impact and explains reactivation; stock blocks confirmation"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s confirmation without a stale pending prompt"
         }
-      ],
-      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingArchiveSection:$overlay:ConfirmDialog:open",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The actual shared confirmation protects its pending command and consumes successful completion while retaining building settings; the next native Back closes settings before restoring the real catalogue origin.",
       "integration": "confirmation",
       "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
           "name": "archives with counted impact and explains reactivation; stock blocks confirmation"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s confirmation without a stale pending prompt"
         }
-      ],
-      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:archiving",
       "policy": "overlay",
       "expectation": "Spot archive is an actual shared confirmation Dialog; native Back cancels it without writing, and the next Back leaves the containing building.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back cancels a spot archive confirmation and the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s archival without a stale pending prompt"
         }
       ]
     },
@@ -6024,11 +6064,18 @@
       "policy": "overlay",
       "expectation": "Spot archive is an actual shared confirmation Dialog; native Back cancels it without writing, and the next Back leaves the containing building.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back cancels a spot archive confirmation and the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s archival without a stale pending prompt"
         }
       ]
     },
@@ -7013,11 +7060,18 @@
       "policy": "overlay",
       "expectation": "Position archive confirmation is a real shared ConfirmDialog showing the exact position identity and expected version; pending writes block dismissal.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back cancels exact position archive before dismissing its retained manager"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s archival without a stale pending prompt"
         }
       ]
     },
@@ -7026,11 +7080,18 @@
       "policy": "overlay",
       "expectation": "Position archive confirmation is a real shared ConfirmDialog showing the exact position identity and expected version; pending writes block dismissal.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back cancels exact position archive before dismissing its retained manager"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "consumes successful %s archival without a stale pending prompt"
         }
       ]
     },
