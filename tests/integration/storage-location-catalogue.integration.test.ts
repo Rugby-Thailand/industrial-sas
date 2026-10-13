@@ -304,6 +304,67 @@ describe("warehouse location catalogue", () => {
     expect(completed.status).toBe("ready");
     expect(completed.page.map((row) => row.label)).toEqual(["renamed"]);
   });
+  it("rechecks retained matches after a layout edit during suspended search", async () => {
+    const world = await setup();
+    const zoneId = await world.t.run(async (ctx) => {
+      const source = (await ctx.db.query("storageZones").collect())[0]!;
+      const { _id, _creationTime, ...fields } = source;
+      void _creationTime;
+      // Enough areas that one bounded request cannot finish the search.
+      for (let i = 0; i < 800; i++)
+        await ctx.db.insert("storageZones", {
+          ...fields,
+          code: `Z-${String(i).padStart(3, "0")}`,
+          label: `Zone ${i}`,
+        });
+      await ctx.db.patch("storageZones", _id, { label: "renamed" });
+      return _id;
+    });
+    const args = {
+      warehouseId: world.warehouses.alphaA,
+      pageSize: 20,
+      search: "renamed",
+    };
+    const first = (await call(world, page, args)) as {
+      value: {
+        status: string;
+        scanCursor: string;
+        scanned: number;
+        page: { label: string }[];
+      };
+    };
+    expect(first.value.status).toBe("scanning");
+    expect(first.value.scanned).toBeGreaterThan(1);
+    expect(first.value.page.map((row) => row.label)).toEqual(["renamed"]);
+    await world.t.run(async (ctx) => {
+      const db = createTenantDocumentAccess(
+        { orgId: world.orgA, requestId: "location-revision" },
+        createMutationTenantStorage(ctx, "location-revision"),
+      );
+      const tracked = trackFinishedGoodsWrites(db);
+      await tracked.db.patch("storageZones", zoneId, {
+        label: "no-longer-matching",
+      });
+      await tracked.flush();
+    });
+    const second = (await call(world, page, {
+      ...args,
+      scanCursor: first.value.scanCursor,
+    })) as {
+      value: {
+        status: string;
+        scanCursor: string;
+        page: { label: string }[];
+      };
+    };
+    // The cursor retained an earlier matching ID. A layout edit must restart
+    // and reevaluate that row rather than treating the saved match as valid.
+    expect(second.value.status).toBe("scanning");
+    expect(second.value.page).toEqual([]);
+    const completed = await finishSearch(world, args, second.value.scanCursor);
+    expect(completed.status).toBe("ready");
+    expect(completed.page).toEqual([]);
+  });
   it("finds archived sublocation text beyond the active-position limit", async () => {
     const world = await setup();
     await world.t.run(async (ctx) => {

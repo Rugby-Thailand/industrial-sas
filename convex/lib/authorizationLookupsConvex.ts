@@ -12,7 +12,10 @@ import {
   type RolePermissionDocument,
   type SessionsAuditDocument,
 } from "./authorization";
-import { createConvexTenantContextLookups } from "./tenantContextLookups";
+import {
+  createConvexTenantContextLookups,
+  memoizeLookup,
+} from "./tenantContextLookups";
 import { TenantDbError } from "./tenantDb";
 
 const EXACT_TAKE = 2;
@@ -24,6 +27,8 @@ export interface AuthorizationLookupContext {
 export function createConvexAuthorizationLookups(
   ctx: AuthorizationLookupContext,
   requestId: string,
+  contextLookups = createConvexTenantContextLookups(ctx, requestId),
+  reuse = false,
 ): AuthorizationFactLookups {
   const { db } = ctx;
 
@@ -48,10 +53,7 @@ export function createConvexAuthorizationLookups(
   // Context and authorization must select the same current membership after a
   // re-add. Historical revoked rows cannot invalidate a fresh scoped grant.
   const findMembership: AuthorizationFactLookups["findMembership"] =
-    createConvexTenantContextLookups(
-      ctx,
-      requestId,
-    ).findMembershipByOrganizationAndUser;
+    contextLookups.findMembershipByOrganizationAndUser;
 
   const listMembershipRoles: AuthorizationFactLookups["listMembershipRoles"] =
     async ({
@@ -119,24 +121,7 @@ export function createConvexAuthorizationLookups(
     };
 
   const findMembershipWarehouse: AuthorizationFactLookups["findMembershipWarehouse"] =
-    async ({ orgId, membershipId, warehouseId }) => {
-      const rows = await db
-        .query("membershipWarehouses")
-        .withIndex("by_orgId_membershipId_warehouseId", (q) =>
-          q
-            .eq("orgId", orgId)
-            .eq("membershipId", membershipId)
-            .eq("warehouseId", warehouseId),
-        )
-        .take(EXACT_TAKE);
-      const scope = atMostOne(rows);
-      if (scope === null) return null;
-      return scope.orgId === orgId &&
-        scope.membershipId === membershipId &&
-        scope.warehouseId === warehouseId
-        ? scope
-        : null;
-    };
+    contextLookups.findMembershipWarehouse;
 
   const findEntitlement: AuthorizationFactLookups["findEntitlement"] = async ({
     orgId,
@@ -204,9 +189,13 @@ export function createConvexAuthorizationLookups(
 
   return Object.freeze({
     findMembership,
-    listMembershipRoles,
-    findRole,
-    findRolePermission,
+    listMembershipRoles: reuse
+      ? memoizeLookup(listMembershipRoles)
+      : listMembershipRoles,
+    findRole: reuse ? memoizeLookup(findRole) : findRole,
+    findRolePermission: reuse
+      ? memoizeLookup(findRolePermission)
+      : findRolePermission,
     findMembershipWarehouse,
     findEntitlement,
     listRecentSessionEvents,

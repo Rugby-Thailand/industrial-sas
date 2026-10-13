@@ -92,6 +92,10 @@ async function measuredPage(
       return outcome;
     })) as { ok: boolean; value: Page };
   expect(outcome.ok).toBe(true);
+  // Product hydration must share the readiness verdict rather than read it per row.
+  expect(
+    reads.filter((read) => read.table === "finishedGoodsSummaryReadiness"),
+  ).toHaveLength(1);
   return { result: outcome.value, reads, documentReads };
 }
 type Page = {

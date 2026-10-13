@@ -68,7 +68,6 @@ import type * as lib_memberDirectory from "../lib/memberDirectory.js";
 import type * as lib_navigationGrants from "../lib/navigationGrants.js";
 import type * as lib_organizationDefaults from "../lib/organizationDefaults.js";
 import type * as lib_permissions from "../lib/permissions.js";
-import type * as lib_privateFileStorage from "../lib/privateFileStorage.js";
 import type * as lib_providerUsage from "../lib/providerUsage.js";
 import type * as lib_queryDocumentReader from "../lib/queryDocumentReader.js";
 import type * as lib_schemaPolicy from "../lib/schemaPolicy.js";
@@ -205,7 +204,6 @@ declare const fullApi: ApiFromModules<{
   "lib/navigationGrants": typeof lib_navigationGrants;
   "lib/organizationDefaults": typeof lib_organizationDefaults;
   "lib/permissions": typeof lib_permissions;
-  "lib/privateFileStorage": typeof lib_privateFileStorage;
   "lib/providerUsage": typeof lib_providerUsage;
   "lib/queryDocumentReader": typeof lib_queryDocumentReader;
   "lib/schemaPolicy": typeof lib_schemaPolicy;

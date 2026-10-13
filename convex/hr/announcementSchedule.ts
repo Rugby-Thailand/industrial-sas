@@ -8,7 +8,6 @@ import { createConvexTenantContextLookups } from "../lib/tenantContextLookups";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
 import { createMemberDirectory } from "../lib/memberDirectory";
-import { createPrivateFileStorage } from "../lib/privateFileStorage";
 import { HR_PERMISSION, PERMISSIONS_BY_CODE } from "../lib/permissions";
 import {
   resolveAuthorizationFacts,
@@ -76,7 +75,6 @@ async function publisherContext(
       createMutationTenantStorage(raw, requestId),
     ),
     members: createMemberDirectory(raw.db, row.orgId),
-    privateFiles: createPrivateFileStorage(raw.storage),
     scheduler: raw.scheduler,
   };
 }

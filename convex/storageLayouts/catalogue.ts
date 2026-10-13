@@ -1,5 +1,5 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
-import { summaryReadiness } from "../lib/finishedGoodsSummary";
+import { storageCatalogueGeneration } from "../lib/finishedGoodsSummary";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import {
   paginatedScan,
@@ -353,6 +353,7 @@ async function buildingWithOccupancy(
   return {
     ...row,
     buildingId: row._id,
+    blocked: row.status === "ACTIVE" && placements.length > 0,
     unmeasuredPalletCount: placements.filter((p) => !isGeometricPlacement(p))
       .length,
     measuredAreaPartial: placements.some((p) => !isGeometricPlacement(p)),
@@ -411,10 +412,11 @@ export const listStorageBuildingsPage = queryWithOrg({
     const { cursor, scanCursor, pageSize, ...criteria } = args;
     const needle = (args.search ?? "").trim().toLocaleLowerCase();
     const result = await paginatedScan(ctx, {
-      generation:
-        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
-        0,
-      scope: { entity: "buildings", ...criteria },
+      generation: await storageCatalogueGeneration(
+        ctx.tenantDb,
+        args.warehouseId,
+      ),
+      scope: { entity: "buildings-v2", ...criteria },
       pageSize,
       ...(cursor ? { cursor } : {}),
       ...(scanCursor ? { scanCursor } : {}),

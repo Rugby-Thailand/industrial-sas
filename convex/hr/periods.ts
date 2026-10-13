@@ -16,7 +16,11 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
-import { datesInRange, type IsoDate } from "../model/hr/calendar";
+import {
+  datesInRange,
+  timezoneOffsetMinutes,
+  type IsoDate,
+} from "../model/hr/calendar";
 import { attendanceCsvFileName, renderAttendanceCsv } from "../model/hr/csv";
 import { normalizeReason } from "../model/hr/employee";
 import {
@@ -338,6 +342,7 @@ export const preview = queryWithOrg({
     // A string, so a malformed link answers NOT_FOUND instead of throwing.
     periodId: v.string(),
     version: v.optional(v.number()),
+    clockFree: v.optional(v.boolean()),
   },
   returns: v.any(),
   permissionCode: CLOSE,
@@ -345,8 +350,12 @@ export const preview = queryWithOrg({
   handler: async (ctx, args) => {
     // Closed versions carry their own frozen timezone, so history stays
     // readable even when the current organization timezone is unsupported.
-    // Only the live draft calculation needs the organization clock.
-    const clock = orgClock(ctx);
+    // Existing tabs retain period.today by default. Updated clients explicitly
+    // opt into clock-free frozen previews; live drafts still need the clock.
+    const legacyClock = args.clockFree === true ? null : orgClock(ctx);
+    const timezoneSupported = timezoneOffsetMinutes(
+      ctx.tenant.organization.settings.timezone,
+    ).ok;
     const period = await scopedPeriod(ctx, args.periodId);
     if (period === null) return { ok: false as const, code: "NOT_FOUND" };
     const site = await ctx.tenantDb.get<Doc<"warehouses">>(
@@ -367,8 +376,8 @@ export const preview = queryWithOrg({
       latestClosedVersion: period.latestClosedVersion,
       revisionReason: period.revisionReason,
       timezone: ctx.tenant.organization.settings.timezone,
-      timezoneSupported: clock !== null,
-      ...(clock === null ? {} : { today: clock.today }),
+      timezoneSupported,
+      ...(legacyClock === null ? {} : { today: legacyClock.today }),
     };
     const selected =
       args.version === undefined
@@ -421,6 +430,7 @@ export const preview = queryWithOrg({
       };
     }
 
+    const clock = legacyClock ?? orgClock(ctx);
     if (clock === null)
       return {
         ok: true as const,
@@ -429,11 +439,12 @@ export const preview = queryWithOrg({
         versionsComplete,
         view: { kind: "TIMEZONE_UNSUPPORTED" as const },
       };
+    const draftHeader = { ...header, today: clock.today };
     const rows = await liveRows(ctx, period, clock);
     if (rows === null)
       return {
         ok: true as const,
-        period: header,
+        period: draftHeader,
         versions: versions.map(versionSummary),
         versionsComplete,
         view: { kind: "LIMIT" as const },
@@ -445,7 +456,7 @@ export const preview = queryWithOrg({
     });
     return {
       ok: true as const,
-      period: header,
+      period: draftHeader,
       versions: versions.map(versionSummary),
       versionsComplete,
       view: {
@@ -525,6 +536,7 @@ export const create = mutationWithOrg({
             "endDate",
             "reason" in range.error ? range.error.reason : undefined,
           );
+        // Legacy imports may violate both period length and non-overlap bounds.
         const existing = await sitePeriods(ctx, site._id);
         if (existing.some((period) => rangesOverlap(period, args)))
           return fail("PERIOD_OVERLAP");

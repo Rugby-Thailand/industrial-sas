@@ -1,3 +1,11 @@
+import { recommend } from "../../convex/finishedGoods/workflow";
+import {
+  trackFinishedGoodsWrites,
+  storageCatalogueGeneration,
+  summaryReadiness,
+} from "../../convex/lib/finishedGoodsSummary";
+import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
+import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
@@ -7,6 +15,8 @@ import {
   getStorageBuilding,
   getStorageBuildingLayout,
   getStorageBuildingInventory,
+  buildingOccupancy,
+  listStorageBuildingsPage,
 } from "../../convex/storageLayouts/catalogue";
 import { list as listLocations } from "../../convex/storageLayouts/locationCatalogue";
 import {
@@ -1012,4 +1022,181 @@ it("includes product and quantity details for building inventory drilldown", asy
       },
     ],
   });
+});
+
+it("isolates layout cursor signals from inventory writes and preserves row controls", async () => {
+  const { world, warehouseId, building, placementId } =
+    await occupiedWorld("STORED");
+  const occupied = await measuredRead(world, buildingOccupancy, {
+    warehouseId,
+    buildingId: building._id,
+  });
+  expect(occupied.result.blocked).toBe(true);
+  const page = await measuredRead(world, listStorageBuildingsPage, {
+    warehouseId,
+    pageSize: 20,
+  });
+  expect(page.tables).toContain("storageCatalogueSignals");
+  expect(page.tables).not.toContain("finishedGoodsSummaryReadiness");
+  await world.t.run(async (ctx) => {
+    const db = createTenantDocumentAccess(
+      { orgId: world.orgA, requestId: "signals-test" },
+      createMutationTenantStorage(ctx, "signals-test"),
+    );
+    const pallet = (await ctx.db.get("finishedGoodsPlacements", placementId))!;
+    const initialStorageGeneration = await storageCatalogueGeneration(
+      db,
+      warehouseId,
+    );
+    const tracked = trackFinishedGoodsWrites(db);
+    await tracked.db.patch("finishedGoodsPallets", pallet.palletId, {
+      quantity: 2,
+    });
+    await tracked.flush();
+    const inventoryGeneration = (await summaryReadiness(db, warehouseId))!
+      .generation;
+    expect(await storageCatalogueGeneration(db, warehouseId)).toBe(
+      initialStorageGeneration,
+    );
+    const layout = trackFinishedGoodsWrites(db);
+    await layout.db.patch("storageBuildings", building._id, {
+      name: "Renamed",
+    });
+    await layout.flush();
+    expect(await storageCatalogueGeneration(db, warehouseId)).toBe(
+      initialStorageGeneration + 1,
+    );
+    expect((await summaryReadiness(db, warehouseId))!.generation).toBe(
+      inventoryGeneration,
+    );
+    const deleted = trackFinishedGoodsWrites(db);
+    await deleted.db.delete("storageBuildings", building._id);
+    await deleted.flush();
+    expect(await storageCatalogueGeneration(db, warehouseId)).toBe(
+      initialStorageGeneration + 2,
+    );
+  });
+});
+
+it("shares recommendation parents and floor blocks across concurrently loaded zones", async () => {
+  const { world, warehouseId, building, placementId } =
+    await occupiedWorld("STORED");
+  const palletId = await world.t.run(async (ctx) => {
+    const template = (await ctx.db.query("storageZones").collect())[0]!;
+    const { _id, _creationTime, ...zone } = template;
+    void _id;
+    void _creationTime;
+    for (let index = 0; index < 30; index++)
+      await ctx.db.insert("storageZones", {
+        ...zone,
+        code: `RECOMMEND-${index}`,
+      });
+    return (await ctx.db.get("finishedGoodsPlacements", placementId))!.palletId;
+  });
+  const read = await measuredRead(world, recommend, { warehouseId, palletId });
+  expect(read.result).toHaveProperty("candidates");
+  expect(
+    read.tables.filter((table) => table === "storageFloorReservedBlocks"),
+  ).toHaveLength(1);
+  expect(read.tables.filter((table) => table === "storageFloors")).toHaveLength(
+    1,
+  );
+  // All zones share this parent; each query snapshot reads it once.
+  expect(
+    read.tables.filter((table) => table === "storageBuildings"),
+  ).toHaveLength(1);
+  expect(building._id).toBeTruthy();
+});
+
+it("resets pre-split layout cursors while current native pages survive inventory writes", async () => {
+  const { world, warehouseId, building, placementId } =
+    await occupiedWorld("STORED");
+  await world.t.run(async (ctx) => {
+    const { _id, _creationTime, ...template } = building;
+    void _id;
+    void _creationTime;
+    for (let index = 0; index < 25; index++)
+      await ctx.db.insert("storageBuildings", {
+        ...template,
+        code: `CURSOR-${index.toString().padStart(2, "0")}`,
+      });
+  });
+  const args = { warehouseId, pageSize: 20 };
+  const first = await measuredRead(world, listStorageBuildingsPage, args);
+  const cursor = first.result.continueCursor as string;
+  expect(cursor).toContain("buildings-v2");
+  const legacy = await measuredRead(world, listStorageBuildingsPage, {
+    ...args,
+    cursor: cursor.replace("buildings-v2", "buildings"),
+  });
+  expect(legacy.result.status).toBe("reset");
+  await world.t.run(async (ctx) => {
+    const palletId = (await ctx.db.get("finishedGoodsPlacements", placementId))!
+      .palletId;
+    const db = createTenantDocumentAccess(
+      { orgId: world.orgA, requestId: "cursor-inventory" },
+      createMutationTenantStorage(ctx, "cursor-inventory"),
+    );
+    const tracked = trackFinishedGoodsWrites(db);
+    await tracked.db.patch("finishedGoodsPallets", palletId, { quantity: 3 });
+    await tracked.flush();
+  });
+  const next = await measuredRead(world, listStorageBuildingsPage, {
+    ...args,
+    cursor,
+  });
+  expect(next.result.status).toBe("ready");
+  expect(next.result.page).toHaveLength(6);
+});
+
+it("does not offer a retired pallet with a stored placement as a recommendation support", async () => {
+  const { world, warehouseId, placementId } = await occupiedWorld("STORED");
+  const { lowerId, upperId } = await world.t.run(async (ctx) => {
+    const placement = (await ctx.db.get(
+      "finishedGoodsPlacements",
+      placementId,
+    ))!;
+    const lower = (await ctx.db.get(
+      "finishedGoodsPallets",
+      placement.palletId,
+    ))!;
+    await ctx.db.patch("finishedGoodsPallets", lower._id, {
+      placementId,
+      stackable: true,
+      maxStackLevels: 3,
+    });
+    const { _id, _creationTime, ...template } = lower;
+    void _id;
+    void _creationTime;
+    const upperId = await ctx.db.insert("finishedGoodsPallets", {
+      ...template,
+      code: "UPPER-REGRESSION",
+      quantity: 1,
+      status: "AWAITING_PLACEMENT",
+    });
+    return { lowerId: lower._id, upperId };
+  });
+  const candidates = async () => {
+    const read = await measuredRead(world, recommend, {
+      warehouseId,
+      palletId: upperId,
+    });
+    return [
+      ...(read.result.candidates as Array<{ supportPalletId?: string }>),
+      ...(read.result.previewCandidates as Array<{ supportPalletId?: string }>),
+    ];
+  };
+  expect(
+    (await candidates()).some(
+      (candidate) => candidate.supportPalletId === lowerId,
+    ),
+  ).toBe(true);
+  await world.t.run((ctx) =>
+    ctx.db.patch("finishedGoodsPallets", lowerId, { retiredAt: 2 }),
+  );
+  expect(
+    (await candidates()).some(
+      (candidate) => candidate.supportPalletId === lowerId,
+    ),
+  ).toBe(false);
 });

@@ -41,11 +41,19 @@ export function BuildingStatusToggle({
   buildingId,
   code,
   status,
+  sharedControl,
 }: {
   readonly warehouseId: string;
   readonly buildingId: string;
   readonly code: string;
   readonly status: StorageLayoutStatus;
+  readonly sharedControl?: {
+    readonly loaded: boolean;
+    readonly value:
+      | { status: StorageLayoutStatus; version: number; blocked: boolean }
+      | null
+      | undefined;
+  };
 }) {
   const t = useTranslations("StorageLayouts");
   const workspace = useWorkspace();
@@ -56,7 +64,9 @@ export function BuildingStatusToggle({
     );
   const result = useQuery(
     storageLayoutRefs.statusControl,
-    canChange && status !== "ARCHIVED" ? { warehouseId, buildingId } : "skip",
+    !sharedControl && canChange && status !== "ARCHIVED"
+      ? { warehouseId, buildingId }
+      : "skip",
   );
   const activate = useMutation(storageLayoutRefs.activate);
   const returnToDraft = useMutation(storageLayoutRefs.returnToDraft);
@@ -72,7 +82,11 @@ export function BuildingStatusToggle({
     status: StorageLayoutStatus;
     denied: boolean;
   }>();
-  const control = result?.ok ? result.value : undefined;
+  const control = sharedControl
+    ? sharedControl.value
+    : result?.ok
+      ? result.value
+      : undefined;
   const current = control?.status ?? status;
   const active = current === "ACTIVE";
   const label = t(
@@ -170,7 +184,8 @@ export function BuildingStatusToggle({
       )
     : control?.blocked
       ? t("statusOccupied")
-      : result !== undefined && !control
+      : (sharedControl ? sharedControl.loaded : result !== undefined) &&
+          !control
         ? t("statusUnavailable")
         : undefined;
   return (

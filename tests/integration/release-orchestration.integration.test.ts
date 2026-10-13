@@ -72,7 +72,7 @@ function backupEvidence(deploymentName: string, now = 1_000_000) {
       deploymentName,
       requestor: "snapshotExport",
       state: "completed",
-      includeStorage: true,
+      includeStorage: false,
       requestedAtMs: now,
       verifiedAtMs: now,
       startTs: String(now * 1_000_000),
@@ -308,7 +308,10 @@ describe("gated production release", () => {
     );
     expect(result.state.checks.backup).toMatchObject({
       ok: true,
-      metadata: { includeStorage: true, deploymentName: "greedy-cardinal-537" },
+      metadata: {
+        includeStorage: false,
+        deploymentName: "greedy-cardinal-537",
+      },
     });
     expect(JSON.stringify(buildManifest(result, input))).not.toMatch(
       /secret|archiveUrl|rawError/,

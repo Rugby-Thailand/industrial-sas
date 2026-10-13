@@ -1,3 +1,5 @@
+import { trackDocumentReads } from "../fixtures/document-reads";
+import { createConvexTenantContextLookups } from "../../convex/lib/tenantContextLookups";
 import { seedFixtureAuthorization } from "../fixtures/policy-fixture-permissions";
 
 import { describe, expect, it } from "vitest";
@@ -303,5 +305,85 @@ describe("Convex authorization lookups", () => {
       device: deviceA,
       deviceForeign: null,
     });
+  });
+});
+
+it("shares context membership, role and permission reads only inside one lookup scope", async () => {
+  const { world, seeded } = await authorizationWorld();
+  await world.t.run(async (ctx) => {
+    const { db, queries, reads } = trackDocumentReads(ctx.db);
+    const context = createConvexTenantContextLookups(
+      { db },
+      FIXTURE_REQUEST_ID,
+      true,
+    );
+    const input = { orgId: world.orgA, userId: world.userA };
+    const membership = await context.findMembershipByOrganizationAndUser(input);
+    expect(membership?._id).toBe(seeded.identities.membershipA);
+    const before = queries.length;
+    const lookup = createConvexAuthorizationLookups(
+      { db },
+      FIXTURE_REQUEST_ID,
+      context,
+      true,
+    );
+    await Promise.all([
+      lookup.findMembership(input),
+      lookup.findMembership(input),
+    ]);
+    expect(queries.length).toBe(before);
+    const roleInput = {
+      orgId: world.orgA,
+      membershipId: seeded.identities.membershipA,
+      limit: MEMBERSHIP_ROLE_LIMIT,
+    };
+    const [grants] = await Promise.all([
+      lookup.listMembershipRoles(roleInput),
+      lookup.listMembershipRoles(roleInput),
+    ]);
+    expect(queries.filter((table) => table === "membershipRoles")).toHaveLength(
+      1,
+    );
+    const role = grants[0]!;
+    await Promise.all([
+      lookup.findRole({ orgId: world.orgA, roleId: role.roleId }),
+      lookup.findRole({ orgId: world.orgA, roleId: role.roleId }),
+    ]);
+    expect(reads.filter((read) => read.table === "roles")).toHaveLength(1);
+    const permission = {
+      orgId: world.orgA,
+      roleId: role.roleId,
+      permissionCode: "not-granted",
+    };
+    expect(await lookup.findRolePermission(permission)).toBeNull();
+    expect(await lookup.findRolePermission(permission)).toBeNull();
+    expect(queries.filter((table) => table === "rolePermissions")).toHaveLength(
+      1,
+    );
+    const fresh = createConvexAuthorizationLookups({ db }, FIXTURE_REQUEST_ID);
+    await fresh.findRolePermission(permission);
+    expect(queries.filter((table) => table === "rolePermissions")).toHaveLength(
+      2,
+    );
+  });
+});
+
+it("default mutation lookups observe role changes within the transaction", async () => {
+  const { world, seeded } = await authorizationWorld();
+  await world.t.run(async (ctx) => {
+    const lookups = createConvexAuthorizationLookups(ctx, FIXTURE_REQUEST_ID);
+    const grants = await lookups.listMembershipRoles({
+      orgId: world.orgA,
+      membershipId: seeded.identities.membershipA,
+      limit: MEMBERSHIP_ROLE_LIMIT,
+    });
+    const roleId = grants[0]!.roleId;
+    expect(
+      (await lookups.findRole({ orgId: world.orgA, roleId }))?.status,
+    ).toBe("ACTIVE");
+    await ctx.db.patch("roles", roleId, { status: "ARCHIVED" });
+    expect(
+      (await lookups.findRole({ orgId: world.orgA, roleId }))?.status,
+    ).toBe("ARCHIVED");
   });
 });

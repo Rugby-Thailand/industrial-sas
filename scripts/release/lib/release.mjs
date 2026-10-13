@@ -298,7 +298,7 @@ async function backup(input, deps, state, record) {
     metadata.deploymentName === input.target.convexDeployment &&
     metadata.requestor === "snapshotExport" &&
     metadata.state === "completed" &&
-    metadata.includeStorage === true &&
+    metadata.includeStorage === false &&
     fields.every(
       (field) =>
         typeof metadata[field] === "string" && /^\d+$/.test(metadata[field]),
@@ -321,7 +321,7 @@ async function backup(input, deps, state, record) {
     deploymentName: metadata.deploymentName,
     requestor: "snapshotExport",
     state: "completed",
-    includeStorage: true,
+    includeStorage: false,
     requestedAtMs: metadata.requestedAtMs,
     verifiedAtMs: metadata.verifiedAtMs,
     startTs: metadata.startTs,

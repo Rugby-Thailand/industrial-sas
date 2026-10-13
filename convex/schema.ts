@@ -382,6 +382,9 @@ const schema = defineSchema({
       moving: v.number(),
     }),
   ).index("by_orgId_palletId", byOrg("palletId")),
+  storageCatalogueSignals: defineTable(
+    tenantFields({ warehouseId: v.id("warehouses"), generation: v.number() }),
+  ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsSummaryReadiness: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

@@ -1,5 +1,5 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
-import { summaryReadiness } from "../lib/finishedGoodsSummary";
+import { storageCatalogueGeneration } from "../lib/finishedGoodsSummary";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
@@ -336,10 +336,11 @@ export const page = queryWithOrg({
           keyField: "code",
         };
     const result = await keysetScan(ctx, {
-      generation:
-        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
-        0,
-      scope: { entity: "locations", ...criteria },
+      generation: await storageCatalogueGeneration(
+        ctx.tenantDb,
+        args.warehouseId,
+      ),
+      scope: { entity: "locations-v2", ...criteria },
       pageSize,
       cursor,
       scanCursor,
@@ -422,9 +423,8 @@ export const options = queryWithOrg({
   warehouseId: (args) => args.warehouseId,
   handler: async (ctx, { warehouseId, cursor }) => {
     const result = await paginatedScan(ctx, {
-      generation:
-        (await summaryReadiness(ctx.tenantDb, warehouseId))?.generation ?? 0,
-      scope: { entity: "building-options", warehouseId },
+      generation: await storageCatalogueGeneration(ctx.tenantDb, warehouseId),
+      scope: { entity: "building-options-v2", warehouseId },
       pageSize: 100,
       ...(cursor ? { cursor } : {}),
       read: (raw, endCursor?: string) =>

@@ -5,6 +5,8 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import { hrRefs } from "@/lib/convex/hrApi";
 
+import { useBusinessDate } from "./useBusinessDate";
+
 export interface HrSite {
   readonly id: string;
   readonly code: string;
@@ -18,6 +20,11 @@ export interface HrAccessValue {
   readonly organizationName?: string;
   readonly timezone?: string;
   readonly timezoneSupported: boolean;
+  /**
+   * The organization's business date for display, derived on this device
+   * from the organization's offset and refreshed at local midnight. Never
+   * authoritative: server writes and locks use the server clock.
+   */
   readonly today?: string;
   readonly employee?: {
     readonly id: string;
@@ -43,7 +50,8 @@ const HrAccessContext = createContext<HrAccessValue>(UNAVAILABLE);
 /**
  * HR display access, queried separately from the storage workspace so a
  * member with HR access only is not stranded behind storage permissions.
- * Display only: each HR function authorizes on the server.
+ * Display only: each HR function authorizes on the server. The query is
+ * clock-free (cacheable all day); `today` is derived here.
  */
 export function HrAccessProvider({
   children,
@@ -52,8 +60,13 @@ export function HrAccessProvider({
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const outcome = useQuery(
-    hrRefs.access,
+    hrRefs.accessDisplay,
     !isLoading && isAuthenticated ? {} : "skip",
+  );
+  const today = useBusinessDate(
+    outcome?.ok === true && outcome.value.timezoneSupported
+      ? outcome.value.offsetMinutes
+      : undefined,
   );
   const value = useMemo<HrAccessValue>(() => {
     if (isLoading) return { ...UNAVAILABLE, status: "LOADING" };
@@ -67,13 +80,13 @@ export function HrAccessProvider({
       organizationName: access.organizationName,
       timezone: access.timezone,
       timezoneSupported: access.timezoneSupported,
-      ...(access.today === undefined ? {} : { today: access.today }),
+      ...(today === undefined ? {} : { today }),
       ...(access.employee === undefined ? {} : { employee: access.employee }),
       sites: access.sites,
       sitesComplete: access.sitesComplete,
       identityKey: `${access.organizationId}:${access.actorUserId}:${access.employee?.id ?? "not-linked"}`,
     };
-  }, [isAuthenticated, isLoading, outcome]);
+  }, [isAuthenticated, isLoading, outcome, today]);
   return (
     <HrAccessContext.Provider value={value}>
       {children}

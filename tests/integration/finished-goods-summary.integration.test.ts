@@ -84,6 +84,13 @@ describe("finished goods summary ledger", () => {
       backfillProductSummaries(db, world.warehouses.alphaA),
     );
     expect(finalBatch.ready).toBe(true);
+    // Backfill writes product projections/readiness directly; it must not
+    // signal a structural layout change or be recursively tracked.
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("storageCatalogueSignals").collect(),
+      ),
+    ).toHaveLength(0);
     expect(finalBatch).not.toHaveProperty("continuationKey");
     expect(await read()).toMatchObject({
       count: 100,

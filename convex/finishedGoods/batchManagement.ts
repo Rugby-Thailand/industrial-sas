@@ -15,7 +15,8 @@ import {
   compact,
   created,
   failure,
-  heldPlacements,
+  hasHeldPlacement,
+  firstActiveMove,
   nextCode,
   productOf,
   rows,
@@ -46,39 +47,18 @@ async function unitState(
 ) {
   // Only held placements and active moves decide the lock; released
   // placements and finished moves are history and are not read here.
-  const [placements, children, moves] = await Promise.all([
-    heldPlacements(ctx, "by_orgId_palletId_status", {
-      field: "palletId",
-      value: unit._id,
-    }),
-    heldPlacements(ctx, "by_orgId_supportPalletId_status", {
-      field: "supportPalletId",
-      value: unit._id,
-    }),
-    Promise.all(
-      (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
-        rows<Doc<"finishedGoodsMoves">>(
-          ctx,
-          "finishedGoodsMoves",
-          "by_orgId_palletId_status",
-          [
-            { field: "palletId", value: unit._id },
-            { field: "status", value: status },
-          ],
-        ),
-      ),
-    ).then((active) =>
-      active.flat().sort((a, b) => a._creationTime - b._creationTime),
-    ),
+  const [placements, children, move] = await Promise.all([
+    hasHeldPlacement(ctx, { field: "palletId", value: unit._id }),
+    hasHeldPlacement(ctx, { field: "supportPalletId", value: unit._id }),
+    firstActiveMove(ctx, unit._id),
   ]);
-  const move = moves[0];
-  const reason = children.length
+  const reason = children
     ? "SUPPORTING"
     : move
       ? "MOVING"
       : unit.status === "STORED"
         ? "STORED"
-        : unit.status === "RESERVED" || placements.length
+        : unit.status === "RESERVED" || placements
           ? "RESERVED"
           : null;
   return {

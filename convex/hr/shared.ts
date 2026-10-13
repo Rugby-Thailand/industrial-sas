@@ -18,15 +18,17 @@ import {
 import { grantedPermissionsAmong } from "../lib/navigationGrants";
 import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
+import { TENANT_INDEX_MAX_BATCH_SIZE, TenantDbError } from "../lib/tenantDb";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { refusal } from "../lib/writeEnvelope";
 import {
+  compareDates,
+  inclusiveDayCount,
   timezoneOffsetMinutes,
   toLocal,
   type IsoDate,
 } from "../model/hr/calendar";
-import { compareDates } from "../model/hr/calendar";
-import type { RecordedDay } from "../model/hr/period";
+import { type RecordedDay } from "../model/hr/period";
 import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
 import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
@@ -626,7 +628,83 @@ export async function ensureDay(
 
 /* Periods and locks -------------------------------------------------------- */
 
-/** All recorded days and holidays of one site for the given dates. */
+const ascendingDates = (dates: readonly IsoDate[]) =>
+  [...dates].sort(compareDates);
+
+/**
+ * One employee's recorded days in `[from, to]` by business date: a single
+ * checked date-range read instead of one lookup per date. A business date
+ * has at most one day record (`ensureDay`); a duplicate fails exactly as
+ * the per-date `unique()` did.
+ */
+export async function employeeDaysInRange(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, AttendanceDay>> {
+  const days = new Map<IsoDate, AttendanceDay>();
+  const count = inclusiveDayCount(from, to);
+  if (count < 1) return days;
+  const rows = await ctx.tenantDb
+    .byIndex<AttendanceDay>(
+      "hrAttendanceDays",
+      "by_orgId_employeeId_businessDate",
+      [{ field: "employeeId", value: employeeId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(Math.min(count * 2, TENANT_INDEX_MAX_BATCH_SIZE));
+  for (const row of rows) {
+    if (days.has(row.businessDate))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    days.set(row.businessDate, row);
+  }
+  return days;
+}
+
+/**
+ * A site's holidays in `[from, to]` by date, in one checked range read. One
+ * holiday per site date; a duplicate fails as the per-date `unique()` did.
+ */
+export async function holidaysInRange(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, string>> {
+  const holidays = new Map<IsoDate, string>();
+  const count = inclusiveDayCount(from, to);
+  if (count < 1) return holidays;
+  const rows = await ctx.tenantDb
+    .byIndex<Doc<"hrHolidays">>(
+      "hrHolidays",
+      "by_orgId_warehouseId_date",
+      [{ field: "warehouseId", value: warehouseId }],
+      {
+        field: "date",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(Math.min(count * 2, TENANT_INDEX_MAX_BATCH_SIZE));
+  for (const row of rows) {
+    if (holidays.has(row.date))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    holidays.set(row.date, row.name);
+  }
+  return holidays;
+}
+
+/**
+ * All recorded days and holidays of one site for the given dates: one date
+ * range read per kind over the dates' span, filtered to the dates. Each date
+ * keeps its former bound of `MAX_SITE_EMPLOYEES * 2` day records and fails
+ * rather than truncates beyond it.
+ */
 export async function loadSiteDays(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -637,21 +715,40 @@ export async function loadSiteDays(
 }> {
   const days = new Map<string, AttendanceDay>();
   const holidays = new Map<IsoDate, string>();
-  for (const date of dates) {
-    const rows = await ctx.tenantDb
+  if (dates.length === 0) return { days, holidays };
+  const sorted = ascendingDates(dates);
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  const wanted = new Set(dates);
+  const perDate = MAX_SITE_EMPLOYEES * 2;
+  const span = inclusiveDayCount(first, last);
+  const [rows, siteHolidays] = await Promise.all([
+    ctx.tenantDb
       .byIndex<AttendanceDay>(
         "hrAttendanceDays",
         "by_orgId_warehouseId_businessDate",
-        [
-          { field: "warehouseId", value: warehouseId },
-          { field: "businessDate", value: date },
-        ],
+        [{ field: "warehouseId", value: warehouseId }],
+        {
+          field: "businessDate",
+          lower: { value: first, inclusive: true },
+          upper: { value: last, inclusive: true },
+        },
       )
-      .all(MAX_SITE_EMPLOYEES * 2);
-    for (const row of rows) days.set(`${row.employeeId}:${date}`, row);
-    const name = await holidayName(ctx, warehouseId, date);
-    if (name !== undefined) holidays.set(date, name);
+      .all(Math.min(perDate * span, TENANT_INDEX_MAX_BATCH_SIZE)),
+    holidaysInRange(ctx, warehouseId, first, last),
+  ]);
+  const perDateCount = new Map<IsoDate, number>();
+  for (const row of rows) {
+    const date = row.businessDate;
+    if (!wanted.has(date)) continue;
+    const seen = (perDateCount.get(date) ?? 0) + 1;
+    if (seen > perDate)
+      throw new TenantDbError("CAPACITY_DATA_LIMIT", ctx.requestId);
+    perDateCount.set(date, seen);
+    days.set(`${row.employeeId}:${date}`, row);
   }
+  for (const [date, name] of siteHolidays)
+    if (wanted.has(date)) holidays.set(date, name);
   return { days, holidays };
 }
 
@@ -695,6 +792,7 @@ export async function closedPeriodCovering(
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
+  // Legacy imports may violate both range length and non-overlap invariants.
   const periods = await sitePeriods(ctx, warehouseId);
   return (
     periods.find(
@@ -880,8 +978,8 @@ export async function memberName(
 ): Promise<string | null> {
   if (userId === undefined) return null;
   if (cache.has(userId)) return cache.get(userId) ?? null;
-  const member = await ctx.members.get(userId);
-  const name = member?.displayName ?? null;
+  // Name only: no membership-window evaluation, so labels never read the clock.
+  const name = await ctx.members.displayName(userId);
   cache.set(userId, name);
   return name;
 }

@@ -225,43 +225,10 @@ function CatalogueContent({
       ) : (
         <div className="divide-y divide-border border-y border-border">
           {buildings.map((building) => (
-            <article
+            <BuildingCatalogueRow
               key={building.buildingId}
-              className="grid min-w-0 gap-3 py-3 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(14rem,1fr)] lg:items-center"
-            >
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <Link
-                    href={storageBuildingPath(building.buildingId)}
-                    className="flex min-h-11 flex-col justify-center rounded-md hover:text-link focus-visible:outline-2 focus-visible:outline-link"
-                  >
-                    <span className="font-mono text-xs break-all text-muted">
-                      {building.code}
-                    </span>
-                    <h2 className="text-base leading-6 font-semibold break-words">
-                      {building.name}
-                    </h2>
-                  </Link>
-                </div>
-                <BuildingStatusToggle
-                  warehouseId={warehouseId}
-                  buildingId={building.buildingId}
-                  code={building.code}
-                  status={building.status}
-                />
-              </div>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <Metric
-                  label={t("floors")}
-                  value={String(building.floorCount)}
-                />
-                <Metric
-                  label={t("dimensions")}
-                  value={`${metres(building.widthMm)} × ${metres(building.depthMm)} m`}
-                />
-              </dl>
-              <BuildingCatalogueOccupancy building={building} />
-            </article>
+              building={building}
+            />
           ))}
         </div>
       )}
@@ -287,15 +254,61 @@ function CatalogueContent({
   );
 }
 
-function BuildingCatalogueOccupancy({
-  building,
-}: {
-  building: StorageBuildingRow;
-}) {
-  const outcome = useQuery(storageLayoutRefs.occupancy, {
+function useBuildingRowState(building: StorageBuildingRow) {
+  return useQuery(storageLayoutRefs.occupancy, {
     warehouseId: building.warehouseId,
     buildingId: building.buildingId,
   });
+}
+
+function BuildingCatalogueRow({ building }: { building: StorageBuildingRow }) {
+  const t = useTranslations("StorageLayouts");
+  const warehouseId = building.warehouseId;
+  const outcome = useBuildingRowState(building);
+  return (
+    <article className="grid min-w-0 gap-3 py-3 lg:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(14rem,1fr)] lg:items-center">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href={storageBuildingPath(building.buildingId)}
+            className="flex min-h-11 flex-col justify-center rounded-md hover:text-link focus-visible:outline-2 focus-visible:outline-link"
+          >
+            <span className="font-mono text-xs break-all text-muted">
+              {building.code}
+            </span>
+            <h2 className="text-base leading-6 font-semibold break-words">
+              {building.name}
+            </h2>
+          </Link>
+        </div>
+        <BuildingStatusToggle
+          warehouseId={warehouseId}
+          buildingId={building.buildingId}
+          code={building.code}
+          status={building.status}
+          sharedControl={{
+            loaded: outcome !== undefined,
+            value: outcome?.ok ? outcome.value : null,
+          }}
+        />
+      </div>
+      <dl className="grid grid-cols-2 gap-3 text-sm">
+        <Metric label={t("floors")} value={String(building.floorCount)} />
+        <Metric
+          label={t("dimensions")}
+          value={`${metres(building.widthMm)} × ${metres(building.depthMm)} m`}
+        />
+      </dl>
+      <BuildingCatalogueOccupancy outcome={outcome} />
+    </article>
+  );
+}
+
+function BuildingCatalogueOccupancy({
+  outcome,
+}: {
+  outcome: ReturnType<typeof useBuildingRowState>;
+}) {
   if (!outcome) return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
   if (!outcome.ok || !outcome.value)
     return (

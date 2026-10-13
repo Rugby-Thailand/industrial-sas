@@ -265,13 +265,15 @@ test("AI opens a live camera, captures once, stops its stream and automatically 
   await expect(
     page.getByRole("img", { name: "Location label photo" }),
   ).toBeVisible();
-  expect(
-    await page.evaluate(() =>
-      window.barcodeFixtureStreams.flatMap((stream) =>
-        stream.getTracks().map((track) => track.readyState),
-      ),
+  // Photo AI can cancel barcode startup before its lazy decoder acquires a
+  // stream. Whether one or two cameras opened, every acquired track must stop.
+  const trackStates = await page.evaluate(() =>
+    window.barcodeFixtureStreams.flatMap((stream) =>
+      stream.getTracks().map((track) => track.readyState),
     ),
-  ).toEqual(["ended", "ended"]);
+  );
+  expect(trackStates.length).toBeGreaterThan(0);
+  expect(trackStates).toEqual(trackStates.map(() => "ended"));
   await expect(
     page.getByRole("button", { name: "Read location with AI", exact: true }),
   ).toHaveCount(0);

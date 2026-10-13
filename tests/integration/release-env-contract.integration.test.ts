@@ -20,6 +20,7 @@ const SHA = "c".repeat(40);
 
 const production = {
   RELEASE_ENVIRONMENT: "production",
+  UPLOADTHING_TOKEN: "mock-provider-token",
   RELEASE_SHA: SHA,
   RELEASE_RUN_ID: "987654",
   VERCEL: "1",
@@ -177,12 +178,27 @@ describe("release build environment contract", () => {
     ).toBe(false);
   });
 
-  it("does not require optional integrations", () => {
+  it("does not require optional telemetry", () => {
     const result = validateBuildEnvironment(production, "build");
     expect(result.ok).toBe(true);
     expect(result.notes).toEqual(
-      expect.arrayContaining(["UPLOADTHING_TOKEN: not set"]),
+      expect.arrayContaining(["NEXT_PUBLIC_OBSERVABILITY_SINK: not set"]),
     );
+  });
+
+  it("requires the server upload token for staging and production before backend deployment", () => {
+    for (const env of [production, staging]) {
+      for (const phase of ["pre", "build"] as const) {
+        for (const token of [undefined, "", "   "]) {
+          const result = validateBuildEnvironment(
+            { ...env, UPLOADTHING_TOKEN: token },
+            phase,
+          );
+          expect(result.ok).toBe(false);
+          expect(result.problems).toContain("UPLOADTHING_TOKEN");
+        }
+      }
+    }
   });
 
   it("refuses a crossed issuer or operator credential in the build", () => {
@@ -206,6 +222,7 @@ describe("release build environment contract", () => {
       ...production,
       CONVEX_DEPLOY_KEY: "prod:wrong-1|SUPERSECRETVALUE",
       CLERK_SECRET_KEY: "sk_test_SUPERSECRETVALUE",
+      UPLOADTHING_TOKEN: "SUPERSECRETVALUE",
     };
     const cli = spawnSync(
       process.execPath,

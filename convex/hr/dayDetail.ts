@@ -56,6 +56,41 @@ export async function dayCorrections(
   };
 }
 
+/**
+ * Exactly `dayCorrections(ctx, day).items[0]`, for summaries that show only
+ * the newest request, without reading the day's whole correction history.
+ *
+ * A submission or resubmission stamps `submittedAt` with the server time, so
+ * the pending request is normally the index's first row. Only when the
+ * pending request ties the first row on `submittedAt` does ordering depend
+ * on whether it is among the newest `MAX_DAY_CORRECTIONS`; that rare case
+ * defers to the full helper rather than guessing.
+ */
+export async function latestCorrection(
+  ctx: TenantFunctionContext,
+  day: Pick<Doc<"hrAttendanceDays">, "_id" | "pendingCorrectionId">,
+): Promise<Correction | null> {
+  const [newest] = await ctx.tenantDb
+    .byIndex<Correction>("hrCorrectionRequests", "by_orgId_dayId_submittedAt", [
+      { field: "dayId", value: day._id },
+    ])
+    .take(1, "desc");
+  if (
+    day.pendingCorrectionId === undefined ||
+    newest?._id === day.pendingCorrectionId
+  )
+    return newest ?? null;
+  const pending = await ctx.tenantDb.get<Correction>(
+    "hrCorrectionRequests",
+    day.pendingCorrectionId,
+  );
+  if (pending === null) return newest ?? null;
+  if (newest === undefined || pending.submittedAt > newest.submittedAt)
+    return pending;
+  if (pending.submittedAt < newest.submittedAt) return newest;
+  return (await dayCorrections(ctx, day)).items[0] ?? null;
+}
+
 export async function correctionView(
   ctx: TenantFunctionContext,
   correction: Correction,

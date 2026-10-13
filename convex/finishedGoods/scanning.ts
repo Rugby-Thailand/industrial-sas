@@ -9,6 +9,8 @@ import {
   command,
   created,
   failure,
+  firstActiveMove,
+  hasHeldPlacement,
   palletOf,
   productOf,
   rows,
@@ -36,32 +38,12 @@ async function eligible(
     !["AWAITING_MEASUREMENT", "AWAITING_PLACEMENT"].includes(pallet.status)
   )
     return false;
-  const [placements, children, moves] = await Promise.all([
-    rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_palletId",
-      [{ field: "palletId", value: pallet._id }],
-    ),
-    rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_supportPalletId",
-      [{ field: "supportPalletId", value: pallet._id }],
-    ),
-    rows<Doc<"finishedGoodsMoves">>(
-      ctx,
-      "finishedGoodsMoves",
-      "by_orgId_palletId",
-      [{ field: "palletId", value: pallet._id }],
-    ),
+  const [placement, child, move] = await Promise.all([
+    hasHeldPlacement(ctx, { field: "palletId", value: pallet._id }),
+    hasHeldPlacement(ctx, { field: "supportPalletId", value: pallet._id }),
+    firstActiveMove(ctx, pallet._id),
   ]);
-  return (
-    ![...placements, ...children].some((row) => row.status !== "RELEASED") &&
-    !moves.some(
-      (row) => row.status === "RESERVED" || row.status === "IN_TRANSIT",
-    )
-  );
+  return !placement && !child && !move;
 }
 
 export const resolvePackageCode = queryWithOrg({

@@ -4,12 +4,15 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps, ReactNode } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { writeSuccess } from "@tests/fixtures/finished-goods-ui";
+import { querySuccess, writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { JobScanScreen } from "./JobScanScreen";
 
 const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   resize: vi.fn(),
+  upload: vi.fn(),
+  extract: vi.fn(),
+  toDataUrl: vi.fn(),
   imageCodes: undefined as ((codes: string[]) => void) | undefined,
   decode: undefined as ((code: string) => void) | undefined,
   pickerPresentation: [] as (string | undefined)[],
@@ -41,7 +44,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 vi.mock("convex/react", () => ({
   useMutation: () => mocks.save,
-  useAction: () => vi.fn(),
+  useAction: () => mocks.extract,
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (id: string) => ReactNode }) =>
@@ -50,7 +53,7 @@ vi.mock("@/components/system/QueryGate", () => ({
 vi.mock("@/hooks/useDraftKey", () => ({ useDraftKey: () => "actor-a" }));
 vi.mock("@/hooks/useCanManage", () => ({ useCanManage: () => true }));
 vi.mock("@/lib/uploadthing", () => ({
-  useUploadThing: () => ({ startUpload: vi.fn() }),
+  useUploadThing: () => ({ startUpload: mocks.upload }),
 }));
 vi.mock("./LocationPicker", () => ({
   LocationPicker: ({
@@ -97,10 +100,13 @@ vi.mock("./PhotoCapture", () => ({
 
 vi.mock("./resizeImage", () => ({
   resizeImage: mocks.resize,
-  toDataUrl: vi.fn(),
+  toDataUrl: mocks.toDataUrl,
 }));
 
 beforeEach(() => {
+  mocks.upload.mockReset().mockResolvedValue(undefined);
+  mocks.extract.mockReset().mockResolvedValue(querySuccess({ ok: false }));
+  mocks.toDataUrl.mockReset().mockResolvedValue("data:image/jpeg;base64,AA");
   mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
   mocks.resize.mockReset().mockRejectedValue(new Error("Unreadable image"));
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:demo");
@@ -109,8 +115,9 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 function start() {
-  renderWithIntl(<JobScanScreen />, { locale: "en" });
+  const view = renderWithIntl(<JobScanScreen />, { locale: "en" });
   fireEvent.click(screen.getByRole("button", { name: "Choose demo location" }));
+  return view;
 }
 function addTicket(index = 0) {
   fireEvent.click(screen.getByRole("button", { name: "Manual" }));
@@ -465,3 +472,135 @@ it("opts only its location step into the job-scan scanner presentation", () => {
   expect(screen.getByRole("heading", { name: "Where are we?" })).toBeVisible();
   expect(mocks.pickerPresentation.at(-1)).toBe("jobScan");
 });
+
+const storedPhotoUrl = "https://example.ufs.sh/f/job-ticket.jpg";
+function successfulExtraction() {
+  return querySuccess({
+    ok: true,
+    fields: { factoryOrder: "FO69070073", productBarcodeText: "DEMO-BOX" },
+    raw: "{}",
+    mock: false,
+  });
+}
+function submitPhoto() {
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  fireEvent.click(screen.getByRole("button", { name: "Submit demo photo" }));
+}
+
+it("uploads one resized image, extracts independently, and saves its provider URL", async () => {
+  const resized = new File(["resized"], "resized.jpg", { type: "image/jpeg" });
+  mocks.resize.mockResolvedValue(resized);
+  mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+  mocks.extract.mockResolvedValue(successfulExtraction());
+  const { container } = start();
+  submitPhoto();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /Save 1/ })).toBeEnabled(),
+  );
+  expect(mocks.upload).toHaveBeenCalledExactlyOnceWith([resized]);
+  expect(mocks.toDataUrl).toHaveBeenCalledExactlyOnceWith(resized);
+  expect(mocks.extract).toHaveBeenCalledExactlyOnceWith({
+    warehouseId: "warehouse-a",
+    imageUrl: "data:image/jpeg;base64,AA",
+  });
+  expect(container.querySelector("img")).toHaveAttribute("src", storedPhotoUrl);
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0].items).toEqual([
+    expect.objectContaining({
+      source: "AI",
+      imageUrl: storedPhotoUrl,
+      factoryOrder: "FO69070073",
+      productBarcodeText: "DEMO-BOX",
+    }),
+  ]);
+  await screen.findByRole("button", { name: "Scan more" });
+  expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
+});
+
+it.each(["rejected", "missing"])(
+  "keeps AI-filled fields editable after a %s upload result",
+  async (outcome) => {
+    mocks.resize.mockResolvedValue(
+      new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
+    );
+    mocks.extract.mockResolvedValue(successfulExtraction());
+    if (outcome === "rejected")
+      mocks.upload.mockRejectedValue(new Error("upload failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { container } = start();
+    submitPhoto();
+    await screen.findByText(
+      "Photo not stored (upload failed). Check the fields.",
+    );
+    const job = screen.getByRole("textbox", { name: /Job No\./ });
+    expect(job).toBeEnabled();
+    expect(job).toHaveValue("FO69070073");
+    expect(container.querySelector("img")).toHaveAttribute("src", "blob:demo");
+    fireEvent.change(job, { target: { value: "FO69070074" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save.mock.calls[0]![0].items[0]).toMatchObject({
+      factoryOrder: "FO69070074",
+      productBarcodeText: "DEMO-BOX",
+    });
+    expect(mocks.save.mock.calls[0]![0].items[0]).not.toHaveProperty(
+      "imageUrl",
+    );
+  },
+);
+
+it("retains a successful upload when extraction fails and allows manual completion", async () => {
+  mocks.resize.mockResolvedValue(
+    new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
+  );
+  mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+  mocks.extract.mockRejectedValue(new Error("AI unavailable"));
+  const { container } = start();
+  submitPhoto();
+  await screen.findByText(
+    "AI could not read this photo. Fill in the fields by hand.",
+  );
+  expect(container.querySelector("img")).toHaveAttribute("src", storedPhotoUrl);
+  fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
+    target: { value: "FO69070073" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
+    target: { value: "DEMO-BOX" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0].items[0]).toMatchObject({
+    imageUrl: storedPhotoUrl,
+    factoryOrder: "FO69070073",
+  });
+});
+
+it.each(["remove", "unmount"])(
+  "releases the ticket preview on %s while upload is still pending",
+  async (action) => {
+    mocks.resize.mockResolvedValue(
+      new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
+    );
+    let resolveUpload!: (files: { ufsUrl: string }[]) => void;
+    mocks.upload.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve;
+        }),
+    );
+    mocks.extract.mockResolvedValue(successfulExtraction());
+    const { unmount } = start();
+    submitPhoto();
+    await waitFor(() => expect(mocks.upload).toHaveBeenCalledOnce());
+    if (action === "remove")
+      fireEvent.click(screen.getByRole("button", { name: "Remove #1" }));
+    else unmount();
+    await act(async () => resolveUpload([{ ufsUrl: storedPhotoUrl }]));
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
+    expect(
+      screen.queryByRole("textbox", { name: /Job No\./ }),
+    ).not.toBeInTheDocument();
+    expect(mocks.save).not.toHaveBeenCalled();
+  },
+);

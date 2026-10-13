@@ -118,7 +118,11 @@ function PeriodContent({ periodId }: { readonly periodId: string }) {
     hrRefs.periodPreview,
     url.invalidVersion
       ? "skip"
-      : { periodId, ...(version === undefined ? {} : { version }) },
+      : {
+          periodId,
+          clockFree: true,
+          ...(version === undefined ? {} : { version }),
+        },
   );
   // The export area (or why export is not possible yet) once loaded.
   useDeepLinkFocus(

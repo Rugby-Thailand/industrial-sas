@@ -1,6 +1,13 @@
 /**
  * What the HR module may show this member: the HR permissions they hold, the
- * organization's business date and, for reviewers and HR, their sites.
+ * organization's timezone and fixed offset and, for reviewers and HR, their
+ * sites.
+ *
+ * `display` is clock-free on purpose: it is subscribed on every page, and a
+ * handler that reads the current time loses Convex query-cache reuse. The
+ * client derives the display business date from `offsetMinutes` and
+ * refreshes it at local midnight (see `HrAccessProvider`). Server writes,
+ * locks and authorization keep using the server clock (`orgClock`).
  *
  * This is display information only. Every HR function re-authorizes itself.
  * It is separate from `workspace/current`, which requires storage access, so
@@ -10,7 +17,11 @@ import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import { HR_PERMISSION } from "../lib/permissions";
-import { queryWithOrg } from "../lib/tenantFunctions";
+import {
+  queryWithOrg,
+  type TenantFunctionContext,
+} from "../lib/tenantFunctions";
+import { timezoneOffsetMinutes } from "../model/hr/calendar";
 import {
   HR_MAX_CHUNK,
   containsSearch,
@@ -27,45 +38,69 @@ import {
   siteScope,
 } from "./shared";
 
+/** The clock-free access facts shared by `display` and legacy `current`. */
+async function accessFacts(ctx: TenantFunctionContext) {
+  const permissions = await heldHrPermissions(ctx);
+  const timezone = ctx.tenant.organization.settings.timezone;
+  const offset = timezoneOffsetMinutes(timezone);
+  const privileged = permissions.some(
+    (code) => code !== HR_PERMISSION.selfAccess,
+  );
+  const list = privileged
+    ? await scopedSites(ctx, await siteScope(ctx))
+    : { sites: [], complete: true };
+  const employee = await linkedEmployee(ctx);
+  return {
+    permissions,
+    organizationName: ctx.tenant.organization.name,
+    timezone,
+    timezoneSupported: offset.ok,
+    ...(offset.ok ? { offsetMinutes: offset.value } : {}),
+    organizationId: ctx.tenant.organization._id,
+    actorUserId: ctx.tenant.actor._id,
+    employee:
+      employee === null
+        ? undefined
+        : {
+            id: employee._id,
+            code: employee.code,
+            displayName: employee.displayName,
+          },
+    sitesComplete: list.complete,
+    sites: list.sites.map((site) => ({
+      id: site._id,
+      code: site.code,
+      name: site.name,
+    })),
+  };
+}
+
+/**
+ * HR display access without a business date, so the handler never reads
+ * the clock and its cached result stays reusable across the day. The
+ * client derives `today` from `offsetMinutes` (see `HrAccessProvider`).
+ */
+export const display = queryWithOrg({
+  args: {},
+  returns: v.any(),
+  permissionCode: HR_PERMISSION.selfAccess,
+  target: { table: "hrEmployees" },
+  handler: async (ctx) => await accessFacts(ctx),
+});
+
+/**
+ * Deprecated: `display` plus the server's current business date. Kept,
+ * unchanged for already-open tabs of the previous frontend, until a later
+ * release removes it once no client calls it.
+ */
 export const current = queryWithOrg({
   args: {},
   returns: v.any(),
   permissionCode: HR_PERMISSION.selfAccess,
   target: { table: "hrEmployees" },
   handler: async (ctx) => {
-    const permissions = await heldHrPermissions(ctx);
     const clock = orgClock(ctx);
-    const privileged = permissions.some(
-      (code) => code !== HR_PERMISSION.selfAccess,
-    );
-    const list = privileged
-      ? await scopedSites(ctx, await siteScope(ctx))
-      : { sites: [], complete: true };
-    const sites = list.sites;
-    const employee = await linkedEmployee(ctx);
-    return {
-      permissions,
-      organizationName: ctx.tenant.organization.name,
-      timezone: ctx.tenant.organization.settings.timezone,
-      timezoneSupported: clock !== null,
-      today: clock?.today,
-      organizationId: ctx.tenant.organization._id,
-      actorUserId: ctx.tenant.actor._id,
-      employee:
-        employee === null
-          ? undefined
-          : {
-              id: employee._id,
-              code: employee.code,
-              displayName: employee.displayName,
-            },
-      sitesComplete: list.complete,
-      sites: sites.map((site) => ({
-        id: site._id,
-        code: site.code,
-        name: site.name,
-      })),
-    };
+    return { ...(await accessFacts(ctx)), today: clock?.today };
   },
 });
 
