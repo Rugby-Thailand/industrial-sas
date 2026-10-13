@@ -206,7 +206,8 @@ export function observeTransition({
               visible(node) &&
               (action.kind === "hr-edit"
                 ? node.getAttribute("aria-label")?.startsWith(action.name)
-                : node.textContent?.trim() === action.name),
+                : (node.getAttribute("aria-label") ??
+                    node.textContent?.trim()) === action.name),
           );
     if (!element || element.disabled) return finish("error", "missing-control");
     try {

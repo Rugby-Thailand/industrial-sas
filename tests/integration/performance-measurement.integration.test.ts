@@ -78,7 +78,13 @@ describe("local performance evidence", () => {
 });
 
 // Bounded timer contract check; real framework behavior belongs to browser QA.
-function timer(kind: "goods" | "floor" = "goods") {
+function timer(
+  kind: "goods" | "floor" = "goods",
+  action: { kind: "link"; href: string } | { kind: "button"; name: string } = {
+    kind: "link",
+    href: "/target",
+  },
+) {
   let now = 0;
   let loaded = false;
   let hidden = false;
@@ -112,8 +118,25 @@ function timer(kind: "goods" | "floor" = "goods") {
             : [],
       }),
       querySelectorAll: () => [
+        ...(action.kind === "button"
+          ? [
+              {
+                getAttribute: (name: string) =>
+                  name === "aria-label" ? "Another action" : "/other",
+                textContent: "Back",
+                getClientRects: () => [{}],
+                closest: () => null,
+                click: () => {
+                  location.pathname = "/wrong";
+                },
+              },
+            ]
+          : []),
         {
-          getAttribute: () => "/target",
+          getAttribute: (name: string) =>
+            name === "aria-label" ? "Back" : "/target",
+          getClientRects: () => [{}],
+          closest: () => null,
           click: () => {
             location.pathname = "/target";
           },
@@ -122,7 +145,7 @@ function timer(kind: "goods" | "floor" = "goods") {
     },
   };
   const result: Promise<Record<string, unknown>> = runInNewContext(
-    `(${observeTransition.toString()})({ target: '/target', ready: { kind: ${JSON.stringify(kind)}, toolbar: 'Building floors' }, action: { kind: 'link', href: '/target' }, timeoutMs: 100 })`,
+    `(${observeTransition.toString()})({ target: '/target', ready: { kind: ${JSON.stringify(kind)}, toolbar: 'Building floors' }, action: ${JSON.stringify(action)}, timeoutMs: 100 })`,
     window,
   );
   return {
@@ -152,6 +175,15 @@ describe("navigation timer termination", () => {
       dataReadyMs: 40,
     });
     expect(t.listeners.size).toBe(0);
+  });
+  it("prefers the explicit label over conflicting text before the real icon-only Back button", async () => {
+    const t = timer("goods", { kind: "button", name: "Back" });
+    t.tick(10, true);
+    expect(await t.result).toEqual({
+      status: "completed",
+      urlObservedMs: 10,
+      dataReadyMs: 10,
+    });
   });
   it("waits for the actual map zone after a Floor toolbar becomes visible", async () => {
     const t = timer("floor");

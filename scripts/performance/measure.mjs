@@ -378,10 +378,28 @@ try {
                 });
               }
             };
+            // Mobile Scan has no goods anchor while its navigation drawer is
+            // closed. Prepare the real menu before timing the link click.
+            const prepareScanReturn = async (target) => {
+              if (
+                target === goods &&
+                new URL(p.url()).pathname === scan &&
+                (await p.locator(`a[href="${goods}"]`).count()) === 0
+              ) {
+                await p
+                  .getByRole("button", {
+                    name: messages.Navigation.openMenu,
+                    exact: true,
+                  })
+                  .click();
+                await p.locator(`a[href="${goods}"]`).first().waitFor();
+              }
+            };
             const source = async () => {
               if (cache === "warm" && p.url() !== "about:blank") {
                 const current = new URL(p.url());
                 if (current.pathname !== flow.source || current.search) {
+                  await prepareScanReturn(flow.source);
                   const returning = await p.evaluate(observeTransition, {
                     target: flow.source,
                     ready: flow.sourceReady,
@@ -464,6 +482,7 @@ try {
                 p.on("pageerror", onError);
                 try {
                   await source();
+                  await prepareScanReturn(flow.target);
                   sample = await p.evaluate(observeTransition, {
                     target: flow.target,
                     ready: flow.ready,
