@@ -19,6 +19,12 @@ export interface OrganizationMember {
  */
 export interface MemberDirectoryPort {
   readonly get: (userId: string) => Promise<OrganizationMember | null>;
+  /**
+   * The member's display name only, for labels. It does not evaluate the
+   * membership's effective window, so it never reads the clock; a former
+   * (revoked) member keeps their name on historical records.
+   */
+  readonly displayName: (userId: string) => Promise<string | null>;
   /** Active members in user order; null when more than `limit` exist. */
   readonly listActive: (
     limit: number,
@@ -27,12 +33,54 @@ export interface MemberDirectoryPort {
 
 export const MEMBER_DIRECTORY_MAX = 500;
 
+type Membership = DataModel["memberships"]["document"];
+
+/** Rows read per status bucket: enough to detect an ambiguous duplicate. */
+const BUCKET_TAKE = 2;
+
 export function createMemberDirectory(
   db: GenericDatabaseReader<DataModel>,
   orgId: GenericId<"organizations">,
 ): MemberDirectoryPort {
+  const bucket = async (
+    userId: GenericId<"users">,
+    status: Membership["status"],
+  ): Promise<readonly Membership[]> => {
+    const rows = await db
+      .query("memberships")
+      .withIndex("by_orgId_status_userId", (query) =>
+        query.eq("orgId", orgId).eq("status", status).eq("userId", userId),
+      )
+      .order("desc")
+      .take(BUCKET_TAKE);
+    return rows.filter(
+      (row) =>
+        row.orgId === orgId && row.userId === userId && row.status === status,
+    );
+  };
+
+  /**
+   * The member's membership in this organization. A re-add creates a new
+   * row and keeps the revoked tombstone, so (as tenant context does) the
+   * current ACTIVE/SUSPENDED membership wins and tombstones only answer
+   * when nothing current exists; the newest tombstone then stands for the
+   * former member. Ambiguous current rows resolve as `ambiguous`.
+   */
+  const membershipOf = async (
+    userId: GenericId<"users">,
+  ): Promise<Membership | "ambiguous" | null> => {
+    const [active, suspended] = await Promise.all([
+      bucket(userId, "ACTIVE"),
+      bucket(userId, "SUSPENDED"),
+    ]);
+    const current = [...active, ...suspended];
+    if (current.length > 1) return "ambiguous";
+    if (current.length === 1) return current[0]!;
+    return (await bucket(userId, "REVOKED"))[0] ?? null;
+  };
+
   const describe = async (
-    membership: DataModel["memberships"]["document"],
+    membership: Membership,
   ): Promise<OrganizationMember | null> => {
     if (membership.orgId !== orgId) return null;
     const user = await db.get("users", membership.userId);
@@ -54,13 +102,20 @@ export function createMemberDirectory(
     get: async (userId: string) => {
       const id = db.normalizeId("users", userId);
       if (id === null) return null;
-      const membership = await db
-        .query("memberships")
-        .withIndex("by_orgId_userId", (query) =>
-          query.eq("orgId", orgId).eq("userId", id),
-        )
-        .unique();
-      return membership === null ? null : await describe(membership);
+      const membership = await membershipOf(id);
+      // Duplicate current memberships are refused, never guessed between.
+      if (membership === null || membership === "ambiguous") return null;
+      return await describe(membership);
+    },
+    displayName: async (userId: string) => {
+      const id = db.normalizeId("users", userId);
+      if (id === null) return null;
+      // Any membership of this organization (current or tombstone) proves
+      // the user belongs to it; the name lives on the user, not the row.
+      const membership = await membershipOf(id);
+      if (membership === null) return null;
+      const user = await db.get("users", id);
+      return user?.displayName ?? null;
     },
     listActive: async (limit: number) => {
       const bounded = Math.min(

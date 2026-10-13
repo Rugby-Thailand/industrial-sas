@@ -880,8 +880,8 @@ export async function memberName(
 ): Promise<string | null> {
   if (userId === undefined) return null;
   if (cache.has(userId)) return cache.get(userId) ?? null;
-  const member = await ctx.members.get(userId);
-  const name = member?.displayName ?? null;
+  // Name only: no membership-window evaluation, so labels never read the clock.
+  const name = await ctx.members.displayName(userId);
   cache.set(userId, name);
   return name;
 }
