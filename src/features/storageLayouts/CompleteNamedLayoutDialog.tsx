@@ -136,14 +136,18 @@ function CompleteNamedLayoutForm({
   });
   const [refusal, setRefusal] = useState<string>();
   const [noRoom, setNoRoom] = useState(false);
-  // The exact measurements that were saved; anything typed later is a draft.
+  // The submitted form intent includes the local floor choice. A live query
+  // may assign the saved floor before its response arrives, so comparing the
+  // resolved floor alone would hide a newer local choice.
+  const draftSnapshot = JSON.stringify({ floorNumber, draft });
+  // The exact intent that was saved; anything typed later remains a draft.
   const [savedSnapshot, setSavedSnapshot] = useState<string>();
   const [cleared, setCleared] = useState(false);
   // Unsent measurements are this dialog's own draft: closing asks first.
   useNavigationDraft({
     dirty:
       !cleared &&
-      JSON.stringify(draft) !== savedSnapshot &&
+      draftSnapshot !== savedSnapshot &&
       Object.values(draft).some((value) => value !== ""),
     pending: operation.busy,
     discard: () => setCleared(true),
@@ -218,7 +222,7 @@ function CompleteNamedLayoutForm({
       ...payload,
       requestId: operation.request(JSON.stringify(payload)),
     };
-    const submitted = JSON.stringify(draft);
+    const submitted = draftSnapshot;
     lastCommand.current = { command, submitted };
     await send(command, submitted);
   }

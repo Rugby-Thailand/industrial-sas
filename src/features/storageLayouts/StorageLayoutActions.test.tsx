@@ -1276,3 +1276,130 @@ it("replays activation after its lost response advances authoritative readiness"
     ),
   );
 });
+
+import { chooseOption } from "@tests/fixtures/select-control";
+
+it.each(["pending", "uncertain retry"])(
+  "retains a newer named-layout floor intent after %s success",
+  async (stage) => {
+    window.history.replaceState(
+      null,
+      "",
+      "/en/master-data/storage-layouts?kept=yes#catalogue",
+    );
+    stopHistory = trackAppHistory();
+    const target = {
+      found: true,
+      locationId: "named-floor",
+      code: "SHELF",
+      version: 1,
+      layoutPending: true,
+      buildingStatus: "ACTIVE",
+    };
+    mocks.queries.set("storageLayouts/namedLayout:namedLocationLayoutTarget", {
+      ok: true,
+      value: target,
+    });
+    mocks.queries.set("storageLayouts/catalogue:getStorageBuildingLayout", {
+      ok: true,
+      value: {
+        found: true,
+        building: pd,
+        floors: [1, 2].map((floorNumber) => ({
+          floorId: `f${floorNumber}`,
+          floorNumber,
+          grossAreaSqMm: 1,
+          reservedAreaSqMm: 0,
+          usableAreaSqMm: 1,
+          version: 1,
+          storageZones: [],
+          reservedBlocks: [],
+        })),
+      },
+    });
+    const complete = mutationFor(
+      "storageLayouts/namedLayout:completeNamedLocationLayout",
+    );
+    let finish!: (value: unknown) => void;
+    if (stage === "pending")
+      complete.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+    else
+      complete.mockRejectedValueOnce(new Error("Response lost after commit"));
+    const onCompleted = vi.fn();
+    const props = {
+      warehouseId: "warehouse-a",
+      location: {
+        locationId: "named-floor",
+        code: "SHELF",
+        name: "Shelf",
+        buildingId: "pd",
+      },
+      onClose: vi.fn(),
+      onCompleted,
+    };
+    const ui = () => (
+      <NavigationGuardProvider>
+        <CompleteNamedLayoutDialog {...props} />
+      </NavigationGuardProvider>
+    );
+    const view = renderWithIntl(ui(), {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    for (const [name, value] of [
+      ["Width (m)", "1"],
+      ["Depth (m)", "1"],
+      ["Maximum stack height (m)", "2"],
+      ["X position (m)", "0"],
+      ["Y position (m)", "0"],
+    ])
+      fireEvent.change(screen.getByLabelText(name!), { target: { value } });
+    fireEvent.click(screen.getByRole("button", { name: "Add to floor plan" }));
+    await waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
+    if (stage === "uncertain retry")
+      await screen.findByTestId("layout-operation-failure");
+    chooseOption("Floor", "Floor 2 · 20 × 11.96 m");
+    if (stage === "pending")
+      await act(async () => {
+        finish({
+          ok: true,
+          value: { written: true, documentId: "zone", replayed: false },
+        });
+      });
+    else {
+      mocks.queries.set(
+        "storageLayouts/namedLayout:namedLocationLayoutTarget",
+        {
+          ok: true,
+          value: {
+            ...target,
+            version: 2,
+            layoutPending: false,
+            floorNumber: 1,
+          },
+        },
+      );
+      view.rerender(ui());
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      await waitFor(() => expect(complete).toHaveBeenCalledTimes(2));
+      expect(complete.mock.calls[1]![0]).toEqual(complete.mock.calls[0]![0]);
+    }
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Save changes before leaving?",
+      }),
+    ).toBeVisible();
+    expect(onCompleted).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: "Complete layout · SHELF" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Maximum stack height (m)")).toHaveValue(2);
+  },
+);
