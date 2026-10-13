@@ -16,7 +16,11 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
-import { datesInRange, type IsoDate } from "../model/hr/calendar";
+import {
+  datesInRange,
+  timezoneOffsetMinutes,
+  type IsoDate,
+} from "../model/hr/calendar";
 import { attendanceCsvFileName, renderAttendanceCsv } from "../model/hr/csv";
 import { normalizeReason } from "../model/hr/employee";
 import {
@@ -346,8 +350,11 @@ export const preview = queryWithOrg({
   handler: async (ctx, args) => {
     // Closed versions carry their own frozen timezone, so history stays
     // readable even when the current organization timezone is unsupported.
-    // Only the live draft calculation needs the organization clock.
-    const clock = orgClock(ctx);
+    // Only the live draft calculation reads the organization clock, so a
+    // closed version's answer does not depend on the time and stays cached.
+    const timezoneSupported = timezoneOffsetMinutes(
+      ctx.tenant.organization.settings.timezone,
+    ).ok;
     const period = await scopedPeriod(ctx, args.periodId);
     if (period === null) return { ok: false as const, code: "NOT_FOUND" };
     const site = await ctx.tenantDb.get<Doc<"warehouses">>(
@@ -368,8 +375,7 @@ export const preview = queryWithOrg({
       latestClosedVersion: period.latestClosedVersion,
       revisionReason: period.revisionReason,
       timezone: ctx.tenant.organization.settings.timezone,
-      timezoneSupported: clock !== null,
-      ...(clock === null ? {} : { today: clock.today }),
+      timezoneSupported,
     };
     const selected =
       args.version === undefined
@@ -422,6 +428,7 @@ export const preview = queryWithOrg({
       };
     }
 
+    const clock = orgClock(ctx);
     if (clock === null)
       return {
         ok: true as const,
@@ -430,11 +437,12 @@ export const preview = queryWithOrg({
         versionsComplete,
         view: { kind: "TIMEZONE_UNSUPPORTED" as const },
       };
+    const draftHeader = { ...header, today: clock.today };
     const rows = await liveRows(ctx, period, clock);
     if (rows === null)
       return {
         ok: true as const,
-        period: header,
+        period: draftHeader,
         versions: versions.map(versionSummary),
         versionsComplete,
         view: { kind: "LIMIT" as const },
@@ -446,7 +454,7 @@ export const preview = queryWithOrg({
     });
     return {
       ok: true as const,
-      period: header,
+      period: draftHeader,
       versions: versions.map(versionSummary),
       versionsComplete,
       view: {

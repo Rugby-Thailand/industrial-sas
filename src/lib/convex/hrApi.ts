@@ -4,7 +4,8 @@ import { clientRef } from "./clientRef";
 
 /** Client references for the HR module, typed by the generated API. */
 export const hrRefs = Object.freeze({
-  access: clientRef(api.hr.access.current),
+  // `hr/access:current` stays on the backend only for already-open older tabs.
+  accessDisplay: clientRef(api.hr.access.display),
   sitesPage: clientRef(api.hr.access.sitesPage),
   today: clientRef(api.hr.self.today),
   history: clientRef(api.hr.self.history),
