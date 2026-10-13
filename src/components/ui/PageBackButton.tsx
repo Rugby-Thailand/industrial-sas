@@ -9,7 +9,11 @@ import {
   appHistoryIndex,
   subscribeHistoryChanges,
 } from "@/lib/browser/appHistory";
-import { guardedNavigate } from "@/lib/navigationGuard";
+import {
+  BACK_AVAILABILITY_EVENT,
+  hasBackWithinPage,
+  navigateBack,
+} from "@/lib/navigationGuard";
 
 const currentDepth = () => appHistoryIndex() ?? 0;
 const serverDepth = () => 0;
@@ -32,17 +36,25 @@ export function PageBackButton({
   const hasHistory =
     useSyncExternalStore(subscribeHistoryChanges, currentDepth, serverDepth) >
     0;
-  if (!hasHistory && !pending && fallbackHref === null) return null;
+  const hasForeground = useSyncExternalStore(
+    (listener) => {
+      window.addEventListener(BACK_AVAILABILITY_EVENT, listener);
+      return () =>
+        window.removeEventListener(BACK_AVAILABILITY_EVENT, listener);
+    },
+    hasBackWithinPage,
+    () => false,
+  );
+  if (!hasForeground && !hasHistory && !pending && fallbackHref === null)
+    return null;
   return (
     <IconButton
       variant="ghost"
       label={t("back")}
       className="-mr-1 -ml-3 shrink-0 text-muted hover:text-text"
-      disabled={!hasHistory && pending}
+      disabled={!hasForeground && !hasHistory && pending}
       onClick={() => {
-        if ((appHistoryIndex() ?? 0) > 0) router.back();
-        else if (fallbackHref !== null && !pending)
-          guardedNavigate(() => router.replace(fallbackHref));
+        navigateBack(router, pending ? null : fallbackHref);
       }}
     >
       <ArrowLeft aria-hidden="true" />

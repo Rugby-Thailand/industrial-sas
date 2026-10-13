@@ -20,8 +20,16 @@ export function useDraftGuard(
   dirty: boolean,
   discard: () => void,
   pending = false,
+  workflowScope?: string,
+  foregroundScope?: string,
 ): NavigationDraftControl {
-  return useNavigationDraft({ dirty, pending, discard });
+  return useNavigationDraft({
+    dirty,
+    pending,
+    discard,
+    workflowScope,
+    foregroundScope,
+  });
 }
 
 /** A write that must settle before the page is left, with nothing to discard. */
@@ -30,3 +38,5 @@ export function usePendingGuard(pending: boolean): NavigationDraftControl {
 }
 
 const noop = () => undefined;
+
+export { DraftForegroundContext } from "@/components/navigation/navigationDraft";

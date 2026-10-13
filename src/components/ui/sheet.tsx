@@ -6,9 +6,37 @@ import { Dialog as SheetPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
+import { DraftForegroundContext } from "@/components/providers/draftGuard";
 
-function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />;
+function Sheet({
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  backPending = false,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Root> & {
+  backPending?: boolean;
+}) {
+  const [local, setLocal] = React.useState(defaultOpen);
+  const disclosure = useBackDisclosure(
+    open ?? local,
+    (next) => {
+      setLocal(next);
+      onOpenChange?.(next);
+    },
+    { blocked: backPending },
+  );
+  return (
+    <DraftForegroundContext.Provider value={disclosure.scope}>
+      <SheetPrimitive.Root
+        data-slot="sheet"
+        {...props}
+        open={open ?? local}
+        onOpenChange={disclosure.onOpenChange}
+      />
+    </DraftForegroundContext.Provider>
+  );
 }
 
 function SheetTrigger({

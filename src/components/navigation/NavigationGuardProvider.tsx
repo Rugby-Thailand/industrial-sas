@@ -22,6 +22,9 @@ import {
 import { browserQueryEvent } from "@/lib/browser/history";
 import {
   announceNavigationIntent,
+  backWithinPage,
+  hasBackWithinPage,
+  type TransitionOptions,
   registerNavigationGuardOwner,
   type Transition,
 } from "@/lib/navigationGuard";
@@ -150,6 +153,7 @@ export function NavigationGuardProvider({
     <NavigationDraftContext.Provider value={owner}>
       {children}
       <Dialog
+        managedBack={false}
         open={prompt}
         onOpenChange={(open) => {
           if (!open && !keepDisabled) machine.keep();
@@ -249,6 +253,7 @@ interface MachineDeps {
 /** The action the open prompt would continue. Identity marks one request. */
 interface Intent {
   readonly action: Transition;
+  readonly options?: TransitionOptions | undefined;
 }
 
 /** One Save and continue: its prompt intent and the registration it saves. */
@@ -290,6 +295,8 @@ function createGuardMachine(deps: MachineDeps) {
   let attempt: SaveAttempt | null = null;
   let buffer: OwnedBuffer | null = null;
   let restoring = false;
+  let rearmAfterTraversal = false;
+  let afterRestore: (() => void) | undefined;
   /** Bounded re-aims when a restoration lands beside the buffer. */
   let restoreCorrections = 0;
   let removing = false;
@@ -318,6 +325,19 @@ function createGuardMachine(deps: MachineDeps) {
   let overtaken: { marker: string; href: string; index: number } | null = null;
   let navigate: (href: URL) => void = () => undefined;
 
+  const retained = (entry: DraftRegistration, scope: string) =>
+    scope.startsWith("foreground:")
+      ? entry.foregroundScope !== scope.slice("foreground:".length)
+      : entry.workflowScope === scope;
+  const selectedEntries = (options?: TransitionOptions) =>
+    new Map(
+      [...entries].filter(
+        ([, entry]) =>
+          entry.pending ||
+          !options?.preserveDraftScope ||
+          !retained(entry, options.preserveDraftScope),
+      ),
+    );
   const active = () => [...entries.values()].some(guarded);
   const onBuffer = () =>
     buffer !== null &&
@@ -503,7 +523,40 @@ function createGuardMachine(deps: MachineDeps) {
     removeBuffer({ action, covered });
   }
 
-  function requestTransition(action: Transition) {
+  function requestTransition(action: Transition, options?: TransitionOptions) {
+    if (selectedEntries(options).size === 0 && options?.preserveDraftScope) {
+      if (intent !== null) {
+        intent.options?.onCancel?.();
+        setIntent(null);
+      }
+      if (restoring || removing) {
+        options.onCancel?.();
+        return;
+      }
+      if (!options.entry) {
+        proceed(() => {
+          rearmAfterTraversal = true;
+          action();
+        }, new Map(entries));
+        return;
+      }
+      if (options.entry && onBuffer()) {
+        options.entry.claim = () => {
+          if (!onBuffer()) return false;
+          const state = { ...window.history.state };
+          delete state[GUARD_HISTORY_KEY];
+          withOwnWrite(() => window.history.replaceState(state, ""));
+          buffer = null;
+          return true;
+        };
+      }
+      announceNavigationIntent();
+      action();
+      // Query pushes invoke onHistoryWrite, which arms the new entry. A
+      // claimed buffer is a real step now and needs a fresh guard above it.
+      if (active()) arm();
+      return;
+    }
     if (!active()) {
       proceed(action);
       return;
@@ -511,7 +564,8 @@ function createGuardMachine(deps: MachineDeps) {
     // A newer request supersedes an approval still waiting for its buffer
     // removal, whatever that approval covered: only this request continues.
     afterRemove = undefined;
-    setIntent({ action });
+    if (intent !== null) intent.options?.onCancel?.();
+    setIntent({ action, options });
   }
 
   function sync() {
@@ -546,7 +600,9 @@ function createGuardMachine(deps: MachineDeps) {
         before.dirty === entry.dirty &&
         before.pending === entry.pending &&
         before.save === entry.save &&
-        before.saveBlockedReason === entry.saveBlockedReason
+        before.saveBlockedReason === entry.saveBlockedReason &&
+        before.workflowScope === entry.workflowScope &&
+        before.foregroundScope === entry.foregroundScope
       )
         return;
       entries.set(id, entry);
@@ -568,27 +624,36 @@ function createGuardMachine(deps: MachineDeps) {
 
   /** Keep editing: forget the requested action. Not while a save runs. */
   function keep() {
-    if (attempt === null && intent !== null) setIntent(null);
+    if (attempt === null && intent !== null) {
+      intent.options?.onCancel?.();
+      setIntent(null);
+    }
   }
 
   /** Dispose of every dirty draft, then continue the prompt's action. */
   function discard(): boolean {
     const current = intent;
     if (current === null || attempt !== null) return false;
-    const values = [...entries.values()];
+    const values = [...selectedEntries(current.options).values()];
     if (values.some((entry) => entry.pending)) return false;
     // Disposed work may report clean only after the transition: it is
     // covered as reported now, while any later change is new work.
     const covered = new Map(entries);
     for (const entry of values) if (entry.dirty) entry.discard();
-    proceed(current.action, covered);
+    if (current.options?.preserveDraftScope) {
+      setIntent(null);
+      proceed(() => {
+        rearmAfterTraversal = true;
+        current.action();
+      }, covered);
+    } else proceed(current.action, covered);
     return true;
   }
 
   /** Begin saving the sole dirty draft for the open prompt. */
   function beginSave(): Pick<SaveAttempt, "save"> | undefined {
     if (intent === null || attempt !== null) return undefined;
-    const values = [...entries];
+    const values = [...selectedEntries(intent.options)];
     const dirty = values.filter(([, entry]) => entry.dirty);
     const sole = dirty.length === 1 ? dirty[0] : undefined;
     if (sole === undefined || values.some(([, entry]) => entry.pending))
@@ -618,6 +683,15 @@ function createGuardMachine(deps: MachineDeps) {
       settled.add(finished.id);
       entries.delete(finished.id);
       publish();
+    }
+    if (
+      current &&
+      finished.intent.options?.preserveDraftScope &&
+      selectedEntries(finished.intent.options).size === 0
+    ) {
+      setIntent(null);
+      requestTransition(finished.intent.action, finished.intent.options);
+      return false;
     }
     if (active()) return false;
     if (!current) {
@@ -669,6 +743,8 @@ function createGuardMachine(deps: MachineDeps) {
         return;
       }
       restoring = false;
+      const restoredAction = afterRestore;
+      afterRestore = undefined;
       restoreCorrections = 0;
       // The cancelled traversal never reached query subscribers; refresh them.
       refreshQueries();
@@ -676,10 +752,17 @@ function createGuardMachine(deps: MachineDeps) {
         removeRequested = false;
         removeBuffer();
       }
+      restoredAction?.();
       return;
     }
     if (buffer === null || !active()) {
-      if (buffer === null) skipOrphanBase(event);
+      if (buffer === null) {
+        skipOrphanBase(event);
+        if (rearmAfterTraversal) {
+          rearmAfterTraversal = false;
+          if (active()) queueMicrotask(() => arm());
+        }
+      }
       return;
     }
     // Remember where the user was going (a Back-menu entry may be several
@@ -706,7 +789,12 @@ function createGuardMachine(deps: MachineDeps) {
     restoring = true;
     restoreCorrections = 0;
     traverse(steps ?? 1);
-    requestTransition(() => traverseTo(target));
+    if (landed === index && hasBackWithinPage()) {
+      afterRestore = () => {
+        if (connected && !backWithinPage())
+          requestTransition(() => traverseTo(target));
+      };
+    } else requestTransition(() => traverseTo(target));
   }
 
   /**

@@ -6,9 +6,45 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useBackDisclosure } from "@/hooks/useBackDisclosure";
+import { DraftForegroundContext } from "@/components/providers/draftGuard";
 
-function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+function Dialog({
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  managedBack = true,
+  backPending = false,
+  draftScope,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root> & {
+  managedBack?: boolean;
+  backPending?: boolean;
+  draftScope?: string;
+}) {
+  const [local, setLocal] = React.useState(defaultOpen);
+  const disclosure = useBackDisclosure(
+    open ?? local,
+    (next) => {
+      setLocal(next);
+      onOpenChange?.(next);
+    },
+    {
+      managed: managedBack,
+      blocked: backPending,
+      ...(draftScope ? { draftScope } : {}),
+    },
+  );
+  return (
+    <DraftForegroundContext.Provider value={disclosure.scope}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        {...props}
+        open={open ?? local}
+        onOpenChange={disclosure.onOpenChange}
+      />
+    </DraftForegroundContext.Provider>
+  );
 }
 
 function DialogTrigger(

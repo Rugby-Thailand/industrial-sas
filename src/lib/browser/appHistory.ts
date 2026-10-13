@@ -1,3 +1,12 @@
+import {
+  hasWorkflowController,
+  isRetiredWorkflowController,
+  workflowRouteChanged,
+  WORKFLOW_CONTROLLERS_EVENT,
+} from "./workflowControllers";
+import { updateBrowserQuery } from "./history";
+
+export const APP_ROUTE_ORIGIN_KEY = "appRouteOrigin";
 export const APP_HISTORY_KEY = "appNavigationIndex";
 /** The navigation guard owner's same-URL buffer entry carries this marker. */
 export const GUARD_HISTORY_KEY = "__storageWorkspaceGuard";
@@ -15,6 +24,72 @@ function historyIndex(state: unknown): number | undefined {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
     ? value
     : undefined;
+}
+
+function routePath(url: URL): string {
+  return url.pathname.replace(/^\/(?:en|th)(?=\/|$)/, "") || "/";
+}
+
+function unchangedQuery(current: URL, destination: URL, key: string): boolean {
+  const values = current.searchParams.getAll(key);
+  const next = destination.searchParams.getAll(key);
+  return (
+    values.length === next.length &&
+    values.every((value, i) => value === next[i])
+  );
+}
+
+function internalSource(value: string, current: URL): URL | undefined {
+  if (
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    /[\\\u0000-\u0020\u007f]/.test(value)
+  )
+    return;
+  const source = new URL(value, current);
+  return source.origin === current.origin ? source : undefined;
+}
+
+/** Next's router.replace can omit custom state even though it keeps this entry. */
+function replacementMetadata(
+  destination: URL,
+  index: number,
+): Record<string, unknown> {
+  const current = new URL(window.location.href);
+  const previous = window.history.state;
+  const kept: Record<string, unknown> = {};
+  const origin: unknown = previous?.[APP_ROUTE_ORIGIN_KEY];
+  if (
+    origin &&
+    typeof origin === "object" &&
+    "href" in origin &&
+    typeof origin.href === "string" &&
+    internalSource(origin.href, current) &&
+    "index" in origin &&
+    typeof origin.index === "number" &&
+    Number.isSafeInteger(origin.index) &&
+    origin.index >= 0 &&
+    origin.index < index
+  )
+    kept[APP_ROUTE_ORIGIN_KEY] = origin;
+  if (routePath(current) !== routePath(destination)) return kept;
+  for (const key of destination.searchParams.keys()) {
+    const scope: unknown = previous?.[`${key}Origin`];
+    const ownIndex: unknown = previous?.[`${key}OriginIndex`];
+    if (
+      destination.searchParams.get(key) === "1" &&
+      unchangedQuery(current, destination, key) &&
+      typeof scope === "string" &&
+      typeof ownIndex === "number" &&
+      Number.isSafeInteger(ownIndex) &&
+      ownIndex >= 0 &&
+      ownIndex < index
+    ) {
+      kept[`${key}Origin`] = scope;
+      kept[`${key}OriginIndex`] = ownIndex;
+    }
+  }
+  return kept;
 }
 
 type Tracker = {
@@ -83,6 +158,21 @@ function install(history: History): Tracker {
     // a later owner would adopt that copy as its buffer at the wrong depth.
     if (!buffer) delete state[GUARD_HISTORY_KEY];
     const next = (appHistoryIndex() ?? index) + (buffer ? 0 : 1);
+    const destination =
+      url == null
+        ? new URL(window.location.href)
+        : new URL(url, window.location.href);
+    if (!buffer && destination.pathname !== window.location.pathname) {
+      workflowRouteChanged();
+      state[APP_ROUTE_ORIGIN_KEY] = {
+        href:
+          window.location.pathname +
+          window.location.search +
+          window.location.hash,
+        index: appHistoryIndex() ?? index,
+      };
+    } else if (history.state?.[APP_ROUTE_ORIGIN_KEY])
+      state[APP_ROUTE_ORIGIN_KEY] = history.state[APP_ROUTE_ORIGIN_KEY];
     state[APP_HISTORY_KEY] = next;
     nativePush.call(history, state, unused, url);
     index = next;
@@ -98,7 +188,14 @@ function install(history: History): Tracker {
     const sameLocation =
       url != null &&
       new URL(url, window.location.href).href === window.location.href;
-    const state = sameLocation ? { ...history.state, ...data } : { ...data };
+    const state = sameLocation
+      ? { ...history.state, ...data }
+      : {
+          ...(url != null
+            ? replacementMetadata(new URL(url, window.location.href), next)
+            : {}),
+          ...data,
+        };
     nativeReplace.call(
       history,
       { ...state, [APP_HISTORY_KEY]: next },
@@ -124,14 +221,69 @@ export function trackAppHistory(): () => void {
   installed ??= install(history);
   activeOwner = owner;
   index = appHistoryIndex() ?? 0;
+  let orphanFrame: number | undefined;
+  let currentPath = window.location.pathname;
+  let initializing = true;
   const onPopState = () => {
+    if (currentPath !== window.location.pathname) {
+      workflowRouteChanged();
+      currentPath = window.location.pathname;
+    }
+    const initial = initializing;
     index = appHistoryIndex() ?? index;
+
+    if (orphanFrame !== undefined) cancelAnimationFrame(orphanFrame);
+    orphanFrame = requestAnimationFrame(() => {
+      if (activeOwner !== owner || history.state?.[GUARD_HISTORY_KEY]) return;
+      const destination = new URL(window.location.href);
+      const missing = [...destination.searchParams.keys()].filter(
+        (key) =>
+          key.startsWith("overlay") &&
+          !hasWorkflowController(key) &&
+          (initial || isRetiredWorkflowController(key, destination.pathname)),
+      );
+      if (missing.length === 0) return;
+      const indices = missing.flatMap((key) => {
+        const value: unknown = history.state?.[`${key}OriginIndex`];
+        return typeof history.state?.[`${key}Origin`] === "string" &&
+          typeof value === "number" &&
+          Number.isSafeInteger(value) &&
+          value >= 0 &&
+          value < (appHistoryIndex() ?? 0)
+          ? [value]
+          : [];
+      });
+      missing.forEach((key) => destination.searchParams.delete(key));
+      const restore = () => {
+        if (window.location.pathname !== destination.pathname) return;
+        updateBrowserQuery(
+          (query) => {
+            for (const key of [...query.keys()]) query.delete(key);
+            for (const [key, value] of destination.searchParams)
+              query.append(key, value);
+          },
+          { hash: destination.hash },
+        );
+      };
+      if (indices.length === 0) {
+        restore();
+        return;
+      }
+      window.addEventListener("popstate", restore, { once: true });
+      history.go(Math.min(...indices) - (appHistoryIndex() ?? 0));
+    });
   };
+
   // Omit the URL: a metadata write must not dispatch a router transition.
   history.replaceState(history.state, "");
   window.addEventListener("popstate", onPopState);
+  window.addEventListener(WORKFLOW_CONTROLLERS_EVENT, onPopState);
+  onPopState();
+  initializing = false;
   return () => {
     window.removeEventListener("popstate", onPopState);
+    window.removeEventListener(WORKFLOW_CONTROLLERS_EVENT, onPopState);
+    if (orphanFrame !== undefined) cancelAnimationFrame(orphanFrame);
     if (activeOwner === owner) activeOwner = null;
     const tracker = installed;
     // Only restore methods nobody wrapped after us; otherwise stay installed

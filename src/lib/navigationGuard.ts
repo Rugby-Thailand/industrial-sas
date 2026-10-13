@@ -14,10 +14,19 @@
  *   buffer entry (restoring a cancelled Back, or removing the buffer before
  *   a permitted move). Query readers must keep their committed snapshot then.
  */
+import { appHistoryIndex } from "./browser/appHistory";
 export type Transition = () => void;
+export interface TransitionOptions {
+  readonly preserveDraftScope?: string;
+  readonly entry?: { claim?: () => boolean };
+  readonly onCancel?: () => void;
+}
 
 export interface NavigationGuardOwner {
-  readonly requestTransition: (action: Transition) => void;
+  readonly requestTransition: (
+    action: Transition,
+    options?: TransitionOptions,
+  ) => void;
   readonly isTraversing: () => boolean;
 }
 
@@ -44,14 +53,17 @@ export function announceNavigationIntent(): void {
   for (const listener of [...intentListeners]) listener();
 }
 
-export function guardedNavigate(action: Transition): void {
+export function guardedNavigate(
+  action: Transition,
+  options?: TransitionOptions,
+): void {
   const current = owner;
   if (current === null) {
     announceNavigationIntent();
     action();
     return;
   }
-  current.requestTransition(action);
+  current.requestTransition(action, options);
 }
 
 export function onNavigationIntent(listener: () => void): () => void {
@@ -63,4 +75,61 @@ export function onNavigationIntent(listener: () => void): () => void {
 
 export function isGuardTraversal(): boolean {
   return owner?.isTraversing() ?? false;
+}
+
+// Workflows register only while they have an earlier step in the current page.
+// Both the shared Back button and a draft guard's browser Back use this seam.
+export const BACK_AVAILABILITY_EVENT = "app-back-availability";
+const historyBackHandlers = new Map<
+  () => boolean,
+  { priority: number; available: () => boolean }
+>();
+export function notifyBackAvailability(): void {
+  window.dispatchEvent(new Event(BACK_AVAILABILITY_EVENT));
+}
+export function registerHistoryBackHandler(
+  handler: () => boolean,
+  priority = 0,
+  available: () => boolean = () => true,
+): () => void {
+  historyBackHandlers.set(handler, { priority, available });
+  notifyBackAvailability();
+  return () => {
+    historyBackHandlers.delete(handler);
+    notifyBackAvailability();
+  };
+}
+export function backWithinPage(): boolean {
+  return [...historyBackHandlers]
+    .reverse()
+    .sort((a, b) => b[1].priority - a[1].priority)
+    .some(([handler]) => handler());
+}
+export function hasBackWithinPage(): boolean {
+  return [...historyBackHandlers.values()].some(({ available }) => available());
+}
+
+/** Traversal stays centralized so feature dismissals cannot bypass guards. */
+export function traverseBack(): void {
+  guardedNavigate(() => window.history.back());
+}
+export function navigateBack(
+  router: { back: () => void; replace: (href: string) => void },
+  fallback: string | null,
+): void {
+  if (backWithinPage()) return;
+  if ((appHistoryIndex() ?? 0) > 0) router.back();
+  else if (fallback !== null) guardedNavigate(() => router.replace(fallback));
+}
+
+export function safeInternalReturnHref(
+  value: string,
+  fallback: string,
+): string {
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\"))
+    return fallback;
+  const destination = new URL(value, window.location.origin);
+  return destination.origin === window.location.origin
+    ? destination.pathname + destination.search + destination.hash
+    : fallback;
 }

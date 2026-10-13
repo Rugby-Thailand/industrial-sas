@@ -370,3 +370,46 @@ describe("useAsyncOperation", () => {
     expect(hook.result.current.busy).toBe(false);
   });
 });
+
+describe("live operation completion ownership", () => {
+  it("runs completion after success through the current operation owner", async () => {
+    const hook = renderHook(() =>
+      useAsyncOperation({
+        scope: "warehouse-a",
+        describeError: (code) => code,
+        navigation: "write",
+      }),
+    );
+    const navigate = vi.fn();
+    await act(async () => {
+      await hook.result.current.run(async () => "saved");
+    });
+    act(() => hook.result.current.complete(navigate));
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+  it.each(["scope", "unmount", "new-operation"])(
+    "does not publish completed work after %s",
+    async (change) => {
+      const hook = renderHook(
+        ({ scope }) =>
+          useAsyncOperation({ scope, describeError: (code) => code }),
+        { initialProps: { scope: "a" } },
+      );
+      await act(async () => {
+        await hook.result.current.run(async () => "saved");
+      });
+      const stale = hook.result.current.complete;
+      const navigate = vi.fn();
+      if (change === "scope") hook.rerender({ scope: "b" });
+      else if (change === "unmount") hook.unmount();
+      else
+        await act(async () => {
+          await hook.result.current.run(async () => {
+            throw new Error("FAILED");
+          });
+        });
+      act(() => stale(navigate));
+      expect(navigate).not.toHaveBeenCalled();
+    },
+  );
+});
