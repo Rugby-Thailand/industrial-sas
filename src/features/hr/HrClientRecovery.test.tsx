@@ -630,3 +630,119 @@ it("a remounted pending preference receipt keeps newer reactive preferences auth
     value: { written: true, version: 3 },
   });
 });
+
+it.each([
+  {
+    name: "different latest choices",
+    profile: true,
+    holidays: false,
+    editAfterCancel: "Show Profile",
+  },
+  {
+    name: "matching latest choices",
+    profile: false,
+    holidays: true,
+    editAfterCancel: "Show Holidays",
+  },
+])(
+  "a recovered shortcut draft retains its original version after stale retry with $name until explicit Cancel",
+  async ({ profile, holidays, editAfterCancel }) => {
+    const backend = await fixture();
+    const originalPreferences = await backend.query(
+      hrRefs.shortcutPreferences,
+      {},
+    );
+    if (!originalPreferences.ok || !originalPreferences.value.ok)
+      throw new Error("Fixture not linked");
+    state.queries[getFunctionName(hrRefs.shortcutPreferences)] =
+      originalPreferences;
+    // The original command was sent, but no server receipt exists. A lost reply
+    // does not tell the client whether that command reached the backend.
+    state.savePreferences.mockRejectedValueOnce(
+      new Error("Original response was lost"),
+    );
+    const first = customize();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show Profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByTestId("hr-write-uncertain");
+    const originalCommand = structuredClone(
+      state.savePreferences.mock.calls[0]![0],
+    );
+    expect(originalCommand.expectedVersion).toBe(0);
+    expect(await backend.query(hrRefs.shortcutPreferences, {})).toMatchObject({
+      ok: true,
+      value: { version: 0 },
+    });
+    first.unmount();
+
+    const latestShortcuts = originalPreferences.value.shortcuts.map((item) => ({
+      ...item,
+      visible:
+        item.key === "hr.profile"
+          ? profile
+          : item.key === "hr.holidays"
+            ? holidays
+            : item.visible,
+    }));
+    expect(
+      await backend.mutation(hrRefs.saveShortcutPreferences, {
+        requestId: `other_tab_preference_${profile ? "different" : "matching"}`,
+        expectedVersion: 0,
+        shortcuts: latestShortcuts,
+      }),
+    ).toMatchObject({ ok: true, value: { written: true, version: 1 } });
+    state.queries[getFunctionName(hrRefs.shortcutPreferences)] =
+      await backend.query(hrRefs.shortcutPreferences, {});
+    state.savePreferences.mockImplementation((args) =>
+      backend.mutation(hrRefs.saveShortcutPreferences, args),
+    );
+    customize();
+    fireEvent.click(screen.getByRole("button", { name: "Try again safely" }));
+    await screen.findByTestId("hr-write-refused");
+    expect(state.savePreferences.mock.calls[1]![0]).toEqual(originalCommand);
+    expect(await state.savePreferences.mock.results[1]!.value).toMatchObject({
+      ok: true,
+      value: { written: false, error: { code: "PREFERENCES_STALE" } },
+    });
+    expect(
+      screen.getByRole("checkbox", { name: "Show Profile" }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Show Holidays" }),
+    ).toBeChecked();
+
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    await waitFor(() => expect(state.savePreferences).toHaveBeenCalledTimes(3));
+    const nextCommand = state.savePreferences.mock.calls[2]![0];
+    expect(nextCommand.requestId).not.toBe(originalCommand.requestId);
+    expect(nextCommand.expectedVersion).toBe(originalCommand.expectedVersion);
+    expect(nextCommand.shortcuts).toEqual(originalCommand.shortcuts);
+    expect(await state.savePreferences.mock.results[2]!.value).toMatchObject({
+      ok: true,
+      value: { written: false, error: { code: "PREFERENCES_STALE" } },
+    });
+    expect(await backend.query(hrRefs.shortcutPreferences, {})).toMatchObject({
+      ok: true,
+      value: { version: 1, shortcuts: latestShortcuts },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.getByRole("checkbox", { name: "Show Profile" }),
+    ).toHaveProperty("checked", profile);
+    expect(
+      screen.getByRole("checkbox", { name: "Show Holidays" }),
+    ).toHaveProperty("checked", holidays);
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: editAfterCancel }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Shortcut preferences saved.");
+    expect(state.savePreferences.mock.calls[3]![0].expectedVersion).toBe(1);
+    expect(await backend.query(hrRefs.shortcutPreferences, {})).toMatchObject({
+      ok: true,
+      value: { version: 2 },
+    });
+  },
+);

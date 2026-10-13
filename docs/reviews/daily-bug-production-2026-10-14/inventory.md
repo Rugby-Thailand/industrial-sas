@@ -39,3 +39,7 @@ No broad refactor or redundant pagination rewrite. Retained current read-budget 
 Root was asked to update/re-audit `src/features/finishedGoods/PalletScreens.tsx#Measurement:form` presentation semantic targets for the inline conflict p + Button branch and reference the literal new loaded-baseline/reload and old-draft cases. The checker currently passes because the branch also depends on operation.errorCode; passing static inventory is not that semantic review. Root owns public-contract fixtures and final combined verification. `expectedMeasurementUpdatedAt` is optional at the public validator boundary specifically so old exact receipt retries remain callable; fresh blind writes are refused.
 
 This is credential-free component/backend integration coverage. Physical camera hardware, deployed authenticated browser testing, and cloud database migration were not used.
+
+## Final CI capacity check
+
+The first PR run passed all checks except the atomic multi-code capacity case, which exceeded Vitest's default 5-second deadline on the shared runner. That real 49-ticket component case now uses the same 20-second per-case bound as the other four full-capacity cases. The scanner, real component, backend and existing assertions are unchanged. The atomic rejection also explicitly checks that neither incoming job number appears. No global timeout or retry policy was changed.

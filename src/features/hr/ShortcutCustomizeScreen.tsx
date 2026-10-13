@@ -166,7 +166,17 @@ function ShortcutEditor({
       },
     },
   );
-  const [baseline, setBaseline] = useState(preferences);
+  const [baseline, setBaseline] = useState<
+    Preferences & { readonly recovered?: boolean }
+  >(() =>
+    write.recoveredPayload
+      ? {
+          ...preferences,
+          version: write.recoveredPayload.expectedVersion,
+          recovered: true,
+        }
+      : preferences,
+  );
   const [consumedReceipt, setConsumedReceipt] = useState<SavedPreferences>();
   const [draft, setDraft] = useState<readonly HrShortcutPreference[]>(
     write.recoveredPayload?.shortcuts ?? preferences.shortcuts,
@@ -178,7 +188,11 @@ function ShortcutEditor({
   const list = useRef<HTMLOListElement>(null);
   const handles = useRef(new Map<string, HTMLButtonElement>());
   const restoreFocus = useRef<string | null>(null);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(baseline.shortcuts);
+  // The saved recovery payload is an owned draft, including after a stale
+  // refusal. A newer query cannot silently rebase it into a fresh overwrite.
+  const dirty =
+    baseline.recovered === true ||
+    JSON.stringify(draft) !== JSON.stringify(baseline.shortcuts);
 
   const receipt = write.state.kind === "SAVED" ? write.state.value : undefined;
   // Completion belongs to the shared command owner. It can settle after this
@@ -199,7 +213,7 @@ function ShortcutEditor({
     };
     const current = preferences.version >= saved.version ? preferences : saved;
     const next = baseline.version > current.version ? baseline : current;
-    setBaseline(next);
+    setBaseline({ ...next, recovered: false });
     setDraft(next.shortcuts);
   } else if (
     !dirty &&
@@ -257,7 +271,7 @@ function ShortcutEditor({
     finishSort(false);
     const current =
       preferences.version >= baseline.version ? preferences : baseline;
-    setBaseline(current);
+    setBaseline({ ...current, recovered: false });
     replace(current.shortcuts);
     write.reset();
     restoreFocus.current = current.shortcuts[0]?.key ?? null;

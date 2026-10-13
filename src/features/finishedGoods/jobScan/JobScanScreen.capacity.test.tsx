@@ -173,7 +173,8 @@ it("rejects an oversized multi-code image atomically without keeping only part o
   act(() => mocks.imageCodes?.(["FO60000", "FO60001", "NEW-A", "NEW-B"]));
   expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(49);
   expect(screen.queryByDisplayValue("FO60000")).not.toBeInTheDocument();
-});
+  expect(screen.queryByDisplayValue("FO60001")).not.toBeInTheDocument();
+}, 20000);
 
 it("caps repeated photo groups and leaves an oversized group in its panel for correction", async () => {
   start();
