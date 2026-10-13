@@ -47,6 +47,7 @@ export const STATIC_ROUTE_SEGMENTS: ReadonlySet<string> = new Set([
   "storage",
   "products",
   "packing",
+  "packages",
   "scan",
   "records",
   "master-data",

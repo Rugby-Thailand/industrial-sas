@@ -7,6 +7,7 @@ import {
   useCallback,
   useId,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
@@ -583,7 +584,9 @@ function AvailableEditor({
   const save = useMutation(batchManagementRefs.repackAvailable);
   const dirty =
     !done && (JSON.stringify(rows) !== originalRows || capacity !== "");
-  useEffect(() => {
+  // The modal's Close action must observe the same clean/pending state as the
+  // editor it displays; a passive report leaves one painted frame of stale guard.
+  useLayoutEffect(() => {
     onStateChange({ dirty, busy: op.busy });
   }, [dirty, op.busy, onStateChange]);
   const stale =

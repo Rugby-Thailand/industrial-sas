@@ -105,6 +105,9 @@ describe("observability dimension allowlist", () => {
     ).toBe(
       `en.master-data.storage-layouts.${ROUTE_PLACEHOLDER}.floors.${ROUTE_PLACEHOLDER}`,
     );
+    expect(normalizeRoute("/en/finished-goods/packages/scan")).toBe(
+      "en.finished-goods.packages.scan",
+    );
     const typed = normalizeRoute(
       `th/${SENTINELS.email}/${SENTINELS.customer}/${SENTINELS.productCode}`,
     );

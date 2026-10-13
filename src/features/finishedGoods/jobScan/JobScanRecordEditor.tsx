@@ -59,6 +59,8 @@ export function JobScanRecordEditor({
   const closing = useRef(false);
   const op = useOperation(`${warehouseId}:ticket-correction:${record.id}`);
   const save = useMutation(fgRefs.updateJobScan);
+  const [pendingCommand, setPendingCommand] =
+    useState<Parameters<typeof save>[0]>();
   const [baseline, setBaseline] = useState(record);
   const [ticket, setTicket] = useState(() => recordDraft(record));
   const dirty =
@@ -71,6 +73,7 @@ export function JobScanRecordEditor({
     pending: op.busy,
     discard: () => {
       setTicket(recordDraft(record));
+      setPendingCommand(undefined);
     },
   });
   const history = useQuery(fgRefs.listJobScanCorrections, {
@@ -86,7 +89,11 @@ export function JobScanRecordEditor({
       });
   };
   async function commit() {
-    if (op.busy || stale || !isComplete(ticket) || hasInvalidQuantity(ticket))
+    if (
+      op.busy ||
+      (!pendingCommand &&
+        (stale || !isComplete(ticket) || hasInvalidQuantity(ticket)))
+    )
       return;
     const { source: _source, ...fields } = toPayload(ticket);
     const args = {
@@ -95,12 +102,19 @@ export function JobScanRecordEditor({
       expectedVersion: baseline.version,
       fields,
     };
+    const command = pendingCommand ?? {
+      ...args,
+      requestId: op.request(JSON.stringify(args)),
+    };
+    // An accepted correction may advance the query before its response reaches
+    // us. Only the immutable attempted command can recover that result safely.
+    setPendingCommand(command);
     await op.run(
-      async () =>
-        written(
-          await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
-        ),
-      () => {
+      async () => save(command),
+      (outcome) => {
+        setPendingCommand(undefined);
+        written(outcome);
+        op.clearRequests();
         guard.settle();
         op.complete(() => {
           closing.current = true;
@@ -135,7 +149,7 @@ export function JobScanRecordEditor({
           }}
           className="space-y-4"
         >
-          {stale && (
+          {stale && !pendingCommand && (
             <div role="alert" className="space-y-2">
               <p>{t("recordConflict")}</p>
               <Button
@@ -153,7 +167,15 @@ export function JobScanRecordEditor({
               </Button>
             </div>
           )}
-          <fieldset disabled={op.busy} className="grid gap-3 sm:grid-cols-2">
+          {pendingCommand && !op.busy && (
+            <p role="status" className="text-sm text-muted">
+              {t("correctionRecovery")}
+            </p>
+          )}
+          <fieldset
+            disabled={op.busy || Boolean(pendingCommand)}
+            className="grid gap-3 sm:grid-cols-2"
+          >
             {[...REQUIRED_FIELDS, ...DETAIL_FIELDS].map((field) => (
               <Field
                 key={field}
@@ -244,13 +266,18 @@ export function JobScanRecordEditor({
               type="submit"
               disabled={
                 op.busy ||
-                stale ||
-                !dirty ||
-                !isComplete(ticket) ||
-                hasInvalidQuantity(ticket)
+                (!pendingCommand &&
+                  (stale ||
+                    !dirty ||
+                    !isComplete(ticket) ||
+                    hasInvalidQuantity(ticket)))
               }
             >
-              {op.busy ? t("saving") : t("saveCorrection")}
+              {op.busy
+                ? t("saving")
+                : pendingCommand
+                  ? t("retryCorrection")
+                  : t("saveCorrection")}
             </Button>
           </DialogFooter>
         </form>

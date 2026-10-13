@@ -96,6 +96,8 @@ function Records({
   } | null>(null);
   const locationPanel = useRef<HTMLDivElement>(null);
   const remapCompletion = useRef<DialogCompletionHandle>(null);
+  const deletionCompletion = useRef<DialogCompletionHandle>(null);
+  const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState<RecordPage["items"][number] | null>(
     null,
   );
@@ -192,7 +194,7 @@ function Records({
   const visibleIdSet = new Set(visibleIds);
   const deletionVisible =
     deletion !== null && deletion.ids.every((id) => visibleIdSet.has(id));
-  if (deletion && fresh && !operation.busy && !deletionVisible)
+  if (deletion && fresh && !operation.busy && !deleting && !deletionVisible)
     setDeletion(null);
   const selectionScope = JSON.stringify([
     filter,
@@ -283,17 +285,26 @@ function Records({
   async function onDelete() {
     // A confirmation opened on fresh rows waits while they are being updated.
     if (!deletion || !actionable || !deletionVisible) return;
-    await operation.run(
+    // Live query rows can disappear as soon as the delete commits. Preserve the
+    // owned confirmation until the successful operation consumes its entry.
+    setDeleting(true);
+    const saved = await operation.run(
       async () => written(await deleteScans({ warehouseId, ...deletion })),
       () => {
-        updateSelection((current) =>
-          current.filter((id) => !deletion.ids.includes(id)),
+        operation.complete(() =>
+          deletionCompletion.current?.complete(() => {
+            updateSelection((current) =>
+              current.filter((id) => !deletion.ids.includes(id)),
+            );
+            setLocationSelection(null);
+            setDeletion(null);
+            setDeleting(false);
+            paging.reset();
+          }),
         );
-        setLocationSelection(null);
-        setDeletion(null);
-        paging.reset();
       },
     );
+    if (saved === null) setDeleting(false);
   }
 
   return (
@@ -685,6 +696,8 @@ function Records({
 
       <Dialog
         open={deletion !== null}
+        completionRef={deletionCompletion}
+        backPending={operation.busy}
         onOpenChange={(open) => {
           if (!open && !operation.busy) setDeletion(null);
         }}

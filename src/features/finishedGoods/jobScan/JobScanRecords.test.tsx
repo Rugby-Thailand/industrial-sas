@@ -14,6 +14,7 @@ import {
 } from "@tests/fixtures/finished-goods-ui";
 import { JobScanRecordsScreen } from "./JobScanRecords";
 import { trackAppHistory } from "@/lib/browser/appHistory";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
@@ -163,16 +164,16 @@ describe("scanned record deletion", () => {
     const location = screen.getByRole("button", { name: /ZONE-A/ });
     await user.click(location);
     expect(mocks.assign).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Change 1 tickets" }),
+        screen.getByRole("button", { name: "Change 1 ticket" }),
       ).toBeEnabled(),
     );
     expect(
       screen.getByRole("checkbox", { name: "Select FO001", hidden: true }),
     ).toBeChecked();
-    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledTimes(2));
     expect(mocks.assign.mock.calls[0]).toEqual(mocks.assign.mock.calls[1]);
     await waitFor(() =>
@@ -239,7 +240,7 @@ describe("scanned record deletion", () => {
     ).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
     expect(mocks.assign).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     await waitFor(() =>
       expect(mocks.assign).toHaveBeenCalledWith({
         warehouseId: "warehouse-a",
@@ -346,7 +347,7 @@ describe("scanned record deletion", () => {
     );
     const location = screen.getByRole("button", { name: /ZONE-A/ });
     await user.click(location);
-    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     expect(location).toBeDisabled();
     for (const cancel of screen.getAllByRole("button", { name: "Cancel" }))
       expect(cancel).toBeDisabled();
@@ -361,7 +362,7 @@ describe("scanned record deletion", () => {
     expect(
       screen.getByRole("textbox", { name: /Search Job No/, hidden: true }),
     ).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     expect(mocks.assign).toHaveBeenCalledTimes(1);
     finish(writeSuccess("scan-a"));
     await waitFor(() =>
@@ -1059,7 +1060,7 @@ it("successful location remap consumes review and picker before the next native 
       screen.getByRole("button", { name: "Set location for 1 record" }),
     );
     await user.click(screen.getByRole("button", { name: /ZONE-A/ }));
-    await user.click(screen.getByRole("button", { name: "Change 1 tickets" }));
+    await user.click(screen.getByRole("button", { name: "Change 1 ticket" }));
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", { name: /Review location change/ }),
@@ -1078,6 +1079,67 @@ it("successful location remap consumes review and picker before the next native 
     );
     expect(window.location.search + window.location.hash).toBe(
       "?origin=kept#scanner",
+    );
+  } finally {
+    view.unmount();
+    stop();
+  }
+});
+
+it("successful deletion consumes confirmation before the next native Back without a stale pending prompt", async () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/scan?origin=kept#scanner",
+  );
+  const stop = trackAppHistory();
+  window.history.pushState(
+    {},
+    "",
+    "/en/finished-goods/scan/records?filter=keep#rows",
+  );
+  const user = userEvent.setup();
+  let finish!: (value: ReturnType<typeof writeSuccess>) => void;
+  mocks.deleteScans.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const view = renderWithIntl(
+    <NavigationGuardProvider>
+      <JobScanRecordsScreen />
+    </NavigationGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  try {
+    await user.click(screen.getByRole("checkbox", { name: "Select FO001" }));
+    await user.click(
+      screen.getByRole("button", { name: "Delete 1 selected record" }),
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
+    await waitFor(() => expect(mocks.deleteScans).toHaveBeenCalledOnce());
+    await act(async () => {
+      mocks.records = mocks.records.filter((record) => record.id !== "scan-a");
+      finish(writeSuccess("scan-a"));
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(window.location.search + window.location.hash).toBe(
+        "?filter=keep#rows",
+      ),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods/scan?origin=kept#scanner"),
     );
   } finally {
     view.unmount();

@@ -205,7 +205,7 @@ describe("pallet next-action hierarchy", () => {
     ).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
       "href",
-      "/finished-goods/scan",
+      "/finished-goods/packages/scan?unitId=pallet-a",
     );
   });
 
@@ -218,7 +218,7 @@ describe("pallet next-action hierarchy", () => {
     const header = screen.getByRole("heading", { level: 1 }).closest("header");
     expect(
       within(header!).getByRole("link", { name: "Scan Packages" }),
-    ).toHaveAttribute("href", "/finished-goods/scan");
+    ).toHaveAttribute("href", "/finished-goods/packages/scan?unitId=pallet-a");
     expect(screen.getAllByRole("link", { name: "Scan Packages" })).toHaveLength(
       1,
     );
@@ -1484,7 +1484,7 @@ it("measurement native Back retains the dirty draft and discard restores the act
   number("Length (m)", "1.3");
   await palletBack();
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByRole("spinbutton", { name: "Length (m)" })).toHaveValue(

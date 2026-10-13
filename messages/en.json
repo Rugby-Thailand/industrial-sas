@@ -1794,6 +1794,8 @@
     "formatUnset": "Not recorded",
     "correctionHistory": "Correction history",
     "recentCorrections": "Showing recent corrections.",
+    "retryCorrection": "Retry correction",
+    "correctionRecovery": "The correction result is uncertain. Retry the same correction to recover its result before editing again.",
     "saveCorrection": "Save correction",
     "sendPhotosFirst": "Send or remove the collected photos before saving this group."
   },

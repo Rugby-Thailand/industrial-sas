@@ -205,3 +205,63 @@ it.each(["Cancel", "Save correction"])(
     }
   },
 );
+
+it("retries an accepted ticket correction after losing the response and observing the advanced revision", async () => {
+  mocks.save.mockRejectedValueOnce(
+    new Error("Response lost after server committed"),
+  );
+  const view = show();
+  fireEvent.change(screen.getByRole("textbox", { name: "Job No." }), {
+    target: { value: "FO99999" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save correction" }));
+  await screen.findByRole("button", { name: "Retry correction" });
+  const original = mocks.save.mock.calls[0]![0];
+  view.rerender(
+    <NavigationGuardProvider>
+      <JobScanRecordEditor
+        record={{
+          ...record,
+          factoryOrder: "FO99999",
+          version: 4,
+          updatedAt: 1001,
+        }}
+        warehouseId="warehouse-a"
+        onClose={mocks.close}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(screen.getByRole("textbox", { name: "Job No." })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry correction" }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+  expect(mocks.save.mock.calls[1]![0]).toEqual(original);
+  expect(original.expectedVersion).toBe(3);
+  await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
+});
+it("keeps normal new correction writes blocked on a newer revision after a known rejection", async () => {
+  mocks.save.mockResolvedValueOnce(writeFailure("STALE_REVISION"));
+  const view = show();
+  fireEvent.change(screen.getByRole("textbox", { name: "Job No." }), {
+    target: { value: "FO99999" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save correction" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Save correction" }),
+    ).toBeEnabled(),
+  );
+  view.rerender(
+    <NavigationGuardProvider>
+      <JobScanRecordEditor
+        record={{ ...record, version: 4, updatedAt: 1001 }}
+        warehouseId="warehouse-a"
+        onClose={mocks.close}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    screen.getByRole("button", { name: "Save correction" }),
+  ).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Retry correction" })).toBeNull();
+  expect(mocks.save).toHaveBeenCalledOnce();
+});

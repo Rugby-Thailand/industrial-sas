@@ -944,6 +944,9 @@ it("successful batch repack consumes review before Close and the next native Bac
       false,
     );
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(
+      screen.queryByRole("dialog", { name: "Discard packing changes?" }),
+    ).toBeNull();
     await screen.findByText("Manager closed");
     expect(window.location.search + window.location.hash).toBe(
       "?filter=kept#batches",
