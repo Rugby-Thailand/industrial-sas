@@ -18,11 +18,7 @@ import {
 } from "../fixtures/convex-tenant-world";
 import { meteredCall } from "../fixtures/hr-read-meter";
 
-/**
- * The period lock reads only the periods that can cover a date (a bounded
- * window plus its predecessor) and falls back to the exact site scan when
- * stored periods break the invariants; the answer always equals the scan.
- */
+/** Period safety uses the exact site scan, including inconsistent legacy imports. */
 
 const ACTOR = { subject: "user_fixture_a", org_id: "org_fixture_a" };
 type Status = "DRAFT" | "CLOSED";
@@ -121,7 +117,7 @@ async function check(world: ConvexTenantWorld, date: string) {
   };
 }
 
-describe("bounded period lock", () => {
+describe("exact period lock", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(fromLocal("2026-10-13", 10 * 60, 420));
@@ -136,7 +132,7 @@ describe("bounded period lock", () => {
     });
   });
 
-  it("reads a bounded window for recent and backdated dates of a long history", async () => {
+  it("checks recent and backdated dates across the complete site history", async () => {
     const world = await fixture();
     // Five years of weekly closed periods, a gap, then a current draft.
     await seed(world, [
@@ -156,15 +152,14 @@ describe("bounded period lock", () => {
       "2024-02-29", // backdated, deep in history
     ]) {
       const { read } = await check(world, date);
-      // Window of 31 start dates covers at most 5 weekly periods + 1.
-      expect(read, date).toBeLessThanOrEqual(6);
+      expect(read, date).toBe(261);
     }
     expect((await check(world, "2026-09-27")).locked).toBe(true);
     expect((await check(world, "2026-09-30")).locked).toBe(false);
     expect((await check(world, "2026-10-08")).locked).toBe(false);
   });
 
-  it("finds a covering period that starts before the window via its predecessor", async () => {
+  it("finds a covering period that starts before the window in legacy history", async () => {
     const world = await fixture();
     // An imported period longer than the creation bound still locks.
     await seed(world, [["2026-01-01", "2026-06-30", "CLOSED"]]);
@@ -172,11 +167,9 @@ describe("bounded period lock", () => {
     expect(await check(world, "2026-07-01")).toMatchObject({ locked: false });
   });
 
-  it("falls back to the exact scan when stored periods overlap", async () => {
+  it("keeps locks when stored periods overlap", async () => {
     const world = await fixture();
-    // Legacy data: a later draft starts on the same day as a closed period,
-    // and many periods start inside one window, hiding the closed one from
-    // a predecessor-only read.
+    // Legacy data includes duplicate start dates and overlapping drafts.
     const rows: Seed[] = [["2026-03-01", "2026-03-31", "CLOSED"]];
     for (let day = 0; day < 31; day += 1) {
       const date = addDays("2026-03-01", day);
@@ -187,6 +180,15 @@ describe("bounded period lock", () => {
     for (const date of ["2026-03-01", "2026-03-15", "2026-03-31", "2026-04-01"])
       await check(world, date);
     expect((await check(world, "2026-03-15")).locked).toBe(true);
+  });
+
+  it("locks an overlong closed period hidden behind an overlapping draft", async () => {
+    const world = await fixture();
+    await seed(world, [
+      ["2026-08-01", "2026-10-31", "CLOSED"],
+      ["2026-09-01", "2026-09-02", "DRAFT"],
+    ]);
+    expect(await check(world, "2026-10-13")).toEqual({ locked: true, read: 2 });
   });
 
   it("ignores other sites and tenants", async () => {
@@ -232,7 +234,7 @@ describe("period creation overlap check", () => {
       ACTOR,
     );
 
-  it("refuses overlaps with recent, future and backdated periods while reading a bounded window", async () => {
+  it("refuses overlaps with recent, future and backdated periods", async () => {
     const world = await fixture();
     await seed(world, [
       ...weekly(260, "2026-09-28"),
@@ -254,7 +256,7 @@ describe("period creation overlap check", () => {
         written: false,
         error: { code },
       });
-      expect(meter.docs.hrPeriods ?? 0).toBeLessThanOrEqual(10);
+      expect(meter.docs.hrPeriods ?? 0).toBe(261);
     }
     const free = await create(
       world,
@@ -263,7 +265,19 @@ describe("period creation overlap check", () => {
       "free-gap-req1",
     );
     expect(free.outcome.value).toMatchObject({ written: true });
-    expect(free.meter.docs.hrPeriods ?? 0).toBeLessThanOrEqual(10);
+    expect(free.meter.docs.hrPeriods ?? 0).toBe(261);
+  });
+
+  it("refuses an overlong overlap hidden behind a later draft", async () => {
+    const world = await fixture();
+    await seed(world, [
+      ["2026-08-01", "2026-10-31", "CLOSED"],
+      ["2026-09-01", "2026-09-02", "DRAFT"],
+    ]);
+    expect(
+      (await create(world, "2026-10-13", "2026-10-14", "legacy-overlap-req"))
+        .outcome.value,
+    ).toMatchObject({ written: false, error: { code: "PERIOD_OVERLAP" } });
   });
 
   it("still refuses a long imported period that started before the window", async () => {

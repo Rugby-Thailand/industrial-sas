@@ -18,24 +18,17 @@ import {
 import { grantedPermissionsAmong } from "../lib/navigationGrants";
 import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
-import {
-  TENANT_INDEX_MAX_BATCH_SIZE,
-  TENANT_INDEX_MAX_PAGE_SIZE,
-  TenantDbError,
-  type TenantIndexRange,
-} from "../lib/tenantDb";
+import { TENANT_INDEX_MAX_BATCH_SIZE, TenantDbError } from "../lib/tenantDb";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { refusal } from "../lib/writeEnvelope";
 import {
-  addDays,
   compareDates,
   inclusiveDayCount,
-  isIsoDate,
   timezoneOffsetMinutes,
   toLocal,
   type IsoDate,
 } from "../model/hr/calendar";
-import { MAX_PERIOD_DAYS, type RecordedDay } from "../model/hr/period";
+import { type RecordedDay } from "../model/hr/period";
 import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
 import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
@@ -793,64 +786,14 @@ export async function sitePeriods(
     .all(MAX_SITE_PERIODS);
 }
 
-/**
- * The site periods that can overlap `[from, to]`, without reading the
- * site's whole period history; null when the data breaks the invariants
- * below and the caller must use the exact `sitePeriods` scan instead.
- *
- * Periods are created with at most `MAX_PERIOD_DAYS` days and without
- * overlap (`periods.create`; revisions never move dates). The result is
- * every period starting in `[from - (MAX_PERIOD_DAYS - 1), to]` plus the
- * latest one starting before that window, and it is exact when EITHER
- * invariant holds:
- * - length bound: an overlapping period cannot start before the window;
- * - no overlap: an earlier-starting period that reached the range would
- *   contain the window's first day, so it is that latest predecessor.
- * More window rows than window days means two periods share a start date,
- * i.e. overlapping data, so the bounded read refuses (null).
- */
-export async function periodsNear(
-  ctx: TenantFunctionContext,
-  warehouseId: string,
-  from: IsoDate,
-  to: IsoDate,
-): Promise<readonly Doc<"hrPeriods">[] | null> {
-  if (!isIsoDate(from) || !isIsoDate(to) || compareDates(from, to) > 0)
-    return null;
-  const windowStart = addDays(from, -(MAX_PERIOD_DAYS - 1));
-  const span = inclusiveDayCount(windowStart, to);
-  if (span + 1 > TENANT_INDEX_MAX_PAGE_SIZE) return null;
-  const reader = (range: TenantIndexRange) =>
-    ctx.tenantDb.byIndex<Doc<"hrPeriods">>(
-      "hrPeriods",
-      "by_orgId_warehouseId_startDate",
-      [{ field: "warehouseId", value: warehouseId }],
-      range,
-    );
-  const [window, before] = await Promise.all([
-    reader({
-      field: "startDate",
-      lower: { value: windowStart, inclusive: true },
-      upper: { value: to, inclusive: true },
-    }).take(span + 1),
-    reader({
-      field: "startDate",
-      upper: { value: windowStart, inclusive: false },
-    }).take(1, "desc"),
-  ]);
-  if (window.length > span) return null;
-  return [...before, ...window];
-}
-
 /** A closed period covering this site date, which no normal write may change. */
 export async function closedPeriodCovering(
   ctx: TenantFunctionContext,
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
-  const periods =
-    (await periodsNear(ctx, warehouseId, date, date)) ??
-    (await sitePeriods(ctx, warehouseId));
+  // Legacy imports may violate both range length and non-overlap invariants.
+  const periods = await sitePeriods(ctx, warehouseId);
   return (
     periods.find(
       (period) =>

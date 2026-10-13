@@ -46,7 +46,6 @@ import {
   hrCommand,
   loadSiteDays,
   orgClock,
-  periodsNear,
   planFromStored,
   planView,
   recordedDay,
@@ -343,6 +342,7 @@ export const preview = queryWithOrg({
     // A string, so a malformed link answers NOT_FOUND instead of throwing.
     periodId: v.string(),
     version: v.optional(v.number()),
+    clockFree: v.optional(v.boolean()),
   },
   returns: v.any(),
   permissionCode: CLOSE,
@@ -350,8 +350,9 @@ export const preview = queryWithOrg({
   handler: async (ctx, args) => {
     // Closed versions carry their own frozen timezone, so history stays
     // readable even when the current organization timezone is unsupported.
-    // Only the live draft calculation reads the organization clock, so a
-    // closed version's answer does not depend on the time and stays cached.
+    // Existing tabs retain period.today by default. Updated clients explicitly
+    // opt into clock-free frozen previews; live drafts still need the clock.
+    const legacyClock = args.clockFree === true ? null : orgClock(ctx);
     const timezoneSupported = timezoneOffsetMinutes(
       ctx.tenant.organization.settings.timezone,
     ).ok;
@@ -376,6 +377,7 @@ export const preview = queryWithOrg({
       revisionReason: period.revisionReason,
       timezone: ctx.tenant.organization.settings.timezone,
       timezoneSupported,
+      ...(legacyClock === null ? {} : { today: legacyClock.today }),
     };
     const selected =
       args.version === undefined
@@ -428,7 +430,7 @@ export const preview = queryWithOrg({
       };
     }
 
-    const clock = orgClock(ctx);
+    const clock = legacyClock ?? orgClock(ctx);
     if (clock === null)
       return {
         ok: true as const,
@@ -534,11 +536,8 @@ export const create = mutationWithOrg({
             "endDate",
             "reason" in range.error ? range.error.reason : undefined,
           );
-        // Bounded: only periods that can overlap the new range, with the
-        // exact site scan when stored data breaks the period invariants.
-        const existing =
-          (await periodsNear(ctx, site._id, args.startDate, args.endDate)) ??
-          (await sitePeriods(ctx, site._id));
+        // Legacy imports may violate both period length and non-overlap bounds.
+        const existing = await sitePeriods(ctx, site._id);
         if (existing.some((period) => rangesOverlap(period, args)))
           return fail("PERIOD_OVERLAP");
         const employees = await siteEmployeesInRange(

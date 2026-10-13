@@ -14,7 +14,7 @@ import { meteredCall } from "../fixtures/hr-read-meter";
 
 /**
  * Clock independence of HR display reads: the shell-wide access query and
- * closed (frozen) period versions answer without reading the time, so their
+ * opt-in closed (frozen) period versions answer without reading the time, so their
  * cached results stay reusable; time-dependent answers still use it.
  */
 
@@ -163,7 +163,7 @@ describe("clock-free HR display reads", () => {
     const frozen = await meteredCall<{ ok: true; value: any }>(
       w,
       periods.preview,
-      { periodId: closed },
+      { periodId: closed, clockFree: true },
       ACTOR,
     );
     expect(frozen.meter.clock).toBe(0);
@@ -174,10 +174,26 @@ describe("clock-free HR display reads", () => {
     });
     expect(frozen.outcome.value.period).not.toHaveProperty("today");
 
+    for (const args of [
+      { periodId: closed },
+      { periodId: closed, version: 1 },
+      { periodId: closed, clockFree: false },
+    ]) {
+      const legacy = await meteredCall<{ ok: true; value: any }>(
+        w,
+        periods.preview,
+        args,
+        ACTOR,
+      );
+      expect(legacy.outcome.value.period.today).toBe(TODAY);
+      expect(legacy.meter.clock).toBeGreaterThan(0);
+    }
+
+    const draftId = await closedPeriod(w, employeeId, "DRAFT");
     const draft = await meteredCall<{ ok: true; value: any }>(
       w,
       periods.preview,
-      { periodId: await closedPeriod(w, employeeId, "DRAFT") },
+      { periodId: draftId, clockFree: true },
       ACTOR,
     );
     expect(draft.outcome.value).toMatchObject({
@@ -190,11 +206,51 @@ describe("clock-free HR display reads", () => {
         await meteredCall<{ ok: true; value: any }>(
           w,
           periods.preview,
-          { periodId: closed, version: 1 },
+          { periodId: draftId, version: 1, clockFree: true },
           ACTOR,
         )
       ).meter.clock,
     ).toBe(0);
+  });
+
+  it("keeps frozen previews readable and omits today with unsupported current timezone", async () => {
+    const { w, employeeId } = await world();
+    const closed = await closedPeriod(w, employeeId);
+    const draft = await closedPeriod(w, employeeId, "DRAFT");
+    await w.t.run(async (ctx) => {
+      const org = await ctx.db.get("organizations", w.orgA);
+      await ctx.db.patch("organizations", w.orgA, {
+        settings: { ...org!.settings, timezone: "Mars/Olympus" },
+      });
+    });
+    for (const clockFree of [undefined, false, true]) {
+      const mode = clockFree === undefined ? {} : { clockFree };
+      for (const args of [
+        { periodId: closed },
+        { periodId: draft, version: 1 },
+      ]) {
+        const result = await meteredCall<{ ok: true; value: any }>(
+          w,
+          periods.preview,
+          { ...args, ...mode },
+          ACTOR,
+        );
+        expect(result.outcome.value).toMatchObject({
+          period: { timezoneSupported: false, timezone: "Asia/Bangkok" },
+          view: { kind: "CLOSED" },
+        });
+        expect(result.outcome.value.period).not.toHaveProperty("today");
+        if (clockFree === true) expect(result.meter.clock).toBe(0);
+      }
+      const result = await meteredCall<{ ok: true; value: any }>(
+        w,
+        periods.preview,
+        { periodId: draft, ...mode },
+        ACTOR,
+      );
+      expect(result.outcome.value.view.kind).toBe("TIMEZONE_UNSUPPORTED");
+      expect(result.outcome.value.period).not.toHaveProperty("today");
+    }
   });
 
   it("still dates the employee's own today answer with the server clock", async () => {
