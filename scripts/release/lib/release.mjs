@@ -53,7 +53,7 @@ export async function runRelease(input, deps) {
   const limits = {
     buildTimeoutMs: 30 * 60_000,
     promoteTimeoutMs: 5 * 60_000,
-    pollIntervalMs: 10_000,
+    pollIntervalMs: 3_000,
     ...input.limits,
   };
   const events = [];

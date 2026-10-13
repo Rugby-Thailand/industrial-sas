@@ -16,6 +16,7 @@ import {
   parseYamlSubset,
   pinProblems,
   tagCommit,
+  typecheckScriptProblems,
   workflowPolicyProblems,
 } from "../../scripts/ci/workflow-lib.mjs";
 
@@ -174,8 +175,8 @@ describe("workflow policy rejects regressions", () => {
     ["duplicate shard", "shard: [1, 2, 3]", "shard: [1, 2, 2]"],
     [
       "fail-fast cancellation",
-      "      fail-fast: false\n",
-      "      fail-fast: true\n",
+      "      fail-fast: false\n      matrix:\n        shard: [1, 2, 3]",
+      "      fail-fast: true\n      matrix:\n        shard: [1, 2, 3]",
     ],
     [
       "mismatched total",
@@ -262,7 +263,6 @@ describe("workflow policy rejects regressions", () => {
       "Navigation harness build (credential-free)",
       "Clean tree after build",
       "Install Playwright Chromium",
-      "Install navigation browser engines",
       "Navigation regressions (desktop engines and mobile Chromium)",
       "Anonymous smoke (desktop and mobile)",
       "Storage workspace (PR subset)",
@@ -295,14 +295,26 @@ describe("workflow policy rejects regressions", () => {
     ]);
   });
 
+  it("requires headless-only Chromium installation without omitting other engines", () => {
+    for (const name of ["Install Playwright Chromium"]) {
+      const step = namedStep("quality.yml", name);
+      expectJobFailure("quality.yml", "browser", [
+        [step, step.replace(" --only-shell", "")],
+      ]);
+      expectJobFailure("quality.yml", "browser", [
+        [step, step.replace("--only-shell", "--no-shell")],
+      ]);
+    }
+  });
+
   it("requires the navigation matrix leg and all three installed engines", () => {
     expectJobFailure("quality.yml", "browser", [
       ["          - suite: navigation\n            shard: 0\n", ""],
     ]);
     expectJobFailure("quality.yml", "browser", [
       [
-        "playwright install --with-deps chromium firefox webkit",
-        "playwright install --with-deps chromium",
+        "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
+        "node scripts/ci/prepare-browser-suite.mjs --suite=smoke",
       ],
     ]);
     const navigation = namedStep(
@@ -524,8 +536,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "        run: pnpm build\n",
-          "        run: pnpm build\n        env:\n          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}\n",
+          '          CI_EXTERNAL_TYPECHECK: "1"\n',
+          '          CI_EXTERNAL_TYPECHECK: "1"\n          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}\n',
         ],
       ]),
     ).toEqual(
@@ -575,8 +587,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps chromium\n      # Production',
-          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps chromium\n      # Production',
+          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n      # Production',
+          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n      # Production',
         ],
       ]),
     ).toEqual(
@@ -754,6 +766,193 @@ describe("workflow policy rejects regressions", () => {
         ),
       ),
     ).toContain(rule);
+  });
+
+  it("joins smoke and navigation preparation before clean-tree and test execution", () => {
+    const clean = namedStep("quality.yml", "Clean tree after build");
+    expectJobFailure("quality.yml", "browser", [
+      [
+        clean,
+        clean.replace("steps.smoke-preparation.outcome", "steps.setup.outcome"),
+      ],
+    ]);
+    for (const [preparation, testTitle, owner] of [
+      [
+        "Production-mode build (credential-free)",
+        "Anonymous smoke (desktop and mobile)",
+        "smoke-preparation",
+      ],
+      [
+        "Navigation harness build (credential-free)",
+        "Navigation regressions (desktop engines and mobile Chromium)",
+        "navigation-preparation",
+      ],
+    ]) {
+      const prep = namedStep("quality.yml", preparation!);
+      const test = namedStep("quality.yml", testTitle!);
+      expectJobFailure("quality.yml", "browser", [
+        [test, test.replace(`steps.${owner}.outcome`, "steps.setup.outcome")],
+      ]);
+      expectJobFailure("quality.yml", "browser", [
+        [
+          prep,
+          prep.replace("        run:", "        shell: echo {0}\n        run:"),
+        ],
+      ]);
+    }
+  });
+
+  it("requires browser installation before both release targets", () => {
+    for (const target of ["staging", "production"] as const) {
+      const title =
+        target === "staging"
+          ? "Deploy and verify staging"
+          : "Release production";
+      const runner = namedStep("quality.yml", title);
+      const install =
+        "      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n";
+      const runnerAt = owned["quality.yml"].indexOf(runner);
+      const installAt = owned["quality.yml"].lastIndexOf(install, runnerAt);
+      const block = owned["quality.yml"].slice(
+        installAt,
+        runnerAt + runner.length,
+      );
+      for (const replacement of [
+        block.replace(install, ""),
+        `${install}${block}`,
+        block.replace(" --only-shell", ""),
+        `${block.replace(install, "")}\n${install}`,
+        block.replace(
+          "        run: pnpm exec playwright",
+          "        if: ${{ always() }}\n        run: pnpm exec playwright",
+        ),
+        block.replace(
+          runner,
+          runner.replace(
+            "        id: release",
+            "        id: release\n        if: ${{ always() }}",
+          ),
+        ),
+      ])
+        expectJobFailure(
+          "quality.yml",
+          target === "staging" ? "staging" : "release",
+          [[block, replacement]],
+        );
+    }
+  });
+
+  it("requires the exact TS6 gate before allowing the external smoke typecheck", () => {
+    const ts6 = namedStep(
+      "quality.yml",
+      "TypeScript 6 gate (cold generated route types)",
+    );
+    for (const replacement of [
+      "",
+      `${ts6}\n${ts6}`,
+      ts6.replace("matrix.lane == 'types'", "matrix.lane == 'style'"),
+      ts6.replace("!cancelled()", "false"),
+    ])
+      expect(problemsWith("quality.yml", [[ts6, replacement]])).toContain(
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+      );
+    for (const override of [
+      "        shell: echo {0}\n",
+      "        working-directory: /tmp\n",
+      "        env:\n          NODE_OPTIONS: --version\n",
+    ])
+      expect(
+        problemsWith("quality.yml", [[ts6, `${ts6}\n${override.trimEnd()}`]]),
+      ).toContain(
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+      );
+    for (const [from, to] of [
+      [
+        "permissions:\n  contents: read",
+        "defaults:\n  run:\n    shell: echo {0}\npermissions:\n  contents: read",
+      ],
+      [
+        "    name: Validate (${{ matrix.lane }})",
+        "    name: Validate (${{ matrix.lane }})\n    defaults:\n      run:\n        shell: echo {0}",
+      ],
+    ])
+      expect(problemsWith("quality.yml", [[from!, to!]])).toContain(
+        "quality.yml:validate: required check execution must not override default shell or directory",
+      );
+    const smoke = namedStep(
+      "quality.yml",
+      "Production-mode build (credential-free)",
+    );
+    expectJobFailure("quality.yml", "browser", [
+      [
+        smoke,
+        smoke.replace(
+          'CI_EXTERNAL_TYPECHECK: "1"',
+          'CI_EXTERNAL_TYPECHECK: "0"',
+        ),
+      ],
+    ]);
+    expectJobFailure("quality.yml", "browser", [
+      [
+        smoke,
+        smoke.replace(
+          '        env:\n          CI_EXTERNAL_TYPECHECK: "1"\n',
+          "",
+        ),
+      ],
+    ]);
+    const manifest = JSON.parse(read("package.json"));
+    expect(typecheckScriptProblems(manifest)).toEqual([]);
+    for (const script of [
+      "echo passed",
+      "bun --check",
+      "tsc --noEmit",
+      "next typegen && tsc --noEmit || true",
+    ])
+      expect(
+        typecheckScriptProblems({
+          ...manifest,
+          scripts: { ...manifest.scripts, "typecheck:ts6": script },
+        }),
+      ).toContain(
+        "package.json: typecheck:ts6 must generate route types and run tsc --noEmit",
+      );
+    expect(
+      typecheckScriptProblems({
+        ...manifest,
+        devDependencies: { ...manifest.devDependencies, typescript: "^6.0.3" },
+      }),
+    ).toContain(
+      "package.json: external typecheck requires pinned TypeScript 6",
+    );
+  });
+
+  it("fails closed when validation lanes are missing, duplicated or skipped", () => {
+    for (const lanes of ["[style, types, lint]", "[style, types, lint, lint]"])
+      expect(
+        problemsWith("quality.yml", [
+          ["lane: [style, types, lint, audit]", `lane: ${lanes}`],
+        ]),
+      ).toContain(
+        "quality.yml:validate: exact complete validation lanes required",
+      );
+    const lint = namedStep("quality.yml", "Lint");
+    for (const replacement of [
+      "",
+      `${lint}\n${lint}`,
+      lint.replace("matrix.lane == 'lint'", "matrix.lane == 'style'"),
+    ])
+      expect(problemsWith("quality.yml", [[lint, replacement]])).toContain(
+        "quality.yml:validate: pnpm lint must run exactly once in lint",
+      );
+    const clean = namedStep("quality.yml", "Clean tree after generators");
+    expect(
+      problemsWith("quality.yml", [
+        [clean, clean.replace("steps.setup.outcome == 'success'", "false")],
+      ]),
+    ).toContain(
+      "quality.yml:validate: clean tree must join each lane after all checks",
+    );
   });
 
   it("keeps the validate job on the shared Bun without a second install", () => {

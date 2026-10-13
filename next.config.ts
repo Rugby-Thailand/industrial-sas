@@ -19,7 +19,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   ...(distDir === undefined || distDir === "" ? {} : { distDir }),
   typescript: {
-    ignoreBuildErrors: false,
+    // Trusted CI runs the same pinned TypeScript 6 checker as a required lane.
+    // Local/default builds retain Next's own check; only exact CI opt-in skips it.
+    ignoreBuildErrors: process.env.CI_EXTERNAL_TYPECHECK === "1",
   },
 
   webpack(config, { dev }) {

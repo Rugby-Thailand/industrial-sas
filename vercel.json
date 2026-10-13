@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node scripts/release/assert-deploy-env.mjs --phase=pre && pnpm exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && pnpm build'",
+  "buildCommand": "node scripts/release/assert-deploy-env.mjs --phase=pre && pnpm exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && CI_EXTERNAL_TYPECHECK=1 pnpm build'",
   "bunVersion": "1.4.x",
   "git": {
     "deploymentEnabled": false

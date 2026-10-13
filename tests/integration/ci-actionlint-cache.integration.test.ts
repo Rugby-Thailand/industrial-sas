@@ -36,6 +36,7 @@ function fixture() {
     join(process.cwd(), "scripts/ci/validate-workflows.mjs"),
     join(root, "scripts/ci/validate-workflows.mjs"),
   );
+  cpSync(join(process.cwd(), "package.json"), join(root, "package.json"));
   writeFileSync(join(root, ".github/workflows/test.yml"), "name: test\n");
   writeFileSync(join(root, "scripts/ci/dependency-exceptions.json"), "[]");
   const output = join(root, "executed.json");
@@ -71,6 +72,7 @@ export const actionReferences = () => [];
 export const normalizeConcurrencyQueue = (_name, text) => ({text,problems:[]});
 export const tagCommit = () => null;
 export const workflowPolicyProblems = () => [];
+export const typecheckScriptProblems = () => [];
 `,
   );
   writeFileSync(

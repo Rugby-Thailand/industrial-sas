@@ -574,11 +574,38 @@ function releaseJobProblems(id, job, spec) {
   )
     problems.push(`${at}: must install the locked release tools`);
   const target = id === "staging" ? "staging" : "production";
+  const browserInstalls = steps.filter((step) =>
+    /\bplaywright\s+install\b/.test(runOf(step)),
+  );
+  const install = browserInstalls[0];
+  if (
+    job?.defaults !== undefined ||
+    browserInstalls.length !== 1 ||
+    install?.run !==
+      "pnpm exec playwright install --with-deps --only-shell chromium" ||
+    install?.if !== undefined ||
+    install?.env !== undefined ||
+    install?.shell !== undefined ||
+    install?.["working-directory"] !== undefined ||
+    steps.indexOf(install) <=
+      steps.findIndex(
+        (step) =>
+          step.run === "pnpm -C tools/release install --frozen-lockfile",
+      ) ||
+    steps.indexOf(install) >=
+      steps.findIndex((step) =>
+        String(step.run ?? "").includes("scripts/release/run.mjs"),
+      )
+  )
+    problems.push(
+      `${at}: exact headless Chromium installation must pass before the release controller`,
+    );
   const runner = steps.filter((step) =>
     String(step.run ?? "").includes("scripts/release/run.mjs"),
   );
   if (
     runner.length !== 1 ||
+    runner[0]?.if !== undefined ||
     runner[0].run !== `node scripts/release/run.mjs --target=${target}`
   ) {
     problems.push(`${at}: exactly one run.mjs --target=${target} step`);
@@ -619,6 +646,7 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "node scripts/ci/validate-workflows.mjs --verify-pins",
   "pnpm format:check",
   "pnpm typecheck",
+  "pnpm typecheck:ts6",
   "pnpm lint",
   "pnpm audit:prod",
   "node scripts/ci/audit-dependencies.mjs --scope=app",
@@ -626,6 +654,21 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "pnpm ci:test-discovery",
   "pnpm ci:clean-tree",
 ]);
+
+// The external gate must execute the same pinned compiler, never a no-op
+// package alias. CLI validation reads the package manifest before workflows.
+export function typecheckScriptProblems(manifest) {
+  const problems = [];
+  if (manifest?.scripts?.["typecheck:ts6"] !== "next typegen && tsc --noEmit")
+    problems.push(
+      "package.json: typecheck:ts6 must generate route types and run tsc --noEmit",
+    );
+  if (!/^6\.\d+\.\d+$/.test(manifest?.devDependencies?.typescript ?? ""))
+    problems.push(
+      "package.json: external typecheck requires pinned TypeScript 6",
+    );
+  return problems;
+}
 
 // Parsed-YAML equality that ignores mapping key order.
 const canonical = (value) =>
@@ -729,16 +772,29 @@ const BROWSER_STEPS = Object.freeze([
   ],
   [
     "production build",
-    (step) => runOf(step) === "pnpm build",
-    { run: "pnpm build", if: SMOKE_LEG, env: undefined },
+    (step) =>
+      runOf(step) === "node scripts/ci/prepare-browser-suite.mjs --suite=smoke",
+    {
+      id: "smoke-preparation",
+      run: "node scripts/ci/prepare-browser-suite.mjs --suite=smoke",
+      if: SMOKE_LEG,
+      env: { CI_EXTERNAL_TYPECHECK: "1" },
+      shell: undefined,
+      "working-directory": undefined,
+    },
   ],
   [
     "navigation build",
-    (step) => runOf(step) === "pnpm build:navigation",
+    (step) =>
+      runOf(step) ===
+      "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
     {
-      run: "pnpm build:navigation",
+      id: "navigation-preparation",
+      run: "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
       if: "${{ matrix.suite == 'navigation' }}",
       env: undefined,
+      shell: undefined,
+      "working-directory": undefined,
     },
   ],
   [
@@ -746,28 +802,18 @@ const BROWSER_STEPS = Object.freeze([
     (step) => runOf(step).includes("ci:clean-tree"),
     {
       run: "pnpm ci:clean-tree",
-      if: "${{ !cancelled() && (matrix.suite == 'smoke' || matrix.suite == 'navigation') && steps.setup.outcome == 'success' }}",
+      if: "${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success')) }}",
     },
   ],
   [
     "Chromium install",
     (step) =>
-      runOf(step) === "pnpm exec playwright install --with-deps chromium",
+      runOf(step) ===
+      "pnpm exec playwright install --with-deps --only-shell chromium",
     {
       id: "browsers",
-      run: "pnpm exec playwright install --with-deps chromium",
-      if: "${{ matrix.suite != 'navigation' }}",
-    },
-  ],
-  [
-    "navigation engine install",
-    (step) =>
-      runOf(step) ===
-      "pnpm exec playwright install --with-deps chromium firefox webkit",
-    {
-      id: "navigation-browsers",
-      run: "pnpm exec playwright install --with-deps chromium firefox webkit",
-      if: "${{ matrix.suite == 'navigation' }}",
+      run: "pnpm exec playwright install --with-deps --only-shell chromium",
+      if: "${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}",
     },
   ],
   [
@@ -775,7 +821,7 @@ const BROWSER_STEPS = Object.freeze([
     (step) => /\btest:e2e(?![:\w])/.test(runOf(step)),
     {
       run: "pnpm test:e2e",
-      if: legAfter("smoke", "browsers"),
+      if: legAfter("smoke", "smoke-preparation"),
       env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
     },
   ],
@@ -784,7 +830,7 @@ const BROWSER_STEPS = Object.freeze([
     (step) => runOf(step).includes("test:e2e:navigation"),
     {
       run: "pnpm test:e2e:navigation",
-      if: legAfter("navigation", "navigation-browsers"),
+      if: legAfter("navigation", "navigation-preparation"),
       env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
     },
   ],
@@ -841,6 +887,10 @@ function browserProblems(jobs) {
   )
     problems.push(
       `${at}: matrix must be exactly smoke (0), navigation (0), workspace-1 (1), workspace-2 (2) with fail-fast false`,
+    );
+  if (jobs.browser?.defaults !== undefined)
+    problems.push(
+      `${at}: preparation cannot override shell or working directory defaults`,
     );
   const steps = stepsOf(jobs.browser);
   let previous = -1;
@@ -1005,6 +1055,60 @@ function qualityProblems(workflow, { allowedGhsas }) {
       );
   }
 
+  const validationLanes = {
+    style: ["pnpm format:check"],
+    types: ["pnpm typecheck", "pnpm typecheck:ts6"],
+    lint: ["pnpm lint"],
+    audit: [
+      "node scripts/ci/validate-workflows.mjs --verify-pins",
+      "pnpm audit:prod",
+      "node scripts/ci/audit-dependencies.mjs --scope=app",
+      "node scripts/ci/audit-dependencies.mjs --scope=release",
+      "pnpm ci:test-discovery",
+    ],
+  };
+  if (
+    !same(jobs.validate?.strategy, {
+      "fail-fast": "false",
+      matrix: { lane: ["style", "types", "lint", "audit"] },
+    })
+  )
+    problems.push(
+      "quality.yml:validate: exact complete validation lanes required",
+    );
+  if (workflow.defaults !== undefined || jobs.validate?.defaults !== undefined)
+    problems.push(
+      "quality.yml:validate: required check execution must not override default shell or directory",
+    );
+  const validationSteps = stepsOf(jobs.validate);
+  for (const [lane, commands] of Object.entries(validationLanes)) {
+    for (const command of commands) {
+      const matches = validationSteps.filter((step) => step.run === command);
+      const expected = `\${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == '${lane}' }}`;
+      if (
+        matches.length !== 1 ||
+        matches[0]?.if !== expected ||
+        matches[0]?.shell !== undefined ||
+        matches[0]?.["working-directory"] !== undefined ||
+        matches[0]?.env !== undefined
+      )
+        problems.push(
+          `quality.yml:validate: ${command} must run exactly once in ${lane}`,
+        );
+    }
+  }
+  const clean = validationSteps.filter(
+    (step) => step.run === "pnpm ci:clean-tree",
+  );
+  if (
+    clean.length !== 1 ||
+    clean[0]?.if !==
+      "${{ !cancelled() && steps.setup.outcome == 'success' }}" ||
+    validationSteps.at(-1) !== clean[0]
+  )
+    problems.push(
+      "quality.yml:validate: clean tree must join each lane after all checks",
+    );
   const validateRuns = stepsOf(jobs.validate).map((step) => step.run);
   for (const command of VALIDATE_COMMANDS)
     if (!validateRuns.includes(command))

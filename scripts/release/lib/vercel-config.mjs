@@ -8,7 +8,9 @@
 export const GATED_BUILD_COMMAND = [
   "node scripts/release/assert-deploy-env.mjs --phase=pre",
   "pnpm exec convex deploy --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL" +
-    " --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && pnpm build'",
+    // The exact source has already passed next typegen + TypeScript 6 in the
+    // mandatory quality gate. Keep Convex's separate backend typecheck.
+    " --cmd 'node scripts/release/assert-deploy-env.mjs --phase=build && CI_EXTERNAL_TYPECHECK=1 pnpm build'",
 ].join(" && ");
 
 // Hosted Vercel Functions run on Bun (docs/operations/bun-runtime.md). Vercel

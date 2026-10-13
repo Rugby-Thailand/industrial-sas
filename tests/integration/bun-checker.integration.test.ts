@@ -116,7 +116,9 @@ describe("pinned Bun checker", () => {
     expect(scripts["dev:backend"]).toBe("convex dev");
     // TypeScript 6 stays for compiler API consumers and the build gate.
     expect(manifest.devDependencies.typescript).toBe("6.0.3");
-    expect(read("next.config.ts")).toMatch(/ignoreBuildErrors: false/);
+    expect(read("next.config.ts")).toMatch(
+      /ignoreBuildErrors: process\.env\.CI_EXTERNAL_TYPECHECK === "1"/,
+    );
   });
 });
 

@@ -20,6 +20,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   validate:
+    name: Validate (${{ matrix.lane }})
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [style, types, lint, audit]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -31,34 +36,37 @@ jobs:
       # Later steps run even if an earlier check failed, so one run reports
       # every independent defect; any failed step still fails the job.
       - name: Workflow lint and action pins
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: node scripts/ci/validate-workflows.mjs --verify-pins
       - name: Formatting
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'style' }}
         run: pnpm format:check
       # The pinned Bun comes from the shared setup action (after the frozen
       # install). `bun --check`, never bare `bun check`, which would run the aggregate
-      # `check` script. The production build keeps the TypeScript 6 gate.
+      # `check` script. The same lane also owns the exact TypeScript 6 gate.
       - name: Typecheck (cold next typegen + Bun checker)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
         run: pnpm typecheck
+      - name: TypeScript 6 gate (cold generated route types)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
+        run: pnpm typecheck:ts6
       - name: Lint
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'lint' }}
         run: pnpm lint
       - name: Runtime dependency audit
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: pnpm audit:prod
       # High/critical across all app and release-tool dependencies; only the
       # exact-chain, expiring entries in scripts/ci/dependency-exceptions.json
       # are accepted. Registry errors fail.
       - name: Application dependency audit (exact-chain exceptions)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: node scripts/ci/audit-dependencies.mjs --scope=app
       - name: Release-tool dependency audit (exact-chain exceptions)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: node scripts/ci/audit-dependencies.mjs --scope=release
       - name: Test discovery
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: pnpm ci:test-discovery
       - name: Clean tree after generators
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
@@ -148,33 +156,32 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-
-      # No service credentials: this is the unconfigured production-mode build,
-      # run under the pinned Bun from the shared setup action.
+      # Credential-free setup overlaps the verified build with browser install.
+      # The helper joins both processes before these tests or clean-tree run.
       - name: Production-mode build (credential-free)
+        id: smoke-preparation
         if: ${{ matrix.suite == 'smoke' }}
-        run: pnpm build
+        env:
+          CI_EXTERNAL_TYPECHECK: "1"
+        run: node scripts/ci/prepare-browser-suite.mjs --suite=smoke
       - name: Navigation harness build (credential-free)
+        id: navigation-preparation
         if: ${{ matrix.suite == 'navigation' }}
-        run: pnpm build:navigation
+        run: node scripts/ci/prepare-browser-suite.mjs --suite=navigation
       - name: Clean tree after build
-        if: ${{ !cancelled() && (matrix.suite == 'smoke' || matrix.suite == 'navigation') && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success')) }}
         run: pnpm ci:clean-tree
-      # Exactly the browser revision bundled with the locked @playwright/test.
       - name: Install Playwright Chromium
         id: browsers
-        if: ${{ matrix.suite != 'navigation' }}
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Install navigation browser engines
-        id: navigation-browsers
-        if: ${{ matrix.suite == 'navigation' }}
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        if: ${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}
+        run: pnpm exec playwright install --with-deps --only-shell chromium
       - name: Anonymous smoke (desktop and mobile)
-        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e
       - name: Navigation regressions (desktop engines and mobile Chromium)
-        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e:navigation
@@ -287,7 +294,7 @@ jobs:
       - name: Install release tools
         run: pnpm -C tools/release install --frozen-lockfile
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps --only-shell chromium
       - name: Deploy and verify staging
         id: release
         env:
@@ -341,7 +348,7 @@ jobs:
       - name: Install release tools
         run: pnpm -C tools/release install --frozen-lockfile
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps --only-shell chromium
       # Production Convex/Clerk deploy credentials stay in Vercel. The
       # controller takes the mandatory backup before any deployment.
       - name: Release production
