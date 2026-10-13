@@ -1019,3 +1019,140 @@ it.each(["spot", "position"])(
       ).toBeVisible();
   },
 );
+it("retries the original floor-count command after a lost response advances the live building", async () => {
+  const add = mutationFor("storageLayouts/writes:changeStorageFloorCount");
+  add.mockRejectedValueOnce(new Error("Response lost after server committed"));
+  const view = renderWithIntl(
+    <BuildingSettingsDialog warehouseId="warehouse-a" building={pd} />,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit building settings" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add floors" }));
+  await screen.findByTestId("layout-operation-failure");
+  const original = add.mock.calls[0]![0];
+  view.rerender(
+    <BuildingSettingsDialog
+      warehouseId="warehouse-a"
+      building={{ ...pd, floorCount: 3, version: 6 }}
+    />,
+  );
+  fireEvent.click(
+    within(screen.getByTestId("layout-operation-failure")).getByRole("button", {
+      name: "Retry",
+    }),
+  );
+  await waitFor(() => expect(add).toHaveBeenCalledTimes(2));
+  expect(add.mock.calls[1]![0]).toEqual(original);
+});
+
+it("replays named layout completion after a lost response changes its live target", async () => {
+  const target = {
+    found: true,
+    locationId: "named-a",
+    code: "DOCK SHELF",
+    version: 1,
+    layoutPending: true,
+    buildingStatus: "ACTIVE",
+  };
+  mocks.queries.set("storageLayouts/namedLayout:namedLocationLayoutTarget", {
+    ok: true,
+    value: target,
+  });
+  mocks.queries.set("storageLayouts/catalogue:getStorageBuildingLayout", {
+    ok: true,
+    value: {
+      found: true,
+      building: pd,
+      floors: [
+        {
+          floorId: "f1",
+          floorNumber: 1,
+          grossAreaSqMm: 1,
+          reservedAreaSqMm: 0,
+          usableAreaSqMm: 1,
+          version: 1,
+          storageZones: [],
+          reservedBlocks: [],
+        },
+      ],
+    },
+  });
+  const complete = mutationFor(
+    "storageLayouts/namedLayout:completeNamedLocationLayout",
+  );
+  complete.mockRejectedValueOnce(
+    new Error("Response lost after server committed"),
+  );
+  const props = {
+    warehouseId: "warehouse-a",
+    location: {
+      locationId: "named-a",
+      code: "DOCK SHELF",
+      name: "Dock shelf",
+      buildingId: "pd",
+    },
+    onClose: vi.fn(),
+    onCompleted: vi.fn(),
+  };
+  const view = renderWithIntl(<CompleteNamedLayoutDialog {...props} />, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+  for (const [name, value] of [
+    ["Width (m)", "1.2"],
+    ["Depth (m)", "1"],
+    ["Maximum stack height (m)", "2.5"],
+    ["X position (m)", "0"],
+    ["Y position (m)", "0"],
+  ])
+    fireEvent.change(screen.getByLabelText(name!), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Add to floor plan" }));
+  await screen.findByTestId("layout-operation-failure");
+  const original = complete.mock.calls[0]![0];
+  mocks.queries.set("storageLayouts/namedLayout:namedLocationLayoutTarget", {
+    ok: true,
+    value: { ...target, version: 2, layoutPending: false },
+  });
+  view.rerender(<CompleteNamedLayoutDialog {...props} />);
+  expect(
+    screen.getByRole("button", { name: "Add to floor plan" }),
+  ).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(complete).toHaveBeenCalledTimes(2));
+  expect(complete.mock.calls[1]![0]).toEqual(original);
+  expect(props.onCompleted).toHaveBeenCalledOnce();
+});
+
+it("uses a distinct floor-count command when the user explicitly adds more after an uncertain save", async () => {
+  const add = mutationFor("storageLayouts/writes:changeStorageFloorCount");
+  add.mockRejectedValueOnce(new Error("Response lost after server committed"));
+  const view = renderWithIntl(
+    <BuildingSettingsDialog warehouseId="warehouse-a" building={pd} />,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit building settings" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add floors" }));
+  await screen.findByTestId("layout-operation-failure");
+  const original = add.mock.calls[0]![0];
+  view.rerender(
+    <BuildingSettingsDialog
+      warehouseId="warehouse-a"
+      building={{ ...pd, floorCount: 3, version: 6 }}
+    />,
+  );
+  fireEvent.change(
+    screen.getByRole("spinbutton", { name: "New total floors" }),
+    { target: { value: "5" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add floors" }));
+  await waitFor(() => expect(add).toHaveBeenCalledTimes(2));
+  expect(add.mock.calls[1]![0]).toEqual(
+    expect.objectContaining({ floorCount: 5, expectedVersion: 6 }),
+  );
+  expect(add.mock.calls[1]![0].requestId).not.toBe(original.requestId);
+});

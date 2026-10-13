@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,7 @@ function CompleteNamedLayoutForm({
     buildingId: location.buildingId,
   });
   const complete = useMutation(storageLayoutRefs.completeNamedLayout);
+  const lastCommand = useRef<Parameters<typeof complete>[0]>(undefined);
   const operation = useAsyncOperation({
     scope: `named-layout:${warehouseId}:${location.locationId}`,
     describeError: (code) => code || "NETWORK_ERROR",
@@ -197,24 +198,30 @@ function CompleteNamedLayoutForm({
       ...rectangle,
       maxStackHeightMm: heightMm,
     };
+    const command = {
+      ...payload,
+      requestId: operation.request(JSON.stringify(payload)),
+    };
+    lastCommand.current = command;
+    await send(command);
+  }
+  async function send(command: Parameters<typeof complete>[0]) {
+    if (operation.busy) return;
     setRefusal(undefined);
     await operation.run(
-      () =>
-        complete({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      () => complete(command),
       (result) => {
         if (!result.ok) setRefusal(result.denial.code);
         else if (!result.value.written) setRefusal(result.value.error.code);
         else {
           operation.clearRequests();
+          lastCommand.current = undefined;
           setSaved(true);
           // Close and report only once the write has settled (live owner).
           operation.complete(() =>
             onCompleted({
               code: location.code,
-              floorNumber: payload.floorNumber,
+              floorNumber: command.floorNumber,
             }),
           );
         }
@@ -352,7 +359,11 @@ function CompleteNamedLayoutForm({
       </p>
       <OperationFailure
         failure={layoutFailure(refusal, operation)}
-        onRetry={() => void submit()}
+        onRetry={() => {
+          // The committed location may no longer be layoutPending; only the
+          // exact submitted command bypasses that UI preflight for recovery.
+          if (lastCommand.current) void send(lastCommand.current);
+        }}
         retrying={operation.busy}
       />
       <DialogFooter>

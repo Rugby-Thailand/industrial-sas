@@ -966,6 +966,7 @@ function BuildingFloorCountForm({
   const [total, setTotal] = useState(suggested);
   const [refusal, setRefusal] = useState<string>();
   const [added, setAdded] = useState<number>();
+  const lastCommand = useRef<Parameters<typeof changeFloorCount>[0]>(undefined);
   const dirty = total !== String(base + 1);
   if (building.floorCount !== base && !dirty) {
     setBase(building.floorCount);
@@ -988,22 +989,28 @@ function BuildingFloorCountForm({
       expectedVersion: building.version,
       floorCount: next,
     };
+    const command = {
+      ...payload,
+      requestId: operation.request(JSON.stringify(payload)),
+    };
+    lastCommand.current = command;
+    await send(command);
+  }
+  async function send(command: Parameters<typeof changeFloorCount>[0]) {
+    if (operation.busy) return;
     setRefusal(undefined);
     setAdded(undefined);
     await operation.run(
-      () =>
-        changeFloorCount({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      () => changeFloorCount(command),
       (result) => {
         if (!result.ok) setRefusal(result.denial.code);
         else if (!result.value.written) setRefusal(result.value.error.code);
         else {
           operation.clearRequests();
-          setBase(next);
-          setTotal(String(next + 1));
-          setAdded(next);
+          lastCommand.current = undefined;
+          setBase(command.floorCount);
+          setTotal(String(command.floorCount + 1));
+          setAdded(command.floorCount);
         }
       },
     );
@@ -1054,7 +1061,10 @@ function BuildingFloorCountForm({
       </p>
       <OperationFailure
         failure={layoutFailure(refusal, operation)}
-        onRetry={() => void submit()}
+        onRetry={() => {
+          // A refreshed count/version must never turn Retry into another add.
+          if (lastCommand.current) void send(lastCommand.current);
+        }}
         retrying={operation.busy}
       />
       {added !== undefined && !dirty ? (
