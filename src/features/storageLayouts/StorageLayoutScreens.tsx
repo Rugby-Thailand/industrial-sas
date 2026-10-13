@@ -1095,28 +1095,22 @@ function RemoveTopFloor({
   const [open, setOpen] = useState(false);
   const [refusal, setRefusal] = useState<string>();
   const [removed, setRemoved] = useState<number>();
+  const [reviewedFloor, setReviewedFloor] = useState(building.floorCount);
+  const reviewedCommand = useRef<Parameters<typeof remove>[0]>(undefined);
   const floor = building.floorCount;
-  if (floor <= 1) return null;
+  if (floor <= 1 && !open) return null;
   async function confirm() {
-    const payload = {
-      warehouseId,
-      buildingId: building.buildingId,
-      expectedVersion: building.version,
-      floorNumber: floor,
-    };
+    const command = reviewedCommand.current;
+    if (!command || operation.busy) return;
     setRefusal(undefined);
     await operation.run(
-      () =>
-        remove({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      () => remove(command),
       (result) => {
         if (!result.ok) setRefusal(result.denial.code);
         else if (!result.value.written) setRefusal(result.value.error.code);
         else {
           operation.clearRequests();
-          setRemoved(floor);
+          setRemoved(command.floorNumber);
           operation.complete(() => setOpen(false));
         }
       },
@@ -1129,7 +1123,21 @@ function RemoveTopFloor({
         type="button"
         variant="ghost"
         size="sm"
+        disabled={floor <= 1}
         onClick={() => {
+          // Confirm and retry refer to the floor actually reviewed on open.
+          // Reactive counts must not advance an uncertain destructive command.
+          const payload = {
+            warehouseId,
+            buildingId: building.buildingId,
+            expectedVersion: building.version,
+            floorNumber: floor,
+          };
+          reviewedCommand.current = {
+            ...payload,
+            requestId: operation.request(JSON.stringify(payload)),
+          };
+          setReviewedFloor(floor);
           setRefusal(undefined);
           setOpen(true);
         }}
@@ -1145,7 +1153,7 @@ function RemoveTopFloor({
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
-        title={t("layoutActions.removeTopFloorTitle", { floor })}
+        title={t("layoutActions.removeTopFloorTitle", { floor: reviewedFloor })}
         description={t("layoutActions.removeTopFloorDescription")}
         cancelLabel={t("cancel")}
         confirmLabel={t("layoutActions.removeTopFloorConfirm")}

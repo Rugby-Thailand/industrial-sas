@@ -1156,3 +1156,63 @@ it("uses a distinct floor-count command when the user explicitly adds more after
   );
   expect(add.mock.calls[1]![0].requestId).not.toBe(original.requestId);
 });
+
+it.each([2, 3])(
+  "replays removal of reviewed floor %s after a lost response advances the live building",
+  async (floorCount) => {
+    const remove = mutationFor("storageLayouts/writes:removeTopStorageFloor");
+    remove.mockRejectedValueOnce(
+      new Error("Response lost after server committed"),
+    );
+    const view = renderWithIntl(
+      <BuildingSettingsDialog
+        warehouseId="warehouse-a"
+        building={{ ...pd, floorCount }}
+      />,
+      { locale: "en", workspace: false, preserveProviders: true },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit building settings" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: `Remove empty floor ${floorCount}` }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: `Remove floor ${floorCount}?` }),
+      ).getByRole("button", { name: "Remove floor" }),
+    );
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+    const original = remove.mock.calls[0]![0];
+    view.rerender(
+      <BuildingSettingsDialog
+        warehouseId="warehouse-a"
+        building={{ ...pd, floorCount: floorCount - 1, version: 6 }}
+      />,
+    );
+    const confirmation = screen.getByRole("dialog", {
+      name: `Remove floor ${floorCount}?`,
+    });
+    fireEvent.click(
+      within(confirmation).getByRole("button", { name: "Remove floor" }),
+    );
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(2));
+    expect(remove.mock.calls[1]![0]).toEqual(original);
+    await waitFor(() => expect(confirmation).not.toBeInTheDocument());
+    if (floorCount === 3) {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Remove empty floor 2" }),
+      );
+      fireEvent.click(
+        within(
+          screen.getByRole("dialog", { name: "Remove floor 2?" }),
+        ).getByRole("button", { name: "Remove floor" }),
+      );
+      await waitFor(() => expect(remove).toHaveBeenCalledTimes(3));
+      expect(remove.mock.calls[2]![0]).toEqual(
+        expect.objectContaining({ floorNumber: 2, expectedVersion: 6 }),
+      );
+      expect(remove.mock.calls[2]![0].requestId).not.toBe(original.requestId);
+    }
+  },
+);
