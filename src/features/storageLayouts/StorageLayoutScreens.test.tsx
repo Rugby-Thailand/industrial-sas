@@ -1002,6 +1002,10 @@ describe("Unavailable area color saving", () => {
       fireEvent.click(screen.getByRole("button", { name: "Edit Lift core" }));
       fireEvent.click(screen.getByRole("button", { name: "Office" }));
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      // Cancel consumes the dialog's own entry before the next edit opens.
+      await waitFor(() =>
+        expect(window.location.search).not.toMatch(/overlay/),
+      );
       expect(
         screen.getByRole("button", { name: "Floor saved" }),
       ).toBeDisabled();

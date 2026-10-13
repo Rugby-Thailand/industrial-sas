@@ -66,6 +66,7 @@ vi.mock("@/i18n/navigation", () => ({
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { trackAppHistory } from "@/lib/browser/appHistory";
+import { updateBrowserQuery } from "@/lib/browser/history";
 import type {
   StorageBuildingRow,
   StorageFloorRow,
@@ -1153,5 +1154,366 @@ describe("storage foreground caller regressions", () => {
     await nativeBack();
     expect(close).toHaveBeenCalledOnce();
     expect(href()).toBe(BUILDING_URL);
+  });
+});
+
+describe("live completion owners", () => {
+  const panel = (zones: StorageZoneRow[]) => (
+    <StorageZonesPanel
+      warehouseId="warehouse-a"
+      buildingId="pd"
+      floorNumber={1}
+      floorWidthMm={10_000}
+      floorDepthMm={10_000}
+      floorHeightMm={4_000}
+      zones={zones}
+    />
+  );
+  const deferred = (name: string) => {
+    let finish!: (value: unknown) => void;
+    mutationFor(name).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    return (
+      value: unknown = {
+        ok: true,
+        value: { written: true, documentId: "doc", replayed: false },
+      },
+    ) => act(async () => finish(value));
+  };
+
+  it("a saved spot edit consumes its editor entry and the next Back leaves the building", async () => {
+    guarded(panel([zone()]));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Rack A" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Edit storage spot",
+    });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+      target: { value: "Saved name" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Save changes" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(href()).toBe(BUILDING_URL));
+    expect(
+      screen.queryByRole("dialog", { name: /Save changes before leaving/ }),
+    ).toBeNull();
+    await nativeBack();
+    expect(href()).toBe(ORIGIN);
+  });
+
+  it("an older spot save cannot close a newer spot edit intent that replaced it", async () => {
+    const finish = deferred("storageLayouts/zones:updateStorageZone");
+    const b = zone({
+      zoneId: "zone-b",
+      locationId: "location-b",
+      code: "PD-F01-Z02",
+      label: "Rack B",
+      xMm: 5_000,
+    });
+    guarded(panel([zone(), b]));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Rack A" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Edit storage spot",
+    });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+      target: { value: "Rack A renamed" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Save changes" }),
+    );
+    // A link intent for another spot arrives while the first save runs.
+    act(() =>
+      updateBrowserQuery((query) => query.set("editZone", "zone-b"), {
+        event: "storage-workspace-state",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+        "Rack B",
+      ),
+    );
+    await finish();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(
+      screen.queryByRole("dialog", { name: /Save changes before leaving/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Edit storage spot" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Rack B");
+    expect(params().get("editZone")).toBe("zone-b");
+  });
+
+  it("a spot save that resolves after unmount leaves the next route's edit intent alone", async () => {
+    const finish = deferred("storageLayouts/zones:updateStorageZone");
+    const view = guarded(panel([zone()]));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Rack A" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Edit storage spot",
+    });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+      target: { value: "Late" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Save changes" }),
+    );
+    view.unmount();
+    window.history.pushState(
+      {},
+      "",
+      "/en/master-data/storage-layouts/other?floor=7&editZone=zone-b#keep",
+    );
+    const index = window.history.state.appNavigationIndex;
+    await finish();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(href()).toBe(
+      "/en/master-data/storage-layouts/other?floor=7&editZone=zone-b#keep",
+    );
+    expect(window.history.state.appNavigationIndex).toBe(index);
+  });
+
+  it("clean native Forward reopens the same spot editor from its saved values", async () => {
+    guarded(panel([zone()]));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Rack A" }));
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    await nativeBack();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await nativeForward();
+    expect(
+      await screen.findByRole("dialog", { name: "Edit storage spot" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Rack A");
+  });
+
+  it("remounting over a spot editor entry keeps the page and a stale editZone link opens nothing", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      `${BUILDING_URL.replace("#map", "")}&editZone=missing-zone#map`,
+    );
+    const first = guarded(panel([zone()]));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Rack A" }));
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    first.unmount();
+    guarded(panel([zone()]));
+    await nativeBack();
+    expect(window.location.pathname).toBe("/en/master-data/storage-layouts/pd");
+    await nativeBack();
+    expect(href()).toBe(ORIGIN);
+  });
+
+  const grid = zone({
+    mode: "FLOOR_POSITIONS",
+    positions: [
+      {
+        positionId: "p1",
+        revision: "2:2",
+        locationId: "l1",
+        code: "PD-F01-Z01-P1",
+        label: "P1",
+        qrValue: "ISAS:LOCATION:1:l1",
+        kind: "FLOOR",
+        isDefault: false,
+        xMm: 0,
+        yMm: 0,
+        widthMm: 1_000,
+        depthMm: 1_000,
+        breadcrumb: "",
+        placements: [],
+      },
+    ],
+  });
+
+  it("a saved position edit returns to the manager, then Back closes the manager, then leaves", async () => {
+    guarded(panel([grid]));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Exact positions · PD-F01-Z01" }),
+    );
+    await screen.findByRole("dialog", { name: "Exact positions · PD-F01-Z01" });
+    fireEvent.click(screen.getByRole("button", { name: "Edit PD-F01-Z01-P1" }));
+    const form = await screen.findByRole("form", { name: "Save position" });
+    fireEvent.change(within(form).getByLabelText("Position label"), {
+      target: { value: "Marker 1" },
+    });
+    fireEvent.click(
+      within(form).getByRole("button", { name: "Save position" }),
+    );
+    await waitFor(() => expect(params().get("positionEdit")).toBeNull());
+    expect(
+      screen.getByRole("dialog", { name: "Exact positions · PD-F01-Z01" }),
+    ).toBeVisible();
+    await nativeBack();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(href()).toBe(BUILDING_URL);
+    await nativeBack();
+    expect(href()).toBe(ORIGIN);
+  });
+
+  it("a position save that resolves after unmount does not traverse the next route", async () => {
+    const finish = deferred("storageLayouts/zones:updateStoragePosition");
+    const view = guarded(
+      <StoragePositionsDialog
+        warehouseId="warehouse-a"
+        zone={grid}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit PD-F01-Z01-P1" }),
+    );
+    const form = await screen.findByRole("form", { name: "Save position" });
+    fireEvent.change(within(form).getByLabelText("Position label"), {
+      target: { value: "Late" },
+    });
+    fireEvent.click(
+      within(form).getByRole("button", { name: "Save position" }),
+    );
+    view.unmount();
+    window.history.pushState({}, "", "/en/other?positionEdit=1&keep=yes");
+    const index = window.history.state.appNavigationIndex;
+    await finish();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(href()).toBe("/en/other?positionEdit=1&keep=yes");
+    expect(window.history.state.appNavigationIndex).toBe(index);
+  });
+
+  it("clean native Forward reopens the positions manager for the same spot", async () => {
+    guarded(panel([grid]));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Exact positions · PD-F01-Z01" }),
+    );
+    await screen.findByRole("dialog", { name: "Exact positions · PD-F01-Z01" });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    await nativeBack();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await nativeForward();
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Exact positions · PD-F01-Z01",
+      }),
+    ).toBeVisible();
+    expect(
+      within(
+        screen.getByRole("dialog", { name: "Exact positions · PD-F01-Z01" }),
+      ).getByText("PD-F01-Z01-P1"),
+    ).toBeVisible();
+  });
+
+  it("applying an unavailable area consumes only its dialog and keeps the floor draft guarded", async () => {
+    guarded(workspace());
+    fireEvent.click(screen.getByRole("button", { name: "Edit floor 1" }));
+    await waitFor(() => expect(params().get("editing")).toBe("1"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add unavailable area" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Add unavailable area",
+    });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Add to floor draft" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(window.location.search).not.toMatch(/overlay/));
+    expect(params().get("editing")).toBe("1");
+    expect(screen.getByText("Unsaved floor draft")).toBeVisible();
+    await nativeBack();
+    await prompt();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    await waitFor(() => expect(params().get("editing")).toBe("1"));
+    expect(screen.getAllByText("Unavailable area 1").length).toBeGreaterThan(0);
+  });
+});
+
+describe("registered location dialog history", () => {
+  function seed() {
+    const registration = {
+      locationId: "named-a",
+      buildingId: "pd",
+      buildingName: "PD",
+      buildingCode: "PD",
+      code: "DOCK SHELF",
+      name: "Dock shelf",
+      layoutPending: true,
+    };
+    mocks.queries.set("finishedGoods/jobScanLocations:page", {
+      ok: true,
+      value: {
+        status: "ready",
+        page: [{ _id: "named-a", location: registration }],
+        items: [registration],
+        isDone: true,
+        continueCursor: "",
+      },
+    });
+    mocks.queries.set("storageLayouts/namedLayout:namedLocationLayoutTarget", {
+      ok: true,
+      value: {
+        found: true,
+        locationId: "named-a",
+        code: "DOCK SHELF",
+        version: 1,
+        layoutPending: true,
+        buildingStatus: "ACTIVE",
+      },
+    });
+    mocks.queries.set("storageLayouts/catalogue:getStorageBuildingLayout", {
+      ok: true,
+      value: { found: true, building, floors: [floor()] },
+    });
+  }
+  const catalogue = () => (
+    <NamedLocationCatalogue
+      warehouseId="warehouse-a"
+      search=""
+      status="ALL"
+      building="ALL"
+      floor="ALL"
+    />
+  );
+
+  it("clean native Forward reopens an unfinished registration layout, but not a completed one", async () => {
+    seed();
+    guarded(catalogue());
+    const open = () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Complete layout · DOCK SHELF" }),
+      );
+    open();
+    await screen.findByRole("dialog", { name: "Complete layout · DOCK SHELF" });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    await nativeBack();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await nativeForward();
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Complete layout · DOCK SHELF",
+      }),
+    ).toBeVisible();
+    const fill = (name: string, value: string) =>
+      fireEvent.change(screen.getByLabelText(name), { target: { value } });
+    fill("Width (m)", "1.2");
+    fill("Depth (m)", "1");
+    fill("X position (m)", "0");
+    fill("Y position (m)", "0");
+    fill("Maximum stack height (m)", "2.5");
+    fireEvent.click(screen.getByRole("button", { name: "Add to floor plan" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(href()).toBe(BUILDING_URL));
+    await nativeForward();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.getByText(
+        "DOCK SHELF is now on floor 1. Its code and QR are unchanged.",
+      ),
+    ).toBeVisible();
   });
 });

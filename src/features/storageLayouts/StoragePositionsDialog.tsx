@@ -3,7 +3,7 @@
 import { useMutation } from "convex/react";
 import { Archive, PencilLine, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 
@@ -32,7 +32,7 @@ import {
   OperationFailure,
   storageWriteMessage,
 } from "./layoutActions";
-import { measuredMillimetres, whenGuardIdle } from "./measure";
+import { measuredMillimetres } from "./measure";
 import { metres } from "./storageLayoutShared";
 
 type Geometry = { x: string; y: string; width: string; depth: string };
@@ -63,11 +63,14 @@ export function StoragePositionsDialog({
   warehouseId,
   zone,
   onClose,
+  onReopen,
 }: {
   readonly warehouseId: string;
   /** The managed spot; undefined keeps the shared Dialog mounted but closed. */
   readonly zone: StorageZoneRow | undefined;
   readonly onClose: () => void;
+  /** Native Forward back onto this dialog's entry restores the same spot. */
+  readonly onReopen?: () => void;
 }) {
   const t = useTranslations("StorageLayouts");
   // Mounted while closed, so opening and closing always own one foreground
@@ -77,7 +80,8 @@ export function StoragePositionsDialog({
     <Dialog
       open={zone !== undefined}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (open) onReopen?.();
+        else onClose();
       }}
       backPending={busy}
     >
@@ -118,20 +122,24 @@ function PositionsManager({
   const [editing, setEditing] = useState<StoragePositionRow>();
   // Editing one position is an earlier step inside the manager: Back and
   // Cancel return to the list with any add/generate draft retained.
+  // One generation per opened edit: a save closes only the edit it sent.
+  const editGeneration = useRef(0);
   const editScope = `storage-position-edit:${zone.zoneId}`;
   const editStep = useWorkflowStep(
     "positionEdit",
     editScope,
     true,
-    () => setEditing(undefined),
+    () => {
+      editGeneration.current += 1;
+      setEditing(undefined);
+    },
     { priority: 110, blocked: operation.busy },
   );
-  const [editSaved, setEditSaved] = useState(false);
-  // Close the edit step only once the successful write has settled.
-  useEffect(() => {
-    if (!editSaved || operation.busy || !editStep.active) return;
-    whenGuardIdle(() => editStep.back());
-  });
+  // The exact values the last successful edit saved (by position).
+  const [savedEdit, setSavedEdit] = useState<{
+    positionId: string;
+    snapshot: string;
+  }>();
   useLayoutEffect(() => {
     onBusyChange(operation.busy);
   }, [operation.busy, onBusyChange]);
@@ -238,7 +246,8 @@ function PositionsManager({
                         variant="outline"
                         disabled={operation.busy}
                         onClick={() => {
-                          setEditSaved(false);
+                          editGeneration.current += 1;
+                          setSavedEdit(undefined);
                           setEditing(position);
                           editStep.enter();
                         }}
@@ -281,15 +290,21 @@ function PositionsManager({
               ...geometryOf(editing),
             }}
             codeLocked
-            clean={editSaved}
+            savedSnapshot={
+              savedEdit?.positionId === editing.positionId
+                ? savedEdit.snapshot
+                : undefined
+            }
             geometryLocked={occupied}
             busy={operation.busy}
             submitLabel={t("savePosition")}
             onCancel={() => editStep.back()}
             onSubmit={(value) => {
+              const positionId = editing.positionId!;
+              const generation = editGeneration.current;
               const payload = {
                 warehouseId,
-                positionId: editing.positionId!,
+                positionId,
                 label: value.label,
                 ...value.geometry,
                 ...(editing.revision === undefined
@@ -303,7 +318,20 @@ function PositionsManager({
                     requestId: operation.request(JSON.stringify(payload)),
                   }),
                 t("layoutActions.positions.saved"),
-                () => setEditSaved(true),
+                () => {
+                  // Exactly the sent values are clean; later typing is not.
+                  setSavedEdit({ positionId, snapshot: value.snapshot });
+                  // After the write settles, the live owner consumes this
+                  // edit step, unless a newer edit has replaced it.
+                  operation.complete(() => {
+                    if (editGeneration.current !== generation) return;
+                    editStep.complete(() => {
+                      if (editGeneration.current !== generation) return;
+                      editGeneration.current += 1;
+                      setEditing(undefined);
+                    });
+                  });
+                },
               );
             }}
           />
@@ -417,7 +445,7 @@ function PositionForm({
   zone,
   initial,
   draftScope,
-  clean = false,
+  savedSnapshot,
   codeLocked = false,
   geometryLocked = false,
   busy,
@@ -430,7 +458,7 @@ function PositionForm({
   /** Retained by this earlier step's Back (the add form under an edit). */
   readonly draftScope?: string;
   /** The write succeeded; nothing is left to protect. */
-  readonly clean?: boolean;
+  readonly savedSnapshot?: string | undefined;
   readonly codeLocked?: boolean;
   readonly geometryLocked?: boolean;
   readonly busy: boolean;
@@ -439,6 +467,8 @@ function PositionForm({
     code: string;
     label: string;
     geometry: { xMm: number; yMm: number; widthMm: number; depthMm: number };
+    /** The form values sent, for exact clean-state comparison. */
+    snapshot: string;
   }) => Promise<boolean>;
   readonly onCancel?: () => void;
 }) {
@@ -446,7 +476,9 @@ function PositionForm({
   const [draft, setDraft] = useState(initial);
   const [baseline, setBaseline] = useState(initial);
   useNavigationDraft({
-    dirty: !clean && JSON.stringify(draft) !== JSON.stringify(baseline),
+    dirty:
+      JSON.stringify(draft) !== JSON.stringify(baseline) &&
+      JSON.stringify(draft) !== savedSnapshot,
     pending: busy,
     discard: () => setBaseline(draft),
     ...(draftScope === undefined ? {} : { workflowScope: draftScope }),
@@ -467,17 +499,20 @@ function PositionForm({
     event.preventDefault();
     event.stopPropagation();
     if (!valid || geometry === null || busy) return;
-    void onSubmit({ code, label: draft.label.trim(), geometry }).then(
-      (saved) => {
-        if (!saved) return;
-        if (codeLocked) setBaseline(draft);
-        else {
-          const next = { ...draft, code: "", label: "" };
-          setDraft(next);
-          setBaseline(next);
-        }
-      },
-    );
+    void onSubmit({
+      code,
+      label: draft.label.trim(),
+      geometry,
+      snapshot: JSON.stringify(draft),
+    }).then((saved) => {
+      if (!saved) return;
+      if (codeLocked) setBaseline(draft);
+      else {
+        const next = { ...draft, code: "", label: "" };
+        setDraft(next);
+        setBaseline(next);
+      }
+    });
   };
   const field = (key: keyof Geometry, label: string) => (
     <div key={key}>

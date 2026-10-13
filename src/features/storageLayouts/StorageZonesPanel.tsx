@@ -47,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,7 +79,7 @@ import {
   storageWriteMessage,
 } from "./layoutActions";
 import { ListTree } from "lucide-react";
-import { measuredMillimetres, whenGuardIdle } from "./measure";
+import { measuredMillimetres } from "./measure";
 import { findFreePlacement, placementProblem } from "./zonePlacement";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StoragePositionsDialog } from "./StoragePositionsDialog";
@@ -161,10 +162,21 @@ export function StorageZonesPanel({
   const [conflict, setConflict] = useState(false);
   const [archiving, setArchiving] = useState<StorageZoneRow>();
   const [positionsZoneId, setPositionsZoneId] = useState<string>();
+  // Native Forward onto a closed editor/manager entry restores what it showed.
+  const lastPositionsZoneId = useRef<string | undefined>(undefined);
+  const lastEditorZoneId = useRef<string | null>(null);
+  const openingEditor = useRef(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<string>();
-  const [closeAfterSave, setCloseAfterSave] = useState(false);
+  // Each opened draft (new spot, edited spot, link intent) gets a generation.
+  // A save completes only the exact draft it sent, never a newer one.
+  const editorGeneration = useRef(0);
+  const editorDialogRef = useRef<DialogCompletionHandle>(null);
   const editorOpen = createDialogOpen && editable;
+  // An explicit open (trigger, edit, link) has been delivered once open.
+  useLayoutEffect(() => {
+    if (editorOpen) openingEditor.current = false;
+  }, [editorOpen]);
   useLayoutEffect(() => {
     onEditorOpenChange?.(editorOpen);
     return () => onEditorOpenChange?.(false);
@@ -211,7 +223,7 @@ export function StorageZonesPanel({
     impactScope,
     editorOpen,
     undefined,
-    { priority: 110, blocked: pendingAction !== undefined },
+    { priority: 110, blocked: operation.busy },
   );
   const confirmingImpact = impactStep.active;
   const setConfirmingImpact = (open: boolean) => {
@@ -234,31 +246,13 @@ export function StorageZonesPanel({
   // asks first; its impact review retains them.
   useNavigationDraft({
     dirty: editorOpen && editorSnapshot !== editorBaseline,
-    pending: pendingAction !== undefined,
+    pending: operation.busy,
     // The approved navigation itself closes the editor; discarding only
     // releases its protection so that close is not asked twice.
     discard: () => setEditorBaseline(editorSnapshot),
     foregroundScope: editorScope,
     workflowScope: impactScope,
   });
-  // A successful write closes the editor only after its pending write and
-  // draft registration have settled, so closing consumes the editor entry
-  // instead of being blocked or reopening a stale editor.
-  useEffect(() => {
-    if (!closeAfterSave || operation.busy || pendingAction !== undefined)
-      return;
-    // Effects run after every layout effect of this commit, so the editor's
-    // draft registration already reports clean when its entry is consumed.
-    queueMicrotask(() =>
-      whenGuardIdle(() => {
-        setCloseAfterSave(false);
-        setCreateDialogOpen(false);
-        setEditingZone(undefined);
-        setLabel("");
-        clearZoneIntent();
-      }),
-    );
-  }, [closeAfterSave, operation.busy, pendingAction]);
   useLayoutEffect(() => {
     onSavingChange?.(pendingAction !== undefined);
     return () => onSavingChange?.(false);
@@ -268,7 +262,9 @@ export function StorageZonesPanel({
     readonly text: string;
   }>();
   function loadZone(zone: StorageZoneRow) {
-    setCloseAfterSave(false);
+    editorGeneration.current += 1;
+    openingEditor.current = true;
+    lastEditorZoneId.current = zone.zoneId;
     setEditingZone(zone);
     setLabel(zone.label);
     setStorageCondition(zone.storageCondition?.trim().toUpperCase() || "ANY");
@@ -305,8 +301,10 @@ export function StorageZonesPanel({
   }
   const zoneQuery = useWorkspaceQuery();
   const openedFromLink = useRef<string | number | undefined>(undefined);
-  function clearZoneIntent() {
-    if (!new URLSearchParams(window.location.search).has("editZone")) return;
+  /** Remove only this editor's own link intent; a newer one is kept. */
+  function clearZoneIntent(zoneId: string | undefined) {
+    const current = new URLSearchParams(window.location.search).get("editZone");
+    if (current === null || current !== zoneId) return;
     updateBrowserQuery((query) => query.delete("editZone"), {
       event: workspaceStateEvent,
     });
@@ -453,7 +451,9 @@ export function StorageZonesPanel({
 
   const startNewStorageZone = () => {
     if (!editable || blocked) return;
-    setCloseAfterSave(false);
+    editorGeneration.current += 1;
+    openingEditor.current = true;
+    lastEditorZoneId.current = null;
     setEditingZone(undefined);
     setLabel("");
     setStorageCondition("ANY");
@@ -516,6 +516,8 @@ export function StorageZonesPanel({
       return;
     }
     const isEditing = editingZone !== undefined;
+    const generation = editorGeneration.current;
+    const submitted = editorSnapshot;
     setPendingAction(isEditing ? "update" : "create");
     setMessage(undefined);
     setRefusal(undefined);
@@ -574,9 +576,21 @@ export function StorageZonesPanel({
           return;
         }
         operation.clearRequests();
-        // Saved: nothing is left to protect, then close once settled.
-        setEditorBaseline(editorSnapshot);
-        setCloseAfterSave(true);
+        // A newer draft replaced the one this request saved: leave it alone.
+        if (editorGeneration.current === generation) {
+          // The sent values are saved; anything typed since stays protected.
+          setEditorBaseline(submitted);
+          // The live owner runs this after the write and draft have settled.
+          // The editor Dialog then consumes its own entry and closes, unless
+          // a newer draft has replaced this one in the meantime.
+          operation.complete(() => {
+            if (editorGeneration.current !== generation) return;
+            editorDialogRef.current?.complete(() => {
+              if (editorGeneration.current !== generation) return;
+              setCreateDialogOpen(false);
+            });
+          });
+        }
         setMessage({
           tone: "success",
           text:
@@ -649,7 +663,8 @@ export function StorageZonesPanel({
     <Dialog
       open={editorOpen}
       draftScope={editorScope}
-      backPending={pendingAction !== undefined}
+      completionRef={editorDialogRef}
+      backPending={operation.busy}
       onOpenChange={(open) => {
         if (open && !editable) return;
         // Closing during the impact review returns to the draft first.
@@ -657,10 +672,22 @@ export function StorageZonesPanel({
           impactStep.back();
           return;
         }
+        if (open && !openingEditor.current) {
+          // Forward restores the spot this entry edited, from saved values;
+          // an entry for a spot that no longer exists stays closed.
+          const last = zones.find(
+            (zone) => zone.zoneId === lastEditorZoneId.current,
+          );
+          if (last) loadZone(last);
+          else if (lastEditorZoneId.current === null) startNewStorageZone();
+          else return;
+        }
+        openingEditor.current = false;
         setCreateDialogOpen(open);
         if (open) setMessage(undefined);
         else {
-          clearZoneIntent();
+          editorGeneration.current += 1;
+          clearZoneIntent(editingZone?.zoneId);
           setEditingZone(undefined);
           setLabel("");
           setConflict(false);
@@ -1161,7 +1188,10 @@ export function StorageZonesPanel({
                           disabled={
                             pendingAction !== undefined || !editable || blocked
                           }
-                          onClick={() => setPositionsZoneId(zone.zoneId)}
+                          onClick={() => {
+                            lastPositionsZoneId.current = zone.zoneId;
+                            setPositionsZoneId(zone.zoneId);
+                          }}
                           aria-label={t("layoutActions.positions.manageTitle", {
                             code: zone.code,
                           })}
@@ -1202,7 +1232,10 @@ export function StorageZonesPanel({
                     size="sm"
                     className="min-h-11"
                     disabled={pendingAction !== undefined || blocked}
-                    onClick={() => setPositionsZoneId(zone.zoneId)}
+                    onClick={() => {
+                      lastPositionsZoneId.current = zone.zoneId;
+                      setPositionsZoneId(zone.zoneId);
+                    }}
                   >
                     <ListTree className="size-4" />
                     {t("layoutActions.positions.manage")}
@@ -1481,6 +1514,11 @@ export function StorageZonesPanel({
         warehouseId={warehouseId}
         zone={positionsZone}
         onClose={() => setPositionsZoneId(undefined)}
+        onReopen={() => {
+          const id = lastPositionsZoneId.current;
+          if (id !== undefined && zones.some((zone) => zone.zoneId === id))
+            setPositionsZoneId(id);
+        }}
       />
     </>
   );

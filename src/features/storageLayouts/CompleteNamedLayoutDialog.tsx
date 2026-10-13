@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Notice } from "@/components/ui/Notice";
@@ -45,24 +46,36 @@ export function CompleteNamedLayoutDialog({
   warehouseId,
   location,
   onClose,
+  onReopen,
   onCompleted,
 }: {
   readonly warehouseId: string;
+  /** Native Forward back onto the dialog's entry restores the registration. */
+  readonly onReopen?: () => void;
   /** The registration to place; undefined keeps the shared Dialog closed. */
   readonly location: NamedLocationTarget | undefined;
   readonly onClose: () => void;
   readonly onCompleted: (result: { code: string; floorNumber: number }) => void;
 }) {
   const t = useTranslations("StorageLayouts");
-  const [busy, setBusy] = useState(false);
+  const dialogRef = useRef<DialogCompletionHandle>(null);
+  // The write is owned here, beside its Dialog, so the render that ends the
+  // write also unblocks the Dialog before the live completion consumes it.
+  const operation = useAsyncOperation({
+    scope: `named-layout:${warehouseId}:${location?.locationId ?? ""}`,
+    describeError: (code) => code || "NETWORK_ERROR",
+    navigation: "write",
+  });
   // Always mounted, so open/close/completion own one foreground entry.
   return (
     <Dialog
       open={location !== undefined}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (open) onReopen?.();
+        else onClose();
       }}
-      backPending={busy}
+      backPending={operation.busy}
+      completionRef={dialogRef}
     >
       {location === undefined ? null : (
         <DialogContent closeLabel={t("closeDialog")} className="max-w-2xl">
@@ -70,8 +83,11 @@ export function CompleteNamedLayoutDialog({
             key={location.locationId}
             warehouseId={warehouseId}
             location={location}
-            onBusyChange={setBusy}
-            onCompleted={onCompleted}
+            operation={operation}
+            // The Dialog consumes its own entry, then the receipt is shown.
+            onCompleted={(result) =>
+              dialogRef.current?.complete(() => onCompleted(result))
+            }
           />
         </DialogContent>
       )}
@@ -82,12 +98,12 @@ export function CompleteNamedLayoutDialog({
 function CompleteNamedLayoutForm({
   warehouseId,
   location,
-  onBusyChange,
+  operation,
   onCompleted,
 }: {
   readonly warehouseId: string;
   readonly location: NamedLocationTarget;
-  readonly onBusyChange: (busy: boolean) => void;
+  readonly operation: ReturnType<typeof useAsyncOperation>;
   readonly onCompleted: (result: { code: string; floorNumber: number }) => void;
 }) {
   const t = useTranslations("StorageLayouts");
@@ -100,12 +116,10 @@ function CompleteNamedLayoutForm({
     buildingId: location.buildingId,
   });
   const complete = useMutation(storageLayoutRefs.completeNamedLayout);
-  const lastCommand = useRef<Parameters<typeof complete>[0]>(undefined);
-  const operation = useAsyncOperation({
-    scope: `named-layout:${warehouseId}:${location.locationId}`,
-    describeError: (code) => code || "NETWORK_ERROR",
-    navigation: "write",
-  });
+  const lastCommand = useRef<{
+    command: Parameters<typeof complete>[0];
+    submitted: string;
+  }>(undefined);
   const detail: StorageBuildingDetail | undefined = layout?.ok
     ? layout.value
     : undefined;
@@ -122,15 +136,17 @@ function CompleteNamedLayoutForm({
   });
   const [refusal, setRefusal] = useState<string>();
   const [noRoom, setNoRoom] = useState(false);
-  const [saved, setSaved] = useState(false);
-  useLayoutEffect(() => {
-    onBusyChange(operation.busy);
-  }, [operation.busy, onBusyChange]);
+  // The exact measurements that were saved; anything typed later is a draft.
+  const [savedSnapshot, setSavedSnapshot] = useState<string>();
+  const [cleared, setCleared] = useState(false);
   // Unsent measurements are this dialog's own draft: closing asks first.
   useNavigationDraft({
-    dirty: !saved && Object.values(draft).some((value) => value !== ""),
+    dirty:
+      !cleared &&
+      JSON.stringify(draft) !== savedSnapshot &&
+      Object.values(draft).some((value) => value !== ""),
     pending: operation.busy,
-    discard: () => setSaved(true),
+    discard: () => setCleared(true),
   });
   const value = target?.ok ? target.value : undefined;
   // Job records keep a registered floor, so an assigned floor is fixed; only
@@ -202,10 +218,14 @@ function CompleteNamedLayoutForm({
       ...payload,
       requestId: operation.request(JSON.stringify(payload)),
     };
-    lastCommand.current = command;
-    await send(command);
+    const submitted = JSON.stringify(draft);
+    lastCommand.current = { command, submitted };
+    await send(command, submitted);
   }
-  async function send(command: Parameters<typeof complete>[0]) {
+  async function send(
+    command: Parameters<typeof complete>[0],
+    submitted: string,
+  ) {
     if (operation.busy) return;
     setRefusal(undefined);
     await operation.run(
@@ -216,7 +236,7 @@ function CompleteNamedLayoutForm({
         else {
           operation.clearRequests();
           lastCommand.current = undefined;
-          setSaved(true);
+          setSavedSnapshot(submitted);
           // Close and report only once the write has settled (live owner).
           operation.complete(() =>
             onCompleted({
@@ -362,7 +382,11 @@ function CompleteNamedLayoutForm({
         onRetry={() => {
           // The committed location may no longer be layoutPending; only the
           // exact submitted command bypasses that UI preflight for recovery.
-          if (lastCommand.current) void send(lastCommand.current);
+          if (lastCommand.current)
+            void send(
+              lastCommand.current.command,
+              lastCommand.current.submitted,
+            );
         }}
         retrying={operation.busy}
       />

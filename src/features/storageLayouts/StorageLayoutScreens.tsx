@@ -45,7 +45,6 @@ import {
   storageWriteMessage,
   zoneUnmeasuredCount,
 } from "./layoutActions";
-import { whenGuardIdle } from "./measure";
 
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
@@ -70,7 +69,6 @@ import {
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  useEffect,
   useId,
   useImperativeHandle,
   useLayoutEffect,
@@ -98,6 +96,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  type DialogCompletionHandle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
@@ -3160,17 +3159,10 @@ export function ReservedBlocks({
   // while the floor draft underneath is retained.
   const areaScope = `storage-area-editor:${useId()}`;
   const [draftBaseline, setDraftBaseline] = useState("");
-  const [closeAfterApply, setCloseAfterApply] = useState(false);
-  useEffect(() => {
-    if (!closeAfterApply) return;
-    queueMicrotask(() =>
-      whenGuardIdle(() => {
-        setCloseAfterApply(false);
-        setDialogOpen(false);
-        setEditingBlockId(undefined);
-      }),
-    );
-  }, [closeAfterApply]);
+  // The shared Dialog consumes its own entry when an applied area closes it;
+  // each opened area draft has a generation so only that draft is closed.
+  const areaDialogRef = useRef<DialogCompletionHandle>(null);
+  const areaGeneration = useRef(0);
   const [draft, setDraft] = useState<{
     label: string;
     color: string;
@@ -3191,10 +3183,14 @@ export function ReservedBlocks({
   const openDialog = (open: boolean) => {
     if (open && !editable) return;
     setDialogOpen(open);
-    if (!open) setEditingBlockId(undefined);
+    if (!open) {
+      areaGeneration.current += 1;
+      setEditingBlockId(undefined);
+    }
   };
   const startNewReservedBlock = () => {
     if (!editable) return;
+    areaGeneration.current += 1;
     setEditingBlockId(undefined);
     const next = {
       label: t("newReservedZoneLabel", { number: blocks.length + 1 }),
@@ -3210,6 +3206,7 @@ export function ReservedBlocks({
   };
   const startEditingReservedBlock = (block: EditableBlock) => {
     if (!editable) return;
+    areaGeneration.current += 1;
     setEditingBlockId(block.id);
     const next = {
       label: block.label,
@@ -3224,7 +3221,7 @@ export function ReservedBlocks({
     setDraftBaseline(JSON.stringify(next));
     setDialogOpen(true);
   };
-  useNavigationDraft({
+  const areaDraft = useNavigationDraft({
     dirty: dialogOpen && editable && JSON.stringify(draft) !== draftBaseline,
     pending: false,
     discard: () => setDraftBaseline(JSON.stringify(draft)),
@@ -3284,10 +3281,20 @@ export function ReservedBlocks({
             block.id === editingBlockId ? nextBlock : block,
           ),
     );
-    // Applied to the floor draft: nothing of the dialog is left unsent.
-    // Close after that clean state is registered (see the effect below).
+    // Applied to the floor draft: this dialog has nothing left unsent, so it
+    // stops guarding now and its Dialog consumes only its own entry. The
+    // floor draft underneath stays guarded by its own registration.
     setDraftBaseline(JSON.stringify(draft));
-    setCloseAfterApply(true);
+    areaDraft.settle();
+    const generation = areaGeneration.current;
+    const close = () => {
+      if (areaGeneration.current !== generation) return;
+      areaGeneration.current += 1;
+      setDialogOpen(false);
+      setEditingBlockId(undefined);
+    };
+    if (areaDialogRef.current) areaDialogRef.current.complete(close);
+    else close();
   };
   return (
     <section className="min-w-0 rounded-lg border border-border bg-surface p-4">
@@ -3297,6 +3304,7 @@ export function ReservedBlocks({
           open={dialogOpen && editable}
           onOpenChange={openDialog}
           draftScope={areaScope}
+          completionRef={areaDialogRef}
         >
           <DialogTrigger asChild>
             <Button

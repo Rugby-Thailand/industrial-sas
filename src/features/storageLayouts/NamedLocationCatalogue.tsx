@@ -12,7 +12,7 @@ import { DataGate } from "@/components/system/DataGate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Link } from "@/i18n/navigation";
 import { storageBuildingPath } from "@/lib/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MapPinned } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -42,6 +42,8 @@ export function NamedLocationCatalogue({
   const canManage = useCan("masterData.storageLayout.manage");
   // Held above the rows: a completed location leaves this list reactively.
   const [completing, setCompleting] = useState<NamedLocationTarget>();
+  // Forward may reopen a closed, unfinished registration; never a completed one.
+  const lastCompleting = useRef<NamedLocationTarget | undefined>(undefined);
   const [completed, setCompleted] = useState<{
     code: string;
     floorNumber: number;
@@ -100,9 +102,11 @@ export function NamedLocationCatalogue({
         warehouseId={warehouseId}
         location={completing}
         onClose={() => setCompleting(undefined)}
+        onReopen={() => setCompleting(lastCompleting.current)}
         onCompleted={(result) => {
           if (completing)
             setCompleted({ ...result, buildingId: completing.buildingId });
+          lastCompleting.current = undefined;
           setCompleting(undefined);
         }}
       />
@@ -147,13 +151,14 @@ export function NamedLocationCatalogue({
                             onClick={() => {
                               const location = row.location!;
                               setCompleted(undefined);
-                              setCompleting({
+                              lastCompleting.current = {
                                 locationId: location.locationId,
                                 code: location.code,
                                 name: location.name,
                                 buildingId: location.buildingId,
                                 floorNumber: location.floorNumber,
-                              });
+                              };
+                              setCompleting(lastCompleting.current);
                             }}
                             aria-label={`${tl("complete")} · ${row.location.code}`}
                           >
