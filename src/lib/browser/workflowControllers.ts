@@ -34,7 +34,9 @@ export function registerWorkflowController(key: string): () => void {
       !new URLSearchParams(window.location.search).has(key)
     )
       retire();
-    else requestAnimationFrame(retire);
+    // React's cleanup/setup commit can re-register the same controller. Wait
+    // for that commit, then retire before paint exposes an invisible step.
+    else queueMicrotask(retire);
     window.dispatchEvent(new Event(WORKFLOW_CONTROLLERS_EVENT));
   };
 }

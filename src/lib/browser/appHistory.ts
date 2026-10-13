@@ -261,19 +261,29 @@ export function trackAppHistory(): () => void {
   activeOwner = owner;
   index = appHistoryIndex() ?? 0;
   let orphanFrame: number | undefined;
+  let orphanCheckVersion = 0;
+  let consumingOrphans = false;
   let currentPath = window.location.pathname;
   let initializing = true;
-  const onPopState = () => {
+  const onPopState = (event?: Event) => {
     if (currentPath !== window.location.pathname) {
       workflowRouteChanged();
       currentPath = window.location.pathname;
     }
     const initial = initializing;
+    if (event?.type === "popstate") consumingOrphans = false;
     index = appHistoryIndex() ?? index;
+    const checkVersion = ++orphanCheckVersion;
 
     if (orphanFrame !== undefined) cancelAnimationFrame(orphanFrame);
-    orphanFrame = requestAnimationFrame(() => {
-      if (activeOwner !== owner || history.state?.[GUARD_HISTORY_KEY]) return;
+    const consumeRetiredOverlays = () => {
+      if (
+        checkVersion !== orphanCheckVersion ||
+        activeOwner !== owner ||
+        consumingOrphans ||
+        history.state?.[GUARD_HISTORY_KEY]
+      )
+        return;
       const destination = new URL(window.location.href);
       const missing = [...destination.searchParams.keys()].filter(
         (key) =>
@@ -294,7 +304,11 @@ export function trackAppHistory(): () => void {
       });
       missing.forEach((key) => destination.searchParams.delete(key));
       const restore = () => {
-        if (window.location.pathname !== destination.pathname) return;
+        if (
+          activeOwner !== owner ||
+          window.location.pathname !== destination.pathname
+        )
+          return;
         updateBrowserQuery(
           (query) => {
             for (const key of [...query.keys()]) query.delete(key);
@@ -308,9 +322,17 @@ export function trackAppHistory(): () => void {
         restore();
         return;
       }
+      consumingOrphans = true;
       window.addEventListener("popstate", restore, { once: true });
       history.go(Math.min(...indices) - (appHistoryIndex() ?? 0));
-    });
+    };
+    // Registry events share one commit microtask; only its last check runs.
+    // Consume a retired identity before paint exposes an invisible step.
+    // Native pops and initialization still give new controllers a mount grace.
+    if (!initial && event?.type === WORKFLOW_CONTROLLERS_EVENT) {
+      orphanFrame = undefined;
+      queueMicrotask(consumeRetiredOverlays);
+    } else orphanFrame = requestAnimationFrame(consumeRetiredOverlays);
   };
 
   // Omit the URL: a metadata write must not dispatch a router transition.
@@ -320,6 +342,7 @@ export function trackAppHistory(): () => void {
   onPopState();
   initializing = false;
   return () => {
+    orphanCheckVersion++;
     window.removeEventListener("popstate", onPopState);
     window.removeEventListener(WORKFLOW_CONTROLLERS_EVENT, onPopState);
     if (orphanFrame !== undefined) cancelAnimationFrame(orphanFrame);

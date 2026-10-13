@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
-import type { ComponentProps, ReactNode } from "react";
+import { StrictMode, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 
@@ -1291,7 +1291,7 @@ describe("live completion owners", () => {
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Rack A");
   });
 
-  it("remounting over a spot editor entry keeps the page and a stale editZone link opens nothing", async () => {
+  it("remount retirement consumes the old spot entry before the next Back and stale editZone links open nothing", async () => {
     window.history.replaceState(
       {},
       "",
@@ -1304,8 +1304,24 @@ describe("live completion owners", () => {
     await waitFor(() => expect(window.location.search).toMatch(/overlay/));
     first.unmount();
     guarded(panel([zone()]));
+    await waitFor(() => expect(window.location.search).not.toMatch(/overlay/));
+    expect(screen.queryByRole("dialog")).toBeNull();
     await nativeBack();
-    expect(window.location.pathname).toBe("/en/master-data/storage-layouts/pd");
+    expect(href()).toBe(ORIGIN);
+  });
+
+  it("native Back after the first remount frame consumes orphan ownership before leaving", async () => {
+    const first = guarded(panel([zone()]));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Rack A" }));
+    await screen.findByRole("dialog", { name: "Edit storage spot" });
+    first.unmount();
+    guarded(panel([zone()]));
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
     await nativeBack();
     expect(href()).toBe(ORIGIN);
   });
@@ -1330,6 +1346,68 @@ describe("live completion owners", () => {
         placements: [],
       },
     ],
+  });
+
+  it("retiring nested position dialogs coalesces one traversal before the next native Back", async () => {
+    const first = guarded(
+      <StoragePositionsDialog
+        warehouseId="warehouse-a"
+        zone={grid}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Archive PD-F01-Z01-P1" }),
+    );
+    await screen.findByRole("dialog", { name: "Archive PD-F01-Z01-P1" });
+    expect(
+      [...params().keys()].filter((key) => key.startsWith("overlay")),
+    ).toHaveLength(2);
+    first.unmount();
+    guarded(
+      <StoragePositionsDialog
+        warehouseId="warehouse-a"
+        zone={undefined}
+        onClose={vi.fn()}
+      />,
+    );
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+    });
+    await waitFor(() => expect(href()).toBe(BUILDING_URL));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await nativeBack();
+    expect(href()).toBe(ORIGIN);
+  });
+
+  it("StrictMode re-registration preserves a live position dialog instead of retiring its entry", async () => {
+    const close = vi.fn();
+    guarded(
+      <StrictMode>
+        <StoragePositionsDialog
+          warehouseId="warehouse-a"
+          zone={grid}
+          onClose={close}
+        />
+      </StrictMode>,
+    );
+    await screen.findByRole("dialog", { name: "Exact positions · PD-F01-Z01" });
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+    });
+    expect(
+      screen.getByRole("dialog", { name: "Exact positions · PD-F01-Z01" }),
+    ).toBeVisible();
+    expect(
+      [...params().keys()].filter((key) => key.startsWith("overlay")),
+    ).toHaveLength(1);
+    await nativeBack();
+    expect(close).toHaveBeenCalledOnce();
+    expect(href()).toBe(BUILDING_URL);
   });
 
   it("a saved position edit returns to the manager, then Back closes the manager, then leaves", async () => {

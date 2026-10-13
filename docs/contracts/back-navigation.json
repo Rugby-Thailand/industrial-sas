@@ -245,15 +245,30 @@
     {
       "file": "src/lib/browser/appHistory.ts",
       "parent": "trackAppHistory",
-      "functions": ["onPopState"],
+      "functions": ["consumeRetiredOverlays"],
       "capabilities": ["history-traversal"],
-      "reason": "The tracked popstate cleanup consumes retired foreground entries and preserves legitimate origin/query/hash.",
-      "expectation": "Tracked native history cleanup supports workflow ownership; concrete callers cover their actual open and explicit close chains.",
-      "tests": ["src/lib/taskNavigation.test.tsx"],
+      "reason": "After the mounted-controller registry gives same-key React commit re-registration a grace, coalesced cleanup consumes one retired foreground traversal at a time; native pops and initialization retain a route mount frame.",
+      "expectation": "Retired foreground cleanup consumes invisible entries before first-frame Back, preserves actual query/hash, coalesces nested retirement without overshooting, and does not steal a still-live StrictMode controller.",
+      "tests": [
+        "src/lib/taskNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/lib/taskNavigation.test.tsx",
           "name": "completion back to the source consumes both foregrounds and restores its query/hash"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back after the first remount frame consumes orphan ownership before leaving"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "retiring nested position dialogs coalesces one traversal before the next native Back"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "StrictMode re-registration preserves a live position dialog instead of retiring its entry"
         }
       ]
     }
@@ -4388,7 +4403,7 @@
         },
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
-          "name": "remounting over a spot editor entry keeps the page and a stale editZone link opens nothing"
+          "name": "remount retirement consumes the old spot entry before the next Back and stale editZone links open nothing"
         }
       ]
     },
@@ -4425,7 +4440,7 @@
         },
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
-          "name": "remounting over a spot editor entry keeps the page and a stale editZone link opens nothing"
+          "name": "remount retirement consumes the old spot entry before the next Back and stale editZone links open nothing"
         }
       ]
     },
@@ -6130,9 +6145,12 @@
     {
       "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:$overlay:Dialog:controlled",
       "policy": "overlay",
-      "expectation": "Registered-layout completion uses the live operation owner beside its actual Dialog, retains exact submitted measurements and consumes that Dialog before receipt. Forward reopens only the unfinished registration; completed entries cannot revive an editable command.",
+      "expectation": "Registered-layout completion uses the live operation owner beside its actual Dialog, retains exact submitted measurements and consumes that Dialog before receipt. Older completion preserves newer floor intent; Forward reopens only unfinished registration and cannot revive a completed command.",
       "integration": "dialog",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
@@ -6145,6 +6163,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "clean native Forward reopens an unfinished registration layout, but not a completed one"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "retains a newer named-layout floor intent after %s success"
         }
       ]
     },
@@ -7188,8 +7210,11 @@
       "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completing",
       "policy": "overlay",
       "integration": "delegated-overlay",
-      "expectation": "Registered-layout completion uses the live operation owner beside its actual Dialog, retains exact submitted measurements and consumes that Dialog before receipt. Forward reopens only the unfinished registration; completed entries cannot revive an editable command.",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "expectation": "Registered-layout completion uses the live operation owner beside its actual Dialog, retains exact submitted measurements and consumes that Dialog before receipt. Older completion preserves newer floor intent; Forward reopens only unfinished registration and cannot revive a completed command.",
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutActions.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
@@ -7202,6 +7227,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "clean native Forward reopens an unfinished registration layout, but not a completed one"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "retains a newer named-layout floor intent after %s success"
         }
       ]
     },
@@ -7227,6 +7256,37 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a saved position edit returns to the manager, then Back closes the manager, then leaves"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:pendingCommand",
+      "policy": "presentation",
+      "expectation": "An immutable attempted correction controls inline recovery status and suppresses the stale explanation while its response is uncertain. It freezes fields and retries the same version and request; the containing shared correction Dialog remains the foreground owner.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "retries an accepted ticket correction after losing the response and observing the advanced revision"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "keeps normal new correction writes blocked on a newer revision after a known rejection"
         }
       ]
     }
