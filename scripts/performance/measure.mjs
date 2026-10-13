@@ -480,7 +480,7 @@ try {
                   p.off("pageerror", onError);
                 }
                 if (pageError)
-                  sample = { status: "error", reason: "page-error" };
+                  sample = { ...sample, status: "error", reason: "page-error" };
                 if (run < 0) {
                   if (sample.status !== "completed") {
                     rows.push({
