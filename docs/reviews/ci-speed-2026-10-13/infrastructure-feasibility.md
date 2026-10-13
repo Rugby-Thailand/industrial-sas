@@ -1,5 +1,7 @@
 # Infrastructure feasibility for the two-minute CI/CD target
 
+**Final decision:** retain existing free runners. The capacity/pricing investigation below records the earlier two-minute proposal; the user subsequently accepted a 3–4 minute target and declined paid capacity. See the [selected plan](../../plans/ci-cd-speed-plan-2026-10-13.md).
+
 Date: 2026-10-13. Baseline: clean worktree at `c425dd80f70feae6c2a4a75e03e8831daa42b4dc`. Read-only account checks and official documentation research; no purchases, trials, registrations, billing/settings changes, deployments, environment-variable pulls, or secret retrieval. The original dirty checkout was used only to resolve its existing Vercel project link.
 
 ## Finding

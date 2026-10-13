@@ -26,7 +26,6 @@ const read = (path: string) => readFileSync(path, "utf8");
 const exceptions = JSON.parse(read("scripts/ci/dependency-exceptions.json"));
 const owned = {
   "quality.yml": read(".github/workflows/quality.yml"),
-  "ci-speed-probe.yml": read(".github/workflows/ci-speed-probe.yml"),
   "codeql.yml": read(".github/workflows/codeql.yml"),
   "security-audit.yml": read(".github/workflows/security-audit.yml"),
   "workspace-matrix.yml": read(".github/workflows/workspace-matrix.yml"),
@@ -264,7 +263,6 @@ describe("workflow policy rejects regressions", () => {
       "Navigation harness build (credential-free)",
       "Clean tree after build",
       "Install Playwright Chromium",
-      "Install navigation browser engines",
       "Navigation regressions (desktop engines and mobile Chromium)",
       "Anonymous smoke (desktop and mobile)",
       "Storage workspace (PR subset)",
@@ -298,10 +296,7 @@ describe("workflow policy rejects regressions", () => {
   });
 
   it("requires headless-only Chromium installation without omitting other engines", () => {
-    for (const name of [
-      "Install Playwright Chromium",
-      "Install navigation browser engines",
-    ]) {
+    for (const name of ["Install Playwright Chromium"]) {
       const step = namedStep("quality.yml", name);
       expectJobFailure("quality.yml", "browser", [
         [step, step.replace(" --only-shell", "")],
@@ -318,8 +313,8 @@ describe("workflow policy rejects regressions", () => {
     ]);
     expectJobFailure("quality.yml", "browser", [
       [
-        "playwright install --with-deps --only-shell chromium firefox webkit",
-        "playwright install --with-deps --only-shell chromium",
+        "node scripts/ci/prepare-browser-suite.mjs --suite=navigation",
+        "node scripts/ci/prepare-browser-suite.mjs --suite=smoke",
       ],
     ]);
     const navigation = namedStep(
@@ -592,8 +587,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps chromium\n      # Production',
-          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps chromium\n      # Production',
+          '          ref: ${{ github.sha }}\n          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "false"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n      # Production',
+          '          persist-credentials: false\n      - uses: ./.github/actions/setup-node-pnpm\n        with:\n          cache: "true"\n      - name: Install release tools\n        run: pnpm -C tools/release install --frozen-lockfile --ignore-workspace\n      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n      # Production',
         ],
       ]),
     ).toEqual(
@@ -773,80 +768,78 @@ describe("workflow policy rejects regressions", () => {
     ).toContain(rule);
   });
 
-  it("keeps the container timing probe branch-only, pinned and independent", () => {
-    for (const [from, to, rule] of [
+  it("joins smoke and navigation preparation before clean-tree and test execution", () => {
+    const clean = namedStep("quality.yml", "Clean tree after build");
+    expectJobFailure("quality.yml", "browser", [
       [
-        "branches: [codex/ci-speed-under-two-minutes-20261013]",
-        "branches: [main]",
-        "probe must be branch-only push with contents read",
+        clean,
+        clean.replace("steps.smoke-preparation.outcome", "steps.setup.outcome"),
+      ],
+    ]);
+    for (const [preparation, testTitle, owner] of [
+      [
+        "Production-mode build (credential-free)",
+        "Anonymous smoke (desktop and mobile)",
+        "smoke-preparation",
       ],
       [
-        "contents: read",
-        "contents: write",
-        "probe must be branch-only push with contents read",
+        "Navigation harness build (credential-free)",
+        "Navigation regressions (desktop engines and mobile Chromium)",
+        "navigation-preparation",
       ],
-      [
-        "workers: [2, 4]",
-        "workers: [2, 2]",
-        "standard smoke must compare exactly two and four workers without privileges",
-      ],
-      [
-        "--ipc=host",
-        "--privileged",
-        "exact pinned container and complete probe matrix required",
-      ],
-      [
-        "run: apt-get update && apt-get install --no-install-recommends -y unzip",
-        "run: echo skip",
-        "exact install-free verification/build/test sequence required",
-      ],
-      [
-        "run: node scripts/ci/assert-playwright-image.mjs",
-        "run: echo skip",
-        "exact install-free verification/build/test sequence required",
-      ],
-      [
-        "if-no-files-found: error",
-        "if-no-files-found: warn",
-        "every probe requires its unique nonempty report",
-      ],
-    ] as const)
-      expect(problemsWith("ci-speed-probe.yml", [[from, to]])).toContain(
-        `ci-speed-probe.yml: ${rule}`,
-      );
-    expect(
-      problemsWith("ci-speed-probe.yml", [
+    ]) {
+      const prep = namedStep("quality.yml", preparation!);
+      const test = namedStep("quality.yml", testTitle!);
+      expectJobFailure("quality.yml", "browser", [
+        [test, test.replace(`steps.${owner}.outcome`, "steps.setup.outcome")],
+      ]);
+      expectJobFailure("quality.yml", "browser", [
         [
-          "    timeout-minutes: 15",
-          "    timeout-minutes: 15\n    environment: production",
+          prep,
+          prep.replace("        run:", "        shell: echo {0}\n        run:"),
         ],
-      ]),
-    ).toContain(
-      "ci-speed-probe.yml: probe must stay independent and credential-free",
-    );
+      ]);
+    }
   });
 
-  it("preserves the same workspace shard in the worker comparison", () => {
-    expect(
-      problemsWith("ci-speed-probe.yml", [
-        [
-          "pnpm test:e2e:workspace --shard=1/2",
-          "pnpm test:e2e:workspace --shard=2/2",
-        ],
-      ]),
-    ).toContain(
-      "ci-speed-probe.yml: workspace comparison must preserve identical first-shard ownership",
-    );
-    expect(
-      problemsWith("ci-speed-probe.yml", [
-        [
-          "ci-speed-standard-workspace-${{ matrix.workers }}-${{ github.run_attempt }}",
-          "workspace-shared",
-        ],
-      ]),
-    ).toContain(
-      "ci-speed-probe.yml: workspace requires unique nonempty reports",
-    );
+  it("requires browser installation before both release targets", () => {
+    for (const target of ["staging", "production"] as const) {
+      const title =
+        target === "staging"
+          ? "Deploy and verify staging"
+          : "Release production";
+      const runner = namedStep("quality.yml", title);
+      const install =
+        "      - name: Install Playwright Chromium\n        run: pnpm exec playwright install --with-deps --only-shell chromium\n";
+      const runnerAt = owned["quality.yml"].indexOf(runner);
+      const installAt = owned["quality.yml"].lastIndexOf(install, runnerAt);
+      const block = owned["quality.yml"].slice(
+        installAt,
+        runnerAt + runner.length,
+      );
+      for (const replacement of [
+        block.replace(install, ""),
+        `${install}${block}`,
+        block.replace(" --only-shell", ""),
+        `${block.replace(install, "")}\n${install}`,
+        block.replace(
+          "        run: pnpm exec playwright",
+          "        if: ${{ always() }}\n        run: pnpm exec playwright",
+        ),
+        block.replace(
+          runner,
+          runner.replace(
+            "        id: release",
+            "        id: release\n        if: ${{ always() }}",
+          ),
+        ),
+      ])
+        expectJobFailure(
+          "quality.yml",
+          target === "staging" ? "staging" : "release",
+          [[block, replacement]],
+        );
+    }
   });
 
   it("requires the exact TS6 gate before allowing the external smoke typecheck", () => {
@@ -862,6 +855,29 @@ describe("workflow policy rejects regressions", () => {
     ])
       expect(problemsWith("quality.yml", [[ts6, replacement]])).toContain(
         "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+      );
+    for (const override of [
+      "        shell: echo {0}\n",
+      "        working-directory: /tmp\n",
+      "        env:\n          NODE_OPTIONS: --version\n",
+    ])
+      expect(
+        problemsWith("quality.yml", [[ts6, `${ts6}\n${override.trimEnd()}`]]),
+      ).toContain(
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+      );
+    for (const [from, to] of [
+      [
+        "permissions:\n  contents: read",
+        "defaults:\n  run:\n    shell: echo {0}\npermissions:\n  contents: read",
+      ],
+      [
+        "    name: Validate (${{ matrix.lane }})",
+        "    name: Validate (${{ matrix.lane }})\n    defaults:\n      run:\n        shell: echo {0}",
+      ],
+    ])
+      expect(problemsWith("quality.yml", [[from!, to!]])).toContain(
+        "quality.yml:validate: required check execution must not override default shell or directory",
       );
     const smoke = namedStep(
       "quality.yml",

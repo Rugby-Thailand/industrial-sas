@@ -22,10 +22,10 @@ Output `.vercel/output`: 1,862 physical files, 39,880,576 bytes, 212 symlinks; *
 
 Packaged middleware launcher test used synthetic runtime credentials, never real secrets, and replaced `global.fetch` with a throwing stub. It called the exported `.vercel/output/functions/_middleware.func/___next_launcher.cjs` with a GET Request for the app's `/api/runtime` path:
 
-| Runtime environment | Result | Network fetches |
-|---|---|---:|
-| No Clerk secret | HTTP 200, no Clerk auth status/reason |0 |
-| Synthetic `CLERK_SECRET_KEY` | HTTP 200, Clerk status `signed-out`, reason `session-token-and-uat-missing` |0 |
+| Runtime environment          | Result                                                                      | Network fetches |
+| ---------------------------- | --------------------------------------------------------------------------- | --------------: |
+| No Clerk secret              | HTTP 200, no Clerk auth status/reason                                       |               0 |
+| Synthetic `CLERK_SECRET_KEY` | HTTP 200, Clerk status `signed-out`, reason `session-token-and-uat-missing` |               0 |
 
 The secret-free build preserves runtime authentication evaluation. `process.env.CLERK_SECRET_KEY` remains in 9 output JS modules, and `process.env.RELEASE_SHA` remains in 1; provider runtime environment must still attach correct secrets and SHA. This is not authenticated end-to-end proof: no real session, Uploadthing or production backend request occurred. Next deploymentId is supplied through the documented NEXT_DEPLOYMENT_ID environment; no app config edit required. Vercel builder moves that ID into Build Output config and clears runtime Next config ID, relying on provider skew support. Hosted client-navigation skew testing remains necessary.
 
@@ -42,3 +42,7 @@ Receipt helper verifies contents and symlink containment, catches wrong target/S
 Public config binds production versus staging project, Clerk instance and Convex deployment; secret-bearing build environment fails before invoking compiler. Unit integration tests cover rejection and tampering. Wrapper has intentionally not been wired into quality/releases; current changes must be committed before its clean-checkout requirement allows full wrapper execution. Underlying pinned CLI build and portable middleware proof above passed independently.
 
 Remaining decisions/tests: hosted Linux build timing/output packaging; isolated **staging** frontend-only prebuilt candidate readiness; provider runtime secret/SHA binding; candidate auth and skew; standalone backend deployment timing; existing release environment guards and partial-mutation inventory. Parent chooses architecture after free-runner measurements. These blockers preclude claiming new production release behavior is ready or a 3–4 minute latency proven.
+
+## Final experiment outcome
+
+The hosted Linux pure-build probe passed in [run 38353981209](https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38353981209): 131-second job and 92-second build. No prebuilt artifact was deployed. The wrapper/workflow described above existed in experiment commit `e25ae4f7` and was removed in `c4b68624`; those commands are historical evidence, not current release instructions. The selected implementation keeps the coupled provider build and backend credentials at Vercel, so runtime deployment/provenance questions for prebuilt output remain outside its scope.

@@ -43,9 +43,14 @@ exact Bun in `.bun-version` (1.4.3) first on `PATH`; install it with
 `node scripts/ci/install-bun-checker.mjs`, which checksum-verifies the official
 release archive into the ignored `.cache/bun-checker/` and prints the `PATH`
 entry. CI runs the same installer. Never use bare `bun check` here: it runs the
-aggregate `check` script. `pnpm typecheck:ts6` is the TypeScript 6.0.3
-comparison and fallback. TypeScript 6 remains installed for the editor,
-typescript-eslint and the type check inside `pnpm build`.
+aggregate `check` script. `pnpm typecheck:ts6` generates the same Next route
+types and runs TypeScript 6.0.3 with `tsc --noEmit`. Both checkers are required
+in the CI types lane. TypeScript 6 remains installed for the editor,
+typescript-eslint and ordinary local builds. Anonymous CI smoke delegates
+type validation to the required parallel TS6 lane through the guarded
+`CI_EXTERNAL_TYPECHECK` contract; the aggregate gate waits for both lanes.
+Production builds use that contract only after the aggregate quality gate
+passes. The navigation harness keeps its own build typecheck.
 `node scripts/benchmark-typecheck.mjs` compares the two checkers serially.
 
 Next.js runs on that pinned Bun: `pnpm dev` (the Next half; Convex stays on
@@ -64,8 +69,9 @@ setup, rollback and deferred work.
 
 `Planner quality` runs once per pull request update and on pushes to `main`.
 Use its manual GitHub Actions trigger to check a branch before opening a PR.
-Type checking, lint and the production dependency audit run alongside three test
-shards and the production build. The shared setup action installs the pinned
+Four validation lanes run formatting, both typecheckers, lint, and workflow,
+dependency and discovery checks independently. They run alongside three test
+shards and the required production-mode browser build. The shared setup action installs the pinned
 Bun from its checksum-verified release archive (no third-party action) right
 after the frozen install, so `pnpm typecheck`, the Bun-run production build and
 the Bun-served browser smoke all use it. Every Vitest project remains included. The

@@ -156,35 +156,32 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-
-      # No service credentials: this is the unconfigured production-mode build,
-      # run under the pinned Bun from the shared setup action.
+      # Credential-free setup overlaps the verified build with browser install.
+      # The helper joins both processes before these tests or clean-tree run.
       - name: Production-mode build (credential-free)
+        id: smoke-preparation
         if: ${{ matrix.suite == 'smoke' }}
         env:
           CI_EXTERNAL_TYPECHECK: "1"
-        run: pnpm build
+        run: node scripts/ci/prepare-browser-suite.mjs --suite=smoke
       - name: Navigation harness build (credential-free)
+        id: navigation-preparation
         if: ${{ matrix.suite == 'navigation' }}
-        run: pnpm build:navigation
+        run: node scripts/ci/prepare-browser-suite.mjs --suite=navigation
       - name: Clean tree after build
-        if: ${{ !cancelled() && (matrix.suite == 'smoke' || matrix.suite == 'navigation') && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success')) }}
         run: pnpm ci:clean-tree
-      # Exactly the browser revision bundled with the locked @playwright/test.
       - name: Install Playwright Chromium
         id: browsers
-        if: ${{ matrix.suite != 'navigation' }}
+        if: ${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}
         run: pnpm exec playwright install --with-deps --only-shell chromium
-      - name: Install navigation browser engines
-        id: navigation-browsers
-        if: ${{ matrix.suite == 'navigation' }}
-        run: pnpm exec playwright install --with-deps --only-shell chromium firefox webkit
       - name: Anonymous smoke (desktop and mobile)
-        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e
       - name: Navigation regressions (desktop engines and mobile Chromium)
-        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-browsers.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-preparation.outcome == 'success' }}
         env:
           PLAYWRIGHT_REQUIRE_BUILD: "1"
         run: pnpm test:e2e:navigation
@@ -297,7 +294,7 @@ jobs:
       - name: Install release tools
         run: pnpm -C tools/release install --frozen-lockfile
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps --only-shell chromium
       - name: Deploy and verify staging
         id: release
         env:
@@ -351,7 +348,7 @@ jobs:
       - name: Install release tools
         run: pnpm -C tools/release install --frozen-lockfile
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps --only-shell chromium
       # Production Convex/Clerk deploy credentials stay in Vercel. The
       # controller takes the mandatory backup before any deployment.
       - name: Release production

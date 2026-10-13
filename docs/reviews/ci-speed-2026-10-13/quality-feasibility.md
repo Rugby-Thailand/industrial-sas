@@ -1,5 +1,7 @@
 # Quality feasibility prerequisite check
 
+This file records successive experiments. The final selection uses four validation lanes, standard free runners and two browser workers; temporary probes are removed. The [implementation plan](../../plans/ci-cd-speed-plan-2026-10-13.md) defines the final scope.
+
 Read-only account checks against the clean integration checkout based on c425dd80, 2026-10-13:
 
 ```sh
@@ -72,3 +74,21 @@ Parent-reported hosted PR run `38354107441` passed every required quality job, a
 The probe now adds exactly two ordinary-runner workspace jobs at 2/4 workers, each running identical shard 1 of 2 with the same desktop/mobile/locale ownership, fixture servers, shell installation and isolated unique JUnit artifact. Required quality still runs both workspace shards; selecting shard 1 for a paired throughput experiment removes no required coverage. No production worker setting is changed until this paired hosted result passes and timing improves.
 
 The separate prebuilt deployment alternative proved portable Linux output but its 131 s job/92 s build did not justify environment/credential redesign for the relaxed target. Parent removed that experiment workflow/helpers; their dedicated policy fixtures were removed only after its workflow was absent. Remaining quality, worker/container probes and release policy remain enforced. The new complete state passes 83 focused assertions and pinned actionlint on six workflows. Source-scoped ESLint and diff checks pass. Probe concurrency increased by two while the separate prebuilt job disappeared; record any hosted queue delay separately.
+
+## Final pilot decisions and release integration
+
+Hosted probe `38355028866` did not support increasing worker counts: workspace test body was 73 s at 2 workers versus 71 s at 4; smoke was 33 s at 2 versus 39 s at 4. Installation/setup varied substantially (17–42 s), so a single job-total comparison would be misleading. Keep the existing 2 workers. Navigation container acquisition was 27 s, unzip preparation 4 s and harness build 17 s, followed by an ownership failure rather than a verified complete browser run. Reject that container proposal; it proved neither complete coverage nor a useful target improvement. The temporary probe workflow, image assertion helper, and their dedicated policy/tests were removed after recording the evidence. Ordinary required browser jobs remain.
+
+The actual required quality run `38355035310` exposed an isolated cache-test fixture that mocked workflow-lib without its new typecheckScriptProblems export/package manifest. The fixture now supplies both inputs while preserving the real checksum/cache/extraction execution under test. Formatting was also corrected in prebuilt-spike.md.
+
+Required TS6 execution now rejects custom per-step shell, working-directory and environment overrides, as well as workflow/job run defaults; these could otherwise make a literal required command report success without executing the intended compiler. Mutation tests cover those bypasses, in addition to the existing exact command/lane/manifest checks.
+
+The attempted release-controller overlap was rejected after review showed that browser installation could fail after a Convex mutation. The final release path therefore restores one exact shell-only Chromium installation before each staging/production controller runs. Policy rejects missing, duplicate, skipped, reordered or non-shell installs and rejects a controller condition that would run after installation failure. No credentials, release conditions, environment locks, backup or staging decision were changed by this quality edit.
+
+The earlier, subsequently rejected release-overlap prototype passed 100 focused assertions in 3.05 s; that result does not validate the final selected architecture. For the final credential-free quality overlap and restored pre-controller installs, 86 assertions across workflow policy, actionlint cache integrity, discovery and aggregate guards pass in 3.08 s. The helper owner separately reports six real subprocess fixtures passing. Pinned actionlint 1.7.12 and source policy accept five workflows; source-scoped ESLint and diff checks pass. Full hosted quality and eventual live release measurement remain the parent's final gate.
+
+## Final safe overlap selection
+
+Overlap is limited to credential-free quality preparation. Smoke and navigation each invoke the reviewed prepare-browser-suite helper, which starts their exact build and browser installation, owns both child processes and joins their outcomes. Smoke retains desktop/mobile Chromium; navigation retains Chromium desktop/mobile, Firefox and WebKit. Workspace installation and both shards are unchanged. The helper does not contact providers or perform application mutations. Clean-tree and the corresponding browser tests require successful joined preparation; any failed child fails the job. The aggregate still waits for the independent mandatory Bun and TS6 validation lane. Production waits for that completed aggregate before using its typecheck contract.
+
+The only projected savings from overlapping two measured independent operations is at most the smaller operation's duration, before CPU contention: roughly a 13–16 s build on a warm quality run. This is a hypothesis pending the hosted helper result, not evidence for a 180–240 s complete release. Release preparation remains sequential before any controller/provider mutation. Temporary container and four-worker experiments remain rejected.
