@@ -42,7 +42,9 @@
     "ci:test-discovery": "node scripts/ci/check-test-discovery.mjs",
     "dev:seed": "node scripts/seed-local-test.mjs",
     "preview:storage-workspace": "vite --config scripts/storage-workspace-preview/vite.config.mjs",
-    "preview:ai-usage": "vite --config scripts/ai-usage-preview/vite.config.mjs"
+    "preview:ai-usage": "vite --config scripts/ai-usage-preview/vite.config.mjs",
+    "build:navigation": "BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next build scripts/navigation-guard-preview",
+    "test:e2e:navigation": "playwright test --config playwright.navigation.config.ts"
   },
   "dependencies": {
     "@clerk/backend": "3.16.4",

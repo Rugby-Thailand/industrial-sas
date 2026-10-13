@@ -698,9 +698,9 @@ function testShardProblems(job) {
   return problems;
 }
 
-// Browser suites (T4/T5): smoke plus two complete workspace shards, all required
-// through the job result. Smoke owns the workflow's only production build:
-// credential-free, Next.js cache restored and saved, clean tree afterwards.
+// Browser suites (T4/T5): smoke, navigation and two workspace shards, all required.
+// Smoke and the isolated navigation app own separate credential-free builds.
+// Smoke retains the Next.js cache; both builds must leave a clean tree.
 // The workspace leg runs the Vite harness without a build.
 const SMOKE_LEG = "${{ matrix.suite == 'smoke' }}";
 const legAfter = (suite, step) =>
@@ -729,24 +729,45 @@ const BROWSER_STEPS = Object.freeze([
   ],
   [
     "production build",
-    isBuild,
+    (step) => runOf(step) === "pnpm build",
     { run: "pnpm build", if: SMOKE_LEG, env: undefined },
+  ],
+  [
+    "navigation build",
+    (step) => runOf(step) === "pnpm build:navigation",
+    {
+      run: "pnpm build:navigation",
+      if: "${{ matrix.suite == 'navigation' }}",
+      env: undefined,
+    },
   ],
   [
     "clean tree",
     (step) => runOf(step).includes("ci:clean-tree"),
     {
       run: "pnpm ci:clean-tree",
-      if: "${{ !cancelled() && matrix.suite == 'smoke' && steps.setup.outcome == 'success' }}",
+      if: "${{ !cancelled() && (matrix.suite == 'smoke' || matrix.suite == 'navigation') && steps.setup.outcome == 'success' }}",
     },
   ],
   [
     "Chromium install",
-    (step) => runOf(step).includes("playwright install"),
+    (step) =>
+      runOf(step) === "pnpm exec playwright install --with-deps chromium",
     {
       id: "browsers",
       run: "pnpm exec playwright install --with-deps chromium",
-      if: undefined,
+      if: "${{ matrix.suite != 'navigation' }}",
+    },
+  ],
+  [
+    "navigation engine install",
+    (step) =>
+      runOf(step) ===
+      "pnpm exec playwright install --with-deps chromium firefox webkit",
+    {
+      id: "navigation-browsers",
+      run: "pnpm exec playwright install --with-deps chromium firefox webkit",
+      if: "${{ matrix.suite == 'navigation' }}",
     },
   ],
   [
@@ -759,11 +780,20 @@ const BROWSER_STEPS = Object.freeze([
     },
   ],
   [
+    "navigation suite",
+    (step) => runOf(step).includes("test:e2e:navigation"),
+    {
+      run: "pnpm test:e2e:navigation",
+      if: legAfter("navigation", "navigation-browsers"),
+      env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
+    },
+  ],
+  [
     "workspace suite",
     (step) => runOf(step).includes("test:e2e:workspace"),
     {
       run: "pnpm test:e2e:workspace --shard=${{ matrix.shard }}/2",
-      if: "${{ !cancelled() && matrix.suite != 'smoke' && steps.browsers.outcome == 'success' }}",
+      if: "${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}",
       env: { WORKSPACE_REPORT_NAME: "${{ matrix.suite }}" },
     },
   ],
@@ -803,13 +833,14 @@ function browserProblems(jobs) {
     !same(strategy.matrix, {
       include: [
         { suite: "smoke", shard: "0" },
+        { suite: "navigation", shard: "0" },
         { suite: "workspace-1", shard: "1" },
         { suite: "workspace-2", shard: "2" },
       ],
     })
   )
     problems.push(
-      `${at}: matrix must be exactly smoke (0), workspace-1 (1), workspace-2 (2) with fail-fast false`,
+      `${at}: matrix must be exactly smoke (0), navigation (0), workspace-1 (1), workspace-2 (2) with fail-fast false`,
     );
   const steps = stepsOf(jobs.browser);
   let previous = -1;
@@ -987,7 +1018,7 @@ function qualityProblems(workflow, { allowedGhsas }) {
   for (const id of gated)
     if (id !== "browser" && stepsOf(jobs[id]).some(isBuild))
       problems.push(
-        `quality.yml:${id}: the smoke browser leg owns the only production build`,
+        `quality.yml:${id}: the browser job owns the production builds`,
       );
 
   const review = stepsOf(jobs["dependency-review"]).find(

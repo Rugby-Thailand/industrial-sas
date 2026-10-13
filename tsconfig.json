@@ -58,5 +58,12 @@
   ],
   // `.next` is deliberately absent: `exclude` filters `include`, so excluding it
   // would drop the generated route types listed above.
-  "exclude": ["node_modules", "out", "coverage", "playwright-report"]
+  "exclude": [
+    "node_modules",
+    "out",
+    "coverage",
+    "playwright-report",
+    "scripts/navigation-guard-preview/.next",
+    "scripts/navigation-guard-preview/next-env.d.ts"
+  ]
 }

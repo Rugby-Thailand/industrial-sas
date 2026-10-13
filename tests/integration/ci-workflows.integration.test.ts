@@ -256,11 +256,14 @@ describe("workflow policy rejects regressions", () => {
     expectJobFailure("quality.yml", "browser", [[from, to]]);
   });
 
-  it("requires one build, clean-tree check and each browser suite", () => {
+  it("requires both builds, clean-tree check and each browser suite", () => {
     for (const name of [
       "Production-mode build (credential-free)",
+      "Navigation harness build (credential-free)",
       "Clean tree after build",
       "Install Playwright Chromium",
+      "Install navigation browser engines",
+      "Navigation regressions (desktop engines and mobile Chromium)",
       "Anonymous smoke (desktop and mobile)",
       "Storage workspace (PR subset)",
       "Upload browser JUnit",
@@ -274,6 +277,8 @@ describe("workflow policy rejects regressions", () => {
   it("rejects skipped builds and browser suites or missing-report warnings", () => {
     for (const name of [
       "Production-mode build (credential-free)",
+      "Navigation harness build (credential-free)",
+      "Navigation regressions (desktop engines and mobile Chromium)",
       "Anonymous smoke (desktop and mobile)",
       "Storage workspace (PR subset)",
     ]) {
@@ -286,6 +291,31 @@ describe("workflow policy rejects regressions", () => {
       [
         upload,
         upload.replace("if-no-files-found: error", "if-no-files-found: warn"),
+      ],
+    ]);
+  });
+
+  it("requires the navigation matrix leg and all three installed engines", () => {
+    expectJobFailure("quality.yml", "browser", [
+      ["          - suite: navigation\n            shard: 0\n", ""],
+    ]);
+    expectJobFailure("quality.yml", "browser", [
+      [
+        "playwright install --with-deps chromium firefox webkit",
+        "playwright install --with-deps chromium",
+      ],
+    ]);
+    const navigation = namedStep(
+      "quality.yml",
+      "Navigation regressions (desktop engines and mobile Chromium)",
+    );
+    expectJobFailure("quality.yml", "browser", [
+      [
+        navigation,
+        navigation.replace(
+          "test:e2e:navigation",
+          "test:e2e:navigation --project=desktop-chromium",
+        ),
       ],
     ]);
   });
