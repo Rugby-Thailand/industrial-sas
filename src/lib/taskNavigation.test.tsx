@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -114,4 +115,44 @@ it("completion back to the source consumes both foregrounds and restores its que
   );
   expect(window.history.state.appNavigationIndex).toBe(0);
   expect(replace).not.toHaveBeenCalled();
+});
+
+function PendingStepOwner() {
+  const step = useWorkflowStep("pendingStep", "same-path:owner", true);
+  return step.active ? (
+    <button onClick={step.back}>Close pending step</button>
+  ) : (
+    <button onClick={step.enter}>Open pending step</button>
+  );
+}
+it("a pending predecessor traversal cannot rewrite a replacement owner on the same pathname", () => {
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/new?source=old#old",
+  );
+  stop = trackAppHistory();
+  const view = render(<PendingStepOwner />);
+  fireEvent.click(screen.getByRole("button", { name: "Open pending step" }));
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  fireEvent.click(screen.getByRole("button", { name: "Close pending step" }));
+  expect(back).toHaveBeenCalledOnce();
+  view.unmount();
+  window.history.replaceState(
+    { appNavigationIndex: 0 },
+    "",
+    "/en/finished-goods/new?source=new#new-owner",
+  );
+  render(<PendingStepOwner />);
+  act(() =>
+    window.dispatchEvent(
+      new PopStateEvent("popstate", { state: window.history.state }),
+    ),
+  );
+  expect(window.location.search).toBe("?source=new");
+  expect(window.location.hash).toBe("#new-owner");
+  expect(
+    screen.getByRole("button", { name: "Open pending step" }),
+  ).toBeVisible();
+  back.mockRestore();
 });

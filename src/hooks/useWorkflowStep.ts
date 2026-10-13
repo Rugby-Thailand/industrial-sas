@@ -46,12 +46,16 @@ export function useWorkflowStep(
   const entering = useRef(false);
   const mounted = useRef(true);
   const enterVersion = useRef(0);
+  const traversalCleanup = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
+    enterVersion.current++;
     mounted.current = true;
     return () => {
       mounted.current = false;
+      traversalCleanup.current?.();
+      traversalCleanup.current = null;
     };
-  }, []);
+  }, [queryKey, scope]);
   const previousActive = useRef(active);
   const afterBack = useRef<(() => void) | undefined>(undefined);
   useLayoutEffect(() => registerWorkflowController(queryKey), [queryKey]);
@@ -101,8 +105,12 @@ export function useWorkflowStep(
       }
     }
     if (options.blocked) return true;
+    const traversalVersion = enterVersion.current;
     guardedNavigate(
       () => {
+        if (!mounted.current || traversalVersion !== enterVersion.current)
+          return;
+        traversalCleanup.current?.();
         moving.current = true;
         if (window.history.state?.[metadataKey] === scope) {
           const destination = new URL(window.location.href);
@@ -113,23 +121,35 @@ export function useWorkflowStep(
             destination.hash = window.location.hash;
             destination.searchParams.delete(queryKey);
           };
+          const finishTraversal = () => {
+            cleanupTraversal();
+            if (
+              !mounted.current ||
+              traversalVersion !== enterVersion.current ||
+              window.location.pathname !== destination.pathname
+            )
+              return;
+            updateBrowserQuery(
+              (query) => {
+                for (const key of [...query.keys()]) query.delete(key);
+                for (const [key, value] of destination.searchParams)
+                  query.append(key, value);
+              },
+              { hash: destination.hash },
+            );
+          };
+          const cleanupTraversal = () => {
+            window.removeEventListener(event, rememberIntent);
+            window.removeEventListener("popstate", finishTraversal, true);
+            if (traversalCleanup.current === cleanupTraversal)
+              traversalCleanup.current = null;
+          };
+          traversalCleanup.current = cleanupTraversal;
           window.addEventListener(event, rememberIntent);
-          window.addEventListener(
-            "popstate",
-            () => {
-              window.removeEventListener(event, rememberIntent);
-              if (window.location.pathname !== destination.pathname) return;
-              updateBrowserQuery(
-                (query) => {
-                  for (const key of [...query.keys()]) query.delete(key);
-                  for (const [key, value] of destination.searchParams)
-                    query.append(key, value);
-                },
-                { hash: destination.hash },
-              );
-            },
-            { once: true, capture: true },
-          );
+          window.addEventListener("popstate", finishTraversal, {
+            once: true,
+            capture: true,
+          });
           window.history.back();
         } else updateBrowserQuery((query) => query.delete(queryKey));
       },
@@ -175,7 +195,10 @@ export function useWorkflowStep(
     const destination = new URL(window.location.href);
     destination.searchParams.delete(queryKey);
     let cancelled = false;
+    const version = enterVersion.current;
     const finish = () => {
+      if (cancelled || !mounted.current || version !== enterVersion.current)
+        return;
       moving.current = false;
       if (window.location.pathname !== destination.pathname) return;
       updateBrowserQuery(
@@ -187,6 +210,14 @@ export function useWorkflowStep(
         { hash: destination.hash },
       );
     };
+    const cleanupInvalidTraversal = () => {
+      cancelled = true;
+      window.removeEventListener("popstate", finish);
+      if (traversalCleanup.current === cleanupInvalidTraversal)
+        traversalCleanup.current = null;
+    };
+    traversalCleanup.current?.();
+    traversalCleanup.current = cleanupInvalidTraversal;
     queueMicrotask(() =>
       guardedNavigate(
         () => {
@@ -198,15 +229,13 @@ export function useWorkflowStep(
         { preserveDraftScope: scope },
       ),
     );
-    return () => {
-      cancelled = true;
-      window.removeEventListener("popstate", finish);
-    };
+    return cleanupInvalidTraversal;
   }, [step, available, queryKey, metadataKey, scope, options.blocked]);
 
   function enter() {
     afterBack.current = undefined;
     if (entering.current || active) return;
+    traversalCleanup.current?.();
     const version = ++enterVersion.current;
     entering.current = true;
     const entry: { claim?: () => boolean } = {};
