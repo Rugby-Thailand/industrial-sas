@@ -619,6 +619,7 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "node scripts/ci/validate-workflows.mjs --verify-pins",
   "pnpm format:check",
   "pnpm typecheck",
+  "pnpm typecheck:ts6",
   "pnpm lint",
   "pnpm audit:prod",
   "node scripts/ci/audit-dependencies.mjs --scope=app",
@@ -626,6 +627,21 @@ export const VALIDATE_COMMANDS = Object.freeze([
   "pnpm ci:test-discovery",
   "pnpm ci:clean-tree",
 ]);
+
+// The external gate must execute the same pinned compiler, never a no-op
+// package alias. CLI validation reads the package manifest before workflows.
+export function typecheckScriptProblems(manifest) {
+  const problems = [];
+  if (manifest?.scripts?.["typecheck:ts6"] !== "next typegen && tsc --noEmit")
+    problems.push(
+      "package.json: typecheck:ts6 must generate route types and run tsc --noEmit",
+    );
+  if (!/^6\.\d+\.\d+$/.test(manifest?.devDependencies?.typescript ?? ""))
+    problems.push(
+      "package.json: external typecheck requires pinned TypeScript 6",
+    );
+  return problems;
+}
 
 // Parsed-YAML equality that ignores mapping key order.
 const canonical = (value) =>
@@ -730,7 +746,7 @@ const BROWSER_STEPS = Object.freeze([
   [
     "production build",
     (step) => runOf(step) === "pnpm build",
-    { run: "pnpm build", if: SMOKE_LEG, env: undefined },
+    { run: "pnpm build", if: SMOKE_LEG, env: { CI_EXTERNAL_TYPECHECK: "1" } },
   ],
   [
     "navigation build",
@@ -1008,7 +1024,8 @@ function qualityProblems(workflow, { allowedGhsas }) {
 
   const validationLanes = {
     style: ["pnpm format:check"],
-    "types-lint": ["pnpm typecheck", "pnpm lint"],
+    types: ["pnpm typecheck", "pnpm typecheck:ts6"],
+    lint: ["pnpm lint"],
     audit: [
       "node scripts/ci/validate-workflows.mjs --verify-pins",
       "pnpm audit:prod",
@@ -1020,7 +1037,7 @@ function qualityProblems(workflow, { allowedGhsas }) {
   if (
     !same(jobs.validate?.strategy, {
       "fail-fast": "false",
-      matrix: { lane: ["style", "types-lint", "audit"] },
+      matrix: { lane: ["style", "types", "lint", "audit"] },
     })
   )
     problems.push(
@@ -1187,8 +1204,16 @@ function speedProbeProblems(workflow) {
     !same(workflow.permissions, { contents: "read" })
   )
     problems.push(`${at}: probe must be branch-only push with contents read`);
-  if (!same(Object.keys(workflow.jobs ?? {}), ["browser-probe"]))
-    problems.push(`${at}: only browser-probe job is allowed`);
+  if (
+    !same(Object.keys(workflow.jobs ?? {}), [
+      "browser-probe",
+      "smoke-standard",
+      "workspace-standard",
+    ])
+  )
+    problems.push(
+      `${at}: only navigation container and standard smoke jobs are allowed`,
+    );
   const job = workflow.jobs?.["browser-probe"];
   if (
     !job ||
@@ -1210,11 +1235,7 @@ function speedProbeProblems(workflow) {
     !same(job.strategy, {
       "fail-fast": "false",
       matrix: {
-        include: [
-          { suite: "navigation", workers: "2" },
-          { suite: "smoke", workers: "2" },
-          { suite: "smoke", workers: "4" },
-        ],
+        include: [{ suite: "navigation", workers: "2" }],
       },
     })
   )
@@ -1222,15 +1243,12 @@ function speedProbeProblems(workflow) {
       `${at}: exact pinned container and complete probe matrix required`,
     );
   const expectedRuns = [
+    {
+      run: "apt-get update && apt-get install --no-install-recommends -y unzip",
+    },
     { run: "node scripts/ci/assert-playwright-image.mjs" },
-    { run: "pnpm build", if: "${{ matrix.suite == 'smoke' }}" },
     { run: "pnpm build:navigation", if: "${{ matrix.suite == 'navigation' }}" },
     { run: "pnpm ci:clean-tree" },
-    {
-      run: "pnpm test:e2e --workers=${{ matrix.workers }}",
-      if: "${{ matrix.suite == 'smoke' }}",
-      env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
-    },
     {
       run: "pnpm test:e2e:navigation --workers=${{ matrix.workers }}",
       if: "${{ matrix.suite == 'navigation' }}",
@@ -1256,7 +1274,7 @@ function speedProbeProblems(workflow) {
       "./.github/actions/setup-node-pnpm",
       "actions/upload-artifact",
     ]) ||
-    steps.length !== 9
+    steps.length !== 8
   )
     problems.push(`${at}: exact checkout/setup/report actions required`);
   if (
@@ -1282,54 +1300,141 @@ function speedProbeProblems(workflow) {
     })
   )
     problems.push(`${at}: every probe requires its unique nonempty report`);
-  return problems;
-}
-
-function prebuiltProbeProblems(workflow) {
-  const at = "ci-prebuilt-probe.yml";
-  const jobs = workflow.jobs ?? {};
-  const job = jobs.build;
-  const problems = [];
+  const smoke = workflow.jobs?.["smoke-standard"];
   if (
-    !same(workflow.on, {
-      push: { branches: ["codex/ci-speed-under-two-minutes-20261013"] },
-    }) ||
-    !same(workflow.permissions, { contents: "read" }) ||
-    !same(Object.keys(jobs), ["build"])
-  )
-    problems.push(`${at}: exact branch-only read-only build probe required`);
-  if (
-    !job ||
-    job.environment !== undefined ||
-    job.needs !== undefined ||
-    job.permissions !== undefined ||
-    job.if !== undefined ||
-    job.outputs !== undefined ||
-    job.env !== undefined ||
-    secretNames(job).length
-  )
-    problems.push(`${at}: prebuilt probe cannot receive deployment privileges`);
-  const build = stepsOf(job).filter(
-    (step) => step.run === "node scripts/release/build-prebuilt.mjs",
-  );
-  if (
-    build.length !== 1 ||
-    !same(build[0]?.env, {
-      RELEASE_ENVIRONMENT: "staging",
-      RELEASE_SHA: "${{ github.sha }}",
-      RELEASE_RUN_ID: "${{ github.run_id }}",
-      RELEASE_RUN_ATTEMPT: "${{ github.run_attempt }}",
+    !smoke ||
+    smoke.needs !== undefined ||
+    smoke.if !== undefined ||
+    smoke.environment !== undefined ||
+    smoke.env !== undefined ||
+    smoke.permissions !== undefined ||
+    smoke.outputs !== undefined ||
+    smoke.container !== undefined ||
+    smoke["runs-on"] !== "ubuntu-24.04" ||
+    !same(smoke.strategy, {
+      "fail-fast": "false",
+      matrix: { workers: ["2", "4"] },
     })
   )
-    problems.push(`${at}: only public staging prebuilt artifact is permitted`);
+    problems.push(
+      `${at}: standard smoke must compare exactly two and four workers without privileges`,
+    );
+  const smokeSteps = stepsOf(smoke);
+  const smokeRuns = smokeSteps
+    .filter((step) => step.run !== undefined)
+    .map(({ run, if: condition, env }) => ({
+      run,
+      ...(condition === undefined ? {} : { if: condition }),
+      ...(env === undefined ? {} : { env }),
+    }));
   if (
-    stepsOf(job).some((step) =>
-      /scripts\/release\/run\.mjs|vercel (?:deploy|promote)|CONVEX_DEPLOY_KEY|CLERK_SECRET_KEY/.test(
-        runOf(step),
-      ),
+    !same(smokeRuns, [
+      { run: "pnpm build", env: { CI_EXTERNAL_TYPECHECK: "1" } },
+      { run: "pnpm ci:clean-tree" },
+      { run: "pnpm exec playwright install --with-deps --only-shell chromium" },
+      {
+        run: "pnpm test:e2e --workers=${{ matrix.workers }}",
+        env: { PLAYWRIGHT_REQUIRE_BUILD: "1" },
+      },
+    ])
+  )
+    problems.push(
+      `${at}: standard smoke requires the same guarded build and complete test sequence`,
+    );
+  if (
+    smokeSteps.length !== 8 ||
+    !same(smokeSteps.filter((step) => step.uses).map(usesOf), [
+      "actions/checkout",
+      "./.github/actions/setup-node-pnpm",
+      "actions/cache",
+      "actions/upload-artifact",
+    ]) ||
+    smokeSteps.some(
+      (step) =>
+        step.uses &&
+        usesOf(step) !== "actions/upload-artifact" &&
+        (step.if !== undefined || step.env !== undefined),
     )
   )
-    problems.push(`${at}: probe must never deploy`);
+    problems.push(
+      `${at}: standard smoke checkout/setup/cache/report actions cannot skip`,
+    );
+  const smokeUpload = smokeSteps.find(isUpload);
+  if (
+    smokeUpload?.if !== "${{ !cancelled() }}" ||
+    !same(smokeUpload?.with, {
+      name: "ci-speed-standard-smoke-${{ matrix.workers }}-${{ github.run_attempt }}",
+      path: "test-results/smoke-junit.xml",
+      "retention-days": "7",
+      "if-no-files-found": "error",
+    })
+  )
+    problems.push(`${at}: standard smoke requires unique nonempty reports`);
+  const workspace = workflow.jobs?.["workspace-standard"];
+  if (
+    !workspace ||
+    workspace.needs !== undefined ||
+    workspace.if !== undefined ||
+    workspace.environment !== undefined ||
+    workspace.env !== undefined ||
+    workspace.permissions !== undefined ||
+    workspace.outputs !== undefined ||
+    workspace.container !== undefined ||
+    workspace["runs-on"] !== "ubuntu-24.04" ||
+    !same(workspace.strategy, {
+      "fail-fast": "false",
+      matrix: { workers: ["2", "4"] },
+    })
+  )
+    problems.push(
+      `${at}: workspace must compare exactly two and four workers without privileges`,
+    );
+  const workspaceSteps = stepsOf(workspace);
+  const workspaceRuns = workspaceSteps
+    .filter((step) => step.run !== undefined)
+    .map(({ run, if: condition, env }) => ({
+      run,
+      ...(condition === undefined ? {} : { if: condition }),
+      ...(env === undefined ? {} : { env }),
+    }));
+  if (
+    !same(workspaceRuns, [
+      { run: "pnpm exec playwright install --with-deps --only-shell chromium" },
+      {
+        run: "pnpm test:e2e:workspace --shard=1/2 --workers=${{ matrix.workers }}",
+        env: { WORKSPACE_REPORT_NAME: "workspace-1" },
+      },
+    ])
+  )
+    problems.push(
+      `${at}: workspace comparison must preserve identical first-shard ownership`,
+    );
+  if (
+    workspaceSteps.length !== 5 ||
+    !same(workspaceSteps.filter((step) => step.uses).map(usesOf), [
+      "actions/checkout",
+      "./.github/actions/setup-node-pnpm",
+      "actions/upload-artifact",
+    ]) ||
+    workspaceSteps.some(
+      (step) =>
+        step.uses &&
+        usesOf(step) !== "actions/upload-artifact" &&
+        (step.if !== undefined || step.env !== undefined),
+    )
+  )
+    problems.push(`${at}: workspace setup and report actions cannot skip`);
+  const workspaceUpload = workspaceSteps.find(isUpload);
+  if (
+    workspaceUpload?.if !== "${{ !cancelled() }}" ||
+    !same(workspaceUpload?.with, {
+      name: "ci-speed-standard-workspace-${{ matrix.workers }}-${{ github.run_attempt }}",
+      path: "test-results/workspace-1-junit.xml",
+      "retention-days": "7",
+      "if-no-files-found": "error",
+    })
+  )
+    problems.push(`${at}: workspace requires unique nonempty reports`);
   return problems;
 }
 
@@ -1372,8 +1477,6 @@ export function workflowPolicyProblems({
   else if (!("quality.yml" in workflows)) problems.push("quality.yml: missing");
   if (parsed["ci-speed-probe.yml"])
     problems.push(...speedProbeProblems(parsed["ci-speed-probe.yml"]));
-  if (parsed["ci-prebuilt-probe.yml"])
-    problems.push(...prebuiltProbeProblems(parsed["ci-prebuilt-probe.yml"]));
   if (parsed["production-backup.yml"])
     problems.push(...backupProblems(parsed["production-backup.yml"]));
   return problems;

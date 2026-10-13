@@ -830,7 +830,7 @@ describe("release configuration", () => {
       GATED_BUILD_COMMAND.indexOf("convex deploy"),
     );
     expect(GATED_BUILD_COMMAND).toMatch(
-      /--cmd 'node scripts\/release\/assert-deploy-env\.mjs --phase=build && pnpm build'/,
+      /--cmd 'node scripts\/release\/assert-deploy-env\.mjs --phase=build && CI_EXTERNAL_TYPECHECK=1 pnpm build'/,
     );
     expect(GATED_BUILD_COMMAND).not.toMatch(
       /allow-deleting-large-indexes|--preview/,

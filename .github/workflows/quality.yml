@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [style, types-lint, audit]
+        lane: [style, types, lint, audit]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -43,12 +43,15 @@ jobs:
         run: pnpm format:check
       # The pinned Bun comes from the shared setup action (after the frozen
       # install). `bun --check`, never bare `bun check`, which would run the aggregate
-      # `check` script. The production build keeps the TypeScript 6 gate.
+      # `check` script. The same lane also owns the exact TypeScript 6 gate.
       - name: Typecheck (cold next typegen + Bun checker)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types-lint' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
         run: pnpm typecheck
+      - name: TypeScript 6 gate (cold generated route types)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
+        run: pnpm typecheck:ts6
       - name: Lint
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types-lint' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'lint' }}
         run: pnpm lint
       - name: Runtime dependency audit
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
@@ -157,6 +160,8 @@ jobs:
       # run under the pinned Bun from the shared setup action.
       - name: Production-mode build (credential-free)
         if: ${{ matrix.suite == 'smoke' }}
+        env:
+          CI_EXTERNAL_TYPECHECK: "1"
         run: pnpm build
       - name: Navigation harness build (credential-free)
         if: ${{ matrix.suite == 'navigation' }}

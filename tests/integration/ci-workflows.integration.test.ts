@@ -16,6 +16,7 @@ import {
   parseYamlSubset,
   pinProblems,
   tagCommit,
+  typecheckScriptProblems,
   workflowPolicyProblems,
 } from "../../scripts/ci/workflow-lib.mjs";
 
@@ -25,7 +26,6 @@ const read = (path: string) => readFileSync(path, "utf8");
 const exceptions = JSON.parse(read("scripts/ci/dependency-exceptions.json"));
 const owned = {
   "quality.yml": read(".github/workflows/quality.yml"),
-  "ci-prebuilt-probe.yml": read(".github/workflows/ci-prebuilt-probe.yml"),
   "ci-speed-probe.yml": read(".github/workflows/ci-speed-probe.yml"),
   "codeql.yml": read(".github/workflows/codeql.yml"),
   "security-audit.yml": read(".github/workflows/security-audit.yml"),
@@ -541,8 +541,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "        run: pnpm build\n",
-          "        run: pnpm build\n        env:\n          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}\n",
+          '          CI_EXTERNAL_TYPECHECK: "1"\n',
+          '          CI_EXTERNAL_TYPECHECK: "1"\n          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}\n',
         ],
       ]),
     ).toEqual(
@@ -773,34 +773,6 @@ describe("workflow policy rejects regressions", () => {
     ).toContain(rule);
   });
 
-  it("keeps the prebuilt probe branch-only and unable to deploy", () => {
-    expect(
-      problemsWith("ci-prebuilt-probe.yml", [
-        [
-          "branches: [codex/ci-speed-under-two-minutes-20261013]",
-          "branches: [main]",
-        ],
-      ]),
-    ).toContain(
-      "ci-prebuilt-probe.yml: exact branch-only read-only build probe required",
-    );
-    expect(
-      problemsWith("ci-prebuilt-probe.yml", [
-        ["RELEASE_ENVIRONMENT: staging", "RELEASE_ENVIRONMENT: production"],
-      ]),
-    ).toContain(
-      "ci-prebuilt-probe.yml: only public staging prebuilt artifact is permitted",
-    );
-    expect(
-      problemsWith("ci-prebuilt-probe.yml", [
-        [
-          "run: node scripts/release/build-prebuilt.mjs",
-          "run: node scripts/release/run.mjs --target=production",
-        ],
-      ]),
-    ).toContain("ci-prebuilt-probe.yml: probe must never deploy");
-  });
-
   it("keeps the container timing probe branch-only, pinned and independent", () => {
     for (const [from, to, rule] of [
       [
@@ -814,14 +786,19 @@ describe("workflow policy rejects regressions", () => {
         "probe must be branch-only push with contents read",
       ],
       [
-        "workers: 4",
-        "workers: 2",
-        "exact pinned container and complete probe matrix required",
+        "workers: [2, 4]",
+        "workers: [2, 2]",
+        "standard smoke must compare exactly two and four workers without privileges",
       ],
       [
         "--ipc=host",
         "--privileged",
         "exact pinned container and complete probe matrix required",
+      ],
+      [
+        "run: apt-get update && apt-get install --no-install-recommends -y unzip",
+        "run: echo skip",
+        "exact install-free verification/build/test sequence required",
       ],
       [
         "run: node scripts/ci/assert-playwright-image.mjs",
@@ -849,14 +826,96 @@ describe("workflow policy rejects regressions", () => {
     );
   });
 
-  it("fails closed when validation lanes are missing, duplicated or skipped", () => {
-    for (const lanes of [
-      "[style, types-lint]",
-      "[style, types-lint, types-lint]",
+  it("preserves the same workspace shard in the worker comparison", () => {
+    expect(
+      problemsWith("ci-speed-probe.yml", [
+        [
+          "pnpm test:e2e:workspace --shard=1/2",
+          "pnpm test:e2e:workspace --shard=2/2",
+        ],
+      ]),
+    ).toContain(
+      "ci-speed-probe.yml: workspace comparison must preserve identical first-shard ownership",
+    );
+    expect(
+      problemsWith("ci-speed-probe.yml", [
+        [
+          "ci-speed-standard-workspace-${{ matrix.workers }}-${{ github.run_attempt }}",
+          "workspace-shared",
+        ],
+      ]),
+    ).toContain(
+      "ci-speed-probe.yml: workspace requires unique nonempty reports",
+    );
+  });
+
+  it("requires the exact TS6 gate before allowing the external smoke typecheck", () => {
+    const ts6 = namedStep(
+      "quality.yml",
+      "TypeScript 6 gate (cold generated route types)",
+    );
+    for (const replacement of [
+      "",
+      `${ts6}\n${ts6}`,
+      ts6.replace("matrix.lane == 'types'", "matrix.lane == 'style'"),
+      ts6.replace("!cancelled()", "false"),
+    ])
+      expect(problemsWith("quality.yml", [[ts6, replacement]])).toContain(
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+      );
+    const smoke = namedStep(
+      "quality.yml",
+      "Production-mode build (credential-free)",
+    );
+    expectJobFailure("quality.yml", "browser", [
+      [
+        smoke,
+        smoke.replace(
+          'CI_EXTERNAL_TYPECHECK: "1"',
+          'CI_EXTERNAL_TYPECHECK: "0"',
+        ),
+      ],
+    ]);
+    expectJobFailure("quality.yml", "browser", [
+      [
+        smoke,
+        smoke.replace(
+          '        env:\n          CI_EXTERNAL_TYPECHECK: "1"\n',
+          "",
+        ),
+      ],
+    ]);
+    const manifest = JSON.parse(read("package.json"));
+    expect(typecheckScriptProblems(manifest)).toEqual([]);
+    for (const script of [
+      "echo passed",
+      "bun --check",
+      "tsc --noEmit",
+      "next typegen && tsc --noEmit || true",
     ])
       expect(
+        typecheckScriptProblems({
+          ...manifest,
+          scripts: { ...manifest.scripts, "typecheck:ts6": script },
+        }),
+      ).toContain(
+        "package.json: typecheck:ts6 must generate route types and run tsc --noEmit",
+      );
+    expect(
+      typecheckScriptProblems({
+        ...manifest,
+        devDependencies: { ...manifest.devDependencies, typescript: "^6.0.3" },
+      }),
+    ).toContain(
+      "package.json: external typecheck requires pinned TypeScript 6",
+    );
+  });
+
+  it("fails closed when validation lanes are missing, duplicated or skipped", () => {
+    for (const lanes of ["[style, types, lint]", "[style, types, lint, lint]"])
+      expect(
         problemsWith("quality.yml", [
-          ["lane: [style, types-lint, audit]", `lane: ${lanes}`],
+          ["lane: [style, types, lint, audit]", `lane: ${lanes}`],
         ]),
       ).toContain(
         "quality.yml:validate: exact complete validation lanes required",
@@ -865,10 +924,10 @@ describe("workflow policy rejects regressions", () => {
     for (const replacement of [
       "",
       `${lint}\n${lint}`,
-      lint.replace("matrix.lane == 'types-lint'", "matrix.lane == 'style'"),
+      lint.replace("matrix.lane == 'lint'", "matrix.lane == 'style'"),
     ])
       expect(problemsWith("quality.yml", [[lint, replacement]])).toContain(
-        "quality.yml:validate: pnpm lint must run exactly once in types-lint",
+        "quality.yml:validate: pnpm lint must run exactly once in lint",
       );
     const clean = namedStep("quality.yml", "Clean tree after generators");
     expect(

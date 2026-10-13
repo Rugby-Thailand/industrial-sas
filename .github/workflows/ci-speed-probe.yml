@@ -25,30 +25,20 @@ jobs:
         include:
           - suite: navigation
             workers: 2
-          - suite: smoke
-            workers: 2
-          - suite: smoke
-            workers: 4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install extraction utility required by pinned Bun
+        run: apt-get update && apt-get install --no-install-recommends -y unzip
       - uses: ./.github/actions/setup-node-pnpm
       - name: Verify preinstalled exact browser image
         run: node scripts/ci/assert-playwright-image.mjs
-      - name: Production-mode build (credential-free)
-        if: ${{ matrix.suite == 'smoke' }}
-        run: pnpm build
       - name: Navigation harness build (credential-free)
         if: ${{ matrix.suite == 'navigation' }}
         run: pnpm build:navigation
       - name: Clean tree after build
         run: pnpm ci:clean-tree
-      - name: All smoke tests
-        if: ${{ matrix.suite == 'smoke' }}
-        env:
-          PLAYWRIGHT_REQUIRE_BUILD: "1"
-        run: pnpm test:e2e --workers=${{ matrix.workers }}
       - name: All navigation engines
         if: ${{ matrix.suite == 'navigation' }}
         env:
@@ -60,5 +50,72 @@ jobs:
         with:
           name: ci-speed-probe-${{ matrix.suite }}-${{ matrix.workers }}-${{ github.run_attempt }}
           path: test-results/${{ matrix.suite }}-junit.xml
+          retention-days: 7
+          if-no-files-found: error
+  smoke-standard:
+    name: Standard smoke probe (workers ${{ matrix.workers }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: [2, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Cache Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-
+      - name: Production-mode build (credential-free)
+        env:
+          CI_EXTERNAL_TYPECHECK: "1"
+        run: pnpm build
+      - name: Clean tree after build
+        run: pnpm ci:clean-tree
+      - name: Install headless Chromium
+        run: pnpm exec playwright install --with-deps --only-shell chromium
+      - name: All smoke tests
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e --workers=${{ matrix.workers }}
+      - name: Upload probe JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-speed-standard-smoke-${{ matrix.workers }}-${{ github.run_attempt }}
+          path: test-results/smoke-junit.xml
+          retention-days: 7
+          if-no-files-found: error
+  workspace-standard:
+    name: Standard workspace shard 1 probe (workers ${{ matrix.workers }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: [2, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - name: Install headless Chromium
+        run: pnpm exec playwright install --with-deps --only-shell chromium
+      - name: Identical complete workspace shard
+        env:
+          WORKSPACE_REPORT_NAME: workspace-1
+        run: pnpm test:e2e:workspace --shard=1/2 --workers=${{ matrix.workers }}
+      - name: Upload probe JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-speed-standard-workspace-${{ matrix.workers }}-${{ github.run_attempt }}
+          path: test-results/workspace-1-junit.xml
           retention-days: 7
           if-no-files-found: error

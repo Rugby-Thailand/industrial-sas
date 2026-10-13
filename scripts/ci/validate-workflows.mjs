@@ -36,6 +36,7 @@ import {
   actionlintAsset,
   normalizeConcurrencyQueue,
   tagCommit,
+  typecheckScriptProblems,
   workflowPolicyProblems,
 } from "./workflow-lib.mjs";
 
@@ -73,12 +74,17 @@ const exceptions = JSON.parse(
   readFileSync(join(root, "scripts/ci/dependency-exceptions.json"), "utf8"),
 );
 
-const problems = workflowPolicyProblems({
-  workflows,
-  actions,
-  exceptions,
-  now: Date.now(),
-});
+const problems = [
+  ...typecheckScriptProblems(
+    JSON.parse(readFileSync(join(root, "package.json"), "utf8")),
+  ),
+  ...workflowPolicyProblems({
+    workflows,
+    actions,
+    exceptions,
+    now: Date.now(),
+  }),
+];
 
 if (args.has("--verify-pins")) {
   const pins = new Map();
