@@ -759,6 +759,7 @@ async function locationContext(
     if (
       !fixed ||
       !lowerPallet ||
+      lowerPallet.retiredAt ||
       lowerPallet.warehouseId !== warehouseId ||
       lowerPallet.placementId !== lower._id
     )

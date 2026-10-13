@@ -1149,3 +1149,54 @@ it("resets pre-split layout cursors while current native pages survive inventory
   expect(next.result.page).toHaveLength(6);
 });
 
+it("does not offer a retired pallet with a stored placement as a recommendation support", async () => {
+  const { world, warehouseId, placementId } = await occupiedWorld("STORED");
+  const { lowerId, upperId } = await world.t.run(async (ctx) => {
+    const placement = (await ctx.db.get(
+      "finishedGoodsPlacements",
+      placementId,
+    ))!;
+    const lower = (await ctx.db.get(
+      "finishedGoodsPallets",
+      placement.palletId,
+    ))!;
+    await ctx.db.patch("finishedGoodsPallets", lower._id, {
+      placementId,
+      stackable: true,
+      maxStackLevels: 3,
+    });
+    const { _id, _creationTime, ...template } = lower;
+    void _id;
+    void _creationTime;
+    const upperId = await ctx.db.insert("finishedGoodsPallets", {
+      ...template,
+      code: "UPPER-REGRESSION",
+      quantity: 1,
+      status: "AWAITING_PLACEMENT",
+    });
+    return { lowerId: lower._id, upperId };
+  });
+  const candidates = async () => {
+    const read = await measuredRead(world, recommend, {
+      warehouseId,
+      palletId: upperId,
+    });
+    return [
+      ...(read.result.candidates as Array<{ supportPalletId?: string }>),
+      ...(read.result.previewCandidates as Array<{ supportPalletId?: string }>),
+    ];
+  };
+  expect(
+    (await candidates()).some(
+      (candidate) => candidate.supportPalletId === lowerId,
+    ),
+  ).toBe(true);
+  await world.t.run((ctx) =>
+    ctx.db.patch("finishedGoodsPallets", lowerId, { retiredAt: 2 }),
+  );
+  expect(
+    (await candidates()).some(
+      (candidate) => candidate.supportPalletId === lowerId,
+    ),
+  ).toBe(false);
+});
