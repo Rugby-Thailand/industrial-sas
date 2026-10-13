@@ -1,4 +1,7 @@
-import { guardedNavigate } from "@/lib/navigationGuard";
+import {
+  cancelGuardedTransition,
+  guardedNavigate,
+} from "@/lib/navigationGuard";
 
 export const WAREHOUSE_STORAGE_KEY = "industrial-sas.warehouse";
 export const LEGACY_WAREHOUSE_STORAGE_KEY = "industrial-ssa.warehouse";
@@ -9,6 +12,7 @@ const listeners = new Set<Listener>();
 let accepted: { value: string | null } | undefined;
 let releaseStorage: (() => void) | undefined;
 let requestVersion = 0;
+const choiceOwner = {};
 
 const notify = (): void => {
   for (const listener of listeners) listener();
@@ -33,22 +37,28 @@ function storedValue(): string | null {
 }
 
 function requestChoice(value: string | null, persist: boolean): void {
-  if (value === readStoredWarehouse()) return;
   const version = ++requestVersion;
-  guardedNavigate(() => {
-    // A newer choice or provider lifetime supersedes an old approval.
-    if (version !== requestVersion) return;
-    if (persist && value !== null) {
-      try {
-        window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, value);
-        window.localStorage.removeItem(LEGACY_WAREHOUSE_STORAGE_KEY);
-      } catch {
-        // Keep this tab's accepted choice even when persistence is unavailable.
+  if (value === readStoredWarehouse()) {
+    cancelGuardedTransition(choiceOwner);
+    return;
+  }
+  guardedNavigate(
+    () => {
+      // A newer choice or provider lifetime supersedes an old approval.
+      if (version !== requestVersion) return;
+      if (persist && value !== null) {
+        try {
+          window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, value);
+          window.localStorage.removeItem(LEGACY_WAREHOUSE_STORAGE_KEY);
+        } catch {
+          // Keep this tab's accepted choice even when persistence is unavailable.
+        }
       }
-    }
-    accepted = { value };
-    notify();
-  });
+      accepted = { value };
+      notify();
+    },
+    { intentOwner: choiceOwner },
+  );
 }
 
 export function subscribeWarehouse(listener: Listener): () => void {
@@ -73,8 +83,12 @@ export function subscribeWarehouse(listener: Listener): () => void {
     if (listeners.size > 0) return;
     releaseStorage?.();
     releaseStorage = undefined;
-    accepted = undefined;
     requestVersion++;
+    // React replays subscriptions in StrictMode; retain accepted scope if a
+    // successor subscribes in the same commit, reset only after real teardown.
+    queueMicrotask(() => {
+      if (listeners.size === 0) accepted = undefined;
+    });
   };
 }
 

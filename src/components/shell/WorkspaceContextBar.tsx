@@ -13,7 +13,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { guardedNavigate } from "@/lib/navigationGuard";
 import { warehouseLabel } from "@/lib/workspace/workspace";
 
 const CONTEXT_SLOT = "workspace-context";
@@ -124,10 +123,7 @@ export function WorkspaceContextBar({
           <SelectControl
             id={warehouseId}
             value={workspace.selectedWarehouseId ?? ""}
-            onValueChange={(warehouse) =>
-              // Switching warehouse resets page scope, so unsaved work asks first.
-              guardedNavigate(() => workspace.selectWarehouse(warehouse))
-            }
+            onValueChange={(warehouse) => workspace.selectWarehouse(warehouse)}
             placeholder={t("selectWarehouse")}
             emptyLabel={t("noWarehouses")}
             size="compact"

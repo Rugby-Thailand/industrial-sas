@@ -240,3 +240,16 @@ describe("warehouse context departure ownership", () => {
     await waitFor(() => expect(readStoredWarehouse()).toBe("b"));
   });
 });
+
+it("a cross-tab choice returning to the accepted warehouse revokes its queued adoption and retains the draft", async () => {
+  renderCaller();
+  fireEvent.change(screen.getByRole("textbox"), {
+    target: { value: "keep floor" },
+  });
+  external("b");
+  expect(screen.getByRole("dialog")).toBeVisible();
+  external("a");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox")).toHaveValue("keep floor");
+  expect(readStoredWarehouse()).toBe("a");
+});

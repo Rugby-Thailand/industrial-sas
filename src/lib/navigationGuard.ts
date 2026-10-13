@@ -17,6 +17,8 @@
 import { appHistoryIndex } from "./browser/appHistory";
 export type Transition = () => void;
 export interface TransitionOptions {
+  /** Identity permits a context owner to revoke only its own queued prompt. */
+  readonly intentOwner?: object;
   readonly preserveDraftScope?: string;
   readonly entry?: { claim?: () => boolean };
   readonly onCancel?: () => void;
@@ -27,6 +29,7 @@ export interface NavigationGuardOwner {
     action: Transition,
     options?: TransitionOptions,
   ) => void;
+  readonly cancelTransition?: (intentOwner: object) => void;
   readonly isTraversing: () => boolean;
 }
 
@@ -132,4 +135,9 @@ export function safeInternalReturnHref(
   return destination.origin === window.location.origin
     ? destination.pathname + destination.search + destination.hash
     : fallback;
+}
+
+/** Revoke only this owner's requested transition; unrelated navigation remains owned. */
+export function cancelGuardedTransition(intentOwner: object): void {
+  owner?.cancelTransition?.(intentOwner);
 }

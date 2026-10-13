@@ -980,6 +980,12 @@ function createGuardMachine(deps: MachineDeps) {
     connected = true;
     const release = registerNavigationGuardOwner({
       requestTransition,
+      cancelTransition: (intentOwner) => {
+        if (intent?.options?.intentOwner !== intentOwner || attempt !== null)
+          return;
+        intent.options.onCancel?.();
+        setIntent(null);
+      },
       isTraversing: traversing,
     });
     const unsubscribe = subscribeHistoryWrites(onHistoryWrite);

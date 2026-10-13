@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { useDraftGuard } from "@/components/providers/draftGuard";
 
 const state = vi.hoisted(() => ({
@@ -115,7 +116,12 @@ describe("WorkspaceContextBar in the sidebar", () => {
 
   it("asks before a warehouse switch discards unsaved work", async () => {
     vi.spyOn(window.history, "back").mockImplementation(() => {});
-    const workspace = ready();
+    const committed = vi.fn();
+    const workspace = ready({
+      selectWarehouse: vi.fn((id: string) =>
+        guardedNavigate(() => committed(id)),
+      ),
+    });
     state.workspace = workspace;
     function UnsavedDraft() {
       useDraftGuard(true, () => undefined);
@@ -142,7 +148,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
       screen.getByRole("dialog", { name: "Save changes before leaving?" }),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(workspace.selectWarehouse).not.toHaveBeenCalled();
+    expect(committed).not.toHaveBeenCalled();
     await choose();
     await user.click(screen.getByRole("button", { name: "Discard changes" }));
     act(() => {
@@ -150,7 +156,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
         new PopStateEvent("popstate", { state: window.history.state }),
       );
     });
-    expect(workspace.selectWarehouse).toHaveBeenCalledExactlyOnceWith("wh-2");
+    expect(committed).toHaveBeenCalledExactlyOnceWith("wh-2");
     vi.mocked(window.history.back).mockRestore();
   });
 
