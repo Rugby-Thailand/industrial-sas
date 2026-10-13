@@ -1216,3 +1216,63 @@ it.each([2, 3])(
     }
   },
 );
+
+it("replays activation after its lost response advances authoritative readiness", async () => {
+  const layout = {
+    found: true,
+    building: pd,
+    floors: [
+      {
+        floorId: "f1",
+        floorNumber: 1,
+        grossAreaSqMm: 1,
+        reservedAreaSqMm: 0,
+        usableAreaSqMm: 1,
+        version: 1,
+        storageZones: [spot()],
+        reservedBlocks: [],
+      },
+    ],
+  };
+  mocks.queries.set("storageLayouts/catalogue:getStorageBuildingLayout", {
+    ok: true,
+    value: layout,
+  });
+  mocks.queries.set("storageLayouts/catalogue:getStorageBuildingInventory", {
+    ok: true,
+    value: { found: true, zones: [] },
+  });
+  mocks.queries.set("storageLayouts/writes:layoutReadiness", {
+    ok: true,
+    value: { found: true, version: 5, ready: true, zoneCount: 1, issues: [] },
+  });
+  const activate = mutationFor("storageLayouts/writes:activateStorageBuilding");
+  activate.mockRejectedValueOnce(
+    new Error("Response lost after server committed"),
+  );
+  const view = renderWithIntl(<StorageBuildingReview buildingId="pd" />, {
+    locale: "en",
+    workspace: false,
+    preserveProviders: true,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Activate layout" }));
+  await screen.findByTestId("layout-operation-failure");
+  const original = activate.mock.calls[0]![0];
+  mocks.queries.set("storageLayouts/catalogue:getStorageBuildingLayout", {
+    ok: true,
+    value: { ...layout, building: { ...pd, status: "ACTIVE", version: 6 } },
+  });
+  mocks.queries.set("storageLayouts/writes:layoutReadiness", {
+    ok: true,
+    value: { found: true, version: 6, ready: false, zoneCount: 1, issues: [] },
+  });
+  view.rerender(<StorageBuildingReview buildingId="pd" />);
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(activate).toHaveBeenCalledTimes(2));
+  expect(activate.mock.calls[1]![0]).toEqual(original);
+  await waitFor(() =>
+    expect(mocks.replace).toHaveBeenCalledWith(
+      "/master-data/storage-layouts/pd",
+    ),
+  );
+});

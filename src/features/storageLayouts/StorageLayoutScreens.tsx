@@ -3555,6 +3555,7 @@ function ReviewContent({
     buildingId,
   });
   const activate = useMutation(storageLayoutRefs.activate);
+  const lastActivation = useRef<Parameters<typeof activate>[0]>(undefined);
   const operation = useAsyncOperation({
     scope: `building-review:${warehouseId}:${buildingId}`,
     describeError: (code) => code || "NETWORK_ERROR",
@@ -3586,25 +3587,27 @@ function ReviewContent({
   const blocking = issues.filter((issue) => issue.blocking);
   const advisory = issues.filter((issue) => !issue.blocking);
   const ready = current && readiness.ready === true;
-  async function submit() {
-    if (!ready || operation.busy) return;
+  async function submit(retryCommand?: Parameters<typeof activate>[0]) {
+    if ((!retryCommand && !ready) || operation.busy) return;
     const payload = {
       warehouseId,
       buildingId,
       expectedVersion: building.version,
     };
+    const command = retryCommand ?? {
+      ...payload,
+      requestId: operation.request(JSON.stringify(payload)),
+    };
+    lastActivation.current = command;
     setRefusal(undefined);
     await operation.run(
-      () =>
-        activate({
-          ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
-        }),
+      () => activate(command),
       (result) => {
         if (!result.ok) setRefusal(result.denial.code);
         else if (!result.value.written) setRefusal(result.value.error.code);
         else {
           operation.clearRequests();
+          lastActivation.current = undefined;
           operation.complete(() =>
             completeTask(storageBuildingPath(buildingId), router.replace),
           );
@@ -3759,7 +3762,11 @@ function ReviewContent({
         ) : null}
         <OperationFailure
           failure={layoutFailure(refusal, operation)}
-          onRetry={() => void submit()}
+          onRetry={() => {
+            // The live preflight becomes not-ready once activation commits.
+            // Recover its accepted result with the exact original command.
+            if (lastActivation.current) void submit(lastActivation.current);
+          }}
           retrying={operation.busy}
         />
         {building.status !== "ACTIVE" && canActivate ? (
