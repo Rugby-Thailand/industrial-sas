@@ -35,9 +35,9 @@ const REASONS = Object.freeze({
     "Snapshot request or completion exceeded the backup deadline.",
   BACKUP_FAILED: "The native snapshot ended without completing.",
   INVALID_METADATA:
-    "Snapshot metadata does not prove a fresh complete export with storage and a 24-hour recovery window.",
+    "Snapshot metadata does not prove a fresh complete database-only export and a 24-hour recovery window.",
   BACKUP_COMPLETED:
-    "A new production snapshot including Convex storage completed with a verified recovery window.",
+    "A new production snapshot of the Convex database completed with a verified recovery window.",
   BACKUP_INTERNAL_ERROR:
     "Backup verification failed; internal details were suppressed.",
 });
@@ -224,7 +224,7 @@ export async function runConvexBackupGate(input, deps = {}) {
       const response = await bounded(
         (signal) =>
           fetchImpl(
-            `${input.deploymentUrl}/api/export/request/zip?includeStorage=true`,
+            `${input.deploymentUrl}/api/export/request/zip?includeStorage=false`,
             {
               method: "POST",
               headers: { Authorization: `Convex ${input.adminKey}` },
@@ -267,7 +267,7 @@ export async function runConvexBackupGate(input, deps = {}) {
         if (
           record.requestor !== "snapshotExport" ||
           record.format?.format !== "zip" ||
-          record.format?.include_storage !== true ||
+          record.format?.include_storage !== false ||
           typeof record.start_ts !== "bigint" ||
           typeof record.complete_ts !== "bigint" ||
           typeof record.expiration_ts !== "bigint" ||
@@ -293,7 +293,7 @@ export async function runConvexBackupGate(input, deps = {}) {
             deploymentName: input.deploymentName,
             requestor: "snapshotExport",
             state: "completed",
-            includeStorage: true,
+            includeStorage: false,
             requestedAtMs,
             verifiedAtMs,
             startTs: record.start_ts.toString(),

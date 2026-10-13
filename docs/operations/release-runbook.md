@@ -78,7 +78,7 @@ test timeout there; ordinary quality tests retain their default timeout.
    - preflight: repository, `refs/heads/main`, exact SHA, the cutover
      `vercel.json`, the current `main` head, the project identity, and no
      in-flight or unreconciled production deployment;
-   - backup: a new native Convex snapshot that includes storage. It must
+   - backup: a new native Convex database-only snapshot. It must
      complete and expire at least 24 hours later. Otherwise the run is
      refused;
    - a second `main` head check, then a pinned `tools/release` Vercel CLI
@@ -169,23 +169,23 @@ Names only. Values stay in the platform stores listed. The build validator
 
 ### Vercel build environment (frontend and build-time backend push)
 
-| Variable                                                 | Production project (`industrial-sas`, Production target) | Staging project (`industrial-sas-staging`)               |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
-| `RELEASE_ENVIRONMENT`                                    | `production` (public label, set)                         | `staging`                                                |
-| `CONVEX_DEPLOY_KEY`                                      | deployment key `prod:greedy-cardinal-537`                | deployment key `dev:befitting-stoat-208`                 |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | live instance, `clerk.thaipropertyai.com`                | test instance, `creative-doberman-56.clerk.accounts.dev` |
-| `CLERK_JWT_ISSUER_DOMAIN`                                | `https://clerk.thaipropertyai.com`                       | `https://creative-doberman-56.clerk.accounts.dev`        |
-| `NEXT_PUBLIC_APP_URL`                                    | `https://app.thaipropertyai.com`                         | `https://industrial-sas-staging.vercel.app`              |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`                          | `/th/sign-in` or `/en/sign-in`                           | same                                                     |
-| `NEXT_PUBLIC_CONVEX_SITE_URL`                            | `https://greedy-cardinal-537.convex.site`                | `https://befitting-stoat-208.convex.site`                |
-| `NEXT_PUBLIC_CONVEX_URL`                                 | injected by `convex deploy`                              | injected                                                 |
-| `UPLOADTHING_TOKEN`                                      | optional; sensitive Production entry exists              | absent: uploads are unavailable on staging               |
-| `NEXT_PUBLIC_OBSERVABILITY_SINK`                         | optional `none`/`console`/gated `sentry`                 | optional                                                 |
-| `NEXT_PUBLIC_SPEED_INSIGHTS_ENABLED`                     | `1` only after project service verification              | disabled unless separately provisioned                   |
-| `NEXT_PUBLIC_SENTRY_ENABLED` / `NEXT_PUBLIC_SENTRY_DSN`  | optional client opt-in and public routing DSN            | separate reviewed project DSN                            |
-| `SENTRY_ENABLED` / `SENTRY_DSN`                          | optional server opt-in and DSN                           | separate reviewed project DSN                            |
-| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`      | server/build only; private source-map upload             | server/build only                                        |
-| `RELEASE_SHA`, `RELEASE_RUN_ID`                          | injected per deployment by `--build-env`                 | injected                                                 |
+| Variable                                                 | Production project (`industrial-sas`, Production target) | Staging project (`industrial-sas-staging`)                       |
+| -------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- |
+| `RELEASE_ENVIRONMENT`                                    | `production` (public label, set)                         | `staging`                                                        |
+| `CONVEX_DEPLOY_KEY`                                      | deployment key `prod:greedy-cardinal-537`                | deployment key `dev:befitting-stoat-208`                         |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | live instance, `clerk.thaipropertyai.com`                | test instance, `creative-doberman-56.clerk.accounts.dev`         |
+| `CLERK_JWT_ISSUER_DOMAIN`                                | `https://clerk.thaipropertyai.com`                       | `https://creative-doberman-56.clerk.accounts.dev`                |
+| `NEXT_PUBLIC_APP_URL`                                    | `https://app.thaipropertyai.com`                         | `https://industrial-sas-staging.vercel.app`                      |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`                          | `/th/sign-in` or `/en/sign-in`                           | same                                                             |
+| `NEXT_PUBLIC_CONVEX_SITE_URL`                            | `https://greedy-cardinal-537.convex.site`                | `https://befitting-stoat-208.convex.site`                        |
+| `NEXT_PUBLIC_CONVEX_URL`                                 | injected by `convex deploy`                              | injected                                                         |
+| `UPLOADTHING_TOKEN`                                      | required; existing Secret scoped to Production           | required; dedicated free staging app Secret scoped to Production |
+| `NEXT_PUBLIC_OBSERVABILITY_SINK`                         | optional `none`/`console`/gated `sentry`                 | optional                                                         |
+| `NEXT_PUBLIC_SPEED_INSIGHTS_ENABLED`                     | `1` only after project service verification              | disabled unless separately provisioned                           |
+| `NEXT_PUBLIC_SENTRY_ENABLED` / `NEXT_PUBLIC_SENTRY_DSN`  | optional client opt-in and public routing DSN            | separate reviewed project DSN                                    |
+| `SENTRY_ENABLED` / `SENTRY_DSN`                          | optional server opt-in and DSN                           | separate reviewed project DSN                                    |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`      | server/build only; private source-map upload             | server/build only                                                |
+| `RELEASE_SHA`, `RELEASE_RUN_ID`                          | injected per deployment by `--build-env`                 | injected                                                         |
 
 The validator refuses `CONVEX_DEPLOYMENT`, `CONVEX_ADMIN_KEY`,
 `CONVEX_BACKUP_ADMIN_KEY` and `CONVEX_SELF_HOSTED_*` in a build. It also
@@ -225,12 +225,30 @@ this table in a reviewed PR.
 
 Job-ticket photos are uploaded to UploadThing (`src/app/api/uploadthing`). The
 app stores only the returned URL in Convex. Neither Convex snapshot type copies
-those bytes. The production UploadThing app has **not** been independently
-identified. The empty `industrial` dashboard app and the app behind a local
-token are not proof of the production store. Don't treat either as production,
-and don't overwrite the production token. Until the association, retention and
-an archive procedure exist, a data restore can return photo URLs whose files
-have changed or disappeared.
+those bytes. `UPLOADTHING_TOKEN` is server-only and required by the gated build
+validator for both reviewed targets before any backend push. Local builds and
+mocked upload tests do not use this deployment contract.
+
+On 2026-10-13 a dedicated **Free** `industrial-sas-staging` app was created in
+the existing `industrial` team, with Public access for the existing job-ticket
+photo contract. Its v7 token was verified against that app and the provider's
+read-only usage API returned zero files and zero app bytes. The staging Vercel
+project now has a Secret scoped only to its **Production** target (the target
+used by staging releases). No upgrade, purchase, upload or deployment was
+performed. Production retains its existing, separate Production and Preview
+Secrets. The user identified the existing production app as `industrial` in
+their personal team and designated the current local token as its production
+credential. The app identity in that token matched the user-provided dashboard
+screenshot, and provider metadata verified 19 uploaded files totaling
+12,670,474 bytes. The saved Vercel Secret remains unreadable, so equality to
+that saved value was not independently checked. All existing provider files
+were retained; the empty `industrial` team app is a different app.
+
+See [file storage inventory and recovery](uploadthing-storage-operations.md)
+for the completed aggregate inventory, repeatable read-only command and
+external-file recovery procedure. Provider archival and a timed file-byte
+restore remain unverified. A database restore alone can return photo URLs whose
+files have changed or disappeared.
 
 ## Native Git cutover
 
@@ -353,10 +371,14 @@ Recovery rules:
 ## Backup and recovery evidence
 
 - Pre-release and daily native snapshots (`scripts/release/backup.mjs`,
-  `scripts/release/lib/convex-backup.mjs`) require `includeStorage=true`,
-  fresh completion, and at least 24 hours of remaining recovery window. The
-  helper was verified live in about 3.5 s, and its 55 focused tests passed.
-  Scheduled workflow execution is not yet observed.
+  `scripts/release/lib/convex-backup.mjs`) now request and require
+  `includeStorage=false`, fresh completion, and at least 24 hours of remaining
+  recovery window. The 2026-10-13 full read-only inventory found zero Convex
+  file objects and zero file references in both reviewed environments; see
+  [current inventory](uploadthing-storage-operations.md). The earlier
+  storage-inclusive protocol was verified live in about 3.5 s. The new
+  database-only request has focused local regression coverage; its first
+  live execution is left to the protected release/daily workflow.
 - Cloud snapshot `1708272` was restored server-side into disposable preview
   `precise-rabbit-956`. The import completed with 3296 documents in a
   measured 94.9 s. That run had zero `_storage` objects. It was a data-import

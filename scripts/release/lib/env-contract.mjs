@@ -152,11 +152,12 @@ export function validateBuildEnvironment(env, phase, targets = loadTargets()) {
     problems.push("phase (expected pre or build)");
   }
 
-  // Optional integrations: report presence by name, never require them.
-  for (const optional of [
-    "UPLOADTHING_TOKEN",
-    "NEXT_PUBLIC_OBSERVABILITY_SINK",
-  ]) {
+  // Authenticated photo uploads are part of both reviewed releases. Local
+  // builds and mocked tests do not run this deployment-only contract.
+  if (!present(env, "UPLOADTHING_TOKEN")) problems.push("UPLOADTHING_TOKEN");
+
+  // Telemetry remains optional; report presence by name only.
+  for (const optional of ["NEXT_PUBLIC_OBSERVABILITY_SINK"]) {
     notes.push(`${optional}: ${present(env, optional) ? "set" : "not set"}`);
   }
 

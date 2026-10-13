@@ -14,7 +14,7 @@ const input = { ...PRODUCTION_BACKUP_TARGET, adminKey: KEY };
 const completed = () => ({
   state: "completed",
   requestor: "snapshotExport",
-  format: { format: "zip", include_storage: true },
+  format: { format: "zip", include_storage: false },
   start_ts: BigInt(NOW) * NS,
   complete_ts: BigInt(NOW + 10) * NS,
   expiration_ts: BigInt(NOW + MINIMUM_RECOVERY_WINDOW_MS + 10_000) * NS,
@@ -50,7 +50,7 @@ function world(records: unknown[] = [null, completed()]) {
 }
 
 describe("native production backup gate", () => {
-  it("requests exactly a storage ZIP and emits only public metadata", async () => {
+  it("requests exactly a database-only ZIP and emits only public metadata", async () => {
     const w = world([
       null,
       { state: "requested" },
@@ -62,7 +62,7 @@ describe("native production backup gate", () => {
     expect(w.fetch).toHaveBeenCalledOnce();
     const [url, options] = w.fetch.mock.calls[0]!;
     expect(url).toBe(
-      `${PRODUCTION_BACKUP_TARGET.deploymentUrl}/api/export/request/zip?includeStorage=true`,
+      `${PRODUCTION_BACKUP_TARGET.deploymentUrl}/api/export/request/zip?includeStorage=false`,
     );
     expect(options).toMatchObject({
       method: "POST",
@@ -146,7 +146,7 @@ describe("native production backup gate", () => {
     { expiration_ts: BigInt(NOW - 1) * NS },
     { expiration_ts: BigInt(NOW + MINIMUM_RECOVERY_WINDOW_MS - 1) * NS },
     { requestor: "cloudBackup" },
-    { format: { format: "zip", include_storage: false } },
+    { format: { format: "zip", include_storage: true } },
     { format: { format: "zip" } },
     { format: { format: "json", include_storage: true } },
     { start_ts: Number(BigInt(NOW) * NS) },
