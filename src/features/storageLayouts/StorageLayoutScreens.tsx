@@ -1107,7 +1107,7 @@ function RemoveTopFloor({
         else {
           operation.clearRequests();
           setRemoved(floor);
-          setOpen(false);
+          operation.complete(() => setOpen(false));
         }
       },
     );
@@ -1207,7 +1207,7 @@ function BuildingArchiveSection({
         else if (!result.value.written) setRefusal(result.value.error.code);
         else {
           operation.clearRequests();
-          setOpen(false);
+          operation.complete(() => setOpen(false));
         }
       },
     );

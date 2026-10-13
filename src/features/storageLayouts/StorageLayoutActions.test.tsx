@@ -850,3 +850,90 @@ describe("floor draft save failure", () => {
     ).toBeVisible();
   });
 });
+
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+
+it.each(["remove", "archive"])(
+  "consumes successful %s confirmation without a stale pending prompt",
+  async (action) => {
+    window.history.replaceState(
+      null,
+      "",
+      "/en/master-data/storage-layouts?origin=yes#catalogue",
+    );
+    stopHistory = trackAppHistory();
+    window.history.pushState(
+      null,
+      "",
+      "/en/master-data/storage-layouts/pd?kept=yes#map",
+    );
+    mocks.queries.set("storageLayouts/writes:buildingLifecycleImpact", {
+      ok: true,
+      value: {
+        found: true,
+        version: 5,
+        zoneCount: 1,
+        positionCount: 1,
+        namedRegistrationCount: 0,
+        occupied: false,
+        canArchive: true,
+      },
+    });
+    renderWithIntl(
+      <NavigationGuardProvider>
+        <BuildingSettingsDialog warehouseId="warehouse-a" building={pd} />
+      </NavigationGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit building settings" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: action === "remove" ? "Remove empty floor 2" : "Archive building",
+      }),
+    );
+    const title = action === "remove" ? "Remove floor 2?" : "Archive PD?";
+    const dialog = screen.getByRole("dialog", { name: title });
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: action === "remove" ? "Remove floor" : "Archive building",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: title }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Building name" })).toHaveValue(
+      "PD",
+    );
+    await waitFor(() =>
+      expect(
+        [...new URLSearchParams(window.location.search).keys()].filter((key) =>
+          key.startsWith("overlay"),
+        ),
+      ).toHaveLength(1),
+    );
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("textbox", { name: "Building name" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/en/master-data/storage-layouts/pd?kept=yes#map");
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/master-data/storage-layouts?origin=yes#catalogue"),
+    );
+  },
+);
