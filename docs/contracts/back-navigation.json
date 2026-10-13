@@ -4461,9 +4461,13 @@
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:$overlay:Dialog:createDialogOpen",
       "policy": "overlay",
-      "expectation": "The actual spot editor Dialog protects its exact dirty/pending draft. Live operation completion consumes only the generation that sent the write, preserves newer edit intent, and Forward restores the same saved spot; explicit closure precedes the next Back.",
+      "expectation": "The actual spot editor Dialog protects its exact dirty/pending draft. Live operation completion consumes only the generation that sent the write, preserves newer edit intent, and Forward restores the same saved spot; explicit closure precedes the next Back. Workspace URL intent is published after native history listeners finish, so Close/Cancel cannot replay a transient editZone command.",
       "integration": "dialog",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/useWorkspaceQuery.test.tsx",
+        "tests/e2e/navigation/storage-editor.spec.ts"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
@@ -4492,17 +4496,31 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "remount retirement consumes the old spot entry before the next Back and stale editZone links open nothing"
+        },
+        {
+          "file": "src/features/storageLayouts/useWorkspaceQuery.test.tsx",
+          "name": "does not publish a popped editor command before later history listeners correct it"
+        },
+        {
+          "file": "tests/e2e/navigation/storage-editor.spec.ts",
+          "name": "mobile spot Close stays closed after native history cleanup, refresh and the next Back"
+        },
+        {
+          "file": "tests/e2e/navigation/storage-editor.spec.ts",
+          "name": "mobile spot Cancel retains a dirty draft on Keep and consumes it on Discard before the next Back"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:createDialogOpen",
       "policy": "overlay",
-      "expectation": "The actual spot editor Dialog protects its exact dirty/pending draft. Live operation completion consumes only the generation that sent the write, preserves newer edit intent, and Forward restores the same saved spot; explicit closure precedes the next Back.",
+      "expectation": "The actual spot editor Dialog protects its exact dirty/pending draft. Live operation completion consumes only the generation that sent the write, preserves newer edit intent, and Forward restores the same saved spot; explicit closure precedes the next Back. Workspace URL intent is published after native history listeners finish, so Close/Cancel cannot replay a transient editZone command.",
       "integration": "dialog",
       "tests": [
         "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
-        "src/features/storageLayouts/StorageLayoutScreens.test.tsx"
+        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+        "src/features/storageLayouts/useWorkspaceQuery.test.tsx",
+        "tests/e2e/navigation/storage-editor.spec.ts"
       ],
       "cases": [
         {
@@ -4544,6 +4562,18 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
           "name": "blocks mobile zone Close and native Back while a write is pending, then permits guarded closure"
+        },
+        {
+          "file": "src/features/storageLayouts/useWorkspaceQuery.test.tsx",
+          "name": "does not publish a popped editor command before later history listeners correct it"
+        },
+        {
+          "file": "tests/e2e/navigation/storage-editor.spec.ts",
+          "name": "mobile spot Close stays closed after native history cleanup, refresh and the next Back"
+        },
+        {
+          "file": "tests/e2e/navigation/storage-editor.spec.ts",
+          "name": "mobile spot Cancel retains a dirty draft on Keep and consumes it on Discard before the next Back"
         }
       ]
     },

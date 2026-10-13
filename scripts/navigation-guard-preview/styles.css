@@ -1,6 +1,15 @@
+html {
+  overflow-x: clip;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 body {
   font: 16px system-ui;
-  margin: 24px;
+  margin: 0;
+  padding: 24px;
   color: #18252b;
   background: white;
 }
@@ -11,6 +20,7 @@ main {
 nav,
 label {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin: 16px 0;
 }
@@ -30,21 +40,27 @@ button:disabled {
 }
 [data-slot="dialog-overlay"] {
   position: fixed;
+  z-index: 50;
   inset: 0;
   background: #0006;
 }
 [data-slot="dialog-content"] {
   position: fixed;
+  z-index: 50;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   background: white;
   padding: 24px;
   width: min(500px, 80vw);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  box-sizing: border-box;
   border: 1px solid #aaa;
 }
-[data-slot="dialog-close"] {
+[data-slot="dialog-content"] > button[data-size="icon"] {
   position: absolute;
+  z-index: 1;
   top: 2px;
   right: 2px;
 }
