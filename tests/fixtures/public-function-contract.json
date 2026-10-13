@@ -14044,6 +14044,12 @@
             "type": "number"
           },
           "optional": true
+        },
+        "clockFree": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
         }
       }
     },
