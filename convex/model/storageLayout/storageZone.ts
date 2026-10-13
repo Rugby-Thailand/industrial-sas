@@ -202,3 +202,14 @@ export function storageRecordRevision(row: {
 }): string {
   return `${row.version ?? 0}:${row.updatedAt}`;
 }
+
+/** Every semantic change advances both tokens even when the clock is frozen. */
+export function nextStorageRecordRevision(row: {
+  readonly version?: number | undefined;
+  readonly updatedAt: number;
+}) {
+  return {
+    version: (row.version ?? 0) + 1,
+    updatedAt: Math.max(Date.now(), row.updatedAt + 1),
+  };
+}

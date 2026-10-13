@@ -101,6 +101,14 @@ export function validateStoragePosition(input: {
     return fail({ code: "FLOOR_POSITION_ELEVATION_FORBIDDEN" });
   }
   if (
+    position.kind === "RACK_SLOT" &&
+    (!nonNegative(position.elevationMm ?? -1) ||
+      (position.elevationMm ?? 0) >= area.maxStackHeightMm)
+  )
+    return fail({ code: "POSITION_DIMENSION_INVALID", field: "elevationMm" });
+  if (position.kind === "PLATFORM" && !nonNegative(position.elevationMm ?? -1))
+    return fail({ code: "POSITION_DIMENSION_INVALID", field: "elevationMm" });
+  if (
     position.kind === "PLATFORM" &&
     position.elevationMm !== area.baseElevationMm
   ) {

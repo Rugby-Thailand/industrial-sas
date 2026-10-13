@@ -1,3 +1,4 @@
+import { currentStorageRevision } from "../fixtures/storage-record-revision";
 import {
   createStorageZone,
   updateStorageZone,
@@ -698,6 +699,11 @@ describe("storage building planner", () => {
     });
     const updatedZone = value(
       await call(world, updateStorageZone, {
+        expectedRevision: await currentStorageRevision(
+          world,
+          "storageZones",
+          zone["documentId"] as string,
+        ),
         warehouseId,
         zoneId: zone["documentId"],
         requestId: "storage-zone-update-1",

@@ -1,5 +1,11 @@
+import type { Doc } from "../../convex/_generated/dataModel";
+import {
+  listJobScans,
+  saveJobScans,
+} from "../../convex/finishedGoods/jobScans";
+import { trackDocumentReads } from "../fixtures/document-reads";
 import type { GenericMutationCtx } from "convex/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   create as registerNamedLocation,
@@ -20,6 +26,8 @@ import {
   saveStorageFloor,
 } from "../../convex/storageLayouts/writes";
 import {
+  archiveStoragePosition,
+  updateStoragePosition,
   createStoragePosition,
   createStorageZone,
   generateRackStoragePositions,
@@ -118,6 +126,147 @@ async function building(context: Awaited<ReturnType<typeof plannerWorld>>) {
 }
 
 describe("storage layout action safety", () => {
+  it("parent audit: refuses changed rack input under an already committed request identity", async () => {
+    const context = await plannerWorld();
+    const rack = await zone(context, "Rack", { mode: "RACK" });
+    const args = {
+      warehouseId: context.warehouseId,
+      zoneId: rack["documentId"],
+      requestId: "same-rack-command",
+      fixtureCode: "R1",
+      bayCount: 1,
+      levelCount: 1,
+      slotsPerBay: 1,
+      bayWidthMm: 1000,
+      rackDepthMm: 1000,
+      levelHeightMm: 1000,
+    };
+    expect(
+      value(await call(context.world, generateRackStoragePositions, args)),
+    ).toMatchObject({ written: true, createdCount: 1 });
+    const changed = value(
+      await call(context.world, generateRackStoragePositions, {
+        ...args,
+        bayCount: 2,
+      }),
+    );
+    expect(changed).toMatchObject({ written: false });
+    expect(
+      (await building(context)).floors[0]!.storageZones[0]!.positions,
+    ).toHaveLength(1);
+  });
+
+  it("parent audit: retains a floor referenced by an inactive named location", async () => {
+    const context = await plannerWorld();
+    const floor = await context.world.t.run(async (ctx) =>
+      (await ctx.db.query("storageFloors").collect()).find(
+        (row) => row.floorNumber === 2,
+      )!,
+    );
+    await context.world.t.run((ctx) =>
+      ctx.db.insert("locations", {
+        orgId: context.world.orgA,
+        warehouseId: context.warehouseId,
+        buildingId: floor.buildingId,
+        floorId: floor._id,
+        code: "HISTORICAL-FLOOR-2",
+        locationType: "NAMED_STORAGE",
+        status: "INACTIVE",
+      }),
+    );
+    expect(
+      value(
+        await call(context.world, removeTopStorageFloor, {
+          warehouseId: context.warehouseId,
+          buildingId: context.buildingId,
+          requestId: "keep-referenced-floor",
+          floorNumber: 2,
+          expectedVersion: (await building(context)).building.version,
+        }),
+      ),
+    ).toMatchObject({ written: false });
+    expect(
+      await context.world.t.run((ctx) => ctx.db.get(floor._id)),
+    ).not.toBeNull();
+  });
+
+  it("parent audit: refuses a zone editor without a revision instead of overwriting another tab", async () => {
+    const context = await plannerWorld();
+    const created = await zone(context, "Original");
+    expect(
+      value(
+        await call(context.world, updateStorageZone, {
+          warehouseId: context.warehouseId,
+          zoneId: created["documentId"],
+          requestId: "old-client",
+          label: "Stale overwrite",
+          xMm: 0,
+          yMm: 0,
+          widthMm: 2000,
+          depthMm: 2000,
+          maxStackHeightMm: 3000,
+        }),
+      ),
+    ).toMatchObject({ written: false, error: { code: "VERSION_CONFLICT" } });
+  });
+
+  it("parent audit: lifecycle impact uses at most one native pagination across a large named catalogue", async () => {
+    const context = await plannerWorld();
+    const floor = await context.world.t.run(
+      async (ctx) => (await ctx.db.query("storageFloors").collect())[0]!,
+    );
+    await context.world.t.run(async (ctx) => {
+      for (let index = 0; index < 201; index++)
+        await ctx.db.insert("locations", {
+          orgId: context.world.orgA,
+          warehouseId: context.warehouseId,
+          buildingId: floor.buildingId,
+          floorId: floor._id,
+          code: `NAMED-${index}`,
+          locationType: "NAMED_STORAGE",
+          status: "ACTIVE",
+        });
+    });
+    let paginations = 0;
+    const wrap = (query: object): object =>
+      new Proxy(query, {
+        get(target, key, receiver) {
+          const member = Reflect.get(target, key, receiver);
+          if (typeof member !== "function") return member;
+          return (...args: unknown[]) => {
+            if (key === "paginate") paginations++;
+            const result: unknown = Reflect.apply(member, target, args);
+            return result &&
+              typeof result === "object" &&
+              !(result instanceof Promise)
+              ? wrap(result)
+              : result;
+          };
+        },
+      });
+    await context.world.t
+      .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+      .run(async (ctx) => {
+        const db = new Proxy(ctx.db, {
+          get(target, key, receiver) {
+            const member = Reflect.get(target, key, receiver);
+            if (key === "query")
+              return (table: string) =>
+                wrap(Reflect.apply(member, target, [table]));
+            return typeof member === "function" ? member.bind(target) : member;
+          },
+        });
+        await (buildingLifecycleImpact as unknown as RuntimeFunction)._handler(
+          { ...ctx, db } as GenericMutationCtx<DataModel>,
+          {
+            warehouseId: context.warehouseId,
+            buildingId: context.buildingId,
+          },
+        );
+      });
+    expect(paginations).toBeLessThanOrEqual(1);
+  });
+
   it("replays a lost-response floor save instead of reporting a version conflict", async () => {
     const context = await plannerWorld();
     const before = await building(context);
@@ -542,5 +691,574 @@ describe("storage layout action safety", () => {
         }),
       ),
     ).toMatchObject({ error: { code: "LAYOUT_NOT_EDITABLE" } });
+  });
+});
+
+async function rawZone(
+  context: Awaited<ReturnType<typeof plannerWorld>>,
+  zoneId: string,
+) {
+  return (await context.world.t.run((ctx) =>
+    ctx.db.get(zoneId as never),
+  )) as Doc<"storageZones">;
+}
+async function occupyZone(
+  context: Awaited<ReturnType<typeof plannerWorld>>,
+  zoneId: string,
+) {
+  const row = await rawZone(context, zoneId);
+  await context.world.t.run(async (ctx) => {
+    const stamps = {
+      orgId: context.world.orgA,
+      warehouseId: context.warehouseId,
+      createdAt: 1,
+      updatedAt: 1,
+      createdByUserId: context.world.userA,
+      updatedByUserId: context.world.userA,
+    };
+    const productId = await ctx.db.insert("finishedGoodsProducts", {
+      ...stamps,
+      sku: "SKU",
+      name: "Boxes",
+      unit: "pieces",
+      storageFormat: "PALLET",
+      storageCondition: "ANY",
+      status: "ACTIVE",
+    });
+    const palletId = await ctx.db.insert("finishedGoodsPallets", {
+      ...stamps,
+      productId,
+      code: "P-1",
+      quantity: 1,
+      status: "RESERVED",
+    });
+    await ctx.db.insert("finishedGoodsPlacements", {
+      ...stamps,
+      palletId,
+      buildingId: row.buildingId,
+      floorId: row.floorId,
+      zoneId: row._id,
+      locationId: row.locationId,
+      positionCode: "TEST",
+      qrValue: "TEST",
+      status: "RESERVED",
+      xMm: 0,
+      yMm: 0,
+      zMm: 0,
+      widthMm: 500,
+      depthMm: 500,
+      heightMm: 500,
+      rotation: 0,
+    });
+  });
+}
+it("rack receipt replays after later occupancy and mode changes without adding slots", async () => {
+  const context = await plannerWorld();
+  const rack = await zone(context, "Replay Rack", { mode: "RACK" });
+  const zoneId = rack["documentId"] as string;
+  const args = {
+    warehouseId: context.warehouseId,
+    zoneId,
+    requestId: "rack-retry",
+    fixtureCode: "R1",
+    bayCount: 1,
+    levelCount: 1,
+    slotsPerBay: 1,
+    bayWidthMm: 1000,
+    rackDepthMm: 1000,
+    levelHeightMm: 1000,
+  };
+  const first = value(
+    await call(context.world, generateRackStoragePositions, args),
+  );
+  await occupyZone(context, zoneId);
+  await context.world.t.run((ctx) =>
+    ctx.db.patch(zoneId as never, { mode: "SIMPLE" }),
+  );
+  expect(
+    value(await call(context.world, generateRackStoragePositions, args)),
+  ).toMatchObject({ ...first, replayed: true });
+  expect(
+    await context.world.t.run((ctx) =>
+      ctx.db.query("storagePositions").collect(),
+    ),
+  ).toHaveLength(1);
+});
+it("empty draft rack can retire its final leaf then return to SIMPLE while preserving leaf history", async () => {
+  const context = await plannerWorld();
+  const rack = await zone(context, "Convert Rack", { mode: "RACK" });
+  const zoneId = rack["documentId"] as string;
+  const generated = value(
+    await call(context.world, generateRackStoragePositions, {
+      warehouseId: context.warehouseId,
+      zoneId,
+      requestId: "one-leaf",
+      fixtureCode: "R1",
+      bayCount: 1,
+      levelCount: 1,
+      slotsPerBay: 1,
+      bayWidthMm: 1000,
+      rackDepthMm: 1000,
+      levelHeightMm: 1000,
+    }),
+  );
+  const positionId = (generated["positionIds"] as string[])[0]!;
+  expect(
+    value(
+      await call(context.world, archiveStoragePosition, {
+        warehouseId: context.warehouseId,
+        positionId,
+        requestId: "retire-final-leaf",
+      }),
+    ),
+  ).toMatchObject({ written: true });
+  const current = (await building(context)).floors[0]!.storageZones[0]!;
+  expect(
+    value(
+      await call(context.world, updateStorageZone, {
+        warehouseId: context.warehouseId,
+        zoneId,
+        requestId: "simple-again",
+        expectedRevision: current.revision,
+        label: "Convert Rack",
+        mode: "SIMPLE",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 2000,
+        depthMm: 2000,
+        maxStackHeightMm: 3000,
+      }),
+    ),
+  ).toMatchObject({ written: true });
+  const archived = await context.world.t.run((ctx) =>
+    ctx.db.get(positionId as never),
+  );
+  expect(archived).toMatchObject({ _id: positionId, status: "INACTIVE" });
+  expect(
+    (await building(context)).floors[0]!.storageZones[0]!.positions,
+  ).toMatchObject([{ kind: "DEFAULT" }]);
+});
+it("occupied draft rack refuses final leaf retirement and conversion to SIMPLE", async () => {
+  const context = await plannerWorld();
+  const rack = await zone(context, "Occupied Rack", { mode: "RACK" });
+  const zoneId = rack["documentId"] as string;
+  const generated = value(
+    await call(context.world, generateRackStoragePositions, {
+      warehouseId: context.warehouseId,
+      zoneId,
+      requestId: "occupied-leaf",
+      fixtureCode: "R1",
+      bayCount: 1,
+      levelCount: 1,
+      slotsPerBay: 1,
+      bayWidthMm: 1000,
+      rackDepthMm: 1000,
+      levelHeightMm: 1000,
+    }),
+  );
+  await occupyZone(context, zoneId);
+  expect(
+    value(
+      await call(context.world, archiveStoragePosition, {
+        warehouseId: context.warehouseId,
+        positionId: (generated["positionIds"] as string[])[0],
+        requestId: "keep-final-leaf",
+      }),
+    ),
+  ).toMatchObject({ written: false, error: { code: "LOCATION_OCCUPIED" } });
+  const current = (await building(context)).floors[0]!.storageZones[0]!;
+  expect(
+    value(
+      await call(context.world, updateStorageZone, {
+        warehouseId: context.warehouseId,
+        zoneId,
+        requestId: "keep-rack",
+        expectedRevision: current.revision,
+        label: "Occupied Rack",
+        mode: "SIMPLE",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 2000,
+        depthMm: 2000,
+        maxStackHeightMm: 3000,
+      }),
+    ),
+  ).toMatchObject({ written: false, error: { code: "LOCATION_OCCUPIED" } });
+});
+it("same-clock parent geometry changes advance the automatic leaf revision and refuse stale leaf edits", async () => {
+  const context = await plannerWorld();
+  const created = await zone(context, "Versioned Simple");
+  const zoneId = created["documentId"] as string;
+  const before = await rawZone(context, zoneId);
+  const leaf = await context.world.t.run(
+    async (ctx) => (await ctx.db.query("storagePositions").collect())[0]!,
+  );
+  const revision = `${leaf.version ?? 0}:${leaf.updatedAt}`;
+  const now = vi.spyOn(Date, "now").mockReturnValue(leaf.updatedAt);
+  try {
+    expect(
+      value(
+        await call(context.world, updateStorageZone, {
+          warehouseId: context.warehouseId,
+          zoneId,
+          requestId: "parent-move",
+          expectedRevision: `${before.version ?? 0}:${before.updatedAt}`,
+          label: "Moved Simple",
+          xMm: 1000,
+          yMm: 0,
+          widthMm: 2000,
+          depthMm: 2000,
+          maxStackHeightMm: 3000,
+        }),
+      ),
+    ).toMatchObject({ written: true });
+    const moved = await context.world.t.run((ctx) => ctx.db.get(leaf._id));
+    expect(moved!.version).toBe((leaf.version ?? 0) + 1);
+    expect(moved!.updatedAt).toBeGreaterThan(leaf.updatedAt);
+    expect(
+      value(
+        await call(context.world, updateStoragePosition, {
+          warehouseId: context.warehouseId,
+          positionId: leaf._id,
+          requestId: "stale-leaf",
+          expectedRevision: revision,
+          label: "Stale",
+          xMm: 0,
+          yMm: 0,
+          widthMm: 2000,
+          depthMm: 2000,
+        }),
+      ),
+    ).toMatchObject({ written: false, error: { code: "VERSION_CONFLICT" } });
+  } finally {
+    now.mockRestore();
+  }
+});
+it("a previously floor-scoped registration cannot move existing ticket references to another floor", async () => {
+  const context = await plannerWorld(2);
+  await zone(context, "Activate Ground");
+  value(
+    await call(context.world, activateStorageBuilding, {
+      warehouseId: context.warehouseId,
+      buildingId: context.buildingId,
+      requestId: "activate-scope",
+      expectedVersion: (await building(context)).building.version,
+    }),
+  );
+  const floor = await context.world.t.run(async (ctx) =>
+    (await ctx.db.query("storageFloors").collect()).find(
+      (row) => row.floorNumber === 1,
+    )!,
+  );
+  const registration = value(
+    await call(context.world, registerNamedLocation, {
+      warehouseId: context.warehouseId,
+      requestId: "floor-scoped",
+      code: "Scoped dock",
+      buildingId: context.buildingId,
+      floorId: floor._id,
+    }),
+  );
+  expect(
+    value(
+      await call(context.world, completeNamedLocationLayout, {
+        warehouseId: context.warehouseId,
+        locationId: registration["documentId"],
+        buildingId: context.buildingId,
+        requestId: "different-floor",
+        expectedVersion: 1,
+        floorNumber: 2,
+        xMm: 4000,
+        yMm: 0,
+        widthMm: 1000,
+        depthMm: 1000,
+        maxStackHeightMm: 3000,
+      }),
+    ),
+  ).toMatchObject({
+    written: false,
+    error: { code: "NAMED_LOCATION_FLOOR_CONFLICT", field: "floorNumber" },
+  });
+  expect(
+    await context.world.t.run((ctx) =>
+      ctx.db.get(registration["documentId"] as never),
+    ),
+  ).toMatchObject({ floorId: floor._id, locationType: "NAMED_STORAGE" });
+});
+it.each(["geometry", "kind", "elevation"])(
+  "activation preflight refuses invalid legacy leaf %s",
+  async (problem) => {
+    const context = await plannerWorld();
+    const rack = await zone(context, "Legacy Rack", { mode: "RACK" });
+    const generated = value(
+      await call(context.world, generateRackStoragePositions, {
+        warehouseId: context.warehouseId,
+        zoneId: rack["documentId"],
+        requestId: "legacy-rack",
+        fixtureCode: "R1",
+        bayCount: 1,
+        levelCount: 1,
+        slotsPerBay: 1,
+        bayWidthMm: 1000,
+        rackDepthMm: 1000,
+        levelHeightMm: 1000,
+      }),
+    );
+    await context.world.t.run((ctx) =>
+      ctx.db.patch(
+        (generated["positionIds"] as string[])[0] as never,
+        problem === "geometry"
+          ? { widthMm: 99999 }
+          : problem === "kind"
+            ? { kind: "FLOOR" }
+            : { elevationMm: -1 },
+      ),
+    );
+    expect(
+      value(
+        await call(context.world, layoutReadiness, {
+          warehouseId: context.warehouseId,
+          buildingId: context.buildingId,
+        }),
+      ),
+    ).toMatchObject({ ready: false });
+    expect(
+      value(
+        await call(context.world, activateStorageBuilding, {
+          warehouseId: context.warehouseId,
+          buildingId: context.buildingId,
+          requestId: "invalid-leaf-activation",
+          expectedVersion: (await building(context)).building.version,
+        }),
+      ),
+    ).toMatchObject({ written: false });
+  },
+);
+
+it("a position editor missing its revision fails closed while a fresh token edit succeeds", async () => {
+  const context = await plannerWorld();
+  const created = await zone(context, "Position Token");
+  const leaf = await context.world.t.run(
+    async (ctx) => (await ctx.db.query("storagePositions").collect())[0]!,
+  );
+  const args = {
+    warehouseId: context.warehouseId,
+    positionId: leaf._id,
+    label: "Fresh label",
+    xMm: 0,
+    yMm: 0,
+    widthMm: 2000,
+    depthMm: 2000,
+  };
+  expect(
+    value(
+      await call(context.world, updateStoragePosition, {
+        ...args,
+        requestId: "missing-position-token",
+      }),
+    ),
+  ).toMatchObject({ written: false, error: { code: "VERSION_CONFLICT" } });
+  expect(
+    value(
+      await call(context.world, updateStoragePosition, {
+        ...args,
+        requestId: "fresh-position-token",
+        expectedRevision: `${leaf.version ?? 0}:${leaf.updatedAt}`,
+      }),
+    ),
+  ).toMatchObject({ written: true });
+  expect(created["written"]).toBe(true);
+});
+it("mapped job tickets retain their original floor when a name registration gains geometry", async () => {
+  const context = await plannerWorld(2);
+  await zone(context, "Floor Context");
+  value(
+    await call(context.world, activateStorageBuilding, {
+      warehouseId: context.warehouseId,
+      buildingId: context.buildingId,
+      requestId: "activate-ticket-floor",
+      expectedVersion: (await building(context)).building.version,
+    }),
+  );
+  const floor = await context.world.t.run(async (ctx) =>
+    (await ctx.db.query("storageFloors").collect()).find(
+      (row) => row.floorNumber === 1,
+    )!,
+  );
+  const registered = value(
+    await call(context.world, registerNamedLocation, {
+      warehouseId: context.warehouseId,
+      requestId: "register-ticket",
+      code: "Ticket dock",
+      buildingId: context.buildingId,
+      floorId: floor._id,
+    }),
+  );
+  const locationId = registered["documentId"] as string;
+  value(
+    await call(context.world, saveJobScans, {
+      warehouseId: context.warehouseId,
+      requestId: "save-floor-ticket",
+      locationText: "Ticket dock",
+      location: { locationId },
+      items: [
+        {
+          factoryOrder: "ORDER-1",
+          productBarcodeText: "BARCODE-1",
+          source: "MANUAL",
+        },
+      ],
+    }),
+  );
+  value(
+    await call(context.world, completeNamedLocationLayout, {
+      warehouseId: context.warehouseId,
+      locationId,
+      buildingId: context.buildingId,
+      requestId: "complete-ticket-floor",
+      expectedVersion: 1,
+      floorNumber: 1,
+      xMm: 4000,
+      yMm: 0,
+      widthMm: 1000,
+      depthMm: 1000,
+      maxStackHeightMm: 3000,
+    }),
+  );
+  const scans = value(
+    await call(context.world, listJobScans, {
+      warehouseId: context.warehouseId,
+      filter: "MAPPED",
+      pageSize: 20,
+    }),
+  );
+  expect(scans["items"]).toMatchObject([
+    { factoryOrder: "ORDER-1", floorNumber: 1, locationCode: "TICKET DOCK" },
+  ]);
+  expect(
+    await context.world.t.run((ctx) => ctx.db.get(locationId as never)),
+  ).toMatchObject({ floorId: floor._id, locationType: "FLOOR_BLOCK" });
+});
+it("building impact counts its own named registrations without reading unrelated building rows", async () => {
+  const context = await plannerWorld();
+  const otherBuilding = value(
+    await call(context.world, createStorageBuilding, {
+      warehouseId: context.warehouseId,
+      requestId: "other-building",
+      code: "OTHER",
+      name: "Other",
+      widthMm: 10000,
+      depthMm: 10000,
+      defaultFloorHeightMm: 4000,
+      floorCount: 1,
+    }),
+  )["documentId"];
+  await context.world.t.run(async (ctx) => {
+    const ownFloor = (await ctx.db.query("storageFloors").collect()).find(
+      (floor) => floor.buildingId === context.buildingId,
+    )!;
+    for (let index = 0; index < 201; index++)
+      await ctx.db.insert("locations", {
+        orgId: context.world.orgA,
+        warehouseId: context.warehouseId,
+        buildingId: ownFloor.buildingId,
+        floorId: ownFloor._id,
+        code: `OWN-${index}`,
+        locationType: "NAMED_STORAGE",
+        status: "ACTIVE",
+      });
+    for (let index = 0; index < 500; index++)
+      await ctx.db.insert("locations", {
+        orgId: context.world.orgA,
+        warehouseId: context.warehouseId,
+        buildingId: otherBuilding as never,
+        code: `OTHER-${index}`,
+        locationType: "NAMED_STORAGE",
+        status: "ACTIVE",
+      });
+  });
+  await context.world.t
+    .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+    .run(async (ctx) => {
+      const tracked = trackDocumentReads(ctx.db);
+      const answer = value(
+        (await (buildingLifecycleImpact as unknown as RuntimeFunction)._handler(
+          { ...ctx, db: tracked.db } as GenericMutationCtx<DataModel>,
+          { warehouseId: context.warehouseId, buildingId: context.buildingId },
+        )) as Outcome,
+      );
+      expect(answer).toMatchObject({
+        namedRegistrationCount: 201,
+        namedRegistrationCountComplete: true,
+      });
+      expect(
+        tracked.queryRows
+          .filter((entry) => entry.table === "locations")
+          .reduce((count, entry) => count + entry.count, 0),
+      ).toBe(201);
+    });
+});
+
+it("building named-registration overflow reports an explicit lower bound instead of failing confirmation", async () => {
+  const context = await plannerWorld();
+  await context.world.t.run(async (ctx) => {
+    for (let index = 0; index < 1001; index++)
+      await ctx.db.insert("locations", {
+        orgId: context.world.orgA,
+        warehouseId: context.warehouseId,
+        buildingId: context.buildingId as never,
+        code: `BOUNDED-${index}`,
+        locationType: "NAMED_STORAGE",
+        status: "ACTIVE",
+      });
+  });
+  expect(
+    value(
+      await call(context.world, buildingLifecycleImpact, {
+        warehouseId: context.warehouseId,
+        buildingId: context.buildingId,
+      }),
+    ),
+  ).toMatchObject({
+    namedRegistrationCount: 1000,
+    namedRegistrationCountComplete: false,
+  });
+});
+it("an active rack keeps its final exact address until the empty building returns to draft", async () => {
+  const context = await plannerWorld();
+  const rack = await zone(context, "Active Rack", { mode: "RACK" });
+  const generated = value(
+    await call(context.world, generateRackStoragePositions, {
+      warehouseId: context.warehouseId,
+      zoneId: rack["documentId"],
+      requestId: "active-final",
+      fixtureCode: "R1",
+      bayCount: 1,
+      levelCount: 1,
+      slotsPerBay: 1,
+      bayWidthMm: 1000,
+      rackDepthMm: 1000,
+      levelHeightMm: 1000,
+    }),
+  );
+  value(
+    await call(context.world, activateStorageBuilding, {
+      warehouseId: context.warehouseId,
+      buildingId: context.buildingId,
+      requestId: "activate-final",
+      expectedVersion: (await building(context)).building.version,
+    }),
+  );
+  expect(
+    value(
+      await call(context.world, archiveStoragePosition, {
+        warehouseId: context.warehouseId,
+        positionId: (generated["positionIds"] as string[])[0],
+        requestId: "active-retire-refused",
+      }),
+    ),
+  ).toMatchObject({
+    written: false,
+    error: { code: "AREA_REQUIRES_LEAF_POSITION" },
   });
 });

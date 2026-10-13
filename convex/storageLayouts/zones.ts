@@ -13,6 +13,12 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import {
+  checkIdempotency,
+  fingerprintArguments,
+  sha256Hex,
+  writeIdempotencyRecord,
+} from "../lib/idempotency";
 import { refusal, writeContextOf } from "../lib/writeEnvelope";
 import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import {
@@ -20,6 +26,7 @@ import {
   makeStorageZoneQrValue,
   STORAGE_ZONE_LIMITS,
   storageRecordRevision,
+  nextStorageRecordRevision,
   validateStorageZone,
 } from "../model/storageLayout/storageZone";
 import {
@@ -149,6 +156,7 @@ export async function ensureDefaultPosition(
       yMm: zone.yMm,
       widthMm: zone.widthMm,
       depthMm: zone.depthMm,
+      version: 1,
       status: "ACTIVE",
       createdAt: now,
       createdByUserId: ctx.tenant.actor._id,
@@ -599,9 +607,8 @@ export const updateStorageZone = mutationWithOrg({
     baseElevationMm: v.optional(v.number()),
     confirmOccupiedChange: v.optional(v.boolean()),
     /**
-     * The revision the editor started from. Optional only for clients that
-     * predate it; the planner always sends it so a stale draft cannot
-     * overwrite another manager's newer spot edit.
+     * Optional in the wire validator so older clients receive actionable
+     * VERSION_CONFLICT; fresh edits always require a current revision.
      */
     expectedRevision: v.optional(v.string()),
   },
@@ -638,10 +645,7 @@ export const updateStorageZone = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
-    if (
-      args.expectedRevision !== undefined &&
-      args.expectedRevision !== storageRecordRevision(zone)
-    )
+    if (args.expectedRevision !== storageRecordRevision(zone))
       return failure("VERSION_CONFLICT");
     const floor = await ctx.tenantDb.get<FloorDocument>(
       "storageFloors",
@@ -800,13 +804,12 @@ export const updateStorageZone = mutationWithOrg({
       patch: {
         label: label.value,
         storageCondition,
-        version: (zone.version ?? 0) + 1,
+        ...nextStorageRecordRevision(zone),
         mode,
         ...(mode === "PLATFORM"
           ? { baseElevationMm }
           : { baseElevationMm: undefined }),
         ...candidate,
-        updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });
@@ -830,12 +833,12 @@ export const updateStorageZone = mutationWithOrg({
         ...(mode === previousMode
           ? {}
           : { status: mode === "SIMPLE" ? "ACTIVE" : "INACTIVE" }),
+        ...nextStorageRecordRevision(defaultPosition),
         label: label.value,
         xMm: candidate.xMm,
         yMm: candidate.yMm,
         widthMm: candidate.widthMm,
         depthMm: candidate.depthMm,
-        updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       });
     }
@@ -960,6 +963,7 @@ async function createPositionRecords(
       ...(input.elevationMm === undefined
         ? {}
         : { elevationMm: input.elevationMm }),
+      version: 1,
       status: "ACTIVE",
       createdAt: now,
       createdByUserId: ctx.tenant.actor._id,
@@ -1082,6 +1086,32 @@ export const generateRackStoragePositions = mutationWithOrg({
   target: { table: "storagePositions" },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const operation = "storageLayout.rack.generate";
+    const fingerprint = await fingerprintArguments(args);
+    if (!fingerprint.ok) return failure(fingerprint.error.code);
+    const previous = await checkIdempotency({
+      tenantDb: ctx.tenantDb,
+      operation,
+      requestId: args.requestId,
+      requestHash: fingerprint.value,
+    });
+    if (!previous.ok) return failure(previous.error.code);
+    if (previous.value.kind === "REPLAY") {
+      const record = previous.value.record;
+      if (
+        !record.resultRef ||
+        record.status !== "SUCCEEDED" ||
+        !record.resultHash ||
+        (await sha256Hex(record.resultRef)) !== record.resultHash
+      )
+        return failure("REQUEST_REPLAY_INVALID");
+      const receipt = JSON.parse(record.resultRef) as {
+        documentId: string;
+        createdCount: number;
+        positionIds: string[];
+      };
+      return { written: true as const, replayed: true, ...receipt };
+    }
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
       args.zoneId,
@@ -1124,58 +1154,35 @@ export const generateRackStoragePositions = mutationWithOrg({
         "field" in generated.error ? generated.error.field : undefined,
       );
     }
-    const first = generated.value[0]!;
-    const firstCode = `${zone.code}-${first.codeSuffix}`;
-    // All slots of one command commit together, so the first slot's request
-    // record proves an earlier attempt of this exact command succeeded.
-    const earlier = await replayTenantWriteIfPresent({
-      ...writeContext(
-        ctx,
-        "locations",
-        "storageLayout.position.location.create",
-        `${args.requestId}:${first.codeSuffix}`,
-        args.warehouseId,
-      ),
-      fingerprint: { zoneId: zone._id, code: firstCode, kind: "RACK_SLOT" },
-    });
-    if (!earlier.ok) return failure(earlier.error.code);
     const positions = await activePositions(ctx, zone);
-    if (earlier.value === null) {
-      if (
-        positions.length + generated.value.length >
-        STORAGE_POSITION_LIMITS.maximumPositionsPerArea
-      ) {
-        return failure("POSITION_LIMIT_EXCEEDED");
-      }
-      // Refuse before writing anything when an address is already taken, so
-      // a rack is never left half generated.
-      for (const candidate of generated.value) {
-        const code = `${zone.code}-${candidate.codeSuffix}`;
-        const [location, position] = await Promise.all([
-          ctx.tenantDb
-            .byIndex<Doc<"locations">>(
-              "locations",
-              "by_orgId_warehouseId_code",
-              [
-                { field: "warehouseId", value: args.warehouseId },
-                { field: "code", value: code },
-              ],
-            )
-            .first(),
-          ctx.tenantDb
-            .byIndex<PositionDocument>(
-              "storagePositions",
-              "by_orgId_warehouseId_code",
-              [
-                { field: "warehouseId", value: args.warehouseId },
-                { field: "code", value: code },
-              ],
-            )
-            .first(),
-        ]);
-        if (location !== null || position !== null)
-          return failure("RACK_CODE_CONFLICT", "fixtureCode");
-      }
+    if (
+      positions.length + generated.value.length >
+      STORAGE_POSITION_LIMITS.maximumPositionsPerArea
+    )
+      return failure("POSITION_LIMIT_EXCEEDED");
+    // Preflight every immutable address before creating any part of the rack.
+    for (const candidate of generated.value) {
+      const code = `${zone.code}-${candidate.codeSuffix}`;
+      const [location, position] = await Promise.all([
+        ctx.tenantDb
+          .byIndex<Doc<"locations">>("locations", "by_orgId_warehouseId_code", [
+            { field: "warehouseId", value: args.warehouseId },
+            { field: "code", value: code },
+          ])
+          .first(),
+        ctx.tenantDb
+          .byIndex<PositionDocument>(
+            "storagePositions",
+            "by_orgId_warehouseId_code",
+            [
+              { field: "warehouseId", value: args.warehouseId },
+              { field: "code", value: code },
+            ],
+          )
+          .first(),
+      ]);
+      if (location !== null || position !== null)
+        return failure("RACK_CODE_CONFLICT", "fixtureCode");
     }
     const createdIds: string[] = [];
     for (const candidate of generated.value) {
@@ -1193,13 +1200,23 @@ export const generateRackStoragePositions = mutationWithOrg({
         throw new Error(`RACK_GENERATION_FAILED:${created.error.code}`);
       createdIds.push(created.value.documentId);
     }
-    return {
-      written: true as const,
+    const receipt = {
       documentId: zone._id,
-      replayed: earlier.value !== null,
       createdCount: createdIds.length,
       positionIds: createdIds,
     };
+    const resultRef = JSON.stringify(receipt);
+    await writeIdempotencyRecord({
+      tenantDb: ctx.tenantDb,
+      operation,
+      requestId: args.requestId,
+      requestHash: fingerprint.value,
+      resultRef,
+      resultHash: await sha256Hex(resultRef),
+      actorUserId: ctx.tenant.actor._id,
+      now: Date.now(),
+    });
+    return { written: true as const, replayed: false, ...receipt };
   },
 });
 
@@ -1252,10 +1269,7 @@ export const updateStoragePosition = mutationWithOrg({
     ) {
       return failure("NOT_FOUND");
     }
-    if (
-      args.expectedRevision !== undefined &&
-      args.expectedRevision !== storageRecordRevision(position)
-    )
+    if (args.expectedRevision !== storageRecordRevision(position))
       return failure("VERSION_CONFLICT");
     const zone = await ctx.tenantDb.get<ZoneDocument>(
       "storageZones",
@@ -1314,12 +1328,11 @@ export const updateStoragePosition = mutationWithOrg({
       uniqueness: [],
       patch: {
         label: label.value,
-        version: (position.version ?? 0) + 1,
+        ...nextStorageRecordRevision(position),
         xMm: args.xMm,
         yMm: args.yMm,
         widthMm: args.widthMm,
         depthMm: args.depthMm,
-        updatedAt: Date.now(),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });
@@ -1390,7 +1403,15 @@ export const archiveStoragePosition = mutationWithOrg({
     if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
       return failure("LOCATION_OCCUPIED");
     const positions = await activePositions(ctx, zone);
-    if (positions.length <= 1) return failure("AREA_REQUIRES_LEAF_POSITION");
+    if (
+      positions.length <= 1 &&
+      !(
+        building.status === "DRAFT" &&
+        areaMode(zone) !== "SIMPLE" &&
+        !position.isDefault
+      )
+    )
+      return failure("AREA_REQUIRES_LEAF_POSITION");
     // A legacy automatic leaf shares the spot's own location and QR. Retire
     // only the leaf record; the spot address stays active.
     const sharesSpotLocation = position.locationId === zone.locationId;
@@ -1423,7 +1444,7 @@ export const archiveStoragePosition = mutationWithOrg({
       uniqueness: [],
       patch: {
         status: "INACTIVE",
-        updatedAt: Date.now(),
+        ...nextStorageRecordRevision(position),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });
@@ -1647,7 +1668,6 @@ export const archiveStorageZone = mutationWithOrg({
     if (await hasOccupiedStorage(ctx, { zoneId: zone._id }))
       return failure("LOCATION_OCCUPIED");
     const positions = await activePositions(ctx, zone);
-    const now = Date.now();
     const location = await updateMasterDataRow({
       ...writeContext(
         ctx,
@@ -1670,7 +1690,7 @@ export const archiveStorageZone = mutationWithOrg({
       }
       await ctx.tenantDb.patch("storagePositions", position._id, {
         status: "INACTIVE",
-        updatedAt: now,
+        ...nextStorageRecordRevision(position),
         updatedByUserId: ctx.tenant.actor._id,
       });
     }
@@ -1687,7 +1707,7 @@ export const archiveStorageZone = mutationWithOrg({
       uniqueness: [],
       patch: {
         status: "INACTIVE",
-        updatedAt: now,
+        ...nextStorageRecordRevision(zone),
         updatedByUserId: ctx.tenant.actor._id,
       },
     });

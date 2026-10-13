@@ -1,3 +1,4 @@
+import { currentStorageRevision } from "../fixtures/storage-record-revision";
 import type { Id } from "../../convex/_generated/dataModel";
 import { readCurrent } from "../../convex/workspace/current";
 import { v } from "convex/values";
@@ -260,6 +261,11 @@ describe("finished goods workflow", () => {
     const result = await Promise.all([
       reserve(world, palletId, "race-layout-reserve"),
       call(world, updateStorageZone, {
+        expectedRevision: await currentStorageRevision(
+          world,
+          "storageZones",
+          world.zoneId as string,
+        ),
         warehouseId: world.warehouseId,
         zoneId: world.zoneId,
         requestId: "race-layout-edit",

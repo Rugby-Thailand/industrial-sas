@@ -174,6 +174,10 @@ export const completeNamedLocationLayout = mutationWithOrg({
       .unique();
     if (floor === null || floor.warehouseId !== args.warehouseId)
       return failure("REFERENCE_NOT_FOUND", "floorNumber");
+    // Job tickets retain the registered floor in their historical projection.
+    // Completing geometry may choose a floor only when none was registered.
+    if (location.floorId !== undefined && location.floorId !== floor._id)
+      return failure("NAMED_LOCATION_FLOOR_CONFLICT", "floorNumber");
     const label = normalizeDisplayName(
       "label",
       location.label ?? location.code,

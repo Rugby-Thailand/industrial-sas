@@ -9,6 +9,7 @@ import {
   replayTenantWriteIfPresent,
   updateMasterDataRow,
 } from "../lib/masterDataStore";
+import { TenantDbError } from "../lib/tenantDb";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
@@ -22,6 +23,12 @@ import {
   STORAGE_ZONE_LIMITS,
   validateStorageZone,
 } from "../model/storageLayout/storageZone";
+import {
+  effectiveStorageAreaMode,
+  kindForAreaMode,
+  STORAGE_POSITION_LIMITS,
+  validateStoragePosition,
+} from "../model/storageLayout/storagePosition";
 import { hasOccupiedStorage } from "./catalogue";
 
 const blockValidator = v.object({
@@ -851,10 +858,21 @@ export async function assessLayoutReadiness(
           ...where,
           ...("field" in valid.error ? { field: valid.error.field } : {}),
         });
-      // A rack, platform or multi-position spot needs its exact positions:
-      // otherwise its QR would resolve to the whole spot as one address.
-      if ((zone.mode ?? "SIMPLE") !== "SIMPLE") {
-        const leaf = await ctx.tenantDb
+      const mode = effectiveStorageAreaMode(zone.mode);
+      if (
+        mode === "PLATFORM" &&
+        (!Number.isSafeInteger(zone.baseElevationMm) ||
+          (zone.baseElevationMm ?? -1) < 0 ||
+          (zone.baseElevationMm ?? 0) + zone.maxStackHeightMm > floorHeightMm)
+      )
+        issues.push({
+          code: "BASE_ELEVATION_INVALID",
+          blocking: true,
+          ...where,
+        });
+      let positions: readonly Doc<"storagePositions">[];
+      try {
+        positions = await ctx.tenantDb
           .byIndex<Doc<"storagePositions">>(
             "storagePositions",
             "by_orgId_zoneId_status_code",
@@ -863,12 +881,61 @@ export async function assessLayoutReadiness(
               { field: "status", value: "ACTIVE" },
             ],
           )
-          .first();
-        if (leaf === null)
+          .all(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
+      } catch (error) {
+        if (
+          !(error instanceof TenantDbError) ||
+          error.code !== "CAPACITY_DATA_LIMIT"
+        )
+          throw error;
+        issues.push({
+          code: "POSITION_LIMIT_EXCEEDED",
+          blocking: true,
+          ...where,
+        });
+        continue;
+      }
+      if (
+        mode !== "SIMPLE" &&
+        !positions.some((position) => !position.isDefault)
+      )
+        issues.push({
+          code: "AREA_REQUIRES_LEAF_POSITION",
+          blocking: true,
+          ...where,
+        });
+      for (const position of positions) {
+        if (
+          position.kind !== kindForAreaMode(mode) ||
+          (mode !== "SIMPLE" && position.isDefault)
+        ) {
           issues.push({
-            code: "AREA_REQUIRES_LEAF_POSITION",
+            code: "POSITION_MODE_MISMATCH",
             blocking: true,
             ...where,
+          });
+          continue;
+        }
+        const leaf = validateStoragePosition({
+          mode,
+          area: zone,
+          position: {
+            kind: position.kind,
+            xMm: position.xMm ?? NaN,
+            yMm: position.yMm ?? NaN,
+            widthMm: position.widthMm ?? NaN,
+            depthMm: position.depthMm ?? NaN,
+            ...(position.elevationMm === undefined
+              ? {}
+              : { elevationMm: position.elevationMm }),
+          },
+        });
+        if (!leaf.ok)
+          issues.push({
+            code: leaf.error.code,
+            blocking: true,
+            ...where,
+            ...("field" in leaf.error ? { field: leaf.error.field } : {}),
           });
       }
     }
@@ -1034,33 +1101,39 @@ export const layoutReadiness = queryWithOrg({
   },
 });
 
-const NAMED_SCAN_PAGES = 10;
+const NAMED_REGISTRATION_LIMIT = 1000;
 
-/** This building's name-only registrations, read in bounded pages. */
+/** Only this building's active name registrations, bounded with an explicit lower-bound count. */
 async function namedRegistrations(
   ctx: TenantFunctionContext,
   warehouseId: string,
   buildingId: string,
 ) {
-  const rows: Doc<"locations">[] = [];
-  let cursor: string | undefined;
-  for (let page = 0; page < NAMED_SCAN_PAGES; page += 1) {
-    const result = await ctx.tenantDb
+  try {
+    const rows = await ctx.tenantDb
       .byIndex<Doc<"locations">>(
         "locations",
-        "by_orgId_warehouseId_status_locationType_code",
+        "by_orgId_buildingId_status_locationType_code",
         [
-          { field: "warehouseId", value: warehouseId },
+          { field: "buildingId", value: buildingId },
           { field: "status", value: "ACTIVE" },
           { field: "locationType", value: "NAMED_STORAGE" },
         ],
       )
-      .page({ limit: 100, ...(cursor ? { cursor } : {}) });
-    rows.push(...result.page.filter((row) => row.buildingId === buildingId));
-    if (result.isDone) return { rows, complete: true };
-    cursor = result.continueCursor;
+      .all(NAMED_REGISTRATION_LIMIT);
+    return {
+      count: rows.filter((row) => row.warehouseId === warehouseId).length,
+      complete: true,
+    };
+  } catch (error) {
+    if (
+      !(error instanceof TenantDbError) ||
+      error.code !== "CAPACITY_DATA_LIMIT"
+    )
+      throw error;
+    // Scoped batch overflow proves a lower bound; it never invents a full count.
+    return { count: NAMED_REGISTRATION_LIMIT, complete: false };
   }
-  return { rows, complete: false };
 }
 
 /**
@@ -1110,7 +1183,7 @@ export const buildingLifecycleImpact = queryWithOrg({
       floorCount: building.floorCount,
       zoneCount,
       positionCount,
-      namedRegistrationCount: named.rows.length,
+      namedRegistrationCount: named.count,
       namedRegistrationCountComplete: named.complete,
       occupied: await hasOccupiedStorage(ctx, { buildingId: building._id }),
     };
@@ -1163,10 +1236,12 @@ export const removeTopStorageFloor = mutationWithOrg({
       ])
       .first();
     if (anyZone !== null) return failure("FLOOR_NOT_EMPTY");
-    const named = await namedRegistrations(ctx, args.warehouseId, building._id);
-    if (!named.complete) return failure("FLOOR_REMOVAL_CHECK_LIMIT");
-    if (named.rows.some((row) => row.floorId === floor._id))
-      return failure("FLOOR_HAS_REGISTRATIONS");
+    const referencedLocation = await ctx.tenantDb
+      .byIndex<Doc<"locations">>("locations", "by_orgId_floorId", [
+        { field: "floorId", value: floor._id },
+      ])
+      .first();
+    if (referencedLocation !== null) return failure("FLOOR_HAS_REGISTRATIONS");
     const floors = current.floors.filter(
       (row) => row.floorNumber !== args.floorNumber,
     );
