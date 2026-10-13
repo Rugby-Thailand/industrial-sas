@@ -89,6 +89,7 @@ export function BuildingStatusToggle({
   const returnToDraft = useMutation(storageLayoutRefs.returnToDraft);
   const operation = useAsyncOperation({
     scope: `storage-status:${warehouseId}:${buildingId}`,
+    navigation: "write",
     describeError: (code) => code || "NETWORK_ERROR",
   });
   const [error, setError] = useState<{
@@ -140,7 +141,7 @@ export function BuildingStatusToggle({
       },
       (result) => {
         // The outcome is reported beside the switch, which stays the owner.
-        setConfirming(false);
+        operation.complete(() => setConfirming(false));
         if (result.kind === "network") {
           setError({
             buildingId,

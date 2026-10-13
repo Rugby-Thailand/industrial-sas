@@ -1,4 +1,10 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
@@ -46,7 +52,10 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
       : [],
   }),
 }));
-vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
+vi.mock("@/i18n/navigation", () => ({
+  Link: "a",
+  useRouter: () => ({ push: vi.fn() }),
+}));
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
 
 /** The switch opens a whole-building confirmation; confirm runs the write. */
@@ -105,7 +114,12 @@ describe("building status control", () => {
         }),
       ),
     );
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+    await waitFor(() =>
+      expect(screen.getByRole("switch")).toHaveAttribute(
+        "aria-checked",
+        "false",
+      ),
+    );
   });
   it("explains the stock guard and prevents deactivation", () => {
     state.status = "ACTIVE";
@@ -317,3 +331,73 @@ it("honors the server archive capability even without a capacity flag", () => {
   ).toBeDisabled();
   expect(state.mutation).not.toHaveBeenCalled();
 });
+
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { guardedNavigate } from "@/lib/navigationGuard";
+import { trackAppHistory } from "@/lib/browser/appHistory";
+
+it.each(["DRAFT", "ACTIVE"])(
+  "protects pending %s lifecycle writes and consumes completion before the next Back",
+  async (status) => {
+    state.status = status;
+    window.history.replaceState(
+      null,
+      "",
+      "/en/finished-goods?origin=1#records",
+    );
+    const releaseHistory = trackAppHistory();
+    window.history.pushState(
+      null,
+      "",
+      "/en/master-data/storage-layouts?view=all#buildings",
+    );
+    let finish!: (value: unknown) => void;
+    state.mutation.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderWithIntl(
+      <NavigationGuardProvider>
+        <BuildingStatusToggle
+          warehouseId="warehouse"
+          buildingId="building"
+          code="MAIN"
+          status="DRAFT"
+        />
+      </NavigationGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    toggle(
+      status === "ACTIVE" ? "Return building to Draft" : "Activate building",
+    );
+    await waitFor(() => expect(state.mutation).toHaveBeenCalledTimes(1));
+    const leave = vi.fn();
+    act(() => guardedNavigate(leave));
+    expect(leave).not.toHaveBeenCalled();
+    expect(screen.getByTestId("navigation-guard-pending")).toBeVisible();
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    await act(async () => {
+      finish({ ok: true, value: { written: true } });
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(leave).not.toHaveBeenCalled();
+    act(() => guardedNavigate(leave));
+    await waitFor(() => expect(leave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(window.location.href).not.toMatch(/overlay/));
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/en/finished-goods?origin=1#records"),
+    );
+    releaseHistory();
+  },
+);
