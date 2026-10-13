@@ -323,6 +323,7 @@ function createGuardMachine(deps: MachineDeps) {
    * the fresh buffer.
    */
   let overtaken: { marker: string; href: string; index: number } | null = null;
+  let executingApproval: Approval | undefined;
   let navigate: (href: URL) => void = () => undefined;
 
   const retained = (entry: DraftRegistration, scope: string) =>
@@ -374,7 +375,7 @@ function createGuardMachine(deps: MachineDeps) {
     else window.removeEventListener("beforeunload", onBeforeUnload);
   }
   const publish = () => {
-    deps.onSummary(summarize(entries));
+    deps.onSummary(summarize(selectedEntries(intent?.options)));
     syncUnloadListener();
   };
 
@@ -464,6 +465,7 @@ function createGuardMachine(deps: MachineDeps) {
   function setIntent(next: Intent | null) {
     intent = next;
     deps.onPrompt(next !== null);
+    publish();
   }
 
   /**
@@ -478,7 +480,12 @@ function createGuardMachine(deps: MachineDeps) {
         if (intent === null) setIntent({ action: approval.action });
         return false;
       }
-    approval.action();
+    executingApproval = approval;
+    try {
+      approval.action();
+    } finally {
+      executingApproval = undefined;
+    }
     return true;
   }
 
@@ -524,6 +531,18 @@ function createGuardMachine(deps: MachineDeps) {
   }
 
   function requestTransition(action: Transition, options?: TransitionOptions) {
+    // Canonical entry points may be nested (shell -> warehouse store, task
+    // completion -> router). One decision covers only the exact registrations
+    // it already approved, never work reported during the continuation.
+    if (
+      executingApproval &&
+      [...selectedEntries(options)].every(
+        ([id, entry]) => executingApproval?.covered.get(id) === entry,
+      )
+    ) {
+      action();
+      return;
+    }
     if (selectedEntries(options).size === 0 && options?.preserveDraftScope) {
       if (intent !== null) {
         intent.options?.onCancel?.();

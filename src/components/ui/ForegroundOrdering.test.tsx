@@ -10,7 +10,7 @@ import { useLayoutEffect, useState, type ComponentProps } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
-import { useDraftGuard } from "@/components/providers/draftGuard";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Dialog,
@@ -58,13 +58,27 @@ function Form({
   name,
   initial = "",
   busy = false,
+  saveable = false,
 }: {
   name: string;
   initial?: string;
   busy?: boolean;
+  saveable?: boolean;
 }) {
   const [text, setText] = useState(initial);
-  useDraftGuard(text !== "", () => setText(""), busy);
+  useNavigationDraft({
+    dirty: text !== "",
+    pending: busy,
+    discard: () => setText(""),
+    ...(saveable
+      ? {
+          save: async () => {
+            setText("");
+            return true;
+          },
+        }
+      : {}),
+  });
   return (
     <label>
       {name}
@@ -77,11 +91,13 @@ function AlwaysMounted({
   firstDraft = "",
   secondDraft = "",
   pendingFirst = false,
+  firstSaveable = false,
 }: {
   secondSheet?: boolean;
   firstDraft?: string;
   secondDraft?: string;
   pendingFirst?: boolean;
+  firstSaveable?: boolean;
 }) {
   const [first, setFirst] = useState(false);
   const [second, setSecond] = useState(false);
@@ -104,7 +120,12 @@ function AlwaysMounted({
             <DialogTitle>First overlay</DialogTitle>
             <DialogDescription>First mounted root</DialogDescription>
             <PageHeader title="First heading" />
-            <Form name="First draft" initial={firstDraft} busy={pending} />
+            <Form
+              name="First draft"
+              initial={firstDraft}
+              busy={pending}
+              saveable={firstSaveable}
+            />
           </DialogContent>
         </Dialog>
         {secondSheet ? (
@@ -357,5 +378,23 @@ it("actual nested lazy portal review dismisses while retaining dirty parent edit
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByRole("textbox", { name: "Plan draft" })).toHaveValue(
     "keep this floor",
+  );
+});
+
+it("foreground Save and continue ignores the retained dirty underlay when offering its sole save", async () => {
+  await reverseOpen({
+    firstDraft: "save this area",
+    secondDraft: "retain floor",
+    firstSaveable: true,
+  });
+  await nativeBack();
+  const save = await screen.findByRole("button", { name: "Save and continue" });
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  await waitFor(() =>
+    expect(screen.queryByTestId("first-overlay")).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("textbox", { name: "Second draft" })).toHaveValue(
+    "retain floor",
   );
 });
