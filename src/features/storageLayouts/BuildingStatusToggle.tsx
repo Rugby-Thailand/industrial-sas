@@ -11,6 +11,9 @@ import AnimatedToggle from "@/components/ui/animated-toggle";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatusReason } from "@/components/ui/StatusReason";
 import { storageReviewPath } from "@/lib/navigation";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Link } from "@/i18n/navigation";
+import { Notice } from "@/components/ui/Notice";
 import {
   storageLayoutRefs,
   type StorageLayoutStatus,
@@ -68,6 +71,18 @@ export function BuildingStatusToggle({
       ? { warehouseId, buildingId }
       : "skip",
   );
+  // The switch changes the whole building, so it always confirms with the
+  // building name and how many addresses change (F14). Activation also shows
+  // the server preflight before the command is offered (F15).
+  const [confirming, setConfirming] = useState(false);
+  const impact = useQuery(
+    storageLayoutRefs.lifecycleImpact,
+    confirming ? { warehouseId, buildingId } : "skip",
+  );
+  const readiness = useQuery(
+    storageLayoutRefs.readiness,
+    confirming && status !== "ACTIVE" ? { warehouseId, buildingId } : "skip",
+  );
   const activate = useMutation(storageLayoutRefs.activate);
   const returnToDraft = useMutation(storageLayoutRefs.returnToDraft);
   const operation = useAsyncOperation({
@@ -114,6 +129,8 @@ export function BuildingStatusToggle({
         }
       },
       (result) => {
+        // The outcome is reported beside the switch, which stays the owner.
+        setConfirming(false);
         if (result.kind === "network") {
           setError({
             buildingId,
@@ -195,7 +212,7 @@ export function BuildingStatusToggle({
     >
       <AnimatedToggle
         checked={active}
-        onChange={() => void change()}
+        onChange={() => setConfirming(true)}
         disabled={operation.busy || !control || control.blocked}
         label={t("statusToggleLabel", { code })}
         size="md"
@@ -229,6 +246,114 @@ export function BuildingStatusToggle({
           />
         ) : null}
       </span>
+      <StatusConfirmation
+        open={confirming}
+        onOpenChange={setConfirming}
+        active={active}
+        code={code}
+        buildingId={buildingId}
+        pending={operation.busy}
+        onConfirm={() => void change()}
+        impact={impact?.ok ? impact.value : undefined}
+        impactLoading={confirming && impact === undefined}
+        ready={
+          active
+            ? true
+            : readiness?.ok
+              ? readiness.value.found === true &&
+                readiness.value.ready === true &&
+                readiness.value.version === control?.version
+              : undefined
+        }
+      />
     </div>
+  );
+}
+
+function StatusConfirmation({
+  open,
+  onOpenChange,
+  active,
+  code,
+  buildingId,
+  pending,
+  onConfirm,
+  impact,
+  impactLoading,
+  ready,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly active: boolean;
+  readonly code: string;
+  readonly buildingId: string;
+  readonly pending: boolean;
+  readonly onConfirm: () => void;
+  readonly impact:
+    | {
+        found: boolean;
+        zoneCount?: number;
+        positionCount?: number;
+        namedRegistrationCount?: number;
+      }
+    | undefined;
+  readonly impactLoading: boolean;
+  readonly ready: boolean | undefined;
+}) {
+  const t = useTranslations("StorageLayouts");
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t(
+        active
+          ? "layoutActions.statusConfirmDraftTitle"
+          : "layoutActions.statusConfirmActivateTitle",
+        { code },
+      )}
+      description={t(
+        active
+          ? "layoutActions.statusConfirmDraftDescription"
+          : "layoutActions.statusConfirmActivateDescription",
+      )}
+      cancelLabel={t("cancel")}
+      confirmLabel={t(
+        active
+          ? "layoutActions.statusConfirmDraft"
+          : "layoutActions.statusConfirmActivate",
+      )}
+      pendingLabel={t("statusSaving")}
+      pending={pending}
+      confirmDisabled={!impact?.found || ready !== true}
+      onConfirm={onConfirm}
+    >
+      {impactLoading ? (
+        <p role="status" className="text-sm text-muted">
+          {t("layoutActions.impactLoading")}
+        </p>
+      ) : impact?.found ? (
+        <p className="text-sm font-medium" data-testid="status-impact">
+          {t("layoutActions.impactCounts", {
+            zones: impact.zoneCount ?? 0,
+            positions: impact.positionCount ?? 0,
+            named: impact.namedRegistrationCount ?? 0,
+          })}
+        </p>
+      ) : null}
+      {!active && ready === undefined ? (
+        <p role="status" className="text-sm text-muted">
+          {t("layoutActions.readinessChecking")}
+        </p>
+      ) : !active && ready === false ? (
+        <Notice tone="warning" title={t("layoutActions.statusNotReady")}>
+          <Link
+            href={storageReviewPath(buildingId)}
+            className="mt-2 inline-flex min-h-11 items-center text-sm text-link underline-offset-4 hover:underline"
+          >
+            {t("review")}
+          </Link>
+        </Notice>
+      ) : null}
+    </ConfirmDialog>
   );
 }

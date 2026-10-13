@@ -5,7 +5,6 @@ import {
 } from "./useLocationCatalogueState";
 
 import { NamedLocationCatalogue } from "./NamedLocationCatalogue";
-import { BuildingStatusToggle } from "./BuildingStatusToggle";
 import { useSyncExternalStore, useState, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -28,7 +27,13 @@ import { api } from "../../../convex/_generated/api";
 import { clientRef, type RefValue } from "@/lib/convex/clientRef";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { Link } from "@/i18n/navigation";
-import { ROUTES, storageFloorPath } from "@/lib/navigation";
+import {
+  ROUTES,
+  storageBuildingPath,
+  storageFloorPath,
+} from "@/lib/navigation";
+import { useCan } from "@/hooks/useCan";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { scopeKey } from "@/lib/browser/scope";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { Button } from "@/components/ui/button";
@@ -62,6 +67,8 @@ export type CatalogueFilters = {
  */
 export function NewBuildingAction() {
   const t = useTranslations("StorageLayouts");
+  // Only managers are offered a create form; the server also refuses (F08).
+  if (!useCan("masterData.storageLayout.manage")) return null;
   return (
     <Button asChild className="shrink-0">
       <Link
@@ -108,6 +115,7 @@ function LocationCatalogueContent({
 }) {
   const th = useLocale() === "th";
   const tr = (en: string, thai: string) => (th ? thai : en);
+  const t = useTranslations("StorageLayouts");
   const { navigationPermissions, permissionsReady } = useWorkspace();
   const canEdit =
     permissionsReady &&
@@ -376,7 +384,7 @@ function LocationCatalogueContent({
                           tr("Location / code", "จุดจัดเก็บ / รหัส"),
                           tr("Building / floor", "อาคาร / ชั้น"),
                           tr("Dimensions", "ขนาด"),
-                          tr("Status", "สถานะ"),
+                          t("layoutActions.buildingStatusColumn"),
                           tr("Actions", "จัดการ"),
                         ].map((label) => (
                           <th key={label} className="p-3 font-medium">
@@ -387,6 +395,8 @@ function LocationCatalogueContent({
                     </thead>
                     <tbody>
                       {shown.map((row) => {
+                        // Open inspects the floor; only Edit carries edit intent (F07).
+                        const viewPath = `${storageBuildingPath(row.buildingId)}?floor=${row.floorNumber}#storage-zone-${row.zoneId}`;
                         const path = storageFloorPath(
                           row.buildingId,
                           row.floorNumber,
@@ -399,7 +409,7 @@ function LocationCatalogueContent({
                             <td className="min-w-44 p-3">
                               <Link
                                 className="font-medium text-link"
-                                href={`${path}#storage-zone-${row.zoneId}`}
+                                href={viewPath}
                               >
                                 {row.label}
                               </Link>
@@ -420,16 +430,21 @@ function LocationCatalogueContent({
                               {row.heightMm / 1000} m
                             </td>
                             <td className="p-3">
-                              {row.status === "ARCHIVED" ? (
-                                statusName(row.status)
-                              ) : (
-                                <BuildingStatusToggle
-                                  warehouseId={warehouseId}
-                                  buildingId={row.buildingId}
-                                  code={row.buildingCode}
-                                  status={row.status}
-                                />
-                              )}
+                              {/* Status belongs to the whole building; it is
+                                  changed from the building, never per row (F14). */}
+                              <StatusBadge
+                                tone={
+                                  row.status === "ACTIVE"
+                                    ? "success"
+                                    : row.status === "DRAFT"
+                                      ? "pending"
+                                      : "muted"
+                                }
+                                label={`${statusName(row.status)} · ${row.buildingCode}`}
+                              />
+                              <p className="mt-1 text-xs text-muted">
+                                {t("layoutActions.buildingStatusRowHint")}
+                              </p>
                             </td>
                             <td className="p-3">
                               <div className="flex gap-1">
@@ -437,11 +452,18 @@ function LocationCatalogueContent({
                                   asChild
                                   variant="ghost"
                                   size="icon"
-                                  title={tr("Open location", "เปิดจุดจัดเก็บ")}
+                                  title={t("layoutActions.openLocation", {
+                                    label: row.label,
+                                  })}
                                 >
                                   <Link
-                                    aria-label={`${tr("Open", "เปิด")} ${row.label}`}
-                                    href={`${path}#storage-zone-${row.zoneId}`}
+                                    aria-label={t(
+                                      "layoutActions.openLocation",
+                                      {
+                                        label: row.label,
+                                      },
+                                    )}
+                                    href={viewPath}
                                   >
                                     <ExternalLink className="size-4" />
                                   </Link>
@@ -457,7 +479,12 @@ function LocationCatalogueContent({
                                     )}
                                   >
                                     <Link
-                                      aria-label={`${tr("Edit", "แก้ไข")} ${row.label}`}
+                                      aria-label={t(
+                                        "layoutActions.editLocation",
+                                        {
+                                          label: row.label,
+                                        },
+                                      )}
                                       href={`${path}&editZone=${encodeURIComponent(row.zoneId)}#storage-zone-${row.zoneId}`}
                                     >
                                       <Pencil className="size-4" />

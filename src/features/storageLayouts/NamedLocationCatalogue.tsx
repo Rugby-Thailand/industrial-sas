@@ -12,6 +12,15 @@ import { DataGate } from "@/components/system/DataGate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Link } from "@/i18n/navigation";
 import { storageBuildingPath } from "@/lib/navigation";
+import { useState } from "react";
+import { MapPinned } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/Notice";
+import { useCan } from "@/hooks/useCan";
+import {
+  CompleteNamedLayoutDialog,
+  type NamedLocationTarget,
+} from "./CompleteNamedLayoutDialog";
 
 const reference = clientRef(api.finishedGoods.jobScanLocations.page);
 export function NamedLocationCatalogue({
@@ -29,6 +38,15 @@ export function NamedLocationCatalogue({
 }) {
   const locale = useLocale();
   const t = useTranslations("JobScan");
+  const tl = useTranslations("StorageLayouts.layoutActions.named");
+  const canManage = useCan("masterData.storageLayout.manage");
+  // Held above the rows: a completed location leaves this list reactively.
+  const [completing, setCompleting] = useState<NamedLocationTarget>();
+  const [completed, setCompleted] = useState<{
+    code: string;
+    floorNumber: number;
+    buildingId: string;
+  }>();
   const criteria = {
     warehouseId,
     search,
@@ -61,6 +79,34 @@ export function NamedLocationCatalogue({
         <h2 className="text-lg font-semibold">{t("registeredLocations")}</h2>
         <p className="text-sm text-muted">{t("registeredLocationsHint")}</p>
       </div>
+      {completed ? (
+        <Notice
+          tone="success"
+          role="status"
+          title={tl("done", {
+            code: completed.code,
+            floor: completed.floorNumber,
+          })}
+        >
+          <Link
+            className="mt-2 inline-flex min-h-11 items-center text-sm text-link underline-offset-4 hover:underline"
+            href={`${storageBuildingPath(completed.buildingId)}?floor=${completed.floorNumber}`}
+          >
+            {tl("openFloor", { floor: completed.floorNumber })}
+          </Link>
+        </Notice>
+      ) : null}
+      {completing ? (
+        <CompleteNamedLayoutDialog
+          warehouseId={warehouseId}
+          location={completing}
+          onClose={() => setCompleting(undefined)}
+          onCompleted={(result) => {
+            setCompleted({ ...result, buildingId: completing.buildingId });
+            setCompleting(undefined);
+          }}
+        />
+      ) : null}
       <DataGate outcome={outcome}>
         {(result) =>
           result.status === "ready" ? (
@@ -94,6 +140,28 @@ export function NamedLocationCatalogue({
                         <p className="text-sm text-muted">
                           {t("dimensionsNotRecorded")}
                         </p>
+                        {canManage ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const location = row.location!;
+                              setCompleted(undefined);
+                              setCompleting({
+                                locationId: location.locationId,
+                                code: location.code,
+                                name: location.name,
+                                buildingId: location.buildingId,
+                                floorNumber: location.floorNumber,
+                              });
+                            }}
+                            aria-label={`${tl("complete")} · ${row.location.code}`}
+                          >
+                            <MapPinned aria-hidden="true" className="size-4" />
+                            {tl("complete")}
+                          </Button>
+                        ) : null}
                       </li>
                     ) : null,
                   )}

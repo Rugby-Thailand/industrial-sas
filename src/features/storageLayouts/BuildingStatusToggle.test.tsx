@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   allowed: true,
   status: "DRAFT",
   blocked: false,
+  ready: true,
   version: 7,
   mutation: vi.fn(),
   query: vi.fn(),
@@ -13,12 +14,19 @@ const state = vi.hoisted(() => ({
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => {
     state.query(...args);
+    // One shape answers the status, lifecycle-impact and readiness reads.
     return {
       ok: true,
       value: {
+        found: true,
         status: state.status,
         version: state.version,
         blocked: state.blocked,
+        ready: state.ready,
+        zoneCount: 3,
+        positionCount: 4,
+        namedRegistrationCount: 1,
+        issues: [],
       },
     };
   },
@@ -34,6 +42,14 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
 }));
 vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
 import { BuildingStatusToggle } from "./BuildingStatusToggle";
+
+/** The switch opens a whole-building confirmation; confirm runs the write. */
+function toggle(confirm = "Activate building") {
+  fireEvent.click(screen.getByRole("switch"));
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: confirm }),
+  );
+}
 
 function renderToggle() {
   return renderWithIntl(
@@ -51,6 +67,7 @@ beforeEach(() => {
   state.allowed = true;
   state.status = "DRAFT";
   state.blocked = false;
+  state.ready = true;
   state.version = 7;
   state.mutation
     .mockReset()
@@ -60,7 +77,15 @@ describe("building status control", () => {
   it("submits the saved version and waits for the authoritative status", async () => {
     renderToggle();
     fireEvent.click(
-      screen.getByRole("switch", { name: "Active building: MAIN" }),
+      screen.getByRole("switch", { name: "Building status: MAIN" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Activate MAIN?" });
+    expect(within(dialog).getByTestId("status-impact")).toHaveTextContent(
+      "3 storage spots · 4 exact positions · 1 registered location",
+    );
+    expect(state.mutation).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Activate building" }),
     );
     await waitFor(() =>
       expect(state.mutation).toHaveBeenCalledWith(
@@ -90,6 +115,33 @@ describe("building status control", () => {
     fireEvent.click(screen.getByRole("switch"));
     expect(state.mutation).not.toHaveBeenCalled();
   });
+  it("withholds activation until the server preflight passes and links to review", () => {
+    state.ready = false;
+    renderToggle();
+    fireEvent.click(screen.getByRole("switch"));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(/server check found issues/);
+    expect(
+      within(dialog).getByRole("button", { name: "Activate building" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("link", { name: "Review and activate" }),
+    ).toHaveAttribute("href", "/master-data/storage-layouts/building/review");
+    expect(state.mutation).not.toHaveBeenCalled();
+  });
+  it("confirms a whole-building return to Draft with the affected count", async () => {
+    state.status = "ACTIVE";
+    renderToggle();
+    fireEvent.click(screen.getByRole("switch"));
+    const dialog = screen.getByRole("dialog", {
+      name: "Return MAIN to Draft?",
+    });
+    expect(dialog).toHaveTextContent(/applies to the whole building/);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(state.mutation).not.toHaveBeenCalled();
+    toggle("Return building to Draft");
+    await waitFor(() => expect(state.mutation).toHaveBeenCalledTimes(1));
+  });
   it("keeps status read-only without activation permission", () => {
     state.allowed = false;
     renderToggle();
@@ -102,7 +154,7 @@ describe("building status control", () => {
       value: { written: false, error: { code: "STORAGE_STACK_REQUIRED" } },
     });
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
     expect(
       await screen.findByRole("link", { name: "Review building setup · MAIN" }),
     ).toHaveAttribute("href", "/master-data/storage-layouts/building/review");
@@ -111,7 +163,7 @@ describe("building status control", () => {
   it("handles transport errors without changing the displayed state", async () => {
     state.mutation.mockRejectedValue(new Error("offline"));
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Check your connection/,
     );
@@ -125,7 +177,7 @@ describe("building status control", () => {
       denial: { code: "PERMISSION_MISSING" },
     });
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /workspace administrator/,
     );
@@ -136,7 +188,7 @@ describe("building status control", () => {
     async (changed) => {
       state.mutation.mockRejectedValue(new Error("offline"));
       const view = renderToggle();
-      fireEvent.click(screen.getByRole("switch"));
+      toggle();
       await screen.findByRole("alert");
       if (changed === "version") state.version = 8;
       view.rerender(
@@ -170,10 +222,13 @@ describe("building status control", () => {
       }),
     );
     renderToggle();
-    fireEvent.click(screen.getByRole("switch"));
-    expect(screen.getByRole("switch")).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Saving status");
-    fireEvent.click(screen.getByRole("switch"));
+    toggle();
+    const confirm = within(screen.getByRole("dialog")).getByRole("button", {
+      name: /Saving status/,
+    });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByRole("switch", { hidden: true })).toBeDisabled();
+    fireEvent.click(confirm);
     expect(state.mutation).toHaveBeenCalledTimes(1);
     finish({ ok: true, value: { written: true } });
     await waitFor(() => expect(screen.getByRole("switch")).not.toBeDisabled());

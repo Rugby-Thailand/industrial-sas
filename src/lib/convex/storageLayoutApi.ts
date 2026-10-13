@@ -49,6 +49,8 @@ export type StorageAreaMode =
 
 export interface StoragePositionRow {
   readonly positionId?: string;
+  /** Optimistic-concurrency token of a stored exact position. */
+  readonly revision?: string;
   readonly locationId: string;
   readonly code: string;
   readonly label: string;
@@ -93,6 +95,8 @@ export interface StorageZoneRow {
   readonly code: string;
   readonly label: string;
   readonly qrValue: string;
+  /** Optimistic-concurrency token; sent back with every spot edit. */
+  readonly revision?: string;
   readonly mode: StorageAreaMode;
   readonly storageCondition?: string;
   readonly importNote?: string;
@@ -204,4 +208,43 @@ export const storageLayoutRefs = Object.freeze({
   backfillPositions: clientRef(
     api.storageLayouts.zones.backfillStoragePositions,
   ),
+  readiness: clientRef(api.storageLayouts.writes.layoutReadiness),
+  lifecycleImpact: clientRef(api.storageLayouts.writes.buildingLifecycleImpact),
+  removeTopFloor: clientRef(api.storageLayouts.writes.removeTopStorageFloor),
+  namedLayoutTarget: clientRef(
+    api.storageLayouts.namedLayout.namedLocationLayoutTarget,
+  ),
+  completeNamedLayout: clientRef(
+    api.storageLayouts.namedLayout.completeNamedLocationLayout,
+  ),
 });
+
+export interface LayoutReadinessIssue {
+  readonly code: string;
+  readonly blocking: boolean;
+  readonly floorNumber?: number;
+  readonly zoneCode?: string;
+  readonly zoneLabel?: string;
+  readonly field?: string;
+}
+
+export interface LayoutReadiness {
+  readonly found: boolean;
+  readonly status?: StorageLayoutStatus;
+  readonly version?: number;
+  readonly zoneCount?: number;
+  readonly ready?: boolean;
+  readonly issues?: readonly LayoutReadinessIssue[];
+}
+
+export interface BuildingLifecycleImpact {
+  readonly found: boolean;
+  readonly status?: StorageLayoutStatus;
+  readonly version?: number;
+  readonly floorCount?: number;
+  readonly zoneCount?: number;
+  readonly positionCount?: number;
+  readonly namedRegistrationCount?: number;
+  readonly namedRegistrationCountComplete?: boolean;
+  readonly occupied?: boolean;
+}

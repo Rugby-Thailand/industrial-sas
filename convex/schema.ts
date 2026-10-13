@@ -1210,6 +1210,8 @@ const schema = defineSchema({
           v.literal("PLATFORM"),
         ),
       ),
+      /** Optional for online migration; a missing value is version 0. */
+      version: v.optional(v.number()),
       baseElevationMm: v.optional(v.number()),
       xMm: v.number(),
       yMm: v.number(),

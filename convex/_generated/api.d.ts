@@ -132,6 +132,7 @@ import type * as storageLayouts_catalogue from "../storageLayouts/catalogue.js";
 import type * as storageLayouts_fg1Import from "../storageLayouts/fg1Import.js";
 import type * as storageLayouts_locationCatalogue from "../storageLayouts/locationCatalogue.js";
 import type * as storageLayouts_moveOccupancy from "../storageLayouts/moveOccupancy.js";
+import type * as storageLayouts_namedLayout from "../storageLayouts/namedLayout.js";
 import type * as storageLayouts_pdImport from "../storageLayouts/pdImport.js";
 import type * as storageLayouts_writes from "../storageLayouts/writes.js";
 import type * as storageLayouts_zones from "../storageLayouts/zones.js";
@@ -268,6 +269,7 @@ declare const fullApi: ApiFromModules<{
   "storageLayouts/fg1Import": typeof storageLayouts_fg1Import;
   "storageLayouts/locationCatalogue": typeof storageLayouts_locationCatalogue;
   "storageLayouts/moveOccupancy": typeof storageLayouts_moveOccupancy;
+  "storageLayouts/namedLayout": typeof storageLayouts_namedLayout;
   "storageLayouts/pdImport": typeof storageLayouts_pdImport;
   "storageLayouts/writes": typeof storageLayouts_writes;
   "storageLayouts/zones": typeof storageLayouts_zones;

@@ -202,12 +202,24 @@ it("switches to all locations, opens coordinates and QR, and exposes exact plann
   ).toBeVisible();
   expect(screen.getByRole("link", { name: "FG-1" })).toHaveAttribute(
     "href",
-    "/master-data/storage-layouts/building-a?floor=4&editing=1#storage-zone-zone-a",
+    "/master-data/storage-layouts/building-a?floor=4#storage-zone-zone-a",
+  );
+  // Open inspects; only the explicit Edit action carries editing intent.
+  expect(
+    screen.getByRole("link", { name: "View FG-1 on its floor" }),
+  ).toHaveAttribute(
+    "href",
+    "/master-data/storage-layouts/building-a?floor=4#storage-zone-zone-a",
   );
   expect(screen.getByRole("link", { name: "Edit FG-1" })).toHaveAttribute(
     "href",
-    expect.stringContaining("&editZone=zone-a"),
+    expect.stringContaining("?floor=4&editing=1&editZone=zone-a"),
   );
+  // Building status is whole-building and read-only in a location row.
+  expect(screen.queryByRole("switch")).toBeNull();
+  expect(
+    screen.getByRole("columnheader", { name: "Building status" }),
+  ).toBeVisible();
   fireEvent.click(screen.getAllByText(/Sublocations \/ occupancy/)[0]!);
   await waitFor(() =>
     expect(screen.getByText(/STOCK-1.*90°.*Stored/)).toBeVisible(),

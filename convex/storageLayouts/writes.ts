@@ -6,10 +6,11 @@ import {
   createMasterDataRow,
   normalizeDisplayName,
   normalizeField,
+  replayTenantWriteIfPresent,
   updateMasterDataRow,
 } from "../lib/masterDataStore";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
-import { mutationWithOrg } from "../lib/tenantFunctions";
+import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import {
   STORAGE_LAYOUT_LIMITS,
@@ -74,7 +75,28 @@ const writeContext = (
     warehouseId,
   });
 
-async function readLayout(
+/**
+ * A retried command with the same request identity answers with its stored
+ * result before any expected-version check. Otherwise a write that succeeded
+ * but whose response was lost would come back as VERSION_CONFLICT on retry.
+ */
+async function replayed(
+  ctx: TenantFunctionContext,
+  table: "storageBuildings" | "storageFloors",
+  operation: string,
+  args: { readonly requestId: string; readonly warehouseId: string },
+) {
+  const replay = await replayTenantWriteIfPresent({
+    ...writeContext(ctx, table, operation, args.requestId, args.warehouseId),
+    fingerprint: args,
+  });
+  if (!replay.ok) return failure(replay.error.code);
+  return replay.value === null
+    ? null
+    : success(replay.value.documentId, replay.value.replayed);
+}
+
+export async function readLayout(
   ctx: TenantFunctionContext,
   building: BuildingDocument,
 ): Promise<{ floors: StorageFloorInput[]; documents: FloorDocument[] }> {
@@ -285,6 +307,13 @@ export const updateStorageBuilding = mutationWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayed(
+      ctx,
+      "storageBuildings",
+      "storageLayout.updateBuilding",
+      args,
+    );
+    if (replay !== null) return replay;
     const building = await ctx.tenantDb.get<BuildingDocument>(
       "storageBuildings",
       args.buildingId,
@@ -484,6 +513,13 @@ export const changeStorageFloorCount = mutationWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayed(
+      ctx,
+      "storageBuildings",
+      "storageLayout.changeFloorCount",
+      args,
+    );
+    if (replay !== null) return replay;
     const building = await ctx.tenantDb.get<BuildingDocument>(
       "storageBuildings",
       args.buildingId,
@@ -586,6 +622,13 @@ export const saveStorageFloor = mutationWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
+    const replay = await replayed(
+      ctx,
+      "storageFloors",
+      "storageLayout.saveFloor",
+      args,
+    );
+    if (replay !== null) return replay;
     const building = await ctx.tenantDb.get<BuildingDocument>(
       "storageBuildings",
       args.buildingId,
@@ -727,6 +770,117 @@ export const saveStorageFloor = mutationWithOrg({
   },
 });
 
+export interface LayoutReadinessIssue {
+  readonly code: string;
+  /** Blocking issues refuse activation; others are advisory. */
+  readonly blocking: boolean;
+  readonly floorNumber?: number;
+  readonly zoneCode?: string;
+  readonly zoneLabel?: string;
+  readonly field?: string;
+}
+
+/**
+ * The one activation preflight. The activate mutation refuses with the first
+ * blocking issue; the review screen reads every issue through
+ * `layoutReadiness`, so "ready" there always means the same server checks.
+ */
+export async function assessLayoutReadiness(
+  ctx: TenantFunctionContext,
+  building: BuildingDocument,
+) {
+  const layout = await readLayout(ctx, building);
+  const issues: LayoutReadinessIssue[] = [];
+  const zonesByFloor = new Map<string, ZoneDocument[]>();
+  let zoneCount = 0;
+  for (const floor of layout.documents) {
+    const zones = [...(await activeZonesForFloor(ctx, floor._id))];
+    zonesByFloor.set(floor._id, zones);
+    zoneCount += zones.length;
+  }
+  if (zoneCount === 0)
+    issues.push({ code: "STORAGE_STACK_REQUIRED", blocking: true });
+  const validated = validateAndSummarizeStorageLayout({
+    widthMm: building.widthMm,
+    depthMm: building.depthMm,
+    defaultFloorHeightMm: building.defaultFloorHeightMm,
+    floors: layout.floors,
+  });
+  if (!validated.ok)
+    issues.push({ code: validated.error.code, blocking: true });
+  for (const floor of layout.documents) {
+    const floorInput = layout.floors.find(
+      (candidate) => candidate.floorNumber === floor.floorNumber,
+    );
+    const zones = zonesByFloor.get(floor._id) ?? [];
+    if (floorInput === undefined) {
+      issues.push({
+        code: "NOT_FOUND",
+        blocking: true,
+        floorNumber: floor.floorNumber,
+      });
+      continue;
+    }
+    if (zones.length === 0)
+      issues.push({
+        code: "FLOOR_HAS_NO_STORAGE",
+        blocking: false,
+        floorNumber: floor.floorNumber,
+      });
+    const floorWidthMm = floorInput.widthMm ?? building.widthMm;
+    const floorDepthMm = floorInput.depthMm ?? building.depthMm;
+    const floorHeightMm = floorInput.heightMm ?? building.defaultFloorHeightMm;
+    for (const zone of zones) {
+      const valid = validateStorageZone({
+        floorWidthMm,
+        floorDepthMm,
+        floorHeightMm,
+        candidate: zone,
+        reserved: floorInput.reservedBlocks,
+        zones: zones.filter((candidate) => candidate._id !== zone._id),
+      });
+      const where = {
+        floorNumber: floor.floorNumber,
+        zoneCode: zone.code,
+        zoneLabel: zone.label,
+      };
+      if (!valid.ok)
+        issues.push({
+          code: valid.error.code,
+          blocking: true,
+          ...where,
+          ...("field" in valid.error ? { field: valid.error.field } : {}),
+        });
+      // A rack, platform or multi-position spot needs its exact positions:
+      // otherwise its QR would resolve to the whole spot as one address.
+      if ((zone.mode ?? "SIMPLE") !== "SIMPLE") {
+        const leaf = await ctx.tenantDb
+          .byIndex<Doc<"storagePositions">>(
+            "storagePositions",
+            "by_orgId_zoneId_status_code",
+            [
+              { field: "zoneId", value: zone._id },
+              { field: "status", value: "ACTIVE" },
+            ],
+          )
+          .first();
+        if (leaf === null)
+          issues.push({
+            code: "AREA_REQUIRES_LEAF_POSITION",
+            blocking: true,
+            ...where,
+          });
+      }
+    }
+  }
+  return {
+    layout,
+    zones: [...zonesByFloor.values()].flat(),
+    zoneCount,
+    issues,
+  };
+}
+
 async function changeStatus(
   ctx: TenantFunctionContext,
   args: {
@@ -737,6 +891,9 @@ async function changeStatus(
   },
   status: "DRAFT" | "ACTIVE" | "ARCHIVED",
 ) {
+  const operation = `storageLayout.${status.toLowerCase()}`;
+  const replay = await replayed(ctx, "storageBuildings", operation, args);
+  if (replay !== null) return replay;
   const building = await ctx.tenantDb.get<BuildingDocument>(
     "storageBuildings",
     args.buildingId,
@@ -745,6 +902,10 @@ async function changeStatus(
     return failure("NOT_FOUND");
   if (building.version !== args.expectedVersion)
     return failure("VERSION_CONFLICT");
+  // Lifecycle: DRAFT → ACTIVE ⇄ DRAFT; DRAFT/ACTIVE → ARCHIVED; an archived
+  // building is restored only by activation, which reruns the full preflight.
+  // Archiving twice or drafting an archived building is not a change.
+  if (status === building.status) return failure("LAYOUT_NOT_EDITABLE");
   if (status === "DRAFT" && building.status !== "ACTIVE")
     return failure("LAYOUT_NOT_EDITABLE");
   if (
@@ -752,49 +913,18 @@ async function changeStatus(
     (await hasOccupiedStorage(ctx, { buildingId: building._id }))
   )
     return failure("LOCATION_OCCUPIED");
-  const layout = await readLayout(ctx, building);
-  const zones: ZoneDocument[] = [];
-  for (const floor of layout.documents) {
-    zones.push(...(await activeZonesForFloor(ctx, floor._id)));
-  }
+  const assessment = await assessLayoutReadiness(ctx, building);
+  const zones = assessment.zones;
   if (status === "ACTIVE") {
-    if (zones.length === 0) return failure("STORAGE_STACK_REQUIRED");
-    const validated = validateAndSummarizeStorageLayout({
-      widthMm: building.widthMm,
-      depthMm: building.depthMm,
-      defaultFloorHeightMm: building.defaultFloorHeightMm,
-      floors: layout.floors,
-    });
-    if (!validated.ok) return failure(validated.error.code);
-    for (const floor of layout.documents) {
-      const floorInput = layout.floors.find(
-        (candidate) => candidate.floorNumber === floor.floorNumber,
-      );
-      if (floorInput === undefined) return failure("NOT_FOUND");
-      const floorZones: ZoneDocument[] = [];
-      for (const zone of zones) {
-        if (zone.floorId === floor._id) floorZones.push(zone);
-      }
-      const zonesValid = validateFloorZones({
-        building,
-        floor,
-        floorInput,
-        zones: floorZones,
-      });
-      if (!zonesValid.ok) {
-        return failure(
-          zonesValid.error.code,
-          "field" in zonesValid.error ? zonesValid.error.field : undefined,
-        );
-      }
-    }
+    const blocking = assessment.issues.find((issue) => issue.blocking);
+    if (blocking !== undefined) return failure(blocking.code, blocking.field);
   }
   const now = Date.now();
   const updated = await updateMasterDataRow({
     ...writeContext(
       ctx,
       "storageBuildings",
-      `storageLayout.${status.toLowerCase()}`,
+      operation,
       args.requestId,
       args.warehouseId,
     ),
@@ -869,4 +999,218 @@ export const returnStorageBuildingToDraft = mutationWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: (ctx, args) => changeStatus(ctx, args, "DRAFT"),
+});
+
+const buildingArgs = {
+  warehouseId: v.id("warehouses"),
+  buildingId: v.id("storageBuildings"),
+};
+
+/** Server preflight for the review screen: every activation check, per floor and spot. */
+export const layoutReadiness = queryWithOrg({
+  args: buildingArgs,
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      args.buildingId,
+    );
+    if (building === null || building.warehouseId !== args.warehouseId)
+      return { found: false as const };
+    const assessment = await assessLayoutReadiness(ctx, building);
+    return {
+      found: true as const,
+      status: building.status,
+      version: building.version,
+      zoneCount: assessment.zoneCount,
+      ready:
+        building.status !== "ACTIVE" &&
+        !assessment.issues.some((issue) => issue.blocking),
+      issues: assessment.issues,
+    };
+  },
+});
+
+const NAMED_SCAN_PAGES = 10;
+
+/** This building's name-only registrations, read in bounded pages. */
+async function namedRegistrations(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  buildingId: string,
+) {
+  const rows: Doc<"locations">[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < NAMED_SCAN_PAGES; page += 1) {
+    const result = await ctx.tenantDb
+      .byIndex<Doc<"locations">>(
+        "locations",
+        "by_orgId_warehouseId_status_locationType_code",
+        [
+          { field: "warehouseId", value: warehouseId },
+          { field: "status", value: "ACTIVE" },
+          { field: "locationType", value: "NAMED_STORAGE" },
+        ],
+      )
+      .page({ limit: 100, ...(cursor ? { cursor } : {}) });
+    rows.push(...result.page.filter((row) => row.buildingId === buildingId));
+    if (result.isDone) return { rows, complete: true };
+    cursor = result.continueCursor;
+  }
+  return { rows, complete: false };
+}
+
+/**
+ * What a whole-building status change or archive affects, read only when a
+ * manager opens the confirmation. Counts are of this building's addresses.
+ */
+export const buildingLifecycleImpact = queryWithOrg({
+  args: buildingArgs,
+  returns: v.any(),
+  permissionCode: "masterData.storageLayout.read",
+  target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      args.buildingId,
+    );
+    if (building === null || building.warehouseId !== args.warehouseId)
+      return { found: false as const };
+    const layout = await readLayout(ctx, building);
+    let zoneCount = 0;
+    let positionCount = 0;
+    for (const floor of layout.documents) {
+      const zones = await activeZonesForFloor(ctx, floor._id);
+      zoneCount += zones.length;
+      for (const zone of zones) {
+        const positions = await ctx.tenantDb
+          .byIndex<Doc<"storagePositions">>(
+            "storagePositions",
+            "by_orgId_zoneId_status_code",
+            [
+              { field: "zoneId", value: zone._id },
+              { field: "status", value: "ACTIVE" },
+            ],
+          )
+          .all(100);
+        positionCount += positions.filter(
+          (position) => position.locationId !== zone.locationId,
+        ).length;
+      }
+    }
+    const named = await namedRegistrations(ctx, args.warehouseId, building._id);
+    return {
+      found: true as const,
+      status: building.status,
+      version: building.version,
+      floorCount: building.floorCount,
+      zoneCount,
+      positionCount,
+      namedRegistrationCount: named.rows.length,
+      namedRegistrationCountComplete: named.complete,
+      occupied: await hasOccupiedStorage(ctx, { buildingId: building._id }),
+    };
+  },
+});
+
+/**
+ * Remove the top floor only when it is provably empty: no storage spot ever
+ * created on it (active or archived, so no address history is orphaned) and
+ * no registered location naming it. Its unavailable areas are floor geometry
+ * and are removed with it. Lower floors and every identity stay untouched.
+ */
+export const removeTopStorageFloor = mutationWithOrg({
+  args: {
+    warehouseId: v.id("warehouses"),
+    buildingId: v.id("storageBuildings"),
+    requestId: v.string(),
+    expectedVersion: v.number(),
+    floorNumber: v.number(),
+  },
+  returns: outcome,
+  permissionCode: "masterData.storageLayout.manage",
+  target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
+  warehouseId: ({ warehouseId }) => warehouseId,
+  handler: async (ctx, args) => {
+    const operation = "storageLayout.removeTopFloor";
+    const replay = await replayed(ctx, "storageBuildings", operation, args);
+    if (replay !== null) return replay;
+    const building = await ctx.tenantDb.get<BuildingDocument>(
+      "storageBuildings",
+      args.buildingId,
+    );
+    if (building === null || building.warehouseId !== args.warehouseId)
+      return failure("NOT_FOUND");
+    if (building.status === "ARCHIVED") return failure("LAYOUT_NOT_EDITABLE");
+    if (building.version !== args.expectedVersion)
+      return failure("VERSION_CONFLICT");
+    if (args.floorNumber !== building.floorCount)
+      return failure("FLOOR_NOT_TOP", "floorNumber");
+    if (building.floorCount <= 1)
+      return failure("FLOOR_COUNT_MINIMUM", "floorNumber");
+    const current = await readLayout(ctx, building);
+    const floor = current.documents.find(
+      (row) => row.floorNumber === args.floorNumber,
+    );
+    if (floor === undefined) return failure("NOT_FOUND");
+    const anyZone = await ctx.tenantDb
+      .byIndex<ZoneDocument>("storageZones", "by_orgId_floorId_status_code", [
+        { field: "floorId", value: floor._id },
+      ])
+      .first();
+    if (anyZone !== null) return failure("FLOOR_NOT_EMPTY");
+    const named = await namedRegistrations(ctx, args.warehouseId, building._id);
+    if (!named.complete) return failure("FLOOR_REMOVAL_CHECK_LIMIT");
+    if (named.rows.some((row) => row.floorId === floor._id))
+      return failure("FLOOR_HAS_REGISTRATIONS");
+    const floors = current.floors.filter(
+      (row) => row.floorNumber !== args.floorNumber,
+    );
+    const summary = validateAndSummarizeStorageLayout({
+      widthMm: building.widthMm,
+      depthMm: building.depthMm,
+      defaultFloorHeightMm: building.defaultFloorHeightMm,
+      floors,
+    });
+    if (!summary.ok) return failure(summary.error.code);
+    const now = Date.now();
+    const updated = await updateMasterDataRow({
+      ...writeContext(
+        ctx,
+        "storageBuildings",
+        operation,
+        args.requestId,
+        args.warehouseId,
+      ),
+      documentId: args.buildingId,
+      fingerprint: args,
+      uniqueness: [],
+      patch: {
+        floorCount: building.floorCount - 1,
+        totalHeightMm: summary.value.totalHeightMm,
+        grossAreaSqMm: summary.value.grossAreaSqMm,
+        reservedAreaSqMm: summary.value.reservedAreaSqMm,
+        usableAreaSqMm: summary.value.usableAreaSqMm,
+        version: building.version + 1,
+        updatedAt: now,
+        updatedByUserId: ctx.tenant.actor._id,
+      },
+    });
+    if (!updated.ok) return failure(updated.error.code);
+    const blocks = await ctx.tenantDb
+      .byIndex<BlockDocument>(
+        "storageFloorReservedBlocks",
+        "by_orgId_floorId",
+        [{ field: "floorId", value: floor._id }],
+      )
+      .all(STORAGE_LAYOUT_LIMITS.maximumReservedBlocksPerFloor);
+    for (const block of blocks)
+      await ctx.tenantDb.delete("storageFloorReservedBlocks", block._id);
+    await ctx.tenantDb.delete("storageFloors", floor._id);
+    return success(updated.value.documentId, updated.value.replayed);
+  },
 });
