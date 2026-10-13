@@ -1,15 +1,15 @@
 "use client";
 
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+
 import { useQuery } from "convex/react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES } from "@/lib/navigation";
-import { guardedNavigate } from "@/lib/navigationGuard";
 import { HrGate, HrInlineError, HrQueryState, SectionTitle } from "./HrShared";
 import {
   LeaveCancel,
@@ -99,12 +99,20 @@ function LeaveDetail({ requestId }: { readonly requestId: string }) {
 }
 function ReturnedEdit({ request }: { readonly request: LeaveRequest }) {
   const t = useTranslations("Hr.leave");
-  const [editing, setEditing] = useState(false);
+  const editor = useWorkflowStep(
+    "leaveReturnedEdit",
+    `hr-leave-returned:${request._id}`,
+    true,
+  );
+  const editing = editor.active;
   return (
     <div className="space-y-4">
       <Button
         variant="outline"
-        onClick={() => guardedNavigate(() => setEditing(!editing))}
+        onClick={() => {
+          if (editing) editor.back();
+          else editor.enter();
+        }}
       >
         {t(editing ? "discardEdit" : "editReturned")}
       </Button>

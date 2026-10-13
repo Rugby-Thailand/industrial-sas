@@ -10,7 +10,7 @@ export async function OrganizationRequired() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-6 p-6">
-      <PageHeader title={t("organizationRequiredTitle")} />
+      <PageHeader showBack={false} title={t("organizationRequiredTitle")} />
       <Notice
         tone="warning"
         title={t("organizationRequiredTitle")}

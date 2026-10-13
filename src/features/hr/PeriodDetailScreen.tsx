@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { ArrowRight, Download, Lock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useMemo, useState, type FormEvent } from "react";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 
 import {
   useDraftGuard,
@@ -672,8 +673,15 @@ function CloseControls({
   const message = useHrError();
   const canReview = useHrCan(HR_CODES.review);
   const close = useMutation(hrRefs.closePeriod);
-  const [confirming, setConfirming] = useState(false);
   const write = useHrWrite(`period:close:${periodId}:${version}`);
+  const confirmation = useWorkflowStep(
+    "periodClose",
+    `hr-period-close:${periodId}:${version}`,
+    blocker === null && write.state.kind !== "SAVED",
+    undefined,
+    { blocked: write.pending, priority: 200 },
+  );
+  const confirming = confirmation.active;
   // Closing freezes a version: leave only after the server answers.
   usePendingGuard(write.pending);
   const send = async () => {
@@ -739,7 +747,7 @@ function CloseControls({
                 type="button"
                 variant="outline"
                 disabled={write.pending}
-                onClick={() => setConfirming(false)}
+                onClick={confirmation.back}
               >
                 {t("keepDraft")}
               </Button>
@@ -747,7 +755,7 @@ function CloseControls({
           ) : (
             <Button
               type="button"
-              onClick={() => setConfirming(true)}
+              onClick={confirmation.enter}
               data-testid="hr-period-close"
             >
               <Lock aria-hidden="true" />

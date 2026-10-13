@@ -51,12 +51,23 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { HrAnnouncementManageScreen } from "./AnnouncementManageScreen";
-import { HrAnnouncementsScreen } from "./AnnouncementsScreen";
+import {
+  HrAnnouncementsScreen,
+  HrAnnouncementDetailScreen,
+} from "./AnnouncementsScreen";
 import { HrPayslipsScreen } from "./EmployeePayslipsScreen";
 import { HrEmployeesScreen } from "./EmployeesScreen";
 import { HrHistoryScreen } from "./HistoryScreen";
 import { HrHolidaysScreen } from "./HolidaysScreen";
-import { HrLeaveReviewScreen } from "./LeaveReviewScreen";
+import {
+  HrLeaveReviewScreen,
+  HrLeaveReviewDetailScreen,
+} from "./LeaveReviewScreen";
+import { HrLeaveDetailScreen } from "./LeaveDetailScreen";
+import {
+  HrFrozenPeriodsScreen,
+  HrFrozenPeriodDetailScreen,
+} from "./FrozenPeriodsScreen";
 import { HrLeaveScreen } from "./LeaveScreen";
 import { HrNotificationsScreen } from "./NotificationsScreen";
 import { HrPayslipImportScreen } from "./PayslipImportScreen";
@@ -104,6 +115,21 @@ const SCREENS: readonly (readonly [string, ComponentType])[] = [
   ["/hr/employees", HrEmployeesScreen],
   ["/hr/periods", HrPeriodsScreen],
   ["/hr/settings", HrSettingsScreen],
+  ["/hr/time/periods", HrFrozenPeriodsScreen],
+  [
+    "/hr/time/periods/version-1",
+    () => <HrFrozenPeriodDetailScreen versionId="version-1" />,
+  ],
+  [
+    "/hr/announcements/notice-1",
+    () => <HrAnnouncementDetailScreen announcementId="notice-1" />,
+  ],
+  ["/hr/leave/request-1", () => <HrLeaveDetailScreen requestId="request-1" />],
+  [
+    "/hr/leave/review/request-1",
+    () => <HrLeaveReviewDetailScreen requestId="request-1" />,
+  ],
+  ["/hr/payslips/statement-1", () => <HrPayslipsScreen rowId="statement-1" />],
 ];
 
 function open(path: string, Screen: ComponentType, depth = 0) {
@@ -133,35 +159,74 @@ describe("HR page Back", () => {
     },
   );
 
-  it.each(SCREENS)(
-    "%s opened directly goes to another visible HR page, never the planner root",
+  it.each(
+    SCREENS.filter(
+      ([path]) =>
+        ![
+          "/hr/leave/review",
+          "/hr/announcements/manage",
+          "/hr/payslips/import",
+          "/hr/time/periods",
+          "/hr/time/periods/version-1",
+          "/hr/announcements/notice-1",
+          "/hr/leave/request-1",
+          "/hr/leave/review/request-1",
+          "/hr/payslips/statement-1",
+        ].includes(path),
+    ),
+  )(
+    "%s opened directly is a hub without a synthetic parent",
     (path, Screen) => {
       open(path, Screen);
-      fireEvent.click(backButton()!);
+      expect(backButton()).toBeNull();
+      expect(state.replace).not.toHaveBeenCalled();
       expect(state.back).not.toHaveBeenCalled();
-      expect(state.replace).toHaveBeenCalledOnce();
-      const [target] = state.replace.mock.calls[0] as [string];
-      expect(target).toMatch(/^\/hr\//);
-      expect(target).not.toBe(path);
     },
   );
 
-  it("sends an HR-only member who opened Today directly to their next HR page", () => {
-    state.access = ready([SELF]);
-    open("/hr/today", HrTodayScreen);
-    fireEvent.click(backButton()!);
-    expect(state.replace).toHaveBeenCalledExactlyOnceWith("/hr/time");
-  });
-
-  it("returns a directly opened child page to its visible HR parent", () => {
-    open("/hr/leave/review", HrLeaveReviewScreen);
-    fireEvent.click(backButton()!);
-    expect(state.replace).toHaveBeenCalledExactlyOnceWith("/hr/leave");
-    vi.clearAllMocks();
-    open("/hr/payslips/statement-1", () => <HrPayslipsScreen rowId="row-1" />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Back" }).at(-1)!);
-    expect(state.replace).toHaveBeenCalledExactlyOnceWith("/hr/payslips");
-  });
+  it.each([
+    ["/hr/leave/review", HrLeaveReviewScreen, "/hr/leave"],
+    [
+      "/hr/announcements/manage",
+      HrAnnouncementManageScreen,
+      "/hr/announcements",
+    ],
+    ["/hr/payslips/import", HrPayslipImportScreen, "/hr/payslips"],
+    ["/hr/time/periods", HrFrozenPeriodsScreen, "/hr/time"],
+    [
+      "/hr/time/periods/version-1",
+      () => <HrFrozenPeriodDetailScreen versionId="version-1" />,
+      "/hr/time/periods",
+    ],
+    [
+      "/hr/announcements/notice-1",
+      () => <HrAnnouncementDetailScreen announcementId="notice-1" />,
+      "/hr/announcements",
+    ],
+    [
+      "/hr/leave/request-1",
+      () => <HrLeaveDetailScreen requestId="request-1" />,
+      "/hr/leave",
+    ],
+    [
+      "/hr/leave/review/request-1",
+      () => <HrLeaveReviewDetailScreen requestId="request-1" />,
+      "/hr/leave/review",
+    ],
+    [
+      "/hr/payslips/statement-1",
+      () => <HrPayslipsScreen rowId="statement-1" />,
+      "/hr/payslips",
+    ],
+  ] as const)(
+    "direct child %s uses its exact module parent",
+    (path, Screen, parent) => {
+      open(path, Screen);
+      fireEvent.click(backButton()!);
+      expect(state.replace).toHaveBeenCalledExactlyOnceWith(parent);
+      expect(state.back).not.toHaveBeenCalled();
+    },
+  );
 
   it("disables Back on a directly opened page while HR access loads", () => {
     state.access = {

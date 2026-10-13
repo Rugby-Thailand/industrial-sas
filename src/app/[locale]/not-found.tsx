@@ -12,7 +12,11 @@ export default async function LocaleNotFound() {
       data-testid="not-found"
       className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-6 p-6"
     >
-      <PageHeader title={t("title")} summary={t("body")} />
+      <PageHeader
+        backFallbackHref={null}
+        title={t("title")}
+        summary={t("body")}
+      />
       <Link
         href={ROUTES.storageLayouts}
         className="flex min-h-touch w-fit items-center rounded-md border border-border-strong px-4 font-medium text-text"

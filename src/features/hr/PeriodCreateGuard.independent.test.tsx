@@ -32,7 +32,7 @@ vi.mock("@/i18n/navigation", () => ({
       {children as never}
     </a>
   ),
-  useRouter: () => ({ push: state.push, replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: state.push }),
 }));
 
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";

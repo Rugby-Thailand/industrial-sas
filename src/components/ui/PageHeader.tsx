@@ -40,7 +40,7 @@ export function PageHeader({
   readonly showBack?: boolean;
   /**
    * Where Back goes when the page was opened directly. Defaults to the last
-   * breadcrumb, then "/". `null` hides Back on a directly opened page.
+   * safe breadcrumb. `null` hides Back on a directly opened page.
    */
   readonly backFallbackHref?: string | null;
   /** The fallback is still being resolved (e.g. access loading). */
@@ -59,7 +59,7 @@ export function PageHeader({
               <PageBackButton
                 fallbackHref={
                   backFallbackHref === undefined
-                    ? (breadcrumbs?.at(-1)?.href ?? "/")
+                    ? (breadcrumbs?.at(-1)?.href ?? null)
                     : backFallbackHref
                 }
                 pending={backPending}

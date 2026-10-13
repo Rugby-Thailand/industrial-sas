@@ -70,7 +70,9 @@ describe("PageHeader", () => {
   });
 
   it("puts a back button before the title unless the page opts out", () => {
-    const { rerender } = renderWithIntl(<PageHeader title="งานคลัง" />);
+    const { rerender } = renderWithIntl(
+      <PageHeader title="งานคลัง" backFallbackHref="/finished-goods" />,
+    );
     expect(screen.getByRole("button", { name: "ย้อนกลับ" })).toBeVisible();
     rerender(<PageHeader title="งานคลัง" showBack={false} />);
     expect(

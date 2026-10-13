@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 import { useRouter } from "@/i18n/navigation";
+import { resolvePageBackFallback } from "@/lib/pageBackFallback";
 import { IconButton } from "./IconButton";
 import {
   appHistoryIndex,
@@ -33,6 +34,13 @@ export function PageBackButton({
 }) {
   const t = useTranslations("App");
   const router = useRouter();
+  const href = useSyncExternalStore(
+    subscribeHistoryChanges,
+    () =>
+      window.location.pathname + window.location.search + window.location.hash,
+    () => "",
+  );
+  const parent = resolvePageBackFallback(href, fallbackHref);
   const hasHistory =
     useSyncExternalStore(subscribeHistoryChanges, currentDepth, serverDepth) >
     0;
@@ -52,9 +60,9 @@ export function PageBackButton({
       variant="ghost"
       label={t("back")}
       className="-mr-1 -ml-3 shrink-0 text-muted hover:text-text"
-      disabled={!hasForeground && !hasHistory && pending}
+      disabled={!hasForeground && !hasHistory && (pending || parent === null)}
       onClick={() => {
-        navigateBack(router, pending ? null : fallbackHref);
+        navigateBack(router, pending ? null : parent);
       }}
     >
       <ArrowLeft aria-hidden="true" />

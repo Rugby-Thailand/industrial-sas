@@ -11,7 +11,7 @@ import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { LOCALES } from "@/i18n/routing";
 import { subscribeHistoryChanges } from "@/lib/browser/appHistory";
-import { visibleDesktopNavigation } from "@/lib/navigation";
+import { moduleBackFallback } from "@/lib/pageBackFallback";
 
 import { formatDateTime, formatTime, splitMinutes } from "./format";
 import type { HrWriteState } from "./useHrWrite";
@@ -105,36 +105,21 @@ export function HrQueryState({
   return <OutcomeGate outcome={outcome}>{() => children()}</OutcomeGate>;
 }
 
-/**
- * Back for an HR page header. With app history it always returns. A page
- * opened directly falls back to its nearest visible HR parent (e.g. leave
- * review to leave), else the first visible HR page other than itself; never
- * "/" (a planner page that an HR-only member is redirected away from).
- * While HR access loads, a directly opened page shows Back disabled.
- */
+/** Audited HR children use their module parent; direct hubs retain only real origin Back. */
 export function useHrBack(): {
   readonly backFallbackHref: string | null;
   readonly backPending: boolean;
 } {
   const access = useHrAccess();
-  const pathname = useSyncExternalStore(
+  const href = useSyncExternalStore(
     subscribeHistoryChanges,
     currentPath,
     serverPath,
   );
-  if (access.status === "LOADING")
-    return { backFallbackHref: null, backPending: true };
-  const hrefs =
-    access.status === "READY"
-      ? visibleDesktopNavigation(access.permissions)
-          .flatMap((section) => section.items)
-          .map((item) => item.href)
-          .filter((href) => href.startsWith("/hr/") && href !== pathname)
-      : [];
-  const parent = hrefs
-    .filter((href) => pathname.startsWith(`${href}/`))
-    .sort((a, b) => b.length - a.length)[0];
-  return { backFallbackHref: parent ?? hrefs[0] ?? null, backPending: false };
+  return {
+    backFallbackHref: moduleBackFallback(href),
+    backPending: access.status === "LOADING",
+  };
 }
 
 /** The locale-free path; read from the location so no router context is needed. */
@@ -144,7 +129,11 @@ function currentPath(): string {
     (candidate) =>
       path === `/${candidate}` || path.startsWith(`/${candidate}/`),
   );
-  return locale ? path.slice(locale.length + 1) || "/" : path;
+  return (
+    (locale ? path.slice(locale.length + 1) || "/" : path) +
+    window.location.search +
+    window.location.hash
+  );
 }
 const serverPath = () => "";
 

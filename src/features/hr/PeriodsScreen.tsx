@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TableScroller } from "@/components/ui/TableScroller";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES, hrPeriodPath } from "@/lib/navigation";
 
@@ -40,6 +40,9 @@ import { useHrListCriteria } from "./HrListCriteria";
 import { HrPagedState, HrPager, useHrPagedQuery } from "./HrPagedList";
 import { HrSiteSelect } from "./HrSiteSelect";
 import { HrToolbar } from "./HrUi";
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+import { useTaskCompletion } from "@/hooks/useTaskCompletion";
+import { flushSync } from "react-dom";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
 export function HrPeriodsScreen() {
@@ -47,14 +50,19 @@ export function HrPeriodsScreen() {
   const back = useHrBack();
   const canClose = useHrCan(HR_CODES.close);
   const live = useHrAccess().timezoneSupported;
-  const [creating, setCreating] = useState(false);
+  const creation = useWorkflowStep(
+    "periodCreate",
+    "hr-period-create",
+    canClose && live,
+  );
+  const creating = creation.active;
   return (
     <>
       <PageHeader title={t("title")} summary={t("summary")} {...back}>
         {canClose ? (
           <Button
             type="button"
-            onClick={() => setCreating(true)}
+            onClick={creation.enter}
             disabled={creating || !live}
             data-testid="hr-period-new"
           >
@@ -64,10 +72,7 @@ export function HrPeriodsScreen() {
         ) : null}
       </PageHeader>
       <HrGate code={HR_CODES.close} allowUnsupportedTimezone>
-        <PeriodsContent
-          creating={creating}
-          onCancel={() => setCreating(false)}
-        />
+        <PeriodsContent creating={creating} onCancel={creation.back} />
       </HrGate>
     </>
   );
@@ -255,7 +260,6 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
   const t = useTranslations("Hr.periods");
   const form = useTranslations("Hr.form");
   const access = useHrAccess();
-  const router = useRouter();
   const id = useId();
   const create = useMutation(hrRefs.createPeriod);
   const today = access.today ?? "";
@@ -272,9 +276,10 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
   const write = useHrWrite<{ documentId: string }>(
     `period:create:${site}:${range.from}:${range.to}`,
   );
+  const complete = useTaskCompletion(write.pending, { retainPage: true });
   // A chosen site or range survives search and links unless discarded; a
   // creation in flight must settle first, so its period can still open.
-  const draft = useDraftGuard(
+  const draftControl = useDraftGuard(
     write.state.kind !== "SAVED" &&
       (site !== initial.site ||
         range.from !== initial.range.from ||
@@ -307,7 +312,7 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
     // Settle first: the shell removes its history buffer, then navigates, so
     // the new period's Back cannot be consumed by the removal traversal.
     if (result.kind === "SAVED")
-      draft.settle(() => router.push(hrPeriodPath(result.value.documentId)));
+      complete(hrPeriodPath(result.value.documentId));
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -363,7 +368,14 @@ function CreatePeriodForm({ onCancel }: { readonly onCancel: () => void }) {
         <Button
           type="button"
           variant="outline"
-          onClick={onCancel}
+          onClick={() => {
+            flushSync(() => {
+              setSite(initial.site);
+              setRange(initial.range);
+              setSiteError(undefined);
+            });
+            draftControl.settle(onCancel);
+          }}
           disabled={write.pending}
         >
           {form("cancel")}

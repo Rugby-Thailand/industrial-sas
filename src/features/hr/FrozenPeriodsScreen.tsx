@@ -33,7 +33,11 @@ export function HrFrozenPeriodsScreen() {
   const t = useTranslations("Hr.frozen");
   return (
     <>
-      <PageHeader title={t("title")} summary={t("summary")}>
+      <PageHeader
+        title={t("title")}
+        summary={t("summary")}
+        backFallbackHref={ROUTES.hrTime}
+      >
         <Button asChild variant="outline">
           <Link href={ROUTES.hrTime}>{t("liveHistory")}</Link>
         </Button>
@@ -120,7 +124,11 @@ export function HrFrozenPeriodDetailScreen({
   const t = useTranslations("Hr.frozen");
   return (
     <>
-      <PageHeader title={t("detailTitle")} summary={t("detailSummary")}>
+      <PageHeader
+        title={t("detailTitle")}
+        summary={t("detailSummary")}
+        backFallbackHref={ROUTES.hrFrozenPeriods}
+      >
         <Button asChild variant="outline">
           <Link href={ROUTES.hrFrozenPeriods}>{t("title")}</Link>
         </Button>

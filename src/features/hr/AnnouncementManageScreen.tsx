@@ -1,5 +1,7 @@
 "use client";
 
+import { useWorkflowStep } from "@/hooks/useWorkflowStep";
+
 import { useMutation, useQuery } from "convex/react";
 import { Megaphone, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -108,8 +110,25 @@ function ManagePage({
   const t = useTranslations("Hr.announcements");
   const [editor, setEditor] = useState<Draft | null>(null);
   const [receiptsId, setReceiptsId] = useState<string | null>(null);
+  const editorStep = useWorkflowStep(
+    "announcementEdit",
+    "hr-announcement-edit",
+    editor !== null,
+    () => setEditor(null),
+  );
+  const receiptsStep = useWorkflowStep(
+    "announcementReceipts",
+    "hr-announcement-receipts",
+    receiptsId !== null,
+    () => setReceiptsId(null),
+    { priority: 200 },
+  );
+  const openEditor = (draft: Draft) => {
+    setEditor(draft);
+    editorStep.enter();
+  };
   const create = () =>
-    setEditor({
+    openEditor({
       version: 0,
       title: "",
       body: "",
@@ -147,7 +166,7 @@ function ManagePage({
           key={editor._id ?? editor.replacesId ?? "new"}
           initial={editor}
           policy={result.policy}
-          close={() => setEditor(null)}
+          close={editorStep.back}
         />
       ) : null}
       {result.items.length ? (
@@ -176,7 +195,7 @@ function ManagePage({
                       variant="outline"
                       disabled={editor !== null}
                       onClick={() =>
-                        setEditor(
+                        openEditor(
                           row.status === "DRAFT"
                             ? row
                             : {
@@ -197,7 +216,10 @@ function ManagePage({
                     {row.status !== "DRAFT" ? (
                       <Button
                         variant="outline"
-                        onClick={() => setReceiptsId(row._id)}
+                        onClick={() => {
+                          setReceiptsId(row._id);
+                          receiptsStep.enter();
+                        }}
                       >
                         {t("receipts")}
                       </Button>
@@ -225,7 +247,7 @@ function ManagePage({
         <AnnouncementReceipts
           key={receiptsId}
           announcementId={receiptsId}
-          close={() => setReceiptsId(null)}
+          close={receiptsStep.back}
         />
       ) : null}
     </div>
@@ -257,7 +279,7 @@ function AnnouncementEditor({
   }>(`announcement-editor:${initial._id ?? initial.replacesId ?? "new"}`);
   const lastAction = useRef<"SAVE" | "PUBLISH" | "SCHEDULE">("SAVE");
   const dirty = JSON.stringify(draft) !== JSON.stringify(baseline);
-  useDraftGuard(
+  const draftControl = useDraftGuard(
     (dirty || publishDate !== "" || publishTime !== "09:00") && !write.locked,
     () => {
       setDraft(baseline);
@@ -265,7 +287,9 @@ function AnnouncementEditor({
       setPublishTime("09:00");
     },
     write.pending,
+    "hr-announcement-receipts",
   );
+  const completeClose = () => draftControl.settle(close);
   const id = useId();
   const update = (patch: Partial<Draft>) => {
     setDraft({ ...draft, ...patch });
@@ -412,7 +436,7 @@ function AnnouncementEditor({
           onRetry={() =>
             void write.retry().then((result) => {
               if (result.kind === "SAVED") {
-                if (lastAction.current !== "SAVE") close();
+                if (lastAction.current !== "SAVE") completeClose();
                 else afterSave(result.value);
               }
             })
@@ -442,7 +466,7 @@ function AnnouncementEditor({
                     }),
                   )
                   .then((result) => {
-                    if (result.kind === "SAVED") close();
+                    if (result.kind === "SAVED") completeClose();
                   });
               }
             }}
@@ -513,7 +537,7 @@ function AnnouncementEditor({
                   }),
                 )
                 .then((result) => {
-                  if (result.kind === "SAVED") close();
+                  if (result.kind === "SAVED") completeClose();
                 });
             }}
           >
