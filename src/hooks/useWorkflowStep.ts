@@ -268,8 +268,13 @@ export function useWorkflowStep(
     );
   }
   function complete(action: () => void) {
-    if (moving.current || options.blocked) return;
-    if (!active) {
+    if (!mounted.current || moving.current || options.blocked) return;
+    // Native Back delivers onBack before a parent's imperative completion handle
+    // has refreshed. Its old active closure must not traverse the consumed entry.
+    if (
+      !active ||
+      new URLSearchParams(window.location.search).get(queryKey) !== "1"
+    ) {
       guardedNavigate(action);
       return;
     }

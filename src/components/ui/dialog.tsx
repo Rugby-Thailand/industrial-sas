@@ -9,6 +9,11 @@ import { cn } from "@/lib/utils";
 import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { DraftForegroundContext } from "@/components/providers/draftGuard";
 
+export type DialogCompletionHandle = {
+  /** Consume this dialog's owned entry before closing a parent workflow. */
+  complete: (action: () => void) => void;
+};
+
 function Dialog({
   open,
   defaultOpen = false,
@@ -16,11 +21,13 @@ function Dialog({
   managedBack = true,
   backPending = false,
   draftScope,
+  completionRef,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root> & {
   managedBack?: boolean;
   backPending?: boolean;
   draftScope?: string;
+  completionRef?: React.Ref<DialogCompletionHandle>;
 }) {
   const [local, setLocal] = React.useState(defaultOpen);
   const disclosure = useBackDisclosure(
@@ -34,6 +41,16 @@ function Dialog({
       blocked: backPending,
       ...(draftScope ? { draftScope } : {}),
     },
+  );
+  const complete = React.useRef(disclosure.complete);
+  React.useLayoutEffect(() => {
+    complete.current = disclosure.complete;
+  });
+  // Keep the handle mounted while disclosure's own Back effects notify callers.
+  React.useImperativeHandle(
+    completionRef,
+    () => ({ complete: (action) => complete.current(action) }),
+    [],
   );
   return (
     <DraftForegroundContext.Provider value={disclosure.scope}>
