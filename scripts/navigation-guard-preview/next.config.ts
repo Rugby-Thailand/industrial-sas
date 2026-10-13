@@ -9,6 +9,10 @@ const config: NextConfig = {
   turbopack: {
     root,
     resolveAlias: {
+      // Keep the real storage caller/foregrounds, with synthetic permissions
+      // and a mutation boundary that cannot contact any backend.
+      "@/components/providers/WorkspaceProvider": "./storageWorkspaceStub.ts",
+      "convex/react": "./storageConvexStub.ts",
       "@/*": "../../src/*",
       "next-intl/config": "../../src/i18n/request.ts",
     },

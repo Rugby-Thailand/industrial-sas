@@ -80,10 +80,12 @@ it("keeps both query readers committed through a real draft Back restoration and
   fireEvent.click(
     await screen.findByRole("button", { name: "Discard changes" }),
   );
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
 });
@@ -95,10 +97,12 @@ it("publishes buffer cleanup before the settled completion performs the real Bac
     </NavigationGuardProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Save and Back" }));
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
@@ -121,10 +125,12 @@ it("returns to the previous committed query after discarding a multi-entry Back"
   expect(screen.getByLabelText("Panel")).toHaveTextContent("list");
   expect(screen.getByLabelText("Draft")).toHaveValue("unsaved");
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
 });
@@ -172,10 +178,12 @@ it("returns to the previous committed query after Back, Keep and Discard across 
   });
   await waitFor(() => expect(isGuardTraversal()).toBe(false));
   fireEvent.click(discard);
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
 });
 
 /** Readers only: a reload dropped the unsaved state, so nothing registers. */
@@ -209,10 +217,12 @@ it("takes the first Back to the previous committed query after a clean reload le
   expect(back).not.toHaveBeenCalled();
   expect(location.search).toBe("?panel=list&floor=2");
   act(() => history.back());
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(isGuardTraversal()).toBe(false);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -249,8 +259,10 @@ it("skips a clean reload buffer at app depth zero on the first Back to an unmana
   act(() => history.back());
   await waitFor(() => expect(location.pathname).toBe("/outside-app"));
   expect(location.search).toBe("?return=before-app");
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?return=before-app",
+  await waitFor(() =>
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?return=before-app",
+    ),
   );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   back.mockRestore();
@@ -277,10 +289,12 @@ it("takes the first Back past a clean reload buffer whose view setter replaced i
   );
   expect(back).not.toHaveBeenCalled();
   act(() => history.back());
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   back.mockRestore();
@@ -315,10 +329,12 @@ it("returns to the previous committed query after a guard marker survives a full
   });
   await waitFor(() => expect(isGuardTraversal()).toBe(false));
   fireEvent.click(discard);
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
 });
@@ -339,10 +355,12 @@ it("preserves the earlier page selected from the browser history menu after Disc
     "?panel=map&floor=3",
   );
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByLabelText("Panel")).toHaveTextContent("map");
   expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
 });
@@ -372,9 +390,11 @@ it("restores the guard entry on Keep editing and reaches the same browser-menu t
   });
   await waitFor(() => expect(isGuardTraversal()).toBe(false));
   fireEvent.click(discard);
-  await waitFor(() => expect(location.search).toBe("?panel=map&floor=1"));
-  expect(screen.getByLabelText("Query")).toHaveTextContent(
-    "?panel=map&floor=1",
-  );
+  await waitFor(() => {
+    expect(location.search).toBe("?panel=map&floor=1");
+    expect(screen.getByLabelText("Query")).toHaveTextContent(
+      "?panel=map&floor=1",
+    );
+  });
   expect(screen.getByRole("textbox", { name: "Draft" })).toHaveValue("");
 });

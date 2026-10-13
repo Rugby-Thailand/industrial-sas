@@ -8,6 +8,7 @@ import { useNavigationDraft } from "@/components/navigation/NavigationGuardProvi
 import { useHrListCriteria } from "@/features/hr/HrListCriteria";
 import { Link, useRouter } from "@/i18n/navigation";
 import { updateBrowserQuery } from "@/lib/browser/history";
+import { StorageFixture } from "./storageFixture";
 
 export function Fixture({ screen }: { readonly screen: string }) {
   const router = useRouter();
@@ -86,6 +87,9 @@ export function Fixture({ screen }: { readonly screen: string }) {
     <main>
       <h1>{screen}</h1>
       <nav>
+        <Link href="/storage?floor=1&view=storage&kept=yes#map">
+          Open storage workspace
+        </Link>
         <Link href="/editor?floor=1&view=storage&q=initial#section">
           Open editor
         </Link>
@@ -99,6 +103,7 @@ export function Fixture({ screen }: { readonly screen: string }) {
       <p data-testid="saves">{saves}</p>
       <p data-testid="discards">{discards}</p>
       <p data-testid="draft-b">{draftB}</p>
+      {screen === "storage" ? <StorageFixture /> : null}
       {screen === "editor" ? (
         <>
           <label>
