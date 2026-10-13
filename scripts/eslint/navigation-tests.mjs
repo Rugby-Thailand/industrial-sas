@@ -502,3 +502,69 @@ test("only an exact reviewed header provider can supply parent/hub intent throug
     provider,
   );
 });
+
+test("literal React lazy named-export adapters retain exact overlay delegation through Suspense", () => {
+  const source = `${react} import {lazy,Suspense} from 'react';const Editor=lazy(()=>import('./Editor').then(module=>({default:module.Editor})));function Screen(){const [editing,setEditing]=localState(null);return editing && <Suspense fallback={<p/>}><Editor record={editing}/></Suspense>}`;
+  const contract = {
+    ...base,
+    overlayDelegates: [
+      { component: "src/features/Editor#Editor", prop: "record" },
+    ],
+    states: [policy("editing", "delegated-overlay")],
+  };
+  assert.deepEqual(codes(source, contract), []);
+  assert.ok(
+    analyzeNavigationSource(source, file, contract).rendered.some(
+      (edge) => edge.to === "src/features/Editor#Editor",
+    ),
+  );
+});
+
+test("opaque React lazy factories cannot inherit an audited editor's delegation", () => {
+  const contract = {
+    ...base,
+    overlayDelegates: [
+      { component: "src/features/Editor#Editor", prop: "record" },
+    ],
+    states: [policy("editing", "delegated-overlay")],
+  };
+  for (const factory of [
+    "()=>import(modulePath).then(module=>({default:module.Editor}))",
+    "()=>import('./Editor').then(module=>({default:choose(module.Editor)}))",
+    "()=>import('./Editor').then(module=>({default:module.Other}))",
+  ]) {
+    const source = `${react} import {lazy} from 'react';const Editor=lazy(${factory});function Screen(){const [editing,setEditing]=localState(null);return editing && <Editor record={editing}/>}`;
+    assert.ok(codes(source, contract).includes("state-policy"));
+  }
+});
+
+test("an always-mounted reviewed foreground prop still requires a declared state owner", () => {
+  const source = `${react} import {Editor} from './Editor';function Screen(){const [editing,setEditing]=localState(null);return <Editor record={editing}/>}`;
+  const reviewed = {
+    ...base,
+    overlayDelegates: [
+      { component: "src/features/Editor#Editor", prop: "record" },
+    ],
+  };
+  assert.ok(codes(source, reviewed).includes("state-policy"));
+  assert.deepEqual(
+    codes(source, {
+      ...reviewed,
+      states: [policy("editing", "delegated-overlay")],
+    }),
+    [],
+  );
+  // A different component cannot inherit this exact foreground owner.
+  const changed = source
+    .replace("import {Editor}", "import {OtherEditor as Editor}")
+    .replace(
+      "return <Editor record={editing}/>",
+      "return editing && <Editor record={editing}/>",
+    );
+  assert.ok(
+    codes(changed, {
+      ...reviewed,
+      states: [policy("editing", "delegated-overlay")],
+    }).includes("state-policy"),
+  );
+});

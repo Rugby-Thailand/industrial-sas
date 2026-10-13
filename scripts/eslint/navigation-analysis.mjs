@@ -291,6 +291,68 @@ export function analyzeNavigationSource(text, filename, contract = {}) {
       const callee = resolve(node.expression, nextSeen);
       if (
         callee?.kind === "import" &&
+        callee.module === "react" &&
+        callee.name === "lazy"
+      ) {
+        // Only the literal import + exact named-export adapter is transparent.
+        // Arbitrary lazy factories remain opaque and cannot claim delegation.
+        const factory = unwrap(node.arguments[0]);
+        const load =
+          factory &&
+          ts.isArrowFunction(factory) &&
+          factory.parameters.length === 0 &&
+          unwrap(factory.body);
+        const access =
+          load &&
+          ts.isCallExpression(load) &&
+          ts.isPropertyAccessExpression(load.expression) &&
+          load.expression;
+        const imported =
+          access && access.name.text === "then" && unwrap(access.expression);
+        const adapter =
+          load &&
+          ts.isCallExpression(load) &&
+          load.arguments.length === 1 &&
+          unwrap(load.arguments[0]);
+        const object =
+          adapter &&
+          ts.isArrowFunction(adapter) &&
+          adapter.parameters.length === 1 &&
+          ts.isIdentifier(adapter.parameters[0].name) &&
+          unwrap(adapter.body);
+        if (
+          imported &&
+          ts.isCallExpression(imported) &&
+          imported.expression.kind === ts.SyntaxKind.ImportKeyword &&
+          imported.arguments.length === 1 &&
+          ts.isStringLiteralLike(imported.arguments[0]) &&
+          object &&
+          ts.isObjectLiteralExpression(object) &&
+          object.properties.length === 1
+        ) {
+          const part = object.properties[0];
+          const value =
+            ts.isPropertyAssignment(part) && unwrap(part.initializer);
+          if (
+            value &&
+            part.name.getText(file) === "default" &&
+            ts.isPropertyAccessExpression(value) &&
+            ts.isIdentifier(value.expression) &&
+            value.expression.text === adapter.parameters[0].name.text
+          ) {
+            return {
+              kind: "import",
+              module: modulePath(imported.arguments[0].text, filename).replace(
+                /\.(tsx?|jsx?)$/,
+                "",
+              ),
+              name: value.name.text,
+            };
+          }
+        }
+      }
+      if (
+        callee?.kind === "import" &&
         callee.name === "useRouter" &&
         [
           "next/navigation",
@@ -1183,11 +1245,13 @@ export function analyzeNavigationSource(text, filename, contract = {}) {
     const delegate = (contract.overlayDelegates ?? []).find(
       (entry) => entry.component.replace("#", ":") === name,
     );
-    if (delegate)
-      integrate(
-        attributeValue(node, delegate.prop ?? "open")?.expression,
-        "delegated-overlay",
-      );
+    if (delegate) {
+      const input = attributeValue(node, delegate.prop ?? "open")?.expression;
+      // The exact reviewed owner prop controls a foreground even when the
+      // child stays mounted and derives its own open state from that prop.
+      control(input, "branch", `prop:${delegate.prop ?? "open"}`, node);
+      integrate(input, "delegated-overlay");
+    }
     let rendered = ts.isJsxElement(node.parent) ? node.parent : node;
     while (rendered.parent && ts.isParenthesizedExpression(rendered.parent))
       rendered = rendered.parent;

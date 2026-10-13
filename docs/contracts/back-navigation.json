@@ -277,18 +277,11 @@
       "parent": "/finished-goods",
       "targets": ["src/features/finishedGoods/PackingScreen#PackingScreen"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
           "name": "native Back closes Packing review before page departure and retains draft"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
         }
       ]
     },
@@ -298,10 +291,10 @@
       "parent": "/finished-goods",
       "targets": ["src/features/finishedGoods/ProductScreen#ProductScreen"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
           "name": "pristine product Cancel consumes its task entry and restores catalogue state"
         }
       ]
@@ -437,18 +430,11 @@
       "parent": "/finished-goods/products/[productId]",
       "targets": ["src/features/finishedGoods/PackingScreen#PackingScreen"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
           "name": "native Back closes Packing review before page departure and retains draft"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
         }
       ]
     },
@@ -485,23 +471,23 @@
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
-          "name": "a second Back returns to the actual originating module and search state"
+          "name": "explicit Change consumes the ticket step and the next Back uses the safe parent"
         }
       ]
     },
     {
       "file": "src/app/[locale]/(desktop)/finished-goods/scan/records/page.tsx",
       "policy": "parent",
-      "parent": "/finished-goods",
+      "parent": "/finished-goods/scan",
       "targets": [
         "src/features/finishedGoods/jobScan/JobScanRecords#JobScanRecordsScreen"
       ],
-      "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
+      "expectation": "Assignment Back restores retained records before page departure; direct records links use the job scanning parent, and actual origins retain locale/query/hash.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "%s Back closes Location assignment and retains the selected records"
+          "name": "native Back closes Location assignment and retains the selected records"
         }
       ]
     },
@@ -700,18 +686,11 @@
       "policy": "redirect",
       "targets": [],
       "expectation": "This entry redirects to the validated locale destination without introducing a visible workflow predecessor.",
-      "tests": [
-        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "the standalone floor editor keeps its draft across a realtime version update"
         }
       ]
     },
@@ -723,18 +702,11 @@
         "src/features/storageLayouts/StorageLayoutScreens#StorageBuildingEditor"
       ],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back closes the floor editor before leaving the building, keeping floor, query and hash"
         }
       ]
     },
@@ -746,18 +718,11 @@
         "src/features/storageLayouts/StorageLayoutScreens#StorageBuildingReview"
       ],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
+          "name": "shows a useful capacity explanation in the server readiness review"
         }
       ]
     },
@@ -767,18 +732,11 @@
       "parent": "/master-data/storage-layouts",
       "targets": ["src/components/storageLayouts/FloorMapDemo#FloorMapDemo"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
+          "name": "renders dense demo scenarios without inventory links or writes"
         }
       ]
     },
@@ -791,18 +749,11 @@
         "src/features/storageLayouts/StorageLayoutScreens#NewStorageBuildingForm"
       ],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": [
-        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-        "src/lib/pageBackFallback.test.ts"
-      ],
+      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
-        },
-        {
-          "file": "src/lib/pageBackFallback.test.ts",
-          "name": "keeps %s within its module"
+          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
+          "name": "Back returns to the real catalogue origin with its query and hash, consuming the task entry"
         }
       ]
     },
@@ -1096,6 +1047,22 @@
         {
           "file": "src/features/hr/HrBack.test.tsx",
           "name": "%s returns through app history when there is a previous page"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/finished-goods/packages/scan/page.tsx",
+      "policy": "parent",
+      "parent": "/finished-goods",
+      "targets": [
+        "src/features/finishedGoods/PackageScanScreen#PackageScanScreen"
+      ],
+      "expectation": "Package scanner/review Back restores the retained assignment first. A direct batch/unit scan uses the validated batch/unit parent; a generic direct scan uses the Finished Goods catalogue. Actual origins retain locale/query/hash.",
+      "tests": ["src/features/finishedGoods/PackageScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "direct batch package scan Header Back uses its safe batch parent"
         }
       ]
     }
@@ -1488,10 +1455,10 @@
       "policy": "overlay",
       "integration": "sheet",
       "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back dismisses the mobile location inspector before leaving the building"
         }
       ]
@@ -1501,10 +1468,10 @@
       "policy": "overlay",
       "integration": "sheet",
       "expectation": "Back restores the predecessor owned by FloorMap.areaIndex, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back dismisses the mobile location inspector before leaving the building"
         }
       ]
@@ -1551,23 +1518,10 @@
       "policy": "overlay",
       "integration": "sheet",
       "expectation": "Back restores the predecessor owned by FloorMap.localSelectedId, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "native Back dismisses the mobile location inspector before leaving the building"
-        }
-      ]
-    },
-    {
-      "id": "src/components/storageLayouts/FloorMap.tsx#FloorMap:offsetEditing",
-      "policy": "overlay",
-      "integration": "useBackDisclosure",
-      "expectation": "Back restores the predecessor owned by FloorMap.offsetEditing, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back dismisses the mobile location inspector before leaving the building"
         }
       ]
@@ -1590,24 +1544,11 @@
       "policy": "overlay",
       "integration": "sheet",
       "expectation": "Back restores the predecessor owned by FloorMap.sheetSelection, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back dismisses the mobile location inspector before leaving the building"
-        }
-      ]
-    },
-    {
-      "id": "src/components/storageLayouts/FloorWorkspaceToolbar.tsx#FloorWorkspaceToolbar:moreOpen",
-      "policy": "presentation",
-      "uses": ["open"],
-      "expectation": "Toolbar overflow is a transient menu; its actions, not menu presentation, determine route/workflow history.",
-      "render": [
-        {
-          "shape": "prop:open",
-          "truthy": ["Popover.Root"],
-          "falsy": []
         }
       ]
     },
@@ -1757,21 +1698,51 @@
     },
     {
       "id": "src/features/finishedGoods/BarcodeCameraBox.tsx#BarcodeCameraBox:camera",
-      "policy": "overlay",
-      "integration": "useBackDisclosure",
-      "expectation": "Back restores the predecessor owned by BarcodeCameraBox.camera, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": [
-        "src/features/finishedGoods/BarcodeCameraBox.test.tsx",
-        "src/components/ui/ForegroundOrdering.test.tsx"
-      ],
-      "cases": [
+      "policy": "presentation",
+      "expectation": "Hardware camera start/stop only hides the inline CameraFrame and shows start/retry/error controls inside retained source acquisition. All production foreground callers independently own dismissal: PackageAssignment and TicketFieldScanner shared Dialogs, JobScanWorkflow.panel disclosure, LocationPickerSession.camera disclosure, and DestinationScanner.scanning disclosure. Expanded changes preview size only; repurposing this flag to a whole-view scanner requires another ownership audit.",
+      "uses": ["branch", "hidden"],
+      "render": [
         {
-          "file": "src/features/finishedGoods/BarcodeCameraBox.test.tsx",
-          "name": "pauses the camera without closing the location session and applies the image result"
+          "shape": "and",
+          "truthy": ["div"],
+          "falsy": []
         },
         {
-          "file": "src/components/ui/ForegroundOrdering.test.tsx",
-          "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
+          "shape": "and",
+          "truthy": ["lucide-react#Camera", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "lucide-react#Flashlight",
+            "src/components/ui/IconButton#IconButton"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": ["p[role=status]"]
+        },
+        {
+          "shape": "prop:hidden",
+          "truthy": [
+            "lucide-react#Flashlight",
+            "src/components/ui/IconButton#IconButton",
+            "src/features/finishedGoods/CameraFrame#CameraFrame"
+          ],
+          "falsy": []
         }
       ]
     },
@@ -1922,17 +1893,17 @@
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#AvailableEditor:base",
       "policy": "presentation",
+      "expectation": "The authoritative correction baseline controls inline conflict/loading headings and the same retained row editor. Its review has a separate connected workflow owner.",
       "uses": ["branch", "return"],
-      "expectation": "The initial batch snapshot determines eligibility/empty messaging within the same editor; it is not user navigation.",
       "render": [
         {
           "shape": "and",
-          "truthy": ["p"],
+          "truthy": ["h3"],
           "falsy": []
         },
         {
           "shape": "and",
-          "truthy": ["src/components/ui/SectionHeader#SectionHeader"],
+          "truthy": ["p"],
           "falsy": []
         },
         {
@@ -1950,13 +1921,17 @@
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#AvailableEditor:done",
       "policy": "presentation",
+      "expectation": "A successful correction replaces editable controls with a terminal receipt and label/inventory links inside the retained Dialog; returning cannot replay a command.",
       "uses": ["return"],
-      "expectation": "A confirmed mutation shows its terminal receipt; review ownership is consumed and Back must close the outer dialog without resurrecting unsent edits.",
-      "tests": ["src/features/finishedGoods/BatchManager.test.tsx"],
       "render": [
         {
           "shape": "early-return",
-          "truthy": ["div", "p"],
+          "truthy": [
+            "div",
+            "p",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
           "falsy": []
         }
       ]
@@ -1964,13 +1939,17 @@
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#AvailableEditor:reviewStep",
       "policy": "workflow",
+      "expectation": "Named repack review Back returns to the same measured correction draft; live success consumes review before closing its containing Dialog.",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by AvailableEditor.reviewStep, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/finishedGoods/ForegroundNavigation.test.tsx"],
+      "tests": ["src/features/finishedGoods/BatchManager.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "native Back collapses BatchManager review while keeping unsent changes"
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "native Back dismisses batch repack review and retains its measured draft"
+        },
+        {
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "successful batch repack consumes review before Close and the next native Back"
         }
       ]
     },
@@ -1990,39 +1969,47 @@
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#BatchManager:$overlay:Dialog:controlled",
       "policy": "overlay",
+      "expectation": "The actual batch details Dialog owns native and explicit closure, retains dirty corrections when leaving is canceled, and consumes its entry before the next Back.",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/finishedGoods/ForegroundNavigation.test.tsx"],
+      "tests": ["src/features/finishedGoods/BatchManager.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "native Back closes untouched BatchManager before page departure"
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "native Back closes an untouched batch modal before leaving its product page"
+        },
+        {
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "native Back retains dirty batch corrections when leaving is canceled"
+        },
+        {
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "successful batch repack consumes review before Close and the next native Back"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#BatchManager:$overlay:Dialog:discardOpen",
       "policy": "overlay",
+      "expectation": "The explicit discard confirmation is a separately owned shared Dialog over retained batch corrections; canceled dismissal keeps the original edits.",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/finishedGoods/ForegroundNavigation.test.tsx"],
+      "tests": ["src/features/finishedGoods/BatchManager.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "native Back closes untouched BatchManager before page departure"
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "protects dirty corrections on Escape, keeps the draft on cancel, and discards only explicitly"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#BatchManager:discardOpen",
       "policy": "overlay",
+      "expectation": "The explicit discard confirmation is a separately owned shared Dialog over retained batch corrections; canceled dismissal keeps the original edits.",
       "integration": "dialog",
-      "expectation": "Back restores the predecessor owned by BatchManager.discardOpen, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/finishedGoods/ForegroundNavigation.test.tsx"],
+      "tests": ["src/features/finishedGoods/BatchManager.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "native Back closes untouched BatchManager before page departure"
+          "file": "src/features/finishedGoods/BatchManager.test.tsx",
+          "name": "protects dirty corrections on Escape, keeps the draft on cancel, and discards only explicitly"
         }
       ]
     },
@@ -2066,8 +2053,8 @@
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#StorageView:selected",
       "policy": "presentation",
+      "expectation": "Selected unit identity only updates the retained storage detail, loading/refusal explanation and inventory links inside the containing owned BatchManager Dialog; it does not open a new editor.",
       "uses": ["branch", "return"],
-      "expectation": "Storage unit selection changes the inspected unit within the same batch surface, without opening a separate workflow.",
       "render": [
         {
           "shape": "and",
@@ -2090,25 +2077,22 @@
         {
           "shape": "conditional",
           "truthy": [
+            "div",
             "p",
-            "src/components/ui/Panel#Panel",
             "src/components/ui/button#Button",
             "src/i18n/navigation#Link"
           ],
           "falsy": [
+            "div",
             "lucide-react#MapPin",
             "p",
-            "src/components/ui/EmptyState#EmptyState",
             "src/features/finishedGoods/PalletScene#PalletScene"
           ]
         },
         {
           "shape": "conditional",
           "truthy": ["p", "src/features/finishedGoods/PalletScene#PalletScene"],
-          "falsy": [
-            "lucide-react#MapPin",
-            "src/components/ui/EmptyState#EmptyState"
-          ]
+          "falsy": ["div", "lucide-react#MapPin", "p"]
         },
         {
           "shape": "conditional",
@@ -2119,8 +2103,6 @@
             "lucide-react#LockKeyhole",
             "lucide-react#MapPin",
             "p",
-            "src/components/ui/EmptyState#EmptyState",
-            "src/components/ui/Panel#Panel",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/PalletScene#PalletScene",
             "src/i18n/navigation#Link"
@@ -2135,8 +2117,6 @@
             "lucide-react#LockKeyhole",
             "lucide-react#MapPin",
             "p",
-            "src/components/ui/EmptyState#EmptyState",
-            "src/components/ui/Panel#Panel",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/PalletScene#PalletScene",
             "src/features/finishedGoods/shared#ErrorNotice",
@@ -2243,128 +2223,23 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:ConfirmDialog:controlled",
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:deletion",
       "policy": "overlay",
-      "integration": "confirmation",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
+      "expectation": "Record deletion confirmation is an actual shared Dialog retaining the exact chosen records and protecting its pending command.",
+      "integration": "dialog",
       "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "%s Back closes Location assignment and retains the selected records"
-        },
-        {
-          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "successful Location assignment consumes its owned step so next Back reaches the real origin"
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:deletion",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "The selected deletion target is rendered through its shared confirmation owner; only explicit confirmation can delete data.",
-      "render": [
-        {
-          "shape": "and",
-          "truthy": [
-            "lucide-react#Trash2",
-            "src/components/ui/ConfirmDialog#ConfirmDialog"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["src/features/finishedGoods/shared#ErrorNotice"],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:filter",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Status/usage filters change the visible list in place; the existing route or foreground owner governs Back.",
-      "render": [
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "label",
-            "lucide-react#Trash2",
-            "span",
-            "src/components/ui/CheckboxControl#CheckboxControl",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "src/components/ui/StickyActionBar#StickyActionBar",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div[role=region]",
-            "fieldset",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
-            "src/components/ui/button#Button",
-            "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["lucide-react#Trash2", "src/components/ui/button#Button"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["src/components/system/CursorPagination#CursorPagination"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "src/components/ui/EmptyState#EmptyState",
-            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
-            "src/features/finishedGoods/shared#Loading",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": [
-            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/features/finishedGoods/shared#Loading"],
-          "falsy": [
-            "src/components/ui/EmptyState#EmptyState",
-            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
-            "ul"
-          ]
+          "name": "confirms individual deletion and lets the user cancel without deleting"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:locationSelection",
       "policy": "presentation",
+      "expectation": "The retained record identities supply the assignment form and sticky selection actions. Actual visibility follows the independently connected locationStep.active owner; closing it retains the selected records.",
       "uses": ["branch"],
-      "expectation": "The retained selected records feed the owned Location picker; Back closes its step without discarding selected rows.",
       "render": [
         {
           "shape": "and",
@@ -2380,8 +2255,9 @@
           "truthy": [
             "div[role=region]",
             "fieldset",
+            "h2",
+            "p[role=status]",
             "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker"
           ],
@@ -2398,91 +2274,7 @@
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "%s Back closes Location assignment and retains the selected records"
-        },
-        {
-          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
-          "name": "successful Location assignment consumes its owned step so next Back reaches the real origin"
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:search",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Search/filter text updates rows in the same view; Back does not undo keystrokes.",
-      "render": [
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "label",
-            "lucide-react#Trash2",
-            "span",
-            "src/components/ui/CheckboxControl#CheckboxControl",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "src/components/ui/StickyActionBar#StickyActionBar",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div[role=region]",
-            "fieldset",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
-            "src/components/ui/button#Button",
-            "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["lucide-react#Trash2", "src/components/ui/button#Button"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["src/components/system/CursorPagination#CursorPagination"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "src/components/ui/EmptyState#EmptyState",
-            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
-            "src/features/finishedGoods/shared#Loading",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": [
-            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/features/finishedGoods/shared#Loading"],
-          "falsy": [
-            "src/components/ui/EmptyState#EmptyState",
-            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
-            "ul"
-          ]
+          "name": "native Back closes Location assignment and retains the selected records"
         }
       ]
     },
@@ -2512,12 +2304,12 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:feedback",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.feedback, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "Inline intake/save feedback remains in the retained ticket workflow; successful persistence uses the live completion owner and shows a terminal receipt.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
-          "name": "browser Back after a save returns to the question and choosing again does not restore old success or tickets"
+          "name": "retains entered tickets and reuses the same request after a lost save response"
         }
       ]
     },
@@ -2537,8 +2329,8 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:location",
       "policy": "presentation",
+      "expectation": "Selected location data supplies status and the earlier location question only when the connected jobScanStep is inactive; jobScanStep enter/active owns the Location-to-ticket predecessor and retains ticket drafts.",
       "uses": ["branch", "return"],
-      "expectation": "The retained Location value determines initial setup versus the ticket form; the dedicated locationStep governs predecessor entry and draft retention.",
       "render": [
         {
           "shape": "and",
@@ -2546,16 +2338,14 @@
           "falsy": []
         },
         {
-          "shape": "and",
-          "truthy": ["span"],
-          "falsy": []
+          "shape": "conditional",
+          "truthy": ["lucide-react#CheckCircle2"],
+          "falsy": ["lucide-react#CircleAlert"]
         },
         {
           "shape": "early-return",
           "truthy": [
             "src/components/ui/PageContainer#PageContainer",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
             "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker",
             "src/features/finishedGoods/shared#Heading"
           ],
@@ -2590,28 +2380,29 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:reviewedDuplicates",
+      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:saved",
       "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Duplicate-review acknowledgement is a form field; it does not create another foreground predecessor.",
+      "expectation": "Successful job-ticket persistence replaces entry controls with a terminal saved receipt. Live operation completion consumes the old task, and Scan more explicitly starts a fresh ticket group; Back must not replay saved inputs.",
+      "uses": ["branch", "return"],
       "render": [
         {
           "shape": "and",
-          "truthy": ["p[role=status]"],
+          "truthy": ["p"],
           "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:saved",
-      "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.saved, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
-      "cases": [
+        },
         {
-          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
-          "name": "browser Back after a save returns to the question and choosing again does not restore old success or tickets"
+          "shape": "early-return",
+          "truthy": [
+            "div",
+            "h1",
+            "lucide-react#CheckCircle2",
+            "p",
+            "src/components/ui/PageContainer#PageContainer",
+            "src/components/ui/Panel#Panel",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
         }
       ]
     },
@@ -2619,8 +2410,18 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:tickets",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Ticket rows change the form contents and validations; they are retained when owned scanner/Location steps close.",
+      "expectation": "Retained ticket rows drive inline item fields, duplicate status and the selected scanner input. Actual Location and acquisition transitions retain these rows through their separate workflow/disclosure owners.",
       "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/StickyActionBar#StickyActionBar",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
         {
           "shape": "and",
           "truthy": [
@@ -2628,16 +2429,6 @@
             "span",
             "src/components/ui/CheckboxControl#CheckboxControl"
           ],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["lucide-react#Info", "p"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": ["p[role=status]"],
           "falsy": []
         },
         {
@@ -2653,16 +2444,25 @@
             "ol",
             "src/features/finishedGoods/jobScan/TicketCard#TicketCard"
           ],
-          "falsy": ["src/components/ui/EmptyState#EmptyState"]
+          "falsy": ["p"]
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:busy",
       "policy": "presentation",
+      "expectation": "Image processing shows inline progress and disables retry within the retained owned Photo AI acquisition; no independent predecessor is created.",
       "uses": ["branch"],
-      "expectation": "Extraction progress changes inline controls; in-flight business commands use pending navigation protection.",
       "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "lucide-react#RotateCcw",
+            "src/components/ui/IconButton#IconButton"
+          ],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": [
@@ -2671,20 +2471,25 @@
             "src/components/ui/button#Button"
           ],
           "falsy": ["src/components/ui/button#Button"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
       "policy": "overlay",
+      "expectation": "Retaking a photo owns its earlier camera step while retaining the original AI photo and corrected code; Back consumes retake before outer acquisition, and late processing cannot replace a dismissed owner.",
       "integration": "useBackDisclosure",
-      "expectation": "Back restores the predecessor owned by LocationImageReader.cameraOpen, preserving route intent and retained drafts; pending writes remain protected.",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
       ],
       "cases": [
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
         }
       ]
@@ -2692,17 +2497,26 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:candidates",
       "policy": "presentation",
+      "expectation": "AI candidates reveal inline code choices and correction inputs inside retained acquisition; confirming a code resolves through the containing picker ownership.",
       "uses": ["branch"],
-      "expectation": "AI label candidates are choices within the same acquisition panel; selection preserves its parent draft.",
       "render": [
         {
           "shape": "and",
           "truthy": [
             "div",
+            "label",
             "p",
-            "src/components/ui/FormField#FormField",
             "src/components/ui/button#Button",
             "src/components/ui/input#Input"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "lucide-react#RotateCcw",
+            "src/components/ui/IconButton#IconButton"
           ],
           "falsy": []
         },
@@ -2734,17 +2548,32 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:photo",
       "policy": "presentation",
+      "expectation": "The retained photo supplies the inline preview and retry controls inside owned acquisition. Taking another photo is separately owned by cameraOpen disclosure, rather than treating a camera as presentation.",
       "uses": ["branch"],
-      "expectation": "Selected photo data changes AI extraction preview inside the active acquisition surface.",
       "render": [
         {
           "shape": "and",
-          "truthy": ["div", "img"],
+          "truthy": [
+            "div",
+            "lucide-react#RotateCcw",
+            "src/components/ui/IconButton#IconButton"
+          ],
           "falsy": []
         },
         {
           "shape": "and",
           "truthy": ["div"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "img",
+            "lucide-react#RotateCcw",
+            "src/components/ui/IconButton#IconButton",
+            "src/features/finishedGoods/CameraFrame#CameraFrame"
+          ],
           "falsy": []
         },
         {
@@ -2755,109 +2584,76 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/jobScan/LocationPhotoCamera.tsx#LocationPhotoCamera:state",
-      "policy": "presentation",
-      "uses": ["branch", "hidden"],
-      "expectation": "Camera lifecycle status switches permission/loading/error preview inside the same acquisition owner; Back must stop its owning camera step.",
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": [
-            "lucide-react#Camera",
-            "p[role=status]",
-            "src/components/ui/button#Button"
-          ]
-        },
-        {
-          "shape": "prop:hidden",
-          "truthy": ["div"],
-          "falsy": []
-        }
-      ]
-    },
-    {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:adding",
       "policy": "overlay",
+      "expectation": "The actual adding acquisition/registration foreground has a specific shared disclosure owner, retains the underlying typed label, protects dirty/pending writes and consumes explicit closure before the next Back.",
       "integration": "useBackDisclosure",
-      "expectation": "Back restores the predecessor owned by LocationPickerSession.adding, preserving route intent and retained drafts; pending writes remain protected.",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.test.tsx",
-        "src/components/ui/ForegroundOrdering.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
       ],
       "cases": [
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.test.tsx",
-          "name": "discards lookup and decoder callbacks after unmount"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "Back guards an unsent Location registration draft and Keep editing retains the label"
         },
         {
-          "file": "src/components/ui/ForegroundOrdering.test.tsx",
-          "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "pending Location registration protects Back and completion consumes its registration entry"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:ai",
       "policy": "overlay",
+      "expectation": "The actual ai acquisition/registration foreground has a specific shared disclosure owner, retains the underlying typed label, protects dirty/pending writes and consumes explicit closure before the next Back.",
       "integration": "useBackDisclosure",
-      "expectation": "Back restores the predecessor owned by LocationPickerSession.ai, preserving route intent and retained drafts; pending writes remain protected.",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
       ],
       "cases": [
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
-          "name": "native Back returns Location AI to QR acquisition before leaving the picker"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "native Back closes Photo AI acquisition and retains the typed location; Forward restores the same mode"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:camera",
       "policy": "overlay",
+      "expectation": "The actual camera acquisition/registration foreground has a specific shared disclosure owner, retains the underlying typed label, protects dirty/pending writes and consumes explicit closure before the next Back.",
       "integration": "useBackDisclosure",
-      "expectation": "Back restores the predecessor owned by LocationPickerSession.camera, preserving route intent and retained drafts; pending writes remain protected.",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
-        "src/features/finishedGoods/jobScan/LocationPicker.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
       ],
       "cases": [
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
-          "name": "native Back returns Location AI to QR acquisition before leaving the picker"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "Location camera Close consumes its entry and the next native Back restores the actual locale query and hash"
         },
         {
-          "file": "src/features/finishedGoods/jobScan/LocationPicker.test.tsx",
-          "name": "Keep editing cancels Location completion so a later scanner Back cannot select its stale location"
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:checking",
       "policy": "presentation",
+      "expectation": "Read-only exact-code verification displays inline progress and suppresses premature missing-code actions within the same picker.",
       "uses": ["branch"],
-      "expectation": "Location lookup readiness shows progress in the same picker; it does not add another predecessor.",
       "render": [
         {
           "shape": "and",
-          "truthy": ["button", "li", "lucide-react#MapPin", "span", "ul"],
+          "truthy": ["MissingLocation"],
           "falsy": []
         },
         {
           "shape": "and",
           "truthy": ["button", "li", "span"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
-          "truthy": [
-            "div",
-            "lucide-react#Plus",
-            "p[role=status]",
-            "src/components/ui/button#Button"
-          ],
           "falsy": []
         },
         {
@@ -2870,12 +2666,22 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:confirmedMissing",
       "policy": "presentation",
+      "expectation": "Confirmed missing-code data reveals inline registration/unmapped choice affordances. Selecting registration enters its separately owned disclosure and preserves the picker draft.",
       "uses": ["branch"],
-      "expectation": "A missing-code result explains why registration is available within the same Location picker.",
       "render": [
         {
           "shape": "and",
-          "truthy": ["button", "li", "lucide-react#MapPin", "span", "ul"],
+          "truthy": [
+            "ChoiceText",
+            "button",
+            "li",
+            "src/components/ui/StatusBadge#StatusBadge"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["MissingLocation"],
           "falsy": []
         },
         {
@@ -2887,7 +2693,6 @@
           "shape": "and",
           "truthy": [
             "div",
-            "lucide-react#Plus",
             "p[role=status]",
             "src/components/ui/button#Button"
           ],
@@ -2895,7 +2700,12 @@
         },
         {
           "shape": "and",
-          "truthy": ["p[role=status]"],
+          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li"],
           "falsy": []
         }
       ]
@@ -2916,12 +2726,22 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:text",
       "policy": "presentation",
+      "expectation": "Typed filter text controls inline location choices, exact-code status, pagination and search recovery within the retained picker; camera, AI and registration have separate disclosure owners.",
       "uses": ["branch"],
-      "expectation": "Location text filters lookup candidates within the active picker; Back closes the picker rather than undoing typing.",
       "render": [
         {
           "shape": "and",
-          "truthy": ["button", "li", "lucide-react#MapPin", "span", "ul"],
+          "truthy": [
+            "ChoiceText",
+            "button",
+            "li",
+            "src/components/ui/StatusBadge#StatusBadge"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["MissingLocation"],
           "falsy": []
         },
         {
@@ -2931,12 +2751,26 @@
         },
         {
           "shape": "and",
+          "truthy": ["div", "p[role=alert]", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
           "truthy": [
             "div",
-            "lucide-react#Plus",
             "p[role=status]",
             "src/components/ui/button#Button"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li"],
           "falsy": []
         },
         {
@@ -2946,43 +2780,12 @@
         },
         {
           "shape": "and",
-          "truthy": ["p[role=status]"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
           "truthy": ["src/components/system/CursorPagination#CursorPagination"],
           "falsy": []
         },
         {
           "shape": "and",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/PhotoCapture.tsx#PhotoCapture:cameraState",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Photo-camera hardware readiness displays inline lifecycle feedback inside the owned acquisition panel.",
-      "render": [
-        {
-          "shape": "and",
-          "truthy": ["p"],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/jobScan/TicketCard.tsx#TicketCard:detailsOpen",
-      "policy": "presentation",
-      "uses": ["open"],
-      "expectation": "Ticket details are an inline accordion that preserves fields; it is not a separate foreground view.",
-      "render": [
-        {
-          "shape": "prop:open",
-          "truthy": ["src/components/ui/CollapsibleSection#CollapsibleSection"],
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         }
       ]
@@ -3026,12 +2829,12 @@
     {
       "id": "src/features/finishedGoods/jobScan/TicketFieldScanner.tsx#TicketFieldScanner:error",
       "policy": "presentation",
+      "expectation": "Scanner decode feedback is an inline alert inside the existing owned field-scanner Dialog, not another foreground surface.",
       "uses": ["branch"],
-      "expectation": "Inline operation failure feedback stays within the current editor and does not create a predecessor.",
       "render": [
         {
           "shape": "and",
-          "truthy": ["src/components/ui/FormField#FieldMessage"],
+          "truthy": ["p[role=alert]"],
           "falsy": []
         }
       ]
@@ -3149,12 +2952,12 @@
     {
       "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:$overlay:Dialog:review",
       "policy": "overlay",
+      "expectation": "Physical packing review is an actual shared Dialog: native Back returns to the retained quantities/measurements first, explicit Close consumes its entry, and Forward/restoration preserves the draft.",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/finishedGoods/ForegroundNavigation.test.tsx"],
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
           "name": "native Back closes Packing review before page departure and retains draft"
         }
       ]
@@ -3162,17 +2965,17 @@
     {
       "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:draft",
       "policy": "presentation",
+      "expectation": "Retained batch values select format-specific input fields, geometry preview, inline conflict/receipt status and recovery controls in the packing page. The physical review is a separately owned Dialog, and completion consumes the task.",
       "uses": ["branch", "return"],
-      "expectation": "Form/draft fields control inline validation and receipt/recovery rendering; its audited route/review owners govern Back and pending writes.",
-      "tests": ["src/features/finishedGoods/PackingScreen.test.tsx"],
       "render": [
         {
           "shape": "and",
           "truthy": [
             "div",
+            "input",
+            "label",
             "lucide-react#Copy",
             "p",
-            "src/components/ui/CheckboxControl#CheckboxField",
             "src/components/ui/button#Button"
           ],
           "falsy": []
@@ -3228,13 +3031,14 @@
           "shape": "conditional",
           "truthy": [
             "div",
+            "h2",
+            "input",
+            "label",
             "lucide-react#Copy",
             "lucide-react#Trash2",
             "p",
-            "src/components/ui/CheckboxControl#CheckboxField",
-            "src/components/ui/FormField#FieldGroup",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/CheckboxControl#CheckboxControl",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/PackingDimensionFields#PackingDimensionFields",
             "src/features/finishedGoods/shared#Field"
@@ -3245,38 +3049,37 @@
           "shape": "conditional",
           "truthy": [
             "div",
+            "h2",
             "lucide-react#Plus",
             "lucide-react#Trash2",
-            "src/components/ui/FormField#FieldGroup",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/shared#Field"
           ],
           "falsy": [
+            "caption",
             "div",
+            "h2",
+            "input",
+            "label",
             "lucide-react#Copy",
             "lucide-react#Plus",
             "lucide-react#Trash2",
             "p",
-            "src/components/ui/CheckboxControl#CheckboxField",
-            "src/components/ui/FormField#FieldGroup",
+            "section",
+            "src/components/ui/CheckboxControl#CheckboxControl",
             "src/components/ui/Notice#Notice",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
-            "src/components/ui/TableScroller#TableScroller",
             "src/components/ui/button#Button",
-            "src/components/ui/table#Table",
-            "src/components/ui/table#TableBody",
-            "src/components/ui/table#TableCaption",
-            "src/components/ui/table#TableCell",
-            "src/components/ui/table#TableHead",
-            "src/components/ui/table#TableHeader",
-            "src/components/ui/table#TableRow",
             "src/features/finishedGoods/PackingDimensionFields#PackingDimensionFields",
             "src/features/finishedGoods/PalletScene#PalletScene",
             "src/features/finishedGoods/shared#Field",
-            "strong"
+            "strong",
+            "table",
+            "tbody",
+            "td",
+            "th",
+            "thead",
+            "tr"
           ]
         },
         {
@@ -3287,7 +3090,7 @@
         {
           "shape": "conditional",
           "truthy": [],
-          "falsy": ["src/components/ui/CheckboxControl#CheckboxField"]
+          "falsy": ["input", "label"]
         },
         {
           "shape": "early-return",
@@ -3331,12 +3134,12 @@
     {
       "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:review",
       "policy": "overlay",
+      "expectation": "Physical packing review is an actual shared Dialog: native Back returns to the retained quantities/measurements first, explicit Close consumes its entry, and Forward/restoration preserves the draft.",
       "integration": "dialog",
-      "expectation": "Back restores the predecessor owned by PackingForm.review, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/finishedGoods/ForegroundNavigation.test.tsx"],
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
           "name": "native Back closes Packing review before page departure and retains draft"
         }
       ]
@@ -3475,26 +3278,6 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/ProductBatches.tsx#ProductBatches:$overlay:ConfirmDialog:reviewId",
-      "policy": "overlay",
-      "integration": "confirmation",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": [
-        "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
-        "src/features/finishedGoods/ForegroundNavigation.test.tsx"
-      ],
-      "cases": [
-        {
-          "file": "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
-          "name": "returns directly to the active unit after closing a correction"
-        },
-        {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "Forward after a conditional BatchManager unmount cannot leave an invisible foreground entry"
-        }
-      ]
-    },
-    {
       "id": "src/features/finishedGoods/ProductBatches.tsx#ProductBatches:correctionError",
       "policy": "presentation",
       "uses": ["branch"],
@@ -3510,110 +3293,51 @@
     {
       "id": "src/features/finishedGoods/ProductBatches.tsx#ProductBatches:manage",
       "policy": "overlay",
-      "integration": "delegated-overlay",
-      "expectation": "Back restores the predecessor owned by ProductBatches.manage, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": [
-        "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
-        "src/features/finishedGoods/ForegroundNavigation.test.tsx"
-      ],
+      "expectation": "Conditional BatchManager delegates to its actual shared Dialog; closure and Forward cannot leave an invisible owned entry in the retained product page.",
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
-          "name": "returns directly to the active unit after closing a correction"
-        },
-        {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "Forward after a conditional BatchManager unmount cannot leave an invisible foreground entry"
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
+          "name": "ProductBatches Forward after conditional manager closure removes its invisible foreground entry"
         }
-      ]
+      ],
+      "integration": "delegated-overlay"
     },
     {
       "id": "src/features/finishedGoods/ProductBatches.tsx#ProductBatches:reviewId",
       "policy": "overlay",
-      "integration": "confirmation",
-      "expectation": "Back restores the predecessor owned by ProductBatches.reviewId, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": [
-        "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
-        "src/features/finishedGoods/ForegroundNavigation.test.tsx"
-      ],
-      "cases": [
-        {
-          "file": "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
-          "name": "returns directly to the active unit after closing a correction"
-        },
-        {
-          "file": "src/features/finishedGoods/ForegroundNavigation.test.tsx",
-          "name": "Forward after a conditional BatchManager unmount cannot leave an invisible foreground entry"
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:$overlay:ConfirmDialog:cancel",
-      "policy": "overlay",
-      "integration": "confirmation",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
+      "expectation": "Legacy-record cancellation is an actual shared Dialog with a required reason, exact before/after totals and protected pending mutation.",
+      "integration": "dialog",
       "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/ProductScreens.test.tsx",
-          "name": "pristine product Cancel consumes its task entry and restores catalogue state"
+          "name": "reviews exact before and after totals and requires a reason before cancelling a legacy record"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:cancel",
       "policy": "overlay",
-      "integration": "confirmation",
-      "expectation": "Back restores the predecessor owned by ProductForm.cancel, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "Explicit product cancellation uses an actual shared confirmation Dialog and retains dirty values when canceled; confirmed return consumes the task entry.",
+      "integration": "dialog",
       "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/ProductScreens.test.tsx",
-          "name": "pristine product Cancel consumes its task entry and restores catalogue state"
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:dirty",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Dirty flags change form feedback; draft guards protect leaving but this flag does not create a predecessor.",
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["p"],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:form",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Form fields change validation/packing options within the active editor; they are not a separate predecessor.",
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link"
-          ],
-          "falsy": []
+          "name": "keeps editing or explicitly discards unsaved work"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#Limits:stackable",
       "policy": "presentation",
+      "expectation": "Stackable is an actual form field which reveals max-level inputs within the same guarded stacking-limits form.",
       "uses": ["branch"],
-      "expectation": "Stackability is a form capability toggle; changing it reveals limits within the same form.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": [
-            "src/components/ui/FormField#FieldGroup",
-            "src/features/finishedGoods/shared#Field"
-          ],
+          "truthy": ["div", "src/features/finishedGoods/shared#Field"],
           "falsy": []
         }
       ]
@@ -3634,8 +3358,8 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:rotation",
       "policy": "presentation",
+      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view.",
       "uses": ["branch", "return"],
-      "expectation": "Package rotation changes a preview within the stack form; it is not a navigation predecessor.",
       "render": [
         {
           "shape": "conditional",
@@ -3645,13 +3369,15 @@
         {
           "shape": "conditional",
           "truthy": [
+            "dd",
             "div",
+            "dl",
+            "dt",
             "lucide-react#CheckCircle2",
             "lucide-react#LockKeyhole",
             "lucide-react#RotateCw",
             "p",
             "span",
-            "src/components/ui/DescriptionList#DescriptionList",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/PalletScene#PalletScene"
           ],
@@ -3700,8 +3426,8 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:upperId",
       "policy": "presentation",
+      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure.",
       "uses": ["branch", "return"],
-      "expectation": "Choosing an upper unit configures the same stack form; Back must use its route predecessor and protect unsent geometry.",
       "render": [
         {
           "shape": "conditional",
@@ -3711,13 +3437,15 @@
         {
           "shape": "conditional",
           "truthy": [
+            "dd",
             "div",
+            "dl",
+            "dt",
             "lucide-react#CheckCircle2",
             "lucide-react#LockKeyhole",
             "lucide-react#RotateCw",
             "p",
             "span",
-            "src/components/ui/DescriptionList#DescriptionList",
             "src/components/ui/button#Button",
             "src/features/finishedGoods/PalletScene#PalletScene"
           ],
@@ -4150,26 +3878,26 @@
     {
       "id": "src/features/storageLayouts/BuildingAreaDetails.tsx#BuildingAreaDetails:$overlay:Dialog:open",
       "policy": "overlay",
+      "expectation": "Building capacity detail is the existing shared Dialog. Its caller verifies Escape/focus restoration; shared native traversal evidence supplements this unchanged detail surface.",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/BuildingAreaDetails.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
+          "file": "src/features/storageLayouts/BuildingAreaDetails.test.tsx",
+          "name": "loads only after opening, supports Escape and returns focus"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/BuildingAreaDetails.tsx#BuildingAreaDetails:open",
       "policy": "overlay",
+      "expectation": "Building capacity detail is the existing shared Dialog. Its caller verifies Escape/focus restoration; shared native traversal evidence supplements this unchanged detail surface.",
       "integration": "dialog",
-      "expectation": "Back restores the predecessor owned by BuildingAreaDetails.open, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/BuildingAreaDetails.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
+          "file": "src/features/storageLayouts/BuildingAreaDetails.test.tsx",
+          "name": "loads only after opening, supports Escape and returns focus"
         }
       ]
     },
@@ -4212,71 +3940,48 @@
       ]
     },
     {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingModelWorkspace:floorStep",
-      "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by BuildingModelWorkspace.floorStep, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingSettings:error",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Inline operation failure feedback stays within the current editor and does not create a predecessor.",
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [],
-          "falsy": ["div", "src/components/ui/Notice#Notice"]
-        }
-      ]
-    },
-    {
-      "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back closes building impact confirmation before the settings editor; the retained settings draft survives and pending writes block departure.",
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingSettings:impactStep",
-      "cases": [
-        {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "native Back returns building impact review to settings with the unsent height retained"
-        }
-      ],
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"]
-    },
-    {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingSettingsDialog:$overlay:Dialog:controlled",
       "policy": "overlay",
+      "expectation": "Building settings is an actual shared Dialog: native Back dismisses it first, while pending removal confirmation preserves settings until the write settles.",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back dismisses building settings before leaving the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back keeps a pending floor removal confirmation and its settings open"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:baseline",
       "policy": "presentation",
+      "expectation": "The original version/geometry baseline drives inline conflict and reload choices while preserving the unsaved floor draft; it is not a foreground editor.",
       "uses": ["branch"],
-      "expectation": "The initial floor geometry is a validation baseline inside the retained editor, not a predecessor.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         }
@@ -4285,65 +3990,66 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:blocks",
       "policy": "presentation",
+      "expectation": "Retained unavailable-area data supplies inline save/preflight/validation and empty feedback in the floor form; its editing Dialog owns a separate foreground draft.",
       "uses": ["branch"],
-      "expectation": "Reserved block data changes the same geometry preview; its shared editing dialog owns foreground Back.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         },
         {
           "shape": "conditional",
           "truthy": [],
-          "falsy": [
-            "div",
-            "h3",
-            "li",
-            "lucide-react#PencilLine",
-            "lucide-react#Trash2",
-            "p",
-            "span",
-            "src/components/ui/button#Button",
-            "ul"
-          ]
+          "falsy": ["p"]
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:depth",
       "policy": "presentation",
+      "expectation": "Depth is a dirty floor input which changes inline geometry/preflight feedback; the floor workflow retains it through impact/offset Back.",
       "uses": ["branch"],
-      "expectation": "Floor depth affects geometry validation in the current editor; impact confirmation owns its own Back step.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
           ],
           "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:dimensionsOpen",
-      "policy": "presentation",
-      "uses": ["open"],
-      "expectation": "Dimensions expand inside the same floor editor as a read-only/field accordion, not a predecessor.",
-      "render": [
+        },
         {
-          "shape": "prop:open",
-          "truthy": ["src/components/ui/CollapsibleSection#CollapsibleSection"],
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
           "falsy": []
         }
       ]
@@ -4351,17 +4057,29 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:geometryContext",
       "policy": "presentation",
+      "expectation": "Retained floor geometry supplies inline preflight/conflict explanation and explicit reload controls within the same dirty floor editor. The impact review and offset editor have distinct named workflow owners.",
       "uses": ["branch"],
-      "expectation": "The loaded geometry snapshot determines stale/validation feedback in the same retained floor editor.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         }
@@ -4370,17 +4088,29 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:height",
       "policy": "presentation",
+      "expectation": "Height is a dirty floor input which changes inline geometry/preflight feedback within the retained editor, protected by its draft owner.",
       "uses": ["branch"],
-      "expectation": "Floor height affects geometry validation in the current editor; impact confirmation owns its own Back step.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         }
@@ -4388,16 +4118,20 @@
     },
     {
       "policy": "workflow",
-      "integration": "useWorkflowStep",
-      "expectation": "Back closes floor impact review before the floor editor; the retained geometry draft survives and pending writes block departure.",
+      "expectation": "Named floor impact review returns to retained dirty dimensions on native Back; explicit Cancel consumes review before consuming its floor editor.",
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:impactStep",
+      "integration": "useWorkflowStep",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back returns floor impact review to the dirty floor editor without discarding dimensions"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Cancel from the impact review consumes both steps before closing the editor"
         }
-      ],
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"]
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:message",
@@ -4428,17 +4162,29 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:placement",
       "policy": "presentation",
+      "expectation": "Floor placement coordinates are retained input data for geometry/conflict feedback. Opening their offset editor enters a distinct named offsetStep, rather than inheriting presentation ownership.",
       "uses": ["branch"],
-      "expectation": "Floor placement edits update the same editor preview; dirty scope and impact step protect navigation.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         }
@@ -4447,17 +4193,29 @@
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:width",
       "policy": "presentation",
+      "expectation": "Width is a dirty floor input which changes inline geometry/preflight feedback; a separate impactStep owns the review and keeps width retained on Back.",
       "uses": ["branch"],
-      "expectation": "Floor width affects geometry validation in the current editor; impact confirmation owns its own Back step.",
       "render": [
         {
           "shape": "conditional",
           "truthy": [
+            "aside",
+            "h2",
+            "p",
             "p[role=status]",
-            "src/components/ui/Panel#Panel",
-            "src/components/ui/SectionHeader#SectionHeader",
+            "section",
+            "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
-            "src/features/storageLayouts/storageLayoutShared#ChangeImpactSummary"
+            "src/features/storageLayouts/layoutActions#BlockedImpact",
+            "src/features/storageLayouts/layoutActions#OperationFailure"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         }
@@ -4483,29 +4241,29 @@
       "expectation": "Back dismisses the shared controlled foreground before its retained page/editor; pending writes protect dismissal and cleanup consumes its entry.",
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back guards unsent unavailable-area edits and keeps the area draft"
         },
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "discarding only the unavailable-area foreground retains dirty floor dimensions"
         }
       ],
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"]
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#ReservedBlocks:dialogOpen",
       "policy": "overlay",
       "integration": "dialog",
       "expectation": "Back restores the predecessor owned by ReservedBlocks.dialogOpen, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back guards unsent unavailable-area edits and keeps the area draft"
         },
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "discarding only the unavailable-area foreground retains dirty floor dimensions"
         }
       ]
@@ -4529,19 +4287,6 @@
       ]
     },
     {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#ReviewContent:error",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Inline operation failure feedback stays within the current editor and does not create a predecessor.",
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [],
-          "falsy": ["src/components/ui/Notice#Notice"]
-        }
-      ]
-    },
-    {
       "id": "src/features/storageLayouts/StorageLocationCatalogue.tsx#LocationCatalogueContent:optionCursor",
       "policy": "presentation",
       "uses": ["branch"],
@@ -4558,12 +4303,14 @@
       "id": "src/features/storageLayouts/StorageLocationCatalogue.tsx#LocationCatalogueContent:qr",
       "policy": "overlay",
       "integration": "delegated-overlay",
-      "expectation": "Back restores the predecessor owned by LocationCatalogueContent.qr, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "expectation": "QR preview remains the existing shared Dialog in the all-locations catalogue; actual caller opening is tested, while shared traversal tests supplement native dismissal for this unchanged preview.",
+      "tests": [
+        "src/features/storageLayouts/StorageLocationCatalogue.test.tsx"
+      ],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
+          "file": "src/features/storageLayouts/StorageLocationCatalogue.test.tsx",
+          "name": "switches to all locations, opens coordinates and QR, and exposes exact planner links"
         }
       ]
     },
@@ -4603,34 +4350,41 @@
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:$overlay:Dialog:createDialogOpen",
       "policy": "overlay",
+      "expectation": "The actual spot editor Dialog owns dirty/pending dismissal, explicit Cancel and successful entry consumption before the next Back.",
       "integration": "dialog",
-      "expectation": "Back dismisses this shared foreground overlay before page departure; pending writes prevent dismissal and retained underlay drafts survive.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Cancel on a dirty spot editor asks before discarding, then the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a pending spot save keeps its editor through native Back and closes it once the write settles"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:createDialogOpen",
       "policy": "overlay",
+      "expectation": "The actual spot editor Dialog owns dirty/pending dismissal, explicit Cancel and successful entry consumption before the next Back.",
       "integration": "dialog",
-      "expectation": "Back restores the predecessor owned by StorageZonesPanel.createDialogOpen, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "%s Back closes the pristine floor editor before leaving the building"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Cancel on a dirty spot editor asks before discarding, then the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a pending spot save keeps its editor through native Back and closes it once the write settles"
         }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:editingZone",
       "policy": "presentation",
-      "expectation": "The selected zone is identity/data inside createDialogOpen, the shared controlled zone editor. It changes labels and impact data; createDialogOpen owns the editor and impactStep owns review Back.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "expectation": "Selected existing spot identity only pre-fills retained zone form inputs. Its actual createDialogOpen shared Dialog and impactStep own foreground Back and dirty/pending closure.",
       "uses": ["branch"],
       "render": [
         {
@@ -4653,24 +4407,18 @@
           "truthy": ["src/features/storageLayouts/layoutActions#BlockedImpact"],
           "falsy": []
         }
-      ],
-      "cases": [
-        {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "native Back returns from zone impact review to editing instead of a route departure prompt"
-        }
       ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:impactStep",
       "policy": "workflow",
+      "expectation": "Named spot impact review owns its explicit enter and active state within the containing Dialog; native Back preserves the original spot draft.",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by StorageZonesPanel.impactStep, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "native Back returns from zone impact review to editing instead of a route departure prompt"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back returns from zone impact review to the same spot draft with the editor open"
         }
       ]
     },
@@ -5957,19 +5705,6 @@
       ]
     },
     {
-      "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:noRoom",
-      "policy": "presentation",
-      "expectation": "No-room feedback is an inline status Notice inside the already owned named-layout Dialog; it does not open another editor.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/Notice#Notice[role=status]"],
-          "falsy": []
-        }
-      ]
-    },
-    {
       "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completed",
       "policy": "presentation",
       "expectation": "The completed registered-location receipt shows a success Notice and its explicit floor link in the retained catalogue; it cannot resurrect an editable command on Back.",
@@ -6092,18 +5827,12 @@
           "truthy": ["p[role=status]"],
           "falsy": []
         }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:message",
-      "policy": "presentation",
-      "expectation": "Position write feedback stays inline inside the actual positions Dialog.",
-      "uses": ["branch"],
-      "render": [
+      ],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
         {
-          "shape": "conditional",
-          "truthy": ["p[role=status]"],
-          "falsy": []
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back keeps a pending floor removal confirmation and its settings open"
         }
       ]
     },
@@ -6207,7 +5936,7 @@
           "name": "confirms a whole-building return to Draft with the affected count"
         }
       ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
     },
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#StatusConfirmation:$overlay:ConfirmDialog:confirming",
@@ -6221,35 +5950,33 @@
           "name": "confirms a whole-building return to Draft with the affected count"
         }
       ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:open",
       "policy": "overlay",
       "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "removes only the empty top floor after confirmation and explains a refusal"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back keeps a pending floor removal confirmation and its settings open"
         }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#RemoveTopFloor:$overlay:ConfirmDialog:open",
       "policy": "overlay",
       "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "removes only the empty top floor after confirmation and explains a refusal"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back keeps a pending floor removal confirmation and its settings open"
         }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingArchiveSection:open",
@@ -6263,7 +5990,7 @@
           "name": "archives with counted impact and explains reactivation; stock blocks confirmation"
         }
       ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
     },
     {
       "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingArchiveSection:$overlay:ConfirmDialog:open",
@@ -6277,91 +6004,1082 @@
           "name": "archives with counted impact and explains reactivation; stock blocks confirmation"
         }
       ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      "evidenceLimit": "This caller verifies exact impact/identity and confirmation behavior; shared overlay regressions supplement native traversal for this simple unchanged confirmation, rather than certifying all browser timing."
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:archiving",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "Spot archive is an actual shared confirmation Dialog; native Back cancels it without writing, and the next Back leaves the containing building.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "confirms an archive with the spot identity and exact-position count"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back cancels a spot archive confirmation and the next Back leaves the building"
         }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:$overlay:ConfirmDialog:archiving",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "Spot archive is an actual shared confirmation Dialog; native Back cancels it without writing, and the next Back leaves the containing building.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "confirms an archive with the spot identity and exact-position count"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back cancels a spot archive confirmation and the next Back leaves the building"
         }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      ]
     },
     {
       "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutDialog:$overlay:Dialog:controlled",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "Registered-layout completion is an actual shared Dialog with a retained measured draft, immutable assigned floor identity, guarded dirty Cancel and live successful owner consumption.",
       "integration": "dialog",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "requires measured geometry and keeps the registered identity"
-        }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
-    },
-    {
-      "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completing",
-      "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
-      "integration": "delegated-overlay",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
-      "cases": [
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "locks an assigned floor, completes on that floor and consumes the dialog entry"
+        },
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "requires measured geometry and keeps the registered identity"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Cancel closes the unsent registration layout after consent and the next Back leaves"
         }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      ]
     },
     {
       "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:$overlay:Dialog:controlled",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
+      "expectation": "The positions manager is an actual shared Dialog with protected pending writes; its nested edit owner retains the manager add draft and consumes successful edit entries.",
       "integration": "dialog",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "adds a floor position with a code preview and keeps it inside the spot"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back returns from editing a position to the manager with the add draft retained"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit consumes its step and keeps the manager open"
         }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/BatchManager.tsx#AvailableEditor:undoRows",
+      "policy": "presentation",
+      "expectation": "Undo restores previous measured correction rows through an inline status action within the same retained correction form.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div[role=status]",
+            "p",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/BatchManager.tsx#AvailableEditor:receiptId",
+      "policy": "presentation",
+      "expectation": "The successful repack receipt exposes replacement label links in the retained correction result, after the review entry has been consumed.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "p",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:location",
+      "policy": "presentation",
+      "expectation": "Resolved location identity appears as inline status in the package group form. The separately owned scanner and physical review control foreground history.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:uncertain",
+      "policy": "presentation",
+      "expectation": "An uncertain server assignment retains its reviewed command and shows inline recovery status/retry; it does not introduce an earlier workflow or replace its source identity.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:storageWarning",
+      "policy": "presentation",
+      "expectation": "Browser persistence failure displays an inline alert in the retained assignment form; dirty/pending draft protection remains owned by that form.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["p[role=alert]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:receiptId",
+      "policy": "presentation",
+      "expectation": "Successful assignment replaces command fields with a terminal inventory receipt. Completion closes its owned review, and the receipt cannot resurrect an editable assignment on Back.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "h2",
+            "p",
+            "section[role=status]",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": [
+            "div",
+            "fieldset",
+            "form",
+            "label",
+            "li",
+            "ol",
+            "p",
+            "p[role=alert]",
+            "p[role=status]",
+            "span",
+            "src/components/ui/CheckboxControl#CheckboxControl",
+            "src/components/ui/button#Button",
+            "src/features/finishedGoods/shared#ErrorNotice",
+            "src/features/finishedGoods/shared#Field"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:undoDraft",
+      "policy": "presentation",
+      "expectation": "The previous split is an inline Undo status action which restores actual quantities and measurements without opening a foreground view.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div[role=status]",
+            "p",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:defaultValues",
+      "policy": "presentation",
+      "expectation": "Authoritative form defaults produce same-form dirty/conflict comparisons and saved continuation links. They do not open an editor separate from the existing task form.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "dd",
+            "div",
+            "div[role=alert]",
+            "dl",
+            "dt",
+            "p",
+            "span",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:confirmedValues",
+      "policy": "presentation",
+      "expectation": "The reviewed saved values produce inline conflict comparisons and continuation guidance within the same product task form; Cancel is separately owned.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "dd",
+            "div",
+            "div[role=alert]",
+            "dl",
+            "dt",
+            "p",
+            "span",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:storageWarning",
+      "policy": "presentation",
+      "expectation": "Persistence refusal appears as inline form guidance. The memory draft remains guarded; this flag does not reveal an independent editor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "dd",
+            "div",
+            "div[role=alert]",
+            "dl",
+            "dt",
+            "p",
+            "span",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/StackScreen.tsx#useStackChoices:search",
+      "policy": "presentation",
+      "expectation": "Server search criteria drive inline option loading, bounded continuation and refusal/retry feedback within the same upper-pallet picker.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/system/CursorPagination#CursorPagination"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": ["p[role=status]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": ["p[role=status]", "src/components/ui/button#Button"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": ["p[role=status]"]
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:baseline",
+      "policy": "presentation",
+      "expectation": "The authoritative saved ticket baseline controls inline stale-version explanation and explicit reload in the containing dirty/pending-aware correction Dialog.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:shown",
+      "policy": "presentation",
+      "expectation": "Retained server rows drive same-page list readiness, pagination and read-only continuation, and supply the current record baseline to the separately owned correction Dialog. Selecting or closing correction is independently owned by editing; a reactive row update does not create another foreground.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "label",
+            "lucide-react#Trash2",
+            "span",
+            "src/components/ui/CheckboxControl#CheckboxControl",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "src/components/ui/StickyActionBar#StickyActionBar",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div[role=region]",
+            "fieldset",
+            "h2",
+            "p[role=status]",
+            "src/components/ui/Panel#Panel",
+            "src/components/ui/button#Button",
+            "src/features/finishedGoods/jobScan/LocationPicker#LocationPicker"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["lucide-react#LoaderCircle", "p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["lucide-react#Trash2", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/system/CursorPagination#CursorPagination"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
+            "ul"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "lucide-react#LoaderCircle",
+            "p[role=status]",
+            "src/features/finishedGoods/shared#Loading"
+          ],
+          "falsy": [
+            "div",
+            "lucide-react#LoaderCircle",
+            "p[role=status]",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button",
+            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": [
+            "div",
+            "lucide-react#LoaderCircle",
+            "p[role=status]",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button",
+            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": [
+            "div",
+            "lucide-react#LoaderCircle",
+            "p[role=status]",
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button",
+            "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
+            "src/features/finishedGoods/shared#Loading",
+            "ul"
+          ]
+        },
+        {
+          "shape": "prop:record",
+          "truthy": [
+            "src/features/finishedGoods/jobScan/JobScanRecordEditor#JobScanRecordEditor"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:mismatch",
+      "policy": "presentation",
+      "expectation": "A scanned label outside the building filter produces inline mismatch feedback and an explicit filter action in the same retained picker.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:building",
+      "policy": "presentation",
+      "expectation": "Building filter identity changes the same inline choice list, active filter chip and query feedback; it does not replace the picker workflow.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "ChoiceText",
+            "button",
+            "li",
+            "src/components/ui/StatusBadge#StatusBadge"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["MissingLocation"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["button", "li", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "lucide-react#Building2",
+            "lucide-react#X",
+            "span",
+            "src/components/ui/IconButton#IconButton"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["div", "p[role=alert]", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/system/CursorPagination#CursorPagination"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#useResetEscalation:seen",
+      "policy": "presentation",
+      "expectation": "Query reset tracking controls inline retry/refusal/loading feedback without opening a workflow surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div", "p[role=alert]", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationChoices:held",
+      "policy": "presentation",
+      "expectation": "Retained location choices remain displayed disabled during progressive loading and keep pagination feedback in the same picker.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["MissingLocation"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["button", "li", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["li"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/system/CursorPagination#CursorPagination"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#BuildingFilter:open",
+      "policy": "presentation",
+      "expectation": "The building filter is a choice Popover with inline search/retry options, not a modal editor or camera workflow.",
+      "uses": ["branch", "open"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": [
+            "BuildingOptions",
+            "div",
+            "p[role=alert]",
+            "src/components/system/QueryErrorBoundary#QueryErrorBoundary",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "prop:open",
+          "truthy": ["Popover.Root"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#BuildingOptions:search",
+      "policy": "presentation",
+      "expectation": "Building option search is a filter field with inline loading/no-match/refusal feedback inside the existing choice Popover.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div", "label", "src/components/ui/input#Input"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["div", "p[role=alert]", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#BuildingOptions:pages",
+      "policy": "presentation",
+      "expectation": "Retained building option pages drive inline bounded search continuation and recovery inside the same filter Popover.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div", "label", "src/components/ui/input#Input"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["div", "p[role=alert]", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:scanner",
+      "policy": "overlay",
+      "expectation": "The actual package scanner Dialog owns Back/Close and late decoder delivery; dismissal retains the selected group, original query/hash and draft.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/PackageScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "native Back closes the package scanner and retains the group and query hash"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:$overlay:Dialog:scanner",
+      "policy": "overlay",
+      "expectation": "The actual package scanner Dialog owns Back/Close and late decoder delivery; dismissal retains the selected group, original query/hash and draft.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/PackageScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "native Back closes the package scanner and retains the group and query hash"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:review",
+      "policy": "overlay",
+      "expectation": "The actual physical assignment review Dialog preserves retained inputs on refusal and protects pending writes; live completion consumes its owned review before displaying the receipt.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/PackageScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "protects a pending package write and retains the draft when leaving is canceled"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackageScanScreen.tsx#PackageAssignment:$overlay:Dialog:review",
+      "policy": "overlay",
+      "expectation": "The actual physical assignment review Dialog preserves retained inputs on refusal and protects pending writes; live completion consumes its owned review before displaying the receipt.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/PackageScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
+          "name": "protects a pending package write and retains the draft when leaving is canceled"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:$overlay:Dialog:cancel",
+      "policy": "overlay",
+      "expectation": "Explicit product cancellation uses an actual shared confirmation Dialog and retains dirty values when canceled; confirmed return consumes the task entry.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "name": "keeps editing or explicitly discards unsaved work"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/ProductBatches.tsx#ProductBatches:$overlay:Dialog:reviewId",
+      "policy": "overlay",
+      "expectation": "Legacy-record cancellation is an actual shared Dialog with a required reason, exact before/after totals and protected pending mutation.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "name": "reviews exact before and after totals and requires a reason before cancelling a legacy record"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:$overlay:Dialog:controlled",
+      "policy": "overlay",
+      "expectation": "Saved ticket correction is a real shared Dialog with its own dirty/pending scope; canceled dismissal retains fields and successful persistence settles its own entry.",
+      "integration": "dialog",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
       ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "guards dirty ticket Cancel and keeps the correction when dismissal is canceled"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:editing",
+      "policy": "overlay",
+      "expectation": "The selected saved record renders the exact dirty/pending-aware JobScanRecordEditor Dialog through its record prop; the underlying records list remains retained.",
+      "integration": "delegated-overlay",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "guards dirty ticket Cancel and keeps the correction when dismissal is canceled"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:remapReview",
+      "policy": "overlay",
+      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions; stale data blocks persistence and pending writes protect dismissal.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "requires review and blocks a stale multi-ticket location snapshot without writing"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:Dialog:remapReview",
+      "policy": "overlay",
+      "expectation": "Location reassignment review is a real shared Dialog showing exact selected ticket identities and reviewed versions; stale data blocks persistence and pending writes protect dismissal.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "requires review and blocks a stale multi-ticket location snapshot without writing"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:$overlay:Dialog:deletion",
+      "policy": "overlay",
+      "expectation": "Record deletion confirmation is an actual shared Dialog retaining the exact chosen records and protecting its pending command.",
+      "integration": "dialog",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+          "name": "confirms individual deletion and lets the user cancel without deleting"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/CompleteNamedLayoutDialog.tsx#CompleteNamedLayoutForm:noRoom",
+      "policy": "presentation",
+      "expectation": "No-room feedback is an inline status Notice inside the actual named-layout Dialog; it does not open another editor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:message",
+      "policy": "presentation",
+      "expectation": "Position write feedback is inline status inside the retained manager Dialog. Its position-edit predecessor and archive confirmation own foreground history separately.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#BuildingModelWorkspace:editStep",
+      "policy": "workflow",
+      "expectation": "Named floor editing owns its actual open event and active rendering. Back/Find and view consume its entry, direct editing links close to the same building view, and dirty/pending floor work remains guarded.",
+      "integration": "useWorkflowStep",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back closes the floor editor before leaving the building, keeping floor, query and hash"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Find and view consumes the editor entry so the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a direct editing link closes to the same building view instead of leaving"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "remount with an owned editor entry restores the editor and Back still consumes it"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:offsetStep",
+      "policy": "workflow",
+      "expectation": "Named offset editing returns to the same floor/map draft on native/header Back before leaving the floor editor.",
+      "integration": "useWorkflowStep",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back closes the floor offset editor and returns to the map in the same editor"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "header Back closes the floor offset editor, then the floor editor, then leaves the building"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:editing",
+      "policy": "workflow",
+      "expectation": "Editing one position connects to the named position-edit owner, and Back restores the underlying manager with the add/generate draft retained.",
+      "integration": "useWorkflowStep",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back returns from editing a position to the manager with the add draft retained"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit consumes its step and keeps the manager open"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:editStep",
+      "policy": "workflow",
+      "expectation": "Named position editing owns its enter/active branch, explicit Cancel and successful live completion; returning preserves the manager underlay draft.",
+      "integration": "useWorkflowStep",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back returns from editing a position to the manager with the add draft retained"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a saved position edit consumes its step and keeps the manager open"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:archiving",
+      "policy": "overlay",
+      "expectation": "Position archive confirmation is a real shared ConfirmDialog showing the exact position identity and expected version; pending writes block dismissal.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back cancels exact position archive before dismissing its retained manager"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/StoragePositionsDialog.tsx#PositionsManager:$overlay:ConfirmDialog:archiving",
+      "policy": "overlay",
+      "expectation": "Position archive confirmation is a real shared ConfirmDialog showing the exact position identity and expected version; pending writes block dismissal.",
+      "integration": "confirmation",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back cancels exact position archive before dismissing its retained manager"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/LayoutTaskBar.tsx#LayoutHelpDialog:$overlay:Dialog:controlled",
+      "policy": "overlay",
+      "expectation": "Layout help is an actual shared Dialog over the retained building task; closing returns to the current floor/view and never changes storage data.",
+      "integration": "dialog",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "opens layout help with the business checklist and QR explanation"
+        }
+      ]
+    },
+    {
+      "id": "src/features/storageLayouts/NamedLocationCatalogue.tsx#NamedLocationCatalogue:completing",
+      "policy": "overlay",
+      "integration": "delegated-overlay",
+      "expectation": "The exact reviewed foreground prop delegates to its actual shared Dialog owner; native/explicit closure preserves the underlay draft, protects pending writes and consumes its owned entry.",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "locks an assigned floor, completes on that floor and consumes the dialog entry"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Cancel closes the unsent registration layout after consent and the next Back leaves"
+        }
+      ]
     },
     {
       "id": "src/features/storageLayouts/StorageZonesPanel.tsx#StorageZonesPanel:positionsZoneId",
       "policy": "overlay",
-      "expectation": "The actual shared overlay owns foreground Back and pending-write dismissal; this current caller case establishes identity and functional behavior.",
       "integration": "delegated-overlay",
-      "tests": ["src/features/storageLayouts/StorageLayoutActions.test.tsx"],
+      "expectation": "The exact reviewed foreground prop delegates to its actual shared Dialog owner; native/explicit closure preserves the underlay draft, protects pending writes and consumes its owned entry.",
+      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
       "cases": [
         {
-          "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
-          "name": "adds a floor position with a code preview and keeps it inside the spot"
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back cancels exact position archive before dismissing its retained manager"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back returns from editing a position to the manager with the add draft retained"
         }
-      ],
-      "evidenceLimit": "This current functional caller case does not establish native Back/explicit Close/next-Back timing; phase-3 concrete caller traversal coverage is required before final acceptance."
+      ]
     }
   ],
   "overlayDelegates": [
@@ -6372,7 +7090,8 @@
     },
     {
       "component": "src/features/finishedGoods/BatchManager#BatchManager",
-      "owner": "src/features/finishedGoods/BatchManager.tsx#BatchManager:$overlay:Dialog:controlled"
+      "owner": "src/features/finishedGoods/BatchManager.tsx#BatchManager:$overlay:Dialog:controlled",
+      "prop": "batchId"
     },
     {
       "component": "src/features/finishedGoods/jobScan/TicketFieldScanner#TicketFieldScanner",
@@ -6400,6 +7119,11 @@
       "component": "src/features/storageLayouts/StoragePositionsDialog#StoragePositionsDialog",
       "owner": "src/features/storageLayouts/StoragePositionsDialog.tsx#StoragePositionsDialog:$overlay:Dialog:controlled",
       "prop": "zone"
+    },
+    {
+      "component": "src/features/finishedGoods/jobScan/JobScanRecordEditor#JobScanRecordEditor",
+      "owner": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:$overlay:Dialog:controlled",
+      "prop": "record"
     }
   ],
   "breadcrumbBuilders": ["src/features/finishedGoods/shared#usePalletTrail"],
@@ -6510,7 +7234,7 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/PackingScreen.tsx#send:$task:useTaskCompletion:$dynamic",
+      "id": "src/features/finishedGoods/PackingScreen.tsx#finish:$task:completeTask:$dynamic",
       "intent": "completion",
       "expectation": "Packing save queues live completion after pending registration settles, consumes its predecessor, and replaces with the validated batch destination.",
       "tests": ["src/features/finishedGoods/PackingScreen.test.tsx"],
@@ -6566,7 +7290,7 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/ProductBatches.tsx#closeManager:$task:completeTask:/finished-goods/scan|storagePath",
+      "id": "src/features/finishedGoods/ProductBatches.tsx#closeManager:$task:completeTask:packageScanPath|storagePath",
       "intent": "completion",
       "lifetime": "synchronous-exit",
       "expectation": "Synchronous guarded manager close consumes foreground/task entries, returning only to the validated active unit or measurement hub without reopening the closed correction.",
@@ -6588,16 +7312,16 @@
       "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:$task:returnFromTask:FG_PATH",
       "intent": "return",
       "expectation": "Cancel consumes the product task entry and restores catalogue state; direct task links use a safe catalogue parent.",
-      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "tests": ["src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx"],
       "cases": [
         {
-          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "file": "src/features/finishedGoods/FinishedGoodsTaskBack.test.tsx",
           "name": "pristine product Cancel consumes its task entry and restores catalogue state"
         }
       ]
     },
     {
-      "id": "src/features/finishedGoods/ProductScreen.tsx#save:$task:completeTask:$dynamic|FG_PATH|measurePath",
+      "id": "src/features/finishedGoods/ProductScreen.tsx#saveValues:$task:completeTask:$dynamic|FG_PATH|measurePath",
       "intent": "completion",
       "expectation": "Product mutation navigation uses live op.complete after settlement, consumes the owned task, and replaces with the validated product/packing/unit destination.",
       "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
@@ -6610,18 +7334,6 @@
     },
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#prepare:$task:completeTask:$dynamic",
-      "intent": "completion",
-      "expectation": "Successful stack preparation consumes the owned task through live op.complete before replacing with the validated move/pallet destination.",
-      "tests": ["src/features/finishedGoods/StackScreen.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/finishedGoods/StackScreen.test.tsx",
-          "name": "reserves using explicit supporting pallet identity and server-derived preview coordinates"
-        }
-      ]
-    },
-    {
-      "id": "src/features/finishedGoods/StackScreen.tsx#prepare:$task:completeTask:palletPath",
       "intent": "completion",
       "expectation": "Successful stack preparation consumes the owned task through live op.complete before replacing with the validated move/pallet destination.",
       "tests": ["src/features/finishedGoods/StackScreen.test.tsx"],
@@ -6753,6 +7465,18 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
           "name": "Back returns to the real catalogue origin with its query and hash, consuming the task entry"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#submit:$task:completeTask:/finished-goods/scan",
+      "intent": "completion",
+      "expectation": "Saved-ticket completion follows only the live successful operation owner after pending settles; it consumes the previous task before showing a terminal receipt, rather than replaying saved tickets.",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "retains entered tickets and reuses the same request after a lost save response"
         }
       ]
     }

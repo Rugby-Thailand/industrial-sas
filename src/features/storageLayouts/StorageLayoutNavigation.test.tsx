@@ -1001,3 +1001,157 @@ describe("layout task intent", () => {
     expect(href()).toBe(BUILDING_URL);
   });
 });
+
+describe("storage foreground caller regressions", () => {
+  it("native Back dismisses the mobile location inspector before leaving the building", async () => {
+    const original = window.matchMedia;
+    const media = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        ...original(query),
+        matches: [
+          "(max-width: 580px)",
+          "(max-width: 850px)",
+          "(max-width: 1099px)",
+          "(max-width: 1399px)",
+        ].includes(query),
+      }));
+    try {
+      guarded(workspace([floor({ storageZones: [zone()] })]));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select location Rack A" }),
+      );
+      expect(
+        await screen.findByRole("dialog", { name: "Location details" }),
+      ).toBeVisible();
+      await nativeBack();
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      expect(href()).toBe(BUILDING_URL);
+      expect(
+        screen.getByRole("button", { name: "Select location Rack A" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await nativeBack();
+      expect(href()).toBe(ORIGIN);
+    } finally {
+      media.mockRestore();
+    }
+  });
+
+  it("native Back guards unsent unavailable-area edits and keeps the area draft", async () => {
+    guarded(workspace());
+    fireEvent.click(screen.getByRole("button", { name: "Edit floor 1" }));
+    await openFloorDimensions();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add unavailable area" }),
+    );
+    const area = await screen.findByRole("dialog", {
+      name: "Add unavailable area",
+    });
+    fireEvent.change(within(area).getByRole("textbox", { name: "Name" }), {
+      target: { value: "Unsent lift core" },
+    });
+    await nativeBack();
+    const guard = await prompt();
+    fireEvent.click(
+      within(guard).getByRole("button", { name: "Keep editing" }),
+    );
+    expect(within(area).getByRole("textbox", { name: "Name" })).toHaveValue(
+      "Unsent lift core",
+    );
+    expect(href()).toContain("editing=1");
+    expect(mocks.mutations.size).toBeGreaterThan(0);
+    for (const mutation of mocks.mutations.values())
+      expect(mutation).not.toHaveBeenCalled();
+  });
+
+  it("discarding only the unavailable-area foreground retains dirty floor dimensions", async () => {
+    guarded(workspace());
+    fireEvent.click(screen.getByRole("button", { name: "Edit floor 1" }));
+    fireEvent.change(await openFloorDimensions(), {
+      target: { value: "19.995" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add unavailable area" }),
+    );
+    const area = await screen.findByRole("dialog", {
+      name: "Add unavailable area",
+    });
+    fireEvent.change(within(area).getByRole("textbox", { name: "Name" }), {
+      target: { value: "Discard only this" },
+    });
+    await nativeBack();
+    fireEvent.click(
+      within(await prompt()).getByRole("button", { name: /Discard/ }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Add unavailable area" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      19.995,
+    );
+    expect(params().get("editing")).toBe("1");
+    await nativeBack();
+    expect(await prompt()).toBeVisible();
+    fireEvent.click(
+      within(await prompt()).getByRole("button", { name: "Keep editing" }),
+    );
+    expect(screen.getByRole("spinbutton", { name: "Width (m)" })).toHaveValue(
+      19.995,
+    );
+  });
+
+  it("native Back cancels exact position archive before dismissing its retained manager", async () => {
+    const exact = {
+      positionId: "p1",
+      revision: "2:2",
+      locationId: "l1",
+      code: "PD-F01-Z01-P1",
+      label: "P1",
+      qrValue: "ISAS:LOCATION:1:l1",
+      kind: "FLOOR" as const,
+      isDefault: false,
+      xMm: 0,
+      yMm: 0,
+      widthMm: 1000,
+      depthMm: 1000,
+      breadcrumb: "",
+      placements: [],
+    };
+    const close = vi.fn();
+    guarded(
+      <StoragePositionsDialog
+        warehouseId="warehouse-a"
+        zone={zone({ mode: "FLOOR_POSITIONS", positions: [exact] })}
+        onClose={close}
+      />,
+    );
+    const archiveButton = await screen.findByRole("button", {
+      name: "Archive PD-F01-Z01-P1",
+    });
+    const managerHref = href();
+    fireEvent.click(archiveButton);
+    expect(
+      await screen.findByRole("dialog", { name: "Archive PD-F01-Z01-P1" }),
+    ).toBeVisible();
+    await nativeBack();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Archive PD-F01-Z01-P1" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Exact positions · PD-F01-Z01" }),
+    ).toBeVisible();
+    expect(
+      mutationFor("storageLayouts/zones:archiveStoragePosition"),
+    ).not.toHaveBeenCalled();
+    expect(href()).toBe(managerHref);
+    await nativeBack();
+    expect(close).toHaveBeenCalledOnce();
+    expect(href()).toBe(BUILDING_URL);
+  });
+});
