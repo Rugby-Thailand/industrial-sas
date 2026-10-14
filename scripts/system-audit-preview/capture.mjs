@@ -302,6 +302,23 @@ try {
           })
           .click();
     }
+    if (
+      [
+        "camera",
+        "scan",
+        "location-scan",
+        "ticket-scan",
+        "photo",
+        "ticket-photo",
+        "photo-retake",
+      ].includes(c.action)
+    ) {
+      // Wait for the deliberate camera refusal; a decoder import can still be
+      // starting when the component has already rendered its frame.
+      await page
+        .getByRole("button", { name: t.retryCamera, exact: true })
+        .waitFor();
+    }
     await page.evaluate(() => document.fonts.ready);
     const dom = await page.evaluate(() => ({
       text: document.body.innerText,
