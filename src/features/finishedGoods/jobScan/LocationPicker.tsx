@@ -371,7 +371,8 @@ function LocationPickerSession({
             startOnMount
             presentation={presentation === "jobScan" ? "expanded" : "default"}
             onCode={(code) => void onScan(code, scannerVersion)}
-            onClose={() => cameraDisclosure.onOpenChange(false)}
+            // The pressed scan action owns closing; a second frame close would repeat it.
+            closeControl={false}
             {...(canReadImage
               ? {
                   onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
@@ -829,6 +830,17 @@ function LocationChoices({
 
 function ChoiceText({ choice }: { choice: Choice }) {
   const t = useTranslations("JobScan");
+  // The code is always shown; an equal name would only repeat it.
+  const name = choice.name === choice.code ? undefined : choice.name;
+  const detail = [
+    choice.buildingName,
+    choice.buildingName && choice.floorNumber !== undefined
+      ? t("floorNumber", { number: choice.floorNumber })
+      : undefined,
+    name,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <>
       <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -836,19 +848,11 @@ function ChoiceText({ choice }: { choice: Choice }) {
         <span className="min-w-0 font-mono font-semibold break-all sm:shrink-0 sm:break-normal">
           {choice.code}
         </span>
-        <span className="line-clamp-2 min-w-0 text-sm leading-6 break-words text-muted">
-          {choice.buildingName
-            ? [
-                choice.buildingName,
-                choice.floorNumber === undefined
-                  ? undefined
-                  : t("floorNumber", { number: choice.floorNumber }),
-                choice.name,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : choice.name}
-        </span>
+        {detail && (
+          <span className="line-clamp-2 min-w-0 text-sm leading-6 break-words text-muted">
+            {detail}
+          </span>
+        )}
       </span>
     </>
   );

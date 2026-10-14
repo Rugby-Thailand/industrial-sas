@@ -1802,7 +1802,7 @@
     {
       "id": "src/features/finishedGoods/BarcodeCameraBox.tsx#BarcodeCameraBox:camera",
       "policy": "presentation",
-      "expectation": "Hardware camera start/stop only hides the inline CameraFrame and shows start/retry/error controls inside retained source acquisition. All production foreground callers independently own dismissal: PackageAssignment and TicketFieldScanner shared Dialogs, JobScanWorkflow.panel disclosure, LocationPickerSession.camera disclosure, and DestinationScanner.scanning disclosure. Expanded changes preview size only; repurposing this flag to a whole-view scanner requires another ownership audit.",
+      "expectation": "Hardware camera start/stop only hides the inline CameraFrame and shows start/retry/error controls inside retained source acquisition. All production foreground callers independently own dismissal: PackageAssignment and TicketFieldScanner shared Dialogs, and JobScanWorkflow.panel and LocationPickerSession.camera disclosures, whose pressed acquisition mode is the single close control (closeControl=false). DestinationScanner starts the camera only on request inside its containing verification step; the frame's Start, Stop and Retry are its only camera controls, and unmounting with that step releases the stream. Expanded changes preview size only; repurposing this flag to a whole-view scanner requires another ownership audit.",
       "uses": ["branch", "hidden"],
       "render": [
         {
@@ -2814,6 +2814,11 @@
           "shape": "and",
           "truthy": ["li"],
           "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["span"],
+          "falsy": []
         }
       ]
     },
@@ -2883,6 +2888,11 @@
         {
           "shape": "and",
           "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["span"],
           "falsy": []
         },
         {

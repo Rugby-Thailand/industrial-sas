@@ -53,12 +53,7 @@ export function BarcodeCameraBox({
    * image picker to an icon, for a screen whose main task is this scan.
    */
   presentation?: "default" | "expanded";
-  children?: (scan: {
-    onScan: () => void;
-    scanning: boolean;
-    scanDisabled: boolean;
-    stopCamera: () => void;
-  }) => ReactNode;
+  children?: (scan: { stopCamera: () => void }) => ReactNode;
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
@@ -209,12 +204,7 @@ export function BarcodeCameraBox({
           else for (const code of codes) onCode(code);
         }}
       />
-      {children?.({
-        onScan: () => (camera && !retry ? close() : open()),
-        scanning: camera && !retry,
-        scanDisabled,
-        stopCamera: close,
-      })}
+      {children?.({ stopCamera: close })}
     </div>
   );
 }

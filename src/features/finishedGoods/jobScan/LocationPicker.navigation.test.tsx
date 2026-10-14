@@ -36,16 +36,14 @@ vi.mock("./prepareLocationImage", () => ({
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
-    onClose,
     onReadWithAi,
   }: {
     onCode: (code: string) => void;
-    onClose: () => void;
     onReadWithAi?: () => void;
   }) => (
     <div>
+      <p>Location camera active</p>
       <button onClick={() => onCode("NEW-LOCATION")}>Decode location</button>
-      <button onClick={onClose}>Stop location camera</button>
       <button onClick={() => onReadWithAi?.()}>
         Read barcode photo with AI
       </button>
@@ -116,9 +114,16 @@ function show() {
 }
 const href = () =>
   window.location.pathname + window.location.search + window.location.hash;
+const cameraActive = () => screen.queryByText("Location camera active");
+/** The pressed scan action is the camera's only close control. */
+function closeCamera() {
+  const scan = screen.getByRole("button", { name: "Scan code" });
+  expect(scan).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(scan);
+}
 async function openCamera() {
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
-  await screen.findByRole("button", { name: "Stop location camera" });
+  await screen.findByText("Location camera active");
   await waitFor(() => expect(window.location.search).toContain("overlay"));
 }
 async function registration() {
@@ -135,8 +140,13 @@ it("Location camera Close consumes its entry and the next native Back restores t
     target: { value: "DOCK" },
   });
   await openCamera();
-  fireEvent.click(screen.getByRole("button", { name: "Stop location camera" }));
+  closeCamera();
   await waitFor(() => expect(href()).toBe(page));
+  expect(cameraActive()).toBeNull();
+  expect(screen.getByRole("button", { name: "Scan code" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   expect(screen.getByRole("textbox", { name: "Search location" })).toHaveValue(
     "DOCK",
   );
@@ -187,7 +197,7 @@ it("header Back closes nested Photo AI before the camera and ignores its late AI
   );
   await waitFor(() => expect(mocks.action).toHaveBeenCalledOnce());
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  await screen.findByRole("button", { name: "Stop location camera" });
+  await screen.findByText("Location camera active");
   await act(async () =>
     finish(
       querySuccess({
@@ -198,7 +208,7 @@ it("header Back closes nested Photo AI before the camera and ignores its late AI
   );
   expect(onPick).not.toHaveBeenCalled();
   expect(mocks.query).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Stop location camera" }));
+  closeCamera();
   await waitFor(() => expect(href()).toBe(page));
 });
 
@@ -310,9 +320,7 @@ it("a remounted Location picker retires its old camera entry without recreating 
   view.unmount();
   show();
   await waitFor(() => expect(href()).toBe(page));
-  expect(
-    screen.queryByRole("button", { name: "Stop location camera" }),
-  ).toBeNull();
+  expect(cameraActive()).toBeNull();
   act(() => window.history.back());
   await waitFor(() => expect(href()).toBe(origin));
 });

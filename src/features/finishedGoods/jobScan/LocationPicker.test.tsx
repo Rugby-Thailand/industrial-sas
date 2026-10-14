@@ -33,15 +33,9 @@ vi.mock("convex/react", () => ({
   },
 }));
 vi.mock("../BarcodeCameraBox", () => ({
-  BarcodeCameraBox: ({
-    onCode,
-    onClose,
-  }: {
-    onCode: (code: string) => void;
-    onClose: () => void;
-  }) => {
+  BarcodeCameraBox: ({ onCode }: { onCode: (code: string) => void }) => {
     mocks.decode = onCode;
-    return <button onClick={onClose}>Stop preview</button>;
+    return <p>Location camera preview</p>;
   },
 }));
 
@@ -155,6 +149,22 @@ it("browses the first page without typing, in every picker", () => {
   expect(screen.getByRole("navigation", { name: "Pagination" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
   expect(mocks.exact).not.toHaveBeenCalled();
+});
+
+it("shows a location name only when it differs from the code", () => {
+  mocks.search.mockReturnValue(
+    page([
+      zone("F1-L1-1", { name: "F1-L1-1", floorNumber: 1 }),
+      zone("F1-L1-2", { name: "F1-L1-2", buildingName: undefined }),
+      zone("F1-L1-3", { name: "North dock" }),
+    ]),
+  );
+  render();
+  const row = (code: string) =>
+    within(results()).getByRole("button", { name: new RegExp(code) });
+  expect(row("F1-L1-1")).toHaveTextContent(/^F1-L1-1Building A · Floor 1$/);
+  expect(row("F1-L1-2")).toHaveTextContent(/^F1-L1-2$/);
+  expect(row("F1-L1-3")).toHaveTextContent(/^F1-L1-3Building A · North dock$/);
 });
 
 it("shows a persistent loading state while the first page is pending, keeping the input usable", () => {

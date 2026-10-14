@@ -1,6 +1,12 @@
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps, ReactNode } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -21,18 +27,20 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
     onCode,
-    onClose,
     onImageCodes,
+    closeControl = true,
   }: {
     onImageCodes?: (codes: string[]) => void;
     onCode: (code: string) => void;
-    onClose: () => void;
+    closeControl?: boolean;
   }) => {
     mocks.decode = onCode;
     mocks.imageCodes = onImageCodes;
     return (
       <div>
-        QA barcode scanner active<button onClick={onClose}>Stop camera</button>
+        QA barcode scanner active
+        {/* The real frame renders its Stop camera close unless opted out. */}
+        {closeControl && <button>Stop camera</button>}
       </div>
     );
   },
@@ -82,6 +90,32 @@ vi.mock("./LocationPicker", () => ({
           }
         >
           Choose mapped location
+        </button>
+        <button
+          onClick={() =>
+            onPick({
+              text: "F1-L1-2",
+              code: "F1-L1-2",
+              name: "F1-L1-2",
+              locationId: "location-f2",
+              buildingName: "Building A",
+              floorNumber: 1,
+            })
+          }
+        >
+          Choose location named by its code
+        </button>
+        <button
+          onClick={() =>
+            onPick({
+              text: "F1-L1-3",
+              code: "F1-L1-3",
+              name: "North dock",
+              locationId: "location-f3",
+            })
+          }
+        >
+          Choose named location
         </button>
       </>
     )
@@ -402,6 +436,45 @@ it("shows the selected location with its real status and offers save only once a
   ).not.toBeInTheDocument();
   addTicket();
   expect(screen.getByRole("button", { name: "Save 1 ticket" })).toBeEnabled();
+});
+
+it.each([
+  ["Choose location named by its code", "F1-L1-2", "Building A · Floor 1"],
+  ["Choose named location", "F1-L1-3", "North dock"],
+])(
+  "the location strip after %s names the code once and keeps distinct details",
+  (choice, code, details) => {
+    renderWithIntl(<JobScanScreen />, { locale: "en" });
+    fireEvent.click(screen.getByRole("button", { name: choice }));
+    const strip = screen.getByRole("region", { name: "Location" });
+    expect(within(strip).getAllByText(code, { exact: false })).toHaveLength(1);
+    expect(within(strip).getByText(details)).toBeVisible();
+  },
+);
+
+it("the pressed Scan code mode is the barcode panel's only close and consumes its entry before the next Back", async () => {
+  start();
+  await waitFor(() => expect(window.location.search).toContain("jobScanStep"));
+  const scan = screen.getByRole("button", { name: "Scan code" });
+  fireEvent.click(scan);
+  expect(screen.getByText("QA barcode scanner active")).toBeVisible();
+  await waitFor(() => expect(window.location.search).toContain("overlay"));
+  expect(
+    screen.queryByRole("button", { name: "Stop camera" }),
+  ).not.toBeInTheDocument();
+  const late = mocks.decode!;
+  fireEvent.click(scan);
+  expect(scan).toHaveAttribute("aria-pressed", "false");
+  expect(screen.queryByText("QA barcode scanner active")).toBeNull();
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
+  act(() => late("FO99999999"));
+  expect(screen.queryByRole("textbox", { name: /Job No\./ })).toBeNull();
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Choose demo location" }),
+    ).toBeVisible(),
+  );
 });
 
 it("keeps one acquisition panel open and Manual closes the barcode scanner", () => {

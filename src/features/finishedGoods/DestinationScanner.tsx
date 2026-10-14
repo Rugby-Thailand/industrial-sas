@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
-import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
+import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { BarcodeCameraBox } from "./BarcodeCameraBox";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
@@ -100,6 +100,7 @@ function DestinationScanSession({
                 )}
         </p>
       </div>
+      {/* The camera box owns Start, Stop and Retry; the field takes typed or handheld input. */}
       <BarcodeCameraBox
         mode={
           purpose === "PALLET" || purpose === "SUPPORT"
@@ -112,7 +113,7 @@ function DestinationScanSession({
         onCode={(value) => submit(value, "SCAN")}
         videoLabel={scanText("scanField", { field: codeLabel })}
       >
-        {({ stopCamera, ...scan }) => (
+        {({ stopCamera }) => (
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -129,14 +130,8 @@ function DestinationScanSession({
               )}
             >
               {(control) => (
-                <ScanCodeInput
+                <Input
                   {...control}
-                  {...scan}
-                  scanLabel={scanText("scanField", { field: codeLabel })}
-                  onScan={() => {
-                    verification.setError("");
-                    scan.onScan();
-                  }}
                   value={code}
                   onChange={(event) => {
                     stopCamera();
