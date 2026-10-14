@@ -120,6 +120,9 @@ function LocationPickerSession({
   const aiDisclosure = useBackDisclosure(Boolean(ai) && qrBeforeAi, (open) => {
     lookupVersion.current += 1;
     acquisitionOpen.current = true;
+    // Forward may restore this child together with its camera entry, including
+    // after explicit completion cleared the nested presentation flag.
+    if (open) setQrBeforeAi(true);
     setAi(open ? lastAi.current : undefined);
   });
   const cameraDisclosure = useBackDisclosure(camera, (open) => {
@@ -127,7 +130,13 @@ function LocationPickerSession({
     else {
       acquisitionOpen.current = true;
       setCamera(true);
-      setAi(lastCameraMode.current === "AI" ? lastAi.current : undefined);
+      // A one-shot Forward can restore AI in the same commit. Preserve that
+      // child while keeping lastCameraMode as the outer acquisition's mode.
+      setAi(
+        (restoredAi) =>
+          restoredAi ??
+          (lastCameraMode.current === "AI" ? lastAi.current : undefined),
+      );
     }
   });
   const registrationDisclosure = useBackDisclosure(adding, setAdding);
