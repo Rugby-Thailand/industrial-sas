@@ -20,6 +20,52 @@ const sourceCommit =
     encoding: "utf8",
   }).trim();
 const cases = [
+  {
+    view: "picker",
+    locale: "en",
+    width: 390,
+    action: "nested-photo-forward",
+    name: "nested-forward",
+  },
+  {
+    view: "destination",
+    locale: "en",
+    width: 1440,
+    query: "camera=demo",
+    action: "camera-active",
+    name: "synthetic-active",
+  },
+  {
+    view: "destination",
+    locale: "en",
+    width: 390,
+    action: "camera-recovery",
+    name: "camera-recovery",
+  },
+  { view: "review", locale: "th", width: 1440, name: "quick-change" },
+  {
+    view: "fallback",
+    locale: "en",
+    width: 1440,
+    action: "select",
+    name: "inspector",
+  },
+  {
+    view: "fallback",
+    locale: "th",
+    width: 390,
+    action: "select",
+    name: "inspector",
+  },
+  { view: "workspace", locale: "th", width: 1440, name: "floor-stamp" },
+  {
+    view: "floor-list",
+    locale: "en",
+    width: 1440,
+    query: "identity=distinct",
+    action: "grid",
+    name: "distinct-grid",
+  },
   { view: "organization", locale: "th", width: 1440 },
   { view: "organization", locale: "th", width: 390 },
   { view: "organization", locale: "en", width: 390 },
@@ -208,6 +254,11 @@ try {
       c.view !== process.env.AUDIT_CAPTURE_VIEW
     )
       continue;
+    if (
+      process.env.AUDIT_CAPTURE_NAME &&
+      c.name !== process.env.AUDIT_CAPTURE_NAME
+    )
+      continue;
     const height = c.width < 600 ? 844 : 900;
     const context = await browser.newContext({
       viewport: { width: c.width, height },
@@ -219,6 +270,25 @@ try {
     const t = (c.locale === "th" ? th : en).JobScan;
     const url = `http://127.0.0.1:${port}/?view=${c.view}&locale=${c.locale}${c.query ? `&${c.query}` : ""}`;
     await page.goto(url);
+    const photo = async () => {
+      const bytes = await page.evaluate(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 320;
+        canvas.height = 40;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#455365";
+        ctx.fillRect(0, 0, 320, 40);
+        ctx.fillStyle = "white";
+        ctx.font = "14px sans-serif";
+        ctx.fillText("Synthetic short photo", 80, 25);
+        return canvas.toDataURL("image/png").split(",")[1];
+      });
+      return {
+        name: "demo-short-photo.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(bytes, "base64"),
+      };
+    };
     await page.locator("[data-audit-fixture]").waitFor();
     if (["organization", "workspace-error"].includes(c.view))
       await page.locator("h1").waitFor();
@@ -248,30 +318,52 @@ try {
     }
     if (c.action === "select")
       await page.locator("g[data-map-zone-id='audit-zone']").click();
-    if (c.action === "camera")
+    if (c.action === "camera-recovery") {
+      await page.getByRole("textbox").fill("DEMO-F02-Z01");
+      await page
+        .getByRole("button", { name: "Verify entered code", exact: true })
+        .click();
+      await page.getByRole("alert").waitFor();
+    }
+    if (["camera", "camera-active", "camera-recovery"].includes(c.action))
       await page
         .getByRole("button", {
           name: c.locale === "en" ? "Start camera" : "เปิดกล้อง",
           exact: true,
         })
         .click();
+    if (c.action === "camera-active") {
+      await page.waitForFunction(() => {
+        const video = document.querySelector("video");
+        return video && video.readyState >= 2 && video.videoWidth > 0;
+      });
+      await page
+        .getByRole("button", { name: t.stopCamera, exact: true })
+        .waitFor();
+    }
     if (
-      ["scan", "selected-image", "nested-photo", "location-scan"].includes(
-        c.action,
-      )
+      [
+        "scan",
+        "selected-image",
+        "nested-photo",
+        "nested-photo-forward",
+        "location-scan",
+      ].includes(c.action)
     )
       await page.getByRole("button", { name: t.scanCode, exact: true }).click();
-    if (c.action === "selected-image" || c.action === "nested-photo") {
+    if (
+      ["selected-image", "nested-photo", "nested-photo-forward"].includes(
+        c.action,
+      )
+    ) {
       await page
         .locator("input[type=file]")
         .first()
-        .setInputFiles(
-          resolve(repository, "tests/fixtures/barcode/demo-product.png"),
-        );
+        .setInputFiles(await photo());
       await page
         .getByRole("button", { name: t.readLocationAi, exact: true })
         .waitFor();
-      if (c.action === "nested-photo")
+      if (["nested-photo", "nested-photo-forward"].includes(c.action))
         await page
           .getByRole("button", { name: t.readLocationAi, exact: true })
           .click();
@@ -282,16 +374,30 @@ try {
       await page
         .locator("input[type=file]")
         .first()
-        .setInputFiles(
-          resolve(repository, "tests/fixtures/barcode/demo-product.png"),
-        );
+        .setInputFiles(await photo());
       await page.getByRole("alert").waitFor();
       if (c.action === "photo-retake")
         await page
           .getByRole("button", { name: t.locationAiOpenCamera, exact: true })
           .click();
     }
-    if (c.action === "nested-photo") await page.getByRole("alert").waitFor();
+    if (["nested-photo", "nested-photo-forward"].includes(c.action))
+      await page.getByRole("alert").waitFor();
+    if (c.action === "nested-photo-forward") {
+      await page.evaluate(() => history.go(-2));
+      await page.waitForURL(url);
+      await page.evaluate(() => history.go(2));
+      await page.waitForFunction(
+        (label) =>
+          [...document.querySelectorAll("button")].some(
+            (button) =>
+              button.getAttribute("aria-label") === label &&
+              button.getAttribute("aria-pressed") === "true",
+          ),
+        t.photoAi,
+      );
+      await page.getByRole("alert").waitFor();
+    }
     if (["pick", "ticket-scan", "ticket-photo"].includes(c.action)) {
       await page.getByRole("button", { name: /^DEMO-F02-Z01/ }).click();
       if (c.action !== "pick")
@@ -305,6 +411,7 @@ try {
     if (
       [
         "camera",
+        "camera-recovery",
         "scan",
         "location-scan",
         "ticket-scan",
@@ -319,6 +426,11 @@ try {
         .getByRole("button", { name: t.retryCamera, exact: true })
         .waitFor();
     }
+    if (
+      c.action === "camera-recovery" &&
+      (await page.getByRole("alert").count()) !== 1
+    )
+      throw new Error("Stale verification warning was not cleared");
     // Leave the action to expose its persistent selected state, not hover.
     await page.mouse.move(0, 0);
     await page.evaluate(() => document.fonts.ready);
@@ -326,6 +438,13 @@ try {
       text: document.body.innerText,
       overflow: document.documentElement.scrollWidth > innerWidth,
       h1: document.querySelectorAll("h1").length,
+      buttons: [...document.querySelectorAll("button")]
+        .filter((button) => button.getClientRects().length > 0)
+        .map((button) => ({
+          name: button.getAttribute("aria-label") ?? button.innerText,
+          pressed: button.getAttribute("aria-pressed"),
+          disabled: button.disabled,
+        })),
     }));
     const filename = `${phase}-${c.view}-${c.locale}-${c.width}${c.name ? `-${c.name}` : ""}.png`;
     const path = resolve(output, filename);

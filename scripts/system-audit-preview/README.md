@@ -12,14 +12,14 @@ Open `http://localhost:3290/?view=zone-card&locale=th`. `AUDIT_PORT` changes
 the port. `AUDIT_SOURCE_ROOT` selects another checkout's production components
 for a before comparison; keep the fixture files and dependency versions the same.
 
-| Query       | Values                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `view`      | `workspace`, `zone-card`, `floor-list`, `catalogue`, `named`, `profile`, `organization`, `workspace-error`, `destination`, `picker`, `job-scan`, `scan-summary`, `record` |
-| `locale`    | `en` or `th`                                                                                                                                                              |
-| `theme`     | `light` or `dark`                                                                                                                                                         |
-| `identity`  | Omit for equal location name/code; `distinct` retains a separate name                                                                                                     |
-| `inventory` | Omit for empty storage; `occupied` includes a stored demo pallet/product                                                                                                  |
-| `positions` | Include to render equal and distinct position name/code examples                                                                                                          |
+| Query       | Values                                                                                                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `view`      | `workspace`, `review`, `fallback`, `zone-card`, `floor-list`, `catalogue`, `named`, `profile`, `organization`, `workspace-error`, `destination`, `picker`, `job-scan`, `scan-summary`, `record` |
+| `locale`    | `en` or `th`                                                                                                                                                                                    |
+| `theme`     | `light` or `dark`                                                                                                                                                                               |
+| `identity`  | Omit for equal location name/code; `distinct` retains a separate name                                                                                                                           |
+| `inventory` | Omit for empty storage; `occupied` includes a stored demo pallet/product                                                                                                                        |
+| `positions` | Include to render equal and distinct position name/code examples                                                                                                                                |
 
 Useful interactions:
 
@@ -29,13 +29,15 @@ Useful interactions:
 - Choose **All locations** in the catalogue, then its location's QR action.
 - Choose the demo location in Job scan, then open **Scan code** or **Photo AI**.
 - Start a destination camera or open picker acquisition to inspect failure,
-  retry and closure controls. The fixture deliberately denies real camera access.
+  retry and closure controls. It denies real camera access; `camera=demo` supplies
+  an explicitly synthetic canvas stream for active-camera presentation.
 
 Convex subscriptions, Clerk identity, server translations and routing use local
 stand-ins. Components, CSS, translations, camera boxes, dialogs and disclosure
 hooks come from the selected source checkout. Backend mutation/action stubs refuse
 writes and AI calls. File selection and camera controls are real component UI;
-camera failure is synthetic. Local draft/history state uses only demo identities.
+camera failure and optional active stream are synthetic. Local draft/history
+state uses only demo identities.
 
 The fixture provides visual evidence. Registered-handler tests verify backend
 behavior, caller suites verify draft/concurrency/navigation behavior, and existing

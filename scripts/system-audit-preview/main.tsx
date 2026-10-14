@@ -4,7 +4,12 @@ import { NextIntlClientProvider } from "next-intl";
 import { messagesFor } from "@/i18n/messages";
 import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider";
 import { resolveAppEnvironment } from "@/lib/environment";
-import { BuildingModelWorkspace } from "@/features/storageLayouts/StorageLayoutScreens";
+import {
+  BuildingModelWorkspace,
+  StorageBuildingReview,
+} from "@/features/storageLayouts/StorageLayoutScreens";
+import { FloorMap } from "@/components/storageLayouts/FloorMap";
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import { StorageZonesPanel } from "@/features/storageLayouts/StorageZonesPanel";
 import { FloorLocationTable } from "@/components/storageLayouts/FloorLocationTable";
 import { StorageLocationCatalogue } from "@/features/storageLayouts/StorageLocationCatalogue";
@@ -26,11 +31,29 @@ const view = params.get("view") ?? "workspace";
 document.documentElement.lang = locale;
 document.documentElement.className =
   params.get("theme") === "dark" ? "dark" : "light";
-// No real camera is accessed. Camera failure/retry presentation remains real.
+// No real camera is accessed. An explicit demo mode supplies a synthetic stream.
 Object.defineProperty(navigator, "mediaDevices", {
   configurable: true,
   value: {
     getUserMedia: async () => {
+      if (params.get("camera") === "demo") {
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 360;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Demo canvas unavailable");
+        const draw = () => {
+          context.fillStyle = "#17202c";
+          context.fillRect(0, 0, 640, 360);
+          context.fillStyle = "#ffffff";
+          context.font = "24px sans-serif";
+          context.fillText("Synthetic demo camera", 170, 180);
+        };
+        draw();
+        const stream = canvas.captureStream(10);
+        requestAnimationFrame(draw);
+        return stream;
+      }
       throw new Error("Demo camera unavailable");
     },
   },
@@ -57,6 +80,25 @@ function Organization() {
 }
 function Surface() {
   switch (view) {
+    case "review":
+      return <StorageBuildingReview buildingId="audit-building" />;
+    case "fallback":
+      return (
+        <FloorMap
+          widthMm={12000}
+          depthMm={10000}
+          heightMm={3500}
+          baseWidthMm={12000}
+          baseDepthMm={10000}
+          offsetXMm={0}
+          offsetYMm={0}
+          baseLabel="Demo warehouse"
+          buildingCode="DEMO"
+          floorNumber={2}
+          zones={[zone]}
+          blocks={[]}
+        />
+      );
     case "organization":
       return <Organization />;
     case "workspace-error":
@@ -144,7 +186,9 @@ createRoot(document.getElementById("root")!).render(
         <p className="mb-4 text-xs text-muted" data-audit-fixture>
           Isolated UI audit · demo data · {view}
         </p>
-        <Surface />
+        <NavigationGuardProvider>
+          <Surface />
+        </NavigationGuardProvider>
       </div>
     </EnvironmentProvider>
   </NextIntlClientProvider>,

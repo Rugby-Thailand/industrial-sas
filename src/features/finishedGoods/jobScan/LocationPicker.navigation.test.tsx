@@ -434,7 +434,7 @@ it.each(["default", "jobScan"] as const)(
     await waitFor(() => expect(href()).toBe(page));
     act(() => window.history.go(2));
     await waitFor(() => expect(href()).toBe(aiUrl));
-    const ai = screen.getByRole("button", { name: "Photo AI", exact: true });
+    const ai = screen.getByRole("button", { name: "Photo AI" });
     await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "true"));
     await screen.findByRole("img", { name: "Location label photo" });
     expect(cameraActive()).toBeNull();
@@ -457,7 +457,7 @@ it.each(["default", "jobScan"] as const)(
     );
     await waitFor(() => expect(href()).toBe(qrUrl));
     expect(cameraActive()).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Back", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
     await waitFor(() => expect(href()).toBe(page));
     expect(
       screen.getByRole("textbox", { name: "Search location" }),
@@ -484,9 +484,10 @@ it("a remounted nested Photo AI picker retires both entries before Forward or a 
   await waitFor(() => expect(href()).toBe(origin));
   act(() => window.history.forward());
   await waitFor(() => expect(href()).toBe(page));
-  expect(
-    screen.getByRole("button", { name: "Photo AI", exact: true }),
-  ).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "Photo AI" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   expect(
     screen.queryByRole("region", { name: "Read a location label" }),
   ).toBeNull();
@@ -495,9 +496,10 @@ it("a remounted nested Photo AI picker retires both entries before Forward or a 
   window.history.replaceState({}, "", aiUrl);
   show();
   await waitFor(() => expect(href()).toBe(page));
-  expect(
-    screen.getByRole("button", { name: "Photo AI", exact: true }),
-  ).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "Photo AI" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   expect(
     screen.queryByRole("region", { name: "Read a location label" }),
   ).toBeNull();

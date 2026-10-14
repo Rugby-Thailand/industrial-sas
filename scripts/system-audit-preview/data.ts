@@ -163,6 +163,17 @@ const page = (rows: unknown[]) =>
     complete: true,
   });
 export function answer(name: string) {
+  if (name.endsWith(":getStorageBuildingLayout"))
+    return outcome({ found: true, building, floors });
+  if (name.endsWith(":getStorageBuildingInventory"))
+    return outcome({ found: true, zones: [] });
+  if (name.endsWith(":layoutReadiness"))
+    return outcome({
+      found: true,
+      version: building.version,
+      ready: true,
+      issues: [],
+    });
   if (name.includes("locationCatalogue") && name.endsWith(":options"))
     return page([{ ...catalogueRow, floorCount: 2 }]);
   if (name.includes("locationCatalogue") && name.endsWith(":detail"))
