@@ -954,11 +954,13 @@ it("explicit destination Cancel consumes its step and next Back restores the act
 it("Forward restores the move destination step and remount retains its connected ownership", async () => {
   const view = trackedMove(false, true);
   await traverse("back");
-  expect(window.location.search).toBe("?kept=yes");
+  await waitFor(() => expect(window.location.search).toBe("?kept=yes"));
   await traverse("forward");
-  expect(
-    new URLSearchParams(window.location.search).get("moveDestination"),
-  ).toBe("1");
+  await waitFor(() =>
+    expect(
+      new URLSearchParams(window.location.search).get("moveDestination"),
+    ).toBe("1"),
+  );
   expect(screen.getByRole("button", { name: "ยกเลิก" })).toBeVisible();
   view.unmount();
   renderMove("th");
