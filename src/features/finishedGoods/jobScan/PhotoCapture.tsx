@@ -57,7 +57,7 @@ export function PhotoCapture({
       <StillPhotoCamera
         ref={camera}
         onPhoto={(file) => add([file], "camera")}
-        onClose={onClose ? close : undefined}
+        {...(onClose ? { onClose: close } : {})}
         closeLabel={t("closePhotoAi")}
         captureLabel={t("takePhoto")}
         fileName={ticketFileName}

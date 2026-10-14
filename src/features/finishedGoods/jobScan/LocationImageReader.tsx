@@ -210,13 +210,11 @@ export function LocationImageReader({
         <LocationPhotoCamera
           ref={photoCamera}
           onPhoto={select}
-          onClose={
-            photo
-              ? () => cameraDisclosure.onOpenChange(false)
-              : closeControl
-                ? close
-                : undefined
-          }
+          {...(photo
+            ? { onClose: () => cameraDisclosure.onOpenChange(false) }
+            : closeControl
+              ? { onClose: close }
+              : {})}
           errorAction={
             // The device camera is a fallback only when the in-app camera fails.
             <Button
