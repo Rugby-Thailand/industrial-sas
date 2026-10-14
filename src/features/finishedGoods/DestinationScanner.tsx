@@ -110,6 +110,7 @@ function DestinationScanSession({
         startOnMount={false}
         stopAfterScan
         disabled={disabled}
+        onStart={() => verification.setError("")}
         onCode={(value) => submit(value, "SCAN")}
         videoLabel={scanText("scanField", { field: codeLabel })}
       >

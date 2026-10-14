@@ -433,3 +433,83 @@ it("retries denied camera access through the camera box's Retry camera action", 
   );
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
+
+it("clears the previous verification warning on camera Start while retaining the code and reporting a fresh refusal", async () => {
+  const stop = vi.fn();
+  let finish!: (value: { stop(): void }) => void;
+  scanner.decode.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const onCode = vi.fn().mockRejectedValue(new Error("Verification failed"));
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "OLD-CODE" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be verified",
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Destination code")).toHaveValue("OLD-CODE");
+  await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
+  await act(async () => finish({ stop }));
+  emitCode("NEW-SCANNED-CODE", stop);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be verified",
+  );
+  expect(onCode.mock.calls).toEqual([
+    ["OLD-CODE", "MANUAL"],
+    ["NEW-SCANNED-CODE", "SCAN"],
+  ]);
+  expect(screen.getByLabelText("Destination code")).toHaveValue(
+    "NEW-SCANNED-CODE",
+  );
+  expect(stop).toHaveBeenCalled();
+});
+
+it("shows only the current camera denial after a failed verification, then retries without losing the entered code", async () => {
+  const media = vi.mocked(navigator.mediaDevices.getUserMedia);
+  media.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+  const stop = vi.fn();
+  scanner.decode.mockResolvedValue({ stop });
+  const onCode = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Verification failed"))
+    .mockResolvedValue(undefined);
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "OLD-CODE" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be verified",
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  await screen.findByText(/Camera access was denied/);
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Camera access was denied",
+  );
+  expect(screen.getByLabelText("Destination code")).toHaveValue("OLD-CODE");
+  fireEvent.click(screen.getByRole("button", { name: "Retry camera" }));
+  expect(screen.getByLabelText("Destination code")).toHaveValue("OLD-CODE");
+  await waitFor(() =>
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
+  emitCode("RETRIED-CODE", stop);
+  await waitFor(() =>
+    expect(onCode).toHaveBeenCalledWith("RETRIED-CODE", "SCAN"),
+  );
+  expect(onCode).toHaveBeenCalledTimes(2);
+});

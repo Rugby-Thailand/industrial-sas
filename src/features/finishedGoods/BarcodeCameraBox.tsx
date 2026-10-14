@@ -23,6 +23,7 @@ export function BarcodeCameraBox({
   mode,
   onCode,
   onClose,
+  onStart,
   feedback,
   videoLabel,
   startOnMount = true,
@@ -38,6 +39,8 @@ export function BarcodeCameraBox({
   mode: "PACKAGES" | "LOCATION";
   onCode: (code: string) => void;
   onClose?: () => void;
+  /** An explicit Start or Retry attempt, after disabled/startup gates pass. */
+  onStart?: () => void;
   feedback?: string | undefined;
   videoLabel?: string;
   startOnMount?: boolean;
@@ -90,6 +93,7 @@ export function BarcodeCameraBox({
   }
   function open() {
     if (scanDisabled) return;
+    onStart?.();
     setImageSession((session) => session + 1);
     if (camera) start();
     else setCamera(true);
