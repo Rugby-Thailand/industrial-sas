@@ -22,8 +22,7 @@ function QueryFailure() {
       <Notice
         tone="danger"
         role="alert"
-        title={t("error")}
-        body={t("errorHint")}
+        title={t("errorHint")}
         testId="workspace-query-error"
       >
         <Button type="button" onClick={() => window.location.reload()}>

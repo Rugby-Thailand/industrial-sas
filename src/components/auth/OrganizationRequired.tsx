@@ -13,8 +13,8 @@ export async function OrganizationRequired() {
       <PageHeader showBack={false} title={t("organizationRequiredTitle")} />
       <Notice
         tone="warning"
-        title={t("organizationRequiredTitle")}
-        body={t("organizationRequiredBody")}
+        role="alert"
+        title={t("organizationRequiredBody")}
         testId="organization-required"
       />
       <OrganizationList
