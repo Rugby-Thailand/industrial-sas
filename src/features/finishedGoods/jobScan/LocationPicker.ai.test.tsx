@@ -210,7 +210,7 @@ it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
     else if (change === "cancel")
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     else if (change === "back")
-      fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
+      fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
     else unmount();
     await act(async () => finish(extracted()));
     expect(mocks.query).not.toHaveBeenCalled();
@@ -345,12 +345,50 @@ it("switches between one scan mode and one Photo AI mode without submitting an A
   ).not.toBeInTheDocument();
   expect(scan).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(ai);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Close Photo AI" }),
-  );
-  expect(ai).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(ai);
+  await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
   expect(scan).toHaveAttribute("aria-pressed", "false");
 });
+
+it.each(["default", "jobScan"] as const)(
+  "the pressed Photo AI action is the only %s outer close before and after reading a photo",
+  async (presentation) => {
+    renderWithIntl(
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={vi.fn()}
+        canReadImage
+        presentation={presentation}
+      />,
+      { locale: "en", preserveProviders: true },
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+      target: { value: "DOCK" },
+    });
+    const ai = screen.getByRole("button", { name: "Photo AI" });
+    fireEvent.click(ai);
+    expect(ai).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByLabelText("Camera preview", { selector: "video" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Close Photo AI" }),
+    ).not.toBeInTheDocument();
+    select();
+    await screen.findByRole("textbox", { name: "Review location code" });
+    expect(
+      screen.queryByRole("button", { name: "Close Photo AI" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(ai);
+    await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
+    expect(
+      screen.queryByRole("region", { name: "Read a location label" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Search location" }),
+    ).toHaveValue("DOCK");
+  },
+);
 
 it.each(["default", "jobScan"] as const)(
   "the pressed Scan code action is the only %s QR camera close and keeps every acquisition channel",

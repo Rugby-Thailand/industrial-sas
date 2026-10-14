@@ -12,6 +12,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess, writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { JobScanScreen } from "./JobScanScreen";
+import type * as PhotoCaptureModule from "./PhotoCapture";
 
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   imageCodes: undefined as ((codes: string[]) => void) | undefined,
   decode: undefined as ((code: string) => void) | undefined,
   pickerPresentation: [] as (string | undefined)[],
+  realPhotos: false,
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
@@ -121,17 +123,25 @@ vi.mock("./LocationPicker", () => ({
     )
   ),
 }));
-vi.mock("./PhotoCapture", () => ({
-  PhotoCapture: ({ onSubmit }: { onSubmit: (files: File[]) => void }) => (
-    <button
-      onClick={() =>
-        onSubmit([new File(["bad-image"], "demo.jpg", { type: "image/jpeg" })])
-      }
-    >
-      Submit demo photo
-    </button>
-  ),
-}));
+vi.mock("./PhotoCapture", async (original) => {
+  const actual = await original<typeof PhotoCaptureModule>();
+  return {
+    PhotoCapture: (props: ComponentProps<typeof actual.PhotoCapture>) =>
+      mocks.realPhotos ? (
+        <actual.PhotoCapture {...props} />
+      ) : (
+        <button
+          onClick={() =>
+            props.onSubmit([
+              new File(["bad-image"], "demo.jpg", { type: "image/jpeg" }),
+            ])
+          }
+        >
+          Submit demo photo
+        </button>
+      ),
+  };
+});
 
 vi.mock("./resizeImage", () => ({
   resizeImage: mocks.resize,
@@ -139,6 +149,7 @@ vi.mock("./resizeImage", () => ({
 }));
 
 beforeEach(() => {
+  mocks.realPhotos = false;
   window.history.replaceState({ __NA: true }, "", "/en/finished-goods/scan");
   mocks.upload.mockReset().mockResolvedValue(undefined);
   mocks.extract.mockReset().mockResolvedValue(querySuccess({ ok: false }));
@@ -148,7 +159,10 @@ beforeEach(() => {
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:demo");
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function start() {
   const view = renderWithIntl(<JobScanScreen />, { locale: "en" });
@@ -475,6 +489,73 @@ it("the pressed Scan code mode is the barcode panel's only close and consumes it
       screen.getByRole("button", { name: "Choose demo location" }),
     ).toBeVisible(),
   );
+});
+
+it("the pressed Photo AI mode is the photo panel's only close, retaining photos and rejecting late capture before the next Back", async () => {
+  mocks.realPhotos = true;
+  const stop = vi.fn();
+  let encoded!: (blob: Blob | null) => void;
+  vi.stubGlobal("navigator", {
+    mediaDevices: {
+      getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }),
+    },
+  });
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  vi.spyOn(HTMLVideoElement.prototype, "videoWidth", "get").mockReturnValue(
+    640,
+  );
+  vi.spyOn(HTMLVideoElement.prototype, "videoHeight", "get").mockReturnValue(
+    480,
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    drawImage: vi.fn(),
+  } as unknown as CanvasRenderingContext2D);
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
+    (callback) => {
+      encoded = callback;
+    },
+  );
+  window.history.replaceState(
+    { __NA: true },
+    "",
+    "/en/finished-goods/scan?source=photos#tickets",
+  );
+  start();
+  await waitFor(() => expect(window.location.search).toContain("jobScanStep"));
+  const photo = screen.getByRole("button", { name: "Photo AI" });
+  fireEvent.click(photo);
+  const shutter = screen.getByRole("button", { name: "Take photo" });
+  await waitFor(() => expect(shutter).toBeEnabled());
+  expect(
+    screen.queryByRole("button", { name: "Close Photo AI" }),
+  ).not.toBeInTheDocument();
+  const file = new File(["retained"], "retained.jpg", { type: "image/jpeg" });
+  fireEvent.change(
+    screen.getByLabelText("Choose photos", { selector: "input" }),
+    { target: { files: [file] } },
+  );
+  fireEvent.click(shutter);
+  fireEvent.click(photo);
+  expect(photo).toHaveAttribute("aria-pressed", "false");
+  expect(stop).toHaveBeenCalledOnce();
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
+  act(() => encoded(new Blob(["late"], { type: "image/jpeg" })));
+  expect(URL.createObjectURL).toHaveBeenCalledOnce();
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  expect(mocks.resize).not.toHaveBeenCalled();
+  fireEvent.click(photo);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Take photo" })).toBeEnabled(),
+  );
+  expect(screen.getByText("1 / 20 photos")).toBeVisible();
+  fireEvent.click(photo);
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
+  act(() => window.history.back());
+  await screen.findByRole("button", { name: "Choose demo location" });
+  expect(
+    window.location.pathname + window.location.search + window.location.hash,
+  ).toBe("/en/finished-goods/scan?source=photos#tickets");
+  expect(mocks.save).not.toHaveBeenCalled();
 });
 
 it("keeps one acquisition panel open and Manual closes the barcode scanner", () => {

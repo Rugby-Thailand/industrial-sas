@@ -594,7 +594,6 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {panel === "PHOTO" && (
           <PhotoCapture
             selection={photos}
-            onClose={() => changePanel(null)}
             onSubmit={(files) => {
               if (acquisitionBlocked.current) return false;
               if (

@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import type { BarcodeCrop } from "../barcodeDecoder";
 import { Button } from "@/components/ui/button";
+import type { DialogCompletionHandle } from "@/components/ui/dialog";
 import { AddLocationForm } from "./AddLocationForm";
 import type { PickedLocation } from "./ticketDraft";
 import {
@@ -112,6 +113,7 @@ function LocationPickerSession({
   const acquisitionOpen = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
+  const aiCompletion = useRef<DialogCompletionHandle>(null);
   const [qrBeforeAi, setQrBeforeAi] = useState(false);
   const lastCameraMode = useRef<"QR" | "AI">("QR");
   const lastAi = useRef<{ photo?: LocationPhoto }>({});
@@ -283,6 +285,12 @@ function LocationPickerSession({
                       className="shrink-0"
                       onClick={() => {
                         const opening = !ai;
+                        if (!opening) {
+                          aiCompletion.current?.complete(() =>
+                            finishAcquisition(() => setQrBeforeAi(false)),
+                          );
+                          return;
+                        }
                         cancelScan();
                         setAdding(false);
                         setNotice(undefined);
@@ -349,6 +357,8 @@ function LocationPickerSession({
         (ai ? (
           <LocationImageReader
             {...(ai.photo ? { initialPhoto: ai.photo } : {})}
+            closeControl={qrBeforeAi}
+            completionRef={aiCompletion}
             extract={async (imageDataUrl) => {
               const result = await convex.action(fgRefs.extractLocationLabel, {
                 warehouseId,

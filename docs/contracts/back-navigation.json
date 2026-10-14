@@ -2477,12 +2477,16 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:panel",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected.",
+      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection.",
       "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "native Back closes the %s scanner and ignores late acquisition callbacks"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "the pressed Photo AI mode is the photo panel's only close, retaining photos and rejecting late capture before the next Back"
         }
       ]
     },
@@ -2589,7 +2593,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:cameraOpen",
       "policy": "overlay",
-      "expectation": "Retaking a photo owns its earlier camera step while retaining the original AI photo and corrected code; Back consumes retake before outer acquisition, and late processing cannot replace a dismissed owner.",
+      "expectation": "Retaking a photo owns its earlier camera step while retaining the original AI photo and corrected code; Back consumes retake before outer acquisition. The containing Photo AI mode uses the reader's live completion handle to cancel processing and stop capture synchronously, then consumes retake before closing outer acquisition. Late processing cannot replace a dismissed owner.",
       "integration": "useBackDisclosure",
       "tests": [
         "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
@@ -2598,6 +2602,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "native Back returns Location retake camera to its retained AI photo and corrected code"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "the Photo AI mode closes a retake before outer acquisition and the next Back restores the origin"
         }
       ]
     },
@@ -2655,7 +2663,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:photo",
       "policy": "presentation",
-      "expectation": "The retained photo supplies the inline preview and retry controls inside owned acquisition. Taking another photo is separately owned by cameraOpen disclosure, rather than treating a camera as presentation.",
+      "expectation": "The retained photo supplies the inline preview and retry controls inside owned acquisition. Taking another photo is separately owned by cameraOpen disclosure, rather than treating a camera as presentation. Standalone readers retain their frame close by default. A picker hides the equivalent outer close in direct Photo AI mode; nested QR-to-AI keeps it to return to QR, and retake always retains its own return-to-photo control.",
       "uses": ["branch"],
       "render": [
         {
@@ -2712,10 +2720,11 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:ai",
       "policy": "overlay",
-      "expectation": "The actual ai acquisition/registration foreground has a specific shared disclosure owner, retains the underlying typed label, protects dirty/pending writes and consumes explicit closure before the next Back.",
+      "expectation": "The actual AI acquisition foreground has a specific shared disclosure owner and retains the underlying typed label. Direct Photo AI mode closes through its pressed mode action only. Nested QR-to-AI retains a frame close that returns to QR; pressing Photo AI instead completes both owned entries in order before the next Back.",
       "integration": "useBackDisclosure",
       "tests": [
-        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx"
+        "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
       ],
       "cases": [
         {
@@ -2725,6 +2734,14 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
+          "name": "the pressed Photo AI action is the only %s outer close before and after reading a photo"
         }
       ]
     },
@@ -2744,6 +2761,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
           "name": "header Back closes nested Photo AI before the camera and ignores its late AI answer"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.navigation.test.tsx",
+          "name": "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin"
         }
       ]
     },

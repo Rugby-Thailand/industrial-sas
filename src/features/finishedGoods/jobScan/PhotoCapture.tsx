@@ -24,7 +24,8 @@ export function PhotoCapture({
   selection,
 }: {
   onSubmit: (files: File[]) => boolean | void;
-  onClose: () => void;
+  /** Omit when the containing acquisition mode owns closing. */
+  onClose?: () => void;
   selection?: ReturnType<typeof usePhotoSelection>;
 }) {
   const t = useTranslations("JobScan");
@@ -37,7 +38,7 @@ export function PhotoCapture({
   function close() {
     camera.current?.stop();
     if (!selection) clear();
-    onClose();
+    onClose?.();
   }
 
   function drop(event: DragEvent<HTMLDivElement>) {
@@ -56,7 +57,7 @@ export function PhotoCapture({
       <StillPhotoCamera
         ref={camera}
         onPhoto={(file) => add([file], "camera")}
-        onClose={close}
+        onClose={onClose ? close : undefined}
         closeLabel={t("closePhotoAi")}
         captureLabel={t("takePhoto")}
         fileName={ticketFileName}

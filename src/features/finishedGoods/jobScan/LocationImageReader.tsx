@@ -8,6 +8,7 @@ import {
   useId,
   useRef,
   useState,
+  type Ref,
 } from "react";
 import { Camera, ImagePlus, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -15,6 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
+import {
+  useCompletionHandle,
+  type DialogCompletionHandle,
+} from "@/components/ui/dialog";
 import { barcodeImageProblem, type BarcodeCrop } from "../barcodeDecoder";
 import { CameraFrame } from "../CameraFrame";
 import type {
@@ -46,12 +51,18 @@ export function LocationImageReader({
   extract,
   onConfirm,
   onClose,
+  closeControl = true,
+  completionRef,
   retryOverPhoto = false,
 }: {
   initialPhoto?: LocationPhoto;
   extract: (imageDataUrl: string) => Promise<LocationImageResult>;
   onConfirm: (code: string) => void;
   onClose: () => void;
+  /** Hide an equivalent outer close; retaking still has its own return control. */
+  closeControl?: boolean;
+  /** Cancel processing and consume a retake before the containing acquisition. */
+  completionRef?: Ref<DialogCompletionHandle>;
   /**
    * Offer "read this photo again" as one button centred on the photo, in
    * place of the full-width retry and the take-another-photo icon.
@@ -93,6 +104,11 @@ export function LocationImageReader({
     setCode("");
     setError(undefined);
   }
+  useCompletionHandle(completionRef, (action, onCancel) => {
+    invalidate();
+    photoCamera.current?.stop();
+    cameraDisclosure.complete(action, onCancel);
+  });
   function select(file: File) {
     invalidate();
     // A gallery photo replaces the live camera before any late capture can land.
@@ -194,10 +210,13 @@ export function LocationImageReader({
         <LocationPhotoCamera
           ref={photoCamera}
           onPhoto={select}
-          onClose={() => {
-            if (photo) cameraDisclosure.onOpenChange(false);
-            else close();
-          }}
+          onClose={
+            photo
+              ? () => cameraDisclosure.onOpenChange(false)
+              : closeControl
+                ? close
+                : undefined
+          }
           errorAction={
             // The device camera is a fallback only when the in-app camera fails.
             <Button
@@ -217,7 +236,7 @@ export function LocationImageReader({
       ) : photo ? (
         <CameraFrame
           layout="content"
-          onClose={close}
+          onClose={closeControl ? close : undefined}
           closeLabel={t("closePhotoAi")}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}

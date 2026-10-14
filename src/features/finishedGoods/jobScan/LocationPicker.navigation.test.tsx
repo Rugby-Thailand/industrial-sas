@@ -101,12 +101,17 @@ afterEach(() => {
   stop?.();
   vi.restoreAllMocks();
 });
-function show() {
+function show(presentation: "default" | "jobScan" = "default") {
   const onPick = vi.fn();
   const view = renderWithIntl(
     <NavigationGuardProvider>
       <PageBackButton fallbackHref="/finished-goods" />
-      <LocationPicker warehouseId="warehouse-a" onPick={onPick} canReadImage />
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={onPick}
+        canReadImage
+        presentation={presentation}
+      />
     </NavigationGuardProvider>,
     { locale: "en" },
   );
@@ -212,6 +217,45 @@ it("header Back closes nested Photo AI before the camera and ignores its late AI
   await waitFor(() => expect(href()).toBe(page));
 });
 
+it.each(["default", "jobScan"] as const)(
+  "nested Photo AI in %s keeps distinct return-to-QR and close-acquisition controls, then next Back restores the origin",
+  async (presentation) => {
+    const { onPick } = show(presentation);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+      target: { value: "DOCK" },
+    });
+    await openCamera();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Read barcode photo with AI" }),
+    );
+    await screen.findByRole("region", { name: "Read a location label" });
+    const ai = screen.getByRole("button", { name: "Photo AI" });
+    expect(ai).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
+    await screen.findByText("Location camera active");
+    expect(screen.getByRole("button", { name: "Scan code" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Read barcode photo with AI" }),
+    );
+    await screen.findByRole("button", { name: "Close Photo AI" });
+    fireEvent.click(ai);
+    await waitFor(() => expect(href()).toBe(page));
+    expect(cameraActive()).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "Read a location label" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("textbox", { name: "Search location" }),
+    ).toHaveValue("DOCK");
+    expect(onPick).not.toHaveBeenCalled();
+    act(() => window.history.back());
+    await waitFor(() => expect(href()).toBe(origin));
+  },
+);
+
 it("Back guards an unsent Location registration draft and Keep editing retains the label", async () => {
   show();
   await registration();
@@ -298,6 +342,7 @@ it("native Back returns Location retake camera to its retained AI photo and corr
   });
   fireEvent.change(code, { target: { value: "CORRECTED-DOCK" } });
   fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
+  expect(screen.getByRole("button", { name: "Close Photo AI" })).toBeVisible();
   act(() => window.history.back());
   await waitFor(() =>
     expect(
@@ -308,8 +353,37 @@ it("native Back returns Location retake camera to its retained AI photo and corr
     screen.getByRole("textbox", { name: "Review location code" }),
   ).toHaveValue("CORRECTED-DOCK");
   expect(mocks.action).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   await waitFor(() => expect(href()).toBe(page));
+  act(() => window.history.back());
+  await waitFor(() => expect(href()).toBe(origin));
+});
+
+it("the Photo AI mode closes a retake before outer acquisition and the next Back restores the origin", async () => {
+  show();
+  fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+    target: { value: "DOCK" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  fireEvent.change(
+    screen.getByLabelText("Choose photo", { selector: "input" }),
+    {
+      target: {
+        files: [new File(["photo"], "label.jpg", { type: "image/jpeg" })],
+      },
+    },
+  );
+  await screen.findByRole("textbox", { name: "Review location code" });
+  fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
+  await screen.findByRole("button", { name: "Close Photo AI" });
+  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  await waitFor(() => expect(href()).toBe(page));
+  expect(
+    screen.queryByRole("region", { name: "Read a location label" }),
+  ).toBeNull();
+  expect(screen.getByRole("textbox", { name: "Search location" })).toHaveValue(
+    "DOCK",
+  );
   act(() => window.history.back());
   await waitFor(() => expect(href()).toBe(origin));
 });
