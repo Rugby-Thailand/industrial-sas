@@ -28,7 +28,7 @@ export function useVideoAspect(initial = 4 / 3) {
 /**
  * The shared camera surface: one full-width frame, one close control at the
  * top right and an optional shutter at the bottom centre. A `content` frame
- * takes the size of its media (a still preview with a crop overlay).
+ * follows its media, with enough space to keep overlay touch controls visible.
  */
 export function CameraFrame({
   status = "active",
@@ -70,7 +70,7 @@ export function CameraFrame({
       className={cn(
         "relative mx-auto overflow-hidden rounded-xl bg-black",
         layout === "content"
-          ? "w-fit max-w-full"
+          ? "grid min-h-18 w-fit max-w-full min-w-18 place-items-center"
           : status === "error"
             ? "h-28 w-full"
             : "w-full",

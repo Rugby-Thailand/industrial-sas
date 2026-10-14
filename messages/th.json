@@ -1572,6 +1572,7 @@
     "scanCode": "สแกนรหัส",
     "photoAi": "ถ่ายรูป AI",
     "closePhotoAi": "ปิดถ่ายรูป AI",
+    "backToPhoto": "กลับไปที่รูป",
     "photoCameraPreview": "ภาพจากกล้อง",
     "noLocationMatch": "ไม่พบตำแหน่งที่ตรงกัน",
     "startCamera": "เปิดกล้อง",

@@ -211,7 +211,10 @@ export function LocationImageReader({
           ref={photoCamera}
           onPhoto={select}
           {...(photo
-            ? { onClose: () => cameraDisclosure.onOpenChange(false) }
+            ? {
+                onClose: () => cameraDisclosure.onOpenChange(false),
+                closeLabel: t("backToPhoto"),
+              }
             : closeControl
               ? { onClose: close }
               : {})}
@@ -237,39 +240,42 @@ export function LocationImageReader({
           onClose={closeControl ? close : undefined}
           closeLabel={t("closePhotoAi")}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
-          <img
-            src={previewUrl}
-            alt={t("locationAiPhoto")}
-            className="block h-auto max-h-[60dvh] w-auto max-w-full"
-          />
-          {photo.crop && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute border-2 border-white bg-white/10"
-              style={{
-                left: `${photo.crop.x * 100}%`,
-                top: `${photo.crop.y * 100}%`,
-                width: `${photo.crop.width * 100}%`,
-                height: `${photo.crop.height * 100}%`,
-              }}
+          {/* Crop and reread stay aligned to the media when a short frame grows for its controls. */}
+          <div className="relative w-fit max-w-full min-w-0">
+            {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
+            <img
+              src={previewUrl}
+              alt={t("locationAiPhoto")}
+              className="block h-auto max-h-[60dvh] w-auto max-w-full"
             />
-          )}
-          {retryOverPhoto && canRetry && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <IconButton
-                label={t("locationAiRereadPhoto")}
-                variant="ghost"
-                className="pointer-events-auto size-16 rounded-full bg-black/60 text-white ring-1 ring-white/70 backdrop-blur-sm hover:bg-black/75 hover:text-white focus-visible:outline-white"
-                onClick={retry}
-              >
-                <RotateCcw
-                  aria-hidden="true"
-                  className="size-7 drop-shadow-sm"
-                />
-              </IconButton>
-            </div>
-          )}
+            {photo.crop && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute border-2 border-white bg-white/10"
+                style={{
+                  left: `${photo.crop.x * 100}%`,
+                  top: `${photo.crop.y * 100}%`,
+                  width: `${photo.crop.width * 100}%`,
+                  height: `${photo.crop.height * 100}%`,
+                }}
+              />
+            )}
+            {retryOverPhoto && canRetry && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <IconButton
+                  label={t("locationAiRereadPhoto")}
+                  variant="ghost"
+                  className="pointer-events-auto size-16 rounded-full bg-black/60 text-white ring-1 ring-white/70 backdrop-blur-sm hover:bg-black/75 hover:text-white focus-visible:outline-white"
+                  onClick={retry}
+                >
+                  <RotateCcw
+                    aria-hidden="true"
+                    className="size-7 drop-shadow-sm"
+                  />
+                </IconButton>
+              </div>
+            )}
+          </div>
         </CameraFrame>
       ) : null}
       <input

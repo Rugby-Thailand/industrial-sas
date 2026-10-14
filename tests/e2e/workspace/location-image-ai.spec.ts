@@ -3,6 +3,98 @@ import { expect, test, expectNoAxeViolations } from "../support/fixtures";
 
 const url = `http://127.0.0.1:${process.env.BARCODE_PORT ?? 3199}`;
 
+for (const locale of ["en", "th"] as const) {
+  test(`short location photos keep the return control reachable and crop aligned (${locale})`, async ({
+    page,
+  }) => {
+    await page.goto(`${url}/?locale=${locale}`);
+    const data = await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 60;
+      const context = canvas.getContext("2d")!;
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "black";
+      context.font = "28px sans-serif";
+      context.fillText("Synthetic location photo", 20, 40);
+      return canvas.toDataURL("image/png").split(",")[1]!;
+    });
+    await page
+      .getByLabel(locale === "en" ? "Choose image" : "เลือกภาพ", {
+        exact: true,
+      })
+      .and(page.locator('input[type="file"]'))
+      .setInputFiles({
+        name: "short-location.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(data, "base64"),
+      });
+    await page
+      .getByRole("button", {
+        name: locale === "en" ? "Crop barcode" : "ครอบบาร์โค้ด",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", {
+        name:
+          locale === "en"
+            ? "Read location with AI"
+            : "อ่านตำแหน่งจากรูปด้วย AI",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("textbox", {
+        name: locale === "en" ? "Review location code" : "ตรวจสอบรหัสตำแหน่ง",
+      }),
+    ).toHaveValue("F1-L3-11");
+    const photo = page.getByRole("img", {
+      name: locale === "en" ? "Location label photo" : "รูปป้ายตำแหน่ง",
+    });
+    const imageBox = (await photo.boundingBox())!;
+    expect(imageBox.width / imageBox.height).toBeCloseTo(20, 2);
+    const close = page.getByRole("button", {
+      name: locale === "en" ? "Close Photo AI" : "ปิดถ่ายรูป AI",
+      exact: true,
+    });
+    const closeBox = (await close.boundingBox())!;
+    expect(imageBox.height).toBeLessThan(closeBox.height);
+    const frame = await close.evaluate((button) => {
+      const rect = button.parentElement!.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    });
+    expect(closeBox.x).toBeGreaterThanOrEqual(frame.x);
+    expect(closeBox.y).toBeGreaterThanOrEqual(frame.y);
+    expect(closeBox.x + closeBox.width).toBeLessThanOrEqual(
+      frame.x + frame.width,
+    );
+    expect(closeBox.y + closeBox.height).toBeLessThanOrEqual(
+      frame.y + frame.height,
+    );
+    const cropBox = (await photo
+      .locator("..")
+      .locator(':scope > [aria-hidden="true"]')
+      .boundingBox())!;
+    expect(cropBox.x - imageBox.x).toBeCloseTo(imageBox.width * 0.1, 0);
+    expect(cropBox.y - imageBox.y).toBeCloseTo(imageBox.height * 0.25, 0);
+    expect(cropBox.width).toBeCloseTo(imageBox.width * 0.8, 0);
+    expect(cropBox.height).toBeCloseTo(imageBox.height * 0.5, 0);
+    // The lower part of the close target was previously outside the clip.
+    await close.click({
+      position: { x: closeBox.width / 2, y: closeBox.height - 2 },
+    });
+    await expect(photo).toHaveCount(0);
+    await expect(
+      page.getByRole("button", {
+        name: locale === "en" ? "Choose image" : "เลือกภาพ",
+        exact: true,
+      }),
+    ).toBeVisible();
+  });
+}
+
 test("Job location rereads the same photo once through its centred overlay", async ({
   page,
 }) => {

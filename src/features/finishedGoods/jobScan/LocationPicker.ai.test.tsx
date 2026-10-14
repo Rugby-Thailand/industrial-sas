@@ -160,6 +160,78 @@ it("requires an explicit choice between distinct AI codes", async () => {
   ).toHaveValue("F1-L4-2");
 });
 
+it.each([
+  [
+    "en",
+    "Photo AI",
+    "Choose photo",
+    "Review location code",
+    "Take another photo",
+    "Back to photo",
+    "Close Photo AI",
+    "Location label photo",
+  ],
+  [
+    "th",
+    "ถ่ายรูป AI",
+    "เลือกรูป",
+    "ตรวจสอบรหัสตำแหน่ง",
+    "ถ่ายรูปใหม่",
+    "กลับไปที่รูป",
+    "ปิดถ่ายรูป AI",
+    "รูปป้ายตำแหน่ง",
+  ],
+] as const)(
+  "names the retake return accurately and keeps the corrected %s photo review",
+  async (
+    locale,
+    aiLabel,
+    chooseLabel,
+    reviewLabel,
+    retakeLabel,
+    returnLabel,
+    closeLabel,
+    photoLabel,
+  ) => {
+    renderWithIntl(
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={vi.fn()}
+        canReadImage
+      />,
+      { locale, preserveProviders: true },
+    );
+    const ai = screen.getByRole("button", { name: aiLabel });
+    fireEvent.click(ai);
+    fireEvent.change(
+      screen.getByLabelText(chooseLabel, { selector: "input" }),
+      {
+        target: { files: [file()] },
+      },
+    );
+    fireEvent.change(
+      await screen.findByRole("textbox", { name: reviewLabel }),
+      {
+        target: { value: "CORRECTED-DOCK" },
+      },
+    );
+    const photoHref = window.location.href;
+    fireEvent.click(screen.getByRole("button", { name: retakeLabel }));
+    expect(screen.queryByRole("button", { name: closeLabel })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: returnLabel }));
+    expect(await screen.findByRole("img", { name: photoLabel })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: reviewLabel })).toHaveValue(
+      "CORRECTED-DOCK",
+    );
+    expect(mocks.action).toHaveBeenCalledOnce();
+    // Explicit return renders the retained photo before native entry consumption finishes.
+    await waitFor(() => expect(window.location.href).toBe(photoHref));
+    expect(ai).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(ai);
+    await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
+  },
+);
+
 it("preserves a registered building location when the confirmed AI code resolves", async () => {
   const location = {
     code: "F1-L3-11",

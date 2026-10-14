@@ -1572,6 +1572,7 @@
     "scanCode": "Scan code",
     "photoAi": "Photo AI",
     "closePhotoAi": "Close Photo AI",
+    "backToPhoto": "Back to photo",
     "photoCameraPreview": "Camera preview",
     "noLocationMatch": "No matching location.",
     "startCamera": "Start camera",

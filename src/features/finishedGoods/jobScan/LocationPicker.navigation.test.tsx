@@ -342,7 +342,7 @@ it("native Back returns Location retake camera to its retained AI photo and corr
   });
   fireEvent.change(code, { target: { value: "CORRECTED-DOCK" } });
   fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
-  expect(screen.getByRole("button", { name: "Close Photo AI" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Back to photo" })).toBeVisible();
   act(() => window.history.back());
   await waitFor(() =>
     expect(
@@ -375,7 +375,7 @@ it("the Photo AI mode closes a retake before outer acquisition and the next Back
   );
   await screen.findByRole("textbox", { name: "Review location code" });
   fireEvent.click(screen.getByRole("button", { name: "Take another photo" }));
-  await screen.findByRole("button", { name: "Close Photo AI" });
+  await screen.findByRole("button", { name: "Back to photo" });
   fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
   await waitFor(() => expect(href()).toBe(page));
   expect(
