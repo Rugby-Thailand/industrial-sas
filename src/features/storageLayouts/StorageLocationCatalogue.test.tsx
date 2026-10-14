@@ -230,6 +230,36 @@ it("switches to all locations, opens coordinates and QR, and exposes exact plann
     within(screen.getByRole("dialog")).getByText("A-F04-Z01"),
   ).toBeVisible();
 });
+it.each([
+  ["en", "All locations", "QR FG-1", "Location QR", "QR Raw materials"],
+  ["th", "จุดจัดเก็บทั้งหมด", "QR FG-1", "QR จุดจัดเก็บ", "QR Raw materials"],
+] as const)(
+  "shows an equal %s location name and code once in its row and QR title while keeping distinct names",
+  (locale, view, sameQr, genericTitle, distinctQr) => {
+    // Imported records often use the code as the name.
+    mock.rows = [{ ...row, code: "FG-1" }, { ...(mock.rows[1] as typeof row) }];
+    renderWithIntl(
+      <StorageLocationCatalogue warehouseId="warehouse-a">
+        {() => <p>Building cards</p>}
+      </StorageLocationCatalogue>,
+      { locale, workspace: false, preserveProviders: true },
+    );
+    fireEvent.click(screen.getByRole("button", { name: view }));
+    const cell = (name: string) =>
+      screen.getByRole("link", { name }).closest("td")!;
+    expect(within(cell("FG-1")).getAllByText("FG-1")).toHaveLength(1);
+    expect(within(cell("Raw materials")).getByText("B-F01-Z01")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: sameQr }));
+    let dialog = screen.getByRole("dialog", { name: genericTitle });
+    // The caption keeps the human-readable code beneath the QR.
+    expect(within(dialog).getAllByText("FG-1")).toHaveLength(1);
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: distinctQr }));
+    dialog = screen.getByRole("dialog", { name: "Raw materials · QR" });
+    expect(within(dialog).getByText("B-F01-Z01")).toBeVisible();
+  },
+);
 it("offers one New building action beside the all-locations search", () => {
   renderPage();
   // The building cards view supplies its own action through its filters.

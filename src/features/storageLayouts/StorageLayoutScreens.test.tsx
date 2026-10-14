@@ -489,6 +489,51 @@ describe("BuildingModelWorkspace", () => {
     },
   );
 
+  it.each([
+    ["en", "Selected location", "Storage units", "Stored products", "1 unit"],
+    ["th", "จุดจัดเก็บที่เลือก", "หน่วยจัดเก็บ", "สินค้าที่จัดเก็บ", "1 หน่วย"],
+  ] as const)(
+    "states the stored unit count once beside the products in the %s inspector",
+    (locale, region, metric, products, count) => {
+      const zone = occupiedTestZone();
+      renderWithIntl(
+        <BuildingModelWorkspace
+          building={building}
+          floors={floors.map((row) =>
+            row.floorNumber === 2
+              ? {
+                  ...row,
+                  storageZones: [
+                    {
+                      ...zone,
+                      placements: zone.placements.map((placement) => ({
+                        ...placement,
+                        productName: "Widget A",
+                      })),
+                    },
+                  ],
+                }
+              : row,
+          )}
+        />,
+        { locale, workspace: false },
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: `${locale === "th" ? "เลือกจุดจัดเก็บ" : "Select location"} Occupied FG`,
+        }),
+      );
+      const details = screen.getByRole("complementary", { name: region });
+      expect(
+        within(details).getByText(metric).nextElementSibling,
+      ).toHaveTextContent(count);
+      // The product summary names the products without repeating the count.
+      expect(
+        within(details).getByText(products).nextElementSibling,
+      ).toHaveTextContent(/^Widget A$/);
+    },
+  );
+
   it("consolidates floor dimensions and edits the selected floor in place", () => {
     renderWithIntl(
       <BuildingModelWorkspace building={building} floors={floors} />,
