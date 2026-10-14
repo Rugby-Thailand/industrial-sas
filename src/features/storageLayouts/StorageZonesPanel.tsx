@@ -1029,7 +1029,9 @@ export function StorageZonesPanel({
               <>
                 <h3 className={canvasStyles.code}>{zone.code}</h3>
                 <p className="mt-2 text-xs text-muted">
-                  {zone.label} · {t("floor", { floor: floorNumber })}
+                  {/* A name equal to the code would repeat the heading. */}
+                  {zone.label === zone.code ? null : `${zone.label} · `}
+                  {t("floor", { floor: floorNumber })}
                 </p>
                 <span className={canvasStyles.status}>
                   <span aria-hidden="true">●</span>
@@ -1319,7 +1321,9 @@ export function StorageZonesPanel({
                 </ul>
               )}
             </details>
-            {locationInventory(zone).units === 0 &&
+            {/* The compact inventory summary already states an empty location. */}
+            {!compact &&
+              locationInventory(zone).units === 0 &&
               !locationInventory(zone).incomplete && (
                 <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
                   {t("noPalletsAtSpot")}

@@ -44,6 +44,29 @@ describe("resolveWriteError", () => {
     expect(resolveWriteError("STACK_SUPPORT_MOVING", th)).toContain("งานย้าย");
   });
 
+  it.each([
+    ["en", en],
+    ["th", th],
+  ] as const)(
+    "explains confirmed finished-goods refusals instead of the generic %s retry",
+    (_locale, catalogue) => {
+      // Codes returned by finished-goods mutations (workflow, batches,
+      // batchManagement and jobScans) that previously fell back to FG_UNKNOWN.
+      const codes = [
+        "PRODUCT_ALREADY_ACTIVE",
+        "PRODUCT_DRAFT",
+        "LOCATION_GEOMETRY_UNKNOWN",
+        "LOCATION_ONLY_ACTION_UNAVAILABLE",
+        "SCAN_GROUP_SIZE_INVALID",
+        "STACK_SETTINGS_STALE",
+      ];
+      const generic = resolveWriteError("NOT_A_REAL_CODE", catalogue);
+      const messages = codes.map((code) => resolveWriteError(code, catalogue));
+      expect(messages).not.toContain(generic);
+      expect(new Set(messages).size).toBe(codes.length);
+    },
+  );
+
   it("never exposes an arbitrary backend message", () => {
     const backendText = "Convex internal stack trace: secret details";
     expect(resolveWriteError(backendText, en)).toBe(

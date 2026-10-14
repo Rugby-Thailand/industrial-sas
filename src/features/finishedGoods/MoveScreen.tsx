@@ -32,7 +32,7 @@ import {
   DestinationSummary,
   MoveHistory,
   Summary,
-  recommendationReason,
+  recommendationReasons,
   sceneProps,
 } from "./PalletScreens";
 import {
@@ -262,8 +262,8 @@ function MoveSelection({
             )}
           />
           <ul className="list-disc space-y-2 pl-5 text-sm">
-            {outcome.value.reasons.map((reason) => (
-              <li key={reason}>{recommendationReason(reason, tr)}</li>
+            {recommendationReasons(outcome.value.reasons, tr).map((reason) => (
+              <li key={reason}>{reason}</li>
             ))}
           </ul>
         </Panel>

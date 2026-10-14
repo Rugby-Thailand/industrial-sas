@@ -660,6 +660,48 @@ describe("stored pallet movement", () => {
       screen.queryByText("From · Current stored position"),
     ).not.toBeInTheDocument();
   });
+  it.each([
+    [
+      "en",
+      [
+        "A location holds units without measured coordinates, so its free space is unknown. Measure or place those units, or choose another location.",
+        "A pallet that could support this one has an active move. Finish or cancel that move to use its top.",
+        "No valid position meets the current dimensions and storage constraints.",
+      ],
+    ],
+    [
+      "th",
+      [
+        "มีจุดจัดเก็บที่มีหน่วยจัดเก็บซึ่งยังไม่มีพิกัด จึงไม่ทราบพื้นที่ว่าง กรุณาระบุตำแหน่งของหน่วยเหล่านั้นหรือเลือกจุดอื่น",
+        "พาเลทที่อาจรองรับได้กำลังถูกย้าย กรุณาย้ายให้เสร็จหรือยกเลิกก่อนใช้ด้านบน",
+        "ไม่มีตำแหน่งที่ตรงกับขนาดและข้อกำหนดการจัดเก็บในขณะนี้",
+      ],
+    ],
+  ])(
+    "lists distinct move destination refusals once in %s",
+    (locale, expected) => {
+      mocks.query.mockImplementation((name) =>
+        name.endsWith(":getPallet")
+          ? querySuccess(currentDetail)
+          : querySuccess({
+              candidates: [],
+              reasons: [
+                "LOCATION_GEOMETRY_UNKNOWN",
+                "STACK_SUPPORT_MOVING",
+                "UNMAPPED_A",
+                "UNMAPPED_B",
+              ],
+            }),
+      );
+      renderMove(locale);
+      const list = screen.getAllByRole("list").at(-1)!;
+      expect(
+        within(list)
+          .getAllByRole("listitem")
+          .map((item) => item.textContent),
+      ).toEqual(expected);
+    },
+  );
   it("shows the move state in both workspace and detail summaries, never a green Stored badge", () => {
     currentDetail = active("IN_TRANSIT");
     const view = renderMove();

@@ -64,18 +64,13 @@ function ProfileContent() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <HrInitials name={employee.displayName} size="lg" />
-                  <div className="min-w-0">
-                    <h2
-                      id="hr-profile-heading"
-                      className="text-xl leading-7 font-semibold break-words text-text"
-                    >
-                      {employee.displayName}
-                    </h2>
-                    <p className="text-sm text-muted">
-                      {employee.code}
-                      {employee.site ? ` · ${employee.site.name}` : ""}
-                    </p>
-                  </div>
+                  {/* The code and the full site follow in the facts below. */}
+                  <h2
+                    id="hr-profile-heading"
+                    className="min-w-0 text-xl leading-7 font-semibold break-words text-text"
+                  >
+                    {employee.displayName}
+                  </h2>
                 </div>
                 <StatusBadge
                   tone={active ? "success" : "muted"}

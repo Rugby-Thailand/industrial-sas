@@ -195,6 +195,7 @@ describe("preparation batches", () => {
       warehouseId: args.warehouseId,
       palletId: original[0]!._id,
       requestId: "configure-before-repack",
+      expectedStackable: false,
       stackable: true,
       maxStackLevels: 3,
     });

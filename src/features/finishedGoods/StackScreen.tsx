@@ -62,30 +62,49 @@ function Limits({
   const canManage = useCanManage();
   const save = useMutation(fgRefs.saveStackingLimits);
   const op = useOperation(`${warehouseId}:${pallet._id}:stacking-limits`);
-  const [stackable, setStackable] = useState(pallet.stackable ?? false);
-  const [levels, setLevels] = useState(String(pallet.maxStackLevels ?? ""));
+  // The live settings; `baseline` is what this form loaded and saves against.
+  const live = {
+    stackable: pallet.stackable ?? false,
+    maxStackLevels: pallet.maxStackLevels,
+  };
+  const liveKey = JSON.stringify(live);
+  const [baseline, setBaseline] = useState(live);
+  const [seen, setSeen] = useState({ key: liveKey, deferred: false });
+  const [stackable, setStackable] = useState(live.stackable);
+  const [levels, setLevels] = useState(String(live.maxStackLevels ?? ""));
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [savedValues, setSavedValues] = useState({
-    stackable: pallet.stackable ?? false,
-    levels: String(pallet.maxStackLevels ?? ""),
-  });
+  function adoptLimits(next: typeof live) {
+    setBaseline(next);
+    setStackable(next.stackable);
+    setLevels(String(next.maxStackLevels ?? ""));
+  }
+  function load(next: typeof live) {
+    setSeen({ key: JSON.stringify(next), deferred: false });
+    adoptLimits(next);
+    setDirty(false);
+    onDirty(false);
+  }
+  // A clean form follows newer saved settings; a dirty or pending one keeps
+  // its draft and loaded baseline so the server can refuse a stale save.
+  if (seen.key !== liveKey || (seen.deferred && !dirty && !op.busy)) {
+    setSeen({ key: liveKey, deferred: dirty || op.busy });
+    if (!dirty && !op.busy && liveKey !== JSON.stringify(baseline)) {
+      adoptLimits(live);
+      setSaved(false);
+    }
+  }
   function reportDirty(nextStackable: boolean, nextLevels: string) {
     const changed =
-      nextStackable !== savedValues.stackable ||
-      (nextStackable && nextLevels !== savedValues.levels);
+      nextStackable !== baseline.stackable ||
+      (nextStackable && nextLevels !== String(baseline.maxStackLevels ?? ""));
     setDirty(changed);
     onDirty(changed);
   }
   const draft = useNavigationDraft({
     dirty,
     pending: op.busy,
-    discard: () => {
-      setStackable(pallet.stackable ?? false);
-      setLevels(String(pallet.maxStackLevels ?? ""));
-      setDirty(false);
-      onDirty(false);
-    },
+    discard: () => load(live),
   });
   return (
     <form
@@ -97,6 +116,10 @@ function Limits({
           palletId: pallet._id,
           stackable,
           ...(stackable ? { maxStackLevels: Number(levels) } : {}),
+          expectedStackable: baseline.stackable,
+          ...(baseline.maxStackLevels === undefined
+            ? {}
+            : { expectedMaxStackLevels: baseline.maxStackLevels }),
         };
         void op.run(
           async () => {
@@ -110,7 +133,10 @@ function Limits({
           () => {
             setSaved(true);
             setDirty(false);
-            setSavedValues({ stackable, levels });
+            setBaseline({
+              stackable,
+              maxStackLevels: stackable ? Number(levels) : undefined,
+            });
             draft.settle();
             onDirty(false);
             op.clearRequests();
@@ -158,7 +184,24 @@ function Limits({
           </Button>
         ) : null}
       </fieldset>
-      <ErrorNotice message={op.error} />
+      {op.error && op.errorCode === "STACK_SETTINGS_STALE" ? (
+        <Notice tone="danger" role="alert" title={op.error}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              load(live);
+              setSaved(false);
+              op.setError("");
+              op.clearRequests();
+            }}
+          >
+            {t("copy.load-current-stacking-limits")}
+          </Button>
+        </Notice>
+      ) : (
+        <ErrorNotice message={op.error} />
+      )}
     </form>
   );
 }

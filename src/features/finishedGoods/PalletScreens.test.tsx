@@ -82,7 +82,12 @@ import {
   writeFailure,
   writeSuccess as success,
 } from "@tests/fixtures/finished-goods-ui";
-import { PalletScreen, Summary } from "./PalletScreens";
+import {
+  PalletScreen,
+  Summary,
+  recommendationReason,
+  recommendationReasons,
+} from "./PalletScreens";
 
 let currentDetail: PalletDetail;
 const renderPallet = (view: "measure" | "storage" | "detail" = "detail") => {
@@ -827,6 +832,70 @@ describe("exact storage recommendations", () => {
     ).toHaveAttribute("href", "/finished-goods/pallets/pallet-a/measure");
     expect(screen.getByRole("link", { name: "Save for later" })).toBeVisible();
   });
+
+  it("explains each distinct no-fit reason once", () => {
+    mocks.query.mockImplementation((name) =>
+      name.endsWith(":getPallet")
+        ? querySuccess(currentDetail)
+        : querySuccess({
+            candidates: [],
+            reasons: [
+              "LOCATION_GEOMETRY_UNKNOWN",
+              "STACK_LIMITS_REQUIRED",
+              "UNMAPPED_A",
+              "UNMAPPED_B",
+            ],
+          }),
+    );
+    renderPallet("storage");
+    const items = within(
+      screen
+        .getByRole("heading", { name: "No suitable space found" })
+        .closest("div")!,
+    )
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+    expect(items).toEqual([
+      "A location holds units without measured coordinates, so its free space is unknown. Measure or place those units, or choose another location.",
+      "A pallet that could support this one has no stacking limits. Enable stacking and set its maximum levels to use its top.",
+      "No valid position meets the current dimensions and storage constraints.",
+    ]);
+  });
+
+  it.each(["en", "th"] as const)(
+    "gives every emitted recommendation refusal its own %s explanation",
+    (locale) => {
+      const tr = (en: string, th: string) => (locale === "th" ? th : en);
+      // Every reason convex/finishedGoods/workflow.ts recommend/recommendMove emits.
+      const emitted = [
+        "NOT_FOUND",
+        "MEASUREMENTS_REQUIRED",
+        "STORED_PALLET_REQUIRED",
+        "LOCATION_GEOMETRY_UNKNOWN",
+        "STORAGE_CONDITION_MISMATCH",
+        "NO_SUPPORT_SURFACE",
+        "STACK_PALLET_ONLY",
+        "PALLET_SUPPORTING_STACK",
+        "STACK_CYCLE",
+        "STACK_SUPPORT_UNAVAILABLE",
+        "STACK_SUPPORT_MOVING",
+        "STACK_LIMITS_REQUIRED",
+        "STACK_LEVELS_EXCEEDED",
+        "STACK_SUPPORT_OCCUPIED",
+        "HEIGHT_EXCEEDED",
+        "NO_FREE_FOOTPRINT",
+        "NO_ACTIVE_LOCATIONS",
+      ];
+      const fallback = recommendationReason("UNMAPPED", tr);
+      const texts = recommendationReasons(emitted, tr);
+      expect(texts).toHaveLength(emitted.length);
+      expect(texts).not.toContain(fallback);
+      // Equivalent unmapped codes collapse to one fallback line.
+      expect(recommendationReasons(["UNMAPPED", "OTHER"], tr)).toEqual([
+        fallback,
+      ]);
+    },
+  );
 
   it("previews a local coordinate and reserves in one explicit action", async () => {
     renderPallet("storage");

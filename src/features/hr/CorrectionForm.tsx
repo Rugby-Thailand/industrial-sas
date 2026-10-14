@@ -2,10 +2,11 @@
 
 import { useMutation } from "convex/react";
 import { useTranslations } from "next-intl";
-import { useId, useState, type FormEvent, type Ref } from "react";
+import { useEffect, useId, useState, type FormEvent, type Ref } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
+import { Notice } from "@/components/ui/Notice";
 import { Panel } from "@/components/ui/Panel";
 import { useDraftGuard } from "@/components/providers/draftGuard";
 import { hrRefs } from "@/lib/convex/hrApi";
@@ -13,7 +14,6 @@ import { hrRefs } from "@/lib/convex/hrApi";
 import type { DayDetail } from "./DayDetailView";
 import { SectionTitle, WriteFeedback } from "./HrShared";
 import {
-  EMPTY_SIDE,
   TimeSideField,
   sideFromInstant,
   toLocalTimeInput,
@@ -70,6 +70,16 @@ export function ReasonField({
   );
 }
 
+/** A correction starts from the original clock events. */
+function correctionBaseline(day: DayDetail, timezone: string) {
+  return {
+    start: sideFromInstant(day.originalStartAt, day.businessDate, timezone),
+    end: sideFromInstant(day.originalEndAt, day.businessDate, timezone),
+  };
+}
+
+export type CorrectionRetention = "none" | "draft" | "receipt";
+
 /**
  * Employee correction request for one business date. The proposal never
  * edits the original events; a supervisor or HR certifies it later.
@@ -78,39 +88,63 @@ export function CorrectionForm({
   detail,
   timezone,
   returnedId,
+  available = true,
+  onRetained,
 }: {
   readonly detail: DayDetail;
   readonly timezone: string;
   /** Resubmit this returned request instead of opening a new one. */
   readonly returnedId?: string | undefined;
+  readonly available?: boolean;
+  readonly onRetained?: (retained: CorrectionRetention) => void;
 }) {
   const t = useTranslations("Hr.correction");
   const form = useTranslations("Hr.form");
   const submitCorrection = useMutation(hrRefs.submitCorrection);
-  const [initial] = useState(() => ({
-    start:
-      detail.originalStartAt === undefined
-        ? EMPTY_SIDE
-        : sideFromInstant(
-            detail.originalStartAt,
-            detail.businessDate,
-            timezone,
-          ),
-    end: sideFromInstant(detail.originalEndAt, detail.businessDate, timezone),
-  }));
+  // The day revision this request was written against; a newer live revision
+  // keeps the entry but needs the employee's explicit choice before sending.
+  const [loadedRevision, setLoadedRevision] = useState(detail.revision);
+  const returnedVersion = detail.corrections.find(
+    (c) => c.id === returnedId,
+  )?.version;
+  const [loadedReturn, setLoadedReturn] = useState({
+    id: returnedId,
+    version: returnedVersion,
+  });
+  const [initial, setInitial] = useState(() =>
+    correctionBaseline(detail, timezone),
+  );
   const [start, setStart] = useState<TimeSide>(initial.start);
   const [end, setEnd] = useState<TimeSide>(initial.end);
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<{ time?: string; reason?: string }>({});
   const write = useHrWrite(
-    `correction:${detail.employeeId}:${detail.businessDate}:${returnedId ?? "new"}`,
+    `correction:${detail.employeeId}:${detail.businessDate}:${loadedReturn.id ?? "new"}`,
   );
-  // Entered, unsent details survive search and navigation unless discarded.
-  useDraftGuard(
+  const held =
     write.state.kind !== "SAVED" &&
-      (reason.trim() !== "" ||
-        JSON.stringify([start, end]) !==
-          JSON.stringify([initial.start, initial.end])),
+    (reason.trim() !== "" ||
+      JSON.stringify([start, end]) !==
+        JSON.stringify([initial.start, initial.end]));
+  const returnedChanged =
+    returnedId !== loadedReturn.id || returnedVersion !== loadedReturn.version;
+  const stale = detail.revision !== loadedRevision || returnedChanged;
+  // A clean, settled form follows the live day.
+  if (stale && !held && !write.locked && write.state.kind !== "SAVED") {
+    const next = correctionBaseline(detail, timezone);
+    setLoadedRevision(detail.revision);
+    setLoadedReturn({ id: returnedId, version: returnedVersion });
+    setInitial(next);
+    setStart(next.start);
+    setEnd(next.end);
+    setErrors({});
+  }
+  // A held draft over a newer revision waits for the user's explicit choice
+  // (a clean one has just adopted the live day above).
+  const changed = stale && !write.locked && write.state.kind !== "SAVED";
+  // Entered, unsent details survive search and navigation unless discarded.
+  const draft = useDraftGuard(
+    held,
     () => {
       setStart(initial.start);
       setEnd(initial.end);
@@ -119,8 +153,40 @@ export function CorrectionForm({
     },
     write.pending,
   );
+  const retaining: CorrectionRetention =
+    write.state.kind === "SAVED"
+      ? "receipt"
+      : held || write.locked
+        ? "draft"
+        : "none";
+  useEffect(() => onRetained?.(retaining), [retaining, onRetained]);
+  useEffect(() => () => onRetained?.("none"), [onRetained]);
+  // Edited values stay; untouched times follow the current record.
+  const adoptCurrent = () => {
+    const next = correctionBaseline(detail, timezone);
+    setLoadedRevision(detail.revision);
+    setLoadedReturn({ id: returnedId, version: returnedVersion });
+    setInitial(next);
+    setStart((side) => (side.untouched ? next.start : side));
+    setEnd((side) => (side.untouched ? next.end : side));
+    setErrors({});
+  };
+  const discardDraft = () => {
+    const next = correctionBaseline(detail, timezone);
+    setLoadedRevision(detail.revision);
+    setLoadedReturn({ id: returnedId, version: returnedVersion });
+    setInitial(next);
+    setStart(next.start);
+    setEnd(next.end);
+    setReason("");
+    setErrors({});
+    write.reset();
+    draft.settle();
+    onRetained?.("none");
+  };
 
   const send = async () => {
+    if (!available || changed || write.locked) return;
     const startInput = toLocalTimeInput(start);
     const endInput = toLocalTimeInput(end);
     const next: { time?: string; reason?: string } = {};
@@ -138,7 +204,9 @@ export function CorrectionForm({
         ...(startInput ? { start: startInput } : {}),
         ...(endInput ? { end: endInput } : {}),
         reason: reason.trim(),
-        ...(returnedId === undefined ? {} : { correctionId: returnedId }),
+        ...(loadedReturn.id === undefined
+          ? {}
+          : { correctionId: loadedReturn.id }),
       }),
     );
   };
@@ -165,7 +233,7 @@ export function CorrectionForm({
     >
       <SectionTitle>
         <span id="hr-correction-title">
-          {t(returnedId === undefined ? "title" : "resubmitTitle")}
+          {t(loadedReturn.id === undefined ? "title" : "resubmitTitle")}
         </span>
       </SectionTitle>
       <p className="mb-4 text-sm text-muted">{t("intro")}</p>
@@ -196,14 +264,42 @@ export function CorrectionForm({
         />
       </div>
       <div className="mt-4 space-y-3">
+        {changed && available ? (
+          <Notice
+            tone="warning"
+            role="alert"
+            title={form("recordChanged")}
+            body={form("recordChangedHint")}
+            testId="hr-correction-changed"
+          >
+            <Button type="button" variant="outline" onClick={adoptCurrent}>
+              {form("recordChangedUse")}
+            </Button>
+          </Notice>
+        ) : null}
         <Button
           type="submit"
-          disabled={write.locked}
+          disabled={write.locked || changed || !available}
           data-testid="hr-correction-submit"
         >
           {write.pending ? form("submitting") : t("submit")}
         </Button>
-        <WriteFeedback state={write.state} onRetry={() => void write.retry()} />
+        {!available || changed ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={write.locked}
+            onClick={discardDraft}
+          >
+            {form("discardDraft")}
+          </Button>
+        ) : null}
+        {changed ? null : (
+          <WriteFeedback
+            state={write.state}
+            onRetry={() => void write.retry()}
+          />
+        )}
       </div>
     </form>
   );

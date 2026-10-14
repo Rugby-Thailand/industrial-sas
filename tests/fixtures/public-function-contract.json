@@ -8387,6 +8387,18 @@
             "type": "number"
           },
           "optional": true
+        },
+        "expectedStackable": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "expectedMaxStackLevels": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
         }
       }
     },
@@ -16271,6 +16283,26 @@
                 "optional": false
               },
               "nextDay": {
+                "fieldType": {
+                  "type": "boolean"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        },
+        "retainCertified": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "start": {
+                "fieldType": {
+                  "type": "boolean"
+                },
+                "optional": false
+              },
+              "end": {
                 "fieldType": {
                   "type": "boolean"
                 },

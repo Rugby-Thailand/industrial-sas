@@ -524,19 +524,28 @@ function ShortcutEditor({
         <p className="text-sm text-muted">
           {t(dirty ? "unsaved" : "unchanged")}
         </p>
-        <WriteFeedback
-          state={write.state}
-          saved={
-            <p role="status" className="text-sm font-semibold text-success">
-              {t("saved")}
-            </p>
-          }
-          onRetry={() => void persist(true)}
-        />
         {write.state.kind === "REFUSED" &&
         write.state.code === "PREFERENCES_STALE" ? (
-          <Notice tone="warning" title={t("stale")} body={t("staleHint")} />
-        ) : null}
+          // A stale save has one recovery path, so it replaces the generic
+          // "correct it and try again" refusal instead of contradicting it.
+          <Notice
+            tone="warning"
+            role="alert"
+            title={t("stale")}
+            body={t("staleHint")}
+            testId="hr-shortcuts-stale"
+          />
+        ) : (
+          <WriteFeedback
+            state={write.state}
+            saved={
+              <p role="status" className="text-sm font-semibold text-success">
+                {t("saved")}
+              </p>
+            }
+            onRetry={() => void persist(true)}
+          />
+        )}
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"

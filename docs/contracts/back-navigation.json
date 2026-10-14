@@ -3474,7 +3474,7 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:rotation",
       "policy": "presentation",
-      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view.",
+      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view. The supporting pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -3511,6 +3511,14 @@
         },
         {
           "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": ["src/features/finishedGoods/shared#ErrorNotice"]
+        },
+        {
+          "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         },
@@ -3524,7 +3532,18 @@
           "truthy": ["src/features/finishedGoods/shared#Missing"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "refreshes clean stacking limits from live settings and saves against them"
+        },
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "keeps a dirty stacking draft over live changes and reloads only after a stale refusal"
+        }
+      ],
+      "tests": ["src/features/finishedGoods/StackScreen.test.tsx"]
     },
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:upperDirty",
@@ -3542,7 +3561,7 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:upperId",
       "policy": "presentation",
-      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure.",
+      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure. The upper pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -3579,6 +3598,14 @@
         },
         {
           "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": ["src/features/finishedGoods/shared#ErrorNotice"]
+        },
+        {
+          "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         },
@@ -3592,7 +3619,18 @@
           "truthy": ["src/features/finishedGoods/shared#Missing"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "refreshes clean stacking limits from live settings and saves against them"
+        },
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "keeps a dirty stacking draft over live changes and reloads only after a stale refusal"
+        }
+      ],
+      "tests": ["src/features/finishedGoods/StackScreen.test.tsx"]
     },
     {
       "id": "src/features/finishedGoods/SummaryPreparation.tsx#SummaryPreparation:error",
@@ -3606,6 +3644,43 @@
           "falsy": []
         }
       ]
+    },
+    {
+      "id": "src/features/hr/CorrectionForm.tsx#CorrectionForm:loadedRevision",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The loaded day revision controls the same inline correction form: a changed-record alert with use-current and explicit draft discard, or write feedback. It creates no predecessor; the retained form keeps its own dirty/pending departure guard.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps an employee correction reason over a supervisor certification until the employee uses it"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "refreshes a clean employee correction form without a notice"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "id": "src/features/hr/EmployeeForm.tsx#EmployeeForm:draft",
@@ -3849,7 +3924,59 @@
           "truthy": ["div"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "discarding a live-invalidated review return draft consumes the detail before the next %s Back restores the real locale query and hash"
+        }
+      ],
+      "tests": ["src/features/hr/HrBackNavigation.test.tsx"]
+    },
+    {
+      "id": "src/features/hr/ReviewDetail.tsx#DispositionForm:loaded",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The loaded day revision controls changed-record reconciliation, explicit draft discard and write feedback within the same inline decision form. Ineligible live days disable fresh submission without replacing the held form; dirty/pending departure stays guarded.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps a re-review reason over a newer revision and sends only after the reviewer uses it"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "sends a stale dirty decision against its loaded revision when the update arrives in flight"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason and blocks new writes after a live period closure"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "closes re-review after a successful %s retry with a newer live revision"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "id": "src/features/hr/ReviewDetail.tsx#DispositionForm:choice",
@@ -3865,17 +3992,60 @@
       ]
     },
     {
-      "id": "src/features/hr/ReviewDetail.tsx#ReviewAgain:open",
+      "id": "src/features/hr/ReviewDetail.tsx#DayDisposition:open",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "This named inline disclosure/popover expands supporting content; it does not replace the active page or foreground workflow.",
+      "expectation": "Review again is an inline disclosure that reveals the re-review form in the same decision area; it does not replace the page or a foreground workflow, and a successful decision closes it again.",
       "render": [
         {
           "shape": "conditional",
           "truthy": ["DispositionForm"],
           "falsy": ["div", "p", "src/components/ui/button#Button"]
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "refreshes clean review forms from the live day"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "closes re-review after a successful %s retry with a newer live revision"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
+    },
+    {
+      "id": "src/features/hr/ReviewDetail.tsx#DayDisposition:held",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Keeps the same inline disposition form mounted while it holds unsent or in-flight input, including live certification, locking or a newly pending correction. Successful submit/retry and explicit draft discard release this inline hold; departure remains protected by its draft guard.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["DispositionForm"],
+          "falsy": ["div", "p", "src/components/ui/button#Button"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps an exception disposition draft when another reviewer certifies the day"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "refreshes clean review forms from the live day"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason and blocks new writes after a live period closure"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason when another session creates a pending correction"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "policy": "workflow",
@@ -7472,6 +7642,202 @@
           "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
           "name": "keeps normal new correction writes blocked on a newer revision after a known rejection"
         }
+      ]
+    },
+    {
+      "id": "src/features/hr/CorrectionForm.tsx#CorrectionForm:loadedReturn",
+      "policy": "presentation",
+      "uses": ["branch", "return"],
+      "expectation": "Loaded returned-request identity/version binds the original correction command while dirty/pending. A changed target controls inline reconciliation/discard and feedback, and the terminal saved Panel stays visible through the live pending update before a later return opens resubmission. This remains an inline form/receipt, with its existing departure guard.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
+        },
+        {
+          "shape": "early-return",
+          "truthy": ["p", "src/components/ui/Panel#Panel[role=status]"],
+          "falsy": []
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps a successful employee correction receipt after its live pending update"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
+    },
+    {
+      "id": "src/features/hr/DayScreen.tsx#CorrectionArea:retention",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Preserves the same inline employee correction form or its saved receipt over live eligibility changes while also showing the current unavailability Notice. It is part of the day detail, not a foreground or whole-view editor; the form owns dirty/pending departure protection. Its retained target key stays fixed for unsent/pending work and the completed receipt, then changes only for a clean form or an eligible later returned-request version.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/features/hr/CorrectionForm#CorrectionForm"],
+          "falsy": []
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason and blocks new writes after a live period closure"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason when another session creates a pending correction"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps a successful employee correction receipt after its live pending update"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
+    },
+    {
+      "id": "src/features/hr/ReviewDetail.tsx#DecisionArea:action",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Selects the inline disposition or correction decision within the unchanged day detail. Dirty/pending commands retain this same form over locking, a newly pending correction or another reviewer decision, with live eligibility Notices and disabled fresh writes. Explicit discard releases only this form; its existing draft guard owns departure.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["CorrectionDecision"],
+          "falsy": ["DayDisposition"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["DayDisposition"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": ["src/components/ui/Notice#Notice"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["p[role=status]", "src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason and blocks new writes after a live period closure"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains the %s reason when another session creates a pending correction"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains a return reason when another reviewer decides the pending correction"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "updates pristine forms to the live locked and pending explanations"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "discarding a live-invalidated review return draft consumes the detail before the next %s Back restores the real locale query and hash"
+        }
+      ],
+      "tests": [
+        "src/features/hr/HrLiveDayDrafts.test.tsx",
+        "src/features/hr/HrBackNavigation.test.tsx"
+      ]
+    },
+    {
+      "id": "src/features/hr/ReviewDetail.tsx#CorrectionDecision:loaded",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The loaded pending correction version pins its expectedVersion and request owner. A changed live version reveals inline reconciliation/discard controls while retaining the same comment/return reason; it does not open a predecessor and the existing dirty/pending guard protects departure.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["p[role=status]", "src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "reconciles a changed pending correction version before sending the retained return reason"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "retains a return reason when another reviewer decides the pending correction"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "discarding a live-invalidated review return draft consumes the detail before the next %s Back restores the real locale query and hash"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps a pending reviewer decision bound to its loaded version after another reviewer decides"
+        }
+      ],
+      "tests": [
+        "src/features/hr/HrLiveDayDrafts.test.tsx",
+        "src/features/hr/HrBackNavigation.test.tsx"
       ]
     }
   ],

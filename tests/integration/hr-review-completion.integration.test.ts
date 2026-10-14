@@ -114,6 +114,168 @@ describe("manual decision history and re-review (HR-033, HR-042, HR-050)", () =>
       ],
     });
   });
+
+  it("retains exact current certification instants for untouched re-review sides", async () => {
+    const { w, employeeId } = await world();
+    // An original clock-in with seconds and a missing clock-out.
+    const clockInAt = at(DATE, 510) + 50_000;
+    await w.t.run((ctx) =>
+      ctx.db.insert("hrAttendanceDays", {
+        orgId: w.orgA,
+        warehouseId: w.warehouses.alphaA,
+        employeeId,
+        businessDate: DATE,
+        plan: storedPlan(
+          planFor({
+            date: DATE,
+            schedule: DAY,
+            offsetMinutes: 420,
+            holidayName: undefined,
+          }),
+        ),
+        clockInAt,
+        open: true,
+        revision: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+    const dispose = (extra: Record<string, unknown>) =>
+      call(w, review.disposeDay, {
+        requestId: rid("retain"),
+        employeeId,
+        businessDate: DATE,
+        disposition: "WORKED",
+        reason: "Checked against the paper register",
+        ...extra,
+      });
+    const detail = async () =>
+      (await call(w, review.dayDetail, { employeeId, businessDate: DATE }))
+        .value.detail;
+    const refused = (code: string) => ({
+      value: { written: false, error: { code } },
+    });
+    const saved = { value: { written: true } };
+    // Certify the missing clock-out; the omitted start keeps the original.
+    expect(
+      await dispose({
+        expectedRevision: 1,
+        end: { minute: 1050, nextDay: false },
+      }),
+    ).toMatchObject(saved);
+    expect(await detail()).toMatchObject({
+      effectiveStartAt: clockInAt,
+      effectiveEndAt: at(DATE, 1050),
+      workedMinutes: 479,
+    });
+    // Re-review with only a new reason: both certified instants stay exact.
+    // A stale revision is still refused first.
+    expect(
+      await dispose({
+        expectedRevision: 1,
+        retainCertified: { start: true, end: true },
+      }),
+    ).toMatchObject(refused("DECISION_STALE"));
+    expect(
+      await dispose({
+        expectedRevision: 2,
+        retainCertified: { start: true, end: true },
+        reason: "Same times, additional rationale",
+      }),
+    ).toMatchObject(saved);
+    expect(await detail()).toMatchObject({
+      revision: 3,
+      effectiveStartAt: clockInAt,
+      effectiveEndAt: at(DATE, 1050),
+      workedMinutes: 479,
+    });
+
+    // A certification that differs from the original clock-in.
+    expect(
+      await dispose({
+        expectedRevision: 3,
+        start: { minute: 480, nextDay: false },
+        retainCertified: { start: false, end: true },
+      }),
+    ).toMatchObject(saved);
+    expect(await detail()).toMatchObject({
+      effectiveStartAt: at(DATE, 480),
+      effectiveEndAt: at(DATE, 1050),
+    });
+    // One edited side is serialized as entered; the untouched side keeps the
+    // certified instant rather than the original clock-in.
+    expect(
+      await dispose({
+        expectedRevision: 4,
+        end: { minute: 1065, nextDay: false },
+        retainCertified: { start: true, end: false },
+      }),
+    ).toMatchObject(saved);
+    expect(await detail()).toMatchObject({
+      effectiveStartAt: at(DATE, 480),
+      effectiveEndAt: at(DATE, 1065),
+    });
+    // Without the retention contract an omitted side still uses the original.
+    expect(
+      await dispose({
+        expectedRevision: 5,
+        end: { minute: 1050, nextDay: false },
+      }),
+    ).toMatchObject(saved);
+    expect(await detail()).toMatchObject({
+      effectiveStartAt: clockInAt,
+      effectiveEndAt: at(DATE, 1050),
+    });
+
+    // Retained instants still pass the order and duration validations.
+    expect(
+      await dispose({
+        expectedRevision: 6,
+        end: { minute: 500, nextDay: false },
+        retainCertified: { start: true, end: false },
+      }),
+    ).toMatchObject(refused("CORRECTION_ORDER_INVALID"));
+    expect(
+      await dispose({
+        expectedRevision: 6,
+        end: { minute: 600, nextDay: true },
+        retainCertified: { start: true, end: false },
+      }),
+    ).toMatchObject(refused("CORRECTION_TOO_LONG"));
+    // A retained side cannot also be sent, or kept for a non-worked day.
+    expect(
+      await dispose({
+        expectedRevision: 6,
+        start: { minute: 480, nextDay: false },
+        retainCertified: { start: true, end: true },
+      }),
+    ).toMatchObject(refused("CERTIFIED_TIMES_UNAVAILABLE"));
+    expect(
+      await dispose({
+        expectedRevision: 6,
+        disposition: "ABSENT",
+        retainCertified: { start: true, end: false },
+      }),
+    ).toMatchObject(refused("CERTIFIED_TIMES_UNAVAILABLE"));
+    // A certification without times has nothing to retain; the originals
+    // remain the only fallback (and the clock-out is missing).
+    expect(
+      await dispose({ expectedRevision: 6, disposition: "LEAVE" }),
+    ).toMatchObject(saved);
+    expect(
+      await dispose({
+        expectedRevision: 7,
+        retainCertified: { start: true, end: true },
+      }),
+    ).toMatchObject(refused("CERTIFIED_TIMES_UNAVAILABLE"));
+    expect(await dispose({ expectedRevision: 7 })).toMatchObject(
+      refused("CORRECTION_INCOMPLETE"),
+    );
+    expect(await detail()).toMatchObject({
+      revision: 7,
+      disposition: "LEAVE",
+    });
+  });
 });
 
 describe("correction history bounds (HR-024, HR-051)", () => {

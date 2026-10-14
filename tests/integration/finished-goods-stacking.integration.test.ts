@@ -42,6 +42,18 @@ function id(result: Record<string, unknown>): string {
 function error(result: Record<string, unknown>, code: string) {
   expect(value(result)).toMatchObject({ written: false, error: { code } });
 }
+/** The stacking settings an editor loaded for this pallet. */
+async function loaded(world: ConvexTenantWorld, palletId: string) {
+  const pallet = await world.t.run((ctx) =>
+    ctx.db.get(palletId as Id<"finishedGoodsPallets">),
+  );
+  return {
+    expectedStackable: pallet?.stackable ?? false,
+    ...(pallet?.maxStackLevels === undefined
+      ? {}
+      : { expectedMaxStackLevels: pallet.maxStackLevels }),
+  };
+}
 async function setup(roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN") {
   const world = await createConvexTenantWorld();
   await seedConvexAuthorization(world, { roleA });
@@ -217,6 +229,7 @@ async function stackingWorld() {
   };
   id(
     await call(w, workflow.saveStackingLimits, {
+      ...(await loaded(w, w.palletId)),
       ...w.base,
       ...config,
       requestId: "lower-limits",
@@ -224,6 +237,7 @@ async function stackingWorld() {
   );
   id(
     await call(w, workflow.saveStackingLimits, {
+      ...(await loaded(w, upper.palletId)),
       warehouseId: w.warehouseId,
       palletId: upper.palletId,
       ...config,
@@ -265,6 +279,7 @@ describe("pallet stacking", () => {
     const w = await stackingWorld();
     id(
       await call(w, workflow.saveStackingLimits, {
+        ...(await loaded(w, w.palletId)),
         ...w.base,
 
         stackable: false,
@@ -426,6 +441,7 @@ describe("pallet stacking", () => {
     error(await call(w, workflow.reserve, args), "STACK_LIMITS_REQUIRED");
     id(
       await call(w, workflow.saveStackingLimits, {
+        ...(await loaded(w, palletId)),
         warehouseId: w.warehouseId,
         palletId,
 
@@ -439,6 +455,7 @@ describe("pallet stacking", () => {
     );
     error(
       await call(w, workflow.saveStackingLimits, {
+        ...(await loaded(w, w.palletId)),
         ...w.base,
 
         stackable: true,
@@ -450,6 +467,7 @@ describe("pallet stacking", () => {
     );
     error(
       await call(w, workflow.saveStackingLimits, {
+        ...(await loaded(w, w.palletId)),
         ...w.base,
 
         stackable: true,
@@ -486,6 +504,7 @@ describe("pallet stacking", () => {
     const other = await measuredPallet(w, "other");
     id(
       await call(w, workflow.saveStackingLimits, {
+        ...(await loaded(w, other.palletId)),
         warehouseId: w.warehouseId,
         palletId: other.palletId,
 
@@ -507,6 +526,7 @@ describe("pallet stacking", () => {
     id(await call(w, workflow.reserve, w.stack));
     error(
       await call(w, workflow.saveStackingLimits, {
+        ...(await loaded(w, w.palletId)),
         ...w.base,
 
         stackable: false,
@@ -636,6 +656,128 @@ describe("pallet stacking", () => {
       );
     },
   );
+  it("refuses stacking limits saved against settings another operator changed", async () => {
+    const w = await storedWorld();
+    const stored = async () =>
+      (await w.t.run((ctx) =>
+        ctx.db.get(w.palletId as Id<"finishedGoodsPallets">),
+      ))!;
+    // Nothing saved yet: the baseline has no maximum.
+    id(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: false,
+        stackable: true,
+        maxStackLevels: 2,
+        requestId: "limit-2",
+      }),
+    );
+    // Another operator raises the same pallet from 2 to 5.
+    id(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: true,
+        expectedMaxStackLevels: 2,
+        stackable: true,
+        maxStackLevels: 5,
+        requestId: "limit-5",
+      }),
+    );
+    // The first editor still holds the 2 it loaded.
+    const stale = {
+      ...w.base,
+      expectedStackable: true,
+      expectedMaxStackLevels: 2,
+      stackable: true,
+      maxStackLevels: 2,
+      requestId: "limit-stale",
+    };
+    error(
+      await call(w, workflow.saveStackingLimits, stale),
+      "STACK_SETTINGS_STALE",
+    );
+    error(
+      await call(w, workflow.saveStackingLimits, {
+        ...stale,
+        expectedMaxStackLevels: undefined,
+        requestId: "limit-missing-baseline",
+      }),
+      "STACK_SETTINGS_STALE",
+    );
+    // An older client without a baseline fails closed.
+    error(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        stackable: true,
+        maxStackLevels: 2,
+        requestId: "limit-legacy-client",
+      }),
+      "STACK_SETTINGS_STALE",
+    );
+    expect(await stored()).toMatchObject({
+      stackable: true,
+      maxStackLevels: 5,
+    });
+    // A receipt keeps replaying its original result after later changes.
+    const replay = value(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: true,
+        expectedMaxStackLevels: 2,
+        stackable: true,
+        maxStackLevels: 5,
+        requestId: "limit-5",
+      }),
+    );
+    expect(replay).toMatchObject({ written: true, replayed: true });
+    // Saving against the current settings succeeds, including an unchanged re-save.
+    id(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: true,
+        expectedMaxStackLevels: 5,
+        stackable: true,
+        maxStackLevels: 5,
+        requestId: "limit-5-again",
+      }),
+    );
+    id(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: true,
+        expectedMaxStackLevels: 5,
+        stackable: false,
+        requestId: "limit-off",
+      }),
+    );
+    expect(await stored()).toMatchObject({ stackable: false });
+    expect((await stored()).maxStackLevels).toBeUndefined();
+    // A disabled pallet's baseline has no maximum again.
+    error(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: false,
+        expectedMaxStackLevels: 5,
+        stackable: true,
+        maxStackLevels: 3,
+        requestId: "limit-old-max",
+      }),
+      "STACK_SETTINGS_STALE",
+    );
+    id(
+      await call(w, workflow.saveStackingLimits, {
+        ...w.base,
+        expectedStackable: false,
+        stackable: true,
+        maxStackLevels: 3,
+        requestId: "limit-3",
+      }),
+    );
+    expect(await stored()).toMatchObject({
+      stackable: true,
+      maxStackLevels: 3,
+    });
+  });
   it("requires permission and warehouse scope", async () => {
     const w = await stackingWorld();
     await expect(call(w, workflow.reserve, w.stack, false)).rejects.toThrow(
@@ -852,6 +994,7 @@ it("excludes retired/box units and uses the unit format before legacy product de
   );
   error(
     await call(w, workflow.saveStackingLimits, {
+      ...(await loaded(w, box.palletId)),
       ...w.base,
       palletId: box.palletId,
       stackable: true,
@@ -868,6 +1011,7 @@ it("configuring and stacking leaves optional measured weights and product quanti
   );
   id(
     await call(w, workflow.saveStackingLimits, {
+      ...(await loaded(w, w.palletId)),
       ...w.base,
       stackable: true,
       maxStackLevels: 2,
@@ -1019,6 +1163,7 @@ it("protects supporting batch units independently of cached status, then repacks
   await w.t.run((ctx) => ctx.db.patch(holdId, { status: "RELEASED" }));
   id(
     await call(w, workflow.saveStackingLimits, {
+      ...(await loaded(w, lowerId)),
       warehouseId: w.warehouseId,
       palletId: lowerId,
       requestId: "old-config",

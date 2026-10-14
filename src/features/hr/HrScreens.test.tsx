@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 
@@ -52,6 +58,7 @@ vi.mock("@/i18n/navigation", () => ({
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { guardedNavigate } from "@/lib/navigationGuard";
+import { HrProfileScreen } from "./ProfileScreen";
 import { HrTodayScreen } from "./TodayScreen";
 import { ReviewDetail } from "./ReviewDetail";
 import { classifyOutcome } from "./useHrWrite";
@@ -452,4 +459,41 @@ describe("review decisions (HR-031, HR-032, A9)", () => {
     if (edit) fireEvent.click(edit);
     expect(screen.getByTestId("hr-dispose-submit")).toBeInTheDocument();
   });
+});
+
+describe("own profile (HR-012)", () => {
+  it.each([
+    ["en", "Employee code", "Site"],
+    ["th", "รหัสพนักงาน", "สถานที่ทำงาน"],
+  ] as const)(
+    "shows the employee code and full site once in the %s profile card",
+    (locale, codeLabel, siteLabel) => {
+      state.queries.set(ref(hrRefs.profile), {
+        ok: true,
+        requestId: "q",
+        value: {
+          linked: true,
+          timezone: ZONE,
+          employed: true,
+          employee: {
+            id: "e1",
+            code: "EMP-001",
+            displayName: "Somchai Jaidee",
+            status: "ACTIVE",
+            site: { id: "w1", code: "HQ", name: "Head office" },
+            employmentStartDate: "2026-01-05",
+          },
+        },
+      });
+      renderWithIntl(<HrProfileScreen />, { locale });
+      const card = screen.getByRole("region", { name: "Somchai Jaidee" });
+      expect(within(card).getAllByText(/EMP-001/)).toHaveLength(1);
+      expect(within(card).getAllByText(/Head office/)).toHaveLength(1);
+      // The remaining facts keep their labels and the complete site identity.
+      const fact = (label: string) =>
+        within(card).getByText(label, { selector: "dt" }).nextElementSibling;
+      expect(fact(codeLabel)).toHaveTextContent("EMP-001");
+      expect(fact(siteLabel)).toHaveTextContent("HQ · Head office");
+    },
+  );
 });

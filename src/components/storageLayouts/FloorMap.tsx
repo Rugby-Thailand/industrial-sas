@@ -427,8 +427,10 @@ export function FloorMap(props: FloorMapProps) {
             <h3 className="text-lg font-semibold break-words">
               {selected.label}
             </h3>
-            <p className="mt-1 font-mono text-[13px] break-all text-muted">
-              {selected.code}
+            <p className="mt-1 text-[13px] break-all text-muted">
+              {/* A name equal to the code would repeat the heading. */}
+              {selected.label === selected.code ? "" : `${selected.code} · `}
+              {t("floor", { floor: props.floorNumber })}
             </p>
           </div>
           <p className="mt-3 text-sm">
@@ -1031,7 +1033,11 @@ export function FloorMap(props: FloorMapProps) {
           >
             <SheetHeader className="shrink-0 pr-14">
               <SheetTitle>{t("locationDetails")}</SheetTitle>
-              <SheetDescription className="break-words">
+              {/* Both location inspectors show the code and floor, so the
+                  description stays only for assistive technology. */}
+              <SheetDescription
+                className={selected ? "sr-only" : "break-words"}
+              >
                 {selected?.code ??
                   (selectedArea &&
                     (mobileSheet

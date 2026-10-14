@@ -813,6 +813,14 @@ export const disposeDay = mutationWithOrg({
     disposition: dispositionValidator,
     start: v.optional(localTimeValidator),
     end: v.optional(localTimeValidator),
+    /**
+     * Keep the exact instant of the loaded, current certification for an
+     * omitted side. Checked against `expectedRevision`; an omitted side
+     * without it still falls back to the original clock event.
+     */
+    retainCertified: v.optional(
+      v.object({ start: v.boolean(), end: v.boolean() }),
+    ),
     reason: v.string(),
   },
   returns: v.any(),
@@ -829,6 +837,7 @@ export const disposeDay = mutationWithOrg({
         disposition: args.disposition,
         start: args.start,
         end: args.end,
+        retainCertified: args.retainCertified,
         reason: args.reason,
       },
       table: "hrAttendanceDays",
@@ -873,6 +882,27 @@ export const disposeDay = mutationWithOrg({
         if (!startBelongsToDate(plan, date, clock.offset, args.start))
           return fail("CORRECTION_DATE_INVALID", "start");
         const disposition: Disposition = args.disposition;
+        // Only the certification the reviewer loaded (same revision, still
+        // current) can be retained, and only for a side they did not edit.
+        const retain = {
+          start: args.retainCertified?.start === true,
+          end: args.retainCertified?.end === true,
+        };
+        const certified = certificationIsCurrent(
+          existing?.certification,
+          existing?.revision ?? 0,
+        )
+          ? existing?.certification
+          : undefined;
+        if (
+          (retain.start || retain.end) &&
+          (disposition !== "WORKED" ||
+            (retain.start &&
+              (args.start !== undefined || certified?.startAt === undefined)) ||
+            (retain.end &&
+              (args.end !== undefined || certified?.endAt === undefined)))
+        )
+          return fail("CERTIFIED_TIMES_UNAVAILABLE");
         let interval: { startAt: number; endAt: number } | undefined;
         if (disposition === "WORKED") {
           const resolved = resolveProposedInterval({
@@ -881,8 +911,10 @@ export const disposeDay = mutationWithOrg({
             now: clock.now,
             start: args.start,
             end: args.end,
-            originalStartAt: existing?.clockInAt,
-            originalEndAt: existing?.clockOutAt,
+            originalStartAt: retain.start
+              ? certified?.startAt
+              : existing?.clockInAt,
+            originalEndAt: retain.end ? certified?.endAt : existing?.clockOutAt,
           });
           if (!resolved.ok) return fail(resolved.error.code);
           interval = resolved.value;

@@ -612,7 +612,7 @@ describe("storage spot editor foregrounds", () => {
       mutationFor("storageLayouts/zones:archiveStorageZone"),
     ).not.toHaveBeenCalled();
     await nativeBack();
-    expect(href()).toBe(ORIGIN);
+    await waitFor(() => expect(href()).toBe(ORIGIN));
   });
 });
 
