@@ -38,7 +38,7 @@ export function ScanCodeInput({
       <div className="absolute inset-y-0 right-0.5 flex items-center">
         <IconButton
           label={scanLabel}
-          variant="ghost"
+          variant={scanning && !scanDialog ? "active" : "ghost"}
           className="shrink-0"
           disabled={disabled || readOnly || scanDisabled}
           aria-pressed={scanDialog ? undefined : scanning}

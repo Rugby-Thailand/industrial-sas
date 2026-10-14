@@ -280,7 +280,7 @@ function LocationPickerSession({
                   canReadImage ? (
                     <IconButton
                       label={t("photoAi")}
-                      variant="ghost"
+                      variant={ai ? "active" : "ghost"}
                       aria-pressed={Boolean(ai)}
                       className="shrink-0"
                       onClick={() => {

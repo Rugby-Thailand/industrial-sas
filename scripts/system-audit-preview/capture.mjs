@@ -319,6 +319,8 @@ try {
         .getByRole("button", { name: t.retryCamera, exact: true })
         .waitFor();
     }
+    // Leave the action to expose its persistent selected state, not hover.
+    await page.mouse.move(0, 0);
     await page.evaluate(() => document.fonts.ready);
     const dom = await page.evaluate(() => ({
       text: document.body.innerText,
