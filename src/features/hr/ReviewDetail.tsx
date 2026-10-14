@@ -39,7 +39,6 @@ import {
 import { HrPagedState, HrPager, useHrPagedQuery } from "./HrPagedList";
 import { HrDisclosure } from "./HrUi";
 import {
-  EMPTY_SIDE,
   TimeSideField,
   sideFromInstant,
   toLocalTimeInput,
@@ -130,16 +129,12 @@ export function ReviewDetail({
                   detail={detail}
                   timezone={timezone}
                 />
-              ) : detail.status === "EXCEPTION" ? (
-                <DispositionForm
-                  key={`${employeeId}:${businessDate}:${detail.revision}`}
-                  employeeId={employeeId}
-                  detail={detail}
-                  timezone={timezone}
-                />
-              ) : detail.certification?.current ? (
-                <ReviewAgain
-                  key={`${employeeId}:${businessDate}:${detail.revision}`}
+              ) : detail.status === "EXCEPTION" ||
+                detail.certification?.current ? (
+                // One position for both states: a live certification of the
+                // day must not unmount an unsent decision.
+                <DayDisposition
+                  key={`${employeeId}:${businessDate}`}
                   employeeId={employeeId}
                   detail={detail}
                   timezone={timezone}
@@ -228,16 +223,25 @@ function RecordedTimes({
   );
 }
 
-/** A certified, unlocked day can be deliberately re-certified (e.g. in a revision). */
-function ReviewAgain(props: {
+/**
+ * An exception day needs a disposition; a certified, unlocked day can be
+ * deliberately re-certified (e.g. in a revision). A form with unsent or
+ * pending input stays open when a live update certifies the day elsewhere.
+ */
+function DayDisposition(props: {
   readonly employeeId: string;
   readonly detail: DayDetail;
   readonly timezone: string;
 }) {
   const t = useTranslations("Hr.review");
   const [open, setOpen] = useState(false);
-  return open ? (
-    <DispositionForm {...props} />
+  const [held, setHeld] = useState(false);
+  return open || held || props.detail.status === "EXCEPTION" ? (
+    <DispositionForm
+      {...props}
+      onHeld={setHeld}
+      onSaved={() => setOpen(false)}
+    />
   ) : (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <Button type="button" variant="outline" onClick={() => setOpen(true)}>
@@ -499,47 +503,84 @@ function CorrectionDecision({
 const DISPOSITIONS = ["WORKED", "ABSENT", "LEAVE", "NONWORKING"] as const;
 type DispositionChoice = (typeof DISPOSITIONS)[number];
 
+/** The form's starting values for a loaded day. */
+function dispositionBaseline(
+  day: DayDetail,
+  timezone: string,
+): { choice: DispositionChoice; start: TimeSide; end: TimeSide } {
+  // A re-review starts from the certified times; otherwise the originals.
+  return {
+    choice:
+      day.certification?.disposition ??
+      (day.originalStartAt !== undefined ? "WORKED" : "ABSENT"),
+    start: sideFromInstant(
+      day.certification?.startAt ?? day.originalStartAt,
+      day.businessDate,
+      timezone,
+    ),
+    end: sideFromInstant(
+      day.certification?.endAt ?? day.originalEndAt,
+      day.businessDate,
+      timezone,
+    ),
+  };
+}
+
 /** Explicit accounting for an exception day without a pending request. */
 function DispositionForm({
   employeeId,
   detail,
   timezone,
+  onHeld,
+  onSaved,
 }: {
   readonly employeeId: string;
   readonly detail: DayDetail;
   readonly timezone: string;
+  /** Reports unsent or in-flight input that a live update must not unmount. */
+  readonly onHeld: (held: boolean) => void;
+  readonly onSaved: () => void;
 }) {
   const t = useTranslations("Hr.review");
   const status = useTranslations("Hr.status.disposition");
   const form = useTranslations("Hr.form");
   const dispose = useMutation(hrRefs.disposeDay);
   const id = useId();
-  const defaultChoice: DispositionChoice =
-    detail.certification?.disposition ??
-    (detail.originalStartAt !== undefined ? "WORKED" : "ABSENT");
-  const [choice, setChoice] = useState<DispositionChoice>(defaultChoice);
-  // A re-review starts from the certified times; otherwise the originals.
-  const startAt = detail.certification?.startAt ?? detail.originalStartAt;
-  const endAt = detail.certification?.endAt ?? detail.originalEndAt;
-  const [start, setStart] = useState<TimeSide>(() =>
-    sideFromInstant(startAt, detail.businessDate, timezone),
+  // The day revision this form was loaded from. A decision is always sent
+  // against it, so a newer live revision needs the reviewer's explicit choice.
+  const [loaded, setLoaded] = useState(detail);
+  const [initial, setInitial] = useState(() =>
+    dispositionBaseline(detail, timezone),
   );
-  const [end, setEnd] = useState<TimeSide>(() =>
-    endAt === undefined
-      ? EMPTY_SIDE
-      : sideFromInstant(endAt, detail.businessDate, timezone),
-  );
+  const [choice, setChoice] = useState<DispositionChoice>(initial.choice);
+  const [start, setStart] = useState<TimeSide>(initial.start);
+  const [end, setEnd] = useState<TimeSide>(initial.end);
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<{ time?: string; reason?: string }>({});
   const write = useHrWrite(
-    `dispose:${employeeId}:${detail.businessDate}:${detail.revision}`,
+    `dispose:${employeeId}:${detail.businessDate}:${loaded.revision}`,
   );
-  const [initial] = useState(() => ({ choice: defaultChoice, start, end }));
-  useDraftGuard(
+  const held =
     write.state.kind !== "SAVED" &&
-      (reason.trim() !== "" ||
-        JSON.stringify([choice, start, end]) !==
-          JSON.stringify([initial.choice, initial.start, initial.end])),
+    (reason.trim() !== "" ||
+      JSON.stringify([choice, start, end]) !==
+        JSON.stringify([initial.choice, initial.start, initial.end]));
+  const stale = detail.revision !== loaded.revision;
+  // A clean, settled form follows the live day.
+  if (stale && !held && !write.locked) {
+    const next = dispositionBaseline(detail, timezone);
+    setLoaded(detail);
+    setInitial(next);
+    setChoice(next.choice);
+    setStart(next.start);
+    setEnd(next.end);
+    setErrors({});
+  }
+  // A held draft over a newer revision waits for the user's explicit choice
+  // (a clean one has just adopted the live day above).
+  const changed = stale && !write.locked;
+  useDraftGuard(
+    held,
     () => {
       setChoice(initial.choice);
       setStart(initial.start);
@@ -549,30 +590,68 @@ function DispositionForm({
     },
     write.pending,
   );
+  const holding = held || write.locked;
+  useEffect(() => onHeld(holding), [holding, onHeld]);
+  useEffect(() => () => onHeld(false), [onHeld]);
+  // Edited values stay; untouched choice and times follow the current record.
+  const adoptCurrent = () => {
+    const next = dispositionBaseline(detail, timezone);
+    setLoaded(detail);
+    setInitial(next);
+    setChoice((value) => (value === initial.choice ? next.choice : value));
+    setStart((side) => (side.untouched ? next.start : side));
+    setEnd((side) => (side.untouched ? next.end : side));
+    setErrors({});
+  };
 
   const send = async () => {
+    // Never send a draft against a revision the reviewer has not accepted.
+    if (changed) return;
     const next: { time?: string; reason?: string } = {};
-    const startInput =
-      choice === "WORKED" ? toLocalTimeInput(start, false) : undefined;
-    const endInput =
-      choice === "WORKED" ? toLocalTimeInput(end, false) : undefined;
+    // An untouched side keeps its exact saved instant, seconds included: the
+    // current certification's (retained by the server against this revision)
+    // or, when it has none, the original clock event.
+    const certified = loaded.certification?.current
+      ? loaded.certification
+      : undefined;
+    const retainCertified = {
+      start: certified?.startAt !== undefined && start.untouched === true,
+      end: certified?.endAt !== undefined && end.untouched === true,
+    };
+    const worked = choice === "WORKED";
+    const startInput = worked
+      ? toLocalTimeInput(
+          start,
+          retainCertified.start || loaded.certification?.startAt === undefined,
+        )
+      : undefined;
+    const endInput = worked
+      ? toLocalTimeInput(
+          end,
+          retainCertified.end || loaded.certification?.endAt === undefined,
+        )
+      : undefined;
     if (startInput === null || endInput === null)
       next.time = form("timeInvalid");
     if (reason.trim().length < 3) next.reason = form("reasonRequired");
     setErrors(next);
     if (next.time !== undefined || next.reason !== undefined) return;
-    await write.submit((requestId) =>
+    const result = await write.submit((requestId) =>
       dispose({
         requestId,
         employeeId,
-        businessDate: detail.businessDate,
-        expectedRevision: detail.revision,
+        businessDate: loaded.businessDate,
+        expectedRevision: loaded.revision,
         disposition: choice,
         ...(startInput ? { start: startInput } : {}),
         ...(endInput ? { end: endInput } : {}),
+        ...(worked && (retainCertified.start || retainCertified.end)
+          ? { retainCertified }
+          : {}),
         reason: reason.trim(),
       }),
     );
+    if (result.kind === "SAVED") onSaved();
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -629,14 +708,29 @@ function DispositionForm({
         error={errors.reason}
         disabled={write.locked}
       />
+      {changed ? (
+        <Notice
+          tone="warning"
+          role="alert"
+          title={form("recordChanged")}
+          body={form("recordChangedHint")}
+          testId="hr-dispose-changed"
+        >
+          <Button type="button" variant="outline" onClick={adoptCurrent}>
+            {form("recordChangedUse")}
+          </Button>
+        </Notice>
+      ) : null}
       <Button
         type="submit"
-        disabled={write.locked}
+        disabled={write.locked || changed}
         data-testid="hr-dispose-submit"
       >
         {write.pending ? form("submitting") : t("disposeSubmit")}
       </Button>
-      <WriteFeedback state={write.state} onRetry={() => void write.retry()} />
+      {changed ? null : (
+        <WriteFeedback state={write.state} onRetry={() => void write.retry()} />
+      )}
     </form>
   );
 }

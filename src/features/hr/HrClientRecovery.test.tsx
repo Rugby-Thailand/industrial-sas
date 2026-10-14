@@ -698,7 +698,7 @@ it.each([
     );
     customize();
     fireEvent.click(screen.getByRole("button", { name: "Try again safely" }));
-    await screen.findByTestId("hr-write-refused");
+    await screen.findByTestId("hr-shortcuts-stale");
     expect(state.savePreferences.mock.calls[1]![0]).toEqual(originalCommand);
     expect(await state.savePreferences.mock.results[1]!.value).toMatchObject({
       ok: true,

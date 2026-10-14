@@ -78,6 +78,7 @@ import {
   finishedGoodDestination,
   measuredPalletDetail,
   querySuccess,
+  writeFailure as failure,
   writeSuccess as success,
 } from "@tests/fixtures/finished-goods-ui";
 import { StackScreen } from "./StackScreen";
@@ -467,4 +468,100 @@ it("guards unsent stack limits and clears the guard after values are reverted", 
   fireEvent.click(checkbox);
   act(() => guardedNavigate(leave));
   await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+});
+
+const levelsField = () =>
+  screen.getByRole("spinbutton", {
+    name: "Maximum levels, including this pallet",
+  });
+function rerenderWithLiveLevels(
+  view: ReturnType<typeof mount>,
+  maxStackLevels: number,
+) {
+  data = { ...data, lower: { ...data.lower, maxStackLevels } };
+  view.rerender(
+    <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+      <StackScreen palletId="lower" />
+    </NextIntlClientProvider>,
+  );
+}
+const savedLimits = () =>
+  mocks.write.mock.calls
+    .filter(([name]) => name === "finishedGoods/workflow:saveStackingLimits")
+    .map(([, args]) => args as Record<string, unknown>);
+
+it("refreshes clean stacking limits from live settings and saves against them", async () => {
+  const view = mount();
+  expect(levelsField()).toHaveValue(2);
+  // Another operator saves 5 while this form is untouched.
+  rerenderWithLiveLevels(view, 5);
+  expect(levelsField()).toHaveValue(5);
+  fireEvent.click(screen.getByRole("button", { name: "Save stacking limits" }));
+  await waitFor(() => expect(savedLimits()).toHaveLength(1));
+  expect(savedLimits()[0]).toMatchObject({
+    stackable: true,
+    maxStackLevels: 5,
+    expectedStackable: true,
+    expectedMaxStackLevels: 5,
+  });
+});
+
+it("keeps a dirty stacking draft over live changes and reloads only after a stale refusal", async () => {
+  mocks.write.mockResolvedValue(failure("STACK_SETTINGS_STALE"));
+  const view = mount();
+  fireEvent.change(levelsField(), { target: { value: "3" } });
+  rerenderWithLiveLevels(view, 5);
+  expect(levelsField()).toHaveValue(3);
+  fireEvent.click(screen.getByRole("button", { name: "Save stacking limits" }));
+  const alert = await screen.findByRole("alert");
+  // The save carried the loaded baseline, not the newer live value.
+  expect(savedLimits()[0]).toMatchObject({
+    maxStackLevels: 3,
+    expectedStackable: true,
+    expectedMaxStackLevels: 2,
+  });
+  expect(alert).toHaveTextContent(
+    "Stacking limits changed in another session. Your entry is kept. Load the current limits, then make your change again.",
+  );
+  expect(levelsField()).toHaveValue(3);
+  expect(
+    screen.getByText("Save the edited stacking limits before reserving."),
+  ).toBeVisible();
+  mocks.write.mockResolvedValue(success("lower"));
+  fireEvent.click(
+    within(alert).getByRole("button", { name: "Load current limits" }),
+  );
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(levelsField()).toHaveValue(5);
+  expect(
+    screen.queryByText("Save the edited stacking limits before reserving."),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save stacking limits" }));
+  await waitFor(() => expect(savedLimits()).toHaveLength(2));
+  expect(savedLimits()[1]).toMatchObject({
+    maxStackLevels: 5,
+    expectedMaxStackLevels: 5,
+  });
+  expect(savedLimits()[1]!["requestId"]).not.toBe(
+    savedLimits()[0]!["requestId"],
+  );
+});
+
+it("sends an absent maximum as the baseline for a pallet that was not stackable", async () => {
+  // A pallet that was never configured has no saved maximum.
+  const { maxStackLevels: _saved, ...lower } = data.lower;
+  data = { ...data, lower: { ...lower, stackable: false } };
+  mount();
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "May support another pallet" }),
+  );
+  fireEvent.change(levelsField(), { target: { value: "4" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save stacking limits" }));
+  await waitFor(() => expect(savedLimits()).toHaveLength(1));
+  expect(savedLimits()[0]).toMatchObject({
+    stackable: true,
+    maxStackLevels: 4,
+    expectedStackable: false,
+  });
+  expect(savedLimits()[0]).not.toHaveProperty("expectedMaxStackLevels");
 });

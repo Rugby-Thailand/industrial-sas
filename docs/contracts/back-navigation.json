@@ -3474,7 +3474,7 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:rotation",
       "policy": "presentation",
-      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view.",
+      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view. The supporting pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -3508,6 +3508,14 @@
           "shape": "conditional",
           "truthy": ["p"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": ["src/features/finishedGoods/shared#ErrorNotice"]
         },
         {
           "shape": "conditional",
@@ -3542,7 +3550,7 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:upperId",
       "policy": "presentation",
-      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure.",
+      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure. The upper pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -3579,6 +3587,14 @@
         },
         {
           "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": ["src/features/finishedGoods/shared#ErrorNotice"]
+        },
+        {
+          "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         },
@@ -3606,6 +3622,38 @@
           "falsy": []
         }
       ]
+    },
+    {
+      "id": "src/features/hr/CorrectionForm.tsx#CorrectionForm:loadedRevision",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The loaded day revision only decides whether an inline changed-record alert (with an explicit use-current action) replaces the write feedback inside the same correction form; it never changes the view and the draft guard still owns departure.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps an employee correction reason over a supervisor certification until the employee uses it"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "refreshes a clean employee correction form without a notice"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "id": "src/features/hr/EmployeeForm.tsx#EmployeeForm:draft",
@@ -3852,6 +3900,38 @@
       ]
     },
     {
+      "id": "src/features/hr/ReviewDetail.tsx#DispositionForm:loaded",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The loaded day revision only decides whether an inline changed-record alert (with an explicit use-current action) replaces the write feedback inside the same decision form; it never changes the view and the draft guard still owns departure.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps a re-review reason over a newer revision and sends only after the reviewer uses it"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "sends a stale dirty decision against its loaded revision when the update arrives in flight"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
+    },
+    {
       "id": "src/features/hr/ReviewDetail.tsx#DispositionForm:choice",
       "policy": "presentation",
       "uses": ["branch"],
@@ -3865,10 +3945,10 @@
       ]
     },
     {
-      "id": "src/features/hr/ReviewDetail.tsx#ReviewAgain:open",
+      "id": "src/features/hr/ReviewDetail.tsx#DayDisposition:open",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "This named inline disclosure/popover expands supporting content; it does not replace the active page or foreground workflow.",
+      "expectation": "Review again is an inline disclosure that reveals the re-review form in the same decision area; it does not replace the page or a foreground workflow, and a successful decision closes it again.",
       "render": [
         {
           "shape": "conditional",
@@ -3876,6 +3956,30 @@
           "falsy": ["div", "p", "src/components/ui/button#Button"]
         }
       ]
+    },
+    {
+      "id": "src/features/hr/ReviewDetail.tsx#DayDisposition:held",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Keeps the same inline decision form mounted while it holds unsent or in-flight input, so a live certification of the day cannot unmount it; navigation away remains protected by the form's draft guard.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["DispositionForm"],
+          "falsy": ["div", "p", "src/components/ui/button#Button"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps an exception disposition draft when another reviewer certifies the day"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "refreshes clean review forms from the live day"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "policy": "workflow",

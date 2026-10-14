@@ -6,6 +6,7 @@ import { useId, useState, type FormEvent, type Ref } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
+import { Notice } from "@/components/ui/Notice";
 import { Panel } from "@/components/ui/Panel";
 import { useDraftGuard } from "@/components/providers/draftGuard";
 import { hrRefs } from "@/lib/convex/hrApi";
@@ -13,7 +14,6 @@ import { hrRefs } from "@/lib/convex/hrApi";
 import type { DayDetail } from "./DayDetailView";
 import { SectionTitle, WriteFeedback } from "./HrShared";
 import {
-  EMPTY_SIDE,
   TimeSideField,
   sideFromInstant,
   toLocalTimeInput,
@@ -70,6 +70,14 @@ export function ReasonField({
   );
 }
 
+/** A correction starts from the original clock events. */
+function correctionBaseline(day: DayDetail, timezone: string) {
+  return {
+    start: sideFromInstant(day.originalStartAt, day.businessDate, timezone),
+    end: sideFromInstant(day.originalEndAt, day.businessDate, timezone),
+  };
+}
+
 /**
  * Employee correction request for one business date. The proposal never
  * edits the original events; a supervisor or HR certifies it later.
@@ -87,17 +95,12 @@ export function CorrectionForm({
   const t = useTranslations("Hr.correction");
   const form = useTranslations("Hr.form");
   const submitCorrection = useMutation(hrRefs.submitCorrection);
-  const [initial] = useState(() => ({
-    start:
-      detail.originalStartAt === undefined
-        ? EMPTY_SIDE
-        : sideFromInstant(
-            detail.originalStartAt,
-            detail.businessDate,
-            timezone,
-          ),
-    end: sideFromInstant(detail.originalEndAt, detail.businessDate, timezone),
-  }));
+  // The day revision this request was written against; a newer live revision
+  // keeps the entry but needs the employee's explicit choice before sending.
+  const [loadedRevision, setLoadedRevision] = useState(detail.revision);
+  const [initial, setInitial] = useState(() =>
+    correctionBaseline(detail, timezone),
+  );
   const [start, setStart] = useState<TimeSide>(initial.start);
   const [end, setEnd] = useState<TimeSide>(initial.end);
   const [reason, setReason] = useState("");
@@ -105,12 +108,27 @@ export function CorrectionForm({
   const write = useHrWrite(
     `correction:${detail.employeeId}:${detail.businessDate}:${returnedId ?? "new"}`,
   );
+  const held =
+    write.state.kind !== "SAVED" &&
+    (reason.trim() !== "" ||
+      JSON.stringify([start, end]) !==
+        JSON.stringify([initial.start, initial.end]));
+  const stale = detail.revision !== loadedRevision;
+  // A clean, settled form follows the live day.
+  if (stale && !held && !write.locked) {
+    const next = correctionBaseline(detail, timezone);
+    setLoadedRevision(detail.revision);
+    setInitial(next);
+    setStart(next.start);
+    setEnd(next.end);
+    setErrors({});
+  }
+  // A held draft over a newer revision waits for the user's explicit choice
+  // (a clean one has just adopted the live day above).
+  const changed = stale && !write.locked;
   // Entered, unsent details survive search and navigation unless discarded.
   useDraftGuard(
-    write.state.kind !== "SAVED" &&
-      (reason.trim() !== "" ||
-        JSON.stringify([start, end]) !==
-          JSON.stringify([initial.start, initial.end])),
+    held,
     () => {
       setStart(initial.start);
       setEnd(initial.end);
@@ -119,8 +137,18 @@ export function CorrectionForm({
     },
     write.pending,
   );
+  // Edited values stay; untouched times follow the current record.
+  const adoptCurrent = () => {
+    const next = correctionBaseline(detail, timezone);
+    setLoadedRevision(detail.revision);
+    setInitial(next);
+    setStart((side) => (side.untouched ? next.start : side));
+    setEnd((side) => (side.untouched ? next.end : side));
+    setErrors({});
+  };
 
   const send = async () => {
+    if (changed) return;
     const startInput = toLocalTimeInput(start);
     const endInput = toLocalTimeInput(end);
     const next: { time?: string; reason?: string } = {};
@@ -196,14 +224,32 @@ export function CorrectionForm({
         />
       </div>
       <div className="mt-4 space-y-3">
+        {changed ? (
+          <Notice
+            tone="warning"
+            role="alert"
+            title={form("recordChanged")}
+            body={form("recordChangedHint")}
+            testId="hr-correction-changed"
+          >
+            <Button type="button" variant="outline" onClick={adoptCurrent}>
+              {form("recordChangedUse")}
+            </Button>
+          </Notice>
+        ) : null}
         <Button
           type="submit"
-          disabled={write.locked}
+          disabled={write.locked || changed}
           data-testid="hr-correction-submit"
         >
           {write.pending ? form("submitting") : t("submit")}
         </Button>
-        <WriteFeedback state={write.state} onRetry={() => void write.retry()} />
+        {changed ? null : (
+          <WriteFeedback
+            state={write.state}
+            onRetry={() => void write.retry()}
+          />
+        )}
       </div>
     </form>
   );

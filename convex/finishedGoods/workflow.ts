@@ -2457,6 +2457,10 @@ export const saveStackingLimits = mutationWithOrg({
     ...writeArgs,
     stackable: v.boolean(),
     maxStackLevels: v.optional(v.number()),
+    // The settings the editor loaded. An absent maximum means none was saved;
+    // an absent baseline (an older client) fails closed.
+    expectedStackable: v.optional(v.boolean()),
+    expectedMaxStackLevels: v.optional(v.number()),
   },
   returns: v.any(),
   permissionCode: MANAGE,
@@ -2482,6 +2486,13 @@ export const saveStackingLimits = mutationWithOrg({
           return failure("LOCATION_ONLY_ACTION_UNAVAILABLE");
         if (placement?.supportPalletId || pallet.status === "RESERVED")
           return failure("STACK_SETTINGS_LOCKED");
+        // Another operator changed these settings after the editor loaded them.
+        if (
+          args.expectedStackable !== (pallet.stackable ?? false) ||
+          (args.expectedMaxStackLevels ?? null) !==
+            (pallet.maxStackLevels ?? null)
+        )
+          return failure("STACK_SETTINGS_STALE");
         if (
           args.stackable &&
           (!Number.isSafeInteger(args.maxStackLevels) ||

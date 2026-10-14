@@ -355,3 +355,107 @@ describe("phone workspace (≤580px)", () => {
     }
   });
 });
+
+describe("fallback location identity", () => {
+  // Imported locations often use their code as the name.
+  const sameNameDemo = (thai: boolean) => {
+    const demo = floorMapDemo(false, thai);
+    return {
+      ...demo,
+      zones: demo.zones.map((zone, index) =>
+        index === 0 ? { ...zone, label: zone.code } : zone,
+      ),
+    };
+  };
+  const copy = {
+    en: {
+      select: "Select location DEMO-Z01",
+      distinct: "Select location FG-B · Stored & reserved",
+      region: "Selected location",
+      dialog: "Location details",
+      floor: "Floor 1",
+    },
+    th: {
+      select: "เลือกจุดจัดเก็บ DEMO-Z01",
+      distinct: "เลือกจุดจัดเก็บ FG-B · จัดเก็บและจอง",
+      region: "จุดจัดเก็บที่เลือก",
+      dialog: "รายละเอียดจุดจัดเก็บ",
+      floor: "ชั้น 1",
+    },
+  } as const;
+  // Visible elements whose own text names the location identity or floor;
+  // stored units' position codes are separate records and are excluded.
+  const visible = (scope: HTMLElement, text: string) =>
+    within(scope).queryAllByText((_, node) =>
+      Boolean(
+        node &&
+        node.tagName !== "title" &&
+        !node.closest(".sr-only") &&
+        !node.closest("li") &&
+        [...node.childNodes].some(
+          (child) =>
+            child.nodeType === Node.TEXT_NODE &&
+            child.textContent?.includes(text),
+        ),
+      ),
+    );
+
+  it.each(["en", "th"] as const)(
+    "shows an equal name and code once in the %s desktop inspector",
+    (locale) => {
+      const text = copy[locale];
+      renderWithIntl(<FloorMap {...sameNameDemo(locale === "th")} />, {
+        locale,
+        workspace: false,
+      });
+      fireEvent.click(screen.getByRole("button", { name: text.select }));
+      const aside = screen.getByRole("complementary", { name: text.region });
+      expect(
+        within(aside).getByRole("heading", { name: "DEMO-Z01" }),
+      ).toBeVisible();
+      expect(visible(aside, "DEMO-Z01")).toHaveLength(1);
+      expect(within(aside).getByText(text.floor)).toBeVisible();
+      // A distinct name still shows its code.
+      fireEvent.click(screen.getByRole("button", { name: text.distinct }));
+      expect(
+        within(
+          screen.getByRole("complementary", { name: text.region }),
+        ).getByText(`DEMO-Z02 · ${text.floor}`),
+      ).toBeVisible();
+    },
+  );
+
+  it.each(["en", "th"] as const)(
+    "shows an equal name and code once in the %s phone sheet",
+    (locale) => {
+      const text = copy[locale];
+      const original = window.matchMedia;
+      const spy = vi
+        .spyOn(window, "matchMedia")
+        .mockImplementation((query) => ({
+          ...original(query),
+          matches: /max-width: (\d+)px/.test(query)
+            ? Number(/max-width: (\d+)px/.exec(query)![1]) >= 580
+            : false,
+        }));
+      try {
+        renderWithIntl(<FloorMap {...sameNameDemo(locale === "th")} />, {
+          locale,
+          workspace: false,
+        });
+        fireEvent.click(screen.getByRole("button", { name: text.select }));
+        const sheet = screen.getByRole("dialog", { name: text.dialog });
+        expect(sheet).toHaveAccessibleDescription(`DEMO-Z01 · ${text.floor}`);
+        expect(visible(sheet, "DEMO-Z01")).toHaveLength(1);
+        expect(visible(sheet, text.floor)).toHaveLength(1);
+        expect(
+          within(sheet).getAllByRole("button", {
+            name: locale === "th" ? "ปิดหน้าต่าง" : "Close dialog",
+          }),
+        ).toHaveLength(1);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+});

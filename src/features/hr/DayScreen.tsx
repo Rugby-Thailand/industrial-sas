@@ -82,7 +82,7 @@ function DayContent({ businessDate }: { readonly businessDate: string }) {
                 <Notice tone="pending" title={t("pendingHint")} />
               ) : canRequest ? (
                 <CorrectionForm
-                  key={`${businessDate}:${detail.revision}:${returned?.id ?? ""}`}
+                  key={`${businessDate}:${returned?.id ?? ""}`}
                   detail={detail}
                   timezone={timezone}
                   returnedId={

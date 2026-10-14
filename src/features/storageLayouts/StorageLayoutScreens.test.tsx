@@ -442,6 +442,53 @@ describe("BuildingModelWorkspace", () => {
     ).toBeVisible();
   });
 
+  it.each([
+    [
+      "en",
+      "Select location FG-2",
+      "Selected location",
+      "No stored or reserved units yet",
+      "Floor 2",
+    ],
+    [
+      "th",
+      "เลือกจุดจัดเก็บ FG-2",
+      "จุดจัดเก็บที่เลือก",
+      "ยังไม่มีหน่วยที่จัดเก็บหรือจอง",
+      "ชั้น 2",
+    ],
+  ] as const)(
+    "states an empty location and its identity once in the %s desktop inspector",
+    (locale, select, region, empty, floor) => {
+      // Imported records often use the code as their name.
+      const zone = {
+        ...occupiedTestZone(),
+        zoneId: "empty-zone",
+        code: "FG-2",
+        label: "FG-2",
+        placements: [],
+      };
+      renderWithIntl(
+        <BuildingModelWorkspace
+          building={building}
+          floors={floors.map((row) =>
+            row.floorNumber === 2 ? { ...row, storageZones: [zone] } : row,
+          )}
+        />,
+        { locale, workspace: false },
+      );
+      fireEvent.click(screen.getByRole("button", { name: select }));
+      const details = screen.getByRole("complementary", { name: region });
+      expect(within(details).getAllByText(empty)).toHaveLength(1);
+      expect(within(details).getAllByText("FG-2")).toHaveLength(1);
+      expect(within(details).getByText(floor)).toBeVisible();
+      // The article keeps its full accessible identity.
+      expect(
+        within(details).getByRole("article", { name: "FG-2 · FG-2" }),
+      ).toBeInTheDocument();
+    },
+  );
+
   it("consolidates floor dimensions and edits the selected floor in place", () => {
     renderWithIntl(
       <BuildingModelWorkspace building={building} floors={floors} />,
@@ -3038,6 +3085,53 @@ describe("mobile storage workspace", () => {
     );
     expect(document.body.style.pointerEvents).not.toBe("none");
   });
+  it.each([
+    ["en", "Select location Occupied FG", "Location details", "Floor 2"],
+    ["th", "เลือกจุดจัดเก็บ Occupied FG", "รายละเอียดจุดจัดเก็บ", "ชั้น 2"],
+  ] as const)(
+    "shows the selected location code and floor once in the %s mobile sheet",
+    (locale, select, title, floor) => {
+      const savedFloors = floors.map((row) =>
+        row.floorNumber === 2
+          ? { ...row, storageZones: [occupiedTestZone()] }
+          : row,
+      );
+      renderWithIntl(
+        <NavigationGuardProvider>
+          <BuildingModelWorkspace building={building} floors={savedFloors} />
+        </NavigationGuardProvider>,
+        { locale, workspace: false, preserveProviders: true },
+      );
+      fireEvent.click(
+        within(
+          screen.getByRole("group", {
+            name:
+              locale === "th" ? "แผนผังชั้นแบบโต้ตอบ" : "Interactive floor map",
+          }),
+        ).getByRole("button", { name: select }),
+      );
+      const sheet = screen.getByRole("dialog", { name: title });
+      // The accessible description still names the location and floor.
+      expect(sheet).toHaveAccessibleDescription(`FG-1 · ${floor}`);
+      // Visible text nodes naming the code or floor (not the QR image title).
+      const visible = (text: string) =>
+        within(sheet).queryAllByText((_, node) =>
+          Boolean(
+            node &&
+            node.tagName !== "title" &&
+            !node.closest(".sr-only") &&
+            [...node.childNodes].some(
+              (child) =>
+                child.nodeType === Node.TEXT_NODE &&
+                child.textContent?.includes(text),
+            ),
+          ),
+        );
+      expect(visible("FG-1")).toHaveLength(1);
+      expect(visible(floor)).toHaveLength(1);
+      expect(within(sheet).getByText(`Occupied FG · ${floor}`)).toBeVisible();
+    },
+  );
 });
 
 describe("building lifecycle capacity feedback", () => {

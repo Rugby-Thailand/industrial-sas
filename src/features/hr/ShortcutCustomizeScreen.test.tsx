@@ -474,7 +474,7 @@ describe("write recovery and identity", () => {
     const view = start();
     fireEvent.click(show("Profile"));
     fireEvent.click(saveButton());
-    await screen.findByTestId("hr-write-refused");
+    await screen.findByTestId("hr-shortcuts-stale");
     expect(show("Profile")).not.toBeChecked();
     expect(
       screen.getByText("Your shortcuts changed in another session."),
@@ -489,11 +489,67 @@ describe("write recovery and identity", () => {
     expect(order()).toEqual([...KEYS].reverse());
     expect(show("Profile")).toBeChecked();
     expect(show()).not.toBeChecked();
-    expect(screen.queryByTestId("hr-write-refused")).toBeNull();
+    expect(screen.queryByTestId("hr-shortcuts-stale")).toBeNull();
     fireEvent.click(show());
     fireEvent.click(saveButton());
     await screen.findByText("Shortcut preferences saved.");
     expect(state.save.mock.calls[1]![0].expectedVersion).toBe(3);
+  });
+
+  it.each([
+    [
+      "en",
+      "Show Profile",
+      "Save",
+      "Your shortcuts changed in another session.",
+      "Cancel to load the current preferences, then make your changes again.",
+      ["Try again", "correct it and try again"],
+    ],
+    [
+      "th",
+      "แสดง โปรไฟล์",
+      "บันทึก",
+      "เมนูลัดของคุณเปลี่ยนจากอีกเซสชัน",
+      "กดยกเลิกเพื่อโหลดเมนูล่าสุด แล้วแก้ไขอีกครั้ง",
+      ["กรุณาลองใหม่", "แก้ไขแล้วลองใหม่ได้"],
+    ],
+  ] as const)(
+    "shows one %s conflict notice with the actual recovery step for a stale save",
+    async (locale, profile, save, title, hint, generic) => {
+      state.save.mockResolvedValue({
+        ok: true,
+        value: { written: false, error: { code: "PREFERENCES_STALE" } },
+      });
+      renderWithIntl(<Harness />, { locale, preserveProviders: true });
+      const profileShown = () =>
+        screen.getByRole("checkbox", { name: profile });
+      fireEvent.click(profileShown());
+      fireEvent.click(screen.getByRole("button", { name: save }));
+      const notice = await screen.findByTestId("hr-shortcuts-stale");
+      expect(screen.getAllByRole("alert")).toEqual([notice]);
+      expect(notice).toHaveTextContent(title);
+      expect(notice).toHaveTextContent(hint);
+      expect(screen.queryByTestId("hr-write-refused")).toBeNull();
+      for (const text of generic)
+        expect(screen.queryByText(text, { exact: false })).toBeNull();
+      // The draft is kept; saving again is refused again with the same notice.
+      fireEvent.click(screen.getByRole("button", { name: save }));
+      await vi.waitFor(() => expect(state.save).toHaveBeenCalledTimes(2));
+      expect(await screen.findByTestId("hr-shortcuts-stale")).toBeVisible();
+      expect(profileShown()).not.toBeChecked();
+    },
+  );
+
+  it("keeps the generic refused feedback for other shortcut refusals", async () => {
+    state.save.mockResolvedValueOnce({
+      ok: true,
+      value: { written: false, error: { code: "SOMETHING_ELSE" } },
+    });
+    start();
+    fireEvent.click(show("Profile"));
+    fireEvent.click(saveButton());
+    expect(await screen.findByTestId("hr-write-refused")).toBeVisible();
+    expect(screen.queryByTestId("hr-shortcuts-stale")).toBeNull();
   });
 
   it("clears the old actor's draft and ignores their delayed saved result after identity changes", async () => {
