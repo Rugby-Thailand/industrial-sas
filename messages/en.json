@@ -1854,7 +1854,8 @@
       "reasonCount": "{length}/{max} characters",
       "recordChanged": "This day changed after you started",
       "recordChangedHint": "Your entry is kept and has not been sent. Check the current record, then use it to continue.",
-      "recordChangedUse": "Use the current record"
+      "recordChangedUse": "Use the current record",
+      "discardDraft": "Discard draft"
     },
     "range": {
       "legend": "Date range",

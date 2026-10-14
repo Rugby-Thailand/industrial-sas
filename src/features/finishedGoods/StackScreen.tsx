@@ -69,26 +69,28 @@ function Limits({
   };
   const liveKey = JSON.stringify(live);
   const [baseline, setBaseline] = useState(live);
-  const [seenKey, setSeenKey] = useState(liveKey);
+  const [seen, setSeen] = useState({ key: liveKey, deferred: false });
   const [stackable, setStackable] = useState(live.stackable);
   const [levels, setLevels] = useState(String(live.maxStackLevels ?? ""));
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  function load(next: typeof live) {
+  function adoptLimits(next: typeof live) {
     setBaseline(next);
     setStackable(next.stackable);
     setLevels(String(next.maxStackLevels ?? ""));
+  }
+  function load(next: typeof live) {
+    setSeen({ key: JSON.stringify(next), deferred: false });
+    adoptLimits(next);
     setDirty(false);
     onDirty(false);
   }
   // A clean form follows newer saved settings; a dirty or pending one keeps
   // its draft and loaded baseline so the server can refuse a stale save.
-  if (seenKey !== liveKey) {
-    setSeenKey(liveKey);
+  if (seen.key !== liveKey || (seen.deferred && !dirty && !op.busy)) {
+    setSeen({ key: liveKey, deferred: dirty || op.busy });
     if (!dirty && !op.busy && liveKey !== JSON.stringify(baseline)) {
-      setBaseline(live);
-      setStackable(live.stackable);
-      setLevels(String(live.maxStackLevels ?? ""));
+      adoptLimits(live);
       setSaved(false);
     }
   }

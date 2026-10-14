@@ -43,17 +43,18 @@ import { guardedNavigate } from "@/lib/navigationGuard";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { HrDayScreen } from "./DayScreen";
 import { ReviewDetail } from "./ReviewDetail";
+import type { DayDetail } from "./DayDetailView";
 
 const businessDate = "2026-10-13";
 const at = (time: string) => Date.parse(`${businessDate}T${time}+07:00`);
 const saved = { ok: true, value: { written: true, documentId: "day" } };
 
 type Certification = {
-  readonly disposition: string;
+  readonly disposition: NonNullable<DayDetail["certification"]>["disposition"];
   readonly startAt?: number;
   readonly endAt?: number;
 };
-function day(revision: number, certification?: Certification) {
+function day(revision: number, certification?: Certification): DayDetail {
   return {
     employeeId: "e1",
     businessDate,
@@ -89,7 +90,7 @@ function day(revision: number, certification?: Certification) {
       : {}),
   };
 }
-const worked = (startAt: number, endAt: number) => ({
+const worked = (startAt: number, endAt: number): Certification => ({
   disposition: "WORKED",
   startAt,
   endAt,
@@ -367,4 +368,287 @@ describe("re-review keeps exact untouched attendance instants", () => {
     expect(sent()).not.toHaveProperty("end");
     expect(sent()).not.toHaveProperty("retainCertified");
   });
+});
+
+function pendingDay(revision = 2): DayDetail {
+  return {
+    ...day(revision),
+    status: "EXCEPTION",
+    disposition: null,
+    pendingCorrectionId: "c1",
+    corrections: [
+      {
+        id: "c1",
+        status: "PENDING",
+        version: 1,
+        stale: false,
+        proposedStartAt: at("08:30:20"),
+        proposedEndAt: at("17:30:00"),
+        reason: "Forgot clock-out",
+        submittedAt: at("18:00:00"),
+        submittedByName: "Worker",
+        history: [],
+      },
+    ],
+  };
+}
+
+describe("live eligibility changes retain HR drafts", () => {
+  it.each(["reviewer", "employee"] as const)(
+    "retains the %s reason and blocks new writes after a live period closure",
+    async (actor) => {
+      const detail = day(2, worked(at("08:30:20"), at("17:30:50")));
+      const set = actor === "reviewer" ? setReview : setSelf;
+      set(detail);
+      const view = actor === "reviewer" ? mountReview() : mountDay();
+      if (actor === "reviewer")
+        fireEvent.click(screen.getByRole("button", { name: "Review again" }));
+      fireEvent.change(reason(), {
+        target: { value: "Keep this reason after closure" },
+      });
+      set({ ...detail, locked: true });
+      view.rerender();
+      expect(reason()).toHaveValue("Keep this reason after closure");
+      const submit = screen.getByTestId(
+        actor === "reviewer" ? "hr-dispose-submit" : "hr-correction-submit",
+      );
+      expect(submit).toBeDisabled();
+      fireEvent.submit(submit.closest("form")!);
+      expect(state.mutate).not.toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).toBeNull();
+      const leave = vi.fn();
+      act(() => guardedNavigate(leave));
+      expect(
+        screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+      ).toBeVisible();
+      expect(leave).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["reviewer", "employee"] as const)(
+    "retains the %s reason when another session creates a pending correction",
+    async (actor) => {
+      const set = actor === "reviewer" ? setReview : setSelf;
+      set(day(1));
+      const view = actor === "reviewer" ? mountReview() : mountDay();
+      fireEvent.change(reason(), {
+        target: { value: "Keep my unsent explanation" },
+      });
+      set(pendingDay());
+      view.rerender();
+      expect(reason()).toHaveValue("Keep my unsent explanation");
+      expect(
+        screen.getByTestId(
+          actor === "reviewer" ? "hr-dispose-submit" : "hr-correction-submit",
+        ),
+      ).toBeDisabled();
+      expect(
+        screen.getByText(/pending request|waiting for review/i),
+      ).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+      expect(screen.queryByRole("textbox")).toBeNull();
+      if (actor === "reviewer")
+        expect(screen.getByTestId("hr-certify")).toBeEnabled();
+      const leave = vi.fn();
+      act(() => guardedNavigate(leave));
+      await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+    },
+  );
+
+  it("retains a return reason when another reviewer decides the pending correction", () => {
+    setReview(pendingDay());
+    const view = mountReview();
+    fireEvent.click(screen.getByTestId("hr-return"));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Keep return reason" },
+    });
+    setReview(day(3, worked(at("08:30:20"), at("17:30:00"))));
+    view.rerender();
+    expect(screen.getByRole("textbox")).toHaveValue("Keep return reason");
+    expect(screen.getByTestId("hr-return-confirm")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("hr-return-confirm"));
+    expect(state.mutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByRole("button", { name: "Review again" })).toBeVisible();
+  });
+
+  it("keeps a pending reviewer decision bound to its loaded version after another reviewer decides", async () => {
+    setReview(pendingDay());
+    const view = mountReview();
+    fireEvent.click(screen.getByTestId("hr-return"));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Original return command" },
+    });
+    let answer: (value: unknown) => void = () => {};
+    state.mutate.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByTestId("hr-return-confirm"));
+    await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
+    setReview(day(3, worked(at("08:30:20"), at("17:30:00"))));
+    view.rerender();
+    expect(screen.getByRole("textbox")).toHaveValue("Original return command");
+    expect(sent()).toMatchObject({
+      correctionId: "c1",
+      expectedVersion: 1,
+      reason: "Original return command",
+    });
+    const leave = vi.fn();
+    act(() => guardedNavigate(leave));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(leave).not.toHaveBeenCalled();
+    await act(async () =>
+      answer({
+        ok: true,
+        value: { written: false, error: { code: "DECISION_STALE" } },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("textbox")).toHaveValue("Original return command");
+    expect(screen.getByTestId("hr-return-confirm")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    act(() => guardedNavigate(leave));
+    await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+  });
+
+  it("reconciles a changed pending correction version before sending the retained return reason", async () => {
+    setReview(pendingDay());
+    const view = mountReview();
+    fireEvent.click(screen.getByTestId("hr-return"));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Keep return reason" },
+    });
+    const next = pendingDay();
+    setReview({
+      ...next,
+      corrections: next.corrections.map((c) => ({ ...c, version: 2 })),
+    });
+    view.rerender();
+    expect(screen.getByRole("textbox")).toHaveValue("Keep return reason");
+    expect(screen.getByTestId("hr-return-confirm")).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use the current record" }),
+    );
+    state.mutate.mockResolvedValue(saved);
+    fireEvent.click(screen.getByTestId("hr-return-confirm"));
+    await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
+    expect(sent()).toMatchObject({
+      correctionId: "c1",
+      expectedVersion: 2,
+      reason: "Keep return reason",
+    });
+  });
+
+  it("updates pristine forms to the live locked and pending explanations", () => {
+    setReview(day(1));
+    const review = mountReview();
+    setReview(pendingDay());
+    review.rerender();
+    expect(screen.queryByTestId("hr-dispose-submit")).toBeNull();
+    expect(screen.getByTestId("hr-certify")).toBeEnabled();
+    setReview({ ...pendingDay(), locked: true });
+    review.rerender();
+    expect(screen.queryByTestId("hr-certify")).toBeNull();
+  });
+
+  it("keeps a successful employee correction receipt after its live pending update", async () => {
+    setSelf(day(1));
+    const view = mountDay();
+    fireEvent.change(screen.getByLabelText("Correct clock-out"), {
+      target: { value: "17:30" },
+    });
+    fireEvent.change(reason(), { target: { value: "Forgot clock-out" } });
+    let answer: (value: unknown) => void = () => {};
+    state.mutate.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByTestId("hr-correction-submit"));
+    await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
+    setSelf(pendingDay());
+    view.rerender();
+    expect(reason()).toHaveValue("Forgot clock-out");
+    await act(async () => answer(saved));
+    expect(await screen.findByTestId("hr-correction-saved")).toBeVisible();
+    expect(screen.queryByTestId("hr-correction-submit")).toBeNull();
+    // A subsequent Return opens a new resubmission, rather than leaving the
+    // employee stuck on the previous submission's terminal receipt.
+    const returned = pendingDay(3);
+    setSelf({
+      ...returned,
+      pendingCorrectionId: undefined,
+      corrections: returned.corrections.map((c) => ({
+        ...c,
+        status: "RETURNED",
+        version: 2,
+      })),
+    });
+    view.rerender();
+    expect(await screen.findByTestId("hr-correction-submit")).toBeEnabled();
+    expect(reason()).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Correct clock-out"), {
+      target: { value: "17:45" },
+    });
+    fireEvent.change(reason(), {
+      target: { value: "Resubmitted after return" },
+    });
+    state.mutate.mockResolvedValue(saved);
+    fireEvent.click(screen.getByTestId("hr-correction-submit"));
+    await waitFor(() => expect(state.mutate).toHaveBeenCalledTimes(2));
+    expect(sent()).toMatchObject({
+      correctionId: "c1",
+      reason: "Resubmitted after return",
+    });
+  });
+});
+
+describe("re-review successful command completion", () => {
+  it.each([false, true])(
+    "closes re-review after a successful %s retry with a newer live revision",
+    async (retry) => {
+      setReview(day(2, worked(at("08:30:20"), at("17:30:50"))));
+      const view = mountReview();
+      fireEvent.click(screen.getByRole("button", { name: "Review again" }));
+      fireEvent.change(reason(), { target: { value: "Own completed review" } });
+      let answer: (value: unknown) => void = () => {};
+      state.mutate.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+      fireEvent.click(screen.getByTestId("hr-dispose-submit"));
+      await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
+      const request = sent()["requestId"];
+      setReview(day(3, worked(at("08:30:20"), at("17:30:50"))));
+      view.rerender();
+      if (retry) {
+        await act(async () => answer({}));
+        expect(await screen.findByTestId("hr-write-uncertain")).toBeVisible();
+        state.mutate.mockResolvedValue(saved);
+        fireEvent.click(
+          screen.getByRole("button", { name: "Try again safely" }),
+        );
+        await waitFor(() => expect(state.mutate).toHaveBeenCalledTimes(2));
+        expect(sent()["requestId"]).toBe(request);
+        expect(sent()).toMatchObject({ expectedRevision: 2 });
+      } else {
+        await act(async () => answer(saved));
+      }
+      expect(
+        await screen.findByRole("button", { name: "Review again" }),
+      ).toBeVisible();
+      expect(screen.queryByRole("textbox")).toBeNull();
+      const leave = vi.fn();
+      act(() => guardedNavigate(leave));
+      await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+    },
+  );
 });

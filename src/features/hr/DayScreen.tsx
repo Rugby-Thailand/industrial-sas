@@ -2,6 +2,7 @@
 
 import { useHrQuery } from "@/hooks/useHrQuery";
 import { useLocale, useTranslations } from "next-intl";
+import { useCallback, useState } from "react";
 
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -15,8 +16,8 @@ import {
   readDayFocus,
 } from "@/lib/navigation";
 
-import { CorrectionForm } from "./CorrectionForm";
-import { DayDetailView } from "./DayDetailView";
+import { CorrectionForm, type CorrectionRetention } from "./CorrectionForm";
+import { DayDetailView, type DayDetail } from "./DayDetailView";
 import { formatBusinessDate } from "./format";
 import { HrGate, HrInlineError, HrQueryState } from "./HrShared";
 
@@ -43,7 +44,6 @@ export function HrDayScreen({
 }
 
 function DayContent({ businessDate }: { readonly businessDate: string }) {
-  const t = useTranslations("Hr.day");
   const params = useQueryParams();
   const focus = readDayFocus(params);
   const outcome = useHrQuery(hrRefs.selfDayDetail, { businessDate });
@@ -65,41 +65,88 @@ function DayContent({ businessDate }: { readonly businessDate: string }) {
         const result = outcome.value;
         if (!result.ok) return <HrInlineError code={result.code} />;
         const { detail, timezone, today } = result;
-        const returned = detail.corrections.find(
-          (correction) => correction.status === "RETURNED",
-        );
-        const canRequest =
-          !detail.locked &&
-          detail.pendingCorrectionId === undefined &&
-          businessDate <= today &&
-          detail.status !== "UPCOMING";
         return (
           <DayDetailView detail={detail} timezone={timezone}>
             <div id={FOCUS_TARGET_IDS.correction} className="rounded-xl">
-              {detail.locked ? (
-                <Notice tone="warning" title={t("lockedHint")} />
-              ) : detail.pendingCorrectionId !== undefined ? (
-                <Notice tone="pending" title={t("pendingHint")} />
-              ) : canRequest ? (
-                <CorrectionForm
-                  key={`${businessDate}:${returned?.id ?? ""}`}
-                  detail={detail}
-                  timezone={timezone}
-                  returnedId={
-                    returned !== undefined &&
-                    detail.corrections[0]?.id === returned.id
-                      ? returned.id
-                      : undefined
-                  }
-                />
-              ) : focus === null ? null : (
-                // Opened for a correction that this day cannot take yet.
-                <Notice tone="neutral" title={t("notCorrectable")} />
-              )}
+              <CorrectionArea
+                key={`${detail.employeeId}:${businessDate}`}
+                detail={detail}
+                timezone={timezone}
+                today={today}
+                focused={focus !== null}
+              />
             </div>
           </DayDetailView>
         );
       }}
     </HrQueryState>
+  );
+}
+
+/** Live eligibility explains itself without replacing a held draft or receipt. */
+function CorrectionArea({
+  detail,
+  timezone,
+  today,
+  focused,
+}: {
+  readonly detail: DayDetail;
+  readonly timezone: string;
+  readonly today: string;
+  readonly focused: boolean;
+}) {
+  const t = useTranslations("Hr.day");
+  const returned =
+    detail.corrections[0]?.status === "RETURNED"
+      ? detail.corrections[0]
+      : undefined;
+  const available =
+    !detail.locked &&
+    detail.pendingCorrectionId === undefined &&
+    detail.businessDate <= today &&
+    detail.status !== "UPCOMING";
+  const liveTarget = returned ? `${returned.id}:${returned.version}` : "new";
+  const [retention, setRetention] = useState<{
+    mode: CorrectionRetention;
+    target: string;
+  }>({
+    mode: "none",
+    target: liveTarget,
+  });
+  const reportRetention = useCallback((mode: CorrectionRetention) => {
+    setRetention((current) =>
+      current.mode === mode ? current : { ...current, mode },
+    );
+  }, []);
+  // Dirty/pending owners keep their mounted command. A saved receipt survives
+  // the pending subscription; a later Return starts a new resubmission.
+  if (
+    (retention.mode === "none" ||
+      (retention.mode === "receipt" && available)) &&
+    retention.target !== liveTarget
+  ) {
+    setRetention({ ...retention, target: liveTarget });
+  }
+  const retained = retention.mode !== "none";
+  return (
+    <>
+      {detail.locked ? (
+        <Notice tone="warning" title={t("lockedHint")} />
+      ) : detail.pendingCorrectionId !== undefined ? (
+        <Notice tone="pending" title={t("pendingHint")} />
+      ) : !available && (focused || retained) ? (
+        <Notice tone="neutral" title={t("notCorrectable")} />
+      ) : null}
+      {available || retained ? (
+        <CorrectionForm
+          key={retention.target}
+          detail={detail}
+          timezone={timezone}
+          returnedId={returned?.id}
+          available={available}
+          onRetained={reportRetention}
+        />
+      ) : null}
+    </>
   );
 }

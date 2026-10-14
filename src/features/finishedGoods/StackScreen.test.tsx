@@ -506,6 +506,48 @@ it("refreshes clean stacking limits from live settings and saves against them", 
   });
 });
 
+it("refreshes deferred live limits when the operator restores a dirty field to its loaded value", () => {
+  const view = mount();
+  fireEvent.change(levelsField(), { target: { value: "3" } });
+  rerenderWithLiveLevels(view, 5);
+  expect(levelsField()).toHaveValue(3);
+  fireEvent.change(levelsField(), { target: { value: "2" } });
+  expect(levelsField()).toHaveValue(5);
+});
+
+it("refreshes deferred live limits after a clean save finishes", async () => {
+  let finish!: (value: ReturnType<typeof success>) => void;
+  mocks.write.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const view = mount();
+  fireEvent.click(screen.getByRole("button", { name: "Save stacking limits" }));
+  await waitFor(() => expect(savedLimits()).toHaveLength(1));
+  rerenderWithLiveLevels(view, 5);
+  expect(levelsField()).toHaveValue(2);
+  await act(async () => {
+    finish(success("lower"));
+  });
+  await waitFor(() => expect(levelsField()).toBeEnabled());
+  expect(levelsField()).toHaveValue(5);
+});
+
+it("keeps its own saved limits until the live subscription acknowledges them", async () => {
+  mocks.write.mockResolvedValue(success("lower"));
+  const view = mount();
+  fireEvent.change(levelsField(), { target: { value: "3" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save stacking limits" }));
+  await screen.findByText("Limits saved");
+  // The query still has 2: it must not revert the successful local save.
+  expect(levelsField()).toHaveValue(3);
+  rerenderWithLiveLevels(view, 3);
+  expect(levelsField()).toHaveValue(3);
+  expect(screen.getByText("Limits saved")).toBeVisible();
+});
+
 it("keeps a dirty stacking draft over live changes and reloads only after a stale refusal", async () => {
   mocks.write.mockResolvedValue(failure("STACK_SETTINGS_STALE"));
   const view = mount();

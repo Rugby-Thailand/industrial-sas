@@ -182,6 +182,113 @@ it("Review Back to list followed by header Back does not reopen closed detail", 
   trace.push(snapshot());
   expect(window.location.pathname).toBe("/en/hr/today");
 });
+it.each(["header", "native"] as const)(
+  "discarding a live-invalidated review return draft consumes the detail before the next %s Back restores the real locale query and hash",
+  async (method) => {
+    const origin = "/th/hr/today?mode=queue#shift";
+    window.history.replaceState({ appNavigationIndex: 0 }, "", origin);
+    window.history.pushState({}, "", "/en/hr/review?tab=OPEN#list");
+    const at = (time: string) => Date.parse(`2026-10-09T${time}+07:00`);
+    const detail = {
+      employeeId: "e7",
+      businessDate: "2026-10-09",
+      revision: 1,
+      plan: { kind: "NONWORKING", reason: "UNSCHEDULED" },
+      status: "EXCEPTION",
+      disposition: null,
+      originalStartAt: at("08:30:00"),
+      workedMinutes: 0,
+      outsideShiftMinutes: 0,
+      locked: false,
+      events: [],
+      pendingCorrectionId: "c7",
+      corrections: [
+        {
+          id: "c7",
+          version: 1,
+          status: "PENDING",
+          stale: false,
+          proposedStartAt: at("08:30:00"),
+          proposedEndAt: at("17:30:00"),
+          reason: "Forgot clock-out",
+          submittedAt: at("18:00:00"),
+          history: [],
+        },
+      ],
+    };
+    const result = (day: unknown) => ({
+      ok: true,
+      value: {
+        ok: true,
+        timezone: "Asia/Bangkok",
+        today: "2026-10-09",
+        employee: {
+          id: "e7",
+          code: "EMP-007",
+          displayName: "Somsak",
+          linked: true,
+        },
+        detail: day,
+      },
+    });
+    state.queries.set(getFunctionName(hrRefs.reviewDayDetail), result(detail));
+    const page = () => (
+      <DraftGuardProvider>
+        <HrReviewScreen />
+      </DraftGuardProvider>
+    );
+    const view = renderWithIntl(page(), {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Somsak/ }));
+    fireEvent.click(screen.getByTestId("hr-return"));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Retain this return reason" },
+    });
+    const index = appHistoryIndex();
+    state.queries.set(
+      getFunctionName(hrRefs.reviewDayDetail),
+      result({
+        ...detail,
+        revision: 2,
+        status: "READY",
+        pendingCorrectionId: undefined,
+        corrections: [],
+        certification: {
+          current: true,
+          disposition: "WORKED",
+          startAt: at("08:30:00"),
+          endAt: at("17:30:00"),
+          reason: "Other review",
+          decidedAt: at("18:30:00"),
+          decidedByName: "Other reviewer",
+        },
+      }),
+    );
+    view.rerender(page());
+    expect(screen.getByRole("textbox")).toHaveValue(
+      "Retain this return reason",
+    );
+    expect(screen.getByTestId("hr-return-confirm")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    expect(screen.queryByTestId("hr-return-confirm")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(appHistoryIndex()).toBe(index);
+    fireEvent.click(screen.getByRole("button", { name: "Back to the list" }));
+    await waitFor(() =>
+      expect(
+        new URLSearchParams(window.location.search).get("employee"),
+      ).toBeNull(),
+    );
+    await navigateBack(method);
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(origin);
+    expect(screen.queryByTestId("hr-return-confirm")).toBeNull();
+  },
+);
 it("direct request detail header Back uses Requests parent", async () => {
   window.history.replaceState(
     { appNavigationIndex: 0 },

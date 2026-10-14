@@ -4,7 +4,14 @@ import { useMutation } from "convex/react";
 import { useHrQuery } from "@/hooks/useHrQuery";
 import { ArrowRight, Check, MessageSquarePlus, Undo2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -57,7 +64,6 @@ export function ReviewDetail({
   readonly focus?: ReviewFocus;
 }) {
   const t = useTranslations("Hr.review");
-  const day = useTranslations("Hr.day");
   const outcome = useHrQuery(hrRefs.reviewDayDetail, {
     employeeId,
     businessDate,
@@ -115,37 +121,12 @@ export function ReviewDetail({
               {detail.certification?.current ? (
                 <DayCertification detail={detail} timezone={timezone} />
               ) : null}
-              {detail.locked ? (
-                <Notice
-                  tone="warning"
-                  title={day("locked")}
-                  body={day("lockedHint")}
-                  testId="hr-review-locked"
-                />
-              ) : pending !== undefined ? (
-                <CorrectionDecision
-                  key={`${pending.id}:${pending.version}`}
-                  correction={pending}
-                  detail={detail}
-                  timezone={timezone}
-                />
-              ) : detail.status === "EXCEPTION" ||
-                detail.certification?.current ? (
-                // One position for both states: a live certification of the
-                // day must not unmount an unsent decision.
-                <DayDisposition
-                  key={`${employeeId}:${businessDate}`}
-                  employeeId={employeeId}
-                  detail={detail}
-                  timezone={timezone}
-                />
-              ) : (
-                <Notice
-                  tone="neutral"
-                  title={t("nothingToDecide")}
-                  testId="hr-review-nothing"
-                />
-              )}
+              <DecisionArea
+                key={`${employeeId}:${businessDate}`}
+                employeeId={employeeId}
+                detail={detail}
+                timezone={timezone}
+              />
             </div>
             {/* Read-only: calculated times, earlier decisions and the logs.
                 The original times stay in the decision area above. */}
@@ -232,15 +213,34 @@ function DayDisposition(props: {
   readonly employeeId: string;
   readonly detail: DayDetail;
   readonly timezone: string;
+  readonly available: boolean;
+  readonly onHeld: (held: boolean) => void;
+  readonly onDiscard: () => void;
 }) {
   const t = useTranslations("Hr.review");
   const [open, setOpen] = useState(false);
   const [held, setHeld] = useState(false);
+  const { onHeld } = props;
+  const reportHeld = useCallback(
+    (holding: boolean) => {
+      setHeld(holding);
+      onHeld(holding);
+    },
+    [onHeld],
+  );
   return open || held || props.detail.status === "EXCEPTION" ? (
     <DispositionForm
       {...props}
-      onHeld={setHeld}
-      onSaved={() => setOpen(false)}
+      onHeld={reportHeld}
+      onSaved={() => {
+        setOpen(false);
+        reportHeld(false);
+      }}
+      onDiscard={() => {
+        setOpen(false);
+        reportHeld(false);
+        props.onDiscard();
+      }}
     />
   ) : (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -261,17 +261,117 @@ function UnlinkedNote() {
 
 type Correction = DayDetail["corrections"][number];
 
-function CorrectionDecision({
-  correction,
+type ReviewAction =
+  | { readonly kind: "correction"; readonly correction: Correction }
+  | { readonly kind: "disposition" }
+  | null;
+
+/** The inline command owner outlives live changes to the day's eligibility. */
+function DecisionArea({
+  employeeId,
   detail,
   timezone,
 }: {
-  readonly correction: Correction;
+  readonly employeeId: string;
   readonly detail: DayDetail;
   readonly timezone: string;
 }) {
   const t = useTranslations("Hr.review");
+  const day = useTranslations("Hr.day");
+  const pending = detail.corrections.find(
+    (c) => c.id === detail.pendingCorrectionId,
+  );
+  const dispositionAvailable =
+    !detail.locked &&
+    pending === undefined &&
+    (detail.status === "EXCEPTION" || detail.certification?.current === true);
+  const liveAction: ReviewAction = detail.locked
+    ? null
+    : pending
+      ? { kind: "correction", correction: pending }
+      : dispositionAvailable
+        ? { kind: "disposition" }
+        : null;
+  const [action, setAction] = useState(liveAction);
+  const [held, setHeld] = useState(false);
+  const identity = (value: ReviewAction) =>
+    value?.kind === "correction" ? value.correction.id : (value?.kind ?? null);
+  if (!held && identity(action) !== identity(liveAction)) setAction(liveAction);
+  const discard = () => {
+    setHeld(false);
+    setAction(liveAction);
+  };
+  return (
+    <>
+      {detail.locked ? (
+        <Notice
+          tone="warning"
+          title={day("locked")}
+          body={day("lockedHint")}
+          testId="hr-review-locked"
+        />
+      ) : pending !== undefined && action?.kind === "disposition" ? (
+        <Notice tone="pending" title={day("pendingHint")} />
+      ) : !dispositionAvailable && pending === undefined ? (
+        <Notice
+          tone="neutral"
+          title={t("nothingToDecide")}
+          testId="hr-review-nothing"
+        />
+      ) : action?.kind === "correction" &&
+        pending?.id !== action.correction.id ? (
+        <Notice
+          tone="neutral"
+          title={t("nothingToDecide")}
+          testId="hr-review-nothing"
+        />
+      ) : null}
+      {action?.kind === "correction" ? (
+        <CorrectionDecision
+          key={action.correction.id}
+          correction={
+            detail.corrections.find((c) => c.id === action.correction.id) ??
+            action.correction
+          }
+          detail={detail}
+          timezone={timezone}
+          available={!detail.locked && pending?.id === action.correction.id}
+          onHeld={setHeld}
+          onDiscard={discard}
+        />
+      ) : action?.kind === "disposition" ? (
+        <DayDisposition
+          employeeId={employeeId}
+          detail={detail}
+          timezone={timezone}
+          available={dispositionAvailable}
+          onHeld={setHeld}
+          onDiscard={discard}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function CorrectionDecision({
+  correction,
+  detail,
+  timezone,
+  available,
+  onHeld,
+  onDiscard,
+}: {
+  readonly correction: Correction;
+  readonly detail: DayDetail;
+  readonly timezone: string;
+  readonly available: boolean;
+  readonly onHeld: (held: boolean) => void;
+  readonly onDiscard: () => void;
+}) {
+  const t = useTranslations("Hr.review");
+  const form = useTranslations("Hr.form");
   const decide = useMutation(hrRefs.decideCorrection);
+  const [loaded, setLoaded] = useState(correction);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string>();
   const [decision, setDecision] = useState<"CERTIFY" | "RETURN">("CERTIFY");
@@ -286,11 +386,19 @@ function CorrectionDecision({
   useEffect(() => {
     if (focusField > 0) field.current?.focus();
   }, [focusField]);
-  const write = useHrWrite(`decision:${correction.id}:${correction.version}`);
+  const write = useHrWrite(`decision:${loaded.id}:${loaded.version}`);
+  const held = write.state.kind !== "SAVED" && comment.trim() !== "";
+  const stale = loaded.version !== correction.version;
+  if (stale && !held && !write.locked && write.state.kind !== "SAVED")
+    setLoaded(correction);
+  const changed = stale && !write.locked && write.state.kind !== "SAVED";
+  const holding = held || write.locked;
+  useEffect(() => onHeld(holding), [holding, onHeld]);
+  useEffect(() => () => onHeld(false), [onHeld]);
   // A comment is an unsent detail; a decision in flight (with or without a
   // comment) must settle before search, AI or a link can leave the page.
-  useDraftGuard(
-    write.state.kind !== "SAVED" && comment.trim() !== "",
+  const draft = useDraftGuard(
+    held,
     () => {
       setComment("");
       setError(undefined);
@@ -299,15 +407,25 @@ function CorrectionDecision({
     },
     write.pending,
   );
+  const discardDraft = () => {
+    setComment("");
+    setError(undefined);
+    setCommentOpen(false);
+    setReturning(false);
+    write.reset();
+    draft.settle();
+    onDiscard();
+  };
 
   const send = async (choice: "CERTIFY" | "RETURN") => {
+    if (!available || changed || write.locked) return;
     setDecision(choice);
     setError(undefined);
     await write.submit((requestId) =>
       decide({
         requestId,
-        correctionId: correction.id,
-        expectedVersion: correction.version,
+        correctionId: loaded.id,
+        expectedVersion: loaded.version,
         decision: choice,
         ...(comment.trim() === "" ? {} : { reason: comment.trim() }),
       }),
@@ -316,12 +434,13 @@ function CorrectionDecision({
   // Return needs a reason: a first press reveals the field, and a typed
   // reason is sent as it stands.
   const sendReturn = () => {
+    if (!available || changed || write.locked) return;
     if (comment.trim().length >= 3) return void send("RETURN");
     if (returning) setError(t("returnReasonRequired"));
     setReturning(true);
     setFocusField((count) => count + 1);
   };
-  const changed = {
+  const changedTimes = {
     start: correction.proposedStartAt !== detail.originalStartAt,
     end: correction.proposedEndAt !== detail.originalEndAt,
   };
@@ -360,13 +479,13 @@ function CorrectionDecision({
                   "clockIn",
                   detail.originalStartAt,
                   correction.proposedStartAt,
-                  changed.start,
+                  changedTimes.start,
                 ],
                 [
                   "clockOut",
                   detail.originalEndAt,
                   correction.proposedEndAt,
-                  changed.end,
+                  changedTimes.end,
                 ],
               ] as const
             ).map(([key, original, proposed, differs]) => (
@@ -428,7 +547,7 @@ function CorrectionDecision({
           <>
             <Button
               type="button"
-              disabled={write.locked}
+              disabled={write.locked || !available || changed}
               onClick={sendReturn}
               data-testid="hr-return-confirm"
             >
@@ -452,7 +571,9 @@ function CorrectionDecision({
           <>
             <Button
               type="button"
-              disabled={write.locked || correction.stale}
+              disabled={
+                write.locked || correction.stale || !available || changed
+              }
               onClick={() => void send("CERTIFY")}
               data-testid="hr-certify"
             >
@@ -462,7 +583,7 @@ function CorrectionDecision({
             <Button
               type="button"
               variant="outline"
-              disabled={write.locked}
+              disabled={write.locked || !available || changed}
               onClick={sendReturn}
               data-testid="hr-return"
             >
@@ -487,15 +608,43 @@ function CorrectionDecision({
           </>
         )}
       </div>
-      <WriteFeedback
-        state={write.state}
-        onRetry={() => void write.retry()}
-        saved={
-          <p role="status" className="text-sm font-semibold text-success">
-            {t(decision === "CERTIFY" ? "certified" : "returned")}
-          </p>
-        }
-      />
+      {changed && available ? (
+        <Notice
+          tone="warning"
+          role="alert"
+          title={form("recordChanged")}
+          body={form("recordChangedHint")}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setLoaded(correction)}
+          >
+            {form("recordChangedUse")}
+          </Button>
+        </Notice>
+      ) : null}
+      {!available || changed ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={write.locked}
+          onClick={discardDraft}
+        >
+          {form("discardDraft")}
+        </Button>
+      ) : null}
+      {changed ? null : (
+        <WriteFeedback
+          state={write.state}
+          onRetry={() => void write.retry()}
+          saved={
+            <p role="status" className="text-sm font-semibold text-success">
+              {t(decision === "CERTIFY" ? "certified" : "returned")}
+            </p>
+          }
+        />
+      )}
     </section>
   );
 }
@@ -533,6 +682,8 @@ function DispositionForm({
   timezone,
   onHeld,
   onSaved,
+  onDiscard,
+  available,
 }: {
   readonly employeeId: string;
   readonly detail: DayDetail;
@@ -540,6 +691,8 @@ function DispositionForm({
   /** Reports unsent or in-flight input that a live update must not unmount. */
   readonly onHeld: (held: boolean) => void;
   readonly onSaved: () => void;
+  readonly onDiscard: () => void;
+  readonly available: boolean;
 }) {
   const t = useTranslations("Hr.review");
   const status = useTranslations("Hr.status.disposition");
@@ -567,7 +720,7 @@ function DispositionForm({
         JSON.stringify([initial.choice, initial.start, initial.end]));
   const stale = detail.revision !== loaded.revision;
   // A clean, settled form follows the live day.
-  if (stale && !held && !write.locked) {
+  if (stale && !held && !write.locked && write.state.kind !== "SAVED") {
     const next = dispositionBaseline(detail, timezone);
     setLoaded(detail);
     setInitial(next);
@@ -578,8 +731,8 @@ function DispositionForm({
   }
   // A held draft over a newer revision waits for the user's explicit choice
   // (a clean one has just adopted the live day above).
-  const changed = stale && !write.locked;
-  useDraftGuard(
+  const changed = stale && !write.locked && write.state.kind !== "SAVED";
+  const draft = useDraftGuard(
     held,
     () => {
       setChoice(initial.choice);
@@ -603,10 +756,29 @@ function DispositionForm({
     setEnd((side) => (side.untouched ? next.end : side));
     setErrors({});
   };
+  const discardDraft = () => {
+    const next = dispositionBaseline(detail, timezone);
+    setLoaded(detail);
+    setInitial(next);
+    setChoice(next.choice);
+    setStart(next.start);
+    setEnd(next.end);
+    setReason("");
+    setErrors({});
+    write.reset();
+    draft.settle();
+    onDiscard();
+  };
+  const complete = (result: { readonly kind: string }) => {
+    if (result.kind === "SAVED") {
+      draft.settle();
+      onSaved();
+    }
+  };
 
   const send = async () => {
     // Never send a draft against a revision the reviewer has not accepted.
-    if (changed) return;
+    if (!available || changed || write.locked) return;
     const next: { time?: string; reason?: string } = {};
     // An untouched side keeps its exact saved instant, seconds included: the
     // current certification's (retained by the server against this revision)
@@ -651,7 +823,7 @@ function DispositionForm({
         reason: reason.trim(),
       }),
     );
-    if (result.kind === "SAVED") onSaved();
+    complete(result);
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -708,7 +880,7 @@ function DispositionForm({
         error={errors.reason}
         disabled={write.locked}
       />
-      {changed ? (
+      {changed && available ? (
         <Notice
           tone="warning"
           role="alert"
@@ -723,13 +895,26 @@ function DispositionForm({
       ) : null}
       <Button
         type="submit"
-        disabled={write.locked || changed}
+        disabled={write.locked || changed || !available}
         data-testid="hr-dispose-submit"
       >
         {write.pending ? form("submitting") : t("disposeSubmit")}
       </Button>
+      {!available || changed ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={write.locked}
+          onClick={discardDraft}
+        >
+          {form("discardDraft")}
+        </Button>
+      ) : null}
       {changed ? null : (
-        <WriteFeedback state={write.state} onRetry={() => void write.retry()} />
+        <WriteFeedback
+          state={write.state}
+          onRetry={() => void write.retry().then(complete)}
+        />
       )}
     </form>
   );

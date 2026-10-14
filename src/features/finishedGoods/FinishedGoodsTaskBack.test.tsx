@@ -209,7 +209,7 @@ it("pristine product Cancel consumes its task entry and restores catalogue state
     expect(url()).toBe("/th/finished-goods?search=kept&tab=products#catalogue"),
   );
   await back();
-  expect(url()).toBe("/en/warehouse?search=origin#stock");
+  await waitFor(() => expect(url()).toBe("/en/warehouse?search=origin#stock"));
 });
 it("ProductBatches Forward after conditional manager closure removes its invisible foreground entry", async () => {
   const path = "/en/finished-goods/products/product-a?search=keep#batches";
