@@ -29,6 +29,8 @@ export const useConvexAuth = () => ({
 });
 export const useConvex = () => ({
   query: async (ref: Reference) => answer(getFunctionName(ref)),
+  action: refuse(),
+  mutation: refuse(),
 });
 export const ConvexProvider = ({ children }: { children: ReactNode }) =>
   children;

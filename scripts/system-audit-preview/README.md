@@ -42,3 +42,19 @@ behavior, caller suites verify draft/concurrency/navigation behavior, and existi
 Playwright suites verify routing, browser camera fixtures and responsive storage.
 Fixture links do not exercise authenticated application routing. Resizing the T3
 preview changes CSS viewport width, not its desktop user agent.
+
+With the fixture server running, capture its reviewed states using the installed
+Playwright Chromium:
+
+```sh
+node scripts/system-audit-preview/capture.mjs
+```
+
+The script saves original full-page PNGs and a manifest in
+`output/audit-cleanup/screenshots`. Manifest `width` and `height` describe the CSS
+viewport; a full-page PNG can be taller. It checks horizontal overflow and
+uncaught page errors, and uses a fresh browser context for each state. The images
+still need visual review. `AUDIT_CAPTURE_VIEW` limits capture to one view; a rerun
+replaces that view's named entries without dropping the other manifest entries.
+For a baseline server on 3291, set `AUDIT_PHASE=before`,
+`AUDIT_CAPTURE_PORT=3291` and `AUDIT_SOURCE_COMMIT` to its actual commit.
