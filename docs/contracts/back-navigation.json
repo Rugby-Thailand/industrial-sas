@@ -3532,7 +3532,18 @@
           "truthy": ["src/features/finishedGoods/shared#Missing"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "refreshes clean stacking limits from live settings and saves against them"
+        },
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "keeps a dirty stacking draft over live changes and reloads only after a stale refusal"
+        }
+      ],
+      "tests": ["src/features/finishedGoods/StackScreen.test.tsx"]
     },
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:upperDirty",
@@ -3608,7 +3619,18 @@
           "truthy": ["src/features/finishedGoods/shared#Missing"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "refreshes clean stacking limits from live settings and saves against them"
+        },
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "keeps a dirty stacking draft over live changes and reloads only after a stale refusal"
+        }
+      ],
+      "tests": ["src/features/finishedGoods/StackScreen.test.tsx"]
     },
     {
       "id": "src/features/finishedGoods/SummaryPreparation.tsx#SummaryPreparation:error",
@@ -3980,7 +4002,18 @@
           "truthy": ["DispositionForm"],
           "falsy": ["div", "p", "src/components/ui/button#Button"]
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "refreshes clean review forms from the live day"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "closes re-review after a successful %s retry with a newer live revision"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "id": "src/features/hr/ReviewDetail.tsx#DayDisposition:held",

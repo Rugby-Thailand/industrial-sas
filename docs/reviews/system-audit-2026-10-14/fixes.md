@@ -21,7 +21,15 @@ Main had already removed the hosted inspector's duplicate eyebrow and Clear sele
 
 Kiro implemented the confirmed findings and ran desired-behavior regressions against the unfixed source before making them pass. Independent Codex Standards and Spec reviews then reproduced two incomplete cases: a stacking update consumed while dirty/pending, and HR draft owners unmounted by live eligibility changes. Further caller probes caught successful re-review completion races, loaded correction-version drift and receipt loss within the same HR finding. These cases were fixed and added to the real caller suites.
 
-The stacking follow-up review found no additional correctness or cleanup issue. Final independent review and complete checks are recorded below once finished.
+Final independent review examined `117cc19c...1dac0cb6` plus the subsequent typed-fixture and inventory-evidence corrections. Production code stayed fixed during these corrections.
+
+### Standards
+
+No hard violations or meaningful code-smell findings remain. The original retained-draft and duplicated-reset findings are resolved. The final review also found three presentation records missing caller-evidence references; their existing literal regression titles are now associated with the exact inventory records. Policy and render targets were unchanged by that correction.
+
+### Spec
+
+No missing/partial requirement, incorrect implementation or scope creep remains within the eight confirmed groups. An independent reviewer reran 37 real-component/draft-provider probes and two registered-handler regressions for exact timestamps and stale stacking; all passed. This complements the real caller suites without replacing full-suite or CI validation.
 
 ## Contracts and navigation
 
@@ -31,7 +39,20 @@ The stacking follow-up review found no additional correctness or cleanup issue. 
 
 ## Verification
 
-Final source validation is in progress. Earlier implementation validation passed all 4,779 tests in 361 files, navigation fixtures, ESLint, formatting, both typecheck engines and public function compatibility. Parent verification also passed test discovery, anonymous-local Convex codegen drift detection, production/exact-chain dependency audits and workflow pin/actionlint checks. These checks use no production writes.
+| Check                                     | Result                                                                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm exec vitest run --maxWorkers=3`     | Final source: **4,795/4,795 tests in 361 files**, 152.52 seconds. Includes accessibility, property, backend and caller projects. |
+| `pnpm check:navigation`                   | **68 fixtures** pass; **58 route/error policies, 293 exact state/overlay owners, 26 action intents**.                            |
+| `pnpm lint`                               | Pass with zero warnings; fixture correction also passes normal ESLint.                                                           |
+| `pnpm format:check`                       | Pass; final edited artifacts also checked with Prettier.                                                                         |
+| `pnpm typecheck` and `pnpm typecheck:ts6` | Pass on the unchanged real configurations. Bun 1.4.3 checker: 1,019 files.                                                       |
+| `pnpm ci:test-discovery`                  | **361 Vitest files and 15 Playwright spec files** tracked and discovered.                                                        |
+| Public function compatibility             | **10/10** pass; optional baseline/retention fields only.                                                                         |
+| `pnpm ci:codegen`                         | Anonymous-local Convex codegen drift check passes with no generated diff.                                                        |
+| Dependency and workflow checks            | Production/exact-chain dependency audits and workflow pin/actionlint checks pass. Dependencies and workflow files are unchanged. |
+| Independent final Spec probes             | **37/37** real-component probes and **2/2** focused backend regressions pass.                                                    |
+
+Typechecking initially caught incomplete typed HR fixtures added in the follow-up; the fixtures now include the required undefined/nullable contract fields, and two unnecessary casts were removed. No checker configuration was weakened. Required GitHub checks, CodeQL and browser jobs are tracked on PR #95 and must be green on its latest commit before merge. Verification uses no production writes.
 
 ## Boundaries
 

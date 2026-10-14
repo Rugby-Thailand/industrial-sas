@@ -72,22 +72,26 @@ function day(revision: number, certification?: Certification): DayDetail {
     issue: certification ? undefined : "MISSING_END",
     disposition: certification?.disposition ?? null,
     originalStartAt: at("08:30:20"),
+    originalEndAt: undefined,
+    effectiveStartAt: certification?.startAt ?? at("08:30:20"),
+    effectiveEndAt: certification?.endAt,
     workedMinutes: 0,
     outsideShiftMinutes: 0,
     locked: false,
     events: [],
     corrections: [],
-    ...(certification
+    pendingCorrectionId: undefined,
+    certification: certification
       ? {
-          certification: {
-            ...certification,
-            current: true,
-            reason: "Earlier decision",
-            decidedAt: at("18:00:00"),
-            decidedByName: "Other reviewer",
-          },
+          ...certification,
+          startAt: certification.startAt,
+          endAt: certification.endAt,
+          current: true,
+          reason: "Earlier decision",
+          decidedAt: at("18:00:00"),
+          decidedByName: "Other reviewer",
         }
-      : {}),
+      : undefined,
   };
 }
 const worked = (startAt: number, endAt: number): Certification => ({
@@ -302,7 +306,7 @@ describe("live attendance updates keep unsent HR drafts", () => {
   it("refreshes a clean employee correction form without a notice", () => {
     setSelf(day(1));
     const view = mountDay();
-    setSelf({ ...day(2), originalEndAt: at("17:40:00") } as never);
+    setSelf({ ...day(2), originalEndAt: at("17:40:00") });
     view.rerender();
     expect(changedNotice()).toBeNull();
     expect(screen.getByLabelText("Correct clock-out")).toHaveValue("17:40");
@@ -354,7 +358,7 @@ describe("re-review keeps exact untouched attendance instants", () => {
     setReview({
       ...day(2, { disposition: "LEAVE" }),
       originalEndAt: at("17:30:40"),
-    } as never);
+    });
     mountReview();
     fireEvent.click(screen.getByRole("button", { name: "Review again" }));
     fireEvent.change(reason(), { target: { value: "Actually worked" } });
@@ -387,6 +391,9 @@ function pendingDay(revision = 2): DayDetail {
         reason: "Forgot clock-out",
         submittedAt: at("18:00:00"),
         submittedByName: "Worker",
+        decidedAt: undefined,
+        decidedByName: null,
+        decisionReason: undefined,
         history: [],
       },
     ],
