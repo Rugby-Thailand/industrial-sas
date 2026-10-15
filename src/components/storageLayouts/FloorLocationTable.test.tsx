@@ -370,6 +370,58 @@ describe("FloorLocationTable", () => {
     expect(within(rows()[0]!).getAllByRole("cell")[3]).toHaveTextContent("≥ 3");
   });
 
+  it.each(["en", "th"] as const)(
+    "shows an equal name and code once in the %s phone list and grid while keeping distinct names",
+    (locale) => {
+      intl.locale = locale;
+      const prefix = locale === "th" ? "เลือกจุดจัดเก็บ" : "Select location";
+      const candidates = [
+        { ...zones[0]!, code: "FG-1", label: "FG-1" },
+        { ...zones[1]!, code: "FG-2", label: "Dock shelf" },
+      ];
+      const identity = () => {
+        const same = screen.getByRole("button", {
+          name: `${prefix} FG-1 · FG-1`,
+        });
+        expect(within(same).getAllByText("FG-1")).toHaveLength(1);
+        const distinct = screen.getByRole("button", {
+          name: `${prefix} FG-2 · Dock shelf`,
+        });
+        expect(within(distinct).getByText("FG-2")).toBeInTheDocument();
+        expect(within(distinct).getByText("Dock shelf")).toBeInTheDocument();
+      };
+      const original = window.matchMedia;
+      const phone = vi
+        .spyOn(window, "matchMedia")
+        .mockImplementation((query) => ({
+          ...original(query),
+          matches: query === "(max-width: 580px)",
+        }));
+      try {
+        const view = render(
+          <FloorLocationTable zones={candidates} onSelect={select} />,
+        );
+        identity();
+        view.unmount();
+      } finally {
+        phone.mockRestore();
+      }
+      render(<FloorLocationTable zones={candidates} onSelect={select} />);
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: locale === "th" ? "ตัวกรอง" : "Filter locations",
+        }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: locale === "th" ? "มุมมองกริด" : "Grid view",
+        }),
+      );
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      identity();
+    },
+  );
+
   it("keeps the complete Thai label available and provides named keyboard controls", async () => {
     intl.locale = "th";
     const label =

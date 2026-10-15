@@ -160,6 +160,78 @@ it("requires an explicit choice between distinct AI codes", async () => {
   ).toHaveValue("F1-L4-2");
 });
 
+it.each([
+  [
+    "en",
+    "Photo AI",
+    "Choose photo",
+    "Review location code",
+    "Take another photo",
+    "Back to photo",
+    "Close Photo AI",
+    "Location label photo",
+  ],
+  [
+    "th",
+    "ถ่ายรูป AI",
+    "เลือกรูป",
+    "ตรวจสอบรหัสตำแหน่ง",
+    "ถ่ายรูปใหม่",
+    "กลับไปที่รูป",
+    "ปิดถ่ายรูป AI",
+    "รูปป้ายตำแหน่ง",
+  ],
+] as const)(
+  "names the retake return accurately and keeps the corrected %s photo review",
+  async (
+    locale,
+    aiLabel,
+    chooseLabel,
+    reviewLabel,
+    retakeLabel,
+    returnLabel,
+    closeLabel,
+    photoLabel,
+  ) => {
+    renderWithIntl(
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={vi.fn()}
+        canReadImage
+      />,
+      { locale, preserveProviders: true },
+    );
+    const ai = screen.getByRole("button", { name: aiLabel });
+    fireEvent.click(ai);
+    fireEvent.change(
+      screen.getByLabelText(chooseLabel, { selector: "input" }),
+      {
+        target: { files: [file()] },
+      },
+    );
+    fireEvent.change(
+      await screen.findByRole("textbox", { name: reviewLabel }),
+      {
+        target: { value: "CORRECTED-DOCK" },
+      },
+    );
+    const photoHref = window.location.href;
+    fireEvent.click(screen.getByRole("button", { name: retakeLabel }));
+    expect(screen.queryByRole("button", { name: closeLabel })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: returnLabel }));
+    expect(await screen.findByRole("img", { name: photoLabel })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: reviewLabel })).toHaveValue(
+      "CORRECTED-DOCK",
+    );
+    expect(mocks.action).toHaveBeenCalledOnce();
+    // Explicit return renders the retained photo before native entry consumption finishes.
+    await waitFor(() => expect(window.location.href).toBe(photoHref));
+    expect(ai).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(ai);
+    await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
+  },
+);
+
 it("preserves a registered building location when the confirmed AI code resolves", async () => {
   const location = {
     code: "F1-L3-11",
@@ -210,7 +282,7 @@ it.each(["typing", "warehouse", "replacement", "cancel", "back", "unmount"])(
     else if (change === "cancel")
       fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     else if (change === "back")
-      fireEvent.click(screen.getByRole("button", { name: "Close Photo AI" }));
+      fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
     else unmount();
     await act(async () => finish(extracted()));
     expect(mocks.query).not.toHaveBeenCalled();
@@ -345,12 +417,85 @@ it("switches between one scan mode and one Photo AI mode without submitting an A
   ).not.toBeInTheDocument();
   expect(scan).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(ai);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Close Photo AI" }),
-  );
-  expect(ai).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(ai);
+  await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
   expect(scan).toHaveAttribute("aria-pressed", "false");
 });
+
+it.each(["default", "jobScan"] as const)(
+  "the pressed Photo AI action is the only %s outer close before and after reading a photo",
+  async (presentation) => {
+    renderWithIntl(
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={vi.fn()}
+        canReadImage
+        presentation={presentation}
+      />,
+      { locale: "en", preserveProviders: true },
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Search location" }), {
+      target: { value: "DOCK" },
+    });
+    const ai = screen.getByRole("button", { name: "Photo AI" });
+    fireEvent.click(ai);
+    expect(ai).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByLabelText("Camera preview", { selector: "video" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Close Photo AI" }),
+    ).not.toBeInTheDocument();
+    select();
+    await screen.findByRole("textbox", { name: "Review location code" });
+    expect(
+      screen.queryByRole("button", { name: "Close Photo AI" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(ai);
+    await waitFor(() => expect(ai).toHaveAttribute("aria-pressed", "false"));
+    expect(
+      screen.queryByRole("region", { name: "Read a location label" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Search location" }),
+    ).toHaveValue("DOCK");
+  },
+);
+
+it.each(["default", "jobScan"] as const)(
+  "the pressed Scan code action is the only %s QR camera close and keeps every acquisition channel",
+  (presentation) => {
+    renderWithIntl(
+      <LocationPicker
+        warehouseId="warehouse-a"
+        onPick={vi.fn()}
+        canReadImage
+        presentation={presentation}
+      />,
+      { locale: "en", preserveProviders: true },
+    );
+    const scan = screen.getByRole("button", { name: "Scan code" });
+    fireEvent.click(scan);
+    const video = () =>
+      screen.queryByLabelText("Barcode and QR camera preview", {
+        selector: "video",
+      });
+    expect(video()).toBeInTheDocument();
+    expect(scan).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.queryByRole("button", { name: "Stop camera" }),
+    ).not.toBeInTheDocument();
+    // Image decoding, blank Photo AI and typing remain separate channels.
+    expect(screen.getByRole("button", { name: "Choose image" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Photo AI" })).toBeEnabled();
+    expect(
+      screen.getByRole("textbox", { name: "Search location" }),
+    ).toBeEnabled();
+    fireEvent.click(scan);
+    expect(video()).not.toBeInTheDocument();
+    expect(scan).toHaveAttribute("aria-pressed", "false");
+  },
+);
 
 describe("Scan job ticket location step presentation", () => {
   function setupJobScan(presentation?: "jobScan") {

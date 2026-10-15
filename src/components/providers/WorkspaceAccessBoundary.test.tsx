@@ -11,6 +11,7 @@ import { WorkspaceAccessBoundary } from "./WorkspaceAccessBoundary";
 
 const boundaryMocks = vi.hoisted(() => ({
   pathname: "/en/storage-layouts",
+  failed: false,
   record: vi.fn(),
 }));
 
@@ -21,7 +22,10 @@ vi.mock("./ObservabilityProvider", () => ({
   useObservability: () => ({ record: boundaryMocks.record }),
 }));
 vi.mock("./WorkspaceProvider", () => ({
-  useWorkspace: () => ({ selectedWarehouseId: "warehouse-a", failed: false }),
+  useWorkspace: () => ({
+    selectedWarehouseId: "warehouse-a",
+    failed: boundaryMocks.failed,
+  }),
 }));
 
 function DeniedWorkspace(): never {
@@ -30,27 +34,53 @@ function DeniedWorkspace(): never {
 
 beforeEach(() => {
   boundaryMocks.pathname = "/en/storage-layouts";
+  boundaryMocks.failed = false;
   boundaryMocks.record.mockReset();
 });
 afterEach(() => vi.restoreAllMocks());
 
 describe("WorkspaceAccessBoundary", () => {
-  it("shows a retryable backend state when a query throws", () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it.each([
+    [
+      "en",
+      false,
+      "Something went wrong",
+      "The read did not complete.",
+      "Try again",
+    ],
+    [
+      "en",
+      true,
+      "Something went wrong",
+      "The read did not complete.",
+      "Try again",
+    ],
+    ["th", false, "เกิดข้อผิดพลาด", "อ่านข้อมูลไม่สำเร็จ", "ลองใหม่"],
+    ["th", true, "เกิดข้อผิดพลาด", "อ่านข้อมูลไม่สำเร็จ", "ลองใหม่"],
+  ] as const)(
+    "shows one %s heading and a retryable explanation (workspace failed=%s)",
+    (locale, failed, title, hint, retry) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      boundaryMocks.failed = failed;
 
-    renderWithIntl(
-      <WorkspaceAccessBoundary>
-        <DeniedWorkspace />
-      </WorkspaceAccessBoundary>,
-      { environment: testEnvironment, workspace: false },
-    );
+      renderWithIntl(
+        <WorkspaceAccessBoundary>
+          <DeniedWorkspace />
+        </WorkspaceAccessBoundary>,
+        { locale, environment: testEnvironment, workspace: false },
+      );
 
-    expect(screen.getByTestId("workspace-query-error")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "เกิดข้อผิดพลาด" }),
-    ).toBeVisible();
-    expect(screen.getByRole("button", { name: "ลองใหม่" })).toBeVisible();
-  });
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(
+        screen.getByRole("heading", { level: 1, name: title }),
+      ).toBeVisible();
+      expect(screen.getAllByText(title, { exact: true })).toHaveLength(1);
+      const notice = screen.getByTestId("workspace-query-error");
+      expect(screen.getByRole("alert")).toBe(notice);
+      expect(notice).toHaveTextContent(hint);
+      expect(screen.getByRole("button", { name: retry })).toBeVisible();
+    },
+  );
 
   it("reports failures and resets when the warehouse route changes", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});

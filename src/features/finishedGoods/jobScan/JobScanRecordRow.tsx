@@ -35,6 +35,10 @@ export function JobScanRecordRow({
   const t = useTranslations("JobScan");
   const format = useFormatter();
   const changingLocation = useRef(false);
+  const locationCode = record.locationCode ?? record.locationText;
+  // A distinct name or original label adds information; an equal one repeats the code.
+  const locationName =
+    record.locationName || (record.mapped ? record.locationText : undefined);
   return (
     <li className="grid grid-cols-[1.5rem_2.75rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 py-3 sm:grid-cols-[1.5rem_3.5rem_minmax(0,1fr)_auto] sm:gap-x-3 lg:grid-cols-[1.5rem_3.5rem_minmax(0,1fr)_17rem_auto]">
       {canManage && (
@@ -94,7 +98,7 @@ export function JobScanRecordRow({
           <span className="flex min-w-0 items-center gap-2">
             <MapPin className="size-5 shrink-0 text-muted" aria-hidden="true" />
             <span className="font-mono font-semibold break-all">
-              {record.locationCode ?? record.locationText}
+              {locationCode}
             </span>
           </span>
           <StatusBadge
@@ -103,10 +107,9 @@ export function JobScanRecordRow({
             icon={<span className="block size-1.5 rounded-full bg-current" />}
           />
         </div>
-        {(record.locationName ||
-          (record.mapped && record.locationText !== record.locationCode)) && (
+        {locationName && locationName !== locationCode && (
           <p className="hidden pl-7 text-sm text-muted lg:block">
-            {record.locationName ?? record.locationText}
+            {locationName}
           </p>
         )}
         {record.buildingName && (

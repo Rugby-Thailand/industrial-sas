@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import type { BarcodeCrop } from "../barcodeDecoder";
 import { Button } from "@/components/ui/button";
+import type { DialogCompletionHandle } from "@/components/ui/dialog";
 import { AddLocationForm } from "./AddLocationForm";
 import type { PickedLocation } from "./ticketDraft";
 import {
@@ -112,12 +113,16 @@ function LocationPickerSession({
   const acquisitionOpen = useRef(false);
   const [checking, setChecking] = useState(false);
   const [ai, setAi] = useState<{ photo?: LocationPhoto }>();
+  const aiCompletion = useRef<DialogCompletionHandle>(null);
   const [qrBeforeAi, setQrBeforeAi] = useState(false);
   const lastCameraMode = useRef<"QR" | "AI">("QR");
   const lastAi = useRef<{ photo?: LocationPhoto }>({});
   const aiDisclosure = useBackDisclosure(Boolean(ai) && qrBeforeAi, (open) => {
     lookupVersion.current += 1;
     acquisitionOpen.current = true;
+    // Forward may restore this child together with its camera entry, including
+    // after explicit completion cleared the nested presentation flag.
+    if (open) setQrBeforeAi(true);
     setAi(open ? lastAi.current : undefined);
   });
   const cameraDisclosure = useBackDisclosure(camera, (open) => {
@@ -125,7 +130,13 @@ function LocationPickerSession({
     else {
       acquisitionOpen.current = true;
       setCamera(true);
-      setAi(lastCameraMode.current === "AI" ? lastAi.current : undefined);
+      // A one-shot Forward can restore AI in the same commit. Preserve that
+      // child while keeping lastCameraMode as the outer acquisition's mode.
+      setAi(
+        (restoredAi) =>
+          restoredAi ??
+          (lastCameraMode.current === "AI" ? lastAi.current : undefined),
+      );
     }
   });
   const registrationDisclosure = useBackDisclosure(adding, setAdding);
@@ -278,11 +289,17 @@ function LocationPickerSession({
                   canReadImage ? (
                     <IconButton
                       label={t("photoAi")}
-                      variant="ghost"
+                      variant={ai ? "active" : "ghost"}
                       aria-pressed={Boolean(ai)}
                       className="shrink-0"
                       onClick={() => {
                         const opening = !ai;
+                        if (!opening) {
+                          aiCompletion.current?.complete(() =>
+                            finishAcquisition(() => setQrBeforeAi(false)),
+                          );
+                          return;
+                        }
                         cancelScan();
                         setAdding(false);
                         setNotice(undefined);
@@ -349,6 +366,8 @@ function LocationPickerSession({
         (ai ? (
           <LocationImageReader
             {...(ai.photo ? { initialPhoto: ai.photo } : {})}
+            closeControl={qrBeforeAi}
+            completionRef={aiCompletion}
             extract={async (imageDataUrl) => {
               const result = await convex.action(fgRefs.extractLocationLabel, {
                 warehouseId,
@@ -371,7 +390,8 @@ function LocationPickerSession({
             startOnMount
             presentation={presentation === "jobScan" ? "expanded" : "default"}
             onCode={(code) => void onScan(code, scannerVersion)}
-            onClose={() => cameraDisclosure.onOpenChange(false)}
+            // The pressed scan action owns closing; a second frame close would repeat it.
+            closeControl={false}
             {...(canReadImage
               ? {
                   onReadWithAi: (file?: File, crop?: BarcodeCrop) => {
@@ -829,6 +849,17 @@ function LocationChoices({
 
 function ChoiceText({ choice }: { choice: Choice }) {
   const t = useTranslations("JobScan");
+  // The code is always shown; an equal name would only repeat it.
+  const name = choice.name === choice.code ? undefined : choice.name;
+  const detail = [
+    choice.buildingName,
+    choice.buildingName && choice.floorNumber !== undefined
+      ? t("floorNumber", { number: choice.floorNumber })
+      : undefined,
+    name,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <>
       <MapPin className="size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -836,19 +867,11 @@ function ChoiceText({ choice }: { choice: Choice }) {
         <span className="min-w-0 font-mono font-semibold break-all sm:shrink-0 sm:break-normal">
           {choice.code}
         </span>
-        <span className="line-clamp-2 min-w-0 text-sm leading-6 break-words text-muted">
-          {choice.buildingName
-            ? [
-                choice.buildingName,
-                choice.floorNumber === undefined
-                  ? undefined
-                  : t("floorNumber", { number: choice.floorNumber }),
-                choice.name,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : choice.name}
-        </span>
+        {detail && (
+          <span className="line-clamp-2 min-w-0 text-sm leading-6 break-words text-muted">
+            {detail}
+          </span>
+        )}
       </span>
     </>
   );

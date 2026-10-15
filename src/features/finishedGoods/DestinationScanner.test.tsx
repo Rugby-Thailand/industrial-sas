@@ -297,9 +297,10 @@ it.each([
   ["SOURCE", "Source code"],
   ["SUPPORT", "Supporting pallet code"],
 ] as const)(
-  "opens the adjacent scan icon for %s and reports camera evidence",
+  "offers one camera start and stop control for %s and reports camera evidence",
   async (purpose, label) => {
-    scanner.decode.mockResolvedValue({ stop: vi.fn() });
+    const stop = vi.fn();
+    scanner.decode.mockResolvedValue({ stop });
     const onCode = vi.fn().mockResolvedValue(undefined);
     renderIntl(
       <DestinationScanner
@@ -308,14 +309,30 @@ it.each([
         expectedLocation="DEMO"
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: `Scan ${label}` }));
-    await waitFor(() => expect(scanner.decode).toHaveBeenCalledTimes(1));
-    emitCode("DEMO-CODE", vi.fn());
+    // The field is for typed or handheld input; the camera box owns the camera.
+    expect(
+      screen.queryByRole("button", { name: `Scan ${label}` }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose image" })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "Stop camera" }),
+    ).not.toBeInTheDocument();
+    await startCamera();
+    expect(
+      screen.getByLabelText(`Scan ${label}`, { selector: "video" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /camera/i })).toEqual([
+      screen.getByRole("button", { name: "Stop camera" }),
+    ]);
+    emitCode("DEMO-CODE", stop);
     await waitFor(() =>
       expect(onCode).toHaveBeenCalledWith("DEMO-CODE", "SCAN"),
     );
     expect(onCode).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(label)).toHaveValue("DEMO-CODE");
+    expect(screen.getAllByRole("button", { name: /camera/i })).toEqual([
+      screen.getByRole("button", { name: "Start camera" }),
+    ]);
   },
 );
 
@@ -390,20 +407,24 @@ it("stops the shared camera during manual verification and ignores repeated subm
   expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled();
 });
 
-it("retries denied camera access through the adjacent scan action", async () => {
+it("retries denied camera access through the camera box's Retry camera action", async () => {
   const media = vi.mocked(navigator.mediaDevices.getUserMedia);
   media.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
   const stop = vi.fn();
   scanner.decode.mockResolvedValue({ stop });
   const onCode = vi.fn().mockResolvedValue(undefined);
   renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
-  const scan = screen.getByRole("button", { name: "Scan Destination code" });
-  fireEvent.click(scan);
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Camera access was denied",
   );
-  expect(scan).toHaveAttribute("aria-pressed", "false");
-  fireEvent.click(scan);
+  // Stop and Retry are distinct; there is no second start control.
+  expect(
+    screen.queryByRole("button", { name: "Start camera" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Stop camera" })).toBeVisible();
+  expect(screen.getByLabelText("Destination code")).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry camera" }));
   await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
   expect(media).toHaveBeenCalledTimes(2);
   emitCode("RETRIED-CODE", stop);
@@ -411,4 +432,84 @@ it("retries denied camera access through the adjacent scan action", async () => 
     expect(onCode).toHaveBeenCalledWith("RETRIED-CODE", "SCAN"),
   );
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("clears the previous verification warning on camera Start while retaining the code and reporting a fresh refusal", async () => {
+  const stop = vi.fn();
+  let finish!: (value: { stop(): void }) => void;
+  scanner.decode.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const onCode = vi.fn().mockRejectedValue(new Error("Verification failed"));
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "OLD-CODE" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be verified",
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Destination code")).toHaveValue("OLD-CODE");
+  await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
+  await act(async () => finish({ stop }));
+  emitCode("NEW-SCANNED-CODE", stop);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be verified",
+  );
+  expect(onCode.mock.calls).toEqual([
+    ["OLD-CODE", "MANUAL"],
+    ["NEW-SCANNED-CODE", "SCAN"],
+  ]);
+  expect(screen.getByLabelText("Destination code")).toHaveValue(
+    "NEW-SCANNED-CODE",
+  );
+  expect(stop).toHaveBeenCalled();
+});
+
+it("shows only the current camera denial after a failed verification, then retries without losing the entered code", async () => {
+  const media = vi.mocked(navigator.mediaDevices.getUserMedia);
+  media.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+  const stop = vi.fn();
+  scanner.decode.mockResolvedValue({ stop });
+  const onCode = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Verification failed"))
+    .mockResolvedValue(undefined);
+  renderIntl(<DestinationScanner onCode={onCode} expectedLocation="FG-1" />);
+  fireEvent.change(screen.getByLabelText("Destination code"), {
+    target: { value: "OLD-CODE" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be verified",
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Start camera" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  await screen.findByText(/Camera access was denied/);
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Camera access was denied",
+  );
+  expect(screen.getByLabelText("Destination code")).toHaveValue("OLD-CODE");
+  fireEvent.click(screen.getByRole("button", { name: "Retry camera" }));
+  expect(screen.getByLabelText("Destination code")).toHaveValue("OLD-CODE");
+  await waitFor(() =>
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(scanner.decode).toHaveBeenCalledOnce());
+  emitCode("RETRIED-CODE", stop);
+  await waitFor(() =>
+    expect(onCode).toHaveBeenCalledWith("RETRIED-CODE", "SCAN"),
+  );
+  expect(onCode).toHaveBeenCalledTimes(2);
 });

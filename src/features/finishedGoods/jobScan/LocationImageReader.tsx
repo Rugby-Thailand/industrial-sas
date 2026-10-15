@@ -8,6 +8,7 @@ import {
   useId,
   useRef,
   useState,
+  type Ref,
 } from "react";
 import { Camera, ImagePlus, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -15,6 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconButton } from "@/components/ui/IconButton";
 import { Notice } from "@/components/ui/Notice";
+import {
+  useCompletionHandle,
+  type DialogCompletionHandle,
+} from "@/components/ui/dialog";
 import { barcodeImageProblem, type BarcodeCrop } from "../barcodeDecoder";
 import { CameraFrame } from "../CameraFrame";
 import type {
@@ -46,12 +51,18 @@ export function LocationImageReader({
   extract,
   onConfirm,
   onClose,
+  closeControl = true,
+  completionRef,
   retryOverPhoto = false,
 }: {
   initialPhoto?: LocationPhoto;
   extract: (imageDataUrl: string) => Promise<LocationImageResult>;
   onConfirm: (code: string) => void;
   onClose: () => void;
+  /** Hide an equivalent outer close; retaking still has its own return control. */
+  closeControl?: boolean;
+  /** Cancel processing and consume a retake before the containing acquisition. */
+  completionRef?: Ref<DialogCompletionHandle>;
   /**
    * Offer "read this photo again" as one button centred on the photo, in
    * place of the full-width retry and the take-another-photo icon.
@@ -93,6 +104,11 @@ export function LocationImageReader({
     setCode("");
     setError(undefined);
   }
+  useCompletionHandle(completionRef, (action, onCancel) => {
+    invalidate();
+    photoCamera.current?.stop();
+    cameraDisclosure.complete(action, onCancel);
+  });
   function select(file: File) {
     invalidate();
     // A gallery photo replaces the live camera before any late capture can land.
@@ -194,10 +210,14 @@ export function LocationImageReader({
         <LocationPhotoCamera
           ref={photoCamera}
           onPhoto={select}
-          onClose={() => {
-            if (photo) cameraDisclosure.onOpenChange(false);
-            else close();
-          }}
+          {...(photo
+            ? {
+                onClose: () => cameraDisclosure.onOpenChange(false),
+                closeLabel: t("backToPhoto"),
+              }
+            : closeControl
+              ? { onClose: close }
+              : {})}
           errorAction={
             // The device camera is a fallback only when the in-app camera fails.
             <Button
@@ -217,42 +237,45 @@ export function LocationImageReader({
       ) : photo ? (
         <CameraFrame
           layout="content"
-          onClose={close}
+          onClose={closeControl ? close : undefined}
           closeLabel={t("closePhotoAi")}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
-          <img
-            src={previewUrl}
-            alt={t("locationAiPhoto")}
-            className="block h-auto max-h-[60dvh] w-auto max-w-full"
-          />
-          {photo.crop && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute border-2 border-white bg-white/10"
-              style={{
-                left: `${photo.crop.x * 100}%`,
-                top: `${photo.crop.y * 100}%`,
-                width: `${photo.crop.width * 100}%`,
-                height: `${photo.crop.height * 100}%`,
-              }}
+          {/* Crop and reread stay aligned to the media when a short frame grows for its controls. */}
+          <div className="relative w-fit max-w-full min-w-0">
+            {/* eslint-disable-next-line @next/next/no-img-element -- local photo preview and normalized crop share the same geometry */}
+            <img
+              src={previewUrl}
+              alt={t("locationAiPhoto")}
+              className="block h-auto max-h-[60dvh] w-auto max-w-full"
             />
-          )}
-          {retryOverPhoto && canRetry && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <IconButton
-                label={t("locationAiRereadPhoto")}
-                variant="ghost"
-                className="pointer-events-auto size-16 rounded-full bg-black/60 text-white ring-1 ring-white/70 backdrop-blur-sm hover:bg-black/75 hover:text-white focus-visible:outline-white"
-                onClick={retry}
-              >
-                <RotateCcw
-                  aria-hidden="true"
-                  className="size-7 drop-shadow-sm"
-                />
-              </IconButton>
-            </div>
-          )}
+            {photo.crop && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute border-2 border-white bg-white/10"
+                style={{
+                  left: `${photo.crop.x * 100}%`,
+                  top: `${photo.crop.y * 100}%`,
+                  width: `${photo.crop.width * 100}%`,
+                  height: `${photo.crop.height * 100}%`,
+                }}
+              />
+            )}
+            {retryOverPhoto && canRetry && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <IconButton
+                  label={t("locationAiRereadPhoto")}
+                  variant="ghost"
+                  className="pointer-events-auto size-16 rounded-full bg-black/60 text-white ring-1 ring-white/70 backdrop-blur-sm hover:bg-black/75 hover:text-white focus-visible:outline-white"
+                  onClick={retry}
+                >
+                  <RotateCcw
+                    aria-hidden="true"
+                    className="size-7 drop-shadow-sm"
+                  />
+                </IconButton>
+              </div>
+            )}
+          </div>
         </CameraFrame>
       ) : null}
       <input

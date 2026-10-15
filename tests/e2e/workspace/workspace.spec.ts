@@ -207,6 +207,9 @@ test.describe("workspace map and table (English, desktop)", () => {
         .getByRole("button", { name: "Close dialog", exact: true })
         .click();
       await expect(dialog).toBeHidden();
+      // Wait for the closing sheet's focus scope to detach before moving focus
+      // back to the canvas; its exit animation still owns focus while mounted.
+      await expect(dialog).toHaveCount(0);
     } else {
       await page
         .getByRole("button", { name: "Hide details", exact: true })
@@ -225,6 +228,12 @@ test.describe("workspace map and table (English, desktop)", () => {
       page.getByRole("button", { name: "Clear selection", exact: true }),
     ).toHaveCount(0);
     await selected.focus();
+    await expect(selected).toBeFocused();
+    // Closing the sheet restores focus to Map view, which opens its tooltip.
+    // Moving to the canvas closes it; wait for that dismissal layer to retire.
+    await expect(
+      page.getByRole("tooltip", { includeHidden: true }),
+    ).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(selected).toHaveAttribute("aria-pressed", "false");
 

@@ -7,6 +7,7 @@ import type * as BarcodeImage from "./barcodeImage";
 const mocks = vi.hoisted(() => ({
   decode: vi.fn<(...args: unknown[]) => Promise<string[]>>(),
   stop: vi.fn(),
+  start: vi.fn(),
 }));
 vi.mock("./barcodeImage", async (original) => ({
   ...(await original<typeof BarcodeImage>()),
@@ -27,7 +28,7 @@ vi.mock("./useBarcodeCamera", () => ({
     torchAvailable: false,
     torchOn: false,
     toggleTorch: vi.fn(),
-    start: vi.fn(),
+    start: mocks.start,
     stop: mocks.stop,
   }),
 }));
@@ -66,6 +67,29 @@ it("offers image selection when the camera is unavailable", () => {
     locale: "en",
   });
   expect(screen.getByRole("button", { name: "Choose image" })).toBeEnabled();
+});
+
+it("notifies its owner on explicit Start and Retry attempts, while disabled attempts stay silent", () => {
+  const onStart = vi.fn();
+  const { rerender, onCode } = setup({ startOnMount: false, onStart });
+  expect(onStart).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  expect(onStart).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Retry camera" }));
+  expect(onStart).toHaveBeenCalledTimes(2);
+  expect(mocks.start).toHaveBeenCalledOnce();
+  rerender(
+    <BarcodeCameraBox
+      mode="LOCATION"
+      onCode={onCode}
+      startOnMount={false}
+      onStart={onStart}
+      disabled
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Start camera" }));
+  expect(onStart).toHaveBeenCalledTimes(2);
 });
 
 it("pauses the camera without closing the location session and applies the image result", async () => {

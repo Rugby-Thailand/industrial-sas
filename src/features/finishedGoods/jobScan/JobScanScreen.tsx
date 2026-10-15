@@ -105,7 +105,7 @@ export function LocationSummary({
         tone={mapped ? "success" : "warning"}
         label={mapped ? t("mapped") : t("unmapped")}
       />
-      {name && (
+      {name && name !== code && (
         <span className="w-full truncate pl-6 text-sm text-muted">{name}</span>
       )}
     </span>
@@ -483,12 +483,14 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             : null;
 
   const mapped = Boolean(location.locationId || location.zoneId);
+  const locationCode = location.code ?? location.text;
   const place = [
     location.buildingName,
     location.floorNumber === undefined
       ? undefined
       : t("floorNumber", { number: location.floorNumber }),
-    location.name,
+    // The code is already the heading; only a distinct name adds information.
+    location.name === locationCode ? undefined : location.name,
   ].filter(Boolean);
 
   return (
@@ -518,9 +520,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           />
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-mono font-semibold break-all">
-            {location.code ?? location.text}
-          </p>
+          <p className="font-mono font-semibold break-all">{locationCode}</p>
           {place.length > 0 && (
             <p className="truncate text-sm text-muted">{place.join(" · ")}</p>
           )}
@@ -594,7 +594,6 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {panel === "PHOTO" && (
           <PhotoCapture
             selection={photos}
-            onClose={() => changePanel(null)}
             onSubmit={(files) => {
               if (acquisitionBlocked.current) return false;
               if (
@@ -617,7 +616,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             imageTarget="TICKET"
             onImageCodes={onImageCodes}
             onCode={onBarcode}
-            onClose={() => changePanel(null)}
+            // The pressed Scan code mode owns closing this panel.
+            closeControl={false}
             feedback={feedback}
           />
         )}

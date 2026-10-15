@@ -519,6 +519,77 @@ describe("storage spot editor actions", () => {
     await waitFor(() => expect(archive).toHaveBeenCalledOnce());
     expect(await screen.findByText(/Storage spot archived/)).toBeVisible();
   });
+
+  it.each(["en", "th"] as const)(
+    "shows an equal spot or position name and code once in the %s card while keeping distinct names",
+    (locale) => {
+      // Imported records often use the code as the name.
+      const position = {
+        positionId: "p1",
+        locationId: "l1",
+        code: "PD-F01-Z01-P1",
+        label: "PD-F01-Z01-P1",
+        qrValue: "ISAS:LOCATION:1:l1",
+        kind: "FLOOR" as const,
+        isDefault: false,
+        breadcrumb: "",
+        placements: [],
+      };
+      renderWithIntl(
+        <StorageZonesPanel
+          warehouseId="warehouse-a"
+          buildingId="pd"
+          floorNumber={1}
+          floorWidthMm={10_000}
+          floorDepthMm={4_000}
+          floorHeightMm={4_000}
+          zones={[
+            spot({
+              label: "PD-F01-Z01",
+              mode: "FLOOR_POSITIONS",
+              positions: [
+                position,
+                {
+                  ...position,
+                  positionId: "p2",
+                  locationId: "l2",
+                  code: "PD-F01-Z01-P2",
+                  label: "Bay 2",
+                  qrValue: "ISAS:LOCATION:1:l2",
+                },
+              ],
+            }),
+            spot({
+              zoneId: "zone-b",
+              locationId: "location-b",
+              code: "PD-F01-Z02",
+              qrValue: "ISAS:LOCATION:1:location-b",
+              yMm: 2_000,
+            }),
+          ]}
+        />,
+        { locale, workspace: false },
+      );
+      const same = screen.getByRole("article", {
+        name: "PD-F01-Z01 · PD-F01-Z01",
+      });
+      expect(
+        within(same).getByRole("heading", { name: "PD-F01-Z01" }),
+      ).toBeInTheDocument();
+      expect(within(same).getAllByText("PD-F01-Z01")).toHaveLength(1);
+      expect(within(same).getAllByText("PD-F01-Z01-P1")).toHaveLength(1);
+      // A position whose name differs keeps both its name and code.
+      expect(within(same).getByText("Bay 2")).toBeInTheDocument();
+      expect(within(same).getByText("PD-F01-Z01-P2")).toBeInTheDocument();
+      const distinct = screen.getByRole("article", {
+        name: "Rack A · PD-F01-Z02",
+      });
+      expect(
+        within(distinct).getByRole("heading", { name: "Rack A" }),
+      ).toBeInTheDocument();
+      expect(within(distinct).getByText("PD-F01-Z02")).toBeInTheDocument();
+    },
+  );
 });
 
 describe("exact positions and racks", () => {

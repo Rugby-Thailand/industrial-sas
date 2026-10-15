@@ -753,6 +753,46 @@ describe("registered location layout completion", () => {
   const fill = (name: string, value: string) =>
     fireEvent.change(screen.getByLabelText(name), { target: { value } });
 
+  it.each(["en", "th"] as const)(
+    "shows an equal registered %s name and code once while keeping a distinct name",
+    (locale) => {
+      // Registrations often use the code as their name.
+      const same = {
+        ...registration(),
+        locationId: "named-b",
+        code: "DOCK-1",
+        name: "DOCK-1",
+      };
+      mocks.queries.set("finishedGoods/jobScanLocations:page", {
+        ok: true,
+        value: {
+          status: "ready",
+          page: [
+            { _id: "named-a", location: registration() },
+            { _id: "named-b", location: same },
+          ],
+          items: [registration(), same],
+          isDone: true,
+          continueCursor: "",
+        },
+      });
+      renderWithIntl(<DraftGuardProvider>{catalogue()}</DraftGuardProvider>, {
+        locale,
+        workspace: false,
+        preserveProviders: true,
+      });
+      const rows = within(
+        screen.getByRole("region", {
+          name:
+            locale === "th" ? "จุดจัดเก็บที่ลงทะเบียน" : "Registered locations",
+        }),
+      ).getAllByRole("listitem");
+      expect(within(rows[0]!).getByText("DOCK SHELF")).toBeVisible();
+      expect(within(rows[0]!).getByText("Dock shelf")).toBeVisible();
+      expect(within(rows[1]!).getAllByText("DOCK-1")).toHaveLength(1);
+    },
+  );
+
   it("locks an assigned floor, completes on that floor and consumes the dialog entry", async () => {
     seed(2);
     guarded(catalogue());

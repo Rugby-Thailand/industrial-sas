@@ -123,7 +123,9 @@ export function NamedLocationCatalogue({
                           <span className="font-mono font-semibold break-all">
                             {row.location.code}
                           </span>
-                          <span className="text-sm">{row.location.name}</span>
+                          {row.location.name === row.location.code ? null : (
+                            <span className="text-sm">{row.location.name}</span>
+                          )}
                           <StatusBadge
                             tone="warning"
                             label={t("layoutPending")}

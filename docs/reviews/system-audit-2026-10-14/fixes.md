@@ -57,3 +57,82 @@ Typechecking initially caught incomplete typed HR fixtures added in the follow-u
 ## Boundaries
 
 UI tests control Convex subscriptions, and backend tests use the in-memory tenant harness. The browser fixture exercises the production fallback FloorMap without authentication: English mobile screenshot inspection and Thai desktop DOM inspection confirmed one visible location identity and no horizontal overflow. This does not verify production network timing, authenticated end-to-end workflows, a real camera or external providers. HR reconciliation shows the current record in the surrounding detail rather than a field-by-field diff.
+
+## Repetition cleanup completed 15 October 2026
+
+The follow-up branch `codex/system-audit-cleanup-20261014` starts at `d7618df1`, which already includes the eight grouped fixes above. Separate HR, finished-goods, storage and scanner worktrees revalidated those fixes and completed the broader repetition inventory. The original checkout's existing work was preserved.
+
+### Rendering inventory
+
+All 23 recorded sites are accounted for: 13 corrected in this follow-up and ten already corrected on the baseline. Names remain visible when they differ from codes; persisted identities are unchanged.
+
+| ID  | Component and result                                                                                                     | Status            |
+| --- | ------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| R01 | FloorMap mobile sheet shows one visible identity; its accessible description remains.                                    | Baseline verified |
+| R02 | Compact StorageZonesPanel suppresses an equal name/code subtitle.                                                        | Baseline verified |
+| R03 | Full StorageZonesPanel card suppresses an equal name/code subtitle.                                                      | Corrected         |
+| R04 | Position QR rows show equal label/code once and retain distinct labels.                                                  | Corrected         |
+| R05 | Compact empty inventory has one explanatory sentence.                                                                    | Baseline verified |
+| R06 | Hosted inspector lets FloorMap own its heading.                                                                          | Baseline verified |
+| R07 | FloorMap fallback inspector suppresses equal secondary identity.                                                         | Baseline verified |
+| R08 | Non-workspace mobile location list suppresses equal name/code.                                                           | Corrected         |
+| R09 | Non-workspace desktop grid suppresses equal name/code. Separate desktop table columns retain their meanings.             | Corrected         |
+| R10 | Catalogue location cell suppresses an equal secondary code.                                                              | Corrected         |
+| R11 | Registered location row suppresses an equal secondary name.                                                              | Corrected         |
+| R12 | Desktop JobScan record compares the actual displayed code/name before adding a second line.                              | Corrected         |
+| R13 | JobScan ticket location strip and LocationSummary suppress an equal secondary name; picker choices follow the same rule. | Corrected         |
+| R14 | Profile facts own the employee code and complete site identity.                                                          | Baseline verified |
+| R15 | OrganizationRequired keeps one h1 and the membership explanation.                                                        | Corrected         |
+| R16 | WorkspaceAccessBoundary keeps one h1, failure explanation and Retry for failed reads and caught errors.                  | Corrected         |
+| R17 | Pallet placement reasons use the full shared mapping and deduplicate equivalent explanations.                            | Baseline verified |
+| R18 | Move refusal reasons use the same mapping and deduplication.                                                             | Baseline verified |
+| R19 | Shortcut save conflict has one accurate recovery notice.                                                                 | Baseline verified |
+| R20 | DestinationScanner uses one Start/Stop/Retry owner and retains typed/handheld entry for all four verification purposes.  | Corrected         |
+| R21 | Picker QR mode closes through its visibly active Scan code action; the duplicate frame X is removed.                     | Corrected         |
+| R22 | Blank Photo AI has one entry; Read location with AI remains a distinct action on a selected image/crop.                  | Baseline verified |
+| R23 | JobScan barcode panel closes through its pressed acquisition mode; the duplicate frame X is removed.                     | Corrected         |
+
+### Choices and additional bugs
+
+| ID  | Final decision                                                                                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| C01 | Baseline already gives the hosted inspector one close control; dismissing details retains selection.                                    |
+| C02 | Remove the repeated unit-count suffix beside product names. Keep the storage metric, inventory disclosure and unnamed-product fallback. |
+| C03 | Retain the distinct web camera, gallery and device-camera fallback; the fallback appears after camera failure.                          |
+| C04 | Thai floor stamp uses `ชั้น {floor}` once.                                                                                              |
+| C05 | Thai generic controls use `แก้ไขด่วน` and `พร้อมแก้ไขด่วน` once. English remains unchanged.                                             |
+| C06 | Equal name/code QR dialog uses a generic title while keeping the human-readable code caption. Distinct names remain in the title.       |
+| C07 | Retain the useful catalogue empty-state creation action and page-header action.                                                         |
+| C08 | Retain the distinct attendance filters; shared icon-card anatomy is a density choice.                                                   |
+
+The final scanner audit also found equivalent Photo AI close controls in JobScan and direct LocationPicker acquisition. Their pressed modes now own closure. A nested QR → AI X still returns to QR, and retake X still returns to the retained photo. Caller regressions exposed an actual bug: close-all could hide the panels while leaving an owned history entry. The live completion handle now cancels processing and stops capture synchronously, then consumes retake → AI → camera entries in order. Retained JobScan photo collections, late-callback protection and the next Back destination remain covered.
+
+The independent visual reviews also caught a missing persistent active cue on the picker icons. Inline Scan code and picker Photo AI now use the existing active variant while pressed. Captures move the pointer away so hover cannot masquerade as selection; dialog scan triggers retain their existing presentation.
+
+The same audit reproduced three additional camera problems. Destination Start/Retry now clears the previous verification refusal after its disabled gate, preserving the entered code and allowing fresh refusals to display. Retake's English/Thai accessible label describes returning to the retained photo. A short photo keeps its close target reachable inside a minimum-height frame while crop/reread coordinates follow the actual media rather than the enlarged frame.
+
+A browser traversal that restores QR and nested Photo AI together could restore only QR. The nested restore now restores its QR return context, and the parent preserves a child restored during the same traversal. Caller regressions cover one-shot Back/Forward, retained photo/search, unchanged history length, close/completion followed by Forward, remount, stale direct links and the original locale/query/hash. An optional-null completion-handle suspicion was not reproduced on valid owned paths; no speculative fallback was added.
+
+### Final verification
+
+| Check                                    | Result                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full Vitest suite                        | **4,833/4,833 tests in 362 files**, 741.38 seconds, with one worker. Includes accessibility, property, registered backend handlers and real caller suites.                                                                                                                                                                                      |
+| Responsive workspace browser matrix      | **110 pass**, two intentional skips for desktop-only cases on the phone project; 320/768/1024/1440 widths, Thai/English, light/dark.                                                                                                                                                                                                            |
+| Anonymous production-build browser smoke | **94/94 pass**, desktop/mobile Chromium.                                                                                                                                                                                                                                                                                                        |
+| Back browser suite                       | **40/40 pass**, desktop/mobile Chromium, Firefox and WebKit.                                                                                                                                                                                                                                                                                    |
+| Navigation gate                          | **68 fixtures pass**; 58 route/error policies, 293 exact owners, 26 action intents.                                                                                                                                                                                                                                                             |
+| Typechecking                             | Canonical Bun 1.4.3 / TypeScript 7.0.2 checker passes **1,029 files**; TypeScript 6 passes.                                                                                                                                                                                                                                                     |
+| Quality gates                            | Full ESLint, Prettier, production build and test discovery pass on the final source; **362 Vitest files and 15 Playwright spec files** discovered. Convex codegen drift, production/exact-chain dependency audits and workflow pin/actionlint checks also pass; their production source/dependencies/workflows are unchanged by this follow-up. |
+
+Two condition-based test corrections preserve the original assertions: Move waits for the actual history traversal, and workspace Escape waits for focus restoration and the closing Map view tooltip's dismissal layer to retire. Diagnostic listeners were removed. Earlier parallel browser/build runs hit existing ticket timeouts; a later loaded-machine run also failed two unrelated CI process fixtures. Their unchanged isolated suites passed 37/37. After stopping this task's own preview servers, the final full suite passes with one worker, unchanged timeouts and unchanged assertions.
+
+### Visual evidence and independent review
+
+The local [production-component fixture](../../../scripts/system-audit-preview/README.md) provides **48 after and 18 before original PNGs**. It covers equal/distinct identities, full cards and QR positions, mobile/grid lists, catalogue/QR titles, profile/access/error states, both inspector implementations, Thai floor stamps/Quick Change, empty/occupied storage, manual/scanner acquisition and actual JobScan barcode/Photo AI/retake states. Additional captures show an explicitly synthetic active camera, verification recovery, short-photo controls and nested Photo AI after one-shot Forward. Camera error captures wait for Retry camera rather than recording decoder startup. The exported LocationSummary screenshot supplements the actual JobScan caller.
+
+Seven baseline images came from T3; eleven baseline and all 48 final captures use Playwright Chromium after the T3 host became unavailable and the user approved the fallback. Earlier T3 rasters have different dimensions/scales, so these are semantic comparisons rather than pixel-for-pixel diffs. Playwright uses a fixed CSS viewport and full-page capture; raster height can exceed viewport height. The [evidence manifest](cleanup-evidence.json) records actual dimensions and image hashes.
+
+GPT-6.1 Sol Standards and a fresh independent Spec reviewer each inspected source, navigation ownership and all **66 images** at `5e735f40`, with **zero remaining findings**. The earlier Spec audit also ran **94 passing focused tests across 11 files**, covering the original eight groups. The fresh reviewer did not author the final Forward correction and independently reviewed it. Kiro Opus 5.5 independently reviewed the same source and all **66 current original PNGs** in a fresh conversation, with **zero actionable findings**. All three signoffs pin `5e735f40`; final verification and evidence documentation are recorded in this follow-up without further production changes.
+
+These browser images render production components with synthetic identity/provider/backend/routing data, deliberate camera denial or an explicitly synthetic canvas stream and generated short photo. Backend mutation/action stubs refuse writes and AI calls. All after captures pin `b9773a82`, whose production source is identical to reviewed `5e735f40`; the later delta extends fixtures/capture and corrects test query options. R17–R19 use baseline source and caller evidence rather than new screenshots. Backend and lifecycle claims rely on registered-handler and caller tests. Authenticated production timing, physical camera devices and external providers are outside this verification.

@@ -389,9 +389,11 @@ function LocationTable({
                       <span className="block text-sm font-semibold break-words">
                         {zone.code}
                       </span>
-                      <span className="block text-xs break-words text-muted">
-                        {zone.label}
-                      </span>
+                      {zone.label !== zone.code && (
+                        <span className="block text-xs break-words text-muted">
+                          {zone.label}
+                        </span>
+                      )}
                       <span className="mt-1 block text-xs text-muted">
                         {number.format(zone.widthMm / 1000)} ×{" "}
                         {number.format(zone.depthMm / 1000)} ×{" "}
@@ -474,9 +476,12 @@ function LocationTable({
                     onClick={() => onSelect(zone.zoneId)}
                     className="h-full w-full space-y-3 rounded-lg border border-border bg-surface p-4 text-left hover:bg-raised aria-pressed:border-ring aria-pressed:bg-selected"
                   >
-                    <div className="text-xs break-words text-muted">
-                      {zone.code}
-                    </div>
+                    {/* An equal code would repeat the name below it. */}
+                    {zone.label !== zone.code && (
+                      <div className="text-xs break-words text-muted">
+                        {zone.code}
+                      </div>
+                    )}
                     <div className="font-medium break-words">{zone.label}</div>
                     <div className="text-sm text-muted">
                       {number.format(zone.widthMm / 1000)} ×{" "}

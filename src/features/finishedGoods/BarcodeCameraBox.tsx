@@ -23,6 +23,7 @@ export function BarcodeCameraBox({
   mode,
   onCode,
   onClose,
+  onStart,
   feedback,
   videoLabel,
   startOnMount = true,
@@ -38,6 +39,8 @@ export function BarcodeCameraBox({
   mode: "PACKAGES" | "LOCATION";
   onCode: (code: string) => void;
   onClose?: () => void;
+  /** An explicit Start or Retry attempt, after disabled/startup gates pass. */
+  onStart?: () => void;
   feedback?: string | undefined;
   videoLabel?: string;
   startOnMount?: boolean;
@@ -53,12 +56,7 @@ export function BarcodeCameraBox({
    * image picker to an icon, for a screen whose main task is this scan.
    */
   presentation?: "default" | "expanded";
-  children?: (scan: {
-    onScan: () => void;
-    scanning: boolean;
-    scanDisabled: boolean;
-    stopCamera: () => void;
-  }) => ReactNode;
+  children?: (scan: { stopCamera: () => void }) => ReactNode;
 }) {
   const t = useTranslations("JobScan");
   const [camera, setCamera] = useState(startOnMount);
@@ -95,6 +93,7 @@ export function BarcodeCameraBox({
   }
   function open() {
     if (scanDisabled) return;
+    onStart?.();
     setImageSession((session) => session + 1);
     if (camera) start();
     else setCamera(true);
@@ -209,12 +208,7 @@ export function BarcodeCameraBox({
           else for (const code of codes) onCode(code);
         }}
       />
-      {children?.({
-        onScan: () => (camera && !retry ? close() : open()),
-        scanning: camera && !retry,
-        scanDisabled,
-        stopCamera: close,
-      })}
+      {children?.({ stopCamera: close })}
     </div>
   );
 }

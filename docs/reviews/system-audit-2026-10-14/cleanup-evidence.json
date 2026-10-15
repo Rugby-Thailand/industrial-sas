@@ -1,0 +1,1905 @@
+{
+  "schemaVersion": 1,
+  "reviewedSourceCommit": "5e735f40b51141039be95652d91dd6da4bd2bfa0",
+  "productionCaptureCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+  "baseCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+  "counts": {
+    "before": 18,
+    "after": 48,
+    "total": 66,
+    "t3Before": 7,
+    "playwrightBefore": 11,
+    "playwrightAfter": 48
+  },
+  "reviewers": [
+    {
+      "model": "GPT-6.1 Sol",
+      "axis": "Standards",
+      "reviewedSourceCommit": "5e735f40b51141039be95652d91dd6da4bd2bfa0",
+      "imagesViewed": 66,
+      "remainingFindings": 0
+    },
+    {
+      "model": "GPT-6.1 Sol",
+      "axis": "Fresh independent Spec",
+      "reviewedSourceCommit": "5e735f40b51141039be95652d91dd6da4bd2bfa0",
+      "imagesViewed": 66,
+      "remainingFindings": 0
+    },
+    {
+      "model": "Kiro CLI claude-opus-5.5",
+      "axis": "Independent source and pixel audit",
+      "reviewedSourceCommit": "5e735f40b51141039be95652d91dd6da4bd2bfa0",
+      "imagesViewed": 66,
+      "remainingFindings": 0
+    }
+  ],
+  "reproduction": "scripts/system-audit-preview/README.md",
+  "notes": [
+    "Original PNGs were reviewed without resizing or conversion; hashes identify the local reviewed artifacts. Selected originals are hosted for the PR walkthrough.",
+    "After captures have identical production components, translations and navigation inventory to reviewed source; the subsequent source commit changes fixtures/capture and test query typing.",
+    "Before uses seven T3 captures with unconfirmed requested viewport and different raster scale; all other images use Playwright Chromium full-page capture. Comparison is semantic, not pixel-for-pixel. Full-page height may exceed CSS viewport height.",
+    "Fixtures render actual production components with synthetic data/providers; backend writes and AI calls refuse. Camera is deliberately denied or uses an explicitly synthetic canvas stream.",
+    "R17, R18 and R19 use baseline source and caller-test evidence rather than new visual captures.",
+    "No authenticated-production timing, physical-camera or external-provider verification is claimed."
+  ],
+  "images": [
+    {
+      "filename": "before-organization-th-1440.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "organization",
+        "locale": "th",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 1280,
+        "height": 800
+      },
+      "sha256": "62eaf179e2f9b02b07a19fd4098476c3786dd5b03f159d04fda2ccf28a4cd70c",
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "filename": "before-organization-th-390.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "organization",
+        "locale": "th",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 780,
+        "height": 1688
+      },
+      "sha256": "a19859088d363b963b67843d90df94a9dcc0559bfc4ae6ee7a4666106102708b",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "hostedOriginalUrl": "https://nh1dr501e3.ufs.sh/f/WrSYmJvA3FKQkc4FGvphWfE1QxdH7KUPhsBtoiFCmIyDn4gz"
+    },
+    {
+      "filename": "before-workspace-error-en-1440.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "workspace-error",
+        "locale": "en",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 1280,
+        "height": 800
+      },
+      "sha256": "b1c9152d74b79bb38eaf7ec37851b1a9e1a6c1418e0d837dd8405cb7f9e6413d",
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "filename": "before-zone-card-th-1440.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "th",
+        "query": {
+          "view": "zone-card",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "7e427ed01e7f337b3cca4d0cf61868fc4ff937b1108da0be50706a8c3f91e04b",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-floor-list-th-390.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "floor-list",
+        "locale": "th",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 780,
+        "height": 1688
+      },
+      "sha256": "ddda0d26a68bb9d2cd703a3f4218bc354491d9850f212e466705adc17f31b57f",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "hostedOriginalUrl": "https://nh1dr501e3.ufs.sh/f/WrSYmJvA3FKQekV1cCPy6v4hXfM3SG9aBrQwVkRsK2oAjznp"
+    },
+    {
+      "filename": "before-named-en-1440.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "named",
+        "locale": "en",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 1280,
+        "height": 800
+      },
+      "sha256": "5a80af5f226122fa5bec4c6610e15f5a456df38ebea7552c0ac4538f7416581d",
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "filename": "before-record-en-1440.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "record",
+        "locale": "en",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 1280,
+        "height": 800
+      },
+      "sha256": "7db4d76ed28c64d88f31dc4a9ad1f7c95aaa39635984a3b4c910c3e4a8447d90",
+      "requestedViewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "filename": "before-scan-summary-th-390.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "scan-summary",
+        "locale": "th",
+        "query": {}
+      },
+      "captureMethod": "T3 preview_snapshot",
+      "fullPage": false,
+      "viewportConfirmed": false,
+      "pngDimensions": {
+        "width": 780,
+        "height": 1688
+      },
+      "sha256": "da33fc0d5ea1b5cb6ff90a8ea55d804dfb8d6f61a5773df54a5144746a0fe62a",
+      "requestedViewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "filename": "before-job-scan-th-390-location-scan.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "th",
+        "query": {
+          "view": "job-scan",
+          "locale": "th",
+          "overlay_r_5_": "1"
+        },
+        "name": "location-scan",
+        "action": "location-scan"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "64b3463aca5d459aaa798ac8c395311a900d08dbc4f283be093c3669ed1852cc",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-job-scan-en-1440-location-strip.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "en",
+        "query": {
+          "view": "job-scan",
+          "locale": "en",
+          "jobScanStep": "1"
+        },
+        "name": "location-strip",
+        "action": "pick"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "3339df3cc962a9ea7d4565f8cba424705e859e5c7d92f29962d5a841c6076dd2",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-job-scan-en-390-distinct-location.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "en",
+        "query": {
+          "view": "job-scan",
+          "locale": "en",
+          "identity": "distinct",
+          "jobScanStep": "1"
+        },
+        "name": "distinct-location",
+        "action": "pick"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "a7ed1af6723b0995525f3d925c98dc21dd3c9a082947b541f34238574fab7ad4",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-job-scan-th-390-ticket-scan.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "th",
+        "query": {
+          "view": "job-scan",
+          "locale": "th",
+          "jobScanStep": "1",
+          "overlay_r_1_": "1"
+        },
+        "name": "ticket-scan",
+        "action": "ticket-scan"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "71ef935016855babbe981dc6e281fae17728680027da2c6d1b2deb2e94e00e32",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-job-scan-en-1440-ticket-photo.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "en",
+        "query": {
+          "view": "job-scan",
+          "locale": "en",
+          "jobScanStep": "1",
+          "overlay_r_1_": "1"
+        },
+        "name": "ticket-photo",
+        "action": "ticket-photo"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "c24f6c39afcbf46b04c60ae2b3fed5762d331c5bf7772e6af8bdb9136b7cee49",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "hostedOriginalUrl": "https://nh1dr501e3.ufs.sh/f/WrSYmJvA3FKQJs6Fil0CTVcmw0AgtkXLpxQs4dRnIKUDjM1l"
+    },
+    {
+      "filename": "before-zone-card-en-390.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "en",
+        "query": {
+          "view": "zone-card",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "f5d00884a2617e85873fe73edec3686834f09d6efc95ed94b28851cc6023cf30",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-zone-card-th-390-distinct.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "th",
+        "query": {
+          "view": "zone-card",
+          "locale": "th",
+          "identity": "distinct"
+        },
+        "name": "distinct"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "bcdb606c4140d40982c524cfdc6705d54e9dfef584d1ecd7e473af787ae06721",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-zone-card-en-1440-positions.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "en",
+        "query": {
+          "view": "zone-card",
+          "locale": "en",
+          "positions": "1"
+        },
+        "name": "positions",
+        "action": "labels"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "b34fff4e6a9a9f65d332e08e3bc69af7f717275498d3a11cd4ad89d9afdadc76",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-review-th-1440-quick-change.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "review",
+        "locale": "th",
+        "query": {
+          "view": "review",
+          "locale": "th"
+        },
+        "name": "quick-change"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 1058
+      },
+      "sha256": "35df7d5634884639a51d9860337d032c9e15ac6c73e7641ecc57566529ba1458",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "before-workspace-th-1440-floor-stamp.png",
+      "phase": "before",
+      "sourceCommit": "d7618df1c35e68de4ad366e8dae5d9eb42faf8c4",
+      "scenario": {
+        "view": "workspace",
+        "locale": "th",
+        "query": {
+          "view": "workspace",
+          "locale": "th"
+        },
+        "name": "floor-stamp"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 917
+      },
+      "sha256": "24bde19bfccbe82d0d102def30f7bf6e71d115bc5af1651ba48aef6f9c37a431",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-organization-th-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "organization",
+        "locale": "th",
+        "query": {
+          "view": "organization",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 980
+      },
+      "sha256": "6fdb419fd2c3e39c9cc0f4cd51b7cb45cb9b21617f6bca37d89565d9ad4211bf",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-organization-th-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "organization",
+        "locale": "th",
+        "query": {
+          "view": "organization",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 900
+      },
+      "sha256": "6b13e91490d8f36707e42cc51b56ba6186f751375b69850dd2667cf862e4d8e8",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1,
+      "hostedOriginalUrl": "https://nh1dr501e3.ufs.sh/f/WrSYmJvA3FKQ4b0PK97fQUtSZViO1pryFC6KPeGxNnHa82cs"
+    },
+    {
+      "filename": "after-organization-en-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "organization",
+        "locale": "en",
+        "query": {
+          "view": "organization",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 900
+      },
+      "sha256": "219addd49659dc1d1bd28d2452c06be7820fbc6bd7baf9fc83d06a95ba877069",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-workspace-error-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "workspace-error",
+        "locale": "en",
+        "query": {
+          "view": "workspace-error",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 980
+      },
+      "sha256": "4586c5880936653b051781fbaa7b37fabefc91d0d2b62693cfbe037c350846b0",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-workspace-error-th-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "workspace-error",
+        "locale": "th",
+        "query": {
+          "view": "workspace-error",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 900
+      },
+      "sha256": "7106d41ae13c45c24e8a87b2d82d56b93e260142572b47f178766846d406ea9c",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-zone-card-th-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "th",
+        "query": {
+          "view": "zone-card",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "fac4725f489b9987204bec287dc0574a8fedbfc5d90c17b63426ab2f14e94b71",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-zone-card-en-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "en",
+        "query": {
+          "view": "zone-card",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "955ca2c4a871372e2f9fe8568beacf988422e040a89d1ad85461dd84e41d4ffd",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-zone-card-th-390-distinct.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "th",
+        "query": {
+          "view": "zone-card",
+          "locale": "th",
+          "identity": "distinct"
+        },
+        "name": "distinct"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "c6a7ac6d3115e001136999aadfd7a1333bdd38f590bf7456d088745c985dc843",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-zone-card-en-1440-positions.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "zone-card",
+        "locale": "en",
+        "query": {
+          "view": "zone-card",
+          "locale": "en",
+          "positions": "1"
+        },
+        "name": "positions",
+        "action": "labels"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "9cadf768c1583e8f3346d4f6da05530e8857b672466bf01c4114210872079507",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-floor-list-th-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "floor-list",
+        "locale": "th",
+        "query": {
+          "view": "floor-list",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "1926e0e08b1804d47ebacd66f56d270a27754c49c8abef39f47fc7463f6ee2f0",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1,
+      "hostedOriginalUrl": "https://nh1dr501e3.ufs.sh/f/WrSYmJvA3FKQeIB47ePy6v4hXfM3SG9aBrQwVkRsK2oAjznp"
+    },
+    {
+      "filename": "after-floor-list-en-1440-grid.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "floor-list",
+        "locale": "en",
+        "query": {
+          "view": "floor-list",
+          "locale": "en"
+        },
+        "name": "grid",
+        "action": "grid"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "a8026b43e2cc438522fc34ef5ca0f79f9ef5eeadd32c2eccf6300af00cb34a67",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-floor-list-en-390-distinct.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "floor-list",
+        "locale": "en",
+        "query": {
+          "view": "floor-list",
+          "locale": "en",
+          "identity": "distinct"
+        },
+        "name": "distinct"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "d7f387df5bca5ad7042534a63c3079a55bf152f324fa62218780080c906462af",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-catalogue-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "catalogue",
+        "locale": "en",
+        "query": {
+          "view": "catalogue",
+          "locale": "en",
+          "locations": "{\"view\":\"table\",\"status\":\"ALL\",\"search\":\"\",\"building\":\"ALL\",\"floor\":\"ALL\"}"
+        },
+        "action": "catalogue"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "306dfa5f7c4e26aab7b9283c1f0e5b67a1e6444eb9f01af57426361307d86dbe",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-catalogue-th-390-qr.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "catalogue",
+        "locale": "th",
+        "query": {
+          "view": "catalogue",
+          "locale": "th",
+          "locations": "{\"view\":\"table\",\"status\":\"ALL\",\"search\":\"\",\"building\":\"ALL\",\"floor\":\"ALL\"}",
+          "overlay_r_12_": "1"
+        },
+        "name": "qr",
+        "action": "qr"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 999
+      },
+      "sha256": "22f3f2b3808846da85406a293a2451d45394b17180215d16beed07504fef92c8",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-catalogue-en-1440-distinct-qr.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "catalogue",
+        "locale": "en",
+        "query": {
+          "view": "catalogue",
+          "locale": "en",
+          "identity": "distinct",
+          "locations": "{\"view\":\"table\",\"status\":\"ALL\",\"search\":\"\",\"building\":\"ALL\",\"floor\":\"ALL\"}",
+          "overlay_r_12_": "1"
+        },
+        "name": "distinct-qr",
+        "action": "qr"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "78cb2e40ad4408774455685afe7f6866718c7db7c58bdc2e1b104f5684809689",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-named-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "named",
+        "locale": "en",
+        "query": {
+          "view": "named",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "8f852278a62d85b2c7652d9a6eee1a0884c31eb1b0eb2f92eac25d922358c721",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-named-th-390-distinct.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "named",
+        "locale": "th",
+        "query": {
+          "view": "named",
+          "locale": "th",
+          "identity": "distinct"
+        },
+        "name": "distinct"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "51fb1e04357927293bdabd6f83be6cba4da09f8e13b3f4041f40d1d9fc4120d2",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-record-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "record",
+        "locale": "en",
+        "query": {
+          "view": "record",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "05fc44032807920c51b3c95cc80861c70f046ac82fb1a90d84f913945e0a51ca",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-record-en-1440-distinct.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "record",
+        "locale": "en",
+        "query": {
+          "view": "record",
+          "locale": "en",
+          "identity": "distinct"
+        },
+        "name": "distinct"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "e5fb48df11bcf95a2bd010bd12ee9e28bfbd1331466575f4942e70fda92490d0",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-scan-summary-th-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "scan-summary",
+        "locale": "th",
+        "query": {
+          "view": "scan-summary",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "6319cb6581660c2ad8cb69bc90644201a9936115853f7a7b84d50b011f43a30e",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-profile-en-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "profile",
+        "locale": "en",
+        "query": {
+          "view": "profile",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "c486f3c3943d550fce9f0cd08d72c99f666da27aa4f547e4a0f87288071216a4",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-profile-th-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "profile",
+        "locale": "th",
+        "query": {
+          "view": "profile",
+          "locale": "th"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "cf80497b00c4c89cd2cb10006f5d306f0fe61654c8c0125f7e1cec6a2fdcf86f",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-workspace-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "workspace",
+        "locale": "en",
+        "query": {
+          "view": "workspace",
+          "locale": "en"
+        },
+        "action": "select"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 934
+      },
+      "sha256": "e4dc56f8f1a5808ed0c04b43f5a76c39b50de320f3f7699a411978eaf0d0b607",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-workspace-th-390.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "workspace",
+        "locale": "th",
+        "query": {
+          "view": "workspace",
+          "locale": "th",
+          "overlay_r_e_": "1"
+        },
+        "action": "select"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 877
+      },
+      "sha256": "c9818b7274f974f45f645ecc8cbd0e8f7a268b5c9a237ca0e38006ee00cab9cb",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-workspace-th-390-occupied-dark.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "workspace",
+        "locale": "th",
+        "query": {
+          "view": "workspace",
+          "locale": "th",
+          "inventory": "occupied",
+          "theme": "dark",
+          "overlay_r_e_": "1"
+        },
+        "name": "occupied-dark",
+        "action": "select"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 877
+      },
+      "sha256": "7087f8232db868f7c189b20fc64ad16c47a6bacf7ba88e357b69ba91a67ed2cd",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-destination-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "destination",
+        "locale": "en",
+        "query": {
+          "view": "destination",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "be46b697b3350e2417d8c28fc7017230faed17b90902ea5b3e7c1b769eb35147",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-destination-th-390-camera-denied.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "destination",
+        "locale": "th",
+        "query": {
+          "view": "destination",
+          "locale": "th"
+        },
+        "name": "camera-denied",
+        "action": "camera"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "7e74c1dd4a548ea952cc2c4254a0f583ee8c281ff5df817da555d95352e8f45c",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-en-1440.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en"
+        }
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "4af225a634d935ce5608443646be5f03cc84492f58d6310be0fa25a94e5e2fdc",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-th-390-distinct.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "th",
+        "query": {
+          "view": "picker",
+          "locale": "th",
+          "identity": "distinct"
+        },
+        "name": "distinct"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "5996abf697b6b9dfdaf164d06ce9042b70e3b9402a8945c02e750f7fada6e21c",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-en-1440-scan-denied.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en",
+          "overlay_r_2_": "1"
+        },
+        "name": "scan-denied",
+        "action": "scan"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "123ec1867069980f68e6f362e84e5b0756a8403c1afab1935794bf7eb7fa0dc7",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-th-390-photo-denied.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "th",
+        "query": {
+          "view": "picker",
+          "locale": "th",
+          "overlay_r_2_": "1"
+        },
+        "name": "photo-denied",
+        "action": "photo"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "0e3205f83bcae97659dd9c74e26f73037d919cc088f005e5eebe599fd03a3d23",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-en-390-selected-image.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en",
+          "overlay_r_2_": "1"
+        },
+        "name": "selected-image",
+        "action": "selected-image"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "23020788cb874e619eeb3acad698a01dacb4e4747ae00880f9db46895633ac3e",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-en-390-nested-photo.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en",
+          "overlay_r_2_": "1",
+          "overlay_r_1_": "1"
+        },
+        "name": "nested-photo",
+        "action": "nested-photo"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "25e0a7e2d20277d177de8405f745403369b83e836c37ac1f714dbe07d0e2ad0a",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-job-scan-th-390-location-scan.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "th",
+        "query": {
+          "view": "job-scan",
+          "locale": "th",
+          "overlay_r_5_": "1"
+        },
+        "name": "location-scan",
+        "action": "location-scan"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "73cbaccd43a91c5491c3a3bf337576c04eb574425659a1cc3403a6cb7bad5923",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-job-scan-en-1440-location-strip.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "en",
+        "query": {
+          "view": "job-scan",
+          "locale": "en",
+          "jobScanStep": "1"
+        },
+        "name": "location-strip",
+        "action": "pick"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "63766580ad759ebf68b12e26dd59cad3d868638513f7a27c7788072f818940ed",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-job-scan-en-390-distinct-location.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "en",
+        "query": {
+          "view": "job-scan",
+          "locale": "en",
+          "identity": "distinct",
+          "jobScanStep": "1"
+        },
+        "name": "distinct-location",
+        "action": "pick"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "a7ed1af6723b0995525f3d925c98dc21dd3c9a082947b541f34238574fab7ad4",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-job-scan-th-390-ticket-scan.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "th",
+        "query": {
+          "view": "job-scan",
+          "locale": "th",
+          "jobScanStep": "1",
+          "overlay_r_1_": "1"
+        },
+        "name": "ticket-scan",
+        "action": "ticket-scan"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "00694ebc2c7645dce55ae8d2274da9540d89b7aa0599d44d0d742022e407676a",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-job-scan-en-1440-ticket-photo.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "job-scan",
+        "locale": "en",
+        "query": {
+          "view": "job-scan",
+          "locale": "en",
+          "jobScanStep": "1",
+          "overlay_r_1_": "1"
+        },
+        "name": "ticket-photo",
+        "action": "ticket-photo"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "6abaf14b0aa846244cca6bed3846778b525f4ac5c43045508b1d4873ef1624ac",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1,
+      "hostedOriginalUrl": "https://nh1dr501e3.ufs.sh/f/WrSYmJvA3FKQIkCB5wQ7exbL34k98n6lK5uzSmjWqDiafEgT"
+    },
+    {
+      "filename": "after-picker-en-390-photo-selected.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en",
+          "overlay_r_2_": "1"
+        },
+        "name": "photo-selected",
+        "action": "photo-selected"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "c46363322bafd5689a37edf7f6f411f38e3e24bb521caf92c941867bab6877fd",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-en-390-photo-retake.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en",
+          "overlay_r_2_": "1",
+          "overlay_r_f_": "1"
+        },
+        "name": "photo-retake",
+        "action": "photo-retake"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "bcf792b160083f6270fe5238e630e0d10aa02246071417f26373d15daa6ba6aa",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-destination-en-1440-synthetic-active.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "destination",
+        "locale": "en",
+        "query": {
+          "view": "destination",
+          "locale": "en",
+          "camera": "demo"
+        },
+        "name": "synthetic-active",
+        "action": "camera-active"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "e169d3a9fe9fc4682afa39fafbfb8319c6053e3b978c4482ee177ad05c7a742d",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-destination-en-390-camera-recovery.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "destination",
+        "locale": "en",
+        "query": {
+          "view": "destination",
+          "locale": "en"
+        },
+        "name": "camera-recovery",
+        "action": "camera-recovery"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "51f1ab600890bda30caebf2dcbe925b4dbd867f113722e4863e21755213330cf",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-review-th-1440-quick-change.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "review",
+        "locale": "th",
+        "query": {
+          "view": "review",
+          "locale": "th"
+        },
+        "name": "quick-change"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 1058
+      },
+      "sha256": "b9857e97c1e1b6c6ce3efc5807198624a43906a38821576638e1381f8b70359f",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-fallback-en-1440-inspector.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "fallback",
+        "locale": "en",
+        "query": {
+          "view": "fallback",
+          "locale": "en"
+        },
+        "name": "inspector",
+        "action": "select"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "ecaca55579329f027f94ac8e785ed34f3ac63dd6e3ba982fc2b37e4b655de3c0",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-fallback-th-390-inspector.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "fallback",
+        "locale": "th",
+        "query": {
+          "view": "fallback",
+          "locale": "th",
+          "overlay_r_7_": "1"
+        },
+        "name": "inspector",
+        "action": "select"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "33c3607b1e2f7a4aee76ab7ab1b9d808f21882568b8b32a7e499fea08c4e9282",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-workspace-th-1440-floor-stamp.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "workspace",
+        "locale": "th",
+        "query": {
+          "view": "workspace",
+          "locale": "th"
+        },
+        "name": "floor-stamp"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 917
+      },
+      "sha256": "6d6c08df2e223c74983ceb76c44a93c4839b1f8028cdedc484926f6185c5b7a0",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-floor-list-en-1440-distinct-grid.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "floor-list",
+        "locale": "en",
+        "query": {
+          "view": "floor-list",
+          "locale": "en",
+          "identity": "distinct"
+        },
+        "name": "distinct-grid",
+        "action": "grid"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "sha256": "6d17123f0d86c45ccf713143dcde88a070f4a243400bdeba691a2890f3684b38",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "deviceScaleFactor": 1
+    },
+    {
+      "filename": "after-picker-en-390-nested-forward.png",
+      "phase": "after",
+      "sourceCommit": "b9773a8263cf7adb6a7f789b4180cc8227b19c99",
+      "scenario": {
+        "view": "picker",
+        "locale": "en",
+        "query": {
+          "view": "picker",
+          "locale": "en",
+          "overlay_r_2_": "1",
+          "overlay_r_1_": "1"
+        },
+        "name": "nested-forward",
+        "action": "nested-photo-forward"
+      },
+      "captureMethod": "Playwright Chromium capture.mjs",
+      "fullPage": true,
+      "viewportConfirmed": true,
+      "pngDimensions": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "f17349ba4d642a93c681b5832864bd8cfa571e85607797f3c7292b3206ae274f",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "deviceScaleFactor": 1
+    }
+  ],
+  "verification": {
+    "sourceCommit": "5e735f40b51141039be95652d91dd6da4bd2bfa0",
+    "vitest": {
+      "passed": 4833,
+      "files": 362,
+      "workers": 1,
+      "durationSeconds": 741.38
+    },
+    "browserSmoke": {
+      "passed": 94,
+      "durationSeconds": 39.8
+    },
+    "responsiveWorkspace": {
+      "passed": 110,
+      "intentionalDesktopOnlySkips": 2,
+      "widths": [320, 768, 1024, 1440],
+      "locales": ["th", "en"],
+      "themes": ["light", "dark"]
+    },
+    "navigationGate": {
+      "fixtures": 68,
+      "routeErrorPolicies": 58,
+      "exactOwners": 293,
+      "actionIntents": 26
+    },
+    "typechecking": {
+      "canonicalBun": "1.4.3",
+      "canonicalTypescript": "7.0.2",
+      "files": 1029,
+      "typescript6": "6.0.3"
+    },
+    "testDiscovery": {
+      "vitestFiles": 362,
+      "playwrightSpecFiles": 15
+    },
+    "browserBack": {
+      "passed": 40,
+      "projects": [
+        "desktop-chromium",
+        "mobile-chromium",
+        "desktop-firefox",
+        "desktop-webkit"
+      ]
+    }
+  }
+}

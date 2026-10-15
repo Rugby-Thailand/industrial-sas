@@ -413,9 +413,12 @@ function LocationCatalogueContent({
                               >
                                 {row.label}
                               </Link>
-                              <p className="mt-1 text-xs break-all text-muted">
-                                {row.code}
-                              </p>
+                              {/* An equal code would repeat the link text. */}
+                              {row.label === row.code ? null : (
+                                <p className="mt-1 text-xs break-all text-muted">
+                                  {row.code}
+                                </p>
+                              )}
                               <LocationDetails source={row} />
                             </td>
                             <td className="p-3">
@@ -541,7 +544,13 @@ function LocationCatalogueContent({
           onOpenChange={(open) => {
             if (!open) setQr(null);
           }}
-          title={`${qr.label} · QR`}
+          // The caption below the QR keeps the printed code, so an equal
+          // name gives way to a generic title instead of repeating it.
+          title={
+            qr.label === qr.code
+              ? tr("Location QR", "QR จุดจัดเก็บ")
+              : `${qr.label} · QR`
+          }
           description={tr(
             "Scan to identify this storage location.",
             "สแกนเพื่อระบุจุดจัดเก็บนี้",

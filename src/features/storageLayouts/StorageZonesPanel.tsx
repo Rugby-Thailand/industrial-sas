@@ -1075,6 +1075,8 @@ export function StorageZonesPanel({
                 </dl>
                 <div className={canvasStyles.inventory}>
                   <strong>{t("canvasInventory")}</strong>
+                  {/* The Storage units metric above already states the count,
+                      so the summary names the products without repeating it. */}
                   <p>
                     {[
                       ...new Set(
@@ -1091,15 +1093,6 @@ export function StorageZonesPanel({
                             count: locationInventory(zone).units,
                           })
                         : t("noPalletsAtSpot"))}
-                    {locationInventory(zone).units > 0 && (
-                      <>
-                        {" "}
-                        ·{" "}
-                        {t("mapUnitCount", {
-                          count: locationInventory(zone).units,
-                        })}
-                      </>
-                    )}
                   </p>
                 </div>
               </>
@@ -1124,9 +1117,12 @@ export function StorageZonesPanel({
                     <h3 className="font-semibold break-words text-text">
                       {zone.label}
                     </h3>
-                    <p className="mt-1 font-mono text-xs break-all text-muted">
-                      {zone.code}
-                    </p>
+                    {/* A code equal to the name would repeat the heading. */}
+                    {zone.label === zone.code ? null : (
+                      <p className="mt-1 font-mono text-xs break-all text-muted">
+                        {zone.code}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-muted">
                       {metres(zone.widthMm)} × {metres(zone.depthMm)} m ·{" "}
                       {metres(zone.maxStackHeightMm)} m
@@ -1312,9 +1308,11 @@ export function StorageZonesPanel({
                         <p className="text-sm font-medium break-words">
                           {position.label}
                         </p>
-                        <p className="text-xs break-all text-muted">
-                          {position.code}
-                        </p>
+                        {position.label === position.code ? null : (
+                          <p className="text-xs break-all text-muted">
+                            {position.code}
+                          </p>
+                        )}
                       </div>
                     </li>
                   ))}

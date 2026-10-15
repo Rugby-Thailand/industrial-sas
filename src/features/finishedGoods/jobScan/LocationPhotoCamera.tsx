@@ -15,12 +15,15 @@ const locationFileName = () => "location-label.jpg";
 export function LocationPhotoCamera({
   onPhoto,
   onClose,
+  closeLabel,
   errorAction,
   ref,
 }: {
   ref?: Ref<LocationPhotoCameraHandle>;
   onPhoto: (file: File) => void;
   onClose?: () => void;
+  /** Name the actual return when this camera is nested over a retained photo. */
+  closeLabel?: string;
   errorAction?: ReactNode;
 }) {
   const t = useTranslations("JobScan");
@@ -28,7 +31,9 @@ export function LocationPhotoCamera({
     <StillPhotoCamera
       {...(ref ? { ref } : {})}
       onPhoto={onPhoto}
-      {...(onClose ? { onClose, closeLabel: t("closePhotoAi") } : {})}
+      {...(onClose
+        ? { onClose, closeLabel: closeLabel ?? t("closePhotoAi") }
+        : {})}
       captureLabel={t("takeLocationPhoto")}
       fileName={locationFileName}
       stopAfterCapture
