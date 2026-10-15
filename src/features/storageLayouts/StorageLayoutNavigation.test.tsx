@@ -64,6 +64,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { messagesFor } from "@/i18n/messages";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { updateBrowserQuery } from "@/lib/browser/history";
@@ -1548,6 +1549,194 @@ describe("live completion owners", () => {
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     await waitFor(() => expect(params().get("editing")).toBe("1"));
     expect(screen.getAllByText("Unavailable area 1").length).toBeGreaterThan(0);
+  });
+});
+
+describe("compact workspace spot completion", () => {
+  const en = messagesFor("en").StorageLayouts;
+  const th = messagesFor("th").StorageLayouts;
+  const guardedIn = (locale: "en" | "th", ui: ReactNode) =>
+    renderWithIntl(<DraftGuardProvider>{ui}</DraftGuardProvider>, {
+      locale,
+      workspace: false,
+      preserveProviders: true,
+    });
+  const EDITING_URL =
+    "/en/master-data/storage-layouts/pd?floor=1&view=storage&kept=yes&editing=1#map";
+  // After a settled save, any dialog left (editor or guard prompt) is a defect.
+  const falsePrompt = () => screen.queryByRole("dialog");
+
+  it.each([
+    ["en", en],
+    ["th", th],
+  ] as const)(
+    "a compact workspace spot create closes through its live owner without a draft prompt, keeps its receipt, and the next Back closes the floor editor (%s)",
+    async (locale, text) => {
+      const create = mutationFor("storageLayouts/zones:createStorageZone");
+      guardedIn(locale, workspace());
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: text.editFloor.replace("{floor}", "1"),
+        }),
+      );
+      await waitFor(() => expect(params().get("editing")).toBe("1"));
+      fireEvent.click(
+        await screen.findByRole("button", { name: text.addStorageZone }),
+      );
+      const dialog = await screen.findByRole("dialog", {
+        name: text.addStorageZoneTitle,
+      });
+      await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+      fireEvent.change(
+        within(dialog).getByRole("textbox", { name: text.zoneLabel }),
+        { target: { value: "New rack" } },
+      );
+      fireEvent.click(
+        within(dialog).getByRole("button", { name: text.createStorageZone }),
+      );
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() => expect(href()).toBe(EDITING_URL));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(falsePrompt()).toBeNull();
+      expect(create).toHaveBeenCalledOnce();
+      expect(screen.getByTestId("storage-zone-receipt")).toHaveTextContent(
+        text.storageZoneCreated,
+      );
+      expect(screen.getByTestId("storage-zone-receipt")).toBeVisible();
+      await nativeBack();
+      expect(href()).toBe(BUILDING_URL);
+      expect(falsePrompt()).toBeNull();
+      await nativeBack();
+      expect(href()).toBe(ORIGIN);
+    },
+  );
+
+  it.each(["browsing", "editing"] as const)(
+    "a compact workspace spot rename while %s closes without a draft prompt, keeps its receipt, and consumes its entry",
+    async (mode) => {
+      const update = mutationFor("storageLayouts/zones:updateStorageZone");
+      guarded(workspace([floor({ storageZones: [zone()] })]));
+      if (mode === "editing") {
+        fireEvent.click(screen.getByRole("button", { name: "Edit floor 1" }));
+        await waitFor(() => expect(params().get("editing")).toBe("1"));
+      }
+      const before = href();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select location Rack A" }),
+      );
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Edit Rack A" }),
+      );
+      const dialog = await screen.findByRole("dialog", {
+        name: "Edit storage spot",
+      });
+      fireEvent.change(within(dialog).getByRole("textbox", { name: "Name" }), {
+        target: { value: "Renamed" },
+      });
+      fireEvent.click(
+        within(dialog).getByRole("button", { name: "Save changes" }),
+      );
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() =>
+        expect(window.location.search).not.toMatch(/overlay|editZone/),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(falsePrompt()).toBeNull();
+      expect(update).toHaveBeenCalledOnce();
+      expect(href()).toBe(before);
+      expect(
+        screen.getByText(
+          "Storage spot saved. Its code and QR label are unchanged.",
+        ),
+      ).toBeVisible();
+      await nativeBack();
+      expect(falsePrompt()).toBeNull();
+      if (mode === "editing") {
+        expect(href()).toBe(BUILDING_URL);
+        await nativeBack();
+      }
+      expect(href()).toBe(ORIGIN);
+    },
+  );
+
+  it("a compact inspector archive keeps its receipt after the archived spot leaves the live floor", async () => {
+    const archive = mutationFor("storageLayouts/zones:archiveStorageZone");
+    const view = guarded(workspace([floor({ storageZones: [zone()] })]));
+    fireEvent.click(screen.getByRole("button", { name: "Edit floor 1" }));
+    await waitFor(() => expect(params().get("editing")).toBe("1"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Select location Rack A" }),
+    );
+    const inspector = await screen.findByRole("complementary", {
+      name: "Selected location",
+    });
+    fireEvent.click(
+      within(inspector).getByRole("button", { name: "Archive spot" }),
+    );
+    const confirm = await screen.findByRole("dialog", {
+      name: "Archive PD-F01-Z01 · Rack A?",
+    });
+    fireEvent.click(
+      within(confirm).getByRole("button", { name: "Archive spot" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(archive).toHaveBeenCalledOnce();
+    // The live subscription then drops the archived spot from the floor.
+    view.rerender(
+      <DraftGuardProvider>{workspace([floor()])}</DraftGuardProvider>,
+    );
+    expect(screen.getByTestId("storage-zone-receipt")).toHaveTextContent(
+      "Storage spot archived.",
+    );
+    await waitFor(() => expect(window.location.search).not.toMatch(/overlay/));
+    expect(falsePrompt()).toBeNull();
+    await nativeBack();
+    expect(href()).toBe(BUILDING_URL);
+  });
+
+  it("a pending compact spot create keeps its editor through native Back, then closes without a draft prompt once settled", async () => {
+    let finish!: (value: unknown) => void;
+    mutationFor("storageLayouts/zones:createStorageZone").mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    guarded(workspace());
+    fireEvent.click(screen.getByRole("button", { name: "Edit floor 1" }));
+    await waitFor(() => expect(params().get("editing")).toBe("1"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Add storage spot" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Add storage spot",
+    });
+    await waitFor(() => expect(window.location.search).toMatch(/overlay/));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Create storage spot" }),
+    );
+    await nativeBack();
+    expect(
+      screen.getByRole("dialog", { name: "Add storage spot" }),
+    ).toBeVisible();
+    expect(params().get("editing")).toBe("1");
+    const keep = screen.queryByRole("button", { name: "Keep editing" });
+    if (keep) fireEvent.click(keep);
+    await act(async () =>
+      finish({
+        ok: true,
+        value: { written: true, documentId: "zone-new", replayed: false },
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Add storage spot" }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(href()).toBe(EDITING_URL));
+    expect(falsePrompt()).toBeNull();
+    expect(screen.getByTestId("storage-zone-receipt")).toHaveTextContent(
+      "Storage spot created.",
+    );
   });
 });
 

@@ -89,6 +89,7 @@ import type * as model_authorization_navigationPermissions from "../model/author
 import type * as model_finishedGoods_jobScans from "../model/finishedGoods/jobScans.js";
 import type * as model_finishedGoods_locationImage from "../model/finishedGoods/locationImage.js";
 import type * as model_finishedGoods_packing from "../model/finishedGoods/packing.js";
+import type * as model_finishedGoods_palletIdentity from "../model/finishedGoods/palletIdentity.js";
 import type * as model_finishedGoods_placement from "../model/finishedGoods/placement.js";
 import type * as model_finishedGoods_scanning from "../model/finishedGoods/scanning.js";
 import type * as model_gs1_checkDigit from "../model/gs1/checkDigit.js";
@@ -227,6 +228,7 @@ declare const fullApi: ApiFromModules<{
   "model/finishedGoods/jobScans": typeof model_finishedGoods_jobScans;
   "model/finishedGoods/locationImage": typeof model_finishedGoods_locationImage;
   "model/finishedGoods/packing": typeof model_finishedGoods_packing;
+  "model/finishedGoods/palletIdentity": typeof model_finishedGoods_palletIdentity;
   "model/finishedGoods/placement": typeof model_finishedGoods_placement;
   "model/finishedGoods/scanning": typeof model_finishedGoods_scanning;
   "model/gs1/checkDigit": typeof model_gs1_checkDigit;

@@ -659,3 +659,202 @@ describe("re-review successful command completion", () => {
     },
   );
 });
+
+describe("review decision receipts outlive their own live update", () => {
+  // Convex publishes the decision's query transition before its mutation
+  // resolves, so the form that sent it is gone when the answer arrives.
+  async function decideWithLiveUpdate(
+    choice: "certify" | "return",
+    after: DayDetail,
+  ) {
+    setReview(pendingDay());
+    const view = mountReview();
+    let answer: (value: unknown) => void = () => {};
+    state.mutate.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    if (choice === "return") {
+      fireEvent.click(screen.getByTestId("hr-return"));
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "Please attach the register" },
+      });
+      fireEvent.click(screen.getByTestId("hr-return-confirm"));
+    } else fireEvent.click(screen.getByTestId("hr-certify"));
+    await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
+    setReview(after);
+    view.rerender();
+    await act(async () => answer(saved));
+    return view;
+  }
+  const receipt = () => screen.getByTestId("hr-review-receipt");
+  const returnedDay = (base: DayDetail): DayDetail => ({
+    ...base,
+    pendingCorrectionId: undefined,
+    corrections: pendingDay().corrections.map((c) => ({
+      ...c,
+      status: "RETURNED",
+      version: 2,
+    })),
+  });
+
+  it("keeps the Return receipt over a complete day that now has nothing to decide", async () => {
+    await decideWithLiveUpdate(
+      "return",
+      returnedDay({
+        ...day(3),
+        status: "READY",
+        issue: undefined,
+        originalEndAt: at("17:30:00"),
+        effectiveEndAt: at("17:30:00"),
+      }),
+    );
+    expect(receipt()).toHaveAttribute("role", "status");
+    expect(receipt()).toHaveTextContent("Returned");
+    expect(receipt()).toHaveTextContent(
+      "The employee can correct the request and send it again.",
+    );
+    expect(screen.getByTestId("hr-review-nothing")).toBeVisible();
+    expect(screen.queryByTestId("hr-return-confirm")).toBeNull();
+    // Nothing is left to protect: leaving the page needs no confirmation.
+    const leave = vi.fn();
+    act(() => guardedNavigate(leave));
+    await waitFor(() => expect(leave).toHaveBeenCalledOnce());
+  });
+
+  it("keeps the Return receipt above the missing clock-out disposition the day needs next", async () => {
+    await decideWithLiveUpdate("return", returnedDay(day(3)));
+    expect(receipt()).toHaveTextContent("Returned");
+    expect(receipt()).toHaveTextContent(
+      "The employee can correct the request and send it again.",
+    );
+    // The next step is still offered, after the confirmation.
+    const disposition = screen.getByText("Account for this day");
+    expect(
+      receipt().compareDocumentPosition(disposition) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByTestId("hr-dispose-submit")).toBeEnabled();
+  });
+
+  it("keeps the Certify receipt after the certified day replaces the decision form", async () => {
+    await decideWithLiveUpdate(
+      "certify",
+      day(3, worked(at("08:30:20"), at("17:30:00"))),
+    );
+    expect(receipt()).toHaveTextContent("Certified");
+    expect(screen.queryByTestId("hr-certify")).toBeNull();
+    expect(screen.getByRole("button", { name: "Review again" })).toBeVisible();
+  });
+
+  it("keeps the disposition receipt after its own live certification closes the form", async () => {
+    setReview(day(1));
+    const view = mountReview();
+    fireEvent.change(reason(), { target: { value: "Paper register" } });
+    let answer: (value: unknown) => void = () => {};
+    state.mutate.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByTestId("hr-dispose-submit"));
+    await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
+    setReview(day(2, worked(at("08:30:20"), at("17:30:00"))));
+    view.rerender();
+    await act(async () => answer(saved));
+    expect(receipt()).toHaveTextContent("Decision saved");
+    expect(screen.queryByTestId("hr-dispose-submit")).toBeNull();
+    expect(screen.getByRole("button", { name: "Review again" })).toBeVisible();
+  });
+
+  it("drops the Return receipt once the employee resubmits the request", async () => {
+    const view = await decideWithLiveUpdate("return", returnedDay(day(3)));
+    expect(receipt()).toHaveTextContent("Returned");
+    const resubmitted = pendingDay(4);
+    setReview({
+      ...resubmitted,
+      corrections: resubmitted.corrections.map((c) => ({ ...c, version: 3 })),
+    });
+    view.rerender();
+    expect(screen.queryByTestId("hr-review-receipt")).toBeNull();
+    expect(screen.getByTestId("hr-certify")).toBeEnabled();
+  });
+});
+
+describe("returned request resubmission context", () => {
+  function returnedSelfDay(): DayDetail {
+    const base = pendingDay(3);
+    return {
+      ...base,
+      pendingCorrectionId: undefined,
+      corrections: base.corrections.map((c) => ({
+        ...c,
+        status: "RETURNED",
+        version: 2,
+        proposedStartAt: at("07:45:00"),
+        decidedByName: "Line lead",
+        decisionReason: "Attach the stock-count sheet",
+        history: [
+          {
+            action: "SUBMITTED" as const,
+            at: at("18:00:00"),
+            actorName: "Worker",
+            reason: "Forgot clock-out",
+            proposedStartAt: undefined,
+            proposedEndAt: undefined,
+          },
+          {
+            action: "RETURNED" as const,
+            at: at("19:00:00"),
+            actorName: "Line lead",
+            reason: "Attach the stock-count sheet",
+            proposedStartAt: undefined,
+            proposedEndAt: undefined,
+          },
+        ],
+      })),
+    };
+  }
+
+  it("shows the return reason and returned proposal before the resubmission fields without prefilling them", () => {
+    setSelf(returnedSelfDay());
+    mountDay();
+    const form = screen
+      .getByRole("heading", { name: "Resubmit the returned request" })
+      .closest("form")!;
+    const notice = screen.getByTestId("hr-correction-returned");
+    expect(form).toContainElement(notice);
+    expect(notice).toHaveTextContent("Returned for changes");
+    expect(notice).toHaveTextContent("Attach the stock-count sheet");
+    expect(notice).toHaveTextContent("Returned request: 07:45");
+    const start = screen.getByLabelText("Correct clock-in");
+    expect(
+      notice.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The existing resubmission rule is unchanged: original times, new reason.
+    expect(start).toHaveValue("08:30");
+    expect(reason()).toHaveValue("");
+  });
+
+  it("falls back to the latest return in the request history for the reason", () => {
+    const detail = returnedSelfDay();
+    setSelf({
+      ...detail,
+      corrections: detail.corrections.map((c) => ({
+        ...c,
+        decisionReason: undefined,
+      })),
+    });
+    mountDay();
+    expect(screen.getByTestId("hr-correction-returned")).toHaveTextContent(
+      "Attach the stock-count sheet",
+    );
+  });
+
+  it("shows no return notice on a new correction request", () => {
+    setSelf(day(1));
+    mountDay();
+    expect(screen.queryByTestId("hr-correction-returned")).toBeNull();
+  });
+});

@@ -101,9 +101,28 @@ export function WorkspaceContextBar({
         {t("warehouse")}
       </h2>
       {!available ? (
-        <div className="mt-1 flex flex-col gap-0.5 text-xs">
-          <span className="font-semibold text-text">{t("unavailable")}</span>
-          <span className="text-muted">{t("unavailableHint")}</span>
+        <div
+          className="mt-1 flex flex-col gap-0.5 text-xs"
+          {...(workspace.loading ? { role: "status" } : {})}
+        >
+          {workspace.loading ? (
+            <span className="text-muted">{t("loading")}</span>
+          ) : workspace.organization !== undefined ? (
+            // An organization member without an active warehouse they may open.
+            <>
+              <span className="font-semibold text-text">
+                {t("noWarehouses")}
+              </span>
+              <span className="text-muted">{t("noWarehousesHint")}</span>
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-text">
+                {t("unavailable")}
+              </span>
+              <span className="text-muted">{t("unavailableHint")}</span>
+            </>
+          )}
         </div>
       ) : switchable ? (
         <>

@@ -125,6 +125,8 @@
     "unavailable": "No organization context",
     "unavailableHint": "Organization and warehouse access comes from your verified account.",
     "noWarehouses": "No warehouse available",
+    "noWarehousesHint": "Ask an organization administrator for warehouse access.",
+    "loading": "Loading warehouses…",
     "createWarehouse": "Create warehouse",
     "createWarehouseHint": "Create a separate warehouse in this organization.",
     "warehouseCode": "Warehouse code",
@@ -170,6 +172,8 @@
     "backendMissingHint": "NEXT_PUBLIC_CONVEX_URL is unset.",
     "warehouseMissing": "No warehouse selected",
     "warehouseMissingHint": "Choose a warehouse to see its work and records.",
+    "warehouseUnavailable": "No warehouse available",
+    "warehouseUnavailableHint": "Your account has no active warehouse in this organization. Ask an organization administrator for warehouse access.",
     "openSetup": "See setup steps"
   },
   "Pagination": {
@@ -336,6 +340,7 @@
     "allStatuses": "All statuses",
     "noMatches": "No buildings match these filters",
     "noMatchesBody": "Change the search text or status filter to see more buildings.",
+    "clearFilters": "Clear filters",
     "planningNotice": "Buildings are planning master data",
     "planningNoticeBody": "Drafts define building dimensions, floors, and storage spots. Activate a layout when the plan is ready.",
     "code": "Building code",
@@ -545,6 +550,11 @@
     "back": "Back to buildings",
     "notFound": "Storage building not found.",
     "loadError": "The storage layout could not be loaded.",
+    "notFoundTitle": "Building not found",
+    "notFoundHint": "This link has no building in {warehouse}. It may belong to another warehouse or have been removed. Open Buildings & spots to switch warehouse or find it.",
+    "notFoundHintGeneric": "This link has no building in the selected warehouse. It may belong to another warehouse or have been removed. Open Buildings & spots to switch warehouse or find it.",
+    "loadErrorTitle": "Building could not be loaded",
+    "buildingCrumb": "Building",
     "saved": "Floor saved. Building totals were recalculated.",
     "writeError": "The change could not be saved: {code}",
     "modelLabel": "Isometric building model",
@@ -2016,7 +2026,9 @@
       "timeRequired": "Enter a clock-in or a clock-out time",
       "submit": "Send request",
       "submitted": "Request sent",
-      "submittedHint": "Follow its status under My requests."
+      "submittedHint": "Follow its status under My requests.",
+      "returnedTitle": "Returned for changes",
+      "returnedProposal": "Returned request"
     },
     "profile": {
       "title": "Profile",
@@ -2104,7 +2116,9 @@
       "searchHint": "Name or employee code",
       "pagination": "Review queue pages",
       "openOnPage": "{count, plural, one {# item needs review on this page} other {# items need review on this page}}",
-      "certifiedOnPage": "{count, plural, one {# certified item on this page} other {# certified items on this page}}"
+      "certifiedOnPage": "{count, plural, one {# certified item on this page} other {# certified items on this page}}",
+      "disposed": "Decision saved",
+      "returnedHint": "The employee can correct the request and send it again."
     },
     "employees": {
       "title": "Employees",
@@ -2128,7 +2142,7 @@
       "active": "Active",
       "inactive": "Inactive",
       "account": "Linked account",
-      "accountHint": "One account per employee. Without an account the employee cannot clock in themselves.",
+      "accountHint": "One account per employee. Without an account the employee cannot clock in themselves. HR access is granted separately in Settings.",
       "noAccount": "No account",
       "noMembers": "No members available",
       "memberLinked": "{name} (linked to {code})",
@@ -2200,7 +2214,15 @@
       "memberSearchHint": "Member name",
       "memberNoMatches": "No active member matches this search",
       "memberPagination": "{field} choices",
-      "historyPagination": "Change history pages"
+      "historyPagination": "Change history pages",
+      "noSelfAccess": "No HR self-service access",
+      "noReviewAccess": "No HR review access",
+      "savedTitle": "Employee saved",
+      "dismiss": "Dismiss",
+      "accessMissingTitle": "HR access is granted separately",
+      "accessMissingSelf": "{name} cannot clock in or see their own records until HR self-service is granted.",
+      "accessMissingReview": "{name} cannot review this employee's attendance until HR supervisor access is granted.",
+      "grantAccess": "Open HR access for {name}"
     },
     "periods": {
       "title": "Attendance periods",

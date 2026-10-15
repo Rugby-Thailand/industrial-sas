@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -6,6 +7,7 @@ import {
   UnavailableWorkspaceProvider,
 } from "@/components/providers/WorkspaceProvider";
 import { useCan } from "@/hooks/useCan";
+import { WAREHOUSE_STORAGE_KEY } from "@/lib/workspace/warehouseStore";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { QueryGate } from "./QueryGate";
 
@@ -131,5 +133,88 @@ it.each(["BACKEND_MISSING", "SIGN_IN_REQUIRED"] as const)(
     expect(screen.getByTestId(`panel-${reason}`)).toBeVisible();
     expect(mocks.auth).not.toHaveBeenCalled();
     expect(mocks.query).not.toHaveBeenCalled();
+  },
+);
+
+const twoWarehouses = {
+  ...data,
+  value: {
+    ...data.value,
+    warehouses: [
+      { id: "warehouse-a", code: "WH-A", name: "North" },
+      { id: "warehouse-b", code: "WH-B", name: "South" },
+    ],
+  },
+};
+
+it.each([
+  ["en", "Warehouse", "No warehouse selected"],
+  ["th", "คลังสินค้า", "ยังไม่ได้เลือกคลังสินค้า"],
+] as const)(
+  "lets a direct link without a stored warehouse choose one in place and renders on the same URL (%s)",
+  async (locale, label, missing) => {
+    const target = `/${locale}/master-data/storage-layouts/building-b/review?floor=2#issues`;
+    window.history.replaceState({}, "", target);
+    mocks.query.mockReturnValue({ status: "success", data: twoWarehouses });
+    renderWithIntl(
+      <WorkspaceProvider>
+        <Content />
+      </WorkspaceProvider>,
+      { locale, workspace: false },
+    );
+    expect(screen.getByTestId("panel-WAREHOUSE_MISSING")).toHaveTextContent(
+      missing,
+    );
+    expect(screen.queryByTestId("query-content")).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: label }));
+    await user.click(screen.getByRole("option", { name: "WH-B · South" }));
+    expect(await screen.findByTestId("query-content")).toHaveTextContent(
+      "warehouse-b",
+    );
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(target);
+    expect(window.localStorage.getItem(WAREHOUSE_STORAGE_KEY)).toBe(
+      "warehouse-b",
+    );
+  },
+);
+
+it("keeps an existing warehouse selection without offering a switch on gated pages", () => {
+  window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, "warehouse-a");
+  mocks.query.mockReturnValue({ status: "success", data: twoWarehouses });
+  renderWithIntl(
+    <WorkspaceProvider>
+      <Content />
+    </WorkspaceProvider>,
+    { locale: "en", workspace: false },
+  );
+  expect(screen.getByTestId("query-content")).toHaveTextContent("warehouse-a");
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+});
+
+it.each([
+  ["en", "No warehouse available", "Ask an organization administrator"],
+  ["th", "ไม่มีคลังสินค้าที่ใช้ได้", "กรุณาขอสิทธิ์เข้าถึงคลังสินค้า"],
+] as const)(
+  "explains a member without an active warehouse instead of asking for a selection (%s)",
+  (locale, title, hint) => {
+    mocks.query.mockReturnValue({
+      status: "success",
+      data: { ...data, value: { ...data.value, warehouses: [] } },
+    });
+    renderWithIntl(
+      <WorkspaceProvider>
+        <Content />
+      </WorkspaceProvider>,
+      { locale, workspace: false },
+    );
+    const panel = screen.getByTestId("panel-WAREHOUSE_UNAVAILABLE");
+    expect(panel).toHaveTextContent(title);
+    expect(panel).toHaveTextContent(hint);
+    expect(screen.queryByTestId("panel-WAREHOUSE_MISSING")).toBeNull();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("query-content")).not.toBeInTheDocument();
   },
 );

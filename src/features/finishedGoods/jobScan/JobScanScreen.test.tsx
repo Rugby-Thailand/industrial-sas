@@ -822,6 +822,39 @@ it("Forward restores the retained ticket draft after returning to the location q
     ),
   );
 });
+it("Forward restores unsent Photo AI photos after Back returns to the location question", async () => {
+  mocks.realPhotos = true;
+  vi.stubGlobal("navigator", {
+    mediaDevices: {
+      getUserMedia: vi
+        .fn()
+        .mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }),
+    },
+  });
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  start();
+  await waitFor(() => expect(window.location.search).toContain("jobScanStep"));
+  const photo = screen.getByRole("button", { name: "Photo AI" });
+  fireEvent.click(photo);
+  fireEvent.change(
+    screen.getByLabelText("Choose photos", { selector: "input" }),
+    {
+      target: {
+        files: [new File(["kept"], "kept.jpg", { type: "image/jpeg" })],
+      },
+    },
+  );
+  expect(screen.getByText("1 / 20 photos")).toBeVisible();
+  fireEvent.click(photo);
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
+  act(() => window.history.back());
+  await screen.findByRole("button", { name: "Choose demo location" });
+  act(() => window.history.forward());
+  fireEvent.click(await screen.findByRole("button", { name: "Photo AI" }));
+  expect(screen.getByText("1 / 20 photos")).toBeVisible();
+  expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  expect(mocks.save).not.toHaveBeenCalled();
+});
 it("a refresh or deep link without local data falls back to the location question", () => {
   window.history.replaceState(
     { appNavigationIndex: 0 },

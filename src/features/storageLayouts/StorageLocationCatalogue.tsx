@@ -59,6 +59,8 @@ export type CatalogueFilters = {
   status: StorageLayoutStatus | "ALL";
   onSearchChange: (value: string) => void;
   onStatusChange: (value: StorageLayoutStatus | "ALL") => void;
+  /** Clears search and status together, as one history step. */
+  onClearFilters: () => void;
 };
 /**
  * The catalogue's one create action. It sits to the right of, and outside,
@@ -249,6 +251,7 @@ function LocationCatalogueContent({
           status: prefs.status,
           onSearchChange: (search) => change({ search }),
           onStatusChange: (status) => change({ status }),
+          onClearFilters: () => change({ search: "", status: "ALL" }),
         })
       ) : (
         <>

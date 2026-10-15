@@ -150,8 +150,33 @@ function PalletLoader({
     return <Recommendations warehouseId={warehouseId} detail={detail} />;
   return <PalletDetailScreen warehouseId={warehouseId} detail={detail} />;
 }
+/**
+ * Unmeasured units can be stored by their package label without dimensions.
+ * Simple-packed batches have no dimension fields, so this is their only path.
+ */
+function canStoreByLabel(detail: PalletDetail) {
+  return (
+    !detail.activeMove &&
+    !detail.pallet.retiredAt &&
+    (detail.pallet.status === "AWAITING_MEASUREMENT" ||
+      detail.pallet.status === "AWAITING_PLACEMENT")
+  );
+}
+function PackageScanLink({ detail }: { detail: PalletDetail }) {
+  const { tr } = useUnitText(
+    detail.pallet.storageFormat ?? detail.product?.storageFormat,
+  );
+  return (
+    <Button asChild variant="outline">
+      <Link href={packageScanPath({ unitId: detail.pallet._id })}>
+        {tr("Scan Packages", "สแกนบรรจุภัณฑ์")}
+      </Link>
+    </Button>
+  );
+}
 function BatchMeasurementLink({ detail }: { detail: PalletDetail }) {
   const crumbs = usePalletTrail(detail);
+  const canManage = useCanManage();
   const { tr } = useUnitText(
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
@@ -172,11 +197,16 @@ function BatchMeasurementLink({ detail }: { detail: PalletDetail }) {
           "แก้จำนวนและขนาดภายนอกก่อนจัดเก็บที่ชุดเดิม เพื่อใช้ข้อมูลขนาดชุดเดียวกัน",
         )}
       >
-        <Button asChild>
-          <Link href={correctionPath(detail)}>
-            {tr("Open preparation batch", "เปิดชุดจัดเตรียมสินค้า")}
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href={correctionPath(detail)}>
+              {tr("Open preparation batch", "เปิดชุดจัดเตรียมสินค้า")}
+            </Link>
+          </Button>
+          {canManage && canStoreByLabel(detail) && (
+            <PackageScanLink detail={detail} />
+          )}
+        </div>
       </Notice>
     </>
   );
@@ -661,12 +691,25 @@ function Recommendations({
           )}
           breadcrumbs={crumbs}
         />
-        <Notice title={tr("Measurements are incomplete", "ยังวัดขนาดไม่ครบ")}>
-          <Button asChild>
-            <Link href={correctionPath(detail)}>
-              {tr("Measure pallet", "วัดขนาดพาเลท")}
-            </Link>
-          </Button>
+        <Notice
+          title={tr("Measurements are incomplete", "ยังวัดขนาดไม่ครบ")}
+          {...(canStoreByLabel(detail)
+            ? {
+                body: tr(
+                  "Measure it to get a recommended position, or scan its package label to record only its location.",
+                  "วัดขนาดเพื่อรับตำแหน่งที่แนะนำ หรือสแกนฉลากบรรจุภัณฑ์เพื่อบันทึกเฉพาะตำแหน่งจัดเก็บ",
+                ),
+              }
+            : {})}
+        >
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href={correctionPath(detail)}>
+                {tr("Measure pallet", "วัดขนาดพาเลท")}
+              </Link>
+            </Button>
+            {canStoreByLabel(detail) && <PackageScanLink detail={detail} />}
+          </div>
         </Notice>
       </>
     );

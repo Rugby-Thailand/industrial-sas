@@ -178,6 +178,69 @@ describe("StorageCatalogueFilters", () => {
   });
 });
 
+describe("StorageBuildingCatalogue empty states", () => {
+  const emptyPage = {
+    ok: true,
+    value: { status: "ready", page: [], isDone: true, continueCursor: "" },
+  };
+  const en = messagesFor("en").StorageLayouts;
+  const th = messagesFor("th").StorageLayouts;
+
+  it.each([
+    ["en", en],
+    ["th", th],
+  ] as const)(
+    "a warehouse without buildings shows first-use guidance instead of a filter mismatch (%s)",
+    (locale, text) => {
+      localStorage.clear();
+      layoutAccess.query.mockReturnValue(emptyPage);
+      renderWithIntl(<StorageBuildingCatalogue />, {
+        locale,
+        workspace: false,
+      });
+      expect(screen.getByText(text.emptyTitle)).toBeVisible();
+      expect(screen.getByText(text.emptyBody)).toBeVisible();
+      expect(screen.queryByText(text.noMatches)).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: text.clearFilters }),
+      ).toBeNull();
+    },
+  );
+
+  it("keeps the mismatch copy for an applied filter and clears it in one history step", async () => {
+    localStorage.clear();
+    window.history.replaceState(
+      {},
+      "",
+      `/en/master-data/storage-layouts?locations=${encodeURIComponent(
+        JSON.stringify({
+          view: "cards",
+          search: "",
+          status: "DRAFT",
+          building: "ALL",
+          floor: "ALL",
+        }),
+      )}#catalogue`,
+    );
+    layoutAccess.query.mockReturnValue(emptyPage);
+    renderWithIntl(<StorageBuildingCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    expect(screen.getByText(en.noMatches)).toBeVisible();
+    expect(screen.queryByText(en.emptyTitle)).toBeNull();
+    const before = window.history.length;
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await waitFor(() => expect(screen.getByText(en.emptyTitle)).toBeVisible());
+    expect(
+      screen.getByRole("combobox", { name: "Filter by status" }),
+    ).toHaveTextContent("All statuses");
+    expect(window.history.length - before).toBeLessThanOrEqual(1);
+    expect(window.location.pathname).toBe("/en/master-data/storage-layouts");
+    expect(window.location.hash).toBe("#catalogue");
+  });
+});
+
 const building: StorageBuildingRow = {
   buildingId: "building-a",
   warehouseId: "warehouse-a",

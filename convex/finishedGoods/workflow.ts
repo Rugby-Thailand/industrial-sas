@@ -1,5 +1,6 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
+import { identifiesPallet } from "../model/finishedGoods/palletIdentity";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
 import {
   quantityToMinor,
@@ -2034,15 +2035,10 @@ export const startMove = mutationWithOrg({
           return failure("MOVE_ALREADY_STARTED");
         if (!args.physicalConfirmed)
           return failure("PHYSICAL_CONFIRMATION_REQUIRED");
-        const code = args.code?.trim() ?? "";
         if (
           args.confirmationMethod !== "ACKNOWLEDGEMENT" &&
           (!args.method ||
-            (code !== `ISAS:PALLET:1:${state.pallet._id}` &&
-              !(
-                args.method === "MANUAL" &&
-                code.toUpperCase() === state.pallet.code.toUpperCase()
-              )))
+            !identifiesPallet(args.code ?? "", args.method, state.pallet))
         )
           return failure("PALLET_MISMATCH", "code");
         if (state.target.updatedAt !== state.move.targetUpdatedAt)

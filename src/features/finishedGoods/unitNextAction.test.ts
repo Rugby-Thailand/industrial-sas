@@ -16,6 +16,23 @@ describe("unit next action", () => {
     ).toBe("/finished-goods/packages/scan?unitId=pallet-a");
   });
 
+  it("sends a dimensionless simple-packed unit to package-label storage", () => {
+    expect(
+      unitNextAction(
+        {
+          ...unit,
+          status: "AWAITING_PLACEMENT",
+          preparationBatchId: "batch-a",
+          sameSize: false,
+        },
+        true,
+      ),
+    ).toEqual({
+      href: "/finished-goods/packages/scan?unitId=pallet-a",
+      label: ["Scan Packages", "สแกนบรรจุภัณฑ์"],
+    });
+  });
+
   it("takes measured units directly to storage and reservations to verification", () => {
     expect(
       unitNextAction({ ...unit, status: "AWAITING_PLACEMENT" }, true),

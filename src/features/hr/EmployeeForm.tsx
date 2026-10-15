@@ -42,6 +42,10 @@ export interface EmployeeRecord {
   readonly linkedName?: string | undefined;
   readonly supervisorUserId?: string | undefined;
   readonly supervisorName?: string | null | undefined;
+  /** `false` when the active linked account lacks HR self-service. */
+  readonly linkedSelfAccess?: boolean | undefined;
+  /** `false` when the active supervisor lacks HR team review. */
+  readonly supervisorReviewAccess?: boolean | undefined;
   readonly employmentStartDate: string;
   readonly employmentEndDate?: string | undefined;
   readonly schedule?:
@@ -130,7 +134,8 @@ export function EmployeeForm({
   readonly employee?: EmployeeRecord;
   readonly sites: readonly HrSite[];
   readonly today: string;
-  readonly onDone: () => void;
+  /** Called on Cancel, or with the saved employee after a successful save. */
+  readonly onDone: (saved?: { readonly employeeId: string }) => void;
 }) {
   const t = useTranslations("Hr.employees");
   const form = useTranslations("Hr.form");
@@ -210,7 +215,13 @@ export function EmployeeForm({
     finish(result);
   };
   const finish = (result: HrWriteState<unknown>) => {
-    if (result.kind === "SAVED") onDone();
+    if (result.kind === "SAVED") {
+      const value = result.value as { readonly documentId?: unknown } | null;
+      const employeeId =
+        baseline?.id ??
+        (typeof value?.documentId === "string" ? value.documentId : undefined);
+      onDone(employeeId === undefined ? undefined : { employeeId });
+    }
     if (result.kind === "REFUSED" && result.field !== undefined) {
       const field = result.field === "warehouseId" ? "siteId" : result.field;
       setErrors({ [field]: message(result.code) } as FieldErrors);
@@ -534,7 +545,7 @@ export function EmployeeForm({
         <Button
           type="button"
           variant="outline"
-          onClick={onDone}
+          onClick={() => onDone()}
           disabled={write.locked}
         >
           {form("cancel")}

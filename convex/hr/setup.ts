@@ -61,17 +61,88 @@ const scheduleValidator = v.object({
   breakMinutes: v.number(),
 });
 
+type HrAccessCache = Map<string, Promise<boolean | undefined>>;
+
+/**
+ * Whether an active member's own active roles grant one HR permission, the
+ * same rule `grantedPermissionsAmong` applies to the actor. Display only:
+ * it lets HR administrators (who already see every member's HR roles in
+ * Settings) notice a linked account or supervisor who still lacks access.
+ * It grants nothing; every HR function re-authorizes its caller. Undefined
+ * for a missing or inactive member, whose state the registry reports
+ * separately.
+ */
+async function memberHoldsHr(
+  ctx: TenantFunctionContext,
+  userId: Id<"users"> | undefined,
+  code: string,
+  cache: HrAccessCache,
+): Promise<boolean | undefined> {
+  if (userId === undefined) return undefined;
+  const key = `${userId}:${code}`;
+  let entry = cache.get(key);
+  if (entry === undefined) {
+    entry = (async () => {
+      const member = await ctx.members.get(userId);
+      if (member === null || !member.active) return undefined;
+      const grants = await ctx.tenantDb
+        .byIndex<Doc<"membershipRoles">>(
+          "membershipRoles",
+          "by_orgId_membershipId_roleId",
+          [{ field: "membershipId", value: member.membershipId }],
+        )
+        .take(MEMBERSHIP_ROLE_LIMIT);
+      for (const grant of grants) {
+        if (grant.membershipId !== member.membershipId) continue;
+        const role = await ctx.tenantDb.get<Doc<"roles">>(
+          "roles",
+          grant.roleId,
+        );
+        if (role === null || role.status !== "ACTIVE") continue;
+        const row = await ctx.tenantDb
+          .byIndex<Doc<"rolePermissions">>(
+            "rolePermissions",
+            "by_orgId_roleId_permissionCode",
+            [
+              { field: "roleId", value: role._id },
+              { field: "permissionCode", value: code },
+            ],
+          )
+          .unique();
+        if (row?.permissionCode === code) return true;
+      }
+      return false;
+    })();
+    cache.set(key, entry);
+  }
+  return await entry;
+}
+
 /** One employee as the registry and the editor show it. */
 async function employeeItem(
   ctx: TenantFunctionContext,
   employee: Employee,
   site: Doc<"warehouses">,
   names: Map<string, string | null>,
+  access: HrAccessCache = new Map(),
 ) {
   const member =
     employee.userId === undefined
       ? null
       : await ctx.members.get(employee.userId);
+  // `false` only when an active member lacks the HR role this link needs.
+  const linkedSelfAccess = await memberHoldsHr(
+    ctx,
+    employee.userId,
+    HR_PERMISSION.selfAccess,
+    access,
+  );
+  const supervisorReviewAccess = await memberHoldsHr(
+    ctx,
+    employee.supervisorUserId,
+    HR_PERMISSION.teamReview,
+    access,
+  );
   return {
     id: employee._id,
     code: employee.code,
@@ -82,8 +153,10 @@ async function employeeItem(
     linkedUserId: employee.userId,
     linkedName: member?.displayName,
     linkedActive: member?.active ?? false,
+    ...(linkedSelfAccess === undefined ? {} : { linkedSelfAccess }),
     supervisorUserId: employee.supervisorUserId,
     supervisorName: await memberName(ctx, employee.supervisorUserId, names),
+    ...(supervisorReviewAccess === undefined ? {} : { supervisorReviewAccess }),
     employmentStartDate: employee.employmentStartDate,
     employmentEndDate: employee.employmentEndDate,
     schedule: employee.schedule,
@@ -103,6 +176,7 @@ export const listEmployees = queryWithOrg({
       (site) => args.warehouseId === undefined || site._id === args.warehouseId,
     );
     const names = new Map<string, string | null>();
+    const access: HrAccessCache = new Map();
     const items = [];
     let complete = list.complete;
     for (const site of sites) {
@@ -113,7 +187,7 @@ export const listEmployees = queryWithOrg({
         .take(MAX_SITE_EMPLOYEES + 1);
       if (rows.length > MAX_SITE_EMPLOYEES) complete = false;
       for (const employee of rows.slice(0, MAX_SITE_EMPLOYEES))
-        items.push(await employeeItem(ctx, employee, site, names));
+        items.push(await employeeItem(ctx, employee, site, names, access));
     }
     return {
       items,
@@ -172,6 +246,7 @@ export const employeesPage = queryWithOrg({
       order = all.order;
     }
     const names = new Map<string, string | null>();
+    const access: HrAccessCache = new Map();
     const filtered = input.search !== "" || args.status !== undefined;
     const page = await hrScanPage<
       Employee,
@@ -200,7 +275,7 @@ export const employeesPage = queryWithOrg({
         const site = await siteFor(employee.warehouseId);
         return site === null
           ? null
-          : await employeeItem(ctx, employee, site, names);
+          : await employeeItem(ctx, employee, site, names, access);
       },
     });
     // Every authorized site is reachable, so the list itself is complete.

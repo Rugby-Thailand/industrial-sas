@@ -3,6 +3,7 @@ import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -229,6 +230,90 @@ describe("pallet next-action hierarchy", () => {
     );
     expect(
       screen.queryByRole("link", { name: "Recommend storage" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers package-label storage when a dimensionless simple-batch unit opens storage", () => {
+    currentDetail = {
+      ...measuredPalletDetail,
+      pallet: {
+        ...finishedGoodPallet,
+        status: "AWAITING_PLACEMENT",
+        preparationBatchId: "batch-a",
+        sameSize: false,
+        fillPercent: 70,
+      },
+    };
+    renderPallet("storage");
+    expect(
+      screen.getByRole("heading", { name: "Measure before choosing storage" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
+      "href",
+      "/finished-goods/packages/scan?unitId=pallet-a",
+    );
+    expect(
+      screen.getByRole("link", { name: "Measure pallet" }),
+    ).toHaveAttribute(
+      "href",
+      "/finished-goods/products/product-a?editUnit=pallet-a",
+    );
+    expect(
+      screen.getByText(/scan its package label to record only its location/),
+    ).toBeVisible();
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("offers package-label storage beside the batch editor on the measure route", () => {
+    currentDetail = {
+      ...measuredPalletDetail,
+      pallet: {
+        ...finishedGoodPallet,
+        status: "AWAITING_PLACEMENT",
+        preparationBatchId: "batch-a",
+        sameSize: false,
+      },
+    };
+    renderPallet("measure");
+    expect(
+      screen.getByRole("link", { name: "Open preparation batch" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Scan Packages" })).toHaveAttribute(
+      "href",
+      "/finished-goods/packages/scan?unitId=pallet-a",
+    );
+  });
+
+  it("does not offer package-label storage for a unit that is moving or read-only", () => {
+    currentDetail = {
+      ...reservedPalletDetail,
+      pallet: {
+        ...finishedGoodPallet,
+        status: "AWAITING_PLACEMENT",
+        preparationBatchId: "batch-a",
+      },
+      activeMove: { status: "RESERVED" },
+    } as PalletDetail;
+    renderPallet("measure");
+    expect(
+      screen.queryByRole("link", { name: "Scan Packages" }),
+    ).not.toBeInTheDocument();
+    cleanup();
+    mocks.canManage = false;
+    currentDetail = {
+      ...measuredPalletDetail,
+      pallet: {
+        ...finishedGoodPallet,
+        status: "AWAITING_PLACEMENT",
+        preparationBatchId: "batch-a",
+      },
+    };
+    renderPallet("measure");
+    expect(
+      screen.getByRole("link", { name: "Open preparation batch" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("link", { name: "Scan Packages" }),
     ).not.toBeInTheDocument();
   });
 
