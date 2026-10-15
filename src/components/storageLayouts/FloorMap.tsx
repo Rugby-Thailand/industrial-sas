@@ -3,6 +3,7 @@ import { FloorMapDrawing } from "./FloorMapDrawing";
 import {
   type Area,
   floorZoneUnitCount,
+  floorZoneState,
   floorPlanBounds,
   hasUnmeasuredInventory,
   adjacentZone,
@@ -706,6 +707,12 @@ export function FloorMap(props: FloorMapProps) {
               <i className={`${styles.swatch} ${styles.reserved}`} />
               {t("placementReserved")}
             </span>
+            {props.zones.some((zone) => floorZoneState(zone) === "unknown") && (
+              <span>
+                <i className={`${styles.swatch} ${styles.incomplete}`} />
+                {t("mapStatusIncomplete")}
+              </span>
+            )}
           </div>
           {positionCount > 0 && (
             <p className={styles.positionSummary} role="status">
@@ -737,7 +744,7 @@ export function FloorMap(props: FloorMapProps) {
       t,
       positionCount,
       groupCount,
-      props.zones.length,
+      props.zones,
       props.buildingCode,
       props.floorNumber,
       view,

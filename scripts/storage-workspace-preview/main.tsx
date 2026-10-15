@@ -9,6 +9,7 @@ import { WorkspaceFloorSelector } from "@/features/storageLayouts/WorkspaceFloor
 import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider";
 import { floorMapDemo } from "@/components/storageLayouts/storageFloorDemoData";
 import type { StorageFloorRow } from "@/lib/convex/storageLayoutApi";
+import { fg1ApprovedPlan } from "../../convex/model/storageLayout/fg1ApprovedPlan";
 import { pdApprovedPlan } from "../../convex/model/storageLayout/pdApprovedPlan";
 import { messagesFor } from "@/i18n/messages";
 import "../../src/app/globals.css";
@@ -27,8 +28,9 @@ function App() {
   const [floorNumber, setFloor] = useState(2);
   const [dark, setDark] = useState(true);
   const { building, floors, layouts } = useMemo(() => {
+    const fixture = new URLSearchParams(window.location.search).get("fixture");
     const demo = floorMapDemo(false, false),
-      plan = pdApprovedPlan();
+      plan = fixture === "fg1" ? fg1ApprovedPlan() : pdApprovedPlan();
     const empty =
       new URLSearchParams(window.location.search).get("fixture") === "empty";
     const pd = {
@@ -37,7 +39,7 @@ function App() {
       depthMm: plan.depthMm,
       baseWidthMm: plan.widthMm,
       baseDepthMm: plan.depthMm,
-      buildingCode: "DEMO-PD",
+      buildingCode: fixture === "fg1" ? "FG1" : "DEMO-PD",
       floorNumber: 2,
       zones: plan.cells.map((cell, index) => ({
         ...demo.zones[3]!,
@@ -68,7 +70,6 @@ function App() {
       })),
       blocks: plan.blocks,
     };
-    const fixture = new URLSearchParams(window.location.search).get("fixture");
     const reference = fixture === "f1-f2" || fixture === "portrait";
     const sourceLayouts: FloorMapProps[] =
       reference && __STORAGE_REFERENCE_LAYOUTS__
@@ -141,7 +142,7 @@ function App() {
               >
                 {__STORAGE_REFERENCE_LAYOUTS__ && building.code === "F1-F2-SB"
                   ? "Isolated preview · F1/F2 geometry · no inventory"
-                  : "Demo data · PD / Floor 2"}
+                  : `Demo data · ${building.code} / Floor ${floorNumber}`}
               </p>
             </div>
             <button

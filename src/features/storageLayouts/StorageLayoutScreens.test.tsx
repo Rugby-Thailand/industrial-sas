@@ -2368,6 +2368,9 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
   fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
   fireEvent.click(screen.getByRole("button", { name: "Display options" }));
   fireEvent.click(screen.getByRole("button", { name: "Show detailed labels" }));
+  expect(container.querySelectorAll("[data-floor-callout]")).toHaveLength(0);
+  expect(container.querySelectorAll("[data-floor-zone-name]")).toHaveLength(4);
+  fireEvent.click(screen.getByRole("button", { name: "3D view" }));
   const labels = [...container.querySelectorAll("[data-floor-callout]")];
   expect(labels).toHaveLength(4);
   const aisles = [
@@ -2394,6 +2397,7 @@ it("renders dense demo scenarios without inventory links or writes", async () =>
     }
   }
 
+  fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
   fireEvent.click(
     screen.getByRole("button", {
       name: "Select location FG-A · Full footprint",
