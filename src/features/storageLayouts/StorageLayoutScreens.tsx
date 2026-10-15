@@ -133,6 +133,7 @@ import {
   unprojectIsometricDelta,
 } from "@/lib/storageLayouts/isometricGeometry";
 import { locationInventory } from "@/lib/storageLayouts/locationSelectors";
+import { warehouseLabel } from "@/lib/workspace/workspace";
 
 import { useCanManage } from "@/hooks/useCanManage";
 import { useCan } from "@/hooks/useCan";
@@ -157,6 +158,70 @@ function QueryFailure() {
   return <Notice tone="warning" title={t("loadError")} />;
 }
 
+/**
+ * A building or review link whose building cannot be shown keeps its page
+ * frame: a heading, the breadcrumb trail and header Back to the declared
+ * parent (SS-02). A building in another warehouse reads as not found here, so
+ * the hint names the selected one. A refused read is an authorization denial
+ * on a live subscription, which updates by itself when access changes; it
+ * shows its technical reference rather than a Retry that would repeat it.
+ */
+function BuildingUnavailable({
+  warehouseId,
+  buildingId,
+  page,
+  deniedRequestId,
+}: {
+  readonly warehouseId: string;
+  readonly buildingId: string;
+  readonly page: "building" | "review";
+  readonly deniedRequestId?: string | undefined;
+}) {
+  const t = useTranslations("StorageLayouts");
+  const { warehouses } = useWorkspace();
+  const warehouse = warehouses?.find((option) => option.id === warehouseId);
+  const denied = deniedRequestId !== undefined;
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title={t(denied ? "loadErrorTitle" : "notFoundTitle")}
+        breadcrumbs={
+          page === "review"
+            ? [
+                { label: t("breadcrumbRoot"), href: ROUTES.storageLayouts },
+                {
+                  label: t("buildingCrumb"),
+                  href: storageBuildingPath(buildingId),
+                },
+              ]
+            : [{ label: t("breadcrumbRoot"), href: ROUTES.storageLayouts }]
+        }
+        backFallbackHref={
+          page === "review"
+            ? storageBuildingPath(buildingId)
+            : ROUTES.storageLayouts
+        }
+      />
+      {denied ? (
+        <LedgerPanelStatus
+          state={{ kind: "DENIED", requestId: deniedRequestId }}
+        />
+      ) : (
+        <Notice
+          tone="warning"
+          title={t("notFound")}
+          body={
+            warehouse === undefined
+              ? t("notFoundHintGeneric")
+              : t("notFoundHint", { warehouse: warehouseLabel(warehouse) })
+          }
+          testId="building-not-found"
+        />
+      )}
+    </div>
+  );
+}
+
 export function StorageBuildingCatalogue() {
   return (
     <QueryGate scope="WAREHOUSE">
@@ -177,6 +242,7 @@ function CatalogueContent({
   status,
   onSearchChange,
   onStatusChange,
+  onClearFilters,
 }: { readonly warehouseId: string } & CatalogueFilters) {
   const t = useTranslations("StorageLayouts");
   const locale = useLocale();
@@ -227,7 +293,20 @@ function CatalogueContent({
       ) : !ready ? (
         <LoadingCard />
       ) : buildings.length === 0 ? (
-        <EmptyState title={t("noMatches")} body={t("noMatchesBody")} />
+        settled.trim() === "" && status === "ALL" ? (
+          // A warehouse without buildings: first-use guidance, not a mismatch.
+          <EmptyState title={t("emptyTitle")} body={t("emptyBody")} />
+        ) : (
+          <EmptyState
+            title={t("noMatches")}
+            body={t("noMatchesBody")}
+            action={
+              <Button type="button" variant="ghost" onClick={onClearFilters}>
+                {t("clearFilters")}
+              </Button>
+            }
+          />
+        )
       ) : (
         <div className="divide-y divide-border border-y border-border">
           {buildings.map((building) => (
@@ -618,12 +697,17 @@ function BuildingContent({
   readonly warehouseId: string;
   readonly buildingId: string;
 }) {
-  const t = useTranslations("StorageLayouts");
   const outcome = useStorageBuilding(warehouseId, buildingId);
   if (outcome === undefined) return <LoadingCard />;
-  if (!outcome.ok) return <QueryFailure />;
-  if (!outcome.value.found)
-    return <Notice tone="warning" title={t("notFound")} />;
+  if (!outcome.ok || !outcome.value.found)
+    return (
+      <BuildingUnavailable
+        warehouseId={warehouseId}
+        buildingId={buildingId}
+        page="building"
+        deniedRequestId={outcome.ok ? undefined : outcome.requestId}
+      />
+    );
   const { building: savedBuilding, floors } = outcome.value;
   const unmeasuredPalletCount = floors.reduce(
     (sum, floor) =>
@@ -1487,7 +1571,13 @@ export function BuildingModelWorkspace({
   const editable = canManage && building.status !== "ARCHIVED";
   const [dirty, setDirty] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Any floor or spot write: blocks editor closure and floor actions.
   const [pending, setPending] = useState(false);
+  // The floor draft's own write. A spot write is guarded by the spot editor's
+  // registrations, which settle in the same commit as the write; this mirror
+  // arrives renders later and would hold the floor draft pending while the
+  // spot editor's live completion closes it (SS-05).
+  const [floorWritePending, setFloorWritePending] = useState(false);
   const [reset, setReset] = useState(0);
   const editorRef = useRef<FloorEditorHandle>(null);
   // The floor editor is an owned workflow step (`editing=1`). Opening pushes
@@ -1509,10 +1599,10 @@ export function BuildingModelWorkspace({
     // Earlier steps inside the floor editor (impact review, offset editor)
     // retain this draft; closing the editor itself asks first.
     workflowScope: floorDraftScope,
-    // A spot editor opened from browsing owns its own draft and history.
-    // Only a nested dialog in the floor editor also protects the floor draft.
+    // A spot editor owns its own draft and history. Only the open
+    // unavailable-area editor, whose edits join this draft, also protects it.
     dirty: dirty || (editing && dialogOpen),
-    pending,
+    pending: floorWritePending,
     ...(dialogOpen ? { saveBlockedReason: t("finishOpenEditor") } : {}),
     save: async () => (await editorRef.current?.save()) ?? false,
     discard: () => {
@@ -1648,6 +1738,7 @@ export function BuildingModelWorkspace({
               draftScope: floorDraftScope,
               onDirtyChange: setDirty,
               onPendingChange: setPending,
+              onFloorWriteChange: setFloorWritePending,
               onDialogChange: setDialogOpen,
               onCancel: closeEditor,
             }}
@@ -1729,6 +1820,7 @@ function FloorForm({
     draftScope: string;
     onDirtyChange: (dirty: boolean) => void;
     onPendingChange: (pending: boolean) => void;
+    onFloorWriteChange: (pending: boolean) => void;
     onDialogChange: (open: boolean) => void;
     onCancel: () => void;
   };
@@ -1743,10 +1835,17 @@ function FloorForm({
   const [areaEditorOpen, setAreaEditorOpen] = useState(false);
   const [zoneEditorOpen, setZoneEditorOpen] = useState(false);
   const [zonePending, setZonePending] = useState(false);
+  const [zoneReceiptHost, setZoneReceiptHost] = useState<HTMLDivElement | null>(
+    null,
+  );
   const dialogChange = workspace?.onDialogChange;
   useLayoutEffect(() => {
-    dialogChange?.(areaEditorOpen || zoneEditorOpen);
-  }, [dialogChange, areaEditorOpen, zoneEditorOpen]);
+    // Only the unavailable-area editor edits this floor draft. A spot editor
+    // opens only while the floor is clean, writes on its own and guards its
+    // own draft; counting it here held the floor draft dirty while the spot
+    // editor's live completion closed it after a save (SS-05).
+    dialogChange?.(areaEditorOpen);
+  }, [dialogChange, areaEditorOpen]);
   const [baseline, setBaseline] = useState(savedFloor);
   const [receivedVersion, setReceivedVersion] = useState(savedFloor.version);
   const floor = { ...baseline, storageZones: savedFloor.storageZones };
@@ -1945,6 +2044,10 @@ function FloorForm({
   useLayoutEffect(() => {
     pendingChange?.(pending || zonePending);
   }, [pendingChange, pending, zonePending]);
+  const floorWriteChange = workspace?.onFloorWriteChange;
+  useLayoutEffect(() => {
+    floorWriteChange?.(pending);
+  }, [floorWriteChange, pending]);
   /** Replace the form with the latest saved floor (discarding any draft). */
   function adoptSaved() {
     setReceivedVersion(savedFloor.version);
@@ -2117,6 +2220,7 @@ function FloorForm({
       selectedZoneId={selectedZoneId}
       onEditorOpenChange={setZoneEditorOpen}
       onSavingChange={setZonePending}
+      receiptHost={zoneReceiptHost}
       editRequest={mapEditRequest}
       warehouseId={warehouseId}
       buildingId={detail.building.buildingId}
@@ -2368,6 +2472,9 @@ function FloorForm({
         {message === undefined ? null : (
           <Notice tone={message.tone} title={message.text} />
         )}
+        {workspace ? (
+          <div ref={setZoneReceiptHost} className="empty:hidden" />
+        ) : null}
       </div>
     </form>
   );
@@ -3567,9 +3674,15 @@ function ReviewContent({
   });
   const [refusal, setRefusal] = useState<string>();
   if (outcome === undefined) return <LoadingCard />;
-  if (!outcome.ok) return <QueryFailure />;
-  if (!outcome.value.found)
-    return <Notice tone="warning" title={t("notFound")} />;
+  if (!outcome.ok || !outcome.value.found)
+    return (
+      <BuildingUnavailable
+        warehouseId={warehouseId}
+        buildingId={buildingId}
+        page="review"
+        deniedRequestId={outcome.ok ? undefined : outcome.requestId}
+      />
+    );
   const { building: savedBuilding, floors } = outcome.value;
   const unmeasuredPalletCount = floors.reduce(
     (sum, floor) => sum + zoneUnmeasuredCount(floor.storageZones),

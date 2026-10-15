@@ -114,6 +114,46 @@ describe("WorkspaceContextBar in the sidebar", () => {
     expect(screen.queryByTestId("warehouse-select")).toBeNull();
   });
 
+  it.each([
+    ["en", "No warehouse available", "Ask an organization administrator"],
+    ["th", "ไม่มีคลังสินค้าให้เลือก", "กรุณาขอสิทธิ์เข้าถึงคลังสินค้า"],
+  ] as const)(
+    "tells an organization member without an active warehouse to ask for access, not that the organization is missing (%s)",
+    (locale, title, hint) => {
+      state.workspace = ready({
+        selectable: false,
+        warehouses: [],
+        selectedWarehouseId: undefined,
+      });
+      renderWithIntl(
+        <TooltipProvider>
+          <SidebarProvider defaultOpen>
+            <WorkspaceContextBar switchable />
+          </SidebarProvider>
+        </TooltipProvider>,
+        { locale },
+      );
+      const bar = screen.getByTestId("sidebar-warehouse");
+      expect(bar).toHaveTextContent(title);
+      expect(bar).toHaveTextContent(hint);
+      expect(bar).not.toHaveTextContent(
+        /No organization context|ไม่มีบริบทองค์กร/,
+      );
+      expect(screen.queryByTestId("warehouse-select")).toBeNull();
+    },
+  );
+
+  it("reports loading while the workspace resolves instead of a missing organization", () => {
+    state.workspace = {
+      ...ready({ selectable: false, organization: undefined, warehouses: [] }),
+      loading: true,
+    };
+    render({ switchable: true });
+    const loading = screen.getByText("Loading warehouses…");
+    expect(loading.closest('[role="status"]')).toBeInTheDocument();
+    expect(screen.queryByText("No organization context")).toBeNull();
+  });
+
   it("asks before a warehouse switch discards unsaved work", async () => {
     vi.spyOn(window.history, "back").mockImplementation(() => {});
     const committed = vi.fn();

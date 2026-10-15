@@ -105,6 +105,7 @@ export function StorageZonesPanel({
   blocked = false,
   onEditorOpenChange,
   onSavingChange,
+  receiptHost,
 }: {
   readonly panelRef?: Ref<{
     create: () => void;
@@ -126,6 +127,8 @@ export function StorageZonesPanel({
   readonly blocked?: boolean;
   readonly onEditorOpenChange?: (open: boolean) => void;
   readonly onSavingChange?: (saving: boolean) => void;
+  /** Where a compact panel shows a receipt that no location details carry. */
+  readonly receiptHost?: HTMLElement | null;
 }) {
   const t = useTranslations("StorageLayouts");
   const detailsHost = useContext(LocationDetailsHost);
@@ -1574,10 +1577,24 @@ export function StorageZonesPanel({
         ) : null}
       </>
     );
+    // A create selects nothing, and a hidden inspector renders no details:
+    // the receipt for the closed editor then goes to the page's own host.
+    const detailsShown =
+      zones.some((zone) => zone.zoneId === selectedZoneId) &&
+      (!detailsHost || detailsHost.target != null);
+    const receipt =
+      message && !editorOpen && !detailsShown && receiptHost ? (
+        <Notice
+          tone={message.tone}
+          title={message.text}
+          testId="storage-zone-receipt"
+        />
+      ) : null;
     return (
       <>
         {editorDialog}
         {lifecycleDialogs}
+        {receipt && receiptHost ? createPortal(receipt, receiptHost) : null}
         {detailsHost
           ? detailsHost.target
             ? createPortal(details, detailsHost.target)

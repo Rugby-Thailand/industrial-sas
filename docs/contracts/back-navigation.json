@@ -717,11 +717,26 @@
         "src/features/storageLayouts/StorageLayoutScreens#StorageBuildingEditor"
       ],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": ["src/features/storageLayouts/StorageLayoutNavigation.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageBuildingRecovery.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back closes the floor editor before leaving the building, keeping floor, query and hash"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageBuildingRecovery.test.tsx",
+          "name": "a direct %s link to a missing building keeps its heading, trail and header Back to the declared parent"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageBuildingRecovery.test.tsx",
+          "name": "header Back from a missing building restores the actual catalogue origin with its query and hash"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageBuildingRecovery.test.tsx",
+          "name": "chooses a warehouse in place and then renders that building on the same URL"
         }
       ]
     },
@@ -733,11 +748,22 @@
         "src/features/storageLayouts/StorageLayoutScreens#StorageBuildingReview"
       ],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+        "src/features/storageLayouts/StorageBuildingRecovery.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
           "name": "shows a useful capacity explanation in the server readiness review"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageBuildingRecovery.test.tsx",
+          "name": "a direct %s link to a missing building keeps its heading, trail and header Back to the declared parent"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageBuildingRecovery.test.tsx",
+          "name": "a refused building read keeps the page frame and shows its technical reference"
         }
       ]
     },
@@ -4743,6 +4769,18 @@
         },
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact workspace spot create closes through its live owner without a draft prompt, keeps its receipt, and the next Back closes the floor editor (%s)"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact workspace spot rename while %s closes without a draft prompt, keeps its receipt, and consumes its entry"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a pending compact spot create keeps its editor through native Back, then closes without a draft prompt once settled"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "an older spot save cannot close a newer spot edit intent that replaced it"
         },
         {
@@ -4794,6 +4832,18 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "a saved spot edit consumes its editor entry and the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact workspace spot create closes through its live owner without a draft prompt, keeps its receipt, and the next Back closes the floor editor (%s)"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact workspace spot rename while %s closes without a draft prompt, keeps its receipt, and consumes its entry"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a pending compact spot create keeps its editor through native Back, then closes without a draft prompt once settled"
         },
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
@@ -6525,6 +6575,10 @@
           "name": "native Back cancels a spot archive confirmation and the next Back leaves the building"
         },
         {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact inspector archive keeps its receipt after the archived spot leaves the live floor"
+        },
+        {
           "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
           "name": "consumes successful %s archival without a stale pending prompt"
         }
@@ -6543,6 +6597,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "native Back cancels a spot archive confirmation and the next Back leaves the building"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact inspector archive keeps its receipt after the archived spot leaves the live floor"
         },
         {
           "file": "src/features/storageLayouts/StorageLayoutActions.test.tsx",
@@ -7499,6 +7557,10 @@
         {
           "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
           "name": "remount with an owned editor entry restores the editor and Back still consumes it"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "a compact workspace spot create closes through its live owner without a draft prompt, keeps its receipt, and the next Back closes the floor editor (%s)"
         }
       ]
     },
