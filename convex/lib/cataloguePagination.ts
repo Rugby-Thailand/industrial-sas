@@ -78,6 +78,8 @@ export async function paginatedScan<
       endCursor?: string,
     ) => Promise<TenantIndexPage<T>>;
     hydrate: (document: T) => Promise<R>;
+    /** Cheap eligibility check before relation reads, including retained IDs. */
+    matchesDocument?: (document: T) => boolean;
     matches: (row: R) => boolean;
     compare?: (a: R, b: R) => number;
     get: (id: string) => Promise<T | null>;
@@ -136,7 +138,9 @@ export async function paginatedScan<
     return resetCataloguePage();
   const hydrateId = async (id: string) => {
     const doc = await options.get(id);
-    return doc ? options.hydrate(doc) : null;
+    return doc && (!options.matchesDocument || options.matchesDocument(doc))
+      ? options.hydrate(doc)
+      : null;
   };
   const saved: R[] = [];
   for (const row of await Promise.all(state.ids.map(hydrateId))) {
@@ -189,7 +193,10 @@ export async function paginatedScan<
     chunk.isDone &&
     remainingRanges.length === 0 &&
     !(state.end && state.pending?.length);
-  const incoming = await Promise.all(chunk.page.map(options.hydrate));
+  const eligible = options.matchesDocument
+    ? chunk.page.filter(options.matchesDocument)
+    : chunk.page;
+  const incoming = await Promise.all(eligible.map(options.hydrate));
   let candidates = [
     ...new Map(
       [...saved, ...incoming.filter(options.matches)].map((row) => [
