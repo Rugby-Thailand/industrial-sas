@@ -2026,7 +2026,9 @@
       "timeRequired": "Enter a clock-in or a clock-out time",
       "submit": "Send request",
       "submitted": "Request sent",
-      "submittedHint": "Follow its status under My requests."
+      "submittedHint": "Follow its status under My requests.",
+      "returnedTitle": "Returned for changes",
+      "returnedProposal": "Returned request"
     },
     "profile": {
       "title": "Profile",
@@ -2114,7 +2116,9 @@
       "searchHint": "Name or employee code",
       "pagination": "Review queue pages",
       "openOnPage": "{count, plural, one {# item needs review on this page} other {# items need review on this page}}",
-      "certifiedOnPage": "{count, plural, one {# certified item on this page} other {# certified items on this page}}"
+      "certifiedOnPage": "{count, plural, one {# certified item on this page} other {# certified items on this page}}",
+      "disposed": "Decision saved",
+      "returnedHint": "The employee can correct the request and send it again."
     },
     "employees": {
       "title": "Employees",
@@ -2138,7 +2142,7 @@
       "active": "Active",
       "inactive": "Inactive",
       "account": "Linked account",
-      "accountHint": "One account per employee. Without an account the employee cannot clock in themselves.",
+      "accountHint": "One account per employee. Without an account the employee cannot clock in themselves. HR access is granted separately in Settings.",
       "noAccount": "No account",
       "noMembers": "No members available",
       "memberLinked": "{name} (linked to {code})",
@@ -2210,7 +2214,15 @@
       "memberSearchHint": "Member name",
       "memberNoMatches": "No active member matches this search",
       "memberPagination": "{field} choices",
-      "historyPagination": "Change history pages"
+      "historyPagination": "Change history pages",
+      "noSelfAccess": "No HR self-service access",
+      "noReviewAccess": "No HR review access",
+      "savedTitle": "Employee saved",
+      "dismiss": "Dismiss",
+      "accessMissingTitle": "HR access is granted separately",
+      "accessMissingSelf": "{name} cannot clock in or see their own records until HR self-service is granted.",
+      "accessMissingReview": "{name} cannot review this employee's attendance until HR supervisor access is granted.",
+      "grantAccess": "Open HR access for {name}"
     },
     "periods": {
       "title": "Attendance periods",

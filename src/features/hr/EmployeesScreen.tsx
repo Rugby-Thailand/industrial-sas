@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { Pencil, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useLayoutEffect, useRef } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { appHistoryIndex } from "@/lib/browser/appHistory";
 import { updateHistoryMetadata } from "@/lib/browser/history";
 import { traverseBack } from "@/lib/navigationGuard";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { TableScroller } from "@/components/ui/TableScroller";
 import { usePageSearchContext } from "@/components/shell/search/pageContext";
+import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
 import {
   useDeepLinkFocus,
@@ -75,11 +76,14 @@ type EmployeeRow = {
   readonly linkedUserId?: string | undefined;
   readonly linkedName?: string | undefined;
   readonly linkedActive: boolean;
+  readonly linkedSelfAccess?: boolean | undefined;
   readonly supervisorName?: string | null | undefined;
+  readonly supervisorReviewAccess?: boolean | undefined;
   readonly schedule?: EmployeeRecord["schedule"];
 };
 
 type Editing = Exclude<EmployeesUrlState, { mode: "LIST" }>;
+type Saved = { readonly employeeId: string };
 
 export function HrEmployeesScreen() {
   const t = useTranslations("Hr.employees");
@@ -279,23 +283,38 @@ function EmployeesContent({
   const filtered =
     criteria.q !== "" || criteria.site !== "" || status !== undefined;
   const clear = () => setCriteria(LIST_DEFAULTS);
+  // The last save's receipt on the list it returns to. It is not a history
+  // entry: opening an editor (or Forward to one) replaces it.
+  const [receipt, setReceipt] = useState<Saved | null>(null);
+  if (editing !== undefined && receipt !== null) setReceipt(null);
+  const done = (saved?: Saved) => {
+    if (saved !== undefined) setReceipt(saved);
+    onClose(criteria);
+  };
 
   return (
     <div className="space-y-6">
       {invalidLink ? <HrInlineError code="NOT_FOUND" /> : null}
+      {receipt === null ? null : (
+        <EmployeeSavedReceipt
+          key={receipt.employeeId}
+          employeeId={receipt.employeeId}
+          onDismiss={() => setReceipt(null)}
+        />
+      )}
       {editing === undefined ? null : editing.mode === "NEW" ? (
         <EmployeeForm
           key="new"
           sites={access.sites}
           today={access.today ?? ""}
-          onDone={() => onClose(criteria)}
+          onDone={done}
         />
       ) : (
         <EmployeeEditor
           employeeId={editing.employeeId}
           focus={linkFocus}
           token={linkToken}
-          onDone={() => onClose(criteria)}
+          onDone={done}
         />
       )}
       {access.sites.length === 0 ? (
@@ -452,7 +471,9 @@ function EmployeeCard({
         </div>
         <div>
           <dt className="text-xs text-muted">{t("supervisor")}</dt>
-          <dd className="text-text">{employee.supervisorName ?? "—"}</dd>
+          <dd>
+            <SupervisorCell employee={employee} />
+          </dd>
         </div>
         <div className="sm:col-span-2">
           <dt className="text-xs text-muted">{t("schedule")}</dt>
@@ -481,7 +502,7 @@ function EmployeeEditor({
   readonly employeeId: string;
   readonly focus: "schedule" | "details" | null;
   readonly token: string;
-  readonly onDone: () => void;
+  readonly onDone: (saved?: Saved) => void;
 }) {
   const t = useTranslations("Hr.employees");
   const access = useHrAccess();
@@ -514,7 +535,7 @@ function EmployeeEditor({
           return (
             <div className="space-y-3">
               <HrInlineError code={result.code} />
-              <Button type="button" variant="outline" onClick={onDone}>
+              <Button type="button" variant="outline" onClick={() => onDone()}>
                 {t("backToList")}
               </Button>
             </div>
@@ -587,7 +608,7 @@ function EmployeeTable({
                 <AccountCell employee={employee} />
               </TableCell>
               <TableCell className="break-words whitespace-normal">
-                {employee.supervisorName ?? "—"}
+                <SupervisorCell employee={employee} />
               </TableCell>
               <TableCell className="whitespace-normal">
                 <ScheduleCell employee={employee} />
@@ -627,12 +648,104 @@ function AccountCell({ employee }: { readonly employee: EmployeeRow }) {
   return (
     <span className="text-text">
       {employee.linkedName ?? t("unknownMember")}
-      {employee.linkedActive ? null : (
+      {!employee.linkedActive ? (
         <span className="block text-xs text-warning">
           {t("memberInactive")}
         </span>
-      )}
+      ) : employee.linkedSelfAccess === false ? (
+        <span className="block text-xs text-warning">{t("noSelfAccess")}</span>
+      ) : null}
     </span>
+  );
+}
+
+function SupervisorCell({ employee }: { readonly employee: EmployeeRow }) {
+  const t = useTranslations("Hr.employees");
+  return (
+    <span className="text-text">
+      {employee.supervisorName ?? "—"}
+      {employee.supervisorReviewAccess === false ? (
+        <span className="block text-xs text-warning">
+          {t("noReviewAccess")}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** The HR access step a member still needs, as a link to Settings. */
+function accessHref(name: string): string {
+  const query = new URLSearchParams({ section: "access", mq: name });
+  return `${ROUTES.hrSettings}?${query.toString()}`;
+}
+
+/**
+ * The saved employee, read again so the receipt names the record and any
+ * linked member who still lacks HR access. Linking never grants a role; the
+ * administrator grants it explicitly in Settings > HR access.
+ */
+function EmployeeSavedReceipt({
+  employeeId,
+  onDismiss,
+}: {
+  readonly employeeId: string;
+  readonly onDismiss: () => void;
+}) {
+  const t = useTranslations("Hr.employees");
+  const outcome = useQuery(hrRefs.employee, { employeeId });
+  const saved =
+    outcome?.ok === true && outcome.value.ok
+      ? (outcome.value.employee as EmployeeRecord)
+      : null;
+  // Linked members who still need the role this link depends on.
+  const missing: { key: string; name: string; text: string }[] = [];
+  if (saved?.linkedSelfAccess === false && saved.linkedName)
+    missing.push({
+      key: "self",
+      name: saved.linkedName,
+      text: t("accessMissingSelf", { name: saved.linkedName }),
+    });
+  if (saved?.supervisorReviewAccess === false && saved.supervisorName)
+    missing.push({
+      key: "review",
+      name: saved.supervisorName,
+      text: t("accessMissingReview", { name: saved.supervisorName }),
+    });
+  return (
+    <div className="space-y-3" data-testid="hr-employee-saved">
+      <Notice
+        tone="success"
+        title={t("savedTitle")}
+        {...(saved === null
+          ? {}
+          : { body: `${saved.displayName} · ${saved.code}` })}
+      >
+        <Button type="button" variant="outline" onClick={onDismiss}>
+          {t("dismiss")}
+        </Button>
+      </Notice>
+      {missing.length === 0 ? null : (
+        <Notice
+          tone="warning"
+          title={t("accessMissingTitle")}
+          testId="hr-employee-access-missing"
+        >
+          <ul className="space-y-3 text-sm">
+            {missing.map((entry) => (
+              <li key={entry.key} className="space-y-1">
+                <p className="text-text">{entry.text}</p>
+                <Link
+                  href={accessHref(entry.name)}
+                  className="inline-flex min-h-touch items-center font-medium text-link underline-offset-4 focus-ring hover:underline"
+                >
+                  {t("grantAccess", { name: entry.name })}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Notice>
+      )}
+    </div>
   );
 }
 

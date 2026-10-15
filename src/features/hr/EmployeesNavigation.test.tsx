@@ -292,3 +292,155 @@ it("locale replacement retains editor ownership so Cancel and the next native Ba
   act(() => window.history.back());
   await waitFor(() => expect(window.location.pathname).toBe("/en/hr/today"));
 });
+
+it.each(["en", "th"] as const)(
+  "successful employee save closes the editor with a %s receipt and HR access handoff, then the next Back returns to the caller",
+  async (locale) => {
+    const linked = {
+      ...employee,
+      linkedUserId: "u1",
+      linkedName: "Nok",
+      linkedActive: true,
+      linkedSelfAccess: false,
+      supervisorUserId: "u2",
+      supervisorName: "Lead",
+      supervisorReviewAccess: false,
+    };
+    const answer = (record: object) => ({
+      ok: true,
+      value: {
+        ok: true,
+        status: "ready",
+        page: [record],
+        continueCursor: "",
+        isDone: true,
+      },
+    });
+    state.queries.set(getFunctionName(hrRefs.employeesPage), answer(linked));
+    state.queries.set(getFunctionName(hrRefs.employee), {
+      ok: true,
+      value: { ok: true, employee: linked },
+    });
+    state.save.mockResolvedValue({
+      ok: true,
+      value: { written: true, documentId: "e7", replayed: false },
+    });
+    const list = `/${locale}/hr/employees?q=Som#registry`;
+    window.history.pushState({}, "", list);
+    renderWithIntl(
+      <DraftGuardProvider>
+        <main>
+          <HrEmployeesScreen />
+        </main>
+      </DraftGuardProvider>,
+      { locale, workspace: false },
+    );
+    const copy =
+      locale === "en"
+        ? {
+            edit: /Edit.*Somsak/,
+            name: "Display name",
+            save: "Save employee",
+            saved: "Employee saved",
+            noSelf: "No HR self-service access",
+            noReview: "No HR review access",
+            grantSelf: "Open HR access for Nok",
+            grantReview: "Open HR access for Lead",
+          }
+        : {
+            edit: /แก้ไข.*Somsak/,
+            name: "ชื่อที่แสดง",
+            save: "บันทึกพนักงาน",
+            saved: "บันทึกพนักงานแล้ว",
+            noSelf: "ยังไม่มีสิทธิ์ลงเวลาเอง",
+            noReview: "ยังไม่มีสิทธิ์ตรวจทีม",
+            grantSelf: "เปิดสิทธิ์ใช้งานฝ่ายบุคคลของ Nok",
+            grantReview: "เปิดสิทธิ์ใช้งานฝ่ายบุคคลของ Lead",
+          };
+    // The registry itself shows which linked member still lacks HR access.
+    expect(screen.getAllByText(copy.noSelf).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(copy.noReview).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByRole("button", { name: copy.edit })[0]!);
+    const index = appHistoryIndex();
+    fireEvent.change(screen.getByRole("textbox", { name: copy.name }), {
+      target: { value: "Somsak K." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: copy.save }));
+    await waitFor(() => expect(state.save).toHaveBeenCalledOnce());
+    // The save consumes the owned editor entry and restores the list URL.
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe(list),
+    );
+    expect(appHistoryIndex()).toBe(index! - 1);
+    expect(screen.queryByRole("textbox", { name: copy.name })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const receipt = await screen.findByTestId("hr-employee-saved");
+    expect(receipt).toHaveTextContent(copy.saved);
+    expect(receipt).toHaveTextContent("Somsak · EMP-007");
+    expect(screen.getByText(copy.saved).closest("[role=status]")).toBeVisible();
+    // A handoff to the existing Settings grant, never an automatic one.
+    expect(screen.getByRole("link", { name: copy.grantSelf })).toHaveAttribute(
+      "href",
+      "/hr/settings?section=access&mq=Nok",
+    );
+    expect(
+      screen.getByRole("link", { name: copy.grantReview }),
+    ).toHaveAttribute("href", "/hr/settings?section=access&mq=Lead");
+    expect(state.save).toHaveBeenCalledTimes(1);
+    // The receipt adds no history entry: the next Back reaches the caller.
+    await act(async () => {
+      const pop = new Promise<void>((resolve) =>
+        window.addEventListener("popstate", () => resolve(), { once: true }),
+      );
+      window.history.back();
+      await pop;
+    });
+    expect(window.location.pathname).toBe("/en/hr/today");
+  },
+);
+
+it("an employee save receipt gives way to the next editor and omits the handoff once access is granted", async () => {
+  state.queries.set(getFunctionName(hrRefs.employee), {
+    ok: true,
+    value: {
+      ok: true,
+      employee: {
+        ...employee,
+        linkedUserId: "u1",
+        linkedName: "Nok",
+        linkedActive: true,
+        linkedSelfAccess: true,
+      },
+    },
+  });
+  state.save.mockResolvedValue({
+    ok: true,
+    value: { written: true, documentId: "e7", replayed: false },
+  });
+  window.history.pushState({}, "", "/en/hr/employees");
+  renderWithIntl(
+    <DraftGuardProvider>
+      <main>
+        <HrEmployeesScreen />
+      </main>
+    </DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  fireEvent.click(screen.getAllByRole("button", { name: /Edit.*Somsak/ })[0]!);
+  fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
+  expect(await screen.findByTestId("hr-employee-saved")).toBeVisible();
+  await waitFor(() => expect(window.location.search).toBe(""));
+  expect(screen.queryByTestId("hr-employee-access-missing")).toBeNull();
+  expect(screen.queryByRole("link", { name: /Open HR access/ })).toBeNull();
+  // Opening another editor replaces the terminal receipt; Cancel does not
+  // bring it back.
+  fireEvent.click(screen.getAllByRole("button", { name: /Edit.*Somsak/ })[0]!);
+  expect(screen.queryByTestId("hr-employee-saved")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(window.location.search).toBe(""));
+  expect(screen.queryByTestId("hr-employee-saved")).toBeNull();
+});

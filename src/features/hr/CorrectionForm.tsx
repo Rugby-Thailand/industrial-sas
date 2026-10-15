@@ -12,7 +12,7 @@ import { useDraftGuard } from "@/components/providers/draftGuard";
 import { hrRefs } from "@/lib/convex/hrApi";
 
 import type { DayDetail } from "./DayDetailView";
-import { SectionTitle, WriteFeedback } from "./HrShared";
+import { SectionTitle, TimeText, WriteFeedback } from "./HrShared";
 import {
   TimeSideField,
   sideFromInstant,
@@ -216,6 +216,17 @@ export function CorrectionForm({
     void send();
   };
 
+  // Why the request came back, before the employee edits it again. The form
+  // still starts from the original clock events, as for a new request.
+  const returned = detail.corrections.find(
+    (c) => c.id === loadedReturn.id && c.status === "RETURNED",
+  );
+  const returnReason =
+    returned?.decisionReason ??
+    [...(returned?.history ?? [])]
+      .reverse()
+      .find((entry) => entry.action === "RETURNED")?.reason;
+
   if (write.state.kind === "SAVED")
     return (
       <Panel role="status" aria-live="polite" data-testid="hr-correction-saved">
@@ -237,6 +248,24 @@ export function CorrectionForm({
         </span>
       </SectionTitle>
       <p className="mb-4 text-sm text-muted">{t("intro")}</p>
+      {returned === undefined ? null : (
+        <Notice
+          tone="warning"
+          title={t("returnedTitle")}
+          {...(returnReason ? { body: returnReason } : {})}
+          testId="hr-correction-returned"
+          className="mb-4"
+        >
+          <p className="text-sm text-muted">
+            {t("returnedProposal")}:{" "}
+            <span className="font-medium text-text tabular-nums">
+              <TimeText at={returned.proposedStartAt} timeZone={timezone} />
+              {" – "}
+              <TimeText at={returned.proposedEndAt} timeZone={timezone} />
+            </span>
+          </p>
+        </Notice>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <TimeSideField
           label={t("start")}

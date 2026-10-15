@@ -216,11 +216,12 @@ function DayDisposition(props: {
   readonly available: boolean;
   readonly onHeld: (held: boolean) => void;
   readonly onDiscard: () => void;
+  readonly onDecided: () => void;
 }) {
   const t = useTranslations("Hr.review");
   const [open, setOpen] = useState(false);
   const [held, setHeld] = useState(false);
-  const { onHeld } = props;
+  const { onHeld, onDecided, ...form } = props;
   const reportHeld = useCallback(
     (holding: boolean) => {
       setHeld(holding);
@@ -230,11 +231,12 @@ function DayDisposition(props: {
   );
   return open || held || props.detail.status === "EXCEPTION" ? (
     <DispositionForm
-      {...props}
+      {...form}
       onHeld={reportHeld}
       onSaved={() => {
         setOpen(false);
         reportHeld(false);
+        onDecided();
       }}
       onDiscard={() => {
         setOpen(false);
@@ -266,6 +268,19 @@ type ReviewAction =
   | { readonly kind: "disposition" }
   | null;
 
+/**
+ * The reviewer's last successful decision on this day. It outlives the form
+ * that sent it, which the decision's own live update removes, and is shown
+ * apart from whatever the day needs next.
+ */
+type DecisionReceipt =
+  | {
+      readonly kind: "CERTIFY" | "RETURN";
+      readonly correctionId: string;
+      readonly version: number;
+    }
+  | { readonly kind: "DISPOSE" };
+
 /** The inline command owner outlives live changes to the day's eligibility. */
 function DecisionArea({
   employeeId,
@@ -294,15 +309,50 @@ function DecisionArea({
         : null;
   const [action, setAction] = useState(liveAction);
   const [held, setHeld] = useState(false);
+  const [receipt, setReceipt] = useState<DecisionReceipt | null>(null);
   const identity = (value: ReviewAction) =>
     value?.kind === "correction" ? value.correction.id : (value?.kind ?? null);
   if (!held && identity(action) !== identity(liveAction)) setAction(liveAction);
+  // A newer pending request (another one, or the employee's resubmission of
+  // the returned one) supersedes the receipt.
+  if (
+    receipt !== null &&
+    pending !== undefined &&
+    (receipt.kind === "DISPOSE" ||
+      pending.id !== receipt.correctionId ||
+      pending.version > receipt.version)
+  )
+    setReceipt(null);
   const discard = () => {
     setHeld(false);
     setAction(liveAction);
   };
+  const decided = useCallback(
+    (decision: "CERTIFY" | "RETURN", decidedFor: Correction) =>
+      setReceipt({
+        kind: decision,
+        correctionId: decidedFor.id,
+        version: decidedFor.version,
+      }),
+    [],
+  );
+  const disposed = useCallback(() => setReceipt({ kind: "DISPOSE" }), []);
   return (
     <>
+      {receipt === null ? null : (
+        <Notice
+          tone="success"
+          title={t(
+            receipt.kind === "CERTIFY"
+              ? "certified"
+              : receipt.kind === "RETURN"
+                ? "returned"
+                : "disposed",
+          )}
+          {...(receipt.kind === "RETURN" ? { body: t("returnedHint") } : {})}
+          testId="hr-review-receipt"
+        />
+      )}
       {detail.locked ? (
         <Notice
           tone="warning"
@@ -338,6 +388,7 @@ function DecisionArea({
           available={!detail.locked && pending?.id === action.correction.id}
           onHeld={setHeld}
           onDiscard={discard}
+          onDecided={decided}
         />
       ) : action?.kind === "disposition" ? (
         <DayDisposition
@@ -347,6 +398,7 @@ function DecisionArea({
           available={dispositionAvailable}
           onHeld={setHeld}
           onDiscard={discard}
+          onDecided={disposed}
         />
       ) : null}
     </>
@@ -360,6 +412,7 @@ function CorrectionDecision({
   available,
   onHeld,
   onDiscard,
+  onDecided,
 }: {
   readonly correction: Correction;
   readonly detail: DayDetail;
@@ -367,6 +420,11 @@ function CorrectionDecision({
   readonly available: boolean;
   readonly onHeld: (held: boolean) => void;
   readonly onDiscard: () => void;
+  /** A successful decision; its receipt is shown by the decision area. */
+  readonly onDecided: (
+    decision: "CERTIFY" | "RETURN",
+    correction: Correction,
+  ) => void;
 }) {
   const t = useTranslations("Hr.review");
   const form = useTranslations("Hr.form");
@@ -421,15 +479,17 @@ function CorrectionDecision({
     if (!available || changed || write.locked) return;
     setDecision(choice);
     setError(undefined);
-    await write.submit((requestId) =>
+    const sent = loaded;
+    const result = await write.submit((requestId) =>
       decide({
         requestId,
-        correctionId: loaded.id,
-        expectedVersion: loaded.version,
+        correctionId: sent.id,
+        expectedVersion: sent.version,
         decision: choice,
         ...(comment.trim() === "" ? {} : { reason: comment.trim() }),
       }),
     );
+    if (result.kind === "SAVED") onDecided(choice, sent);
   };
   // Return needs a reason: a first press reveals the field, and a typed
   // reason is sent as it stands.
@@ -637,12 +697,13 @@ function CorrectionDecision({
       {changed ? null : (
         <WriteFeedback
           state={write.state}
-          onRetry={() => void write.retry()}
-          saved={
-            <p role="status" className="text-sm font-semibold text-success">
-              {t(decision === "CERTIFY" ? "certified" : "returned")}
-            </p>
+          onRetry={() =>
+            void write.retry().then((result) => {
+              if (result.kind === "SAVED") onDecided(decision, loaded);
+            })
           }
+          // The decision area keeps the receipt once this form is gone.
+          saved={null}
         />
       )}
     </section>
@@ -914,6 +975,8 @@ function DispositionForm({
         <WriteFeedback
           state={write.state}
           onRetry={() => void write.retry().then(complete)}
+          // The decision area keeps the receipt once this form closes.
+          saved={null}
         />
       )}
     </form>

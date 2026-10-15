@@ -3,7 +3,7 @@
 import { CheckCircle2, CircleAlert, Clock, CalendarDays } from "lucide-react";
 import { useHrQuery } from "@/hooks/useHrQuery";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { TableScroller } from "@/components/ui/TableScroller";
 import { Link } from "@/i18n/navigation";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { hrRefs } from "@/lib/convex/hrApi";
+import { useUrlBackedState } from "@/lib/deepLink";
 import { HR_CODES, ROUTES, hrDayPath } from "@/lib/navigation";
 
 import { addDays, formatBusinessDate } from "./format";
@@ -38,6 +39,7 @@ import {
   useHrBack,
 } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
+import { useHrListCriteria } from "./HrListCriteria";
 import { monthRange } from "./selfService";
 import { HrToolbar } from "./HrUi";
 
@@ -106,21 +108,56 @@ export function DateRangeFields({
   );
 }
 
+/** Period and status filter in the URL, so Day → Back keeps the view. */
+const LIST_DEFAULTS = { from: "", to: "", status: "" } as const;
+const FILTERS = ["ALL", "READY", "EXCEPTION", "IN_PROGRESS"] as const;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 function HistoryContent() {
   const t = useTranslations("Hr.historySummary");
   const id = useId();
   const access = useHrAccess();
   const today = access.today ?? "";
-  const [range, setRange] = useState(
-    monthRange(today.slice(0, 7), today) ?? {
-      from: addDays(today, -13),
-      to: today,
-    },
+  const [criteria, setCriteria, entry] = useHrListCriteria(
+    LIST_DEFAULTS,
+    "history",
   );
-  const selected = monthRange(range.from.slice(0, 7), today);
+  // A malformed or partial URL range falls back to the current month; the
+  // server still validates the bounds and length of any chosen range.
+  const range =
+    ISO_DATE.test(criteria.from) && ISO_DATE.test(criteria.to)
+      ? { from: criteria.from, to: criteria.to }
+      : (monthRange(today.slice(0, 7), today) ?? {
+          from: addDays(today, -13),
+          to: today,
+        });
+  // The fields being edited. A bound that is cleared or not yet complete
+  // stays local (the URL and the query keep the last complete range), so the
+  // fallback never overwrites what is being typed nor its counterpart. Any
+  // URL change — a complete edit, a month pick, Back/Forward to another
+  // entry, a remount — restores the fields from the URL.
+  const [fields, setFields] = useUrlBackedState(
+    `${entry ?? ""}|${criteria.from}|${criteria.to}`,
+    range,
+  );
+  const setRange = (next: { from: string; to: string }) => {
+    setFields(next);
+    setCriteria({ from: next.from, to: next.to });
+  };
+  const editRange = (next: { from: string; to: string }) => {
+    setFields(next);
+    if (ISO_DATE.test(next.from) && ISO_DATE.test(next.to))
+      setCriteria({ from: next.from, to: next.to }, true);
+  };
+  const filter = (FILTERS as readonly string[]).includes(criteria.status)
+    ? criteria.status
+    : "ALL";
+  const setFilter = (next: string) =>
+    setCriteria({ status: next === "ALL" ? "" : next });
+  const selected = monthRange(fields.from.slice(0, 7), today);
   const month =
-    selected?.from === range.from && selected.to === range.to
-      ? range.from.slice(0, 7)
+    selected?.from === fields.from && selected.to === fields.to
+      ? fields.from.slice(0, 7)
       : "";
   const outcome = useHrQuery(hrRefs.history, range);
   return (
@@ -141,10 +178,18 @@ function HistoryContent() {
             />
           )}
         </FormField>
-        <DateRangeFields {...range} max={today} onChange={setRange} />
+        <DateRangeFields {...fields} max={today} onChange={editRange} />
       </HrToolbar>
       <HrQueryState outcome={outcome}>
-        {() => (outcome?.ok ? <HistorySummary result={outcome.value} /> : null)}
+        {() =>
+          outcome?.ok ? (
+            <HistorySummary
+              result={outcome.value}
+              filter={filter}
+              setFilter={setFilter}
+            />
+          ) : null
+        }
       </HrQueryState>
     </div>
   );
@@ -157,11 +202,14 @@ type HistoryRow = Extract<
 
 function HistorySummary({
   result,
+  filter,
+  setFilter,
 }: {
   readonly result: RefValue<typeof hrRefs.history>;
+  readonly filter: string;
+  readonly setFilter: (filter: string) => void;
 }) {
   const t = useTranslations("Hr.historySummary");
-  const [filter, setFilter] = useState("ALL");
   if (!result.ok) return <HrInlineError code={result.code} />;
   const rows = result.rows.filter(
     (row) => filter === "ALL" || row.status === filter,

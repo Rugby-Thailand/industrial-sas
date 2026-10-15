@@ -617,11 +617,18 @@
       "policy": "hub",
       "targets": ["src/features/hr/RequestsScreen#HrRequestsScreen"],
       "expectation": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available. Selected query editors return to their retained list without dropping query/hash intent.",
-      "tests": ["src/features/hr/HrBack.test.tsx"],
+      "tests": [
+        "src/features/hr/HrBack.test.tsx",
+        "src/features/hr/HrListReturn.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/hr/HrBack.test.tsx",
           "name": "%s returns through app history when there is a previous page"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "Requests status and older page -> request -> native Back restores the same page"
         }
       ],
       "conditionalParent": "src/features/hr/HrShared#useHrBack"
@@ -672,12 +679,31 @@
       "file": "src/app/[locale]/(desktop)/hr/time/page.tsx",
       "policy": "hub",
       "targets": ["src/features/hr/HistoryScreen#HrHistoryScreen"],
-      "expectation": "A module hub preserves actual-origin and foreground Back; direct entry has no synthetic parent or self-navigation.",
-      "tests": ["src/features/hr/HrBack.test.tsx"],
+      "expectation": "A module hub preserves actual-origin and foreground Back; direct entry has no synthetic parent or self-navigation. Its period and status filter are URL criteria, so a day visit followed by Back (or a direct link, in either locale) restores the earlier view with unrelated query/hash. A cleared or incomplete date bound stays a local field edit that never replaces its counterpart; only a complete range is written, and a month pick, Back/Forward or remount restores the fields from the URL.",
+      "tests": [
+        "src/features/hr/HrBack.test.tsx",
+        "src/features/hr/HrListReturn.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/hr/HrBack.test.tsx",
           "name": "%s returns through app history when there is a previous page"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "History month and status -> Day -> native Back restores the %s view, and Forward returns to the day"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "a direct History link opens its period and filter; a malformed range falls back to the current month"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "retains a cleared History date while editing without replacing the other bound"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "%s History keeps a cleared To bound local; a month pick, native Back and remount restore the URL range"
         }
       ],
       "conditionalParent": "src/features/hr/HrShared#useHrBack"
@@ -3839,20 +3865,44 @@
       "tests": ["src/features/hr/EmployeesNavigation.test.tsx"]
     },
     {
-      "id": "src/features/hr/HistoryScreen.tsx#HistorySummary:filter",
+      "id": "src/features/hr/EmployeesScreen.tsx#EmployeesContent:receipt",
       "policy": "presentation",
-      "uses": ["branch", "return"],
-      "expectation": "Status/usage filters change the visible list in place; the existing route or foreground owner governs Back.",
+      "uses": ["branch"],
+      "expectation": "A dismissible terminal saved receipt on the list after the editor's owned entry is consumed, naming any linked account or supervisor still lacking HR access with links to the existing Settings > HR access page (no grant is made). It adds no history entry, so the next Back reaches the actual caller; opening another editor replaces it and Cancel does not restore it.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": ["button", "src/components/ui/EmptyState#EmptyState"],
-          "falsy": ["HistoryTable"]
+          "truthy": [],
+          "falsy": ["EmployeeSavedReceipt"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "successful employee save closes the editor with a %s receipt and HR access handoff, then the next Back returns to the caller"
         },
         {
-          "shape": "early-return",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": []
+          "file": "src/features/hr/EmployeesNavigation.test.tsx",
+          "name": "an employee save receipt gives way to the next editor and omits the handoff once access is granted"
+        }
+      ],
+      "tests": ["src/features/hr/EmployeesNavigation.test.tsx"]
+    },
+    {
+      "id": "src/features/hr/HistoryScreen.tsx#HistoryContent:fields",
+      "policy": "presentation",
+      "expectation": "The History From/To field values while one bound is cleared or incomplete. They are inline filter inputs on the same hub, keyed to the URL criteria entry: only a complete range is written to the URL (one typing entry), and a month pick, Back/Forward to another entry or a remount restores both fields from the URL, so no unfinished edit is resurrected or replaces its counterpart.",
+      "uses": ["url-state"],
+      "render": [],
+      "tests": ["src/features/hr/HrListReturn.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "retains a cleared History date while editing without replacing the other bound"
+        },
+        {
+          "file": "src/features/hr/HrListReturn.test.tsx",
+          "name": "%s History keeps a cleared To bound local; a month pick, native Back and remount restore the URL range"
         }
       ]
     },
@@ -5509,34 +5559,6 @@
           "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
           "falsy": ["src/components/ui/button#Button"]
-        }
-      ]
-    },
-    {
-      "id": "src/features/hr/HistoryScreen.tsx#HistoryContent:range",
-      "policy": "presentation",
-      "expectation": "Date range filters the retained history list, including empty/invalid recovery; day selection uses route history.",
-      "uses": ["branch", "return"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["HistorySummary"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["button", "src/components/ui/EmptyState#EmptyState"],
-          "falsy": ["HistoryTable"]
-        },
-        {
-          "shape": "early-return",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": []
-        },
-        {
-          "shape": "early-return",
-          "truthy": ["src/features/hr/HrShared#HrInlineError"],
-          "falsy": []
         }
       ]
     },
@@ -7772,7 +7794,7 @@
       "id": "src/features/hr/CorrectionForm.tsx#CorrectionForm:loadedReturn",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Loaded returned-request identity/version binds the original correction command while dirty/pending. A changed target controls inline reconciliation/discard and feedback, and the terminal saved Panel stays visible through the live pending update before a later return opens resubmission. This remains an inline form/receipt, with its existing departure guard.",
+      "expectation": "Loaded returned-request identity/version binds the original correction command while dirty/pending. A loaded returned request shows its return reason and returned proposal as an inline Notice ahead of the time fields, without prefilling them. A changed target controls inline reconciliation/discard and feedback, and the terminal saved Panel stays visible through the live pending update before a later return opens resubmission. This remains an inline form/receipt, with its existing departure guard.",
       "render": [
         {
           "shape": "conditional",
@@ -7790,6 +7812,16 @@
         {
           "shape": "conditional",
           "truthy": [],
+          "falsy": [
+            "p",
+            "span",
+            "src/components/ui/Notice#Notice",
+            "src/features/hr/HrShared#TimeText"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
           "falsy": ["src/features/hr/HrShared#WriteFeedback"]
         },
         {
@@ -7802,6 +7834,10 @@
         {
           "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
           "name": "keeps a successful employee correction receipt after its live pending update"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "shows the return reason and returned proposal before the resubmission fields without prefilling them"
         }
       ],
       "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
@@ -7843,7 +7879,7 @@
       "id": "src/features/hr/ReviewDetail.tsx#DecisionArea:action",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Selects the inline disposition or correction decision within the unchanged day detail. Dirty/pending commands retain this same form over locking, a newly pending correction or another reviewer decision, with live eligibility Notices and disabled fresh writes. Explicit discard releases only this form; its existing draft guard owns departure.",
+      "expectation": "Selects the inline disposition or correction decision within the unchanged day detail. Dirty/pending commands retain this same form over locking, a newly pending correction or another reviewer decision, with live eligibility Notices and disabled fresh writes. A successful decision's own live update may then replace the form with the day's next state; its receipt is owned by DecisionArea:receipt, not by this form. Explicit discard releases only this form; its existing draft guard owns departure.",
       "render": [
         {
           "shape": "conditional",
@@ -7886,7 +7922,7 @@
         {
           "shape": "conditional",
           "truthy": [],
-          "falsy": ["p[role=status]", "src/features/hr/HrShared#WriteFeedback"]
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
         }
       ],
       "cases": [
@@ -7909,12 +7945,52 @@
         {
           "file": "src/features/hr/HrBackNavigation.test.tsx",
           "name": "discarding a live-invalidated review return draft consumes the detail before the next %s Back restores the real locale query and hash"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps the Return receipt above the missing clock-out disposition the day needs next"
         }
       ],
       "tests": [
         "src/features/hr/HrLiveDayDrafts.test.tsx",
         "src/features/hr/HrBackNavigation.test.tsx"
       ]
+    },
+    {
+      "id": "src/features/hr/ReviewDetail.tsx#DecisionArea:receipt",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "A terminal role=status receipt for the reviewer's last successful Certify, Return or disposition on this day, kept above the day's next state after the decision's own live update unmounts the sending form. It adds no history entry, opens no foreground and resurrects no editable command on Back; a newer pending request supersedes it and the day key resets it.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["src/components/ui/Notice#Notice"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps the Return receipt over a complete day that now has nothing to decide"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps the Return receipt above the missing clock-out disposition the day needs next"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps the Certify receipt after the certified day replaces the decision form"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps the disposition receipt after its own live certification closes the form"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "drops the Return receipt once the employee resubmits the request"
+        }
+      ],
+      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
     },
     {
       "id": "src/features/hr/ReviewDetail.tsx#CorrectionDecision:loaded",
@@ -7938,7 +8014,7 @@
         {
           "shape": "conditional",
           "truthy": [],
-          "falsy": ["p[role=status]", "src/features/hr/HrShared#WriteFeedback"]
+          "falsy": ["src/features/hr/HrShared#WriteFeedback"]
         }
       ],
       "cases": [
@@ -7957,6 +8033,10 @@
         {
           "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
           "name": "keeps a pending reviewer decision bound to its loaded version after another reviewer decides"
+        },
+        {
+          "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
+          "name": "keeps the Certify receipt after the certified day replaces the decision form"
         }
       ],
       "tests": [
