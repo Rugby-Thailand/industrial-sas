@@ -1,5 +1,5 @@
 "use client";
-import { memo, useMemo, type ReactNode } from "react";
+import { memo, useId, useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { placementStatusKey } from "@/lib/storageLayouts/storageKit";
 import { SceneBox } from "@/components/storageScene/SceneBox";
@@ -15,11 +15,12 @@ import { useFloorMapViewport } from "./useFloorMapViewport";
 import { useFloorMapPan } from "./useFloorMapPan";
 import { useStorageLayoutMobile } from "./useStorageLayoutMobile";
 import { floorPositions, positionAisles } from "./floorPositionGeometry";
-import { planCellLabelLayout } from "./planCellLabelLayout";
+import { labelEm, planCellLabelLayout } from "./planCellLabelLayout";
 import { ReservedAreaShape } from "./StorageZoneVisualizer";
 import {
   adjacentZone,
   floorZoneUnitCount,
+  floorZoneState,
   floorPlanBounds,
   isAisleBlock,
   labelZoom,
@@ -30,6 +31,8 @@ import {
   planColors,
   visualAreaColor,
 } from "./floorMapGeometry";
+const shortZoneCode = (code: string) => code.slice(code.indexOf("-") + 1);
+
 function SceneDrawing({
   view,
   rotation,
@@ -79,6 +82,7 @@ function SceneDrawing({
   children: ReactNode;
 }) {
   const t = useTranslations("StorageLayouts");
+  const incompletePatternId = `${useId()}-incomplete`;
   const {
     svg: viewportSvg,
     footer,
@@ -116,6 +120,14 @@ function SceneDrawing({
       ),
     [props.zones],
   );
+  const shortCodeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const zone of props.zones) {
+      const code = shortZoneCode(zone.code);
+      counts.set(code, (counts.get(code) ?? 0) + 1);
+    }
+    return counts;
+  }, [props.zones]);
   const pdGroups = useMemo(() => {
     const groups = new Map<string, StorageZoneRow[]>();
     for (const zone of pdCells(props.zones)) {
@@ -169,9 +181,10 @@ function SceneDrawing({
     maxY = Math.max(...ys);
   const frameHeight = aspect ? frameWidth * aspect : compactPlan ? 500 : 660;
   const frameCenterY = frameHeight / 2;
-  const labelSpace = showLocationLabels && !hasPdCells;
+  const labelSpace = view === "3d" && showLocationLabels && !hasPdCells;
   // Keep the fit margin in screen pixels when panels change the SVG width.
   const screenUnit = frameWidth / (size?.width ?? frameWidth);
+  const pixelsToFrame = screenUnit / zoom;
   const tightPlan = view === "plan" && !labelSpace;
   const labelMargin = labelSpace
     ? Math.min(220, frameHeight / 3)
@@ -219,11 +232,9 @@ function SceneDrawing({
   );
   const labels: { x: number; y: number }[] = [];
   const zoneOrder = (
-    detailedPlan || !showLocationLabels
+    view === "plan" || detailedPlan || !showLocationLabels
       ? []
-      : props.zones.filter(
-          (zone) => view !== "plan" || zone.placements.length > 0,
-        )
+      : [...props.zones]
   ).sort(
     (a, b) => Number(b.zoneId === selectedId) - Number(a.zoneId === selectedId),
   );
@@ -347,6 +358,26 @@ function SceneDrawing({
             target.yMm + target.depthMm / 2,
           )
         : framePoint(sceneCenter);
+  // Hide whole codes at the viewport edge or under fixed annotations.
+  // These are fixed occupied rectangles, not a label-placement algorithm.
+  const labelIsVisible = (code: string, x: number, y: number) => {
+    const cx = (frameCenterX + (x - center.x) * zoom) / screenUnit;
+    const cy = (frameCenterY + (y - center.y) * zoom) / screenUnit;
+    const halfWidth = labelEm(code) * 7;
+    const left = cx - halfWidth,
+      right = cx + halfWidth;
+    const top = cy - 10,
+      bottom = cy + 10;
+    const scaleLeft = (scaleBarRight - scaleBarWidth) / screenUnit - 8;
+    const scaleRight = scaleBarRight / screenUnit + 8;
+    return (
+      left >= 2 &&
+      right <= frameWidth / screenUnit - 2 &&
+      top >= 2 &&
+      bottom <= frameHeight / screenUnit - footerHeight - 8 &&
+      !(left < scaleRight && right > scaleLeft && top < 36 && bottom > 4)
+    );
+  };
   const transform = (point: { x: number; y: number }) =>
     `translate(${frameCenterX - point.x * zoom} ${frameCenterY - point.y * zoom}) scale(${zoom})`;
   const { group: panGroup, handlers: panHandlers } = useFloorMapPan({
@@ -378,6 +409,29 @@ function SceneDrawing({
         tabIndex={-1}
       >
         <desc>{t("mapKeyboardHint")}</desc>
+        <defs>
+          <pattern
+            id={incompletePatternId}
+            patternUnits="userSpaceOnUse"
+            width={6 * pixelsToFrame}
+            height={6 * pixelsToFrame}
+            patternTransform="rotate(45)"
+          >
+            <rect
+              width={6 * pixelsToFrame}
+              height={6 * pixelsToFrame}
+              fill="var(--plan-occupied)"
+            />
+            <line
+              x1={0}
+              y1={0}
+              x2={0}
+              y2={6 * pixelsToFrame}
+              stroke="var(--plan-wall)"
+              strokeWidth={pixelsToFrame}
+            />
+          </pattern>
+        </defs>
         <g ref={panGroup} transform={transform(center)}>
           {reference && (
             <polygon
@@ -558,8 +612,26 @@ function SceneDrawing({
           })}
           {orderedZones.map((zone) => {
             const active = zone.zoneId === selectedId;
-            const cellLabel = zone.label.trim() || zone.code;
-            const shortCode = zone.code.split("-").at(-1)!;
+            const suffix = shortZoneCode(zone.code);
+            const cellLabel =
+              pdGroupCode(zone.code) || shortCodeCounts.get(suffix) !== 1
+                ? zone.code
+                : suffix;
+            const state = floorZoneState(zone);
+            const occupied = state !== "empty" && state !== "reserved";
+            const fill =
+              state === "unknown"
+                ? `url(#${incompletePatternId})`
+                : occupied
+                  ? "var(--plan-occupied)"
+                  : "var(--plan-empty)";
+            const stroke = active
+              ? "var(--plan-selected-border)"
+              : state !== "empty"
+                ? "var(--plan-occupied-border)"
+                : "var(--plan-wall)";
+            const dash =
+              state === "reserved" || state === "mixed" ? "4 3" : undefined;
             const base = rect(zone.xMm, zone.yMm, zone.widthMm, zone.depthMm);
             const cellWidth = Math.abs(base[1]!.x - base[0]!.x) * zoom;
             const cellHeight = Math.abs(base[3]!.y - base[0]!.y) * zoom;
@@ -568,18 +640,19 @@ function SceneDrawing({
               group &&
               !(group.xMm <= 1500 && group.widthMm >= 6000) &&
               zone.yMm === group.yMm;
-            const estimatedLabelWidth = [...cellLabel].reduce(
-              (width, character) =>
-                width + (character.charCodeAt(0) > 127 ? 1 : 0.62),
-              0,
-            );
-            const labelFontSizePx = Math.min(
-              13,
-              (cellWidth - 8) / Math.max(estimatedLabelWidth, 1),
-            );
-            const labelFits =
-              labelFontSizePx >= 8 &&
-              cellHeight >= (markerInFirstRow ? 38 : 20);
+            const labelLayout = planCellLabelLayout({
+              width: cellWidth / screenUnit,
+              height: cellHeight / screenUnit - (markerInFirstRow ? 20 : 0),
+              code: cellLabel,
+            });
+            const labelX = (base[0]!.x + base[1]!.x) / 2;
+            const labelY =
+              (base[0]!.y + base[3]!.y) / 2 +
+              (markerInFirstRow ? 10 * pixelsToFrame : 0);
+            const labelFontSize =
+              labelLayout.code && labelIsVisible(cellLabel, labelX, labelY)
+                ? labelLayout.code.fontSize * pixelsToFrame
+                : undefined;
             const top = rect(
               zone.xMm,
               zone.yMm,
@@ -660,20 +733,10 @@ function SceneDrawing({
                           width={base[1]!.x - base[0]!.x}
                           height={base[3]!.y - base[0]!.y}
                           rx={Math.min(4, (base[1]!.x - base[0]!.x) / 10)}
-                          fill={
-                            active
-                              ? "var(--plan-selected)"
-                              : floorZoneUnitCount(zone) > 0
-                                ? "var(--plan-occupied)"
-                                : "var(--plan-empty)"
-                          }
-                          stroke={
-                            active
-                              ? "var(--plan-selected-border)"
-                              : floorZoneUnitCount(zone) > 0
-                                ? "var(--plan-occupied-border)"
-                                : "var(--plan-wall)"
-                          }
+                          fill={fill}
+                          stroke={stroke}
+                          strokeDasharray={dash}
+                          data-floor-zone-state={state}
                           strokeWidth={active ? 3 : 1.5}
                           vectorEffect="non-scaling-stroke"
                           data-zone-face="plan"
@@ -684,64 +747,21 @@ function SceneDrawing({
                               : "group-focus-visible:stroke-text"
                           }
                         />
-                        {(() => {
-                          // Size the label in CSS pixels from the cell's real
-                          // projected size, then undo the parent zoom so it
-                          // stays readable instead of growing past the cell.
-                          const unitCount = floorZoneUnitCount(zone);
-                          const status = unitCount
-                            ? t("mapUnitCount", { count: unitCount })
-                            : t("mapEmpty");
-                          const pixelsToFrame = screenUnit / zoom;
-                          const layout = planCellLabelLayout({
-                            width:
-                              Math.abs(base[1]!.x - base[0]!.x) / pixelsToFrame,
-                            height:
-                              Math.abs(base[3]!.y - base[0]!.y) / pixelsToFrame,
-                            code: shortCode,
-                            status,
-                          });
-                          if (!layout.code) return null;
-                          const x = (base[0]!.x + base[1]!.x) / 2;
-                          const y = (base[0]!.y + base[3]!.y) / 2;
-                          return (
-                            <text
-                              data-floor-zone-name={zone.code}
-                              x={x}
-                              y={y + layout.code.offsetY * pixelsToFrame}
-                              textAnchor="middle"
-                              dominantBaseline="central"
-                              fill={
-                                active
-                                  ? "var(--plan-selected-text)"
-                                  : "var(--plan-text)"
-                              }
-                              fontSize={layout.code.fontSize * pixelsToFrame}
-                              fontWeight="600"
-                              className="pointer-events-none font-mono"
-                            >
-                              {shortCode}
-                              {layout.status && (
-                                <tspan
-                                  data-floor-zone-status
-                                  x={x}
-                                  y={y + layout.status.offsetY * pixelsToFrame}
-                                  dominantBaseline="central"
-                                  fontSize={
-                                    layout.status.fontSize * pixelsToFrame
-                                  }
-                                  fill={
-                                    active
-                                      ? "var(--plan-selected-text)"
-                                      : "var(--plan-muted)"
-                                  }
-                                >
-                                  {status}
-                                </tspan>
-                              )}
-                            </text>
-                          );
-                        })()}
+                        {labelFontSize && (
+                          <text
+                            data-floor-zone-name={zone.code}
+                            x={(base[0]!.x + base[1]!.x) / 2}
+                            y={(base[0]!.y + base[3]!.y) / 2}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fill="var(--plan-text)"
+                            fontSize={labelFontSize}
+                            fontWeight="600"
+                            className="pointer-events-none font-mono"
+                          >
+                            {cellLabel}
+                          </text>
+                        )}
                       </>
                     )}
                   {view === "plan" && pdGroupCode(zone.code) && (
@@ -750,20 +770,10 @@ function SceneDrawing({
                         data-floor-zone-code={zone.code}
                         data-pd-cell-code={zone.code}
                         points={pts(base)}
-                        fill={
-                          active
-                            ? "var(--plan-selected)"
-                            : floorZoneUnitCount(zone) > 0
-                              ? "var(--plan-occupied)"
-                              : "var(--plan-empty)"
-                        }
-                        stroke={
-                          active
-                            ? "var(--plan-selected-border)"
-                            : floorZoneUnitCount(zone) > 0
-                              ? "var(--plan-occupied-border)"
-                              : "var(--plan-wall)"
-                        }
+                        fill={fill}
+                        stroke={stroke}
+                        strokeDasharray={dash}
+                        data-floor-zone-state={state}
                         strokeWidth={active ? 1.5 : 0.75}
                         vectorEffect="non-scaling-stroke"
                         className={
@@ -771,7 +781,7 @@ function SceneDrawing({
                         }
                       />
                       {(active || showLocationLabels || zoom >= labelZoom) &&
-                        labelFits && (
+                        labelFontSize && (
                           <text
                             x={
                               point(
@@ -783,18 +793,15 @@ function SceneDrawing({
                               point(
                                 zone.xMm + zone.widthMm / 2,
                                 zone.yMm + zone.depthMm / 2,
-                              ).y
+                              ).y + (markerInFirstRow ? 10 * pixelsToFrame : 0)
                             }
                             textAnchor="middle"
-                            dominantBaseline="middle"
-                            fill={
-                              active
-                                ? "var(--plan-selected-text)"
-                                : planColors.storageLabel
-                            }
-                            fontSize={labelFontSizePx / zoom}
+                            dominantBaseline="central"
+                            data-floor-zone-name={zone.code}
+                            fill="var(--plan-text)"
+                            fontSize={labelFontSize}
                             fontWeight="700"
-                            className="pointer-events-none"
+                            className="pointer-events-none font-mono"
                           >
                             {cellLabel}
                           </text>
@@ -856,7 +863,7 @@ function SceneDrawing({
                         strokeWidth={active ? 1.5 : 1}
                         vectorEffect="non-scaling-stroke"
                       />
-                      {showLocationLabels && (
+                      {showLocationLabels && labelFontSize && (
                         <text
                           x={
                             point(
@@ -876,11 +883,12 @@ function SceneDrawing({
                           stroke="#c7dcdf"
                           strokeWidth={3 / zoom}
                           paintOrder="stroke"
-                          fontSize={13 / zoom}
+                          data-floor-zone-name={zone.code}
+                          fontSize={labelFontSize}
                           fontWeight="700"
                           className="pointer-events-none"
                         >
-                          {zone.code}
+                          {cellLabel}
                         </text>
                       )}
                     </>

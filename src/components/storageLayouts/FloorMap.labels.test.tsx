@@ -89,7 +89,11 @@ describe("floor location labels", () => {
     const map = screen.getByRole("group", { name: "Interactive floor map" });
     expect(map).toHaveAttribute("preserveAspectRatio", "xMidYMid meet");
     expect(map).toHaveClass(styles.svg!);
-    expect(map.querySelectorAll("[data-floor-zone-name]")).toHaveLength(15);
+    expect(map.querySelectorAll("[data-floor-zone-code]")).toHaveLength(15);
+    expect(
+      map.querySelectorAll("[data-floor-zone-name]").length,
+    ).toBeGreaterThan(0);
+    expect(map.querySelector('[data-floor-zone-name="FG1-R04"]')).toBeNull();
     expect(
       map.querySelector('[data-floor-zone-code="FG1-L01"]'),
     ).toHaveAttribute("fill", "var(--plan-empty)");
@@ -100,7 +104,10 @@ describe("floor location labels", () => {
       [...map.querySelectorAll("[data-floor-zone-name]")]
         .map((e) => e.firstChild?.textContent)
         .sort(),
-    ).toEqual(plan.cells.map((c) => c.code.split("-").at(-1)).sort());
+    ).toEqual(expect.arrayContaining(["L01", "L02", "L03"]));
+    for (const label of map.querySelectorAll("[data-floor-zone-name]")) {
+      expect(label.querySelector("tspan")).toBeNull();
+    }
     expect(map.querySelectorAll("[data-floor-callout]")).toHaveLength(0);
     expect(screen.getAllByRole("button", { name: "2D plan" })).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: "3D view" })).toHaveLength(1);
@@ -438,11 +445,20 @@ describe("floor location labels", () => {
     expect(
       map.querySelector('[data-pd-cell-code="F1-L26-1"] + text'),
     ).toBeNull();
-    for (let click = 0; click < 4; click += 1)
+    fireEvent.click(
+      within(map).getByRole("button", { name: "Select location F1-L26-1" }),
+    );
+    for (let click = 0; click < 12; click += 1)
       fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
     const label = map.querySelector('[data-pd-cell-code="F1-L26-1"] + text');
     expect(label).toHaveTextContent("F1-L26-1");
-    expect(Number(label?.getAttribute("font-size")) * 3).toBeLessThan(13);
+    const zoom = Number(
+      map
+        .querySelector(":scope > g")!
+        .getAttribute("transform")!
+        .match(/scale\(([\d.]+)\)/)![1],
+    );
+    expect(Number(label?.getAttribute("font-size")) * zoom).toBeCloseTo(14, 6);
   });
 
   it("shows every floor position and the two 300 mm aisles inside PD-L1", () => {
@@ -500,13 +516,16 @@ describe("floor location labels", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(first.container.querySelector("[data-floor-callout]")).toBeNull();
+    expect(
+      first.container.querySelectorAll("[data-floor-zone-name]"),
+    ).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "3D view" }));
     expect(
       first.container.querySelector("[data-floor-callout]"),
     ).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
-    expect(
-      first.container.querySelector("[data-floor-callout]"),
-    ).not.toBeNull();
+    expect(first.container.querySelector("[data-floor-callout]")).toBeNull();
     const map = screen.getByRole("group", { name: "Interactive floor map" });
     const zone = within(map).getByRole("button", {
       name: /Select location FG-A/,
@@ -517,9 +536,7 @@ describe("floor location labels", () => {
 
     const second = renderMap(2);
     expect(detailedLabelsButton()).toHaveAttribute("aria-pressed", "true");
-    expect(
-      second.container.querySelector("[data-floor-callout]"),
-    ).not.toBeNull();
+    expect(second.container.querySelector("[data-floor-callout]")).toBeNull();
     fireEvent.click(detailedLabelsButton());
     expect(second.container.querySelector("[data-floor-callout]")).toBeNull();
   });
@@ -556,8 +573,13 @@ describe("floor location labels", () => {
     const location = view.container.querySelector(
       `[data-map-zone-id="${zone.zoneId}"]`,
     );
-    expect(location).toHaveTextContent("2 units");
-    expect(location?.querySelector("tspan")).not.toHaveTextContent("Empty");
+    expect(location?.querySelector("[data-floor-zone-code]")).toHaveAttribute(
+      "data-floor-zone-state",
+      "unknown",
+    );
+    expect(location?.querySelector("tspan")).toBeNull();
+    expect(within(inspector).getByText("2 units")).toBeInTheDocument();
+    expect(screen.getByText("Status incomplete")).toBeInTheDocument();
   });
 
   it("searches from the location toolbar without opening details while typing", () => {
@@ -636,6 +658,9 @@ describe("floor map interaction", () => {
     expect(location).toHaveAttribute("aria-pressed", "true");
     expect(
       location.querySelector("[data-pd-cell-code] + text"),
+    ).toHaveTextContent(code);
+    expect(
+      screen.getByRole("complementary", { name: "Selected location" }),
     ).toHaveTextContent("Rack 23 · Cell 12");
     expect(location).not.toHaveClass("focus-visible:outline-2");
     expect(location).toHaveStyle({ outline: "none" });
@@ -649,7 +674,7 @@ describe("floor map interaction", () => {
     );
     expect(location.querySelector("[data-pd-cell-code]")).toHaveAttribute(
       "fill",
-      "var(--plan-selected)",
+      "var(--plan-empty)",
     );
     expect(location.querySelector("[data-pd-cell-code]")).not.toHaveClass(
       "group-focus-visible:stroke-text",
@@ -753,13 +778,16 @@ describe("floor map interaction", () => {
     expect(zoomOut).toBeDisabled();
   });
 
-  it("shows every position label once zoomed in", () => {
-    const { map } = renderCells();
+  it("reveals visible position codes when zoomed and keeps every position selectable", () => {
+    const { map, cell } = renderCells();
     const labels = () => [...map.querySelectorAll("[data-map-zone-id] text")];
     expect(labels()).toHaveLength(0);
     const zoomIn = screen.getByRole("button", { name: "Zoom in" });
     for (let step = 0; step < 4; step += 1) fireEvent.click(zoomIn);
-    expect(labels()).toHaveLength(10);
+    expect(labels().length).toBeGreaterThan(0);
+    expect(labels().length).toBeLessThan(10);
+    expect(map.querySelectorAll("[data-map-zone-id]")).toHaveLength(10);
+    fireEvent.click(cell(3));
     expect(labels().map((label) => label.textContent)).toContain("F1-L8-3");
   });
 

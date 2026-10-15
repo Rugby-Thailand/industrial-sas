@@ -152,6 +152,14 @@
   background: transparent;
   border-style: dashed;
 }
+.incomplete {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--plan-occupied) 0 3px,
+    var(--plan-wall) 3px 4px,
+    var(--plan-occupied) 4px 6px
+  );
+}
 .details {
   margin-top: 18px;
 }

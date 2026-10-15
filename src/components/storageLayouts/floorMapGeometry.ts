@@ -41,6 +41,14 @@ export function floorPlanBounds(
 }
 export const floorZoneUnitCount = (zone: StorageZoneRow) =>
   locationInventory(zone).units;
+/** Counts stay in the inspector; the plan communicates state with fill and line. */
+export function floorZoneState(zone: StorageZoneRow) {
+  const inventory = locationInventory(zone);
+  if (inventory.incomplete) return "unknown";
+  if (inventory.reserved > 0)
+    return inventory.stored > 0 ? "mixed" : "reserved";
+  return inventory.units > 0 ? "stored" : "empty";
+}
 export const hasUnmeasuredInventory = (zone: StorageZoneRow) =>
   locationInventory(zone).measuredAreaPartial;
 // Zoom level from which storage positions show their labels when they fit.

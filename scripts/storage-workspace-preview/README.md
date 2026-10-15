@@ -6,7 +6,8 @@ floor selector with the app's styles, translations and providers. It does not
 start Convex, use authentication, or write inventory. Floor 2 uses the approved
 PD geometry with 198 positions; two demo pallets exercise stored/reserved
 filters. Floor 1 uses the existing four-location demo. `?fixture=empty` removes
-PD demo inventory for profiling.
+PD demo inventory for profiling. `?fixture=fg1&locale=th` uses the approved FG1
+geometry with synthetic occupancy for the single-line label regressions.
 
 With the server running, run
 `node scripts/storage-workspace-preview/verify.mjs` to assert the desktop and

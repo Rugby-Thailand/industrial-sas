@@ -627,6 +627,7 @@
       "empty": "No storage locations match",
       "incomplete": "≥ is the known minimum. Some units have no individual status details in this list."
     },
+    "mapStatusIncomplete": "Status incomplete",
     "mapEmpty": "Empty",
     "mapUnitCount": "{count, plural, one {# unit} other {# units}}",
     "mapFootprint": "Floor footprint used or reserved: {percent}%",
