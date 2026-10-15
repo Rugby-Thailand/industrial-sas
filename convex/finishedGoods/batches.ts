@@ -548,8 +548,9 @@ export const pageLegacyUnits = queryWithOrg({
         return row?.productId === args.productId ? row : null;
       },
       hydrate: createUnitReader(ctx),
-      matches: (unit) =>
+      matchesDocument: (unit) =>
         !unit.preparationBatchId && unit.retiredAt === undefined,
+      matches: () => true,
     });
   },
 });

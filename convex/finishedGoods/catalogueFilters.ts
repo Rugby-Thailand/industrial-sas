@@ -44,6 +44,7 @@ const inRange = (value: number | undefined, range: Range) =>
   (value !== undefined &&
     (!range.min || value >= Number(range.min)) &&
     (!range.max || value <= Number(range.max)));
+const exactOrder = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 export function matchesRow(row: FilterRow, f: Filters, search: string) {
   return (
     includes(row.search, search) &&
@@ -72,19 +73,27 @@ export function createRowComparator(sort: string, locale: string) {
     sensitivity: "base",
   });
   return (a: FilterRow, b: FilterRow) => {
+    // Distinct counting units stay in distinct groups even when the locale
+    // collator treats their case or accents as equal. ID order here would
+    // conflict with quantity order within a group and break page anchors.
     if (field === "quantity" && a.unit !== b.unit)
-      return collator.compare(a.unit, b.unit) || a.id.localeCompare(b.id);
+      return collator.compare(a.unit, b.unit) || exactOrder(a.unit, b.unit);
     const av = a[field as keyof FilterRow],
       bv = b[field as keyof FilterRow];
     if (av === undefined || bv === undefined)
-      return av === bv ? a.id.localeCompare(b.id) : av === undefined ? 1 : -1;
+      return av === bv
+        ? collator.compare(a.id, b.id) || exactOrder(a.id, b.id)
+        : av === undefined
+          ? 1
+          : -1;
     const comparison =
       typeof av === "number" && typeof bv === "number"
         ? av - bv
         : collator.compare(String(av), String(bv));
     return (
       comparison * (direction === "desc" ? -1 : 1) ||
-      collator.compare(a.id, b.id)
+      collator.compare(a.id, b.id) ||
+      exactOrder(a.id, b.id)
     );
   };
 }

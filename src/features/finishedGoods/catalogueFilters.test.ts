@@ -123,6 +123,34 @@ describe("server catalogue sorting", () => {
         .map((row) => row.id),
     ).toEqual(["kg-high", "kg-low", "pieces"]);
   });
+  it.each(["en", "th"])(
+    "keeps case- and accent-variant units in a total order shared by the client in %s",
+    (locale) => {
+      const sample = [
+        { ...serverRow, id: "a", unit: "PCS", quantity: 5 },
+        { ...serverRow, id: "b", unit: "pcs", quantity: 3 },
+        { ...serverRow, id: "c", unit: "PCS", quantity: 1 },
+        { ...serverRow, id: "d", unit: "pćs", quantity: 4 },
+        { ...serverRow, id: "e", unit: "pcs", quantity: 2 },
+      ];
+      for (const direction of ["asc", "desc"]) {
+        const sort = `quantity:${direction}`;
+        const compare = createRowComparator(sort, locale);
+        const ordered = [...sample].sort(compare);
+        for (let i = 0; i < ordered.length; i++) {
+          for (let j = i + 1; j < ordered.length; j++) {
+            expect(compare(ordered[i]!, ordered[j]!)).toBeLessThan(0);
+            expect(compare(ordered[j]!, ordered[i]!)).toBeGreaterThan(0);
+          }
+        }
+        expect(
+          filterRows(sample, { ...newFilters(), sort }, "", locale).map(
+            (row) => row.id,
+          ),
+        ).toEqual(ordered.map((row) => row.id));
+      }
+    },
+  );
   it("keeps the default newest-first order with deterministic identity ties", () => {
     const sample = [
       { ...serverRow, id: "b", updatedAt: 2 },

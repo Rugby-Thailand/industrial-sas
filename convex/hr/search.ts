@@ -230,11 +230,21 @@ async function search(
   if (needle === null) return await present(ctx, matches, lookup.complete);
   const seen = new Set(exact.map((employee) => employee._id));
   const scan = await candidates();
-  for (const employee of await visible(scan.employees)) {
-    if (seen.has(employee._id)) continue;
-    const match = matchOf(employee, needle);
-    if (match !== null) matches.push({ employee, match });
-  }
+  // Match cheap record fields before checking retained identity histories.
+  // Every possible result still passes the same visibility/security check;
+  // unrelated employees must not consume its bounded audit-read budget.
+  const matching = scan.employees.flatMap((employee) => {
+    const match = seen.has(employee._id) ? null : matchOf(employee, needle);
+    return match === null ? [] : [{ employee, match }];
+  });
+  const visibleIds = new Set(
+    (await visible(matching.map(({ employee }) => employee))).map(
+      (employee) => employee._id,
+    ),
+  );
+  matches.push(
+    ...matching.filter(({ employee }) => visibleIds.has(employee._id)),
+  );
   return await present(ctx, matches, lookup.complete && scan.complete);
 }
 

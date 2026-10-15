@@ -172,9 +172,28 @@ function unitFilter(unit: UnitRow): FilterRow {
     updatedAt: unit.updatedAt,
   };
 }
-/** Search products and their unit text without loading every unit. The inner cursor
- * preserves the text tail so substring matches spanning field/record boundaries
- * have the same semantics as the former joined browser string. */
+/** Raw unit rows read by one native continuation page of a large product. */
+const SEARCH_UNIT_PAGE = 50;
+/** A bounded probe reads one extra raw row: fewer rows proves the whole range. */
+const SEARCH_UNIT_PROBE = SEARCH_UNIT_PAGE + 1;
+/** Products in one native product chunk, and so the most pending products. */
+const SEARCH_PRODUCT_CHUNK = 20;
+/** Raw unit rows that probes may read in one request (10 full probes). */
+const SEARCH_PROBE_ROW_BUDGET = 10 * SEARCH_UNIT_PROBE;
+
+/** Search products and their unit text without loading every unit.
+ *
+ * Each product matches when its name/SKU text, followed by every live unit's
+ * code/lot text in index order, contains the needle. The inner cursor keeps a
+ * text tail so matches spanning field/record boundaries keep the semantics of
+ * the former joined browser string.
+ *
+ * One request evaluates products in index order until it fills `limit`, runs
+ * out of probe budget, or needs a second native page. Small products are read
+ * completely with a bounded `take` probe, which does not consume the single
+ * native `paginate` Convex allows per query. Only when a probe returns more raw
+ * rows (retired and cancelled included) than one unit page does the product
+ * continue through the native per-product unit range, from its first unit. */
 async function readSearchedProducts(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -184,9 +203,11 @@ async function readSearchedProducts(
 ): Promise<TenantIndexPage<Doc<"finishedGoodsProducts">>> {
   type SearchState = {
     scope: string;
-    productRange?: NativeRangeState;
+    productRange?: NativeRangeState | undefined;
+    /** Unfinished products in index order; the first may own `unitRange`. */
     products: string[];
     productsDone: boolean;
+    /** Present (possibly `{}`) while the first product uses native unit pages. */
     unitRange?: NativeRangeState | undefined;
     tail?: string | undefined;
   };
@@ -210,115 +231,126 @@ async function readSearchedProducts(
   )
     throw new Error("CATALOGUE_CURSOR_INVALID");
   const needle = search.trim().toLocaleLowerCase();
-  if (!state.products.length) {
-    if (state.productsDone)
-      return { page: [], isDone: true, continueCursor: "" };
-    const chunk = await ctx.tenantDb
-      .byIndex<Doc<"finishedGoodsProducts">>(
-        "finishedGoodsProducts",
-        "by_orgId_warehouseId_updatedAt",
-        [{ field: "warehouseId", value: warehouseId }],
-      )
-      .page({
-        limit: 20,
-        cursor: state.productRange?.raw,
-        endCursor: state.productRange?.end,
-        order: "desc",
-      });
-    const advance = advanceNativeRange(state.productRange ?? {}, chunk);
-    if (advance.split)
-      return {
-        page: [],
-        isDone: false,
-        continueCursor: JSON.stringify({
-          ...state,
-          productRange: advance.range,
-        }),
-      };
-    const direct: Doc<"finishedGoodsProducts">[] = [];
-    for (const product of chunk.page) {
-      if (
-        direct.length >= limit ||
-        !`${product.name} ${product.sku}`.toLocaleLowerCase().includes(needle)
-      )
-        break;
-      direct.push(product);
-    }
-    const pending = chunk.page.slice(direct.length).map((p) => p._id);
-    const isDone = advance.exhausted && pending.length === 0;
-    return {
-      page: direct,
-      isDone,
-      continueCursor: isDone
-        ? ""
-        : JSON.stringify({
-            ...state,
-            productRange: advance.range,
-            products: pending,
-            productsDone: advance.exhausted,
-          }),
-    };
-  }
-  const id = state.products[0]!;
-  const product = await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
-    "finishedGoodsProducts",
-    id,
-  );
-  if (!product || product.warehouseId !== warehouseId)
-    throw new Error("CATALOGUE_CURSOR_INVALID");
-  const prefix =
-    state.tail ?? `${product.name} ${product.sku} `.toLocaleLowerCase();
-  let found = prefix.includes(needle);
-  let done = found;
-  let unitRange = state.unitRange;
-  let tail = prefix;
-  if (!found) {
-    const chunk = await ctx.tenantDb
-      .byIndex<Doc<"finishedGoodsPallets">>(
-        "finishedGoodsPallets",
-        "by_orgId_warehouseId_productId_updatedAt",
-        [
-          { field: "warehouseId", value: warehouseId },
-          { field: "productId", value: id },
-        ],
-      )
-      .page({
-        limit: 50,
-        cursor: state.unitRange?.raw,
-        endCursor: state.unitRange?.end,
-        order: "desc",
-      });
-    const advance = advanceNativeRange(state.unitRange ?? {}, chunk);
-    if (advance.split)
-      return {
-        page: [],
-        isDone: false,
-        continueCursor: JSON.stringify({ ...state, unitRange: advance.range }),
-      };
-    for (const unit of chunk.page) {
+  const units = (productId: string) =>
+    ctx.tenantDb.byIndex<Doc<"finishedGoodsPallets">>(
+      "finishedGoodsPallets",
+      "by_orgId_warehouseId_productId_updatedAt",
+      [
+        { field: "warehouseId", value: warehouseId },
+        { field: "productId", value: productId },
+      ],
+    );
+  /** Stream live unit text after `tail`; returns the new tail or a match. */
+  const scanUnits = (
+    tail: string,
+    rows: readonly Doc<"finishedGoodsPallets">[],
+  ) => {
+    for (const unit of rows) {
       if (
         unit.retiredAt !== undefined ||
         ["CANCELLED", "REPLACED"].includes(unit.status)
       )
         continue;
       const text = tail + `${unit.code} ${unit.lot ?? ""} `.toLocaleLowerCase();
-      if (text.includes(needle)) found = true;
+      if (text.includes(needle)) return { found: true, tail: "" };
       tail = needle.length > 1 ? text.slice(-(needle.length - 1)) : "";
     }
-    done = found || advance.exhausted;
-    unitRange = advance.range;
+    return { found: false, tail };
+  };
+
+  const output: Doc<"finishedGoodsProducts">[] = [];
+  let queue: Array<string | Doc<"finishedGoodsProducts">> = [...state.products];
+  let productRange: NativeRangeState | undefined = state.productRange;
+  let productsDone = state.productsDone;
+  let unitRange: NativeRangeState | undefined = state.unitRange;
+  let tail: string | undefined = state.tail;
+  let nativeUsed = false;
+  let probeRows = 0;
+  while (output.length < limit) {
+    if (!queue.length) {
+      if (productsDone || nativeUsed) break;
+      nativeUsed = true;
+      const chunk = await ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsProducts">>(
+          "finishedGoodsProducts",
+          "by_orgId_warehouseId_updatedAt",
+          [{ field: "warehouseId", value: warehouseId }],
+        )
+        .page({
+          limit: SEARCH_PRODUCT_CHUNK,
+          cursor: productRange?.raw,
+          endCursor: productRange?.end,
+          order: "desc",
+        });
+      const advance = advanceNativeRange(productRange ?? {}, chunk);
+      productRange = advance.range;
+      if (advance.split) break;
+      productsDone = advance.exhausted;
+      queue = [...chunk.page];
+      continue;
+    }
+    const head = queue[0]!;
+    let product: Doc<"finishedGoodsProducts">;
+    if (typeof head === "string") {
+      const loaded = await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
+        "finishedGoodsProducts",
+        head,
+      );
+      if (!loaded || loaded.warehouseId !== warehouseId)
+        throw new Error("CATALOGUE_CURSOR_INVALID");
+      product = loaded;
+    } else product = head;
+    const prefix =
+      tail ?? `${product.name} ${product.sku} `.toLocaleLowerCase();
+    let found = prefix.includes(needle);
+    if (!found && unitRange === undefined && tail === undefined) {
+      // Reserve a full probe so this request's probe reads stay bounded.
+      if (
+        probeRows > 0 &&
+        probeRows + SEARCH_UNIT_PROBE > SEARCH_PROBE_ROW_BUDGET
+      )
+        break;
+      const probe = await units(product._id).take(SEARCH_UNIT_PROBE, "desc");
+      probeRows += probe.length;
+      found = scanUnits(prefix, probe).found;
+      // Exhaustion is decided by raw rows. Otherwise restart this product on
+      // native pages from its name prefix: the probe has no native cursor.
+      if (!found && probe.length >= SEARCH_UNIT_PROBE) unitRange = {};
+    }
+    if (!found && (unitRange !== undefined || tail !== undefined)) {
+      if (nativeUsed) break;
+      nativeUsed = true;
+      const range = unitRange ?? {};
+      const chunk = await units(product._id).page({
+        limit: SEARCH_UNIT_PAGE,
+        cursor: range.raw,
+        endCursor: range.end,
+        order: "desc",
+      });
+      const advance = advanceNativeRange(range, chunk);
+      unitRange = advance.range;
+      if (advance.split) break;
+      const scanned = scanUnits(prefix, chunk.page);
+      found = scanned.found;
+      tail = scanned.tail;
+      if (!found && !advance.exhausted) break;
+    }
+    queue.shift();
+    unitRange = undefined;
+    tail = undefined;
+    if (found) output.push(product);
   }
-  const next: SearchState = done
-    ? {
-        ...state,
-        products: state.products.slice(1),
-        unitRange: undefined,
-        tail: undefined,
-      }
-    : { ...state, unitRange, tail };
+  const next: SearchState = {
+    scope,
+    productRange,
+    products: queue.map((item) => (typeof item === "string" ? item : item._id)),
+    productsDone,
+    unitRange,
+    tail,
+  };
   const isDone = next.productsDone && !next.products.length;
   return {
-    page: found ? [product] : [],
+    page: output,
     isDone,
     continueCursor: isDone ? "" : JSON.stringify(next),
   };

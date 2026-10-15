@@ -396,20 +396,27 @@ export function filterRows(
     numeric: true,
     sensitivity: "base",
   });
+  const exactOrder = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
   return matched.sort((a, b) => {
     // Keep counting units in separate groups, never rank kg against pieces numerically.
     if (field === "quantity" && a.unit !== b.unit)
-      return collator.compare(a.unit, b.unit);
+      return collator.compare(a.unit, b.unit) || exactOrder(a.unit, b.unit);
     const av = a[field as keyof FilterRow],
       bv = b[field as keyof FilterRow];
     if (av === undefined || bv === undefined)
-      return av === bv ? 0 : av === undefined ? 1 : -1;
+      return av === bv
+        ? collator.compare(a.id, b.id) || exactOrder(a.id, b.id)
+        : av === undefined
+          ? 1
+          : -1;
     const compare =
       typeof av === "number" && typeof bv === "number"
         ? av - bv
         : collator.compare(String(av), String(bv));
     return (
-      compare * (direction === "desc" ? -1 : 1) || collator.compare(a.id, b.id)
+      compare * (direction === "desc" ? -1 : 1) ||
+      collator.compare(a.id, b.id) ||
+      exactOrder(a.id, b.id)
     );
   });
 }
