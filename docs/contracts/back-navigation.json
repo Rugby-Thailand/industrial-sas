@@ -2470,6 +2470,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "browser Back restores the question with the locale, search and hash intact"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "Forward restores unsent Photo AI photos after Back returns to the location question"
         }
       ]
     },
@@ -2478,7 +2482,10 @@
       "policy": "workflow",
       "integration": "useWorkflowStep",
       "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection.",
-      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
@@ -2487,6 +2494,14 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "the pressed Photo AI mode is the photo panel's only close, retaining photos and rejecting late capture before the next Back"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "retains unsent photos when switching to Scan code and back to Photo AI"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "native Back closes Photo AI and then the ticket step without discarding unsent photos for the same location choice"
         }
       ]
     },

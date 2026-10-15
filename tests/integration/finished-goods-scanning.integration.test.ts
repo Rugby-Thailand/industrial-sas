@@ -15,6 +15,7 @@ import type { DataModel } from "../../convex/schema";
 import type { Id } from "../../convex/_generated/dataModel";
 import * as workflow from "../../convex/finishedGoods/workflow";
 import * as scanning from "../../convex/finishedGoods/scanning";
+import * as batches from "../../convex/finishedGoods/batches";
 import { list as listLocations } from "../../convex/storageLayouts/locationCatalogue";
 import { archiveStorageBuilding } from "../../convex/storageLayouts/writes";
 import {
@@ -187,6 +188,116 @@ async function payload(world: Awaited<ReturnType<typeof setup>>) {
   };
 }
 describe("ordered package scanning", () => {
+  it("stores dimensionless units from a default simple batch through their labels and a verified location", async () => {
+    const world = await setup();
+    const productId = id(
+      await call(world, workflow.saveProduct, {
+        warehouseId: world.warehouseId,
+        requestId: "simple-product",
+        sku: "SIMPLE",
+        name: "Simple boxes",
+        unit: "pieces",
+        storageFormat: "BOX",
+        storageCondition: "Dry",
+        draft: false,
+      }),
+    );
+    const committed = value(
+      await call(world, batches.commitBatch, {
+        warehouseId: world.warehouseId,
+        productId,
+        requestId: "simple-batch",
+        totalQuantity: 100,
+        storageFormat: "BOX",
+        simplePacking: true,
+        sameSize: false,
+        packages: [
+          { quantity: 60, dimensionsChecked: false, fillPercent: 100 },
+          { quantity: 40, dimensionsChecked: false, fillPercent: 70 },
+        ],
+      }),
+    );
+    const unitIds = committed.palletIds as string[];
+    expect(unitIds).toHaveLength(2);
+    const issued = await world.t.run((ctx) =>
+      Promise.all(
+        unitIds.map((unitId) =>
+          ctx.db.get(unitId as Id<"finishedGoodsPallets">),
+        ),
+      ),
+    );
+    for (const unit of issued) {
+      expect(unit).toMatchObject({ status: "AWAITING_PLACEMENT" });
+      expect(unit).toMatchObject({ sameSize: false });
+      expect(unit).not.toHaveProperty("lengthMm");
+    }
+    // Resolve the printed labels exactly as the package-scan screen does.
+    const ordered = [];
+    for (const unitId of unitIds) {
+      const resolved = value(
+        await call(world, scanning.resolvePackageCode, {
+          warehouseId: world.warehouseId,
+          code: `ISAS:PALLET:1:${unitId}`,
+        }),
+      );
+      expect(resolved).toMatchObject({ ok: true });
+      const unit = resolved.unit as {
+        id: string;
+        version: number;
+        fillPercent: number;
+      };
+      ordered.push({
+        unitId: unit.id,
+        version: unit.version,
+        fillPercent: unit.fillPercent,
+      });
+    }
+    const location = value(
+      await call(world, scanning.resolveLocationCode, {
+        warehouseId: world.warehouseId,
+        code: "BLDG-A-F01-Z01",
+      }),
+    ).location as { zoneId: string; version: string };
+    const assignmentId = id(
+      await call(world, scanning.confirmScanAssignment, {
+        warehouseId: world.warehouseId,
+        requestId: "simple-assignment",
+        units: ordered,
+        location: { ...location, code: "BLDG-A-F01-Z01", method: "MANUAL" },
+        sameSize: false,
+        physicalConfirmed: true,
+      }),
+    );
+    expect(
+      value(
+        await call(world, scanning.getScanAssignment, {
+          warehouseId: world.warehouseId,
+          assignmentId,
+        }),
+      ),
+    ).toMatchObject({
+      orderedUnitIds: unitIds,
+      locationCode: "BLDG-A-F01-Z01",
+    });
+    await world.t.run(async (ctx) => {
+      for (const [index, unitId] of unitIds.entries()) {
+        expect(
+          await ctx.db.get(unitId as Id<"finishedGoodsPallets">),
+        ).toMatchObject({
+          status: "STORED",
+          quantity: [60, 40][index],
+          fillPercent: [100, 70][index],
+        });
+      }
+      const placements = await ctx.db
+        .query("finishedGoodsPlacements")
+        .collect();
+      expect(placements.map((row) => [row.mode, row.status])).toEqual([
+        ["LOCATION_ONLY", "STORED"],
+        ["LOCATION_ONLY", "STORED"],
+      ]);
+    });
+  });
   it("distinguishes an unregistered barcode from an unavailable package", async () => {
     const world = await setup();
     expect(

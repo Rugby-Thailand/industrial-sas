@@ -434,6 +434,32 @@ describe("stored pallet moves", () => {
       "MOVE_ALREADY_ACTIVE",
     );
   });
+  it("identifies pickup by a case-insensitive typed code but requires the QR for a camera read", async () => {
+    const w = await preparedWorld();
+    error(
+      await call(w, workflow.startMove, {
+        ...w.args,
+        requestId: "scan-plain",
+        code: "P-000001",
+        method: "SCAN",
+        physicalConfirmed: true,
+      }),
+      "PALLET_MISMATCH",
+    );
+    id(
+      await call(w, workflow.startMove, {
+        ...w.args,
+        requestId: "typed-lowercase",
+        code: " p-000001 ",
+        method: "MANUAL",
+        physicalConfirmed: true,
+      }),
+    );
+    expect((await placementState(w)).move).toMatchObject({
+      status: "IN_TRANSIT",
+      pickupConfirmationMethod: "MANUAL",
+    });
+  });
   it("requires the correct pallet, pickup acknowledgement and destination; wrong scans clear verification", async () => {
     const w = await preparedWorld();
     error(

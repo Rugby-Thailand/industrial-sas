@@ -28,6 +28,7 @@ import { DestinationPicker, destinationKey } from "./DestinationPicker";
 import { PlacementEditor } from "./PlacementEditor";
 import { usePreviewState } from "./usePreviewState";
 import { PalletScene } from "./PalletScene";
+import { identifiesPallet } from "../../../convex/model/finishedGoods/palletIdentity";
 import {
   DestinationSummary,
   MoveHistory,
@@ -470,19 +471,23 @@ function ActiveMove({
     if (!result) throw new Error("Verification failed");
   }
   async function identify(code: string, method: "SCAN" | "MANUAL") {
-    if (
-      code !== detail.pallet.code &&
-      code !== `ISAS:PALLET:1:${detail.pallet._id}`
-    ) {
+    // Mirrors startMove: a typed code ignores case; a camera read needs the QR.
+    if (!identifiesPallet(code, method, detail.pallet)) {
       op.setError(
-        t(
-          "copy.this-code-does-not-identify-this-pallet-check-its-label-and-retry",
-        ),
+        method === "SCAN" &&
+          code.trim().toUpperCase() === detail.pallet.code.toUpperCase()
+          ? tr(
+              "Scan the QR label on this pallet, or type its code in the field.",
+              "สแกน QR บนป้ายของพาเลทนี้ หรือพิมพ์รหัสพาเลทในช่อง",
+            )
+          : t(
+              "copy.this-code-does-not-identify-this-pallet-check-its-label-and-retry",
+            ),
       );
       throw new Error("PALLET_MISMATCH");
     }
     op.setError("");
-    setIdentified({ code, method });
+    setIdentified({ code: code.trim(), method });
   }
   return (
     <PageContainer actionInset="responsive">

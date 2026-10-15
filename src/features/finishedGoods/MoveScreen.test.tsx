@@ -15,8 +15,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
+import type * as BarcodeCameraModule from "./useBarcodeCamera";
 
 const mocks = vi.hoisted(() => ({
+  cameraCode: undefined as ((code: string) => void) | undefined,
   canManage: true,
   authLoaded: true,
   actorId: "user-a",
@@ -53,6 +55,19 @@ vi.mock("convex/react", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     args === "skip" ? undefined : mocks.query(getFunctionName(ref)),
 }));
+// The real camera hook runs; only its decoded-code callback is captured.
+vi.mock("./useBarcodeCamera", async (importOriginal) => {
+  const actual = await importOriginal<typeof BarcodeCameraModule>();
+  return {
+    ...actual,
+    useBarcodeCamera: (
+      options: Parameters<typeof actual.useBarcodeCamera>[0],
+    ) => {
+      mocks.cameraCode = options.onCode;
+      return actual.useBarcodeCamera(options);
+    },
+  };
+});
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
     children("warehouse-a"),
@@ -508,6 +523,50 @@ describe("stored pallet movement", () => {
       method: "MANUAL",
       physicalConfirmed: true,
       moveId: "move-a",
+    });
+  });
+  it("identifies a manually typed pallet code regardless of case, as startMove does", async () => {
+    currentDetail = active();
+    renderMove();
+    enterCode("Pallet code", "  p-001 ");
+    await screen.findByText("Pallet identified");
+    expect(screen.queryByText(/This code does not identify/)).toBeNull();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Picked up/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start move" }));
+    await waitFor(() => expect(callsFor("startMove")).toHaveLength(1));
+    expect(callsFor("startMove")[0]?.[1]).toMatchObject({
+      code: "p-001",
+      method: "MANUAL",
+    });
+  });
+  it("requires the pallet QR for a camera read while still accepting the QR payload", async () => {
+    currentDetail = active();
+    renderMove();
+    fireEvent.click(screen.getByRole("button", { name: "Scan QR (optional)" }));
+    const start = screen.getByRole("button", { name: "Start move" });
+    act(() => mocks.cameraCode!("P-001"));
+    expect(
+      await screen.findByText(
+        "Scan the QR label on this pallet, or type its code in the field.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText("Pallet identified")).toBeNull();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Picked up/ }));
+    expect(start).toBeDisabled();
+    expect(callsFor("startMove")).toHaveLength(0);
+    // A rejected camera read leaves the field editable; the label QR identifies.
+    fireEvent.change(screen.getByRole("textbox", { name: "Pallet code" }), {
+      target: { value: "ISAS:PALLET:1:pallet-a" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Verify entered code" }),
+    );
+    await screen.findByText("Pallet identified");
+    fireEvent.click(start);
+    await waitFor(() => expect(callsFor("startMove")).toHaveLength(1));
+    expect(callsFor("startMove")[0]?.[1]).toMatchObject({
+      code: "ISAS:PALLET:1:pallet-a",
+      method: "MANUAL",
     });
   });
   it("resumes transit and requires current operator verification plus placement acknowledgement", async () => {
