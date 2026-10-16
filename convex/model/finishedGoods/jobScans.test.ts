@@ -42,6 +42,13 @@ describe("classifyTicketBarcode", () => {
       "productBarcodeText",
     );
   });
+
+  it("treats FOM-prefixed JOB numbers as factory orders", () => {
+    for (const code of ["FO69100219", "FOM6908062", " fom6809001 "])
+      expect(classifyTicketBarcode(code)).toBe("factoryOrder");
+    for (const code of ["FOMX123", "FOM12", "FBN-010533ACA-BOX-F"])
+      expect(classifyTicketBarcode(code)).toBe("productBarcodeText");
+  });
 });
 
 describe("jobTicketError", () => {
