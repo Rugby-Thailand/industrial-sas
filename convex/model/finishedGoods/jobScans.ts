@@ -49,7 +49,7 @@ export const JOB_TICKET_JSON_SCHEMA = {
 } as const;
 
 export const JOB_TICKET_PROMPT = `You read Thai factory job tickets (form FM-PD-02, "JOB NO."). Return JSON only.
-- factory_order: the JOB NO. value, e.g. "FO69070073".
+- factory_order: the JOB NO. value, e.g. "FO69070073" or "FOM6908062".
 - product_barcode_text: the human-readable text printed under the product barcode (บาร์โค้ดสินค้า), e.g. "FBN-BXVMI004-BOX-00F".
 - delivery_date (วันที่ส่งสินค้า) and manufacturing_date (วันที่ผลิต): copy exactly as printed, keep the Thai Buddhist year, e.g. "6/7/2569".
 - part_name (ชื่อสินค้า) and customer (ชื่อลูกค้า): copy exactly, character by character. Do not correct spelling.
@@ -82,11 +82,11 @@ export function parseJobTicket(raw: unknown): Partial<JobTicketFields> {
   return fields;
 }
 
-/** A job ticket barcode is either the JOB NO. (FO…) or the product barcode. */
+/** A job ticket barcode is either the JOB NO. (FO… or FOM…) or the product barcode. */
 export function classifyTicketBarcode(
   code: string,
 ): "factoryOrder" | "productBarcodeText" {
-  return /^FO\d{4,}$/i.test(code.trim())
+  return /^FOM?\d{4,}$/i.test(code.trim())
     ? "factoryOrder"
     : "productBarcodeText";
 }

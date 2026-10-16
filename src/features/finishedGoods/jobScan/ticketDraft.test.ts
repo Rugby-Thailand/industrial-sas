@@ -10,6 +10,14 @@ import {
   applyImageBarcodes,
 } from "./ticketDraft";
 
+it("pairs a photographed FOM JOB number with its product barcode", () => {
+  const next = applyImageBarcodes([], ["FBN-010533ACA-BOX-F", "FOM6809001"]);
+  expect(next).toHaveLength(1);
+  expect(next[0]!.values).toMatchObject({
+    factoryOrder: "FOM6809001",
+    productBarcodeText: "FBN-010533ACA-BOX-F",
+  });
+});
 it("keeps a photographed JOB/product pair together instead of filling identities in different tickets", () => {
   const rows = [
     newTicket("MANUAL", { factoryOrder: "FO11111111" }),
@@ -109,6 +117,12 @@ describe("field barcode validation", () => {
       "wrongScanField",
     );
     expect(ticketBarcodeError("productBarcodeText", "FO69070073")).toBe(
+      "wrongScanField",
+    );
+  });
+  it("routes FOM-prefixed JOB numbers to the Job field", () => {
+    expect(ticketBarcodeError("factoryOrder", "FOM6908062")).toBeUndefined();
+    expect(ticketBarcodeError("productBarcodeText", "FOM6909081")).toBe(
       "wrongScanField",
     );
   });
