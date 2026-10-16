@@ -26,6 +26,16 @@ An earlier quality-0.88 experiment saved substantially more bytes but lost two b
 - No real model latency or OCR accuracy claim is made: live provider calls were not part of these measurements. Byte-identical JPEG inputs and dispatch ordering establish that no WebP dependency was inserted before AI.
 - The ticket still waits for both AI and storage before showing its final state. WebP adds work in the storage branch; network/provider load and device CPU can affect wall-clock completion.
 
+Three local batch runs used the same 20 source photos, real JPEG/WebP encoders and FileReader data URLs, alternating baseline/new order. The dispatch marker represents when the AI request could be made; it does not call the model. No test suite or decoder benchmark was running during these measurements.
+
+| Run | Baseline AI dispatch p50 / p95 | New AI dispatch p50 / p95 | Baseline / new all-image preparation |
+| --- | ------------------------------ | ------------------------- | ------------------------------------ |
+| 1   | 1,479 / 1,689 ms               | 1,564 / 1,710 ms          | 1,690 / 3,853 ms                     |
+| 2   | 1,509 / 1,649 ms               | 1,478 / 1,662 ms          | 1,650 / 3,813 ms                     |
+| 3   | 1,500 / 1,678 ms               | 1,525 / 1,731 ms          | 1,678 / 3,871 ms                     |
+
+The median of run-level p95 dispatch times was 1,678 ms before and 1,710 ms after (+32 ms). Optional storage preparation took about 2.2 seconds extra for the entire 20-photo batch, after AI dispatch had started. These are desktop Chromium measurements, not a guarantee for phones or networks; AI processing time and upload transfer time are excluded. The native-browser viewport was 1280 × 800 on macOS, Chromium 152 (T3 Code preview).
+
 ## Verification boundaries
 
 | Boundary                               | Evidence                                                                                                                                             |
