@@ -142,12 +142,15 @@ export function mergeExtracted(
   return { ...ticket, values, aiFields };
 }
 
+/** The ticket an intake wrote; absent when the intake changed nothing. */
+export type TicketWrite = { key: string; field: TicketCodeField };
+
 /** Puts a scanned code into the newest ticket still missing that field, else starts a new ticket. */
 export function applyBarcode(
   tickets: TicketDraft[],
   code: string,
   maximum = MAX_JOB_SCAN_ITEMS,
-): { tickets: TicketDraft[]; field: TicketField } {
+): { tickets: TicketDraft[]; field: TicketCodeField; written?: TicketWrite } {
   const field = classifyTicketBarcode(code);
   let index = tickets.length - 1;
   while (
@@ -156,14 +159,15 @@ export function applyBarcode(
       tickets[index]!.values[field]?.trim())
   )
     index--;
-  if (index === -1)
+  if (index === -1) {
+    if (tickets.length >= maximum) return { tickets, field };
+    const ticket = newTicket("BARCODE", { [field]: code });
     return {
-      tickets:
-        tickets.length >= maximum
-          ? tickets
-          : [...tickets, newTicket("BARCODE", { [field]: code })],
+      tickets: [...tickets, ticket],
       field,
+      written: { key: ticket.key, field },
     };
+  }
   return {
     tickets: tickets.map((ticket, i) =>
       i === index
@@ -171,6 +175,7 @@ export function applyBarcode(
         : ticket,
     ),
     field,
+    written: { key: tickets[index]!.key, field },
   };
 }
 
@@ -179,16 +184,23 @@ export function applyImageBarcodes(
   tickets: TicketDraft[],
   codes: string[],
   maximum = MAX_JOB_SCAN_ITEMS,
-): TicketDraft[] {
+): { tickets: TicketDraft[]; written?: TicketWrite } {
   if (codes.length !== 2)
-    return codes.reduce(
-      (rows, code) => applyBarcode(rows, code, maximum).tickets,
-      tickets,
+    return codes.reduce<{ tickets: TicketDraft[]; written?: TicketWrite }>(
+      (result, code) => {
+        const next = applyBarcode(result.tickets, code, maximum);
+        // Report the last code that was actually written.
+        const written = next.written ?? result.written;
+        return written
+          ? { tickets: next.tickets, written }
+          : { tickets: next.tickets };
+      },
+      { tickets },
     );
   const fields = Object.fromEntries(
     codes.map((code) => [classifyTicketBarcode(code), code]),
   );
-  if (!fields.factoryOrder || !fields.productBarcodeText) return tickets;
+  if (!fields.factoryOrder || !fields.productBarcodeText) return { tickets };
   let index = tickets.length - 1;
   while (
     index >= 0 &&
@@ -203,15 +215,27 @@ export function applyImageBarcodes(
     )
   )
     index--;
-  if (index < 0)
-    return tickets.length >= maximum
-      ? tickets
-      : [...tickets, newTicket("BARCODE", fields)];
-  return tickets.map((ticket, i) =>
-    i === index
-      ? { ...ticket, values: { ...ticket.values, ...fields } }
-      : ticket,
-  );
+  if (index < 0) {
+    if (tickets.length >= maximum) return { tickets };
+    const ticket = newTicket("BARCODE", fields);
+    return {
+      tickets: [...tickets, ticket],
+      written: { key: ticket.key, field: "factoryOrder" },
+    };
+  }
+  return {
+    tickets: tickets.map((ticket, i) =>
+      i === index
+        ? { ...ticket, values: { ...ticket.values, ...fields } }
+        : ticket,
+    ),
+    written: {
+      key: tickets[index]!.key,
+      field: tickets[index]!.values.factoryOrder?.trim()
+        ? "productBarcodeText"
+        : "factoryOrder",
+    },
+  };
 }
 
 export function toPayload(ticket: TicketDraft) {

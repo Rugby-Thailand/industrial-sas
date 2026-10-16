@@ -2533,7 +2533,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:panel",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection.",
+      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection. Manual cross-module presentation audit: JobScanWorkflow:lastWrite passes through ScanProgress:written to src/features/finishedGoods/jobScan/ScanProgress#ScanProgress, an inline div[role=status] above the barcode camera. Waiting/latest text uses p; required-field progress uses p/span and lucide-react#Check or lucide-react#Circle; incomplete count uses p. Both waiting and latest branches keep this same status surface, create no foreground or Back entry, and reset when the panel changes. The static gate does not follow this imported-component prop flow.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
         "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
@@ -2554,6 +2554,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
           "name": "native Back closes Photo AI and then the ticket step without discarding unsent photos for the same location choice"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "shows above the camera which ticket each scan filled, even an older one, and keeps its result visible while the camera is paused"
         }
       ]
     },

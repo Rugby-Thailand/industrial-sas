@@ -196,7 +196,9 @@ it("retains entered tickets and reuses the same request after a lost save respon
   await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
   expect(mocks.save.mock.calls[0]![0]).toEqual(mocks.save.mock.calls[1]![0]);
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Scan more" })).toBeVisible(),
+    expect(
+      screen.getByRole("button", { name: "Keep scanning at DEMO-L01" }),
+    ).toBeVisible(),
   );
 });
 
@@ -257,7 +259,9 @@ it("locks editing and prevents a second write while a save is pending", async ()
   expect(mocks.save).toHaveBeenCalledTimes(1);
   resolve(writeSuccess("scan-a"));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Scan more" })).toBeVisible(),
+    expect(
+      screen.getByRole("button", { name: "Keep scanning at DEMO-L01" }),
+    ).toBeVisible(),
   );
 });
 
@@ -674,7 +678,7 @@ it("uploads one resized image, extracts independently, and saves its provider UR
       productBarcodeText: "DEMO-BOX",
     }),
   ]);
-  await screen.findByRole("button", { name: "Scan more" });
+  await screen.findByRole("button", { name: "Keep scanning at DEMO-L01" });
   expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
 });
 
