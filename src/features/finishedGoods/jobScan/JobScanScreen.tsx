@@ -44,7 +44,12 @@ import { PhotoCapture } from "./PhotoCapture";
 import { ScanProgress } from "./ScanProgress";
 import { TicketCard } from "./TicketCard";
 import { TicketFieldScanner } from "./TicketFieldScanner";
-import { resizeImage, toDataUrl } from "./resizeImage";
+import { toDataUrl } from "./imageDataUrl";
+import {
+  MAX_JOB_TICKET_AI_DATA_URL,
+  MAX_JOB_TICKET_UPLOAD_BYTES,
+  prepareJobTicketPhoto,
+} from "./prepareJobTicketPhoto";
 import {
   MAX_JOB_SCAN_ITEMS,
   applyBarcode,
@@ -157,15 +162,21 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   );
   const duplicatesReviewed = reviewedDuplicates === duplicateFingerprint;
   const previewUrls = useRef(new Set<string>());
+  const photoOperations = useRef(new Map<string, AbortController>());
   useEffect(() => {
     const urls = previewUrls.current;
+    const operations = photoOperations.current;
     return () => {
+      for (const controller of operations.values()) controller.abort();
+      operations.clear();
       for (const url of urls) URL.revokeObjectURL(url);
       urls.clear();
     };
   }, []);
 
   const releasePreview = (ticket: TicketDraft) => {
+    photoOperations.current.get(ticket.key)?.abort();
+    photoOperations.current.delete(ticket.key);
     if (!ticket.previewUrl) return;
     URL.revokeObjectURL(ticket.previewUrl);
     previewUrls.current.delete(ticket.previewUrl);
@@ -269,44 +280,66 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       previewUrl,
     };
     setTickets((current) => [...current, ticket]);
-    let image: File;
+    const controller = new AbortController();
+    photoOperations.current.set(ticket.key, controller);
+    const current = () => !controller.signal.aborted;
+    let reading: Promise<Awaited<ReturnType<typeof extract>> | undefined> =
+      Promise.resolve(undefined);
     try {
-      image = await resizeImage(file);
-    } catch {
+      const image = await prepareJobTicketPhoto(file, {
+        signal: controller.signal,
+        onAiReady: async (aiFile) => {
+          // Dispatch AI before WebP encoding; never await the AI response here.
+          try {
+            const imageUrl = await toDataUrl(aiFile);
+            if (current() && imageUrl.length <= MAX_JOB_TICKET_AI_DATA_URL)
+              reading = extract({ warehouseId, imageUrl }).catch(
+                () => undefined,
+              );
+          } catch {
+            // A failed AI input must not prevent storing the photo.
+          }
+        },
+      });
+      if (!current()) return;
+      // AI and storage remain independent, including their different size limits.
+      const [uploaded, outcome] = await Promise.all([
+        image.size <= MAX_JOB_TICKET_UPLOAD_BYTES
+          ? startUpload([image]).catch((error: unknown) => {
+              console.error("Job ticket upload failed", error);
+              return undefined;
+            })
+          : undefined,
+        reading,
+      ]);
+      if (!current()) return;
+      const imageUrl = uploaded?.[0]?.ufsUrl;
+      const result = outcome?.ok ? outcome.value : undefined;
       update(ticket.key, (row) => ({
-        ...row,
+        ...(result?.ok ? mergeExtracted(row, result.fields) : row),
         status: "ready",
-        notice: "photoProcessingFailed",
+        ...(imageUrl ? { imageUrl } : {}),
+        ...(result?.ok
+          ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
+          : {}),
+        notice: !result?.ok
+          ? "aiFailed"
+          : !imageUrl
+            ? "uploadFailed"
+            : result.mock
+              ? "aiMock"
+              : "aiFilled",
       }));
-      return;
+    } catch {
+      if (current())
+        update(ticket.key, (row) => ({
+          ...row,
+          status: "ready",
+          notice: "photoProcessingFailed",
+        }));
+    } finally {
+      photoOperations.current.delete(ticket.key);
     }
-    // The AI reads the photo directly, so a failed upload only loses the stored copy.
-    const [uploaded, outcome] = await Promise.all([
-      startUpload([image]).catch((error: unknown) => {
-        console.error("Job ticket upload failed", error);
-        return undefined;
-      }),
-      toDataUrl(image)
-        .then((imageUrl) => extract({ warehouseId, imageUrl }))
-        .catch(() => undefined),
-    ]);
-    const imageUrl = uploaded?.[0]?.ufsUrl;
-    const result = outcome?.ok ? outcome.value : undefined;
-    update(ticket.key, (row) => ({
-      ...(result?.ok ? mergeExtracted(row, result.fields) : row),
-      status: "ready",
-      ...(imageUrl ? { imageUrl } : {}),
-      ...(result?.ok
-        ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
-        : {}),
-      notice: !result?.ok
-        ? "aiFailed"
-        : !imageUrl
-          ? "uploadFailed"
-          : result.mock
-            ? "aiMock"
-            : "aiFilled",
-    }));
   }
 
   function onBarcode(code: string) {

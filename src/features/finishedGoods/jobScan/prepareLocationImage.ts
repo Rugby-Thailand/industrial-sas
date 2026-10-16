@@ -1,6 +1,6 @@
 import { barcodeImageProblem, type BarcodeCrop } from "../barcodeDecoder";
 import { MAX_LOCATION_IMAGE_DATA_URL } from "../../../../convex/model/finishedGoods/locationImage";
-import { toDataUrl } from "./resizeImage";
+import { toDataUrl } from "./imageDataUrl";
 
 /** Crop before downscaling; barcode acquisition keeps its original resolution. */
 export async function prepareLocationImage(

@@ -13,11 +13,13 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess, writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { JobScanScreen } from "./JobScanScreen";
 import type * as PhotoCaptureModule from "./PhotoCapture";
+import type * as PreparePhotoModule from "./prepareJobTicketPhoto";
 
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   save: vi.fn(),
   resize: vi.fn(),
+  prepareUpload: vi.fn(),
   upload: vi.fn(),
   extract: vi.fn(),
   toDataUrl: vi.fn(),
@@ -143,9 +145,19 @@ vi.mock("./PhotoCapture", async (original) => {
   };
 });
 
-vi.mock("./resizeImage", () => ({
-  resizeImage: mocks.resize,
+vi.mock("./imageDataUrl", () => ({
   toDataUrl: mocks.toDataUrl,
+}));
+vi.mock("./prepareJobTicketPhoto", async (original) => ({
+  ...(await original<typeof PreparePhotoModule>()),
+  prepareJobTicketPhoto: async (
+    file: File,
+    { onAiReady }: { onAiReady: (image: File) => Promise<void> },
+  ) => {
+    const image: File = await mocks.resize(file);
+    await onAiReady(image);
+    return mocks.prepareUpload(image);
+  },
 }));
 
 beforeEach(() => {
@@ -156,6 +168,9 @@ beforeEach(() => {
   mocks.toDataUrl.mockReset().mockResolvedValue("data:image/jpeg;base64,AA");
   mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
   mocks.resize.mockReset().mockRejectedValue(new Error("Unreadable image"));
+  mocks.prepareUpload
+    .mockReset()
+    .mockImplementation(async (image: File) => image);
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:demo");
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
 });
@@ -680,6 +695,117 @@ it("uploads one resized image, extracts independently, and saves its provider UR
   ]);
   await screen.findByRole("button", { name: "Keep scanning at DEMO-L01" });
   expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
+});
+
+it("starts AI before WebP compression finishes and uploads WebP without waiting for the AI response", async () => {
+  const jpeg = new File(["jpeg"], "ticket.jpg", { type: "image/jpeg" });
+  const webp = new File(["webp"], "ticket.webp", { type: "image/webp" });
+  mocks.resize.mockResolvedValue(jpeg);
+  let compressed!: (image: File) => void;
+  mocks.prepareUpload.mockImplementation(
+    () => new Promise<File>((resolve) => (compressed = resolve)),
+  );
+  let extracted!: (result: ReturnType<typeof successfulExtraction>) => void;
+  mocks.extract.mockImplementation(
+    () => new Promise((resolve) => (extracted = resolve)),
+  );
+  mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+  start();
+  submitPhoto();
+  await waitFor(() => expect(mocks.extract).toHaveBeenCalledOnce());
+  expect(mocks.toDataUrl).toHaveBeenCalledExactlyOnceWith(jpeg);
+  expect(mocks.upload).not.toHaveBeenCalled();
+  await act(async () => compressed(webp));
+  expect(mocks.upload).toHaveBeenCalledExactlyOnceWith([webp]);
+  expect(screen.getByRole("button", { name: /Save 1/ })).toBeDisabled();
+  await act(async () => extracted(successfulExtraction()));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /Save 1/ })).toBeEnabled(),
+  );
+});
+
+it.each(["remove", "unmount"])(
+  "does not dispatch AI or upload after %s during JPEG preparation",
+  async (action) => {
+    let prepared!: (image: File) => void;
+    mocks.resize.mockImplementation(
+      () => new Promise<File>((resolve) => (prepared = resolve)),
+    );
+    const { unmount } = start();
+    submitPhoto();
+    if (action === "remove")
+      fireEvent.click(screen.getByRole("button", { name: "Remove #1" }));
+    else unmount();
+    await act(async () =>
+      prepared(new File(["jpeg"], "ticket.jpg", { type: "image/jpeg" })),
+    );
+    expect(mocks.extract).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
+  },
+);
+
+it("does not upload a discarded ticket when WebP finishes late", async () => {
+  mocks.resize.mockResolvedValue(
+    new File(["jpeg"], "ticket.jpg", { type: "image/jpeg" }),
+  );
+  let compressed!: (image: File) => void;
+  mocks.prepareUpload.mockImplementation(
+    () => new Promise<File>((resolve) => (compressed = resolve)),
+  );
+  start();
+  submitPhoto();
+  await waitFor(() => expect(mocks.extract).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole("button", { name: "Remove #1" }));
+  await act(async () =>
+    compressed(new File(["webp"], "ticket.webp", { type: "image/webp" })),
+  );
+  expect(mocks.upload).not.toHaveBeenCalled();
+  expect(
+    screen.queryByRole("textbox", { name: /Job No\./ }),
+  ).not.toBeInTheDocument();
+});
+
+it.each(["oversized", "unreadable"])(
+  "still uploads a photo when its AI data URL is %s",
+  async (problem) => {
+    mocks.resize.mockResolvedValue(
+      new File(["jpeg"], "ticket.jpg", { type: "image/jpeg" }),
+    );
+    if (problem === "oversized")
+      mocks.toDataUrl.mockResolvedValue("x".repeat(4_000_001));
+    else mocks.toDataUrl.mockRejectedValue(new Error("Reader failed"));
+    mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+    start();
+    submitPhoto();
+    await screen.findByText(
+      "AI could not read this photo. Fill in the fields by hand.",
+    );
+    expect(mocks.extract).not.toHaveBeenCalled();
+    expect(mocks.upload).toHaveBeenCalledOnce();
+  },
+);
+
+it("keeps AI fields when the upload file exceeds UploadThing's size limit", async () => {
+  mocks.resize.mockResolvedValue(
+    new File(["jpeg"], "ticket.jpg", { type: "image/jpeg" }),
+  );
+  mocks.prepareUpload.mockResolvedValue(
+    new File([new Uint8Array(16 * 1024 * 1024 + 1)], "ticket.jpg", {
+      type: "image/jpeg",
+    }),
+  );
+  mocks.extract.mockResolvedValue(successfulExtraction());
+  start();
+  submitPhoto();
+  await screen.findByText(
+    "Photo not stored (upload failed). Check the fields.",
+  );
+  expect(mocks.extract).toHaveBeenCalledOnce();
+  expect(mocks.upload).not.toHaveBeenCalled();
+  expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
+    "FO69070073",
+  );
 });
 
 it.each(["rejected", "missing"])(

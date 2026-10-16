@@ -59,10 +59,6 @@ vi.mock("./PhotoCapture", () => ({
     </button>
   ),
 }));
-vi.mock("./resizeImage", () => ({
-  resizeImage: () => Promise.reject(new Error("Unreadable image")),
-  toDataUrl: vi.fn(),
-}));
 
 const PAGE = "/en/finished-goods/scan";
 let back: ReturnType<typeof vi.spyOn>;

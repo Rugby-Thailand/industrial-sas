@@ -10,6 +10,7 @@ import {
 } from "@tests/fixtures/convex-tenant-world";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { JobScanScreen } from "./JobScanScreen";
+import type * as PreparePhotoModule from "./prepareJobTicketPhoto";
 
 const mocks = vi.hoisted(() => ({
   save: vi.fn(),
@@ -78,9 +79,9 @@ vi.mock("./PhotoCapture", () => ({
     return <div>Inventory photo panel</div>;
   },
 }));
-vi.mock("./resizeImage", () => ({
-  resizeImage: () => Promise.reject(new Error("Bad test photo")),
-  toDataUrl: vi.fn(),
+vi.mock("./prepareJobTicketPhoto", async (original) => ({
+  ...(await original<typeof PreparePhotoModule>()),
+  prepareJobTicketPhoto: () => Promise.reject(new Error("Bad test photo")),
 }));
 beforeEach(() => {
   mocks.save.mockReset();
