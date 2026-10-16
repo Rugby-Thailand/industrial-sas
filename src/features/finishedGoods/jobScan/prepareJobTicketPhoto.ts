@@ -1,11 +1,12 @@
 const MAX_SIDE = 2000;
-const MAX_PIXELS = 40_000_000;
 export const MAX_JOB_TICKET_UPLOAD_BYTES = 16 * 1024 * 1024;
 export const MAX_JOB_TICKET_AI_DATA_URL = 4_000_000;
 
 // JPEG remains the AI input. WebP only changes the stored copy.
 const JPEG_QUALITY = 0.85;
-const WEBP_QUALITY = 0.88;
+const WEBP_QUALITY = 0.9;
+// Keep JPEG when changing format would only buy a marginal size reduction.
+const MIN_WEBP_SAVING = 0.15;
 const MAX_WEBP_ENCODERS = 2;
 let activeEncoders = 0;
 const waitingEncoders = new Set<() => void>();
@@ -73,12 +74,7 @@ export async function prepareJobTicketPhoto(
   try {
     try {
       signal.throwIfAborted();
-      if (
-        bitmap.width <= 0 ||
-        bitmap.height <= 0 ||
-        bitmap.width * bitmap.height > MAX_PIXELS
-      )
-        throw new Error("imageSize");
+      if (bitmap.width <= 0 || bitmap.height <= 0) throw new Error("imageSize");
       const scale = Math.min(
         1,
         MAX_SIDE / Math.max(bitmap.width, bitmap.height),
@@ -110,7 +106,8 @@ export async function prepareJobTicketPhoto(
         return toBlob(canvas, "image/webp", WEBP_QUALITY);
       }, signal);
       signal.throwIfAborted();
-      return webp?.type === "image/webp" && webp.size < jpeg.size
+      return webp?.type === "image/webp" &&
+        webp.size <= jpeg.size * (1 - MIN_WEBP_SAVING)
         ? photoFile(webp, file.name, "webp")
         : aiFile;
     } catch {

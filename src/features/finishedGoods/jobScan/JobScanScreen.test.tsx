@@ -145,7 +145,7 @@ vi.mock("./PhotoCapture", async (original) => {
   };
 });
 
-vi.mock("./resizeImage", () => ({
+vi.mock("./imageDataUrl", () => ({
   toDataUrl: mocks.toDataUrl,
 }));
 vi.mock("./prepareJobTicketPhoto", async (original) => ({

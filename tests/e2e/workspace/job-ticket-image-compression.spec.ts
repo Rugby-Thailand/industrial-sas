@@ -4,7 +4,7 @@ import { expect, test } from "../support/fixtures";
 const url = `http://127.0.0.1:${process.env.BARCODE_PORT ?? 3199}`;
 const modules = {
   prepare: `/@fs${resolve("src/features/finishedGoods/jobScan/prepareJobTicketPhoto.ts")}`,
-  baseline: `/@fs${resolve("src/features/finishedGoods/jobScan/resizeImage.ts")}`,
+  baseline: `/@fs${resolve("tests/fixtures/job-ticket-jpeg-baseline.ts")}`,
   decoder: `/@fs${resolve("src/features/finishedGoods/barcodeDecoder.ts")}`,
 };
 

@@ -89,6 +89,7 @@ it("does not enlarge small photos and preserves portrait geometry", async () => 
 it.each([
   ["larger", new Blob([new Uint8Array(101)], { type: "image/webp" })],
   ["equal", new Blob([new Uint8Array(100)], { type: "image/webp" })],
+  ["marginal saving", new Blob([new Uint8Array(86)], { type: "image/webp" })],
   ["unsupported MIME", new Blob(["png fallback"], { type: "image/png" })],
   ["null blob", null],
 ] as const)(
@@ -145,18 +146,23 @@ it("rejects a failed draw rather than storing an empty canvas", async () => {
 
 it.each([
   [0, 1],
-  [10000, 10000],
-])(
-  "rejects invalid or excessive pixel dimensions (%s × %s)",
-  async (width, height) => {
-    bitmap.width = width;
-    bitmap.height = height;
-    await expect(prepare()).rejects.toThrow("imageSize");
-    expect(drawImage).not.toHaveBeenCalled();
-    expect(close).toHaveBeenCalledOnce();
-    expect(onAiReady).not.toHaveBeenCalled();
-  },
-);
+  [1, 0],
+])("rejects invalid pixel dimensions (%s × %s)", async (width, height) => {
+  bitmap.width = width;
+  bitmap.height = height;
+  await expect(prepare()).rejects.toThrow("imageSize");
+  expect(drawImage).not.toHaveBeenCalled();
+  expect(close).toHaveBeenCalledOnce();
+  expect(onAiReady).not.toHaveBeenCalled();
+});
+
+it("continues to downscale valid 48 MP gallery photos", async () => {
+  bitmap.width = 8064;
+  bitmap.height = 6048;
+  await prepare();
+  expect(drawImage).toHaveBeenCalledWith(bitmap, 0, 0, 2000, 1500);
+  expect(onAiReady).toHaveBeenCalledOnce();
+});
 
 it("rejects undecodable photos without dispatching AI", async () => {
   vi.mocked(createImageBitmap).mockRejectedValue(

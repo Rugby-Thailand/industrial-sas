@@ -44,7 +44,7 @@ import { PhotoCapture } from "./PhotoCapture";
 import { ScanProgress } from "./ScanProgress";
 import { TicketCard } from "./TicketCard";
 import { TicketFieldScanner } from "./TicketFieldScanner";
-import { toDataUrl } from "./resizeImage";
+import { toDataUrl } from "./imageDataUrl";
 import {
   MAX_JOB_TICKET_AI_DATA_URL,
   MAX_JOB_TICKET_UPLOAD_BYTES,
