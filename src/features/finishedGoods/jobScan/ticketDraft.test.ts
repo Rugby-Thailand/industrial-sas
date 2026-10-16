@@ -11,7 +11,10 @@ import {
 } from "./ticketDraft";
 
 it("pairs a photographed FOM JOB number with its product barcode", () => {
-  const next = applyImageBarcodes([], ["FBN-010533ACA-BOX-F", "FOM6809001"]);
+  const next = applyImageBarcodes(
+    [],
+    ["FBN-010533ACA-BOX-F", "FOM6809001"],
+  ).tickets;
   expect(next).toHaveLength(1);
   expect(next[0]!.values).toMatchObject({
     factoryOrder: "FOM6809001",
@@ -23,7 +26,7 @@ it("keeps a photographed JOB/product pair together instead of filling identities
     newTicket("MANUAL", { factoryOrder: "FO11111111" }),
     newTicket("MANUAL", { productBarcodeText: "OLD-SKU" }),
   ];
-  const next = applyImageBarcodes(rows, ["FO22222222", "NEW-SKU"]);
+  const next = applyImageBarcodes(rows, ["FO22222222", "NEW-SKU"]).tickets;
   expect(next.slice(0, 2)).toEqual(rows);
   expect(next[2]!.values).toMatchObject({
     factoryOrder: "FO22222222",
@@ -35,7 +38,7 @@ it("fills compatible missing identities without overwriting optional fields", ()
     factoryOrder: "FO22222222",
     quantity: "150",
   });
-  const next = applyImageBarcodes([row], ["FO22222222", "NEW-SKU"]);
+  const next = applyImageBarcodes([row], ["FO22222222", "NEW-SKU"]).tickets;
   expect(next).toHaveLength(1);
   expect(next[0]!.values).toMatchObject({
     factoryOrder: "FO22222222",
@@ -46,8 +49,8 @@ it("fills compatible missing identities without overwriting optional fields", ()
 
 it("keeps repeated photographed pairs as separate physical units requiring duplicate review", () => {
   const pair = ["FO22222222", "NEW-SKU"];
-  const first = applyImageBarcodes([], pair);
-  const next = applyImageBarcodes(first, pair);
+  const first = applyImageBarcodes([], pair).tickets;
+  const next = applyImageBarcodes(first, pair).tickets;
   expect(next).toHaveLength(2);
   expect(next[0]).toEqual(first[0]);
   expect(next[1]!.key).not.toBe(next[0]!.key);
@@ -155,9 +158,53 @@ it("caps every barcode intake at fifty and still fills an existing incomplete ti
     }),
   );
   expect(applyBarcode(tickets, "FO999999").tickets).toBe(tickets);
-  expect(applyImageBarcodes(tickets, ["FO999999", "NEW-SKU"])).toBe(tickets);
+  expect(applyImageBarcodes(tickets, ["FO999999", "NEW-SKU"]).tickets).toBe(
+    tickets,
+  );
   tickets[49] = newTicket("MANUAL", { factoryOrder: "FO999999" });
-  const next = applyImageBarcodes(tickets, ["FO999999", "NEW-SKU"]);
+  const next = applyImageBarcodes(tickets, ["FO999999", "NEW-SKU"]).tickets;
   expect(next).toHaveLength(50);
   expect(next[49]!.values.productBarcodeText).toBe("NEW-SKU");
+});
+
+describe("written ticket report", () => {
+  it("names the older ticket that received a scanned code, not the newest", () => {
+    const older = newTicket("MANUAL", { productBarcodeText: "OLD-SKU" });
+    const newer = newTicket("MANUAL", {
+      factoryOrder: "FO11111111",
+      productBarcodeText: "NEW-SKU",
+    });
+    const next = applyBarcode([older, newer], "FOM6909081");
+    expect(next.written).toEqual({ key: older.key, field: "factoryOrder" });
+    expect(next.tickets[0]!.values.factoryOrder).toBe("FOM6909081");
+  });
+  it("names a started ticket and reports nothing when capacity refuses the code", () => {
+    const started = applyBarcode([], "PRODUCT-1");
+    expect(started.written).toEqual({
+      key: started.tickets[0]!.key,
+      field: "productBarcodeText",
+    });
+    expect(applyBarcode(started.tickets, "FO123456", 1).written).toEqual({
+      key: started.tickets[0]!.key,
+      field: "factoryOrder",
+    });
+    expect(applyBarcode(started.tickets, "PRODUCT-2", 1).written).toBe(
+      undefined,
+    );
+  });
+  it("names the ticket that received an image pair, and nothing for an unmatched pair", () => {
+    const row = newTicket("MANUAL", { factoryOrder: "FO22222222" });
+    const filled = applyImageBarcodes([row], ["NEW-SKU", "FO22222222"]);
+    expect(filled.written).toEqual({ key: row.key, field: "factoryOrder" });
+    const unmatched = applyImageBarcodes([row], ["SKU-A", "SKU-B"]);
+    expect(unmatched.tickets).toEqual([row]);
+    expect(unmatched.written).toBe(undefined);
+  });
+  it("reports the last written code for a single image code", () => {
+    const row = newTicket("MANUAL", { factoryOrder: "FO22222222" });
+    expect(applyImageBarcodes([row], ["NEW-SKU"]).written).toEqual({
+      key: row.key,
+      field: "productBarcodeText",
+    });
+  });
 });

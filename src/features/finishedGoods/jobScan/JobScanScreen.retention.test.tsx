@@ -315,3 +315,49 @@ it("protects a photo-only collection from a cross-tab warehouse switch", () => {
   expect(readStoredWarehouse()).toBe("warehouse-a");
   expect(screen.getByText("1 / 20 photos")).toBeVisible();
 });
+
+it("shows above the camera which ticket each scan filled, even an older one, and keeps its result visible while the camera is paused", async () => {
+  start();
+  // Ticket #1 lacks its Job No.; ticket #2 is complete and newer.
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+  fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
+    target: { value: "OLD-SKU" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+  fireEvent.change(screen.getAllByRole("textbox", { name: /Job No\./ })[1]!, {
+    target: { value: "FO11111111" },
+  });
+  fireEvent.change(
+    screen.getAllByRole("textbox", { name: /Product barcode/ })[1]!,
+    { target: { value: "NEW-SKU" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  const progress = screen.getByText("Waiting for a code").closest("div")!;
+  expect(progress).toHaveAttribute("role", "status");
+  expect(progress).toHaveAttribute("aria-live", "polite");
+  expect(progress).toHaveTextContent("1 ticket incomplete");
+
+  act(() => mocks.camera!("FOM6909081"));
+  expect(progress).toHaveTextContent("Latest → ticket #1 · Job No. FOM6909081");
+  expect(progress).toHaveTextContent("Job No.done");
+  expect(progress).toHaveTextContent("Product barcodedone");
+  expect(progress).toHaveTextContent("All tickets complete");
+  expect(screen.getAllByRole("textbox", { name: /Job No\./ })[0]).toHaveValue(
+    "FOM6909081",
+  );
+
+  act(() => mocks.camera!("PRODUCT-3"));
+  expect(progress).toHaveTextContent(
+    "Latest → ticket #3 · Product barcode PRODUCT-3",
+  );
+  expect(progress).toHaveTextContent("Job No.missing");
+  expect(progress).toHaveTextContent("1 ticket incomplete");
+
+  // An image pair stops the camera; its result and progress stay visible.
+  await chooseImageCodes(["PRODUCT-3", "FO22222222"]);
+  expect(await screen.findByText("Barcode read")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Start camera" })).toBeVisible();
+  expect(progress).toHaveTextContent("Latest → ticket #3 · Job No. FO22222222");
+  expect(progress).toHaveTextContent("All tickets complete");
+  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(3);
+});

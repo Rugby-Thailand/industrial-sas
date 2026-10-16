@@ -187,7 +187,9 @@ it("blocks leaving while tickets are being saved, then clears the guard on succe
   await act(async () => resolve(writeSuccess("scan-a")));
   bufferTraversal();
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Scan more" })).toBeVisible(),
+    expect(
+      screen.getByRole("button", { name: "Keep scanning at DEMO-L01" }),
+    ).toBeVisible(),
   );
   // The save settled the draft: its buffer is removed once.
   expect(back).toHaveBeenCalledOnce();

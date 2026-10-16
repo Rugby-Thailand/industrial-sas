@@ -41,6 +41,7 @@ import { AcquisitionModes } from "./AcquisitionModes";
 import { LocationPicker } from "./LocationPicker";
 import { usePhotoSelection } from "./usePhotoSelection";
 import { PhotoCapture } from "./PhotoCapture";
+import { ScanProgress } from "./ScanProgress";
 import { TicketCard } from "./TicketCard";
 import { TicketFieldScanner } from "./TicketFieldScanner";
 import { resizeImage, toDataUrl } from "./resizeImage";
@@ -59,6 +60,7 @@ import {
   type PickedLocation,
   type TicketDraft,
   type TicketCodeField,
+  type TicketWrite,
   ticketBarcodeError,
 } from "./ticketDraft";
 
@@ -137,6 +139,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const [fieldScan, setFieldScan] = useState<FieldScanTarget | null>(null);
   const fieldScanRef = useRef<FieldScanTarget | null>(null);
   const [feedback, setFeedback] = useState<string>();
+  // The ticket the last barcode-panel intake wrote, shown above the camera.
+  const [lastWrite, setLastWrite] = useState<TicketWrite>();
   const [saved, setSaved] = useState<{
     count: number;
     location: PickedLocation;
@@ -175,6 +179,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   function changePanel(next: typeof panel) {
     closeFieldScan();
     setFeedback(undefined);
+    setLastWrite(undefined);
     panelRef.current = next;
     if (next) lastPanel.current = next;
     setPanel(next);
@@ -314,12 +319,13 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       return;
     }
     const current = ticketsRef.current;
-    const next = applyBarcode(current, value).tickets;
-    if (next === current) {
+    const next = applyBarcode(current, value);
+    if (!next.written) {
       setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
       return;
     }
-    setTickets(next);
+    setTickets(next.tickets);
+    setLastWrite(next.written);
     setFeedback(t("barcodeAdded", { field: t(field), code: value }));
   }
 
@@ -337,11 +343,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     // Compute the whole acquisition before enforcing capacity. Applying a cap
     // per code would silently retain only part of an oversized image group.
     const next = applyImageBarcodes(ticketsRef.current, values, Infinity);
-    if (next.length > MAX_JOB_SCAN_ITEMS) {
+    if (next.tickets.length > MAX_JOB_SCAN_ITEMS) {
       setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
       return;
     }
-    setTickets(next);
+    setTickets(next.tickets);
+    setLastWrite(next.written);
     setFeedback(t("barcodeImageRead"));
   }
 
@@ -430,14 +437,16 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           <p className="text-sm text-muted">{t("locationNotStock")}</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button
-              className="min-h-12"
+              className="min-h-12 max-w-full break-words whitespace-normal"
               onClick={() => {
                 acquisitionBlocked.current = false;
                 setSaved(undefined);
                 locationStep.enter();
               }}
             >
-              {t("scanMore")}
+              {t("scanMore", {
+                location: saved.location.code ?? saved.location.text,
+              })}
             </Button>
             <Button asChild variant="outline" className="min-h-12">
               <Link href={JOB_SCAN_RECORDS_PATH}>{t("viewRecords")}</Link>
@@ -609,6 +618,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
               return true;
             }}
           />
+        )}
+        {panel === "BARCODE" && !saving && (
+          <ScanProgress tickets={tickets} written={lastWrite} />
         )}
         {panel === "BARCODE" && !saving && (
           <BarcodeCameraBox
