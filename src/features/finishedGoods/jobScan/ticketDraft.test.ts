@@ -195,7 +195,10 @@ describe("written ticket report", () => {
   it("names the ticket that received an image pair, and nothing for an unmatched pair", () => {
     const row = newTicket("MANUAL", { factoryOrder: "FO22222222" });
     const filled = applyImageBarcodes([row], ["NEW-SKU", "FO22222222"]);
-    expect(filled.written).toEqual({ key: row.key, field: "factoryOrder" });
+    expect(filled.written).toEqual({
+      key: row.key,
+      field: "productBarcodeText",
+    });
     const unmatched = applyImageBarcodes([row], ["SKU-A", "SKU-B"]);
     expect(unmatched.tickets).toEqual([row]);
     expect(unmatched.written).toBe(undefined);

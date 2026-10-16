@@ -360,4 +360,16 @@ it("shows above the camera which ticket each scan filled, even an older one, and
   expect(progress).toHaveTextContent("Latest → ticket #3 · Job No. FO22222222");
   expect(progress).toHaveTextContent("All tickets complete");
   expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(3);
+
+  // The pair confirms an existing Job No. and fills only its product code.
+  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+  fireEvent.change(screen.getAllByRole("textbox", { name: /Job No\./ })[3]!, {
+    target: { value: "FO33333333" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  await chooseImageCodes(["PRODUCT-4", "FO33333333"]);
+  expect(
+    screen.getByText("Latest → ticket #4 · Product barcode PRODUCT-4"),
+  ).toBeVisible();
+  expect(screen.getByText("All tickets complete")).toBeVisible();
 });

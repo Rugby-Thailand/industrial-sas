@@ -229,7 +229,12 @@ export function applyImageBarcodes(
         ? { ...ticket, values: { ...ticket.values, ...fields } }
         : ticket,
     ),
-    written: { key: tickets[index]!.key, field: "factoryOrder" },
+    written: {
+      key: tickets[index]!.key,
+      field: tickets[index]!.values.factoryOrder?.trim()
+        ? "productBarcodeText"
+        : "factoryOrder",
+    },
   };
 }
 
