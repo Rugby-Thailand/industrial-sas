@@ -1,7 +1,8 @@
 "use client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import type { ComponentProps, ReactNode } from "react";
-import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -16,6 +17,8 @@ type IconButtonProps = Omit<
 > & {
   label: string;
   pending?: boolean;
+  /** Keep keyboard focus when a pending action may retain the current page. */
+  keepFocusWhilePending?: boolean;
   tooltip?: ReactNode;
 };
 
@@ -23,7 +26,9 @@ type IconButtonProps = Omit<
 export function IconButton({
   label,
   pending = false,
+  keepFocusWhilePending = false,
   disabled,
+  onClick,
   children,
   type = "button",
   variant = "outline",
@@ -41,13 +46,20 @@ export function IconButton({
       aria-label={label}
       title={tooltip === undefined ? label : undefined}
       aria-busy={pending || undefined}
-      disabled={disabled || pending}
+      aria-disabled={
+        (pending && keepFocusWhilePending) || props["aria-disabled"]
+      }
+      disabled={disabled || (pending && !keepFocusWhilePending)}
+      onClick={(event) => {
+        if (pending) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        onClick?.(event);
+      }}
     >
-      {pending ? (
-        <LoaderCircle aria-hidden="true" className="animate-spin" />
-      ) : (
-        children
-      )}
+      {pending ? <Spinner aria-hidden="true" /> : children}
     </Button>
   );
   if (tooltip === undefined) return button;

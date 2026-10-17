@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 
 export function RouteLoading() {
   const t = useTranslations("Navigation");
@@ -10,11 +11,15 @@ export function RouteLoading() {
   return (
     <section
       role="status"
+      aria-label={t("loadingPage")}
       aria-busy="true"
       aria-live="polite"
       className="flex flex-col gap-6"
     >
-      <span className="sr-only">{t("loadingPage")}</span>
+      <div className="flex min-h-touch items-center gap-2 text-sm text-muted">
+        <Spinner aria-hidden="true" />
+        <span>{t("loadingPage")}</span>
+      </div>
       <div aria-hidden="true" className="flex flex-col gap-3">
         <Skeleton className="h-8 w-full max-w-72" />
         <Skeleton className="h-4 w-full max-w-xl" />

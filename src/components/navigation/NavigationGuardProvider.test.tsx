@@ -27,6 +27,8 @@ import {
   guardedNavigate,
   isGuardTraversal,
   onNavigationIntent,
+  onNavigationBlocked,
+  registerHistoryBackHandler,
 } from "@/lib/navigationGuard";
 
 import {
@@ -341,6 +343,29 @@ describe("single navigation guard owner", () => {
     expect(
       screen.getByRole("button", { name: "Save and continue" }),
     ).toBeEnabled();
+  });
+
+  it("releases requested navigation when a newly registered foreground consumes restored Back", () => {
+    const stopTracking = trackAppHistory();
+    const retained = vi.fn();
+    const releaseNotice = onNavigationBlocked(retained);
+    const dismiss = vi.fn(() => true);
+    const releaseForeground = registerHistoryBackHandler(dismiss);
+    try {
+      render(owned(<Editor />));
+      const buffer = window.history.state;
+      pop({ __NA: true, appNavigationIndex: buffer.appNavigationIndex });
+      expect(retained).not.toHaveBeenCalled();
+      pop(buffer);
+      expect(dismiss).toHaveBeenCalledOnce();
+      expect(retained).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(discard).not.toHaveBeenCalled();
+    } finally {
+      releaseForeground();
+      releaseNotice();
+      stopTracking();
+    }
   });
 
   it("signals guard traversal only while restoring or removing its buffer", () => {

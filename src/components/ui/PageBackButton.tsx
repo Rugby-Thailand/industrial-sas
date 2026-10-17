@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { resolvePageBackFallback } from "@/lib/pageBackFallback";
 import { IconButton } from "./IconButton";
+import { useNavigationPending } from "@/components/system/NavigationProgress";
 import {
   appHistoryIndex,
   subscribeHistoryChanges,
@@ -34,6 +35,7 @@ export function PageBackButton({
 }) {
   const t = useTranslations("App");
   const router = useRouter();
+  const navigationPending = useNavigationPending();
   const href = useSyncExternalStore(
     subscribeHistoryChanges,
     () =>
@@ -60,6 +62,8 @@ export function PageBackButton({
       variant="ghost"
       label={t("back")}
       className="-mr-1 -ml-3 shrink-0 text-muted hover:text-text"
+      pending={navigationPending}
+      keepFocusWhilePending
       disabled={!hasForeground && !hasHistory && (pending || parent === null)}
       onClick={() => {
         navigateBack(router, pending ? null : parent);

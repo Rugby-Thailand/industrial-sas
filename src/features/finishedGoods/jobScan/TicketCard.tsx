@@ -1,7 +1,9 @@
 "use client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import { useId } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { FormField } from "@/components/ui/FormField";
@@ -114,7 +116,7 @@ export function TicketCard({
         <StatusBadge tone="muted" label={t(`source.${ticket.source}`)} />
         {ticket.status === "reading" && (
           <span className="flex items-center gap-1 text-sm text-pending">
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            <Spinner className="size-4" aria-hidden="true" />
             {t("reading")}
           </span>
         )}

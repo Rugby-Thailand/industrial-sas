@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import type { BadgeTone } from "@/components/ui/StatusBadge";
 import type { LedgerPanelState } from "@/lib/convex/ledgerState";
 
@@ -28,7 +29,10 @@ export function LedgerPanelStatus({
         data-testid="panel-LOADING"
         className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
       >
-        <span className="text-sm font-semibold text-muted">{t("loading")}</span>
+        <span className="flex items-center gap-2 text-sm font-semibold text-muted">
+          <Spinner aria-hidden="true" />
+          {t("loading")}
+        </span>
         <span className="sr-only">{t("loadingHint")}</span>
         <div aria-hidden="true" className="flex flex-col gap-2">
           <Skeleton className="h-6 w-1/3" />

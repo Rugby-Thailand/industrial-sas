@@ -1,8 +1,9 @@
 "use client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import * as React from "react";
 import type { VariantProps } from "class-variance-authority";
-import { LoaderCircle } from "lucide-react";
 import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "./buttonVariants";
@@ -118,10 +119,7 @@ function Button({
     >
       {pending ? (
         <>
-          <LoaderCircle
-            aria-hidden="true"
-            className="animate-spin motion-reduce:animate-none"
-          />
+          <Spinner aria-hidden="true" />
           {pendingLabel === undefined ? children : pendingLabel}
         </>
       ) : (

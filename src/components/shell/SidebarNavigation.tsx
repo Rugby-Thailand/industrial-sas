@@ -1,4 +1,5 @@
-import { ChevronRight, LoaderCircle, type LucideIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
@@ -103,10 +104,7 @@ export function SidebarNavigation({
             }
           >
             {collapsed ? (
-              <LoaderCircle
-                aria-hidden="true"
-                className="size-4 animate-spin motion-reduce:animate-none"
-              />
+              <Spinner aria-hidden="true" className="size-4" />
             ) : null}
             <span className={collapsed ? "sr-only" : undefined}>
               {t("loadingNavigation")}

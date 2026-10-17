@@ -1,7 +1,9 @@
 "use client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import { useState, type ReactNode, type SyntheticEvent } from "react";
-import { CameraOff, LoaderCircle, X } from "lucide-react";
+import { CameraOff, X } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { cn } from "@/lib/utils";
 
@@ -98,7 +100,7 @@ export function CameraFrame({
           aria-live="polite"
           className="absolute inset-0 flex items-center justify-center gap-2 p-6 text-center text-sm text-white/80"
         >
-          <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+          <Spinner aria-hidden="true" className="size-4" />
           {statusLabel}
         </p>
       )}

@@ -1,8 +1,10 @@
 "use client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { LoaderCircle, Search, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { QueryGate } from "@/components/system/QueryGate";
@@ -476,10 +478,7 @@ function Records({
               role="status"
               className="flex min-h-12 items-center gap-2 text-sm text-muted"
             >
-              <LoaderCircle
-                aria-hidden="true"
-                className="size-4 animate-spin motion-reduce:animate-none"
-              />
+              <Spinner aria-hidden="true" className="size-4" />
               {t("recordList.searching")}
             </p>
           ) : (
@@ -558,10 +557,7 @@ function Records({
                   role="status"
                   className="flex min-h-12 items-center gap-2 text-sm text-muted"
                 >
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="size-4 animate-spin motion-reduce:animate-none"
-                  />
+                  <Spinner aria-hidden="true" className="size-4" />
                   {t("recordList.searchProgress", { count: checked })}
                   {!fresh ? ` ${t("recordList.actionsWait")}` : ""}
                 </p>

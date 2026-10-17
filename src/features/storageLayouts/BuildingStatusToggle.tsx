@@ -1,7 +1,8 @@
 "use client";
 
+import { Spinner } from "@/components/ui/spinner";
+
 import { useMutation, useQuery } from "convex/react";
-import { LoaderCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
@@ -235,10 +236,7 @@ export function BuildingStatusToggle({
       <span className="flex size-12 shrink-0 items-center justify-center">
         {operation.busy || result === undefined ? (
           <span role="status">
-            <LoaderCircle
-              className="size-4 animate-spin text-muted"
-              aria-hidden="true"
-            />
+            <Spinner className="size-4 text-muted" aria-hidden="true" />
             <span className="sr-only">
               {t(operation.busy ? "statusSaving" : "statusLoading")}
             </span>

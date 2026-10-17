@@ -9,6 +9,7 @@ import { useHrListCriteria } from "@/features/hr/HrListCriteria";
 import { Link, useRouter } from "@/i18n/navigation";
 import { updateBrowserQuery } from "@/lib/browser/history";
 import { StorageFixture } from "./storageFixture";
+import { PageBackButton } from "@/components/ui/PageBackButton";
 
 export function Fixture({ screen }: { readonly screen: string }) {
   const router = useRouter();
@@ -85,6 +86,7 @@ export function Fixture({ screen }: { readonly screen: string }) {
   }
   return (
     <main>
+      <PageBackButton fallbackHref="/previous" />
       <h1>{screen}</h1>
       <nav>
         <Link href="/storage?floor=1&view=storage&kept=yes#map">
