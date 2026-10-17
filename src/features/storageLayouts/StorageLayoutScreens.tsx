@@ -1673,7 +1673,7 @@ export function BuildingModelWorkspace({
               variant={view === "storage" ? "active" : "ghost"}
               aria-label={t("storageFloorView")}
               title={t("storageFloorView")}
-              className="min-h-11 min-w-11"
+              className="min-h-11 min-w-11 max-sm:aria-pressed:bg-transparent max-sm:aria-pressed:hover:bg-transparent"
               aria-pressed={view === "storage"}
               onClick={() => select({ view: "storage" })}
             >
@@ -1688,7 +1688,7 @@ export function BuildingModelWorkspace({
               variant={view === "building" ? "active" : "ghost"}
               aria-label={t("buildingModelView")}
               title={t("buildingModelView")}
-              className="min-h-11 min-w-11"
+              className="min-h-11 min-w-11 max-sm:aria-pressed:bg-transparent max-sm:aria-pressed:hover:bg-transparent"
               aria-pressed={view === "building"}
               onClick={() => select({ view: "building" })}
             >

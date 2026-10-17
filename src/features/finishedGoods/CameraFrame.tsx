@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 /** Overlay controls sit on the live picture, so they keep a fixed light-on-dark contrast. */
 export const cameraOverlayButtonClass =
-  "size-11 rounded-full bg-black/15 text-white hover:bg-black/30 hover:text-white";
+  "size-11 rounded-full bg-black/15 text-white hover:bg-black/30 hover:text-white aria-pressed:bg-black/15 aria-pressed:hover:bg-black/30";
 
 /** Media inside a camera frame shows the whole feed: the frame follows its geometry. */
 export const cameraMediaClass = "block h-full w-full object-contain";
