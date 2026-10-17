@@ -48,7 +48,8 @@ export function HrActionCard({
     panelClassName({ padding: "compact" }),
     "flex min-h-touch w-full items-center gap-3 text-left",
     interactive && "focus-ring transition-colors hover:bg-raised",
-    selected && "border-primary bg-selected text-selected-foreground",
+    selected &&
+      "bg-accent-surface text-selected-foreground hover:bg-accent-surface",
   );
   const content = (
     <>

@@ -912,7 +912,7 @@ function BuildingFilter({
       <Popover.Trigger asChild>
         <IconButton
           label={t("filterByBuilding")}
-          variant={value ? "secondary" : "outline"}
+          variant={value ? "active" : "ghost"}
           aria-pressed={Boolean(value)}
           // A fixed 48px box (44px on dense pointers) overrides the shared
           // icon size's smaller dense minimum, so it is never below 44px.
@@ -1070,7 +1070,7 @@ function BuildingOptions({
       >
         <Button
           type="button"
-          variant={value ? "ghost" : "secondary"}
+          variant={value ? "ghost" : "active"}
           aria-pressed={!value}
           className={option(!value)}
           onClick={() => onChange(null)}
@@ -1083,7 +1083,7 @@ function BuildingOptions({
             <Button
               key={row.buildingId}
               type="button"
-              variant={selected ? "secondary" : "ghost"}
+              variant={selected ? "active" : "ghost"}
               aria-pressed={selected}
               className={option(selected)}
               onClick={() =>

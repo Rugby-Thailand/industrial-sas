@@ -68,7 +68,7 @@ export function CameraFrame({
     <div
       hidden={hidden}
       className={cn(
-        "relative mx-auto overflow-hidden rounded-xl bg-black",
+        "dark relative mx-auto overflow-hidden rounded-xl bg-black",
         layout === "content"
           ? "grid min-h-18 w-fit max-w-full min-w-18 place-items-center"
           : status === "error"

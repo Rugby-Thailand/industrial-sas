@@ -99,7 +99,7 @@ export function FloorWorkspaceToolbar({
               className={styles.icon}
               label={t("locationTable.filters")}
               aria-pressed={filters.length > 0}
-              variant={filters.length ? "secondary" : "outline"}
+              variant={filters.length ? "active" : "ghost"}
             >
               <SlidersHorizontal />
               {filters.length > 0 && <span className={styles.filterDot} />}
@@ -120,7 +120,7 @@ export function FloorWorkspaceToolbar({
                   (key) => (
                     <Button
                       key={key}
-                      variant={filters.includes(key) ? "secondary" : "ghost"}
+                      variant={filters.includes(key) ? "active" : "ghost"}
                       className="min-h-11 justify-start"
                       aria-pressed={filters.includes(key)}
                       onClick={() =>
@@ -181,7 +181,7 @@ export function FloorWorkspaceToolbar({
               className={styles.icon}
               label={label}
               tooltip={label}
-              variant={view === mode ? "secondary" : "ghost"}
+              variant={view === mode ? "active" : "ghost"}
               aria-pressed={view === mode}
               tabIndex={view === mode ? 0 : -1}
               onClick={() => onView(mode)}

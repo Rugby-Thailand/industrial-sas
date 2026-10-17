@@ -37,7 +37,7 @@ function DisplayOption({
       type="button"
       variant="ghost"
       size="sm"
-      className="min-h-11 w-full justify-start"
+      className="min-h-11 w-full justify-start aria-pressed:bg-accent-surface aria-pressed:text-link"
       aria-label={name}
       onClick={onClick}
       disabled={disabled}

@@ -1670,7 +1670,7 @@ export function BuildingModelWorkspace({
             <Button
               type="button"
               size="sm"
-              variant={view === "storage" ? "secondary" : "ghost"}
+              variant={view === "storage" ? "active" : "ghost"}
               aria-label={t("storageFloorView")}
               title={t("storageFloorView")}
               className="min-h-11 min-w-11"
@@ -1685,7 +1685,7 @@ export function BuildingModelWorkspace({
             <Button
               type="button"
               size="sm"
-              variant={view === "building" ? "secondary" : "ghost"}
+              variant={view === "building" ? "active" : "ghost"}
               aria-label={t("buildingModelView")}
               title={t("buildingModelView")}
               className="min-h-11 min-w-11"

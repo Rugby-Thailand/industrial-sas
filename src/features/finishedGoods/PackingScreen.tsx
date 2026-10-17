@@ -976,7 +976,7 @@ function PackingForm({
             >
               <Button
                 type="button"
-                variant={draft.simplePacking ? "default" : "outline"}
+                variant={draft.simplePacking ? "active" : "outline"}
                 aria-pressed={draft.simplePacking}
                 onClick={() => persist({ ...draft, simplePacking: true })}
               >
@@ -984,7 +984,7 @@ function PackingForm({
               </Button>
               <Button
                 type="button"
-                variant={!draft.simplePacking ? "default" : "outline"}
+                variant={!draft.simplePacking ? "active" : "outline"}
                 aria-pressed={!draft.simplePacking}
                 onClick={() => persist({ ...draft, simplePacking: false })}
               >
@@ -1002,7 +1002,7 @@ function PackingForm({
                       type="button"
                       key={String(sameSize)}
                       variant={
-                        draft.sameSize === sameSize ? "default" : "outline"
+                        draft.sameSize === sameSize ? "active" : "outline"
                       }
                       aria-pressed={draft.sameSize === sameSize}
                       onClick={() => persist({ ...draft, sameSize })}
@@ -1027,7 +1027,7 @@ function PackingForm({
                         draft.rows.every(
                           (r) => !r.fillPercent || r.fillPercent === value,
                         )
-                          ? "default"
+                          ? "active"
                           : "outline"
                       }
                       onClick={() =>
@@ -1164,7 +1164,7 @@ function PackingForm({
                       <Button
                         type="button"
                         key={r.id}
-                        variant={selected?.id === r.id ? "default" : "outline"}
+                        variant={selected?.id === r.id ? "active" : "outline"}
                         aria-pressed={selected?.id === r.id}
                         onClick={() => persist({ ...draft, selected: r.id })}
                       >
@@ -1255,7 +1255,7 @@ function PackingForm({
                             key={unit}
                             type="button"
                             variant={
-                              draft.displayUnit === unit ? "default" : "outline"
+                              draft.displayUnit === unit ? "active" : "outline"
                             }
                             aria-pressed={draft.displayUnit === unit}
                             onClick={() =>

@@ -44,7 +44,6 @@
   width: 36px;
 }
 .camera button[aria-pressed="true"] {
-  background: var(--plan-panel-raised);
   color: var(--plan-link);
 }
 .search {
@@ -100,8 +99,6 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
-  border-radius: 6px;
-  background: var(--plan-panel-raised);
 }
 .filterDot {
   position: absolute;

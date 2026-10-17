@@ -233,7 +233,7 @@ function LocationCatalogueContent({
           return (
             <Button
               key={view}
-              variant={prefs.view === view ? "secondary" : "ghost"}
+              variant={prefs.view === view ? "active" : "ghost"}
               size="icon"
               title={label}
               aria-label={label}

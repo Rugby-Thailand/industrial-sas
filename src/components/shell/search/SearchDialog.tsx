@@ -483,7 +483,7 @@ function ResultOption({
       onClick={disabled ? undefined : onChoose}
       className={cn(
         "grid min-h-touch cursor-pointer gap-0.5 rounded-lg px-3 py-2 text-left",
-        active ? "bg-selected ring-1 ring-link" : "hover:bg-raised",
+        active ? "bg-accent-surface" : "hover:bg-raised",
         disabled && "cursor-default opacity-80 hover:bg-transparent",
       )}
     >

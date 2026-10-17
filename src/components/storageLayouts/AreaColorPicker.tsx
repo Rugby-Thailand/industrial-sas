@@ -41,7 +41,7 @@ export function AreaColorPicker({
             type="button"
             aria-pressed={color === preset.color}
             onClick={() => onChange(preset.color)}
-            className="rounded-lg border border-border p-1.5 text-xs text-text outline-none hover:bg-accent/10 focus-visible:ring-2 focus-visible:ring-accent aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent"
+            className="rounded-lg border border-border p-1.5 text-xs text-text outline-none hover:bg-accent/10 focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span
               className="mb-1 flex h-10 items-center justify-center rounded border border-black/15"

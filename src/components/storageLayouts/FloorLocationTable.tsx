@@ -244,7 +244,7 @@ function LocationTable({
             <>
               <IconButton
                 type="button"
-                variant={filters.length ? "secondary" : "outline"}
+                variant={filters.length ? "active" : "ghost"}
                 label={labels.filters}
                 aria-expanded={filtersOpen}
                 aria-controls={filtersId}
@@ -272,7 +272,7 @@ function LocationTable({
             >
               <IconButton
                 type="button"
-                variant={layout === "table" ? "secondary" : "ghost"}
+                variant={layout === "table" ? "active" : "ghost"}
                 label={labels.table}
                 aria-pressed={layout === "table"}
                 onClick={() => setLayout("table")}
@@ -281,7 +281,7 @@ function LocationTable({
               </IconButton>
               <IconButton
                 type="button"
-                variant={layout === "grid" ? "secondary" : "ghost"}
+                variant={layout === "grid" ? "active" : "ghost"}
                 label={labels.grid}
                 aria-pressed={layout === "grid"}
                 onClick={() => setLayout("grid")}
@@ -304,7 +304,7 @@ function LocationTable({
                 key={key}
                 type="button"
                 size="sm"
-                variant={filters.includes(key) ? "secondary" : "outline"}
+                variant={filters.includes(key) ? "active" : "outline"}
                 aria-pressed={filters.includes(key)}
                 onClick={() => {
                   setFilters((current) =>
@@ -474,7 +474,7 @@ function LocationTable({
                     aria-pressed={selectedId === zone.zoneId}
                     aria-label={`${thai ? "เลือกจุดจัดเก็บ" : "Select location"} ${zone.code} · ${zone.label}`}
                     onClick={() => onSelect(zone.zoneId)}
-                    className="h-full w-full space-y-3 rounded-lg border border-border bg-surface p-4 text-left hover:bg-raised aria-pressed:border-ring aria-pressed:bg-selected"
+                    className="h-full w-full space-y-3 rounded-lg border border-border bg-surface p-4 text-left hover:bg-raised aria-pressed:bg-selected"
                   >
                     {/* An equal code would repeat the name below it. */}
                     {zone.label !== zone.code && (

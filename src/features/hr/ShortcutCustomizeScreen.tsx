@@ -459,7 +459,7 @@ function ShortcutEditor({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="cursor-grab touch-none aria-pressed:cursor-grabbing aria-pressed:bg-selected"
+                  className="cursor-grab touch-none aria-pressed:cursor-grabbing"
                   aria-label={t("handle", {
                     label,
                     position: index + 1,

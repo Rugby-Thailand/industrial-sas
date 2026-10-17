@@ -422,7 +422,7 @@ function QueueList({
                 aria-pressed={active}
                 className={`grid min-h-touch w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 rounded-xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring @md:grid-cols-[auto_minmax(0,1fr)_auto] @md:items-center ${
                   active
-                    ? "border-link bg-selected shadow-[inset_4px_0_0_var(--color-link)]"
+                    ? "border-border bg-accent-surface shadow-[inset_4px_0_0_var(--color-link)]"
                     : "border-border bg-surface hover:border-border-strong hover:bg-raised"
                 }`}
               >
