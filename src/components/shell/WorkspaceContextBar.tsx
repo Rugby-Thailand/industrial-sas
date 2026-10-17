@@ -19,7 +19,7 @@ const CONTEXT_SLOT = "workspace-context";
 
 /**
  * Moves focus from the rail button, which unmounts as the sidebar expands, to
- * the warehouse selector it revealed (or the read-only warehouse).
+ * the warehouse selector it revealed.
  */
 function focusExpandedWarehouse() {
   const context = document.querySelector<HTMLElement>(
@@ -33,17 +33,13 @@ function focusExpandedWarehouse() {
 
 /**
  * The selected warehouse, as the second line of the sidebar's compact
- * identity. `switchable` pages (the top-level storage and finished-goods
- * pages) offer the warehouse selector; task and detail pages show the
- * selection read-only. A member without storage access sees nothing on
- * read-only pages. The collapsed rail shows one warehouse icon that expands
+ * identity. Every page offers the warehouse selector when storage access
+ * is available. The collapsed rail shows one warehouse icon that expands
  * the sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({
-  switchable,
   collapsed = false,
 }: {
-  readonly switchable: boolean;
   readonly collapsed?: boolean;
 }) {
   const t = useTranslations("Workspace");
@@ -57,8 +53,6 @@ export function WorkspaceContextBar({
         (warehouse) => warehouse.id === workspace.selectedWarehouseId,
       )
     : undefined;
-
-  if (!switchable && !selected) return null;
 
   const selectedLabel = selected ? warehouseLabel(selected) : undefined;
 
@@ -124,7 +118,7 @@ export function WorkspaceContextBar({
             </>
           )}
         </div>
-      ) : switchable ? (
+      ) : (
         <>
           {/*
            * `htmlFor` rather than a wrapping `<label>`: the Radix trigger is a
@@ -135,7 +129,7 @@ export function WorkspaceContextBar({
             {t("warehouse")}
           </label>
           {/*
-           * No leading icon: beside the app mark and sidebar toggle, the
+           * No leading icon: beside the sidebar toggle, the
            * narrow identity column needs its width for the warehouse label.
            * The section title shows a truncated selection in full.
            */}
@@ -154,12 +148,7 @@ export function WorkspaceContextBar({
             }))}
           />
         </>
-      ) : selected ? (
-        <p className="truncate text-sm text-muted">
-          <span className="block truncate">{selected.code}</span>
-          <span className="sr-only">{selected.name}</span>
-        </p>
-      ) : null}
+      )}
     </section>
   );
 }

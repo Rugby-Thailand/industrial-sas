@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Building2, PanelLeft, X } from "lucide-react";
+import { PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
@@ -48,16 +48,9 @@ import { cn } from "@/lib/utils";
 const MAIN_ID = "main-content";
 const NAV_ID = "primary-navigation";
 
-/** Warehouse switching and creation belong to the top-level pages, not task or detail pages. */
-const WORKSPACE_BAR_PATHS: readonly string[] = [
-  ROUTES.finishedGoods,
-  ROUTES.storageLayouts,
-];
-
 export function Pattern({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
-  const showWorkspaceBar = WORKSPACE_BAR_PATHS.includes(pathname);
   const usageReport = pathname === ROUTES.aiUsage;
   const menuOpener = useRef<HTMLButtonElement>(null);
   return (
@@ -79,10 +72,7 @@ export function Pattern({ children }: { readonly children: ReactNode }) {
                 {t("skipToContent")}
               </SkipToContentLink>
               <HrLandingRedirect />
-              <AppSidebar
-                switchableWarehouse={showWorkspaceBar}
-                menuOpener={menuOpener}
-              />
+              <AppSidebar menuOpener={menuOpener} />
               <SidebarInset className="min-w-0 overflow-hidden">
                 <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
                   <div className="flex items-center gap-1 sm:gap-2">
@@ -180,10 +170,8 @@ function HeaderBrand() {
 }
 
 function AppSidebar({
-  switchableWarehouse,
   menuOpener,
 }: {
-  readonly switchableWarehouse: boolean;
   readonly menuOpener: RefObject<HTMLButtonElement | null>;
 }) {
   const t = useTranslations("Navigation");
@@ -231,21 +219,14 @@ function AppSidebar({
               collapsed && "sr-only",
             )}
           >
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Building2 className="size-5" aria-hidden="true" />
-            </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{app("name")}</p>
-              {collapsed ? null : (
-                <WorkspaceContextBar switchable={switchableWarehouse} />
-              )}
+              {collapsed ? null : <WorkspaceContextBar />}
             </div>
           </div>
           <NavigationDisclosure />
         </div>
-        {collapsed ? (
-          <WorkspaceContextBar switchable={switchableWarehouse} collapsed />
-        ) : null}
+        {collapsed ? <WorkspaceContextBar collapsed /> : null}
         <SidebarSearchTriggers
           collapsed={collapsed}
           {...(isMobile ? { onOpen: searchHandoff.request } : {})}

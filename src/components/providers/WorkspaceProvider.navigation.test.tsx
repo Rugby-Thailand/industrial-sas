@@ -7,6 +7,8 @@ import {
   useNavigationDraft,
 } from "@/components/navigation/NavigationGuardProvider";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
+import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import {
   WAREHOUSE_STORAGE_KEY,
@@ -110,7 +112,9 @@ function Caller() {
   return (
     <>
       <output aria-label="Current warehouse">{warehouse}</output>
-      <button onClick={() => workspace.selectWarehouse("b")}>Choose B</button>
+      <SidebarProvider>
+        <WorkspaceContextBar />
+      </SidebarProvider>
       <button onClick={() => writeStoredWarehouse("c")}>
         Choose C outside shell
       </button>
@@ -134,6 +138,14 @@ async function discard() {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
 }
+async function chooseB() {
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Warehouse" }), {
+    key: "ArrowDown",
+  });
+  fireEvent.click(
+    await screen.findByRole("option", { name: "B · Warehouse B" }),
+  );
+}
 function external(value: string) {
   act(() => {
     window.localStorage.setItem(WAREHOUSE_STORAGE_KEY, value);
@@ -148,18 +160,35 @@ function external(value: string) {
 }
 
 describe("warehouse context departure ownership", () => {
+  it("switches from a detail page in place without adding a Back entry", async () => {
+    renderCaller();
+    const href = window.location.href;
+    const length = window.history.length;
+    await chooseB();
+    expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("b");
+    expect(window.location.href).toBe(href);
+    expect(window.history.length).toBe(length);
+    act(() => window.history.back());
+    await waitFor(() =>
+      expect(
+        window.location.pathname +
+          window.location.search +
+          window.location.hash,
+      ).toBe("/th/finished-goods?search=box#list"),
+    );
+  });
   it("keeps the floor draft and persisted context until a local warehouse switch is approved", async () => {
     renderCaller();
     fireEvent.change(screen.getByRole("textbox", { name: "Floor draft" }), {
       target: { value: "retain floor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Choose B" }));
+    await chooseB();
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(window.localStorage.getItem(WAREHOUSE_STORAGE_KEY)).toBe("a");
     expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("a");
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByRole("textbox")).toHaveValue("retain floor");
-    fireEvent.click(screen.getByRole("button", { name: "Choose B" }));
+    await chooseB();
     await discard();
     await waitFor(() =>
       expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("b"),
@@ -195,7 +224,7 @@ describe("warehouse context departure ownership", () => {
   it("blocks context switching while the original warehouse write is pending", async () => {
     renderCaller();
     fireEvent.click(screen.getByRole("button", { name: "Save floor" }));
-    fireEvent.click(screen.getByRole("button", { name: "Choose B" }));
+    await chooseB();
     expect(
       screen.getByRole("button", { name: "Discard changes" }),
     ).toBeDisabled();

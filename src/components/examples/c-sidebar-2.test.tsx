@@ -167,6 +167,7 @@ beforeEach(() => {
   state.organizationId = "org-a";
   state.warehouseId = "wh-1";
   state.actorKey = "org-a:user-a";
+  state.selectWarehouse.mockReset();
   state.push.mockReset();
   state.push.mockImplementation(() => arrival.notify());
   // The shell's single breakpoint question: below the navigation rail?
@@ -224,6 +225,39 @@ it("skips to the shell's main region without adding an unmanaged fragment histor
 });
 
 describe("sidebar hierarchy", () => {
+  it.each([
+    [false, "/finished-goods"],
+    [false, "/finished-goods/scan"],
+    [false, "/finished-goods/products/product-1"],
+    [false, "/master-data/storage-layouts/building-1"],
+    [false, "/hr/today"],
+    [true, "/finished-goods"],
+    [true, "/finished-goods/scan"],
+    [true, "/finished-goods/products/product-1"],
+    [true, "/master-data/storage-layouts/building-1"],
+    [true, "/hr/today"],
+  ])(
+    "can choose a warehouse without leaving the page (mobile=%s, route=%s)",
+    async (mobile, pathname) => {
+      state.mobile = mobile;
+      state.pathname = pathname;
+      const header = renderShell();
+      if (mobile) await openDrawer(header);
+      const picker = screen.getByRole("combobox", { name: "Warehouse" });
+      expect(picker).toBeEnabled();
+      fireEvent.keyDown(picker, { key: "ArrowDown" });
+      fireEvent.click(
+        await screen.findByRole("option", {
+          name: "WH-2 · Overflow warehouse",
+        }),
+      );
+      expect(state.selectWarehouse).toHaveBeenCalledExactlyOnceWith("wh-2");
+      expect(state.push).not.toHaveBeenCalled();
+      expect(state.replace).not.toHaveBeenCalled();
+      expect(state.pathname).toBe(pathname);
+    },
+  );
+
   it("starts expanded with a flag-only header and exactly one disclosure inside the desktop sidebar", () => {
     const header = renderShell();
     const sidebar = screen.getByRole("complementary", {
