@@ -14,12 +14,15 @@ import {
 } from "react";
 
 import { RouteLoading } from "./RouteLoading";
+import { NavigationActionPendingContext } from "./navigationPending";
 import { trackAppHistory } from "@/lib/browser/appHistory";
+import { onNavigationBlocked } from "@/lib/navigationGuard";
 
 const NavigationContext = createContext<{
   run: (action: () => void) => void;
   prepare: (mode: "push" | "replace") => void;
   report: (id: string, pending: boolean) => void;
+  back: (action: () => void) => void;
 } | null>(null);
 const PendingContext = createContext(false);
 
@@ -34,6 +37,7 @@ export function NavigationProgressProvider({
   const pathname = usePathname();
   const [transitionPending, startTransition] = useTransition();
   const [links, setLinks] = useState<ReadonlySet<string>>(() => new Set());
+  const [backRequested, setBackRequested] = useState(false);
   const [historyDestination, setHistoryDestination] = useState<{
     from: string | null;
     to: string;
@@ -59,21 +63,42 @@ export function NavigationProgressProvider({
     });
   }, []);
   const run = useCallback((action: () => void) => startTransition(action), []);
+  const back = useCallback((action: () => void) => {
+    // Native traversal is asynchronous. Cover the gap before popstate, then
+    // let the route destination below own feedback until React commits it.
+    setBackRequested(true);
+    try {
+      action();
+    } catch (error) {
+      setBackRequested(false);
+      throw error;
+    }
+  }, []);
   const prepare = useCallback(() => {
     // A new navigation supersedes any unfinished Back/Forward destination.
     setHistoryDestination(null);
+    setBackRequested(false);
   }, []);
   const navigation = useMemo(
-    () => ({ run, report, prepare }),
-    [run, report, prepare],
+    () => ({ run, report, prepare, back }),
+    [run, report, prepare, back],
   );
 
   useLayoutEffect(() => trackAppHistory(), []);
+  useLayoutEffect(
+    () =>
+      onNavigationBlocked(() => {
+        setBackRequested(false);
+        setHistoryDestination(null);
+      }),
+    [],
+  );
   useLayoutEffect(() => {
     committedPath.current = pathname;
   }, [pathname]);
   useLayoutEffect(() => {
     const onHistory = (event: PopStateEvent) => {
+      setBackRequested(false);
       // Native fragment entries have no Next router tree. Next ignores them,
       // so waiting for their pathname to commit would hide the page forever.
       if (!event.state?.__NA) {
@@ -87,19 +112,35 @@ export function NavigationProgressProvider({
           : null,
       );
     };
+    const onPageShow = (event: PageTransitionEvent) => {
+      // A cross-document Back never dispatches popstate in this document.
+      // Forward can restore its requested feedback from the browser cache.
+      if (event.persisted) {
+        setBackRequested(false);
+        setHistoryDestination(null);
+      }
+    };
     window.addEventListener("popstate", onHistory);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
       window.removeEventListener("popstate", onHistory);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
 
   return (
     <NavigationContext.Provider value={navigation}>
-      <PendingContext.Provider
-        value={transitionPending || links.size > 0 || historyPending}
+      <NavigationActionPendingContext.Provider
+        value={
+          backRequested || transitionPending || links.size > 0 || historyPending
+        }
       >
-        {children}
-      </PendingContext.Provider>
+        <PendingContext.Provider
+          value={transitionPending || links.size > 0 || historyPending}
+        >
+          {children}
+        </PendingContext.Provider>
+      </NavigationActionPendingContext.Provider>
     </NavigationContext.Provider>
   );
 }

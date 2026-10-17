@@ -46,6 +46,160 @@ test.afterEach(async ({ page }) => {
   expect(pageErrors.get(page)).toEqual([]);
 });
 
+test("header Back waits for consent, retains a cancelled draft and restores the exact origin", async ({
+  page,
+}) => {
+  await page.goto("/en/previous?caller=1#origin");
+  await page.getByRole("link", { name: "Open editor", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "editor", exact: true }),
+  ).toBeVisible();
+  await dirtyA(page);
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("status", { name: /Loading page/i })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "Keep editing", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByLabel("Draft A")).toHaveValue("Unsaved A contents");
+  await expect(
+    page.getByRole("button", { name: "Back", exact: true }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Discard changes", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/en\/previous\?caller=1#origin$/);
+  await expect(
+    page.getByRole("heading", { name: "previous", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("status", { name: /Loading page/i })).toHaveCount(
+    0,
+  );
+  await page.goForward();
+  await expect(
+    page.getByRole("heading", { name: "editor", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/previous\?caller=1#origin$/);
+});
+
+test("header Back shows one spinner before delayed native traversal and clears it on arrival", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    // Hold browser delivery, not the app's implementation. A native traversal
+    // can finish after the click handler; the action must stay unavailable.
+    window.addEventListener(
+      "popstate",
+      (event) => {
+        if (!document.documentElement.hasAttribute("data-hold-history")) return;
+        document.documentElement.removeAttribute("data-hold-history");
+        event.stopImmediatePropagation();
+        window.addEventListener(
+          "release-history",
+          () => {
+            window.dispatchEvent(
+              new PopStateEvent("popstate", { state: event.state }),
+            );
+          },
+          { once: true },
+        );
+      },
+      true,
+    );
+  });
+  await openEditor(page);
+  await expect(page.getByTestId("navigation-ready")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-hold-history", ""),
+  );
+  const back = page.getByRole("button", { name: "Back", exact: true });
+  await back.click();
+  await expect(back).toHaveAttribute("aria-busy", "true");
+  await expect(back).toHaveAttribute("aria-disabled", "true");
+  await expect(back.locator('[data-slot="spinner"]')).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "editor", exact: true }),
+  ).toBeVisible();
+  await back.dispatchEvent("click");
+  await page.evaluate(() => window.dispatchEvent(new Event("release-history")));
+  await expect(
+    page.getByRole("heading", { name: "previous", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("status", { name: /Loading page/i })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "Back", exact: true }),
+  ).not.toHaveAttribute("aria-busy", "true");
+});
+
+test("a draft arriving after Back releases the spinner and remains protected on cancellation", async ({
+  page,
+}) => {
+  await openEditor(page);
+  await expect(page.getByTestId("navigation-ready")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
+  await page.evaluate(() => {
+    const back = window.history.back.bind(window.history);
+    // Delay just the user's first request. The guard's own restoration must
+    // still use native traversal once the held request is released.
+    window.history.back = () => {
+      window.addEventListener(
+        "release-back-request",
+        () => {
+          window.history.back = back;
+          back();
+        },
+        { once: true },
+      );
+    };
+  });
+  const back = page.getByRole("button", { name: "Back", exact: true });
+  await back.click();
+  await expect(back).toHaveAttribute("aria-busy", "true");
+  await dirtyA(page);
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event("release-back-request")),
+  );
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Keep editing", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByLabel("Draft A")).toHaveValue("Unsaved A contents");
+  await expect(back).toBeEnabled();
+  await expect(back).not.toHaveAttribute("aria-busy", "true");
+  await back.click();
+  await page
+    .getByRole("button", { name: "Discard changes", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "previous", exact: true }),
+  ).toBeVisible();
+});
+
+test("keyboard header Back restores the same-page query and keeps focus", async ({
+  page,
+}) => {
+  await openEditor(page);
+  await page
+    .getByRole("button", { name: "HR query push", exact: true })
+    .click();
+  await expect(page.getByTestId("hr-query")).toHaveText("updated");
+  const back = page.getByRole("button", { name: "Back", exact: true });
+  await back.focus();
+  await back.press("Enter");
+  await expect(page.getByTestId("hr-query")).toHaveText("initial");
+  await expect(back).toBeFocused();
+  await expect(back).not.toHaveAttribute("aria-busy", "true");
+});
+
 test("a sole Floor-style save continues once after its React clean report", async ({
   page,
 }) => {

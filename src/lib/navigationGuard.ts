@@ -35,6 +35,19 @@ export interface NavigationGuardOwner {
 
 let owner: NavigationGuardOwner | null = null;
 const intentListeners = new Set<() => void>();
+const blockedListeners = new Set<() => void>();
+
+/** A fresh draft or foreground can retain an already-requested traversal. */
+export function announceNavigationBlocked(): void {
+  for (const listener of [...blockedListeners]) listener();
+}
+
+export function onNavigationBlocked(listener: () => void): () => void {
+  blockedListeners.add(listener);
+  return () => {
+    blockedListeners.delete(listener);
+  };
+}
 
 /** Internal: the shell provider is the only caller. Returns its release. */
 export function registerNavigationGuardOwner(
@@ -138,8 +151,14 @@ export function hasBackWithinPage(): boolean {
 }
 
 /** Traversal stays centralized so feature dismissals cannot bypass guards. */
-export function traverseBack(): void {
-  guardedNavigate(() => window.history.back());
+export function traverseBack(run?: (action: Transition) => void): void {
+  guardedNavigate(() => {
+    const action = () => window.history.back();
+    // Feedback may wrap the traversal, but only after draft consent. Existing
+    // foreground owners call this without a runner and remain instantaneous.
+    if (run) run(action);
+    else action();
+  });
 }
 export function navigateBack(
   router: { back: () => void; replace: (href: string) => void },

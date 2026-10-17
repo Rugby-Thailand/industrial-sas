@@ -22,6 +22,7 @@ import {
 import { browserQueryEvent } from "@/lib/browser/history";
 import {
   announceNavigationIntent,
+  announceNavigationBlocked,
   backWithinPage,
   hasBackWithinPage,
   registeredLinkNavigation,
@@ -108,6 +109,7 @@ export function NavigationGuardProvider({
       onSummary: (next) =>
         setSummary((current) => (sameSummary(current, next) ? current : next)),
       onPrompt: (open) => {
+        if (open) announceNavigationBlocked();
         setFailed(false);
         setPrompt(open);
       },
@@ -811,8 +813,9 @@ function createGuardMachine(deps: MachineDeps) {
     traverse(steps ?? 1);
     if (landed === index && hasBackWithinPage()) {
       afterRestore = () => {
-        if (connected && !backWithinPage())
-          requestTransition(() => traverseTo(target));
+        if (!connected) return;
+        if (backWithinPage()) announceNavigationBlocked();
+        else requestTransition(() => traverseTo(target));
       };
     } else requestTransition(() => traverseTo(target));
   }

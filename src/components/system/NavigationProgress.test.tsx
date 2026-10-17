@@ -7,7 +7,7 @@ import {
   type ComponentProps,
 } from "react";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { messagesFor } from "@/i18n/messages";
 
 const mocks = vi.hoisted(() => ({
@@ -55,6 +55,11 @@ vi.mock("@/i18n/navigationBase", () => ({
 import { Link, useRouter } from "@/i18n/navigationClient";
 import { PageBackButton } from "@/components/ui/PageBackButton";
 import {
+  registerNavigationGuardOwner,
+  registerHistoryBackHandler,
+  announceNavigationBlocked,
+} from "@/lib/navigationGuard";
+import {
   updateBrowserQuery,
   updateHistoryMetadata,
 } from "@/lib/browser/history";
@@ -76,6 +81,195 @@ beforeEach(() => {
   mocks.pathname = "/en/finished-goods";
   mocks.search = "";
   window.history.replaceState({}, "", mocks.pathname);
+  vi.spyOn(window.history, "back").mockImplementation(mocks.back);
+});
+afterEach(() => vi.restoreAllMocks());
+
+it("shows Back feedback only after consent and prevents duplicate traversal before popstate", () => {
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 1 },
+    "",
+    mocks.pathname,
+  );
+  let permitted: (() => void) | undefined;
+  const release = registerNavigationGuardOwner({
+    requestTransition: (action) => {
+      permitted = action;
+    },
+    isTraversing: () => false,
+  });
+  try {
+    render(
+      shell(
+        <>
+          <PageBackButton fallbackHref="/hr/profile" />
+          <NavigationContent>
+            <h1>Catalogue</h1>
+          </NavigationContent>
+        </>,
+      ),
+    );
+    const back = screen.getByRole("button", { name: "Back" });
+    fireEvent.click(back);
+    expect(back).toBeEnabled();
+    expect(back).not.toHaveAttribute("aria-busy", "true");
+    expect(mocks.back).not.toHaveBeenCalled();
+    act(() => permitted?.());
+    expect(back).toHaveAttribute("aria-busy", "true");
+    expect(back).toHaveAttribute("aria-disabled", "true");
+    expect(back.querySelector('[data-slot="spinner"]')).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Catalogue" })).toBeVisible();
+    fireEvent.click(back);
+    expect(mocks.back).toHaveBeenCalledOnce();
+    act(() =>
+      window.dispatchEvent(
+        new PopStateEvent("popstate", { state: window.history.state }),
+      ),
+    );
+    expect(back).toBeEnabled();
+    expect(back).not.toHaveAttribute("aria-busy", "true");
+  } finally {
+    release();
+  }
+});
+
+it("does not start route feedback when Back dismisses a foreground", () => {
+  const dismiss = vi.fn(() => true);
+  const release = registerHistoryBackHandler(dismiss);
+  try {
+    render(
+      shell(
+        <>
+          <PageBackButton fallbackHref={null} />
+          <NavigationContent>
+            <h1>Editor</h1>
+          </NavigationContent>
+        </>,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(dismiss).toHaveBeenCalledOnce();
+    expect(mocks.back).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  } finally {
+    release();
+  }
+});
+
+it("keeps a same-page Back visible and clears its spinner when query and hash are restored", () => {
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 1 },
+    "",
+    mocks.pathname + "?fg=filtered#products",
+  );
+  render(
+    shell(
+      <>
+        <PageBackButton fallbackHref={null} />
+        <NavigationContent>
+          <h1>Catalogue</h1>
+        </NavigationContent>
+      </>,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("heading", { name: "Catalogue" })).toBeVisible();
+  act(() => {
+    window.history.replaceState(
+      { __NA: true, appNavigationIndex: 0 },
+      "",
+      mocks.pathname + "?fg=original#stock",
+    );
+    window.dispatchEvent(
+      new PopStateEvent("popstate", { state: window.history.state }),
+    );
+  });
+  expect(screen.getByRole("heading", { name: "Catalogue" })).toBeVisible();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(window.location.search + window.location.hash).toBe(
+    "?fg=original#stock",
+  );
+});
+
+it("releases requested Back feedback when a newer draft blocks native traversal", () => {
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 1 },
+    "",
+    mocks.pathname,
+  );
+  render(
+    shell(
+      <>
+        <PageBackButton fallbackHref="/hr/profile" />
+        <NavigationContent>
+          <h1>Editor</h1>
+        </NavigationContent>
+      </>,
+    ),
+  );
+  const back = screen.getByRole("button", { name: "Back" });
+  fireEvent.click(back);
+  expect(back).toHaveAttribute("aria-disabled", "true");
+  act(() => announceNavigationBlocked());
+  expect(back).toBeEnabled();
+  expect(back).not.toHaveAttribute("aria-busy", "true");
+  expect(screen.getByRole("heading", { name: "Editor" })).toBeVisible();
+});
+
+it("releases requested Back feedback when Forward restores the document from browser cache", () => {
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 1 },
+    "",
+    mocks.pathname,
+  );
+  render(shell(<PageBackButton fallbackHref="/hr/profile" />));
+  const back = screen.getByRole("button", { name: "Back" });
+  fireEvent.click(back);
+  expect(back).toHaveAttribute("aria-busy", "true");
+  act(() =>
+    window.dispatchEvent(
+      new PageTransitionEvent("pageshow", { persisted: true }),
+    ),
+  );
+  expect(back).toBeEnabled();
+  expect(back).not.toHaveAttribute("aria-busy", "true");
+});
+
+it("hands Back feedback to the route loader until the restored route commits", () => {
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 1 },
+    "",
+    mocks.pathname,
+  );
+  const content = (title: string) => (
+    <>
+      <PageBackButton fallbackHref="/hr/profile" />
+      <NavigationContent>
+        <h1>{title}</h1>
+      </NavigationContent>
+    </>
+  );
+  const view = render(shell(content("Catalogue")));
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  act(() => {
+    window.history.replaceState(
+      { __NA: true, appNavigationIndex: 0 },
+      "",
+      "/en/hr/profile?from=back#details",
+    );
+    window.dispatchEvent(
+      new PopStateEvent("popstate", { state: window.history.state }),
+    );
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("Loading");
+  expect(
+    screen.getByRole("status").querySelector('[data-slot="spinner"]'),
+  ).not.toBeNull();
+  mocks.pathname = "/en/hr/profile";
+  view.rerender(shell(content("Profile")));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Profile" })).toBeVisible();
 });
 
 it("shows loading immediately for a pending link and retains the old editor until navigation settles", () => {

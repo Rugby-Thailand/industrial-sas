@@ -10,6 +10,7 @@ import {
   useRouter as useBaseRouter,
 } from "./navigationBase";
 import { useNavigationProgress } from "@/components/system/NavigationProgress";
+import { traverseBack } from "@/lib/navigationGuard";
 
 function targetsCurrentPath(
   href: ComponentProps<typeof BaseLink>["href"],
@@ -89,6 +90,11 @@ export function useRouter() {
     if (!navigation) return router;
     return {
       ...router,
+      back: () => {
+        // Start feedback only when the draft owner permits the departure.
+        // Foreground Back is consumed before the router facade is reached.
+        traverseBack(navigation.back);
+      },
       push: (...args: Parameters<typeof router.push>) => {
         navigation.prepare("push");
         if (

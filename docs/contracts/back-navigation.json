@@ -164,7 +164,48 @@
       "file": "src/lib/navigationGuard.ts",
       "functions": ["navigateBack", "traverseBack"],
       "capabilities": ["history-traversal"],
-      "reason": "Shared validated application Back traversal seam."
+      "reason": "Shared validated application Back traversal seam.",
+      "expectation": "Page Back still dismisses a foreground first. The router facade delegates page traversal to traverseBack; its optional feedback runner executes only after draft consent. Native Back/Forward, same-page query/hash restoration, and cancellation retain their existing history owners. Requested feedback also clears on browser-cache restoration and foreground consumption; same-page keyboard Back retains focus.",
+      "tests": [
+        "src/components/ui/PageBackButton.test.tsx",
+        "src/components/system/NavigationProgress.test.tsx",
+        "tests/e2e/navigation/navigation.spec.ts",
+        "src/components/navigation/NavigationGuardProvider.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/components/system/NavigationProgress.test.tsx",
+          "name": "shows Back feedback only after consent and prevents duplicate traversal before popstate"
+        },
+        {
+          "file": "src/components/system/NavigationProgress.test.tsx",
+          "name": "does not start route feedback when Back dismisses a foreground"
+        },
+        {
+          "file": "tests/e2e/navigation/navigation.spec.ts",
+          "name": "header Back waits for consent, retains a cancelled draft and restores the exact origin"
+        },
+        {
+          "file": "tests/e2e/navigation/navigation.spec.ts",
+          "name": "header Back shows one spinner before delayed native traversal and clears it on arrival"
+        },
+        {
+          "file": "src/components/system/NavigationProgress.test.tsx",
+          "name": "releases requested Back feedback when Forward restores the document from browser cache"
+        },
+        {
+          "file": "src/components/navigation/NavigationGuardProvider.test.tsx",
+          "name": "releases requested navigation when a newly registered foreground consumes restored Back"
+        },
+        {
+          "file": "tests/e2e/navigation/navigation.spec.ts",
+          "name": "keyboard header Back restores the same-page query and keeps focus"
+        },
+        {
+          "file": "tests/e2e/navigation/navigation.spec.ts",
+          "name": "a draft arriving after Back releases the spinner and remains protected on cancellation"
+        }
+      ]
     },
     {
       "file": "src/components/ui/dialog.tsx",
@@ -2886,7 +2927,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:confirmedMissing",
       "policy": "presentation",
-      "expectation": "Confirmed missing-code data reveals inline registration/unmapped choice affordances. Selecting registration enters its separately owned disclosure and preserves the picker draft. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
+      "expectation": "Confirmed missing-code data reveals inline registration/unmapped choice affordances. Selecting registration enters its separately owned disclosure and preserves the picker draft. Pending locations use an inline Spinner in the same list, without adding a Back entry. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -2920,7 +2961,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "lucide-react#LoaderCircle"],
+          "truthy": ["li", "src/components/ui/spinner#Spinner"],
           "falsy": []
         },
         {
@@ -2951,7 +2992,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:text",
       "policy": "presentation",
-      "expectation": "Typed filter text controls inline location choices, exact-code status, pagination and search recovery within the retained picker; camera, AI and registration have separate disclosure owners. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
+      "expectation": "Typed filter text controls inline location choices, exact-code status, pagination and search recovery within the retained picker; camera, AI and registration have separate disclosure owners. Pending locations use an inline Spinner in the same list, without adding a Back entry. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -2990,7 +3031,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "lucide-react#LoaderCircle"],
+          "truthy": ["li", "src/components/ui/spinner#Spinner"],
           "falsy": []
         },
         {
@@ -6994,7 +7035,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/JobScanRecords.tsx#Records:shown",
       "policy": "presentation",
-      "expectation": "Retained server rows drive same-page list readiness, pagination and read-only continuation, and supply the current record baseline to the separately owned correction Dialog. Selecting or closing correction is independently owned by editing; a reactive row update does not create another foreground.",
+      "expectation": "Retained server rows drive same-page list readiness, pagination and read-only continuation, and supply the current record baseline to the separately owned correction Dialog. Selecting or closing correction is independently owned by editing; a reactive row update does not create another foreground. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7033,17 +7074,17 @@
         },
         {
           "shape": "and",
-          "truthy": ["lucide-react#LoaderCircle", "p[role=status]"],
-          "falsy": []
-        },
-        {
-          "shape": "and",
           "truthy": ["lucide-react#Trash2", "src/components/ui/button#Button"],
           "falsy": []
         },
         {
           "shape": "and",
           "truthy": ["p[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["p[role=status]", "src/components/ui/spinner#Spinner"],
           "falsy": []
         },
         {
@@ -7062,17 +7103,17 @@
         {
           "shape": "conditional",
           "truthy": [
-            "lucide-react#LoaderCircle",
             "p[role=status]",
+            "src/components/ui/spinner#Spinner",
             "src/features/finishedGoods/shared#Loading"
           ],
           "falsy": [
             "div",
-            "lucide-react#LoaderCircle",
             "p[role=status]",
             "src/components/ui/EmptyState#EmptyState",
             "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
+            "src/components/ui/spinner#Spinner",
             "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
             "ul"
           ]
@@ -7085,10 +7126,10 @@
           ],
           "falsy": [
             "div",
-            "lucide-react#LoaderCircle",
             "p[role=status]",
             "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
+            "src/components/ui/spinner#Spinner",
             "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
             "ul"
           ]
@@ -7101,11 +7142,11 @@
           ],
           "falsy": [
             "div",
-            "lucide-react#LoaderCircle",
             "p[role=status]",
             "src/components/ui/EmptyState#EmptyState",
             "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button",
+            "src/components/ui/spinner#Spinner",
             "src/features/finishedGoods/jobScan/JobScanRecordRow#JobScanRecordRow",
             "src/features/finishedGoods/shared#Loading",
             "ul"
@@ -7140,7 +7181,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:building",
       "policy": "presentation",
-      "expectation": "Building filter identity changes the same inline choice list, active filter chip and query feedback; it does not replace the picker workflow. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
+      "expectation": "Building filter identity changes the same inline choice list, active filter chip and query feedback; it does not replace the picker workflow. Pending locations use an inline Spinner in the same list, without adding a Back entry. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7190,7 +7231,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "lucide-react#LoaderCircle"],
+          "truthy": ["li", "src/components/ui/spinner#Spinner"],
           "falsy": []
         },
         {
@@ -7223,7 +7264,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#useResetEscalation:seen",
       "policy": "presentation",
-      "expectation": "Query reset tracking controls inline retry/refusal/loading feedback without opening a workflow surface. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
+      "expectation": "Query reset tracking controls inline retry/refusal/loading feedback without opening a workflow surface. Pending locations use an inline Spinner in the same list, without adding a Back entry. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7233,7 +7274,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "lucide-react#LoaderCircle"],
+          "truthy": ["li", "src/components/ui/spinner#Spinner"],
           "falsy": []
         },
         {
@@ -7246,7 +7287,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationChoices:held",
       "policy": "presentation",
-      "expectation": "Retained location choices remain displayed disabled during progressive loading and keep pagination feedback in the same picker. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
+      "expectation": "Retained location choices remain displayed disabled during progressive loading and keep pagination feedback in the same picker. Pending locations use an inline Spinner in the same list, without adding a Back entry. Loading uses the aria-hidden shared Spinner in the existing inline status; it adds no foreground or history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7270,7 +7311,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "lucide-react#LoaderCircle"],
+          "truthy": ["li", "src/components/ui/spinner#Spinner"],
           "falsy": []
         },
         {
