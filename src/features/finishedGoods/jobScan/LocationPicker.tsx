@@ -4,14 +4,21 @@ import { useBackDisclosure } from "@/hooks/useBackDisclosure";
 import { useEffect, useId, useRef, useState } from "react";
 import { useConvex, useQuery } from "convex/react";
 import { Popover } from "radix-ui";
-import { Building2, Camera, MapPin, Plus, Search, X } from "lucide-react";
+import {
+  Building2,
+  Camera,
+  LoaderCircle,
+  MapPin,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { FormField } from "@/components/ui/FormField";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/input";
 import { ScanCodeInput } from "@/components/ui/ScanCodeInput";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { QueryErrorBoundary } from "@/components/system/QueryErrorBoundary";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
@@ -795,16 +802,17 @@ function LocationChoices({
             </button>
           </li>
         ))}
-        {!shown &&
-          !exactChoice &&
-          !denied &&
-          !resetStuck &&
-          !stalled &&
-          [0, 1, 2].map((row) => (
-            <li key={row} aria-hidden="true" className="px-3 py-3">
-              <Skeleton className="h-6 w-2/3" />
-            </li>
-          ))}
+        {!shown && !exactChoice && !denied && !resetStuck && !stalled && (
+          <li
+            aria-hidden="true"
+            className="flex min-h-32 items-center justify-center text-muted"
+          >
+            <LoaderCircle
+              aria-hidden="true"
+              className="size-6 animate-spin motion-reduce:animate-none"
+            />
+          </li>
+        )}
         {noMatch && (
           <li className="px-3 py-3 text-sm text-muted">
             {settledText.trim() || building
