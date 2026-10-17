@@ -2881,7 +2881,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:confirmedMissing",
       "policy": "presentation",
-      "expectation": "Confirmed missing-code data reveals inline registration/unmapped choice affordances. Selecting registration enters its separately owned disclosure and preserves the picker draft.",
+      "expectation": "Confirmed missing-code data reveals inline registration/unmapped choice affordances. Selecting registration enters its separately owned disclosure and preserves the picker draft. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -2915,7 +2915,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "truthy": ["li", "lucide-react#LoaderCircle"],
           "falsy": []
         },
         {
@@ -2946,7 +2946,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:text",
       "policy": "presentation",
-      "expectation": "Typed filter text controls inline location choices, exact-code status, pagination and search recovery within the retained picker; camera, AI and registration have separate disclosure owners.",
+      "expectation": "Typed filter text controls inline location choices, exact-code status, pagination and search recovery within the retained picker; camera, AI and registration have separate disclosure owners. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -2985,7 +2985,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "truthy": ["li", "lucide-react#LoaderCircle"],
           "falsy": []
         },
         {
@@ -7135,7 +7135,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationPickerSession:building",
       "policy": "presentation",
-      "expectation": "Building filter identity changes the same inline choice list, active filter chip and query feedback; it does not replace the picker workflow.",
+      "expectation": "Building filter identity changes the same inline choice list, active filter chip and query feedback; it does not replace the picker workflow. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7185,7 +7185,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "truthy": ["li", "lucide-react#LoaderCircle"],
           "falsy": []
         },
         {
@@ -7218,7 +7218,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#useResetEscalation:seen",
       "policy": "presentation",
-      "expectation": "Query reset tracking controls inline retry/refusal/loading feedback without opening a workflow surface.",
+      "expectation": "Query reset tracking controls inline retry/refusal/loading feedback without opening a workflow surface. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7228,7 +7228,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "truthy": ["li", "lucide-react#LoaderCircle"],
           "falsy": []
         },
         {
@@ -7241,7 +7241,7 @@
     {
       "id": "src/features/finishedGoods/jobScan/LocationPicker.tsx#LocationChoices:held",
       "policy": "presentation",
-      "expectation": "Retained location choices remain displayed disabled during progressive loading and keep pagination feedback in the same picker.",
+      "expectation": "Retained location choices remain displayed disabled during progressive loading and keep pagination feedback in the same picker. Pending locations use an inline LoaderCircle in the same list, without adding a Back entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -7265,7 +7265,7 @@
         },
         {
           "shape": "and",
-          "truthy": ["li", "src/components/ui/skeleton#Skeleton"],
+          "truthy": ["li", "lucide-react#LoaderCircle"],
           "falsy": []
         },
         {
@@ -7277,6 +7277,13 @@
           "shape": "and",
           "truthy": ["src/components/system/CursorPagination#CursorPagination"],
           "falsy": []
+        }
+      ],
+      "tests": ["src/features/finishedGoods/jobScan/LocationPicker.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.test.tsx",
+          "name": "shows a loading icon while locations are pending (%s)"
         }
       ]
     },

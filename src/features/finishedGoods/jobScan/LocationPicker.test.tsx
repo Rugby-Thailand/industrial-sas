@@ -178,6 +178,27 @@ it("shows a persistent loading state while the first page is pending, keeping th
   expect(searchStatus()).toHaveTextContent("Searching locations…");
 });
 
+it.each(["en", "th"] as const)(
+  "shows a loading icon while locations are pending (%s)",
+  (locale) => {
+    mocks.search.mockReturnValue(undefined);
+    render({ locale });
+    const list = screen.getByRole("list");
+    expect(list).toHaveAttribute("aria-busy", "true");
+    expect(list.querySelector("svg")).toHaveClass("animate-spin");
+    expect(list.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(list.querySelector('[data-slot="skeleton"]')).toBeNull();
+    expect(searchStatus()).toHaveTextContent(
+      locale === "th" ? "กำลังโหลดตำแหน่ง…" : "Loading locations…",
+    );
+    mocks.search.mockReturnValue(page([zone("ZONE-B")]));
+    refresh();
+    expect(list).not.toHaveAttribute("aria-busy");
+    expect(list.querySelector(".animate-spin")).toBeNull();
+    expect(within(list).getByRole("button", { name: /ZONE-B/ })).toBeEnabled();
+  },
+);
+
 it("explains an empty warehouse only after the browse page is ready", () => {
   mocks.search.mockReturnValue(page([]));
   render();
