@@ -56,6 +56,9 @@ export function WorkspaceContextBar({
 
   const selectedLabel = selected ? warehouseLabel(selected) : undefined;
 
+  // HR-only members have organization context, but no warehouse access.
+  if (workspace.denied) return null;
+
   if (collapsed) {
     const label =
       selectedLabel === undefined

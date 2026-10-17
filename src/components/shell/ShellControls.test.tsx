@@ -107,6 +107,23 @@ describe("WorkspaceContextBar in the sidebar", () => {
     expect(screen.queryByTestId("warehouse-select")).toBeNull();
   });
 
+  it.each([false, true])(
+    "hides warehouse controls for HR-only members without storage access (collapsed=%s)",
+    (collapsed) => {
+      state.workspace = ready({
+        denied: true,
+        selectable: false,
+        organization: undefined,
+        warehouses: [],
+        selectedWarehouseId: undefined,
+      });
+      render({ collapsed });
+      expect(screen.queryByTestId("sidebar-warehouse")).toBeNull();
+      expect(screen.queryByTestId("sidebar-warehouse-rail")).toBeNull();
+      expect(screen.queryByText("No organization context")).toBeNull();
+    },
+  );
+
   it.each([
     ["en", "No warehouse available", "Ask an organization administrator"],
     ["th", "ไม่มีคลังสินค้าให้เลือก", "กรุณาขอสิทธิ์เข้าถึงคลังสินค้า"],
