@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { resolvePageBackFallback } from "@/lib/pageBackFallback";
 import { IconButton } from "./IconButton";
-import { useNavigationPending } from "@/components/system/NavigationProgress";
+import { useNavigationPending } from "@/components/system/navigationPending";
 import {
   appHistoryIndex,
   subscribeHistoryChanges,

@@ -14,6 +14,7 @@ import {
 } from "react";
 
 import { RouteLoading } from "./RouteLoading";
+import { NavigationActionPendingContext } from "./navigationPending";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { onNavigationBlocked } from "@/lib/navigationGuard";
 
@@ -24,10 +25,8 @@ const NavigationContext = createContext<{
   back: (action: () => void) => void;
 } | null>(null);
 const PendingContext = createContext(false);
-const ActionPendingContext = createContext(false);
 
 export const useNavigationProgress = () => useContext(NavigationContext);
-export const useNavigationPending = () => useContext(ActionPendingContext);
 
 /** Link status and router transitions share one immediate, shell-local fallback. */
 export function NavigationProgressProvider({
@@ -131,7 +130,7 @@ export function NavigationProgressProvider({
 
   return (
     <NavigationContext.Provider value={navigation}>
-      <ActionPendingContext.Provider
+      <NavigationActionPendingContext.Provider
         value={
           backRequested || transitionPending || links.size > 0 || historyPending
         }
@@ -141,7 +140,7 @@ export function NavigationProgressProvider({
         >
           {children}
         </PendingContext.Provider>
-      </ActionPendingContext.Provider>
+      </NavigationActionPendingContext.Provider>
     </NavigationContext.Provider>
   );
 }
