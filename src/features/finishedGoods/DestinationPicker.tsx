@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Search, X } from "lucide-react";
+import { Check, MapPin, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaginationFooter } from "@/components/system/PaginationFooter";
@@ -158,10 +158,14 @@ export function DestinationPicker({
                 type="button"
                 aria-pressed={key === selected}
                 onClick={() => onSelect(key)}
-                className={`min-w-52 shrink-0 rounded-xl border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${key === selected ? "border-link bg-selected" : "border-border bg-surface hover:border-link"}`}
+                className={`min-w-52 shrink-0 rounded-xl border border-border p-3 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset 2xl:min-w-0 ${key === selected ? "bg-accent-surface hover:bg-accent-surface" : "bg-surface hover:bg-raised"}`}
               >
                 <span className="flex flex-wrap items-center gap-2">
-                  <MapPin className="size-4 text-link" aria-hidden="true" />
+                  {key === selected ? (
+                    <Check className="size-4 text-link" aria-hidden="true" />
+                  ) : (
+                    <MapPin className="size-4 text-link" aria-hidden="true" />
+                  )}
                   <span className="font-semibold">
                     {candidate.locationName}
                   </span>

@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useQuery, useMutation } from "convex/react";
 import {
+  Check,
   MapPin,
   Pencil,
   Plus,
@@ -183,7 +184,7 @@ export function BatchManager({
           aria-label={t("copy.batch-view")}
         >
           <Button
-            variant={mode === "view" ? "secondary" : "ghost"}
+            variant={mode === "view" ? "active" : "ghost"}
             disabled={editorState.busy}
             onClick={() => setMode("view")}
             aria-pressed={mode === "view"}
@@ -193,7 +194,7 @@ export function BatchManager({
           </Button>
           {canManage && (
             <Button
-              variant={mode === "edit" ? "secondary" : "ghost"}
+              variant={mode === "edit" ? "active" : "ghost"}
               disabled={editorState.busy}
               onClick={() => {
                 setHasEdited(true);
@@ -365,9 +366,15 @@ function StorageView({
                 type="button"
                 aria-pressed={unit._id === u._id}
                 onClick={() => setSelected(u._id)}
-                className={`flex min-w-0 flex-1 flex-col gap-1 rounded-lg p-3 text-left text-sm ${unit._id === u._id ? "bg-selected text-selected-foreground ring-1 ring-link ring-inset" : "hover:bg-raised"}`}
+                className={`flex min-w-0 flex-1 flex-col gap-1 rounded-lg p-3 text-left text-sm ${unit._id === u._id ? "bg-accent-surface text-selected-foreground hover:bg-accent-surface" : "hover:bg-raised"}`}
               >
-                <span className="font-medium break-words">
+                <span className="inline-flex items-center gap-2 font-medium break-words">
+                  {unit._id === u._id && (
+                    <Check
+                      className="size-4 shrink-0 text-link"
+                      aria-hidden="true"
+                    />
+                  )}
                   {u.code}{" "}
                   <span className="text-muted">
                     {u.quantity} {data.product.unit}
@@ -799,10 +806,13 @@ function AvailableEditor({
               ref={r.id === initialUnitId ? selectedRow : undefined}
               tabIndex={r.id === initialUnitId ? -1 : undefined}
               aria-label={r.originalCode ?? `${t("copy.new-unit")} ${i + 1}`}
-              className={`rounded-lg border p-3 outline-none ${r.id === initialUnitId ? "border-link bg-selected ring-1 ring-link" : "border-border"}`}
+              className={`rounded-lg border border-border p-3 outline-none ${r.id === initialUnitId ? "bg-accent-surface" : ""}`}
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs text-muted">
+                <span className="inline-flex items-center gap-2 text-xs text-muted">
+                  {r.id === initialUnitId && (
+                    <Check className="size-4 text-link" aria-hidden="true" />
+                  )}
                   {r.originalCode
                     ? `${r.originalCode} · ${t("copy.replacement")}`
                     : `${t("copy.new-unit")} ${i + 1}`}

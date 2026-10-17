@@ -91,7 +91,7 @@ export function LayoutTaskBar({
         <Button
           type="button"
           size="sm"
-          variant={editing ? "ghost" : "secondary"}
+          variant={editing ? "ghost" : "active"}
           aria-pressed={!editing}
           title={t("layoutActions.task.viewHint")}
           className="min-h-11"
@@ -136,7 +136,7 @@ export function LayoutTaskBar({
           <Button
             type="button"
             size="sm"
-            variant={editing ? "secondary" : "ghost"}
+            variant={editing ? "active" : "ghost"}
             aria-pressed={editing}
             title={t("layoutActions.task.editHint")}
             className="min-h-11"

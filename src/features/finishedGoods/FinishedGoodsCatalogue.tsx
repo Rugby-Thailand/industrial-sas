@@ -239,7 +239,7 @@ function Catalogue({
         {(["products", "pallets"] as const).map((value) => (
           <Button
             key={value}
-            variant={tab === value ? "secondary" : "ghost"}
+            variant={tab === value ? "active" : "ghost"}
             aria-pressed={tab === value}
             onClick={() => updateState({ tab: value })}
           >
@@ -268,7 +268,7 @@ function Catalogue({
               {(["cards", "table"] as const).map((value) => (
                 <IconButton
                   key={value}
-                  variant={layout === value ? "secondary" : "ghost"}
+                  variant={layout === value ? "active" : "ghost"}
                   aria-pressed={layout === value}
                   label={
                     value === "cards"

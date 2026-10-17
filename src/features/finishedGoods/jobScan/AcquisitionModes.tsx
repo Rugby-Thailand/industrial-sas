@@ -36,7 +36,7 @@ export function AcquisitionModes({
           <Button
             key={key}
             type="button"
-            variant={pressed ? "default" : "outline"}
+            variant={pressed ? "active" : "outline"}
             aria-pressed={pressed}
             className="min-h-14 min-w-0 flex-col gap-1 px-1 text-xs whitespace-normal sm:min-h-12 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm"
             onClick={onSelect}

@@ -2208,9 +2208,14 @@
     {
       "id": "src/features/finishedGoods/BatchManager.tsx#StorageView:selected",
       "policy": "presentation",
-      "expectation": "Selected unit identity only updates the retained storage detail, loading/refusal explanation and inventory links inside the containing owned BatchManager Dialog; it does not open a new editor.",
+      "expectation": "Selected unit identity only updates the retained storage detail, loading/refusal explanation and inventory links inside the containing owned BatchManager Dialog; it does not open a new editor. The selected row also renders an aria-hidden lucide Check as a visual selection marker without owning navigation.",
       "uses": ["branch", "return"],
       "render": [
+        {
+          "shape": "and",
+          "truthy": ["lucide-react#Check"],
+          "falsy": []
+        },
         {
           "shape": "and",
           "truthy": ["lucide-react#LockKeyhole", "p"],

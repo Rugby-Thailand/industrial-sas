@@ -571,7 +571,7 @@ function Measurement({
                     <Button
                       type="button"
                       key={v}
-                      variant={form.unit === v ? "default" : "outline"}
+                      variant={form.unit === v ? "active" : "outline"}
                       aria-pressed={form.unit === v}
                       onClick={() => unit(v)}
                     >

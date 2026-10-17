@@ -16,7 +16,7 @@ export const buttonVariants = cva(
         ghost:
           "text-text hover:bg-raised aria-expanded:bg-raised disabled:bg-transparent disabled:text-disabled aria-disabled:bg-transparent",
         active:
-          "border-link bg-selected text-link hover:bg-selected aria-expanded:bg-selected disabled:border-border disabled:bg-disabled-surface disabled:text-disabled aria-disabled:border-border aria-disabled:bg-disabled-surface",
+          "border-transparent bg-accent-surface text-link hover:bg-accent-surface aria-expanded:bg-accent-surface disabled:border-border disabled:bg-disabled-surface disabled:text-disabled aria-disabled:border-border aria-disabled:bg-disabled-surface",
         destructive:
           "border-destructive/60 bg-danger-surface text-destructive hover:border-destructive hover:bg-destructive/20 disabled:border-border disabled:bg-disabled-surface disabled:text-disabled aria-disabled:border-border aria-disabled:bg-disabled-surface",
         link: "text-link underline-offset-4 hover:underline",
@@ -41,6 +41,20 @@ export const buttonVariants = cva(
         icon: "min-h-touch min-w-touch dense:min-h-control dense:min-w-control",
       },
     },
+    compoundVariants: [
+      {
+        variant: "active",
+        size: ["icon", "icon-sm"],
+        className:
+          "border-transparent bg-transparent hover:bg-transparent hover:text-link aria-expanded:bg-transparent aria-pressed:bg-transparent aria-pressed:text-link aria-pressed:hover:text-link disabled:bg-transparent aria-disabled:bg-transparent disabled:aria-pressed:text-disabled aria-disabled:aria-pressed:text-disabled",
+      },
+      {
+        variant: "ghost",
+        size: ["icon", "icon-sm"],
+        className:
+          "aria-pressed:border-transparent aria-pressed:bg-transparent aria-pressed:text-link aria-pressed:hover:bg-transparent aria-pressed:hover:text-link disabled:aria-pressed:text-disabled aria-disabled:aria-pressed:text-disabled",
+      },
+    ],
     defaultVariants: {
       variant: "default",
       size: "touch",

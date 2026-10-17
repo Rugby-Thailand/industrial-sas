@@ -117,7 +117,10 @@ export function BarcodeCameraBox({
               label={t("flashlight")}
               onClick={() => void toggleTorch()}
             >
-              <Flashlight className="size-5" aria-hidden="true" />
+              <Flashlight
+                className="size-5 drop-shadow-sm"
+                aria-hidden="true"
+              />
             </IconButton>
           ) : undefined
         }
