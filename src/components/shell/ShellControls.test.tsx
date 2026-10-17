@@ -72,7 +72,7 @@ function OpenState() {
 }
 
 describe("WorkspaceContextBar in the sidebar", () => {
-  const render = (props: { switchable: boolean; collapsed?: boolean }) =>
+  const render = (props: { collapsed?: boolean } = {}) =>
     renderWithIntl(
       <TooltipProvider>
         <SidebarProvider defaultOpen={false}>
@@ -83,36 +83,46 @@ describe("WorkspaceContextBar in the sidebar", () => {
       { locale: "en" },
     );
 
-  it("offers warehouse switching on switchable pages", () => {
-    render({ switchable: true });
+  it("offers warehouse switching on every page", () => {
+    render();
     expect(screen.getByTestId("warehouse-select")).toHaveTextContent("TG-OPT");
     expect(
       screen.getByRole("combobox", { name: "Warehouse" }),
     ).toBeInTheDocument();
   });
 
-  it("shows the selected code read-only elsewhere, naming the warehouse for assistive technology", () => {
-    render({ switchable: false });
-    expect(screen.queryByTestId("warehouse-select")).toBeNull();
-    expect(screen.getByText("TG-OPT")).toBeVisible();
-    expect(screen.getByText("Top Gold Optimized Warehouse")).toHaveClass(
-      "sr-only",
+  it("keeps the picker available before a warehouse is selected", () => {
+    state.workspace = ready({ selectedWarehouseId: undefined });
+    render();
+    expect(screen.getByRole("combobox", { name: "Warehouse" })).toBeEnabled();
+    expect(screen.getByTestId("warehouse-select")).toHaveTextContent(
+      "Select a warehouse",
     );
   });
 
-  it("shows nothing read-only without a selection or storage access", () => {
+  it("explains when the warehouse context is unavailable", () => {
     state.workspace = ready({ selectable: false, organization: undefined });
-    render({ switchable: false });
-    expect(screen.queryByTestId("sidebar-warehouse")).toBeNull();
-    expect(screen.queryByTestId("sidebar-warehouse-rail")).toBeNull();
-  });
-
-  it("keeps the unavailable explanation where switching belongs", () => {
-    state.workspace = ready({ selectable: false, organization: undefined });
-    render({ switchable: true });
+    render();
     expect(screen.getByText("No organization context")).toBeVisible();
     expect(screen.queryByTestId("warehouse-select")).toBeNull();
   });
+
+  it.each([false, true])(
+    "hides warehouse controls for HR-only members without storage access (collapsed=%s)",
+    (collapsed) => {
+      state.workspace = ready({
+        denied: true,
+        selectable: false,
+        organization: undefined,
+        warehouses: [],
+        selectedWarehouseId: undefined,
+      });
+      render({ collapsed });
+      expect(screen.queryByTestId("sidebar-warehouse")).toBeNull();
+      expect(screen.queryByTestId("sidebar-warehouse-rail")).toBeNull();
+      expect(screen.queryByText("No organization context")).toBeNull();
+    },
+  );
 
   it.each([
     ["en", "No warehouse available", "Ask an organization administrator"],
@@ -128,7 +138,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
       renderWithIntl(
         <TooltipProvider>
           <SidebarProvider defaultOpen>
-            <WorkspaceContextBar switchable />
+            <WorkspaceContextBar />
           </SidebarProvider>
         </TooltipProvider>,
         { locale },
@@ -148,7 +158,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
       ...ready({ selectable: false, organization: undefined, warehouses: [] }),
       loading: true,
     };
-    render({ switchable: true });
+    render();
     const loading = screen.getByText("Loading warehouses…");
     expect(loading.closest('[role="status"]')).toBeInTheDocument();
     expect(screen.queryByText("No organization context")).toBeNull();
@@ -172,7 +182,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
         <TooltipProvider>
           <SidebarProvider defaultOpen>
             <UnsavedDraft />
-            <WorkspaceContextBar switchable />
+            <WorkspaceContextBar />
           </SidebarProvider>
         </TooltipProvider>
       </NavigationGuardProvider>,
@@ -201,7 +211,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
   });
 
   it("collapses to one rail icon that opens the sidebar", () => {
-    render({ switchable: true, collapsed: true });
+    render({ collapsed: true });
     const rail = screen.getByRole("button", {
       name: "Warehouse: TG-OPT · Top Gold Optimized Warehouse",
     });
@@ -211,7 +221,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
   });
 
   it("shows the full selection as a title on the compact selector", () => {
-    render({ switchable: true });
+    render();
     expect(screen.getByTestId("sidebar-warehouse")).toHaveAttribute(
       "title",
       "TG-OPT · Top Gold Optimized Warehouse",
@@ -220,24 +230,24 @@ describe("WorkspaceContextBar in the sidebar", () => {
 });
 
 /** Mirrors the shell: the rail when collapsed, the compact identity otherwise. */
-function ResponsiveBar({ switchable }: { readonly switchable: boolean }) {
+function ResponsiveBar() {
   const collapsed = useSidebar().state === "collapsed";
-  return <WorkspaceContextBar switchable={switchable} collapsed={collapsed} />;
+  return <WorkspaceContextBar collapsed={collapsed} />;
 }
 
 describe("WorkspaceContextBar rail expansion", () => {
-  const render = (switchable: boolean) =>
+  const render = () =>
     renderWithIntl(
       <TooltipProvider>
         <SidebarProvider defaultOpen={false}>
-          <ResponsiveBar switchable={switchable} />
+          <ResponsiveBar />
         </SidebarProvider>
       </TooltipProvider>,
       { locale: "en" },
     );
 
   it("moves focus from the unmounting rail button to the warehouse selector", () => {
-    render(true);
+    render();
     const rail = screen.getByTestId("sidebar-warehouse-rail");
     rail.focus();
     fireEvent.click(rail);
@@ -245,8 +255,9 @@ describe("WorkspaceContextBar rail expansion", () => {
     expect(screen.getByRole("combobox", { name: "Warehouse" })).toHaveFocus();
   });
 
-  it("focuses the read-only warehouse when it cannot be switched", () => {
-    render(false);
+  it("focuses the unavailable explanation when storage access is missing", () => {
+    state.workspace = ready({ selectable: false, organization: undefined });
+    render();
     fireEvent.click(screen.getByTestId("sidebar-warehouse-rail"));
     expect(screen.getByRole("region", { name: "Warehouse" })).toHaveFocus();
   });
