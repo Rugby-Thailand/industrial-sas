@@ -38,8 +38,7 @@
     ]
   },
   // Maintained inputs only. Archived review probes under `docs/reviews/` and
-  // local captures under `output/` are not part of this project; the probes
-  // keep their own `tsconfig.probes.json`.
+  // local captures under `output/` are not part of this project.
   "include": [
     "next-env.d.ts",
     "types/**/*.d.ts",
