@@ -1,0 +1,368 @@
+/*
+ * Sheet-owned appearance for the shadcn/Radix islands. The sheet does not
+ * compile Tailwind; ui/ adapters render data-slot, Radix state and
+ * react-day-picker rdp-* attributes only, and this file styles them with the
+ * sheet tokens. Parity with the application is documented in DESIGN.md.
+ * Source hiding lives in review.css, gated on a successful mount.
+ */
+.sheet-control-root {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Field triggers: same geometry as text fields (32px fine / 40px touch). */
+.sheet-field-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--review-field-size);
+  height: var(--review-field-size);
+  padding: var(--review-field-pad) 10px;
+  padding-inline-end: calc((var(--review-field-size) - 16px) / 2);
+  border: 1px solid var(--token-border-strong);
+  border-radius: 6.4px;
+  background: var(--token-surface);
+  color: var(--token-text);
+  font: inherit;
+  font-size: var(--review-input-size);
+  font-weight: 400;
+  line-height: var(--review-input-line);
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sheet-field-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet-field-trigger svg,
+.sheet-readonly-field > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--token-muted);
+}
+/* Empty values read as placeholders, never as entered text. */
+.sheet-field-trigger[data-placeholder] {
+  color: var(--token-muted);
+}
+.sheet-field-trigger[aria-invalid="true"] {
+  border-color: var(--token-danger);
+}
+.sheet-field-trigger:focus-visible {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: -1px;
+}
+.sheet-field-trigger:disabled {
+  cursor: not-allowed;
+  color: var(--token-disabled);
+  background: var(--token-disabled-surface);
+  border-color: var(--token-border);
+}
+/* Pending keeps its resting appearance; it is busy, not unavailable. */
+.sheet-field-trigger[aria-busy="true"] {
+  cursor: progress;
+}
+/* Read-only stays legible and selectable, without an editable surface. */
+.sheet-readonly-field {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+.sheet-field-trigger.sheet-readonly {
+  background: transparent;
+  border-color: var(--token-border);
+  color: var(--token-text);
+  cursor: default;
+}
+.sheet-readonly-field > svg {
+  position: absolute;
+  inset-inline-end: calc((var(--review-field-size) - 16px) / 2);
+  top: 50%;
+  translate: 0 -50%;
+  pointer-events: none;
+}
+/* Stationary field icons: no hover fill, transition or press movement. */
+.sheet-field-trigger,
+.sheet-field-trigger:hover,
+.sheet-field-trigger:active,
+.btn.field-scan,
+.btn.field-scan:hover,
+.btn.field-scan:active:not(:disabled) {
+  transform: none;
+  translate: none;
+  transition: none;
+  box-shadow: none;
+}
+.btn.field-scan:hover,
+.btn.field-scan:active:not(:disabled) {
+  background: transparent;
+}
+
+/* Popups */
+[data-slot="select-content"],
+.sheet-picker-content {
+  z-index: 100;
+  border: 1px solid var(--token-border-strong);
+  border-radius: 8px;
+  background: var(--token-surface);
+  color: var(--token-text);
+  font: 14px/20px var(--sheet-sans);
+  max-width: calc(100vw - 24px);
+  box-shadow: none;
+}
+[data-slot="select-content"] {
+  min-width: var(--radix-select-trigger-width);
+  max-height: min(280px, var(--radix-select-content-available-height));
+  overflow: hidden;
+}
+[data-radix-select-viewport] {
+  padding: 4px;
+}
+[data-slot="select-item"] {
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-height: var(--review-field-size);
+  padding: 5px 32px 5px 10px;
+  border-radius: 4px;
+  cursor: default;
+  user-select: none;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+[data-slot="select-item-indicator"] {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+}
+[data-slot="select-item"] svg {
+  width: 16px;
+  height: 16px;
+}
+/* Highlight (keyboard/pointer focus) is a fill; selection is check + weight. */
+[data-slot="select-item"][data-highlighted] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+[data-slot="select-item"][data-state="checked"] {
+  font-weight: 600;
+}
+[data-slot="select-item"][data-disabled] {
+  color: var(--token-disabled);
+  pointer-events: none;
+}
+[data-slot="select-empty"] {
+  padding: 6px 10px;
+  color: var(--token-muted);
+}
+[data-slot="select-scroll-up-button"],
+[data-slot="select-scroll-down-button"] {
+  display: flex;
+  justify-content: center;
+  padding: 4px;
+  background: var(--token-surface);
+}
+[data-slot="select-scroll-up-button"] svg,
+[data-slot="select-scroll-down-button"] svg {
+  width: 16px;
+  height: 16px;
+}
+@media (forced-colors: active) {
+  [data-slot="select-item"][data-highlighted] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+/* Date/time popups stay inside short viewports and scroll internally. */
+.sheet-picker-content {
+  padding: 8px;
+  width: max-content;
+  max-height: calc(100vh - 24px);
+  max-height: min(
+    var(--radix-popover-content-available-height, 100dvh),
+    calc(100dvh - 24px)
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sheet-picker-content:focus {
+  outline: none;
+}
+
+/*
+ * Calendar. react-day-picker's default stylesheet is not loaded, so nothing
+ * enlarges the selected day, fills the chevrons or fades supporting text.
+ */
+.sheet-calendar {
+  --sheet-day: 36px;
+  position: relative;
+  font-size: 14px;
+  line-height: 20px;
+}
+.sheet-calendar .rdp-months {
+  position: relative;
+  display: flex;
+}
+.sheet-calendar .rdp-nav {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--sheet-day);
+  pointer-events: none;
+}
+.sheet-calendar .rdp-month_caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--sheet-day);
+  padding-inline: var(--sheet-day);
+}
+.sheet-calendar .rdp-caption_label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.sheet-calendar .rdp-month_grid {
+  margin-top: 4px;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+.sheet-calendar .rdp-weekday {
+  width: var(--sheet-day);
+  height: 28px;
+  padding: 0;
+  color: var(--token-muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: center;
+}
+.sheet-calendar .rdp-day {
+  width: var(--sheet-day);
+  height: var(--sheet-day);
+  padding: 0;
+  text-align: center;
+}
+.sheet-calendar .rdp-day_button,
+.sheet-calendar .rdp-button_previous,
+.sheet-calendar .rdp-button_next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sheet-day);
+  height: var(--sheet-day);
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  transform: none;
+}
+.sheet-calendar .rdp-button_previous,
+.sheet-calendar .rdp-button_next {
+  color: var(--token-muted);
+  pointer-events: auto;
+}
+.sheet-calendar .rdp-chevron {
+  width: 16px;
+  height: 16px;
+  fill: none;
+}
+.sheet-calendar .rdp-day_button:hover,
+.sheet-calendar :is(.rdp-button_previous, .rdp-button_next):hover {
+  background: var(--token-raised);
+}
+.sheet-calendar
+  :is(.rdp-button_previous, .rdp-button_next)[aria-disabled="true"] {
+  background: transparent;
+  color: var(--token-disabled);
+  cursor: not-allowed;
+}
+.sheet-calendar .rdp-outside {
+  color: var(--token-muted);
+}
+.sheet-calendar .rdp-today:not(.rdp-selected) .rdp-day_button {
+  box-shadow: inset 0 0 0 1px var(--token-border-strong);
+}
+.sheet-calendar .rdp-selected .rdp-day_button,
+.sheet-calendar .rdp-selected .rdp-day_button:hover {
+  background: var(--token-accent);
+  color: var(--token-accent-contrast);
+}
+/* Outside an example range: disabled ink plus a strike, not color alone. */
+.sheet-calendar .rdp-disabled .rdp-day_button,
+.sheet-calendar .rdp-disabled .rdp-day_button:hover {
+  background: transparent;
+  color: var(--token-disabled);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+.sheet-calendar .rdp-hidden {
+  visibility: hidden;
+}
+.sheet-picker-clear {
+  margin-top: 4px;
+  width: 100%;
+}
+
+/* Time popup */
+.sheet-time-fields {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 4px;
+}
+.sheet-time-fields > div {
+  /* Grow only if a wider status/action row sets the popup width, so the
+     minute field keeps the shared 4px gutter on its right edge too. */
+  flex: 1 0 auto;
+  min-width: 80px;
+}
+.sheet-time-fields > span {
+  align-self: center;
+  padding-top: 18px;
+}
+.sheet-time-fields label {
+  display: block;
+  font-size: 12px;
+  color: var(--token-muted);
+  margin-bottom: 2px;
+}
+.sheet-time-status {
+  min-height: 18px;
+  margin: 4px 4px 0;
+  color: var(--token-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+/*
+ * Fields, status and actions share one 4px inner gutter (G08). The status
+ * line keeps its 18px reserve so Done does not move when validation appears.
+ */
+.sheet-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  padding-inline: 4px;
+}
+@media (width >= 48rem) and (pointer: fine) {
+  .sheet-calendar {
+    --sheet-day: 32px;
+  }
+}

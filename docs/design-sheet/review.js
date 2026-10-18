@@ -3,10 +3,13 @@
 // Root sheet only. The comparison layouts use frozen 8b0ef538 assets.
 const reviewCopy = {
   en: {
+    datePicker: "Date",
+    timePicker: "Time",
+    pickerHint: "Select a date or a 24-hour time.",
     sourceTokens: "2026-10-09 palette snapshot · application primary #1d4ed8.",
-    touchRule: "36px with a fine pointer from 768px · otherwise 48px",
+    touchRule: "Fields: 32px on desktop · 40px on touch / small screens",
     detailNotice:
-      "Controls follow the application's pointer-aware density and close focus edge.",
+      "Compact fields keep their icons centered and their focus edge visible.",
     scanSummary: "Read a job ticket for each storage unit.",
     jobNumber: "Job No.",
     requiredError: "Enter a Job No. before saving.",
@@ -111,23 +114,49 @@ const reviewCopy = {
     unresolvedCopy: "Review that day's record before continuing.",
     correctDay: "Request a correction",
     hrDomain: "HR attendance",
-    statusProposal: "Proposed status ink · not yet in the application",
-    appInk: "Current app ink",
+    statusProposal: "Refined status ink · also present in the app working tree",
+    appInk: "Earlier ink",
     adoptionTitle: "Ready to implement in stages",
     adoptionCopy:
-      "Compact fields, quiet panels and shared focus already exist. The remaining work is stronger badge ink, restrained invalid edges and aligned catalogue quantities; workflow changes need source-backed checks.",
+      "The preview has compact fields and shadcn/Radix select, date and time controls with confirm-safe dates, a time draft committed by Done, and invalid, pending, read-only, empty and example-range states. The application still needs shared field sizing, centered in-field icons without hover or press movement, color-only text-button hover and press, and HR picker migration.",
     adoptionScope:
-      "Floor and attendance are verification steps. The separate HR self-service plan owns attendance screen changes.",
-    reviewedPlan: "Read the revised plan",
-    auditLink: "Kiro audit",
-    adoptionStatus: "Reviewed proposal · no production release",
+      "Kiro's plan covers 40 pages across Storage, Finished Goods, HR, shell and access states, with ten implementation and verification stages.",
+    reviewedPlan: "Read the full system plan",
+    auditLink: "Earlier Kiro audit · 11 Oct",
+    adoptionStatus: "Audit fixes · 15 October 2026",
     retryNotice: "Retry example shown. No application records were written.",
+    wordmarkName: "Storage Planner design sheet",
+    sectionsName: "Design sheet sections",
+    workflowTabsName: "Workflow specimens",
+    proposalDate: "9 October 2026",
+    languageName: "ไทย · Switch language",
+    themeName: "Dark mode",
+    removeFilter: "Remove filter",
+    loadingValue: "Loading",
+    fieldStates: "Field states",
+    fieldStatesNote:
+      "Examples only. Requirements, ranges and pending writes here illustrate states; they are not business rules.",
+    stateInvalid: "Invalid",
+    stateBounded: "Example range",
+    stateEmpty: "Empty · optional",
+    statePending: "Pending",
+    stateReadOnly: "Read only",
+    stateDisabled: "Disabled",
+    dateRequired: "Choose a date before saving.",
+    timeRequired: "Choose an hour and minute before saving.",
+    boundedHint: "Example range only: 5–23 Oct 2026.",
+    emptyTimeHint: "Leave empty, or choose both hour and minute.",
+    pendingFieldHint: "Saving… locked until the reply.",
+    controlsFallback:
+      "The interactive select, date and time controls did not load. Their current values are shown read-only. Reload the sheet to try again.",
   },
   th: {
+    datePicker: "วันที่",
+    timePicker: "เวลา",
+    pickerHint: "เลือกวันที่หรือเวลาแบบ 24 ชั่วโมง",
     sourceTokens: "ชุดสี ณ 9 ต.ค. 2569 · แอปใช้สีหลัก #1d4ed8",
-    touchRule: "36px เมื่อใช้เมาส์และกว้างตั้งแต่ 768px · กรณีอื่น 48px",
-    detailNotice:
-      "ขนาดช่องขึ้นกับอุปกรณ์ชี้ตำแหน่ง และเส้นโฟกัสชิดขอบตามระบบจริง",
+    touchRule: "ช่องกรอก 32px บนคอม · 40px บนจอสัมผัส / จอเล็ก",
+    detailNotice: "ช่องกรอกกระชับ ไอคอนอยู่กึ่งกลาง และยังเห็นเส้นโฟกัสชัดเจน",
     scanSummary: "อ่านใบ Job ของแต่ละหน่วยจัดเก็บ",
     jobNumber: "เลขที่ Job",
     manufacturingDate: "วันที่ผลิต",
@@ -234,17 +263,41 @@ const reviewCopy = {
     unresolvedCopy: "ตรวจรายการของวันนั้นก่อนดำเนินการต่อ",
     correctDay: "ขอแก้ไข",
     hrDomain: "การลงเวลา",
-    statusProposal: "สีข้อความสถานะที่เสนอ · ยังไม่ได้ใช้ในแอป",
-    appInk: "สีข้อความในแอปปัจจุบัน",
+    statusProposal: "สีข้อความสถานะที่ปรับแล้ว · มีใน working tree ของแอปแล้ว",
+    appInk: "สีข้อความเดิม",
     adoptionTitle: "นำไปใช้ทีละขั้นได้",
     adoptionCopy:
-      "ช่องขนาดกระชับ แผงเรียบ และเส้นโฟกัสร่วมมีในระบบแล้ว งานที่เหลือคือสีข้อความสถานะ ขอบช่องผิดพลาด และการจัดแนวจำนวนในตาราง พร้อมตรวจพฤติกรรมกับระบบจริง",
+      "Preview มีช่องขนาดกระชับและตัวเลือก วันที่ และเวลาแบบ shadcn/Radix โดยยืนยันวันที่เดิมได้ไม่หาย เวลาบันทึกเมื่อกดเสร็จ และมีสถานะไม่ถูกต้อง กำลังบันทึก อ่านอย่างเดียว ว่าง และช่วงตัวอย่าง งานในแอปที่เหลือคือขนาดช่องร่วม ไอคอนในช่องที่อยู่กลางและไม่เปลี่ยนตอน hover หรือกด ปุ่มข้อความที่เปลี่ยนเฉพาะสีตอน hover และกด และการเปลี่ยนตัวเลือกวันที่กับเวลาใน HR",
     adoptionScope:
-      "แผนผังและการลงเวลาเป็นขั้นตรวจสอบ การแก้หน้าลงเวลาอยู่ในแผน HR self-service แยกต่างหาก",
-    reviewedPlan: "อ่านแผนที่ปรับแล้ว",
-    auditLink: "ผลตรวจจาก Kiro",
-    adoptionStatus: "ข้อเสนอที่ตรวจแล้ว · ยังไม่เผยแพร่ขึ้นระบบจริง",
+      "แผนของ Kiro ครอบคลุม 40 หน้า ทั้ง Storage, Finished Goods, HR, ส่วนกลางและสถานะสิทธิ์ แบ่งงานพัฒนาและตรวจสอบเป็น 10 ขั้น",
+    reviewedPlan: "อ่านแผนสำหรับทั้งระบบ",
+    auditLink: "ผลตรวจ Kiro เดิม · 11 ต.ค.",
+    adoptionStatus: "แก้ตามผลตรวจ · 15 ตุลาคม 2569",
     retryNotice: "แสดงตัวอย่างการส่งซ้ำแล้ว ไม่มีการเขียนข้อมูลจริง",
+    wordmarkName: "Storage Planner แผ่นออกแบบ",
+    sectionsName: "ส่วนต่าง ๆ ของแผ่นออกแบบ",
+    workflowTabsName: "ตัวอย่างขั้นตอนงาน",
+    proposalDate: "9 ตุลาคม 2569",
+    languageName: "EN · เปลี่ยนภาษา",
+    themeName: "โหมดมืด",
+    removeFilter: "ลบตัวกรอง",
+    loadingValue: "กำลังโหลด",
+    fieldStates: "สถานะของช่องกรอก",
+    fieldStatesNote:
+      "เป็นตัวอย่างเท่านั้น ข้อบังคับ ช่วงวันที่ และการบันทึกที่ค้างอยู่ในส่วนนี้ใช้แสดงสถานะ ไม่ใช่กฎทางธุรกิจ",
+    stateInvalid: "ไม่ถูกต้อง",
+    stateBounded: "ช่วงตัวอย่าง",
+    stateEmpty: "ว่าง · ไม่บังคับ",
+    statePending: "กำลังบันทึก",
+    stateReadOnly: "อ่านอย่างเดียว",
+    stateDisabled: "ปิดใช้งาน",
+    dateRequired: "เลือกวันที่ก่อนบันทึก",
+    timeRequired: "เลือกชั่วโมงและนาทีก่อนบันทึก",
+    boundedHint: "ช่วงตัวอย่างเท่านั้น: 5–23 ต.ค. 2569",
+    emptyTimeHint: "เว้นว่างได้ หรือเลือกทั้งชั่วโมงและนาที",
+    pendingFieldHint: "กำลังบันทึก… ล็อกไว้จนกว่าจะได้คำตอบ",
+    controlsFallback:
+      "ตัวเลือก วันที่ และเวลาโหลดไม่สำเร็จ จึงแสดงค่าปัจจุบันแบบอ่านอย่างเดียว โหลดหน้านี้ใหม่เพื่อลองอีกครั้ง",
   },
 };
 Object.keys(reviewCopy).forEach((lang) =>
@@ -301,17 +354,22 @@ function scanBlocker() {
     return t("quantityBlocker");
   return "";
 }
+// The same arc as the Controls saving specimen; pending is busy, not disabled.
+const savingIcon =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>';
+const selectControl = (markup) => `<span class="select-input">${markup}</span>`;
+
 function scanField(key, label, ai = false) {
   return field(key, label, true, ai).replace(
     /(<input[^>]+\/>)/,
-    `<div class="scan-input">$1<button class="icon-button field-scan" type="button" data-demo="barcodeNotice" aria-label="${t("scanField")} ${t(label)}">${svg("barcode")}</button></div>`,
+    `<div class="scan-input">$1<button class="btn quiet icon-btn field-scan" type="button" data-demo="barcodeNotice" aria-label="${t("scanField")} ${t(label)}">${svg("barcode")}</button></div>`,
   );
 }
 function renderReviewScan() {
   if (reviewMode === "viewOnly")
     return notice(t("viewOnlyState"), t("viewOnlyCopy")) + feedback();
   if (scanSaved)
-    return `<div class="workflow-title"><h3>${t("savedTitle")}</h3></div><p class="small muted">${t("stockNote")}</p><div class="ticket-toolbar"><button class="btn primary" id="scan-more" type="button">${t("scanMore")}</button><button class="btn outline" data-demo="detailNotice" type="button">${t("viewRecords")}</button></div>${feedback()}`;
+    return `<div class="workflow-title"><h3>${t("savedTitle")}</h3></div><p class="small muted">${t("stockNote")}</p><div class="ticket-toolbar scan-success-actions"><button class="btn primary" id="scan-more" type="button">${t("scanMore")}</button><button class="btn outline" data-demo="detailNotice" type="button">${t("viewRecords")}</button></div>${feedback()}`;
   const reading = reviewMode === "reading";
   return `<div class="workflow-title"><div><h3>${t("scanTitle")}</h3><p>${t("scanSummary")}</p></div></div>
   <div class="location-strip">${svg("pin")}<strong class="mono">FG1-L01</strong>${badge("success", t("mapped"))}<button type="button" class="text-action" data-demo="detailNotice" aria-label="${t("changeLocation")}">${t("change")}</button><span class="location-name">${t("locationContext")}</span></div><p class="small muted stock-note">${t("stockNote")}</p>
@@ -327,16 +385,18 @@ function renderReviewScan() {
     .join("")}</div>
   ${
     scanHasTicket
-      ? `${scanSource === "AI" ? `<p class="scan-advisory">${svg("info")}${t("advisory")}</p>` : ""}<form id="ticket-form" novalidate><div class="ticket-heading"><span>#1 · ${t(scanSource === "AI" ? "sourceAi" : "sourceManual")}</span>${reading ? `<span>${t("readingState")}…</span>` : ""}<button class="icon-button" id="remove-ticket" type="button" aria-label="${t("removeTicket")}" ${reading ? "disabled" : ""}>${svg("error")}</button></div><div class="field-grid scan-required">${scanField("factoryOrder", "jobNumber", true)}${scanField("productBarcodeText", "productBarcode")}<div class="field"><label for="ticket-storageFormat">${t("unitType")}</label><select id="ticket-storageFormat" data-draft="storageFormat">${[
-          ["PALLET", "pallet"],
-          ["BOX", "box"],
-          ["OTHER", "other"],
-        ]
-          .map(
-            ([value, key]) =>
-              `<option value="${value}" ${draft.storageFormat === value ? "selected" : ""}>${t(key)}</option>`,
-          )
-          .join("")}</select></div></div>
+      ? `${scanSource === "AI" ? `<p class="review-advisory">${svg("info")}${t("advisory")}</p>` : ""}<form id="ticket-form" novalidate><div class="ticket-heading"><span>#1 · ${t(scanSource === "AI" ? "sourceAi" : "sourceManual")}</span>${reading ? `<span>${t("readingState")}…</span>` : ""}<button class="btn quiet icon-btn" id="remove-ticket" type="button" aria-label="${t("removeTicket")}" ${reading ? "disabled" : ""}>${svg("error")}</button></div><div class="field-grid scan-required">${scanField("factoryOrder", "jobNumber", true)}${scanField("productBarcodeText", "productBarcode")}<div class="field"><label for="ticket-storageFormat">${t("unitType")}</label>${selectControl(
+          `<select id="ticket-storageFormat" data-draft="storageFormat">${[
+            ["PALLET", "pallet"],
+            ["BOX", "box"],
+            ["OTHER", "other"],
+          ]
+            .map(
+              ([value, key]) =>
+                `<option value="${value}" ${draft.storageFormat === value ? "selected" : ""}>${t(key)}</option>`,
+            )
+            .join("")}</select>`,
+        )}</div></div>
   <details class="detail-disclosure"><summary>${t("moreDetails")} · <span id="filled-count"></span></summary><div class="field-grid detail-grid">${renderOptionalFields()}</div></details><div class="save-row"><p id="save-blocker" role="status"></p><button type="submit" class="btn primary" id="scan-save" aria-label="${t("scanSaveName")}">${t("saveTickets")}</button></div>${feedback()}</form>`
       : `<div class="empty-example"><strong>${t("noTickets")}</strong><p>${t("emptyCopy")}</p><button type="button" class="btn outline" id="add-ticket">${t("manual")}</button></div>${feedback()}`
   }`;
@@ -393,11 +453,11 @@ function updateScanValidation() {
 function renderReviewCatalogue() {
   const totals = [128, 6, 14, 342];
   return `<div class="workflow-title"><div><h3>${t("catalogueTitle")}</h3><p>${t("catalogueSummary")}</p></div>${reviewMode !== "viewOnly" ? `<button class="btn primary" type="button" data-demo="createNotice" aria-label="${t("addProductAccessible")}">${svg("plus")}${t("addProduct")}</button>` : ""}</div>
-  ${reviewMode === "viewOnly" ? notice(t("viewOnlyState"), t("viewOnlyCopy")) : ""}<dl class="stat-strip">${["products", "measurementCount", "placementCount", "storedCount"].map((key, i) => `<div><dt>${t(key)}</dt><dd>${reviewMode === "loading" ? "…" : reviewMode === "unavailable" ? t("unavailable") : totals[i]}</dd></div>`).join("")}</dl><p class="small muted">${t("totalsScope")}</p><details class="totals-explanation"><summary>${t("totalsRules")}</summary><p class="small">${t("movingUnits")}</p></details>${reviewMode === "unavailable" ? notice(t("summaryUnavailable")) : ""}
-  <div class="catalogue-switch" role="group" aria-label="${t("catalogueTab")}">${["products", "storageUnits"].map((view) => `<button type="button" class="btn ${catalogueView === view ? "secondary" : "ghost"}" data-catalogue-view="${view}" aria-pressed="${catalogueView === view}">${t(view)}</button>`).join("")}</div>
-  <div class="catalogue-search"><div class="search-wrap">${svg("search")}<input class="search-input" id="product-search" type="search" value="${escapeHtml(productQuery)}" placeholder="${t("searchProducts")}" aria-label="${t("searchProductsAccessible")}"/></div><button type="button" id="review-filter" class="btn outline" aria-pressed="${catalogueFiltered}">${t("filters")}</button></div>${catalogueFiltered ? `<button class="filter-chip" type="button" id="clear-catalogue-filter" aria-label="${t("clearFilters")}">${t(catalogueView === "products" ? "readyOnly" : "storedOnly")}${svg("error")}</button>` : ""}
+  ${reviewMode === "viewOnly" ? notice(t("viewOnlyState"), t("viewOnlyCopy")) : ""}<dl class="stat-strip"${reviewMode === "loading" ? ' aria-busy="true"' : ""}>${["products", "measurementCount", "placementCount", "storedCount"].map((key, i) => `<div><dt>${t(key)}</dt><dd>${reviewMode === "loading" ? `<span aria-hidden="true">…</span><span class="sr-only">${t("loadingValue")}</span>` : reviewMode === "unavailable" ? t("unavailable") : totals[i]}</dd></div>`).join("")}</dl><p class="small muted">${t("totalsScope")}</p><details class="totals-explanation"><summary>${t("totalsRules")}</summary><p class="small">${t("movingUnits")}</p></details>${reviewMode === "unavailable" ? notice(t("summaryUnavailable")) : ""}
+  <div class="catalogue-switch" role="group" aria-label="${t("catalogueTab")}">${["products", "storageUnits"].map((view) => `<button type="button" class="btn outline" data-catalogue-view="${view}" aria-pressed="${catalogueView === view}">${t(view)}</button>`).join("")}</div>
+  <div class="catalogue-search"><div class="search-wrap">${svg("search")}<input class="search-input" id="product-search" type="search" value="${escapeHtml(productQuery)}" placeholder="${t("searchProducts")}" aria-label="${t("searchProductsAccessible")}"/></div><button type="button" id="review-filter" class="btn outline" aria-pressed="${catalogueFiltered}">${t("filters")}</button></div>${catalogueFiltered ? `<button class="filter-chip" type="button" id="clear-catalogue-filter" aria-label="${t("removeFilter")}: ${t(catalogueView === "products" ? "readyOnly" : "storedOnly")}">${t(catalogueView === "products" ? "readyOnly" : "storedOnly")}${svg("error")}</button>` : ""}
   <div class="table-scroll" tabindex="0" role="region" aria-label="${t("catalogueTitle")}"><table class="sample-table"><thead><tr><th scope="col">${t(catalogueView === "products" ? "product" : "storageUnits")}</th><th scope="col">${t("status")}</th><th scope="col" class="numeric">${t(catalogueView === "products" ? "totalInUnits" : "units")}</th></tr></thead><tbody id="product-rows"></tbody></table></div><div id="catalogue-empty"></div>
-  <div class="table-footer"><span class="small" id="product-count"></span><div class="pagination-example"><label class="small" for="sample-page-size">${t("perPage")}</label><select id="sample-page-size" disabled><option>20</option></select><button type="button" class="btn ghost" disabled>${t("previous")}</button><span class="small">${t("pageOne")}</span><button type="button" class="btn ghost" disabled>${t("next")}</button></div></div>${feedback()}`;
+  <div class="table-footer"><span class="small" id="product-count"></span><div class="pagination-example"><div class="pagination-size"><label class="small" for="sample-page-size">${t("perPage")}</label>${selectControl('<select id="sample-page-size" disabled><option>20</option></select>')}</div><div class="pagination-nav"><button type="button" class="btn quiet" disabled>${t("previous")}</button><span class="small">${t("pageOne")}</span><button type="button" class="btn quiet" disabled>${t("next")}</button></div></div></div>${feedback()}`;
 }
 function updateReviewProducts() {
   const rows = [
@@ -449,7 +509,7 @@ function updateReviewProducts() {
     .join("");
   document.querySelector("#catalogue-empty").innerHTML = rows.length
     ? ""
-    : `<div class="empty-example"><strong>${t("noResults")}</strong><p>${t("noResultsHint")}</p><button class="btn outline" type="button" id="clear-search">${t("clearFilters")}</button></div>`;
+    : `<div class="empty-example catalogue-no-results"><strong>${t("noResults")}</strong><p>${t("noResultsHint")}</p><button class="btn outline" type="button" id="clear-search">${t("clearFilters")}</button></div>`;
   document.querySelector("#product-count").textContent =
     `${rows.length} ${t("recordScope")}`;
 }
@@ -509,7 +569,7 @@ function renderReviewHr() {
   return `<div class="workflow-title"><div><h3>${t("hrTitle")}</h3><p>${t("hrSummary")}</p></div>${quietBadge(clockedOut ? "success" : "accent", t(clockedOut ? "clockedOut" : "clockedIn"))}</div>
   <div class="time-grid"><div class="time-cell"><p>${t("clockIn")}</p><strong class="recorded">08:29</strong></div><div class="time-cell"><p>${t("clockOut")}</p><strong class="${clockedOut ? "recorded" : "unrecorded"}">${clockedOut ? "17:31" : "--:--"}</strong>${!clockedOut ? `<span class="small muted">${t("unrecorded")}</span>` : ""}</div></div>${demoLink("viewDay")}
   <div class="shift-strip"><span>${t("plannedShift")} <strong>08:30–17:30 · ${t("break")}</strong></span><span>${t("site")} <strong>${t("sampleSite")}</strong></span></div>${writeNotice}
-  <div class="hr-action-row">${uncertain ? `<button id="safe-clock-retry" class="btn primary" type="button">${svg("pending")}${t("safeRetry")}</button>` : unresolved ? `<button class="btn outline" type="button" data-demo="attendanceNotice">${t("correctDay")}</button>` : reviewMode === "denied" ? "" : clockedOut ? `<p>${t("receipt")} · ${demoLink("timeHistory")}</p>` : `<button id="sample-clock-out" class="btn primary" type="button" ${pending ? "disabled" : ""}>${svg("pending")}${t(pending ? "saving" : "clockOutAction")}</button>`}</div><p class="hr-policy">${t("hrPolicy")}</p>${hrRequests()}${feedback()}`;
+  <div class="hr-action-row">${uncertain ? `<button id="safe-clock-retry" class="btn primary" type="button">${svg("pending")}${t("safeRetry")}</button>` : unresolved ? `<button class="btn outline" type="button" data-demo="attendanceNotice">${t("correctDay")}</button>` : reviewMode === "denied" ? "" : clockedOut ? `<p>${t("receipt")} · ${demoLink("timeHistory")}</p>` : pending ? `<button id="sample-clock-out" class="btn primary" type="button" aria-disabled="true" aria-busy="true">${savingIcon}${t("saving")}</button>` : `<button id="sample-clock-out" class="btn primary" type="button">${svg("pending")}${t("clockOutAction")}</button>`}</div><p class="hr-policy">${t("hrPolicy")}</p>${hrRequests()}${feedback()}`;
 }
 const modesByScreen = {
   scan: [
@@ -542,7 +602,9 @@ const modeRow = document.createElement("div");
 modeRow.className = "review-mode";
 document.querySelector(".specimen-tabs").after(modeRow);
 renderWorkflow = function () {
-  modeRow.innerHTML = `<label for="review-state">${t("reviewState")}</label><select id="review-state">${modesByScreen[screen].map(([value, key]) => `<option value="${value}" ${reviewMode === value ? "selected" : ""}>${t(key)}</option>`).join("")}</select>`;
+  window.sheetControls?.unmount(modeRow);
+  window.sheetControls?.unmount(document.querySelector("#workflow-panel"));
+  modeRow.innerHTML = `<label for="review-state">${t("reviewState")}</label>${selectControl(`<select id="review-state">${modesByScreen[screen].map(([value, key]) => `<option value="${value}" ${reviewMode === value ? "selected" : ""}>${t(key)}</option>`).join("")}</select>`)}`;
   const panel = document.querySelector("#workflow-panel");
   panel.setAttribute("aria-labelledby", `tab-${screen}`);
   panel.innerHTML = {
@@ -556,6 +618,17 @@ renderWorkflow = function () {
   );
   if (screen === "scan") updateScanValidation();
   if (screen === "catalogue") updateReviewProducts();
+  panel
+    .querySelectorAll("#ticket-deliveryDate, #ticket-manufacturingDate")
+    .forEach((input) => {
+      input.dataset.sheetDate = "";
+      // Optional ticket dates: clearing is an explicit action in the popup.
+      input.dataset.sheetClearable = "";
+    });
+  window.sheetControls?.mount(modeRow);
+  window.sheetControls?.mount(panel);
+  mountControlsFallbacks(modeRow);
+  mountControlsFallbacks(panel);
 };
 const originalSelectScreen = selectScreen;
 selectScreen = function (next, focus = false) {
@@ -567,7 +640,10 @@ modeRow.addEventListener("change", (event) => {
   if (screen === "hr") clockedOut = false;
   scanSaved = false;
   renderWorkflow();
-  document.querySelector("#review-state").focus();
+  (
+    document.querySelector("#review-state-control") ??
+    document.querySelector("#review-state")
+  ).focus();
 });
 const reviewPanel = document.querySelector("#workflow-panel");
 reviewPanel.addEventListener(
@@ -580,6 +656,7 @@ reviewPanel.addEventListener(
       aiFields.delete(key);
       event.target.closest(".field").querySelector(".origin")?.remove();
       updateScanValidation();
+      window.sheetControls?.refresh();
     }
     if (event.target.id === "product-search") {
       event.stopImmediatePropagation();
@@ -593,6 +670,7 @@ reviewPanel.addEventListener("change", (event) => {
   if (event.target.dataset.draft) {
     draft[event.target.dataset.draft] = event.target.value;
     updateScanValidation();
+    window.sheetControls?.refresh();
   }
 });
 reviewPanel.addEventListener("focusout", (event) => {
@@ -601,6 +679,7 @@ reviewPanel.addEventListener("focusout", (event) => {
   ) {
     scanTouched.add(event.target.dataset.draft);
     updateScanValidation();
+    window.sheetControls?.refresh();
   }
 });
 reviewPanel.addEventListener(
@@ -620,6 +699,12 @@ reviewPanel.addEventListener(
   (event) => {
     const target = event.target.closest("button, [data-zone]");
     if (!target || target.disabled) return;
+    // Busy/aria-disabled actions stay focusable but never repeat the action.
+    if (target.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const handle = () => event.stopImmediatePropagation();
     if (target.dataset.capture) {
       handle();
@@ -713,17 +798,135 @@ document.querySelector("#review-uncertain").addEventListener("click", () => {
 });
 const adoption = document.createElement("section");
 adoption.className = "adoption-section";
-adoption.innerHTML = `<div class="section-heading"><h2 data-i18n="adoptionTitle"></h2><p class="small muted" data-i18n="adoptionStatus"></p></div><p data-i18n="adoptionCopy"></p><p class="small muted" data-i18n="adoptionScope"></p><div class="adoption-links"><a href="implementation-plan.md" data-i18n="reviewedPlan"></a><a href="kiro-audit.md" data-i18n="auditLink"></a></div>`;
+adoption.innerHTML = `<div class="section-heading"><h2 data-i18n="adoptionTitle"></h2><p class="small muted" data-i18n="adoptionStatus"></p></div><p data-i18n="adoptionCopy"></p><p class="small muted" data-i18n="adoptionScope"></p><div class="adoption-links"><a href="system-implementation-plan.md" data-i18n="reviewedPlan"></a><a href="kiro-audit.md" data-i18n="auditLink"></a></div>`;
 document.querySelector(".sheet-footer").before(adoption);
+// The React islands mount after this script. Until then their sources keep
+// their space without showing; if the bundle never mounts, show labelled
+// read-only values with an explicit error. Never expose native picker popups.
+document.documentElement.classList.add("sheet-controls-pending");
+const controlsFallback = document.createElement("p");
+controlsFallback.id = "controls-fallback";
+controlsFallback.className = "controls-fallback";
+controlsFallback.setAttribute("role", "status");
+controlsFallback.dataset.i18n = "controlsFallback";
+controlsFallback.hidden = true;
+document.querySelector("main").prepend(controlsFallback);
+function mountControlsFallbacks(scope = document) {
+  if (!document.documentElement.classList.contains("sheet-controls-failed"))
+    return;
+  for (const source of scope.querySelectorAll(
+    ".select-input > select, input[data-sheet-date], input[data-sheet-time]",
+  )) {
+    const id = `${source.id}-fallback`;
+    let valueField = document.getElementById(id);
+    if (!valueField) {
+      valueField = document.createElement("input");
+      valueField.type = "text";
+      valueField.id = id;
+      valueField.className = "sheet-fallback-field";
+      valueField.readOnly = true;
+      valueField.setAttribute(
+        "aria-describedby",
+        [source.getAttribute("aria-describedby"), "controls-fallback"]
+          .filter(Boolean)
+          .join(" "),
+      );
+      for (const label of Array.from(source.labels ?? [])) label.htmlFor = id;
+      source.hidden = true;
+      source.tabIndex = -1;
+      source.setAttribute("aria-hidden", "true");
+      source.after(valueField);
+    }
+    valueField.value =
+      source instanceof HTMLSelectElement
+        ? (source.selectedOptions[0]?.text ?? "")
+        : source.value;
+  }
+}
+function checkControlsMounted() {
+  const root = document.documentElement;
+  root.classList.remove("sheet-controls-pending");
+  if (root.classList.contains("sheet-controls-ready")) return;
+  root.classList.add("sheet-controls-failed");
+  controlsFallback.hidden = false;
+  mountControlsFallbacks();
+}
+if (document.readyState === "complete") checkControlsMounted();
+else window.addEventListener("load", checkControlsMounted, { once: true });
+
+// Errors follow the current value in every locale, including after a switch.
+function syncFieldErrors() {
+  const required = document.querySelector("#demo-required");
+  const missing = !required.value.trim();
+  required.setAttribute("aria-invalid", String(missing));
+  document.querySelector("#required-error").textContent = missing
+    ? t("requiredError")
+    : "";
+  for (const error of document.querySelectorAll("[data-error-for]")) {
+    const source = document.getElementById(error.dataset.errorFor);
+    const empty = !source.value.trim();
+    source.setAttribute("aria-invalid", String(empty));
+    error.textContent = empty ? t(error.dataset.errorKey) : "";
+  }
+}
+document
+  .querySelector("#demo-required")
+  .addEventListener("input", syncFieldErrors);
+document
+  .querySelector(".picker-states")
+  .addEventListener("input", syncFieldErrors);
+
+// A stable theme name; aria-pressed alone reports whether dark mode is on.
+const originalUpdateAppearance = updateAppearance;
+updateAppearance = function () {
+  originalUpdateAppearance();
+  document
+    .querySelector("#theme-toggle")
+    .setAttribute("aria-label", t("themeName"));
+};
+// Print is light. Drop .dark while printing so inks and readouts match.
+let restoreDarkAfterPrint = false;
+window.addEventListener("beforeprint", () => {
+  if (!dark) return;
+  restoreDarkAfterPrint = true;
+  dark = false;
+  updateAppearance();
+});
+window.addEventListener("afterprint", () => {
+  if (!restoreDarkAfterPrint) return;
+  restoreDarkAfterPrint = false;
+  dark = true;
+  updateAppearance();
+});
+
 const originalRenderLanguage = renderLanguage;
 renderLanguage = function () {
   originalRenderLanguage();
+  document
+    .querySelector(".wordmark")
+    .setAttribute("aria-label", t("wordmarkName"));
+  document
+    .querySelector(".sheet-nav")
+    .setAttribute("aria-label", t("sectionsName"));
+  document
+    .querySelector(".specimen-tabs")
+    .setAttribute("aria-label", t("workflowTabsName"));
+  document.querySelector("#proposal-date").textContent = t("proposalDate");
+  // The accessible name starts with the visible label (ไทย / EN).
+  document
+    .querySelector("#language-toggle")
+    .setAttribute("aria-label", t("languageName"));
+  document.querySelector("#language-label").lang =
+    language === "en" ? "th" : "en";
+  syncFieldErrors();
   document
     .querySelector("#semantic-statuses")
     .insertAdjacentHTML("beforeend", quietBadge("accent", t("clockedIn")));
   document.querySelector("#status-proposal").textContent = t("statusProposal");
   document.querySelector("#app-ink-example").innerHTML =
     `${t("appInk")} · <span class="badge app-success">${svg("check")}${t("success")}</span>`;
+  window.sheetControls?.refresh();
+  mountControlsFallbacks();
 };
 document
   .querySelector("#semantic-statuses")

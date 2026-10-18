@@ -1,0 +1,130 @@
+{
+  "A_autofocusedDay": {
+    "text": "14",
+    "ariaLabel": "Wednesday, October 14th, 2026, selected"
+  },
+  "A_afterEnterOnSelectedDay": {
+    "sourceValue": "",
+    "triggerText": "Pick a date",
+    "popoverOpen": false
+  },
+  "A_afterClickOnSelectedDay": {
+    "sourceValue": "",
+    "triggerText": "Pick a date"
+  },
+  "B_en": {
+    "trigger": "Date: 14 Oct 2026",
+    "caption": "October 2026",
+    "gridLabel": "October 2026",
+    "selectedDayLabel": "Wednesday, October 14th, 2026, selected",
+    "firstWeekday": "Sunday",
+    "selectedTdClasses": "group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-(--cell-radius) [&:first-child[data-selected=true]_button]:rounded-l-(--cell-radius) rdp-day rdp-focused rdp-selected",
+    "selectedButtonClasses": [
+      "rdp-day",
+      "rdp-day_button"
+    ],
+    "navChevronClass": "lucide lucide-chevron-right cn-rtl-flip size-4 rdp-chevron",
+    "outsideDays": 4
+  },
+  "B_th": {
+    "trigger": "วันที่: 14 ต.ค. 2569",
+    "caption": "ตุลาคม 2569",
+    "gridLabel": "ตุลาคม 2026",
+    "selectedDayLabel": "วันพุธที่ 14 ตุลาคม 2026, เลือกแล้ว",
+    "firstWeekday": "อาทิตย์",
+    "selectedTdClasses": "group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-(--cell-radius) [&:first-child[data-selected=true]_button]:rounded-l-(--cell-radius) rdp-day rdp-focused rdp-selected",
+    "selectedButtonClasses": [
+      "rdp-day",
+      "rdp-day_button"
+    ],
+    "navChevronClass": "lucide lucide-chevron-right cn-rtl-flip size-4 rdp-chevron",
+    "outsideDays": 4
+  },
+  "C_emptyTimeOpen": {
+    "trigger": "Time: --:--",
+    "hourTrigger": "HH",
+    "minuteTrigger": "30"
+  },
+  "C_minuteFirst": {
+    "sourceValue": ":45"
+  },
+  "C_hourFirst": {
+    "sourceValue": "09:30"
+  },
+  "C_clearTimeAction": false,
+  "Q_nestedEscape": {
+    "listboxOpenedInsidePopover": true,
+    "listboxAfterEscape": false,
+    "popoverAfterEscape": true,
+    "activeElement": "demo-time-control-hour"
+  },
+  "D_requiredErrorAfterLocale": {
+    "value": "JOB-1",
+    "ariaInvalid": "false",
+    "errorBeforeLocale": "",
+    "errorAfterLocale": "กรอกเลขที่ Job ก่อนบันทึก"
+  },
+  "E_focusAfterReviewState": "review-state-control",
+  "G_reading": {
+    "textInputsDisabled": [
+      [
+        "ticket-factoryOrder",
+        true
+      ],
+      [
+        "ticket-productBarcodeText",
+        true
+      ],
+      [
+        "ticket-partName",
+        true
+      ],
+      [
+        "ticket-customer",
+        true
+      ],
+      [
+        "ticket-quantity",
+        true
+      ],
+      [
+        "ticket-factoryQuantity",
+        true
+      ],
+      [
+        "ticket-customerQuantity",
+        true
+      ]
+    ],
+    "scannerDisabled": [
+      true,
+      true
+    ],
+    "unitTypeDisabled": true
+  },
+  "H_pending": {
+    "disabled": true,
+    "ariaBusy": null,
+    "classes": "btn primary",
+    "text": "Saving…",
+    "noticeRole": "status"
+  },
+  "H_catalogueSwitch": [
+    [
+      "Products",
+      "btn secondary",
+      "true"
+    ],
+    [
+      "Storage units",
+      "btn ghost",
+      "false"
+    ]
+  ],
+  "N_cssWithoutScript": {
+    "review-state": "none",
+    "ticket-storageFormat": "none",
+    "demo-date": "none",
+    "demo-time": "none"
+  }
+}

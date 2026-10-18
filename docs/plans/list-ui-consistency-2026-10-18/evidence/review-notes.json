@@ -1,0 +1,23 @@
+{
+  "artifact": "Standalone HTML plan; no production implementation changes",
+  "date": "2026-10-18",
+  "detector_review": [
+    {
+      "finding": "cramped-padding on table-wrap",
+      "resolution": "Reviewed false positive: caption and cells provide 12–16px horizontal inset; wrapper intentionally defines only scroll/border."
+    },
+    {
+      "finding": "tiny-text at 10–11px",
+      "resolution": "Changed every 10px and 11px CSS text size to at least 12px."
+    },
+    {
+      "finding": "overused-font Geist",
+      "resolution": "Retained incumbent project typography (Geist + Noto Sans Thai); the requested task preserves the existing identity."
+    },
+    {
+      "finding": "nested-cards",
+      "resolution": "The framed interactive app preview is a specimen inside a documentation stage, not nested task cards. Architecture boxes represent distinct data-flow modules."
+    }
+  ],
+  "scope": "Removal of page-intro descriptions, shared search/filter controls, global pagination contract/adapters, per-caller inventory, backend dependencies, implementation order and acceptance checks."
+}

@@ -1,0 +1,31 @@
+{
+  "calendarWeekdayAndOutsideDays_opacity075": {
+    "light": {
+      "color": "#7e7e7e",
+      "ratio": 4.09,
+      "unblended": 7.77
+    },
+    "dark": {
+      "color": "#7e7e7e",
+      "ratio": 4.86,
+      "unblended": 7.98
+    }
+  },
+  "printFromDarkMode_badges": {
+    "success": 1.33,
+    "warning": 1.27,
+    "danger": 1.38,
+    "pending": 1.41,
+    "appInkExampleOnPaper": 1.91
+  },
+  "printFromDarkMode_disabledButton": {
+    "text": "#a4a4a4",
+    "surface": "#1d1d1d",
+    "ratioTextOnSurface": 6.81,
+    "surfaceOnPaper": 16.89
+  },
+  "printFromLightMode_badges_reference": {
+    "success": 8.67
+  },
+  "snapshotPrimaryInSrgb": "#0537ff"
+}

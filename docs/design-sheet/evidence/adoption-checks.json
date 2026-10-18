@@ -1,11 +1,13 @@
 {
-  "date": "2026-10-11",
-  "checkedAt": "2026-10-11T17:51:34.100Z",
+  "adoptionRevisionDate": "2026-10-11",
+  "checkedAt": "2026-10-16T02:12:41.740Z",
+  "gitHead": "733c6aca",
   "scope": "Original standalone sheet adoption revision",
-  "sourceBaseline": "733c6aca",
+  "surface": "sheet.js + review.js vanilla handlers only. The React islands (dist/controls.js) are not loaded, so selects/date/time are checked as their hidden native sources; check-controls.cjs covers the mounted controls.",
+  "adoptionGitBase": "733c6aca",
   "approvedComposition": "8b0ef538",
   "method": "jsdom local DOM/events; selected axe structural rules; source checks; hex contrast arithmetic",
-  "checks": 1480,
+  "checks": 4684,
   "stateCombinations": 68,
   "structuralAxeRuns": 16,
   "unverified": [

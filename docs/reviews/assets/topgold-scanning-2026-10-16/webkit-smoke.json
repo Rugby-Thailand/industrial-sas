@@ -1,0 +1,35 @@
+{
+  "browser": "desktop WebKit",
+  "version": "26.5",
+  "purpose": "functional smoke only; not actual iPhone or speed evidence",
+  "caps": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+    "hardwareConcurrency": 8,
+    "longTaskSupported": false,
+    "windowBarcodeDetector": false,
+    "windowFormats": null,
+    "worker": {
+      "present": false,
+      "formats": null
+    }
+  },
+  "errors": [],
+  "functionalChecks": {
+    "sixCallsCompleted": true,
+    "workerProcessedTwoFrames": true,
+    "regionWorkerProcessedTwoFrames": true,
+    "noDecoderErrors": true,
+    "sampleJobDecodedByBoth": true
+  },
+  "progress": {
+    "state": "complete",
+    "run": "webkit-smoke",
+    "phase": "compatibility",
+    "kind": "result",
+    "id": 50,
+    "size": 1920,
+    "rep": 0,
+    "variant": "jsDefault",
+    "order": 11
+  }
+}

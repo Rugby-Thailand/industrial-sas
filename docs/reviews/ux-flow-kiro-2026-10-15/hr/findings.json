@@ -1,0 +1,203 @@
+{
+  "scope": "HR employee self-service and admin journeys in the current working tree (including uncommitted changes): Today/clock, history/day, requests/corrections, profile, holidays, employee linking/setup, review, periods, settings/access and shortcut customization. Sources: src/features/hr, src/app/[locale]/(desktop)/hr, convex/hr, src/components/providers/HrAccessProvider.tsx. Discovery only; no app source, tests, config or translations changed.",
+  "model": "Kiro CLI, claude-opus-5.5, effort high",
+  "findings": [
+    {
+      "id": "K-UX-HR-01",
+      "severity": "P2",
+      "title": "Linking an account or supervisor in Employees looks complete but grants no HR access, and nothing tells the admin",
+      "user": "HR administrator setting up an employee; the linked employee; the assigned supervisor",
+      "trigger": "HR admin opens Employees > Add employee, selects a member under Linked account and another member under Supervisor, then saves. Neither member holds HR_EMPLOYEE / HR_SUPERVISOR. A newly invited member, or one with only a planner role, has neither.",
+      "expected": "Setup either gives the linked member self-service access and the supervisor review access, or the Employees form/list clearly says that the role still has to be granted in Settings > HR access (ideally with a direct action).",
+      "actual": "The save succeeds and the list shows the account as linked. The employee gets 'You do not have access to this page / Ask your organization's HR administrator for access' on every HR page. The supervisor cannot open Review. Member options contain only userId/displayName, so the form cannot warn. The admin must find the separate Settings > HR access checkbox on their own.",
+      "files": [
+        { "path": "convex/hr/setup.ts", "line": 194 },
+        { "path": "convex/hr/setup.ts", "line": 213 },
+        { "path": "convex/hr/setup.ts", "line": 237 },
+        { "path": "convex/hr/access.ts", "line": 24 },
+        { "path": "convex/lib/permissions.ts", "line": 78 },
+        { "path": "src/features/hr/EmployeeForm.tsx", "line": 335 },
+        { "path": "src/features/hr/EmployeeForm.tsx", "line": 251 },
+        { "path": "src/features/hr/EmployeesScreen.tsx", "line": 475 },
+        { "path": "src/components/providers/HrAccessProvider.tsx", "line": 60 },
+        { "path": "src/features/hr/HrShared.tsx", "line": 46 },
+        { "path": "convex/staging/hrDemo.ts", "line": 169 }
+      ],
+      "cause": "Account/supervisor linkage (hrEmployees.userId/supervisorUserId) and HR roles (membershipRoles) are independent. saveEmployee never grants or checks a role, memberOptions does not return role/access state, and the form hint only says that an account is needed to clock in. The demo seed grants HR_EMPLOYEE separately, which hides the gap in fixtures.",
+      "evidence": "Probe hr-setup.probe.ts uses real registered convex-test handlers. saveEmployee writes; then access.current, self.today and the supervisor's review.queue all return ok:false; memberOptionKeys=[displayName,userId]. The control passes once setMemberAccess grants HR_EMPLOYEE. UI consequences are source-traced.",
+      "evidenceLevel": "backend handler probe (convex-test) + source-traced UI; not browser-verified",
+      "confidence": "high",
+      "novelty": "new — no earlier report covers link-without-role. Daily KIRO-04 concerns cross-site role revocation, not this setup gap.",
+      "recommendation": "Product decision: either grant HR_EMPLOYEE on link and HR_SUPERVISOR on supervisor assignment (preferred if policy allows), or add an access field to memberOptions/listEmployees and show an inline warning with a 'Grant self-service' action. Keep server authorization unchanged.",
+      "testNeeded": "Integration: link + supervisor assignment followed by access.current/review.queue for those users. Rendered: Employees form/list shows missing-access state for a linked member without the role."
+    },
+    {
+      "id": "K-UX-HR-02",
+      "severity": "P2",
+      "title": "Certify/Return confirmation is never shown, and after Return the reviewer is shown an 'Account for this day' form or 'Nothing to decide'",
+      "user": "Supervisor / HR reviewer",
+      "trigger": "Review > open a day with a pending correction > Return > enter reason > Confirm return (also Certify, and Account-for-this-day submit). With live Convex data the decided state arrives before the mutation promise resolves.",
+      "expected": "A visible, announced confirmation such as 'Returned to Somchai', retained until the reviewer moves on. Any next action should be clearly separate from the completed return.",
+      "actual": "The decision component unmounts when the query drops pendingCorrectionId, so the 'Returned'/'Certified' status is lost. If the employee's own day was complete, the panel says 'Nothing on this day needs a decision.' and the desktop list shows 'The open day is not in this list's range, site or tab.' For a missing clock-out, 'Account for this day' appears immediately, as if the return still needs another action. Disposition success is also lost because its key includes the revision.",
+      "files": [
+        { "path": "src/features/hr/ReviewDetail.tsx", "line": 103 },
+        { "path": "src/features/hr/ReviewDetail.tsx", "line": 116 },
+        { "path": "src/features/hr/ReviewDetail.tsx", "line": 123 },
+        { "path": "src/features/hr/ReviewDetail.tsx", "line": 140 },
+        { "path": "src/features/hr/ReviewDetail.tsx", "line": 274 },
+        { "path": "src/features/hr/ReviewDetail.tsx", "line": 481 },
+        { "path": "convex/hr/review.ts", "line": 386 },
+        { "path": "convex/model/hr/attendance.ts", "line": 217 },
+        { "path": "node_modules/convex/dist/esm/browser/sync/request_manager.js", "line": 100 }
+      ],
+      "cause": "Write feedback lives inside CorrectionDecision/DispositionForm. Rendering of those components depends on live state that the successful write changes (pending correction; revision key). Convex resolves a successful mutation only after the reflecting query transition, so the owner publishes SAVED to an unmounted form. The existing test passes because its query never changes.",
+      "evidence": "hr-ui.probe.tsx renders production ReviewDetail with a reactive query store. Control (static query): 'Returned' shown. Live update on a complete day: statuses=['Nothing on this day needs a decision.'], no 'Returned'. Live update on a missing clock-out: no status; 'Account for this day' visible.",
+      "evidenceLevel": "rendered-component probe + Convex client source; not browser-verified",
+      "confidence": "high",
+      "novelty": "new; differs from SOL-01, which concerns erased drafts, not lost completion feedback",
+      "recommendation": "Lift the last decision receipt to ReviewDetail (keyed by employee/date) and render it above the next state, for example 'Returned to employee · reason'. Optionally offer 'Next open day'. For a returned day, explain that the employee can resubmit before offering disposition.",
+      "testNeeded": "Rendered ReviewDetail with a store that publishes the post-decision detail before resolving: Return on READY and MISSING_END days, Certify, and Dispose each show a persistent role=status confirmation."
+    },
+    {
+      "id": "K-UX-HR-03",
+      "severity": "P2",
+      "title": "Opening a day from History (or a request from Requests) and pressing Back resets the chosen month, filter and page",
+      "user": "Employee reviewing earlier attendance or request status",
+      "trigger": "History > choose September (and optionally the 'Needs review' filter) > open a day > Back. Or: Requests > status filter / page 3 > open a request > Back.",
+      "expected": "Back restores the view the employee left, including the month/range, status filter and page.",
+      "actual": "History remounts on the current month and All. Requests remounts on page 1 and All. The employee must choose the range or page again after every day/request check.",
+      "files": [
+        { "path": "src/features/hr/HistoryScreen.tsx", "line": 116 },
+        { "path": "src/features/hr/HistoryScreen.tsx", "line": 166 },
+        { "path": "src/features/hr/HistoryScreen.tsx", "line": 284 },
+        { "path": "src/features/hr/RequestsScreen.tsx", "line": 59 },
+        { "path": "src/features/hr/RequestsScreen.tsx", "line": 163 },
+        { "path": "next.config.ts", "line": 15 }
+      ],
+      "cause": "Range, filter, status and cursors are component state, not URL state. cacheComponents is disabled, so App Router unmounts the previous route, unlike the Activity behaviour in node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md. Review and Period already use URL-backed state for comparable context.",
+      "evidence": "hr-ui.probe.tsx: after choosing September the query is from=2026-09-01; window.location.search stays empty; after the remount, month=2026-10 and the query is from 2026-10-01. Requests is source-traced.",
+      "evidenceLevel": "rendered-component remount probe + Next config/docs source; Requests source-traced; not browser-verified",
+      "confidence": "high for the mechanism; the browser Back path should still be confirmed by the parent",
+      "novelty": "new; frontend-consistency A07 covers Requests paging presentation, not Back restoration",
+      "recommendation": "Store History month/from/to/filter and Requests status/cursor stack in the query string (useUrlBackedState plus replace updates), so Day/Request Back restores them. Update the back-navigation inventory for the changed state.",
+      "testNeeded": "Caller tests: choose month/filter > open Day > native Back > same month/filter and query args. Requests: status/page > detail > Back > same page. Also cover direct entry and locale switch."
+    },
+    {
+      "id": "K-UX-HR-04",
+      "severity": "P3",
+      "title": "Resubmitting a returned correction starts from the original punch with an empty reason; the reviewer's reason appears only below the form",
+      "user": "Employee whose correction was returned",
+      "trigger": "Today or Requests > returned request > Open day. The form is titled 'Resubmit the returned request'.",
+      "expected": "The reviewer's return reason appears at or above the form. The form starts from the returned proposal and reason, so the employee changes only what was asked.",
+      "actual": "Times prefill from the original events (08:29 instead of the proposed 07:45), and the reason is empty. The return reason appears only in the Requests log after the form and the events panel, which is far below on mobile.",
+      "files": [
+        { "path": "src/features/hr/CorrectionForm.tsx", "line": 93 },
+        { "path": "src/features/hr/CorrectionForm.tsx", "line": 106 },
+        { "path": "src/features/hr/CorrectionForm.tsx", "line": 172 },
+        { "path": "src/features/hr/DayScreen.tsx", "line": 68 },
+        { "path": "src/features/hr/DayDetailView.tsx", "line": 54 },
+        { "path": "src/features/hr/DayDetailView.tsx", "line": 61 }
+      ],
+      "cause": "CorrectionForm initial state is the same for new and returned requests. DayDetailView renders children before the events and requests logs.",
+      "evidence": "hr-resubmit.probe.tsx renders production DayScreen: formStart=08:29, formReason='', and the return reason is after the form.",
+      "evidenceLevel": "rendered-component probe; not browser-verified",
+      "confidence": "high for behaviour; medium that prefilling the earlier proposal is the intended product rule",
+      "novelty": "new",
+      "recommendation": "When returnedId is set, show a Notice with the latest RETURNED reason and reviewer above the fields. Optionally seed times/reason from the returned proposal. Keep the original-retention semantics for untouched sides.",
+      "testNeeded": "Rendered DayScreen with a returned correction: the reason is above/inside the form, and initial values follow the chosen product rule."
+    },
+    {
+      "id": "K-UX-HR-05",
+      "severity": "P3",
+      "title": "Saving an employee closes the editor with no confirmation",
+      "user": "HR administrator",
+      "trigger": "Employees > Add employee (or Edit) > Save employee succeeds.",
+      "expected": "A visible saved state, for example 'EMP-101 saved', ideally with any follow-up such as the missing HR access in K-UX-HR-01.",
+      "actual": "On SAVED, onDone closes the form immediately (flushSync unmount + Back/replace). WriteFeedback's 'Saved' is never rendered. The admin has to scan the list for the new or changed row; other HR writes show a saved state.",
+      "files": [
+        { "path": "src/features/hr/EmployeeForm.tsx", "line": 227 },
+        { "path": "src/features/hr/EmployeesScreen.tsx", "line": 129 },
+        { "path": "src/features/hr/EmployeesScreen.tsx", "line": 130 }
+      ],
+      "cause": "Completion is modelled as editor closure only; no list-level receipt exists.",
+      "evidence": "Source-traced. Existing EmployeesNavigation tests assert closure and history ownership, not confirmation.",
+      "evidenceLevel": "source-traced only",
+      "confidence": "medium",
+      "novelty": "new",
+      "recommendation": "Pass the saved code/name to the list and render a dismissible role=status Notice after closing, without adding a Back entry.",
+      "testNeeded": "Rendered Employees save → editor closes → a status names the saved employee; the next Back is unchanged."
+    }
+  ],
+  "rejected": [
+    {
+      "id": "R-01",
+      "title": "Employee cannot clock in today while an earlier open day's correction is pending",
+      "reason": "Product rule, not a bug: HR-021 prevents another clock-in while an earlier day is open. self.ts:100 documents it, and the UI explains it (openDayPendingHint)."
+    },
+    {
+      "id": "R-02",
+      "title": "Holiday delete acts immediately without confirmation",
+      "reason": "Already known: frontend-consistency-2026-10-13 README:210 and kiro-architecture:400."
+    },
+    {
+      "id": "R-03",
+      "title": "Requests uses custom paging controls",
+      "reason": "Already known (frontend-consistency A07)."
+    },
+    {
+      "id": "R-04",
+      "title": "No way to withdraw a pending correction",
+      "reason": "Not in HR-030/031 scope; product decision."
+    },
+    {
+      "id": "R-05",
+      "title": "DAILY-02 Back to Today reopening Customize",
+      "reason": "Source shows returnFromTask(…, router.replace) at ShortcutCustomizeScreen.tsx:534; appears fixed (source-traced only)."
+    },
+    {
+      "id": "R-06",
+      "title": "DAILY-03 clean shortcut editor ignores newer preferences",
+      "reason": "Source now adopts newer live data when clean (ShortcutCustomizeScreen.tsx:192-200); appears fixed (source-traced only)."
+    },
+    {
+      "id": "R-07",
+      "title": "HR error codes without Hr.errors messages",
+      "reason": "PREFERENCES_STALE has its own notice. YEAR_INVALID/PAGE_SIZE_INVALID are client-guarded. PERMISSION_DENIED/OPERATION_INVALID come only from reconcile, which keeps UNCERTAIN, and are never rendered. AI/search codes are mapped elsewhere."
+    },
+    {
+      "id": "R-08",
+      "title": "Correction submit success panel replaced immediately by the pending notice",
+      "reason": "The replacement 'A request is waiting for review; no need to send another.' is adequate explicit feedback."
+    },
+    {
+      "id": "R-09",
+      "title": "Unlinked HR admin lands on Today with a 'not linked' notice",
+      "reason": "Friction only: sidebar navigation still offers Review/Employees/Periods; not counted."
+    },
+    {
+      "id": "R-10",
+      "title": "Period 'Review open days' opens a 14-day review window",
+      "reason": "Returning to the period and following the link again reaches later exceptions; not a blocked task."
+    }
+  ],
+  "coverage": [
+    "Read AGENTS.md, PRODUCT.md, docs/contracts/back-navigation.md and the HR entries of back-navigation.json, system-audit-2026-10-14 and daily-bug-search-2026-10-13 (+ expanded ranking), and the Next 16.3.8 docs for preserving UI state, cacheComponents and Vitest.",
+    "Today/clock: TodayScreen, useHrWrite, self.ts today/clockIn/clockOut/selfState.",
+    "History/day/corrections: HistoryScreen, DayScreen, DayDetailView, CorrectionForm, TimeSideField, self.ts submitCorrection/dayDetail.",
+    "Requests list/detail, Profile, Holidays (self), HrUpcomingHoliday.",
+    "Review queue/detail/decision/disposition, and review.ts queue/decideCorrection plus the attendance status model.",
+    "Employees list/editor/history, setup.ts listEmployees/memberOptions/saveEmployee/setMemberAccess, access.ts, permissions roles, HrAccessProvider/HrGate.",
+    "Periods list/create/detail close/export/revise.",
+    "Settings holidays/access/policy; shortcut customization and Today shortcuts.",
+    "HR error-code catalogue parity (en/th) against convex/hr codes.",
+    "Probes: 8 cases in 3 files (6 expected-behaviour failures, 2 passing controls). Existing HrScreens/SelfService/HrReviewCompletion: 30/30 passed."
+  ],
+  "limitations": [
+    "No browser automation and no app server; the parent owns T3 browser verification. K-UX-HR-02/03 browser reproduction is still pending.",
+    "UI probes replace Convex with an in-memory reactive store. The mutation-before-query ordering is taken from the Convex client source (request_manager.js:100), not observed on a live deployment.",
+    "The backend probe uses convex-test with registered handlers and fixture roles, not Clerk or a deployed backend.",
+    "Mobile layout, keyboard focus order, screen-reader output and contrast were reviewed only by reading source; no viewport or assistive-technology run.",
+    "Requests filter/page loss, employee-save feedback and sidebar visibility for role-less linked members are source-traced only.",
+    "Line numbers refer to the working tree on 2026-10-15; the tree has many concurrent uncommitted changes."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-10-14T14:10:24.325Z",
+  "scope": "Standalone design-sheet compact fields and icon alignment",
+  "method": "T3 collaborative browser: computed bounding boxes, locale/theme toggles, normal/reading scan states and catalogue search; screenshot inspection",
+  "viewportWidths": [320, 390, 768, 1280],
+  "locales": ["en", "th"],
+  "themes": ["light", "dark"],
+  "combinations": 48,
+  "desktopFields": {
+    "height": 32,
+    "textSize": 14,
+    "iconSize": 16,
+    "trailingInset": 8
+  },
+  "smallScreenFields": {
+    "height": 40,
+    "textSize": 16,
+    "iconSize": 16,
+    "trailingInset": 12
+  },
+  "maximumIconVerticalOffset": 0,
+  "pageOverflowCases": 0,
+  "disabledReadingStatePreserved": true,
+  "screenshots": {
+    "desktopEnglishLight": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv86p4wq-0a94625d.png",
+    "phoneThaiDark": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv86q26q-98465540.png"
+  },
+  "existingDomChecks": {
+    "passed": 1480,
+    "stateCombinations": 68,
+    "structuralAxeRuns": 16
+  },
+  "limits": [
+    "Viewport resizing uses the desktop browser; no physical touch-device or coarse-pointer emulation claimed.",
+    "Full browser axe and screen-reader testing were not run.",
+    "Preview reported document.hasFocus() false during keyboard checks; visible focus and native popup behavior were not confirmed.",
+    "Application components and deployment were outside this preview change."
+  ],
+  "detector": "The new radius advisory was resolved with the existing 4px scale. Existing palette and Geist font advisories were preserved to retain the approved visual identity."
+}

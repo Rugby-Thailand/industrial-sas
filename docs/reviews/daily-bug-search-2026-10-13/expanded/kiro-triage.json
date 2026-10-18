@@ -1,0 +1,377 @@
+{
+  "categories": [
+    { "name": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล", "count": 3 },
+    { "name": "Concurrency / การเขียนทับด้วยข้อมูลเก่า", "count": 2 },
+    { "name": "Validation / สัญญาข้อมูลและเรขาคณิต", "count": 3 },
+    { "name": "ขีดจำกัดเวิร์กโฟลว์", "count": 1 },
+    { "name": "ความสดและ ownership ของ state ฝั่ง client", "count": 3 },
+    { "name": "การนำทาง Back", "count": 1 },
+    { "name": "การค้นหาและแบ่งหน้า", "count": 2 },
+    { "name": "ทรัพยากรเบราว์เซอร์", "count": 1 }
+  ],
+  "rankedFindings": [
+    {
+      "rank": 1,
+      "sourceId": "DAILY-01",
+      "priority": "P1",
+      "category": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล",
+      "title": "request ID ค้างหลัง remount ทำให้ Clock in วันใหม่ได้ใบยืนยันของวันเก่าและไม่บันทึกเวลาเข้าวันใหม่",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: หน้าจอแสดงความสำเร็จ (receipt ของ 12 ต.ค.) แต่ 13 ต.ค. ไม่มี clock-in เป็น false success บนข้อมูลลงเวลาที่กระทบเงินเดือน/วินัย และอาการเดียวกันทำให้ Save เมนูลัดใหม่ได้ REQUEST_ARGUMENT_CONFLICT เงื่อนไข: คำสั่งเดิมเข้า UNCERTAIN (คำตอบหาย) แล้ว unmount/remount โดย ID ยังอยู่ใน session storage แต่คำสั่งใน useRef หาย; scope เป็น action+employee ไม่รวม business date และ payload clock-in เป็น {} การเข้าถึง: พนักงานทุกคนที่ใช้ self-service หลังเครือข่ายขัดข้องครั้งเดียว ค้างข้ามวันจนกว่า session จะถูกล้าง หลักฐาน: UI จริง + registered Convex functions ใน convex-test; ตัวเทียบที่ล้างเฉพาะ ID ค้างทำให้ทั้งสองกรณีผ่าน จึงแยกสาเหตุได้ชัด",
+      "recommendedWave": 1,
+      "references": [
+        "src/features/hr/useHrWrite.ts:88",
+        "src/features/hr/TodayScreen.tsx:92",
+        "convex/hr/self.ts:391",
+        "docs/reviews/daily-bug-search-2026-10-13/probes/hr-recovery.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/probes-red.log",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/fresh-intent-control.log"
+      ]
+    },
+    {
+      "rank": 2,
+      "sourceId": "INV-04",
+      "priority": "P1",
+      "category": "Concurrency / การเขียนทับด้วยข้อมูลเก่า",
+      "title": "editor การวัดที่ค้างคืนค่าขนาดพาเลทเก่าทับการวัดของผู้อื่นโดยไม่แจ้ง",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: ขนาดจริงของพาเลท (ที่ใช้วางตำแหน่ง/ซ้อน) ย้อนเป็นค่าเก่าเงียบ ๆ ขณะที่ผู้แก้คนที่สองได้ written=true เงื่อนไข: สองคนเปิด Measurement ของพาเลท legacy ที่ยังไม่จองพร้อมกัน ไม่ต้องมีเครือข่ายขัดข้อง saveMeasurement ไม่มี expected revision และฟอร์มส่ง snapshot ทั้งชุด การเข้าถึง: legacy pallet measurement รวม pending legacy packing; preparation-batch มีการล็อกแยกจึงไม่อยู่ในขอบเขต หลักฐาน: handler จริงผ่าน authorization จริง; พฤติกรรมสองแท็บใน UI เป็น source-demonstrated (state ตั้งครั้งเดียว + payload เต็ม) ไม่ได้รันเบราว์เซอร์ อยู่ใน cluster lost update เดียวกับ INV-03 แต่เป็นคนละ mutation และผลกระทบทางกายภาพสูงกว่า",
+      "recommendedWave": 1,
+      "references": [
+        "convex/finishedGoods/workflow.ts:463",
+        "convex/finishedGoods/workflow.ts:520",
+        "src/features/finishedGoods/PalletScreens.tsx:286",
+        "src/features/finishedGoods/PalletScreens.tsx:373",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ]
+    },
+    {
+      "rank": 3,
+      "sourceId": "INV-02",
+      "priority": "P1",
+      "category": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล",
+      "title": "replay การบันทึกโซนเก่าเขียนทับ position ลูกด้วยเรขาคณิตเก่า ขณะที่โซนยังเป็นค่าใหม่",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: ข้อมูลกายภาพไม่สอดคล้องกันถาวร โซนเป็น Zone B/X=2000 แต่ default position เป็น Zone A/X=1000 และ retry ตอบ written=true, replayed=true เงื่อนไข: คำตอบของการบันทึก A หาย มีคนอื่นบันทึก B ต่อ แล้ว A ถูก retry ด้วย request เดิม (patch ลูกที่ zones.ts:774 ไม่เช็ก replayed) การเข้าถึง: StorageZonesPanel และผู้ใช้ storagePositions/การ resolve ที่อยู่ QR; ในโหมด SIMPLE การวางใช้ envelope ของโซน จึงพิสูจน์ความเสียหายของ metadata/geometry ลูก ไม่ได้อ้างว่าเกิดการวางที่ไม่ปลอดภัย หลักฐาน: mutation จริงสามครั้งที่ถูกต้องทั้งหมด ไม่ต้องใช้ข้อมูลผิดรูป จัดอันดับต่ำกว่า INV-04 เพราะต้องมีทั้งคำตอบหายและการแก้แทรก",
+      "recommendedWave": 1,
+      "references": [
+        "convex/storageLayouts/zones.ts:740",
+        "convex/storageLayouts/zones.ts:774",
+        "convex/storageLayouts/zones.ts:788",
+        "convex/lib/masterDataStore.ts:276",
+        "src/features/storageLayouts/StorageZonesPanel.tsx:391",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts"
+      ]
+    },
+    {
+      "rank": 4,
+      "sourceId": "INV-03",
+      "priority": "P2",
+      "category": "Concurrency / การเขียนทับด้วยข้อมูลเก่า",
+      "title": "แก้หมายเหตุจาก editor สินค้าที่ค้างทำให้ชื่อสินค้าที่ถูกเปลี่ยนแล้วย้อนกลับ",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: master data สินค้า (ชื่อ หน่วย เงื่อนไขการเก็บ อ้างอิง) ถูกคืนค่าเก่าเงียบ ๆ เมื่อแก้ฟิลด์อื่น เงื่อนไข: สองคนเปิดฟอร์มสินค้าพร้อมกัน; mutation ไม่มี expected revision และฟอร์มส่งทุกฟิลด์จาก snapshot แรก การเข้าถึง: Product edit, Prepare more goods และ resume measurement ผ่าน ProductForm หลักฐาน: mutation จริงผ่าน authorization; stale state ฝั่ง caller เป็น source-demonstrated กลุ่มเดียวกับ INV-04 แต่ไม่ใช่สาเหตุเดียวกันทุกประการ (คนละ mutation/ฟอร์ม) ผลกระทบเป็นข้อมูลอ้างอิงที่ตรวจเห็นและแก้ได้ จึงเป็น P2",
+      "recommendedWave": 1,
+      "references": [
+        "convex/finishedGoods/workflow.ts:201",
+        "convex/finishedGoods/workflow.ts:336",
+        "src/features/finishedGoods/ProductScreen.tsx:211",
+        "src/features/finishedGoods/ProductScreen.tsx:278",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts"
+      ]
+    },
+    {
+      "rank": 5,
+      "sourceId": "INV-05",
+      "priority": "P2",
+      "category": "Validation / สัญญาข้อมูลและเรขาคณิต",
+      "title": "การวัดแบบ legacy บันทึกจำนวน 1.5 PCS ได้ แม้หน่วยนับต้องเป็นจำนวนเต็ม",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: จำนวนสินค้าที่บันทึกขัดสัญญา precision ของหน่วย (quantityToMinor คืน null) อาจทำให้ยอดรวม/การแพ็กต่อไปผิดหรือ error ภายหลัง เงื่อนไข: ผู้ใช้กรอกเศษใน Measurement (input step=any) หรือ default quantity ของสินค้าเป็นเศษ การเข้าถึง: legacy measurement เท่านั้น; batch packing สมัยใหม่ใช้ validatePacking แล้ว หลักฐาน: เส้นทาง measurement รันจริง written=true; เส้นทาง createPallet ผ่าน default quantity เป็น source-demonstrated และรวมไว้ใน finding นี้",
+      "recommendedWave": 2,
+      "references": [
+        "convex/model/finishedGoods/packing.ts:16",
+        "convex/model/finishedGoods/packing.ts:30",
+        "convex/finishedGoods/workflow.ts:496",
+        "convex/finishedGoods/workflow.ts:254",
+        "convex/finishedGoods/workflow.ts:375",
+        "src/features/finishedGoods/PalletScreens.tsx:465"
+      ]
+    },
+    {
+      "rank": 6,
+      "sourceId": "INV-09",
+      "priority": "P2",
+      "category": "ขีดจำกัดเวิร์กโฟลว์",
+      "title": "Job Scan รวบรวมได้เกิน 50 ใบและเปิดปุ่ม Save แต่ server ปฏิเสธทั้งกลุ่มและบันทึก 0 รายการ",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: งานสแกนที่ทำไปแล้วบันทึกไม่ได้เลยจนกว่าผู้ใช้จะลบรายการเอง เป็นความล้มเหลวที่กำหนดผลได้แน่นอน (SCAN_GROUP_SIZE_INVALID) แต่ไม่สูญข้อมูลเงียบเพราะกลุ่มยังอยู่ใน UI เงื่อนไข: ใบงานมากกว่า 50 ในกลุ่มเดียวผ่าน barcode, manual หรือหลายรอบของ photo (cap 20 รูปต่อ panel ไม่ได้จำกัดยอดสะสม) การเข้าถึง: ผู้ปฏิบัติงานที่สแกนชุดใหญ่ ซึ่งเป็นไปได้ในคลังจริง หลักฐาน: Job Scan UI จริง + backend จริง; แหล่งกล้อง/ไฟล์เป็น callback ควบคุม ไม่ได้อ้างฮาร์ดแวร์",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx:279",
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx:491",
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx:612",
+        "convex/finishedGoods/jobScans.ts:272",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-jobscan.probe.tsx"
+      ]
+    },
+    {
+      "rank": 7,
+      "sourceId": "INV-01",
+      "priority": "P2",
+      "category": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล",
+      "title": "retry คำสั่ง layout ที่สำเร็จแล้วด้วย args เดิมถูกปฏิเสธเป็น VERSION_CONFLICT",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: ข้อมูลในฐานถูกต้อง แต่ผู้ใช้/API client ได้ความล้มเหลวปลอมหลังคำตอบหาย จึงกู้ผลเดิมไม่ได้และอาจสั่งซ้ำด้วยข้อมูลใหม่ เงื่อนไข: คำตอบของ mutation ที่ commit แล้วหาย แล้ว retry ด้วย request ID และ args เดิม; การเช็ก expectedVersion/status เกิดก่อน idempotency lookup การเข้าถึง: building dimensions, floor editor, add-floor, schematic approval, status toggle และ API client; UI บางจุดสร้าง payload ใหม่จาก version ล่าสุด หลักฐาน: รันจริงเฉพาะ updateStorageBuilding; ลำดับเดียวกันใน floor save/floor count/schematic/status เป็น source-demonstrated และรวมไว้ที่นี่ ไม่นับแยก ทำใน wave 1 ร่วมกับ INV-02 เพราะแนวแก้ replay-before-validation เดียวกัน",
+      "recommendedWave": 1,
+      "references": [
+        "convex/storageLayouts/writes.ts:295",
+        "convex/storageLayouts/writes.ts:341",
+        "convex/storageLayouts/writes.ts:406",
+        "convex/storageLayouts/writes.ts:494",
+        "convex/storageLayouts/writes.ts:596",
+        "convex/storageLayouts/writes.ts:746",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts"
+      ]
+    },
+    {
+      "rank": 8,
+      "sourceId": "ROOT-01",
+      "priority": "P2",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "subscription HR ที่อิง Date.now ไม่ถูก invalidate เมื่อข้ามวันหรือเส้นตายของกะ",
+      "confidence": "source-demonstrated",
+      "rationale": "ผลกระทบ: หน้าที่เปิดค้าง (เช่น Today บนแท็บเล็ตหน้างาน) อาจแสดงวันที่/สถานะ/nextAction เดิมข้ามเที่ยงคืนหรือหลังพ้นเส้นตาย จนกว่าข้อมูลอื่นเปลี่ยนหรือ reload; mutation อ่านเวลา server ใหม่เสมอ จึงไม่ได้อ้างว่า timestamp ของเหตุการณ์ผิด เงื่อนไข: เปิดหน้าค้างผ่านขอบเวลาโดยไม่มี dependency อื่นเปลี่ยน การเข้าถึง: Today, ค่าเริ่มต้นวันที่จาก access, ประวัติส่วนตัว, review queue และ close readiness นับเป็น root cause เดียว หลักฐาน: อนุมานจาก source (orgClock อ่าน Date.now ใน query ไม่มี argument, ไม่มี clock bucket/timer/cron) ร่วมกับเอกสาร Convex ที่ระบุว่า Date.now ไม่ทำให้ subscription rerun ยังไม่ได้ทำซ้ำข้ามคืนจริงในเบราว์เซอร์",
+      "recommendedWave": 2,
+      "references": [
+        "convex/hr/shared.ts:62",
+        "convex/hr/access.ts:34",
+        "convex/hr/self.ts:163",
+        "src/features/hr/TodayScreen.tsx:60",
+        "src/components/providers/HrAccessProvider.tsx:62",
+        "https://docs.convex.dev/understanding/best-practices#dont-use-datenow-in-queries"
+      ]
+    },
+    {
+      "rank": 9,
+      "sourceId": "DAILY-02",
+      "priority": "P2",
+      "category": "การนำทาง Back",
+      "title": "ปุ่ม “กลับหน้าวันนี้” push history ใหม่ ทำให้ Back เปิด editor ที่เพิ่งออกอีกครั้ง",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: ละเมิด Back navigation contract ของโปรเจกต์ editor ที่ปิดแล้วกลับมาใช้งานได้ ไม่กระทบข้อมูล เงื่อนไข: ใช้ปุ่มกลับที่เป็น Link ธรรมดา ไม่ต้องมีเงื่อนไขพิเศษ การเข้าถึง: ทุกครั้งที่ใช้ปุ่มนี้ (reach สูงแต่ผลเป็น UX) หลักฐาน: เบราว์เซอร์ local + native history (appNavigationIndex 2→1 กลับ /th/hr/customize) ไม่มี screenshot ยืนยันและการตรวจซ้ำแท็บใหม่หยุดเพราะ browser host disconnect หลังได้ผลแล้ว",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/ShortcutCustomizeScreen.tsx:461",
+        "docs/contracts/back-navigation.md",
+        "docs/contracts/back-navigation.json"
+      ]
+    },
+    {
+      "rank": 10,
+      "sourceId": "INV-06",
+      "priority": "P3",
+      "category": "Validation / สัญญาข้อมูลและเรขาคณิต",
+      "title": "บันทึกชั้นโดยละ offset ผ่านการตรวจแบบสืบทอด แต่ยังเก็บ offset เก่า ทำให้ชั้นล้นขอบอาคาร",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: เรขาคณิตที่บันทึก (ชั้นกว้าง 10000 ที่ X=2000 ไปถึง 12000) ไม่ตรงกับที่ผ่านการตรวจ เงื่อนไข: authenticated API client ที่ละ offsetXMm/offsetYMm ในการ save ครั้งถัดไป; Floor editor ปัจจุบันส่ง offset ชัดเจนตามปกติ จึงไม่ใช่ปัญหา UI ที่เกิดประจำ การเข้าถึง: แคบ เฉพาะผู้เรียก API ที่ได้รับสิทธิ์ ไม่ใช่ช่องโหว่ความปลอดภัย หลักฐาน: API runtime สองครั้งที่เป็น args ถูกต้อง ไม่ใช่ fixture ผิดรูป ให้ P3 อย่างระมัดระวังเพราะต้องผ่าน API แต่ควรแก้ใน wave 2 เพราะแก้ไม่กี่บรรทัดและเป็นความถูกต้องของข้อมูลกายภาพ",
+      "recommendedWave": 2,
+      "references": [
+        "convex/storageLayouts/writes.ts:49",
+        "convex/storageLayouts/writes.ts:605",
+        "convex/storageLayouts/writes.ts:667",
+        "convex/storageLayouts/writes.ts:670",
+        "convex/model/storageLayout/storageLayout.ts:190",
+        "convex/model/storageLayout/storageLayout.ts:206"
+      ]
+    },
+    {
+      "rank": 11,
+      "sourceId": "INV-07",
+      "priority": "P3",
+      "category": "การค้นหาและแบ่งหน้า",
+      "title": "cursor แบบ offset ของการค้นหา job record เลื่อนเมื่อมีการบันทึกใหม่ระหว่างแบ่งหน้า",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: หน้าถัดไปแสดงรายการซ้ำ (FO0003) และกรณีลบอาจข้ามรายการได้ตามกลไกเดียวกัน (ยังไม่ได้รัน) เป็นการอ่านประวัติผิด ไม่ใช่ข้อมูลเสีย เงื่อนไข: ค้นหาแบบมีข้อความ แล้วมี insert/delete ระหว่างขอหน้าถัดไป; query ที่ไม่ค้นหาใช้ cursor ของฐานข้อมูลและไม่ได้รับผล การเข้าถึง: คลังที่มีการสแกนต่อเนื่องขณะค้นประวัติ หลักฐาน: backend query/mutation จริงพิสูจน์ว่า continuation ที่ API คืนไม่เสถียร; ไม่ได้อ้างว่าทุก timing ของ reactive UI จะแสดงรายการซ้ำเหมือนกัน เพราะ subscription หน้าแรกอาจ rerender ก่อนนำทาง",
+      "recommendedWave": 3,
+      "references": [
+        "convex/finishedGoods/jobScans.ts:406",
+        "convex/finishedGoods/jobScans.ts:417",
+        "convex/finishedGoods/jobScans.ts:420",
+        "src/features/finishedGoods/jobScan/JobScanRecords.tsx:78"
+      ]
+    },
+    {
+      "rank": 12,
+      "sourceId": "DAILY-03",
+      "priority": "P3",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "editor เมนูลัดที่ยังไม่แก้ไม่รับ preference version ใหม่จากอีกแท็บ",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: แสดงค่าที่บันทึกแล้วผิด (Show Profile ยัง checked และบอกว่าตรงกับที่บันทึก) จนกว่าจะ Cancel/โหลดใหม่; ถ้าแก้ต่อจะชน PREFERENCES_STALE ซึ่งป้องกันการเขียนทับ จึงไม่สูญข้อมูล ลดจาก P2 เดิมเป็น P3 ด้วยเหตุนี้ เงื่อนไข: เปิด editor ค้างขณะอีกแท็บ/อุปกรณ์บันทึก preference การเข้าถึง: เฉพาะ editor เมนูลัดส่วนตัว หลักฐาน: component จริง + registered mutation/query; ตัวเทียบ remount ด้วย version 1 แสดงค่าถูก แยกได้ว่า backend/query ครบแต่ state ใน editor ไม่ตาม",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/ShortcutCustomizeScreen.tsx:98",
+        "docs/reviews/daily-bug-search-2026-10-13/probes/hr-recovery.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/clean-remount-control.log"
+      ]
+    },
+    {
+      "rank": 13,
+      "sourceId": "ROOT-03",
+      "priority": "P3",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "completion ของ async operation เก่าถูกประทับ generation ใหม่ ทำให้นำทางไปอาคารของคลังเดิมหลังเปลี่ยนคลัง",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: หลังสร้างอาคารในคลัง A สำเร็จ router.replace ไปอาคารของ A ขณะ workspace เป็น B แล้ว; อาคารถูกสร้างถูกคลังและสิทธิ์ยังตรวจที่ server จึงไม่ใช่การรั่วข้ามคลัง เงื่อนไข: workspace เปลี่ยนจากภายนอกขณะ create ยัง pending เช่นสิทธิ์/ความพร้อมของคลังที่เลือกเปลี่ยนหลังผู้ดูแลแก้ การออกจากหน้าตามปกติขณะ pending มี guard อยู่แล้วและไม่ได้ถูก bypass การเข้าถึง: แคบ; root cause อยู่ใน shared hook แต่พิสูจน์ที่ caller เดียว (NewStorageBuildingForm) หลักฐาน: ฟอร์มจริง + useAsyncOperation จริง ภายใต้ forced warehouse rerender ผ่าน QueryGate; ยังไม่ได้ทำซ้ำการเปลี่ยนสิทธิ์คลังในเบราว์เซอร์",
+      "recommendedWave": 3,
+      "references": [
+        "src/hooks/useAsyncOperation.ts:54",
+        "src/hooks/useAsyncOperation.ts:107",
+        "src/features/storageLayouts/StorageLayoutScreens.tsx:369",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/root-async-completion.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/evidence/root-probes-red.log"
+      ]
+    },
+    {
+      "rank": 14,
+      "sourceId": "ROOT-02",
+      "priority": "P3",
+      "category": "Validation / สัญญาข้อมูลและเรขาคณิต",
+      "title": "deep link คำขอส่วนตัวที่ ID ผิดรูปทำให้ query throw แทนการแสดง NOT_FOUND",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: ผู้ใช้เห็น error boundary แทนสถานะ “ไม่พบรายการ” และ reload ก็ซ้ำเดิม ไม่กระทบข้อมูลหรือสิทธิ์ (ID ที่ถูกรูปยังได้รับการป้องกันตามปกติ) เงื่อนไข: URL ถูกตัด/พิมพ์ผิด/ID ผิดรูป การเข้าถึง: แคบ หลักฐาน: registered query hr/self:requestDetail ปฏิเสธด้วย Validator error ใน convex-test; ยังไม่ได้เดินผ่าน error boundary ในเบราว์เซอร์ ลดจาก P2 ในรายงานเป็น P3 เพราะต้องใช้ input ผิดรูป",
+      "recommendedWave": 3,
+      "references": [
+        "src/app/[locale]/(desktop)/hr/requests/[requestId]/page.tsx:14",
+        "src/features/hr/RequestsScreen.tsx:225",
+        "convex/hr/self.ts:359",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/root-request-id.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/evidence/root-probes-red.log"
+      ]
+    },
+    {
+      "rank": 15,
+      "sourceId": "INV-08",
+      "priority": "P3",
+      "category": "การค้นหาและแบ่งหน้า",
+      "title": "ค้นหาด้วยชื่อตำแหน่งที่แสดงบน job record ไม่พบรายการ",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: ค้นหาไม่พบรายการที่ป้ายค้นหาสัญญาว่าค้นด้วยตำแหน่งได้ ผู้ใช้ยังค้นด้วยรหัส/ข้อความตำแหน่งได้ เงื่อนไข: record ที่ map กับโซน/position ที่ชื่อต่างจากรหัส การเข้าถึง: การค้นหา JobScanRecords หลักฐาน: save + list query จริง: record มี locationName แต่ผลค้นหาว่าง predicate ไม่รวม locationName แก้ได้เล็กและควรทำพร้อม INV-07",
+      "recommendedWave": 3,
+      "references": [
+        "convex/finishedGoods/jobScans.ts:409",
+        "convex/finishedGoods/jobScans.ts:473",
+        "src/features/finishedGoods/jobScan/JobScanRecordRow.tsx:104",
+        "messages/th.json:1443"
+      ]
+    },
+    {
+      "rank": 16,
+      "sourceId": "INV-10",
+      "priority": "P3",
+      "category": "ทรัพยากรเบราว์เซอร์",
+      "title": "ปิด panel ถ่ายรูปแล้ว Blob URL ของรูปที่ยังไม่ส่งไม่ถูก revoke",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผลกระทบ: allocation ค้าง 3 รายการหลัง 3 รอบ Cancel/unmount (revoked=0) ส่วน Remove ปกติ revoke ถูกต้อง เงื่อนไข: เลือกรูปแล้ว Cancel หรือออกจากหน้าก่อนส่ง (panel รับได้ 20 รูป สูงสุด 25 MiB ต่อรูป) การเข้าถึง: PhotoCapture ใน Job Scan หลักฐาน: lifecycle ของ component จริงพร้อม allocation/revocation spy ยังไม่ได้วัด heap ที่เพิ่มขึ้นหรือ crash จึงคง P3 แม้การใช้รูปใหญ่ซ้ำ ๆ จะเป็นไปได้",
+      "recommendedWave": 3,
+      "references": [
+        "src/hooks/use-file-upload.ts:129",
+        "src/hooks/use-file-upload.ts:143",
+        "src/hooks/use-file-upload.ts:281",
+        "src/features/finishedGoods/jobScan/PhotoCapture.tsx:45",
+        "src/features/finishedGoods/jobScan/PhotoCapture.tsx:163",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-photo-evidence.log"
+      ]
+    }
+  ],
+  "mergedOrRejected": [
+    {
+      "id": "INV-01 variants",
+      "decision": "merged",
+      "into": "INV-01",
+      "note": "floor save, floor-count increase, schematic approval และ status writes ใช้ลำดับ version/status-before-replay เดียวกัน; source-demonstrated ไม่นับแยก"
+    },
+    {
+      "id": "DAILY-01 preference variant",
+      "decision": "merged",
+      "into": "DAILY-01",
+      "note": "Save เมนูลัดใหม่ได้ REQUEST_ARGUMENT_CONFLICT จาก request ID ค้างเดียวกัน"
+    },
+    {
+      "id": "ROOT-01 page families",
+      "decision": "merged",
+      "into": "ROOT-01",
+      "note": "Today, access defaults, history/day detail, review queue, close readiness เป็น root cause เดียว"
+    },
+    {
+      "id": "INV-05 createPallet default path",
+      "decision": "merged",
+      "into": "INV-05",
+      "note": "default quantity เศษของสินค้าถูกคัดลอกใน createPallet; source-demonstrated"
+    },
+    {
+      "id": "INV-09 photo/manual paths",
+      "decision": "merged",
+      "into": "INV-09",
+      "note": "ทุกช่องทาง acquisition ขาด cap เดียวกัน"
+    },
+    {
+      "id": "INV-03 / INV-04",
+      "decision": "kept-separate-shared-cluster",
+      "into": null,
+      "note": "cluster lost update เดียวกัน แต่คนละ mutation/ฟอร์มและผลกระทบต่างกัน (master data vs ขนาดกายภาพ)"
+    },
+    {
+      "id": "DAILY-01 / INV-01 / INV-02",
+      "decision": "kept-separate-related-theme",
+      "into": null,
+      "note": "ธีม replay เหมือนกันแต่สาเหตุต่างกัน: client reuse ID กับคำสั่งใหม่, server เช็ก version ก่อน replay, และ child sync ไม่เช็ก replayed"
+    },
+    {
+      "id": "DAILY-03 vs INV-03/INV-04",
+      "decision": "kept-separate",
+      "into": null,
+      "note": "DAILY-03 เป็นปัญหาการแสดงผลที่มี expectedVersion ป้องกัน ไม่ใช่ lost update"
+    },
+    {
+      "id": "Kiro independent research",
+      "decision": "not-available",
+      "into": null,
+      "note": "ไม่พบ expanded/kiro/research.md หรือ findings.json ขณะ triage; มีเพียง scratch-dates.probe.ts ที่ระบุว่าเป็นการสำรวจชั่วคราวและไม่มี finding จึงไม่เพิ่มรายการ"
+    },
+    {
+      "id": "Rejected leads from reports",
+      "decision": "rejected",
+      "into": null,
+      "note": "tenant/warehouse isolation, repack ของหน่วยที่ถูกถือ, stack cycle/moving support, ขีด .all(10000), camera permission/decoder ช้า, label ledger หลัง rename, barcode pair ผิดรูป, ย้าย site พนักงาน (EMPLOYEE_SITE_LOCKED), DST/ขีด pilot, ข้อกังวลความปลอดภัย AI ทั่วไป, และบั๊กเก่าที่แก้แล้ว"
+    }
+  ],
+  "methodology": {
+    "inputs": [
+      "docs/reviews/daily-bug-search-2026-10-13/README.md",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/root-research.md"
+    ],
+    "sourceSpotChecks": [
+      "convex/storageLayouts/zones.ts (INV-02 patch ลูกไม่เช็ก replayed)",
+      "src/features/hr/useHrWrite.ts (DAILY-01 pinned command อยู่ใน useRef)"
+    ],
+    "ranking": "เรียงตามผลกระทบ/ความรุนแรงก่อน แล้วตาม reach/ความถี่และความแข็งของหลักฐาน ใช้ effort เฉพาะตัดสินกรณีเสมอ; wave พิจารณา cluster ของแนวแก้ร่วมด้วย",
+    "priorityDefinitions": {
+      "P0": "ข้อมูลเสียหาย/รั่วในวงกว้างที่กำลังเกิดพร้อมหลักฐาน — ไม่มีรายการใด",
+      "P1": "การบันทึกธุรกิจ/กายภาพเสียหายหรือสำเร็จปลอมแบบเงียบ ทำซ้ำได้ด้วยการใช้งานที่ถูกต้อง",
+      "P2": "ความถูกต้องหรือเวิร์กโฟลว์ล้มเหลวอย่างมีนัย หรือละเมิด contract ที่ผู้ใช้ทั่วไปเจอ",
+      "P3": "เงื่อนไขแคบ (API เท่านั้น, forced rerender, input ผิดรูป), ค้นหา/UX, หรือทรัพยากรที่ยังไม่วัดความรุนแรง"
+    },
+    "confidenceDefinitions": {
+      "runtime-reproduced": "ทำซ้ำด้วย handler/component จริงใน fixture แยกหรือเบราว์เซอร์ local",
+      "source-demonstrated": "อนุมานจาก source และเอกสารอย่างชัดเจน ยังไม่ได้ทำซ้ำ runtime",
+      "hypothesis": "ยังไม่มีหลักฐานเพียงพอ — ไม่มีรายการใด"
+    },
+    "constraints": "ไม่ได้รัน test/build ไม่ได้แก้ source/test/config/git ไม่ได้ deploy และไม่ได้เข้าถึง secret/ข้อมูลธุรกิจ ยังไม่มีการแก้ production ใด ๆ",
+    "priorityChangesFromReports": "DAILY-03, ROOT-02, ROOT-03, INV-06, INV-07 ลดจาก P2 เป็น P3 ด้วยเหตุผลเรื่องเงื่อนไขแคบหรือมีกลไกป้องกันอยู่แล้ว",
+    "totals": { "findings": 16, "P0": 0, "P1": 3, "P2": 6, "P3": 7 }
+  }
+}

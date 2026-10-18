@@ -1,0 +1,38 @@
+{
+  "method": "T3 collaborative preview; production FloorMap via existing isolated Vite fixture; DOM inspection and native click/key tools",
+  "scope": "No authenticated full-app session. Fixture uses previewOnly and fallback inspector, not production mutation routes.",
+  "checks": [
+    {
+      "viewport": "1280x800",
+      "actions": "Floor 2 → Floor 1; Map → Table; select DEMO-Z04",
+      "result": "Navigation and selection worked; no page horizontal overflow."
+    },
+    {
+      "viewport": "390x844",
+      "actions": "Responsive list; Show on map; Location details; Escape",
+      "result": "List changed to mobile layout, map selection retained, sheet opened and dismissed; no page horizontal overflow."
+    }
+  ],
+  "mobileDetails": {
+    "dialogs": [],
+    "overflow": false,
+    "text": "Buildings & spots / DEMO-PD\n\nStorage Planner demo\n\nDemo data · PD / Floor 2\n\nLight / dark\nFloor 1\n24 × 18 × 4 m\nStorage locations\nCode\nDEMO-Z01\nFG-A · Full footprint\n9 × 6 × 1.6 m\nStored\n30 Units\nDEMO-Z02\nFG-B · Stored & reserved\n9 × 6 × 1.6 m\nStored\n24 Units\nDEMO-Z03\nFG-C · Space available\n9 × 6 × 1.6 m\nStored\n8 Units\nDEMO-Z04\nFG-D · Empty\n9 × 6 × 1.6 m\nEmpty\n0 Units\nShow on map\nLocation details\nFG-D · Empty\n\nDEMO-Z04\n\n9 × 6 × 1.6 m\n\nHeight limit: 1.6 m\n\nFloor footprint used or reserved: 0%\n\n0 units\n\nNo stored or reserved units yet\n\n1–4 of 4 locations",
+    "url": "http://127.0.0.1:3190/?panel=list",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  "afterEscape": {
+    "dialogCount": 0,
+    "overflow": false,
+    "selectedLocationRetained": true,
+    "url": "http://127.0.0.1:3190/",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  "screenshotLimitation": "preview_snapshot repeatedly failed with PreviewAutomationExecutionError on preview client. No screenshots captured; no alternative browser was used.",
+  "physicalTouchTested": false
+}

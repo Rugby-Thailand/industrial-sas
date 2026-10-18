@@ -1,0 +1,1870 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unidentified pallet · Top Gold prototype</title>
+    <!-- Standalone, disposable UI prototype of the agreed storyboard. All writes are simulated. -->
+    <style>
+      #tg-unidentified {
+        --tg-bg: #080808;
+        --tg-surface: #111111;
+        --tg-raised: #1c1c1c;
+        --tg-text: #f4f4f4;
+        --tg-muted: #ababab;
+        --tg-line: #303030;
+        --tg-input: #777777;
+        --tg-blue: #1748e9;
+        --tg-blue-hover: #2456f6;
+        --tg-selected: #192546;
+        --tg-focus: #afbdff;
+        --tg-warning: #f2c268;
+        --tg-warning-bg: #302515;
+        --tg-success: #8cddb1;
+        --tg-success-bg: #152c20;
+        --tg-danger: #ff9d9d;
+        --tg-danger-bg: #341c1c;
+        color-scheme: dark;
+        color: var(--tg-text);
+        font:
+          400 15px/1.6 "Noto Sans Thai",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        width: min(100%, 720px);
+        margin: 0 auto;
+        text-align: left;
+        isolation: isolate;
+      }
+      #tg-unidentified[data-theme="light"] {
+        --tg-bg: #fafafa;
+        --tg-surface: #ffffff;
+        --tg-raised: #f1f1f1;
+        --tg-text: #202020;
+        --tg-muted: #626262;
+        --tg-line: #dedede;
+        --tg-input: #858585;
+        --tg-selected: #e8edff;
+        --tg-focus: #2443d8;
+        --tg-warning: #805000;
+        --tg-warning-bg: #fff1d5;
+        --tg-success: #16603b;
+        --tg-success-bg: #e7f3ec;
+        --tg-danger: #b42323;
+        --tg-danger-bg: #fdebec;
+        color-scheme: light;
+      }
+      #tg-unidentified *,
+      #tg-unidentified *::before,
+      #tg-unidentified *::after {
+        box-sizing: border-box;
+      }
+      #tg-unidentified [hidden] {
+        display: none !important;
+      }
+      #tg-unidentified h1,
+      #tg-unidentified h2,
+      #tg-unidentified h3,
+      #tg-unidentified p {
+        margin: 0;
+      }
+      #tg-unidentified button,
+      #tg-unidentified input,
+      #tg-unidentified select,
+      #tg-unidentified textarea {
+        font: inherit;
+      }
+      #tg-unidentified button {
+        color: inherit;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      #tg-unidentified button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+      #tg-unidentified :focus-visible {
+        outline: 2px solid var(--tg-focus);
+        outline-offset: 3px;
+      }
+      #tg-unidentified ::selection {
+        background: var(--tg-blue);
+        color: #fff;
+      }
+      #tg-unidentified input,
+      #tg-unidentified textarea {
+        caret-color: var(--tg-focus);
+      }
+      #tg-unidentified * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--tg-input) var(--tg-bg);
+      }
+      #tg-unidentified .tg-icon {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        vertical-align: middle;
+      }
+      #tg-unidentified .tg-prototype {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 12px;
+        color: var(--tg-muted);
+        background: var(--tg-bg);
+        font-size: 12px;
+      }
+      #tg-unidentified .tg-prototype button {
+        border: 0;
+        padding: 8px;
+        background: transparent;
+        color: inherit;
+        font-size: 12px;
+      }
+      #tg-unidentified .tg-app {
+        background: var(--tg-bg);
+        min-height: 720px;
+        border: 1px solid var(--tg-line);
+        border-radius: 14px;
+        overflow: clip;
+        position: relative;
+      }
+      #tg-unidentified .tg-header {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--tg-line);
+        background: var(--tg-surface);
+      }
+      #tg-unidentified .tg-brand {
+        font-size: 20px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      #tg-unidentified .tg-header-end {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-left: auto;
+      }
+      #tg-unidentified .tg-flag {
+        display: inline-flex;
+        width: 28px;
+        height: 19px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: linear-gradient(
+          to bottom,
+          #a51931 0 16.66%,
+          #fff 16.66% 33.33%,
+          #2d2a4a 33.33% 66.66%,
+          #fff 66.66% 83.33%,
+          #a51931 83.33%
+        );
+      }
+      #tg-unidentified .tg-icon-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--tg-muted);
+        padding: 10px;
+      }
+      #tg-unidentified .tg-icon-button:hover {
+        color: var(--tg-text);
+        background: var(--tg-raised);
+      }
+      #tg-unidentified .tg-main {
+        padding: 24px 24px 30px;
+        min-height: 570px;
+      }
+      #tg-unidentified .tg-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      #tg-unidentified h1 {
+        font-size: 25px;
+        font-weight: 650;
+        line-height: 1.4;
+        letter-spacing: -0.025em;
+      }
+      #tg-unidentified h2 {
+        font-size: 19px;
+        line-height: 1.45;
+        font-weight: 600;
+      }
+      #tg-unidentified h3 {
+        font-size: 17px;
+        font-weight: 600;
+      }
+      #tg-unidentified .tg-muted {
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-small {
+        font-size: 13px;
+      }
+      #tg-unidentified .tg-mono {
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      #tg-unidentified .tg-button {
+        min-height: 46px;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        background: var(--tg-surface);
+        color: var(--tg-text);
+        border: 1px solid var(--tg-input);
+        border-radius: 8px;
+        font-weight: 550;
+        line-height: 1.5;
+        text-decoration: none;
+        transition: background 150ms ease-out;
+      }
+      #tg-unidentified .tg-button:hover {
+        background: var(--tg-raised);
+      }
+      #tg-unidentified .tg-button.tg-primary {
+        background: var(--tg-blue);
+        border-color: var(--tg-blue);
+        color: #fff;
+      }
+      #tg-unidentified .tg-button.tg-primary:hover {
+        background: var(--tg-blue-hover);
+      }
+      #tg-unidentified .tg-button.tg-quiet {
+        border-color: transparent;
+        background: transparent;
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-button.tg-quiet:hover {
+        background: var(--tg-raised);
+        color: var(--tg-text);
+      }
+      #tg-unidentified .tg-button.tg-danger {
+        color: var(--tg-danger);
+        background: var(--tg-danger-bg);
+        border-color: transparent;
+      }
+      #tg-unidentified .tg-wide {
+        width: 100%;
+      }
+      #tg-unidentified .tg-location {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--tg-line);
+        border-radius: 8px;
+        margin-bottom: 16px;
+      }
+      #tg-unidentified .tg-location .tg-location-edit {
+        margin-left: auto;
+        border: 0;
+        background: transparent;
+        color: var(--tg-focus);
+        padding: 4px;
+        min-height: 36px;
+      }
+      #tg-unidentified .tg-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.4;
+        padding: 5px 9px;
+        border-radius: 30px;
+        white-space: nowrap;
+      }
+      #tg-unidentified .tg-badge.tg-warning {
+        color: var(--tg-warning);
+        background: var(--tg-warning-bg);
+      }
+      #tg-unidentified .tg-badge.tg-success {
+        color: var(--tg-success);
+        background: var(--tg-success-bg);
+      }
+      #tg-unidentified .tg-badges {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+      }
+      #tg-unidentified .tg-entry-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      #tg-unidentified .tg-entry-actions .tg-button {
+        padding: 8px 11px;
+        font-size: 13px;
+        min-height: 44px;
+      }
+      #tg-unidentified .tg-draft {
+        border-top: 1px solid var(--tg-line);
+        padding: 16px 0 24px;
+      }
+      #tg-unidentified .tg-draft:first-child {
+        border-top: 0;
+      }
+      #tg-unidentified .tg-card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 48px;
+        margin-bottom: 15px;
+      }
+      #tg-unidentified .tg-row-source {
+        font-size: 13px;
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-identify {
+        margin-left: auto;
+        min-height: 42px;
+        padding: 7px 12px;
+        font-size: 13px;
+        gap: 6px;
+      }
+      #tg-unidentified .tg-identify[aria-pressed="true"] {
+        color: #fff;
+        border-color: var(--tg-blue);
+        background: var(--tg-blue);
+      }
+      #tg-unidentified .tg-identify .tg-icon {
+        width: 16px;
+        height: 16px;
+      }
+      #tg-unidentified .tg-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      #tg-unidentified .tg-stack {
+        display: grid;
+        gap: 14px;
+      }
+      #tg-unidentified .tg-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 0;
+      }
+      #tg-unidentified .tg-field label {
+        font-size: 13px;
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-required {
+        color: var(--tg-danger);
+        margin-left: 3px;
+      }
+      #tg-unidentified .tg-input,
+      #tg-unidentified select,
+      #tg-unidentified textarea {
+        width: 100%;
+        min-height: 48px;
+        color: var(--tg-text);
+        border: 1px solid var(--tg-input);
+        border-radius: 8px;
+        background: var(--tg-bg);
+        padding: 11px 13px;
+        font-size: 16px;
+        min-width: 0;
+      }
+      #tg-unidentified textarea {
+        resize: vertical;
+        min-height: 76px;
+      }
+      #tg-unidentified .tg-input::placeholder,
+      #tg-unidentified textarea::placeholder {
+        color: var(--tg-muted);
+        opacity: 1;
+      }
+      #tg-unidentified .tg-input-wrap {
+        position: relative;
+      }
+      #tg-unidentified .tg-input-wrap .tg-input {
+        padding-right: 49px;
+      }
+      #tg-unidentified .tg-input-wrap .tg-icon-button {
+        position: absolute;
+        right: 3px;
+        top: 2px;
+      }
+      #tg-unidentified [aria-invalid="true"] {
+        border-color: var(--tg-danger);
+      }
+      #tg-unidentified .tg-photo-add {
+        min-height: 88px;
+        border: 1px dashed var(--tg-input);
+        background: var(--tg-surface);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        width: 100%;
+      }
+      #tg-unidentified .tg-photo {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+      #tg-unidentified .tg-photo img {
+        display: block;
+        width: 84px;
+        height: 94px;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+      #tg-unidentified .tg-photo .tg-button {
+        font-size: 13px;
+        padding: 8px 10px;
+      }
+      #tg-unidentified details {
+        border: 1px solid var(--tg-line);
+        border-radius: 8px;
+        margin-top: 16px;
+      }
+      #tg-unidentified summary {
+        min-height: 48px;
+        padding: 13px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      #tg-unidentified details .tg-details-content {
+        padding: 0 13px 16px;
+      }
+      #tg-unidentified .tg-footer {
+        position: sticky;
+        bottom: 0;
+        padding: 15px 24px max(18px, env(safe-area-inset-bottom));
+        background: var(--tg-surface);
+        border-top: 1px solid var(--tg-line);
+        z-index: 3;
+      }
+      #tg-unidentified .tg-footer .tg-button {
+        min-height: 52px;
+      }
+      #tg-unidentified .tg-footer-message {
+        margin-top: 9px;
+        color: var(--tg-muted);
+        font-size: 12px;
+      }
+      #tg-unidentified .tg-error {
+        color: var(--tg-danger);
+        font-size: 13px;
+      }
+      #tg-unidentified .tg-empty {
+        padding: 36px 12px;
+        text-align: center;
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-receipt-head {
+        padding: 12px 0 24px;
+        text-align: center;
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+      }
+      #tg-unidentified .tg-receipt-head > .tg-icon {
+        width: 38px;
+        height: 38px;
+        color: var(--tg-success);
+      }
+      #tg-unidentified .tg-receipt {
+        padding: 20px 0;
+        border-top: 1px solid var(--tg-line);
+      }
+      #tg-unidentified .tg-receipt-code {
+        font-size: 31px;
+        font-weight: 650;
+        letter-spacing: -0.03em;
+      }
+      #tg-unidentified .tg-code-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 5px 0 12px;
+      }
+      #tg-unidentified .tg-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 22px;
+      }
+      #tg-unidentified .tg-actions > .tg-button {
+        flex: 1 1 140px;
+      }
+      #tg-unidentified .tg-search {
+        margin-bottom: 16px;
+      }
+      #tg-unidentified .tg-search .tg-input {
+        padding-left: 42px;
+      }
+      #tg-unidentified .tg-search > .tg-icon {
+        position: absolute;
+        left: 13px;
+        top: 14px;
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 20px;
+      }
+      #tg-unidentified .tg-filter {
+        min-height: 42px;
+        border-radius: 24px;
+        padding: 7px 12px;
+        font-size: 13px;
+      }
+      #tg-unidentified .tg-filter[aria-pressed="true"] {
+        background: var(--tg-selected);
+        border-color: var(--tg-focus);
+      }
+      #tg-unidentified .tg-record {
+        border-bottom: 1px solid var(--tg-line);
+        padding: 18px 0;
+      }
+      #tg-unidentified .tg-record-top {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      #tg-unidentified .tg-thumbnail {
+        width: 62px;
+        height: 78px;
+        object-fit: cover;
+        border-radius: 7px;
+        flex: 0 0 auto;
+      }
+      #tg-unidentified .tg-no-photo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--tg-raised);
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-record-body {
+        flex: 1;
+        min-width: 0;
+      }
+      #tg-unidentified .tg-record-title {
+        font-size: 21px;
+        font-weight: 600;
+      }
+      #tg-unidentified .tg-record-values {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 4px 12px;
+        font-size: 13px;
+        margin: 12px 0;
+      }
+      #tg-unidentified .tg-record-values dt {
+        color: var(--tg-muted);
+      }
+      #tg-unidentified .tg-record-values dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      #tg-unidentified .tg-record .tg-badges {
+        margin: 12px 0;
+      }
+      #tg-unidentified .tg-record-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      #tg-unidentified .tg-record-meta .tg-icon {
+        width: 16px;
+        height: 16px;
+      }
+      #tg-unidentified .tg-record-action {
+        min-height: 44px;
+        width: 100%;
+        margin-top: 3px;
+      }
+      #tg-unidentified dialog {
+        color: var(--tg-text);
+        background: var(--tg-surface);
+        border: 0;
+        border-radius: 14px;
+        padding: 0;
+        width: min(500px, calc(100% - 32px));
+        max-height: min(90dvh, 880px);
+        overflow-y: auto;
+        box-shadow: 0 20px 70px #0005;
+      }
+      #tg-unidentified dialog::backdrop {
+        background: #0009;
+      }
+      #tg-unidentified .tg-dialog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 20px 10px;
+      }
+      #tg-unidentified .tg-dialog-body {
+        padding: 4px 20px 20px;
+      }
+      #tg-unidentified .tg-dialog-footer {
+        display: flex;
+        gap: 10px;
+        padding: 16px 20px;
+        border-top: 1px solid var(--tg-line);
+        background: var(--tg-surface);
+        position: sticky;
+        bottom: 0;
+      }
+      #tg-unidentified .tg-dialog-footer .tg-button {
+        flex: 1;
+      }
+      #tg-unidentified .tg-dialog-code {
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      #tg-unidentified .tg-dialog-code .tg-mono {
+        font-size: 19px;
+        font-weight: 600;
+      }
+      #tg-unidentified .tg-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        padding: 10px 16px;
+        color: var(--tg-text);
+        background: var(--tg-raised);
+        border: 1px solid var(--tg-line);
+        border-radius: 8px;
+        max-width: calc(100% - 32px);
+        font-size: 13px;
+        box-shadow: 0 6px 24px #0003;
+        pointer-events: none;
+      }
+      #tg-unidentified .tg-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+      #tg-unidentified .tg-check {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        padding: 12px 0;
+        font-size: 13px;
+        color: var(--tg-warning);
+      }
+      #tg-unidentified .tg-check input {
+        width: 18px;
+        height: 18px;
+        margin-top: 3px;
+        accent-color: var(--tg-blue);
+      }
+      @media (max-width: 480px) {
+        #tg-unidentified .tg-app {
+          border-radius: 0;
+          border-left: 0;
+          border-right: 0;
+        }
+        #tg-unidentified .tg-header {
+          padding: 0 12px;
+          gap: 8px;
+          height: 64px;
+        }
+        #tg-unidentified .tg-main {
+          padding: 20px 16px 24px;
+        }
+        #tg-unidentified .tg-footer {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+        #tg-unidentified .tg-prototype {
+          padding: 6px 12px;
+        }
+        #tg-unidentified .tg-grid {
+          grid-template-columns: 1fr;
+        }
+        #tg-unidentified .tg-card-header {
+          gap: 5px;
+          flex-wrap: wrap;
+        }
+        #tg-unidentified .tg-row-source {
+          font-size: 12px;
+        }
+        #tg-unidentified .tg-identify {
+          padding: 7px 10px;
+        }
+        #tg-unidentified dialog.tg-sheet {
+          margin: auto 0 0;
+          width: 100%;
+          max-width: none;
+          max-height: 92dvh;
+          border-radius: 16px 16px 0 0;
+        }
+        #tg-unidentified .tg-heading {
+          gap: 8px;
+        }
+        #tg-unidentified .tg-heading > .tg-button {
+          font-size: 13px;
+          padding: 8px 10px;
+        }
+        #tg-unidentified .tg-badge {
+          font-size: 11px;
+          padding: 5px 8px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #tg-unidentified * {
+          transition: none !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; background: transparent; padding: 0">
+    <div id="tg-unidentified" lang="th" data-theme="dark"></div>
+    <script>
+      // Icon geometry from the installed lucide-react package (ISC license), bundled for offline preview.
+      /*
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+---
+
+The following Lucide icons are derived from the Feather project:
+
+airplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out
+
+The MIT License (MIT) (for the icons listed above)
+
+Copyright (c) 2013-present Cole Bemis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+      */
+      globalThis.tgCreateIcons = (root) => {
+        const nodes = {
+          "scan-line": [
+            ["path", { d: "M3 7V5a2 2 0 0 1 2-2h2" }],
+            ["path", { d: "M17 3h2a2 2 0 0 1 2 2v2" }],
+            ["path", { d: "M21 17v2a2 2 0 0 1-2 2h-2" }],
+            ["path", { d: "M7 21H5a2 2 0 0 1-2-2v-2" }],
+            ["path", { d: "M7 12h10" }],
+          ],
+          "image-plus": [
+            ["path", { d: "M16 5h6" }],
+            ["path", { d: "M19 2v6" }],
+            [
+              "path",
+              {
+                d: "M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5",
+              },
+            ],
+            ["path", { d: "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" }],
+            ["circle", { cx: "9", cy: "9", r: "2" }],
+          ],
+          "trash-2": [
+            ["path", { d: "M10 11v6" }],
+            ["path", { d: "M14 11v6" }],
+            ["path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" }],
+            ["path", { d: "M3 6h18" }],
+            ["path", { d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }],
+          ],
+          list: [
+            ["path", { d: "M3 5h.01" }],
+            ["path", { d: "M3 12h.01" }],
+            ["path", { d: "M3 19h.01" }],
+            ["path", { d: "M8 5h13" }],
+            ["path", { d: "M8 12h13" }],
+            ["path", { d: "M8 19h13" }],
+          ],
+          "map-pin": [
+            [
+              "path",
+              {
+                d: "M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0",
+              },
+            ],
+            ["circle", { cx: "12", cy: "10", r: "3" }],
+          ],
+          plus: [
+            ["path", { d: "M5 12h14" }],
+            ["path", { d: "M12 5v14" }],
+          ],
+          "circle-check": [
+            ["circle", { cx: "12", cy: "12", r: "10" }],
+            ["path", { d: "m9 12 2 2 4-4" }],
+          ],
+          copy: [
+            [
+              "rect",
+              { width: "14", height: "14", x: "8", y: "8", rx: "2", ry: "2" },
+            ],
+            [
+              "path",
+              { d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" },
+            ],
+          ],
+          "image-off": [
+            ["line", { x1: "2", x2: "22", y1: "2", y2: "22" }],
+            ["path", { d: "M10.41 10.41a2 2 0 1 1-2.83-2.83" }],
+            ["line", { x1: "13.5", x2: "6", y1: "13.5", y2: "21" }],
+            ["line", { x1: "18", x2: "21", y1: "12", y2: "15" }],
+            [
+              "path",
+              {
+                d: "M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59",
+              },
+            ],
+            ["path", { d: "M21 15V5a2 2 0 0 0-2-2H9" }],
+          ],
+          "ellipsis-vertical": [
+            ["circle", { cx: "12", cy: "12", r: "1" }],
+            ["circle", { cx: "12", cy: "5", r: "1" }],
+            ["circle", { cx: "12", cy: "19", r: "1" }],
+          ],
+          search: [
+            ["path", { d: "m21 21-4.34-4.34" }],
+            ["circle", { cx: "11", cy: "11", r: "8" }],
+          ],
+          x: [
+            ["path", { d: "M18 6 6 18" }],
+            ["path", { d: "m6 6 12 12" }],
+          ],
+          pencil: [
+            [
+              "path",
+              {
+                d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+              },
+            ],
+            ["path", { d: "m15 5 4 4" }],
+          ],
+          check: [["path", { d: "M20 6 9 17l-5-5" }]],
+          fingerprint: [
+            ["path", { d: "M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" }],
+            ["path", { d: "M14 13.12c0 2.38 0 6.38-1 8.88" }],
+            ["path", { d: "M17.29 21.02c.12-.6.43-2.3.5-3.02" }],
+            ["path", { d: "M2 12a10 10 0 0 1 18-6" }],
+            ["path", { d: "M2 16h.01" }],
+            ["path", { d: "M21.8 16c.2-2 .131-5.354 0-6" }],
+            ["path", { d: "M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" }],
+            ["path", { d: "M8.65 22c.21-.66.45-1.32.57-2" }],
+            ["path", { d: "M9 6.8a6 6 0 0 1 9 5.2v2" }],
+          ],
+          moon: [
+            [
+              "path",
+              {
+                d: "M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401",
+              },
+            ],
+          ],
+          sun: [
+            ["circle", { cx: "12", cy: "12", r: "4" }],
+            ["path", { d: "M12 2v2" }],
+            ["path", { d: "M12 20v2" }],
+            ["path", { d: "m4.93 4.93 1.41 1.41" }],
+            ["path", { d: "m17.66 17.66 1.41 1.41" }],
+            ["path", { d: "M2 12h2" }],
+            ["path", { d: "M20 12h2" }],
+            ["path", { d: "m6.34 17.66-1.41 1.41" }],
+            ["path", { d: "m19.07 4.93-1.41 1.41" }],
+          ],
+          "panel-left": [
+            ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2" }],
+            ["path", { d: "M9 3v18" }],
+          ],
+          "arrow-left": [
+            ["path", { d: "m12 19-7-7 7-7" }],
+            ["path", { d: "M19 12H5" }],
+          ],
+        };
+        const ns = "http://www.w3.org/2000/svg";
+        root.querySelectorAll("i[data-lucide]").forEach((placeholder) => {
+          const data = nodes[placeholder.dataset.lucide];
+          if (!data) return;
+          const svg = document.createElementNS(ns, "svg");
+          for (const [key, value] of Object.entries({
+            viewBox: "0 0 24 24",
+            width: 20,
+            height: 20,
+            fill: "none",
+            stroke: "currentColor",
+            "stroke-width": 1.75,
+            "stroke-linecap": "round",
+            "stroke-linejoin": "round",
+            class: "tg-icon",
+            "aria-hidden": "true",
+          }))
+            svg.setAttribute(key, String(value));
+          for (const [tag, attrs] of data) {
+            const child = document.createElementNS(ns, tag);
+            for (const [key, value] of Object.entries(attrs))
+              child.setAttribute(key, String(value));
+            svg.appendChild(child);
+          }
+          placeholder.replaceWith(svg);
+        });
+      };
+    </script>
+    <script>
+      (() => {
+        "use strict";
+        const root = document.getElementById("tg-unidentified");
+        const icons = globalThis.lucide;
+        const icon = (name) =>
+          `<i class="tg-icon" data-lucide="${name}" aria-hidden="true"></i>`;
+        const escape = (value = "") =>
+          String(value).replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[c],
+          );
+        let serial = 0;
+        const newDraft = () => ({
+          key: `draft-${++serial}`,
+          unidentified: false,
+          job: "",
+          barcode: "",
+          name: "",
+          quantity: "",
+          notes: "",
+          format: "PALLET",
+          photo: "",
+        });
+        const state = {
+          screen: "draft",
+          theme: "dark",
+          location: "F1-L3",
+          drafts: [newDraft()],
+          records: [],
+          savedIds: [],
+          sequence: 122,
+          filter: "ALL",
+          search: "",
+          overlay: null,
+          previewPhoto: null,
+          confirm: null,
+          busy: false,
+          duplicatesReviewed: false,
+          toast: "",
+        };
+        let toastTimer;
+        let uploadTarget = null;
+        let focusAfter = "";
+        let lastPushedState = "";
+
+        function recordState(record) {
+          return {
+            identified:
+              record.kind !== "UNIDENTIFIED" ||
+              Boolean(record.name.trim() || record.barcode.trim()),
+            jobComplete: Boolean(record.job.trim() && record.barcode.trim()),
+          };
+        }
+        function badge(label, tone = "warning") {
+          return `<span class="tg-badge tg-${tone}">${escape(label)}</span>`;
+        }
+        function statusBadges(record) {
+          const status = recordState(record);
+          return (
+            badge(
+              status.identified ? "ระบุสินค้าแล้ว" : "Unidentified",
+              status.identified ? "success" : "warning",
+            ) +
+            (status.identified && !status.jobComplete
+              ? badge("รอข้อมูล Job")
+              : "") +
+            badge("ระบุตำแหน่งแล้ว", "success")
+          );
+        }
+        function hasDraftWork() {
+          return state.drafts.some(
+            (draft) =>
+              draft.unidentified ||
+              draft.job ||
+              draft.barcode ||
+              draft.name ||
+              draft.quantity ||
+              draft.notes ||
+              draft.photo,
+          );
+        }
+        function duplicatePairs() {
+          const keys = state.drafts
+            .filter((d) => d.job.trim() && d.barcode.trim())
+            .map((d) => `${d.job.trim()}\u0000${d.barcode.trim()}`);
+          return keys.length !== new Set(keys).size;
+        }
+        function invalidQuantity(value) {
+          return (
+            value.trim() !== "" &&
+            (!/^\d+(?:\.\d+)?$/.test(value.trim()) ||
+              !Number.isFinite(Number(value)))
+          );
+        }
+        function saveBlocker() {
+          if (!state.drafts.length) return "เพิ่มรายการพาเลทก่อนบันทึก";
+          if (state.drafts.length > 50)
+            return "บันทึกได้ไม่เกิน 50 รายการต่อครั้ง";
+          if (
+            state.drafts.some(
+              (d) => !d.unidentified && (!d.job.trim() || !d.barcode.trim()),
+            )
+          )
+            return "รายการปกติต้องมีเลขที่ Job และบาร์โค้ดสินค้า";
+          if (state.drafts.some((d) => invalidQuantity(d.quantity)))
+            return "กรอกจำนวนเป็นตัวเลขตั้งแต่ 0 ขึ้นไป หรือเว้นว่างเมื่อยังไม่ทราบ";
+          if (duplicatePairs() && !state.duplicatesReviewed)
+            return "ยืนยันว่ารายการที่มี Job และบาร์โค้ดซ้ำกันเป็นคนละพาเลท";
+          return "";
+        }
+        function notify(text) {
+          clearTimeout(toastTimer);
+          state.toast = text;
+          const element = root.querySelector("#tg-toast");
+          if (element) {
+            element.textContent = text;
+            element.hidden = false;
+          }
+          toastTimer = setTimeout(() => {
+            state.toast = "";
+            const node = root.querySelector("#tg-toast");
+            if (node) node.hidden = true;
+          }, 2800);
+        }
+        function remember() {
+          if (!globalThis.openai?.setWidgetState) return;
+          const stripPhoto = (item) => ({ ...item, photo: "", paperPhoto: "" });
+          const snapshot = {
+            modelContent: {
+              prototype: "Top Gold Unidentified pallet",
+              screen: state.screen,
+              records: state.records.map((r) => ({
+                code: r.code,
+                product: r.name || null,
+                status: recordState(r).identified
+                  ? "IDENTIFIED"
+                  : "UNIDENTIFIED",
+                jobComplete: recordState(r).jobComplete,
+                location: r.location,
+              })),
+            },
+            privateContent: {
+              ...state,
+              drafts: state.drafts.map(stripPhoto),
+              records: state.records.map(stripPhoto),
+              overlay: null,
+              previewPhoto: null,
+              confirm: null,
+              busy: false,
+              toast: "",
+              serial,
+            },
+          };
+          if (
+            new TextEncoder().encode(JSON.stringify(snapshot)).length < 15000
+          ) {
+            lastPushedState = JSON.stringify(snapshot.privateContent);
+            globalThis.openai.setWidgetState(snapshot).catch(() => {});
+          }
+        }
+        function restore(saved) {
+          const snapshot = saved?.privateContent;
+          if (
+            !snapshot ||
+            !Array.isArray(snapshot.drafts) ||
+            !Array.isArray(snapshot.records) ||
+            !["draft", "receipt", "records"].includes(snapshot.screen)
+          )
+            return;
+          Object.assign(state, snapshot, {
+            overlay: null,
+            previewPhoto: null,
+            confirm: null,
+            busy: false,
+            toast: "",
+          });
+          serial = Number(snapshot.serial) || state.drafts.length;
+        }
+        restore(globalThis.openai?.widgetState);
+        addEventListener("openai:set_globals", (event) => {
+          if (event.detail?.globals?.widgetState) {
+            const incoming = event.detail.globals.widgetState;
+            if (JSON.stringify(incoming.privateContent) === lastPushedState)
+              return;
+            restore(incoming);
+            render();
+          }
+        });
+
+        function codeField(draft, field, label, required) {
+          const id = `tg-${draft.key}-${field}`;
+          return `<div class="tg-field"><label for="${id}">${label}${required ? '<span class="tg-required" aria-hidden="true">*</span>' : ""}</label><div class="tg-input-wrap"><input class="tg-input tg-mono" id="${id}" data-key="${draft.key}" data-field="${field}" value="${escape(draft[field])}" maxlength="${field === "job" ? 100 : 200}" autocomplete="off" spellcheck="false" ${required ? 'aria-required="true"' : ""} ${state.busy ? "disabled" : ""}><button class="tg-icon-button" type="button" data-action="scan-field" data-key="${draft.key}" data-field="${field}" aria-label="สแกน${label} รายการ ${state.drafts.indexOf(draft) + 1}" ${state.busy ? "disabled" : ""}>${icon("scan-line")}</button></div></div>`;
+        }
+        function plainField(item, field, label, scope = "draft") {
+          const id = `tg-${scope}-${item.key || item.id}-${field}`;
+          return `<div class="tg-field"><label for="${id}">${label}</label><input class="tg-input" id="${id}" data-scope="${scope}" data-key="${item.key || item.id}" data-field="${field}" value="${escape(item[field])}" ${field === "quantity" ? 'inputmode="decimal"' : 'maxlength="200"'} ${state.busy ? "disabled" : ""}></div>`;
+        }
+        function photoMarkup(item, kind = "draft") {
+          const photo = kind === "edit" ? item.paperPhoto : item.photo;
+          const key = kind === "edit" ? item.id : item.key;
+          const label = kind === "edit" ? "เพิ่มรูปใบ Job" : "เพิ่มรูปพาเลท";
+          return photo
+            ? `<div class="tg-photo"><button class="tg-icon-button" data-action="preview-photo" data-key="${key}" data-kind="${kind}" aria-label="เปิดรูป${kind === "edit" ? "ใบ Job" : "พาเลท"}" style="width:auto;height:auto;padding:0"><img src="${escape(photo)}" alt="${kind === "edit" ? "รูปใบ Job ที่แนบ" : "รูปพาเลทที่แนบ"}"></button><button class="tg-button" data-action="upload" data-key="${key}" data-kind="${kind}">${icon("image-plus")}เปลี่ยนรูป</button><button class="tg-icon-button" data-action="remove-photo" data-key="${key}" data-kind="${kind}" aria-label="ลบรูปที่แนบ">${icon("trash-2")}</button></div>`
+            : `<button class="tg-photo-add" data-action="upload" data-key="${key}" data-kind="${kind}" ${state.busy ? "disabled" : ""}>${icon("image-plus")}<span>${label}</span></button>`;
+        }
+        function draftCard(draft, index) {
+          const active = draft.unidentified;
+          return `<article class="tg-draft" aria-label="พาเลทรายการ ${index + 1}" data-draft="${draft.key}">
+            <div class="tg-card-header"><strong>#${index + 1}</strong><span class="tg-row-source">· กรอกเอง</span><button id="tg-identify-${draft.key}" class="tg-button tg-identify" data-action="identify" data-key="${draft.key}" aria-pressed="${active}" ${state.busy ? "disabled" : ""}>${icon(active ? "check" : "fingerprint")}Identify</button><button class="tg-icon-button" data-action="remove-draft" data-key="${draft.key}" aria-label="ลบพาเลทรายการ ${index + 1}" ${state.busy ? "disabled" : ""}>${icon("trash-2")}</button></div>
+            ${active ? `<div class="tg-badges" style="margin-bottom:16px">${badge("Unidentified")}</div>${photoMarkup(draft)}` : draft.photo ? photoMarkup(draft) : ""}
+            <div class="tg-stack">${codeField(draft, "job", "เลขที่ Job", !active)}${codeField(draft, "barcode", "บาร์โค้ดสินค้า", !active)}
+              ${active ? `<div class="tg-grid">${plainField(draft, "name", "ชื่อสินค้า")}${plainField(draft, "quantity", "จำนวน")}</div>` : ""}
+              <div class="tg-field"><label class="tg-sr-only" for="tg-format-${draft.key}">รูปแบบจัดเก็บ</label><select id="tg-format-${draft.key}" data-key="${draft.key}" data-field="format" ${state.busy ? "disabled" : ""}><option value="PALLET" ${draft.format === "PALLET" ? "selected" : ""}>พาเลท</option><option value="BOX" ${draft.format === "BOX" ? "selected" : ""}>กล่อง</option><option value="OTHER" ${draft.format === "OTHER" ? "selected" : ""}>อื่น ๆ</option></select></div>
+            </div>
+            <details><summary>รายละเอียดเพิ่มเติม</summary><div class="tg-details-content tg-stack">${active ? "" : `<div class="tg-grid">${plainField(draft, "name", "ชื่อสินค้า")}${plainField(draft, "quantity", "จำนวน")}</div>`}<div class="tg-field"><label for="tg-notes-${draft.key}">หมายเหตุ</label><textarea id="tg-notes-${draft.key}" data-key="${draft.key}" data-field="notes" maxlength="1000" ${state.busy ? "disabled" : ""}>${escape(draft.notes)}</textarea></div></div></details>
+          </article>`;
+        }
+        function draftScreen() {
+          return `<main class="tg-main" id="tg-content"><div class="tg-heading"><h1 tabindex="-1" id="tg-screen-title">ใบ Job</h1><button class="tg-button tg-quiet" data-action="records" ${state.busy ? "disabled" : ""}>${icon("list")}รายการ${state.records.length ? ` (${state.records.length})` : ""}</button></div>
+            <div class="tg-location">${icon("map-pin")}<strong class="tg-mono">${escape(state.location)}</strong>${badge("ระบุตำแหน่งแล้ว", "success")}<button class="tg-location-edit" data-action="location" ${state.busy ? "disabled" : ""}>เปลี่ยน</button></div>
+            <div class="tg-entry-actions"><button class="tg-button" data-action="photo-new" ${state.busy ? "disabled" : ""}>${icon("image-plus")}รูปถ่าย</button><button class="tg-button tg-quiet" data-action="scan-new" ${state.busy ? "disabled" : ""}>${icon("scan-line")}สแกน</button><button class="tg-button tg-quiet" data-action="add" ${state.busy ? "disabled" : ""}>${icon("plus")}กรอกเอง</button></div>
+            <div id="tg-drafts">${state.drafts.length ? state.drafts.map(draftCard).join("") : '<div class="tg-empty">ยังไม่มีรายการพาเลท</div>'}</div>
+            <label class="tg-check" id="tg-duplicates" ${!duplicatePairs() ? "hidden" : ""}><input type="checkbox" id="tg-duplicates-reviewed" ${state.duplicatesReviewed ? "checked" : ""}><span>ตรวจแล้วว่า Job และบาร์โค้ดที่ซ้ำกันเป็นคนละพาเลท</span></label>
+          </main><footer class="tg-footer"><button id="tg-save" class="tg-button tg-primary tg-wide" data-action="save" ${state.busy || saveBlocker() ? "disabled" : ""}>${state.busy ? "กำลังบันทึก…" : `บันทึก ${state.drafts.length} รายการ`}</button><p id="tg-blocker" class="tg-footer-message" role="status">${escape(saveBlocker())}</p></footer>`;
+        }
+        function receiptScreen() {
+          const saved = state.records.filter((r) =>
+            state.savedIds.includes(r.id),
+          );
+          return `<main class="tg-main" id="tg-content"><div class="tg-receipt-head">${icon("circle-check")}<h1 tabindex="-1" id="tg-screen-title">บันทึกแล้ว ${saved.length} รายการ</h1></div>${saved.map((record) => `<article class="tg-receipt"><p class="tg-muted tg-small">${record.code ? "รหัสพาเลท" : "เลขที่ Job"}</p><div class="tg-code-row"><strong id="tg-code-${record.id}" class="tg-receipt-code tg-mono">${escape(record.code || record.job)}</strong><button class="tg-icon-button" data-action="copy" data-id="${record.id}" aria-label="คัดลอกรหัส ${escape(record.code || record.job)}">${icon("copy")}</button></div>${record.photo ? `<img class="tg-thumbnail" src="${escape(record.photo)}" alt="รูปพาเลทที่บันทึก" style="margin-bottom:12px">` : ""}<div class="tg-badges">${statusBadges(record)}</div><p class="tg-record-meta">${icon("map-pin")}<span class="tg-mono">${escape(record.location)}</span></p></article>`).join("")}<div class="tg-actions"><button class="tg-button tg-primary" data-action="records">ดูรายการ</button><button class="tg-button" data-action="new-group">เพิ่มรายการ</button></div></main>`;
+        }
+        function recordMarkup(record) {
+          const status = recordState(record);
+          return `<article class="tg-record" aria-label="พาเลท ${escape(record.code || record.job)}" data-record="${record.id}"><div class="tg-record-top">${record.photo ? `<img class="tg-thumbnail" src="${escape(record.photo)}" alt="รูปพาเลท">` : `<div class="tg-thumbnail tg-no-photo" role="img" aria-label="ไม่มีรูปพาเลท">${icon("image-off")}</div>`}<div class="tg-record-body"><h2 class="tg-record-title tg-mono">${escape(record.code || record.job)}</h2><p class="${!record.name ? "tg-muted" : ""}">${escape(record.name || (status.identified ? record.barcode : "ยังไม่ทราบสินค้า"))}</p><div class="tg-record-meta">${icon("map-pin")}<span class="tg-mono">${escape(record.location)}</span>${record.quantity !== "" ? `<span>· ${escape(new Intl.NumberFormat("th-TH").format(Number(record.quantity)))}</span>` : ""}</div></div><button class="tg-icon-button" data-action="record-menu" data-id="${record.id}" aria-label="ตัวเลือกรายการ ${escape(record.code || record.job)}">${icon("ellipsis-vertical")}</button></div>
+            ${record.job || record.barcode ? `<dl class="tg-record-values">${record.job ? `<dt>เลขที่ Job</dt><dd class="tg-mono">${escape(record.job)}</dd>` : ""}${record.barcode ? `<dt>บาร์โค้ดสินค้า</dt><dd class="tg-mono">${escape(record.barcode)}</dd>` : ""}</dl>` : ""}<div class="tg-badges">${statusBadges(record)}</div>${record.notes ? `<p class="tg-small tg-muted" style="margin-bottom:12px">${escape(record.notes)}</p>` : ""}<button id="tg-edit-${record.id}" class="tg-button tg-record-action" data-action="edit" data-id="${record.id}">${icon(status.identified ? "pencil" : "fingerprint")}${status.identified ? "แก้ไขข้อมูล" : "ระบุสินค้า"}</button></article>`;
+        }
+        function recordsList() {
+          const needle = state.search.trim().toLocaleUpperCase("th-TH");
+          const records = state.records.filter((record) => {
+            const status = recordState(record);
+            return (
+              (state.filter === "ALL" ||
+                (state.filter === "UNIDENTIFIED"
+                  ? !status.identified
+                  : status.identified)) &&
+              (!needle ||
+                [
+                  record.code,
+                  record.job,
+                  record.barcode,
+                  record.name,
+                  record.location,
+                ].some((v) => v?.toLocaleUpperCase("th-TH").includes(needle)))
+            );
+          });
+          return records.length
+            ? records.map(recordMarkup).join("")
+            : `<div class="tg-empty"><p>${state.records.length ? "ไม่พบรายการที่ตรงกับการค้นหา" : "ยังไม่มีรายการที่บันทึก"}</p>${!state.records.length ? '<button class="tg-button" data-action="draft" style="margin-top:16px">เพิ่มรายการพาเลท</button>' : ""}</div>`;
+        }
+        function recordsScreen() {
+          return `<main class="tg-main" id="tg-content"><div class="tg-heading"><h1 tabindex="-1" id="tg-screen-title">รายการที่บันทึก</h1><button class="tg-button tg-quiet" data-action="draft">${icon("plus")}เพิ่มรายการ</button></div><div class="tg-input-wrap tg-search">${icon("search")}<label class="tg-sr-only" for="tg-search">ค้นหารหัสพาเลท สินค้า Job หรือตำแหน่ง</label><input class="tg-input" id="tg-search" value="${escape(state.search)}" placeholder="ค้นหารหัสพาเลท สินค้า หรือ Job" autocomplete="off"><button class="tg-icon-button" data-action="clear-search" aria-label="ล้างการค้นหา">${icon("x")}</button></div><div class="tg-filters" role="group" aria-label="สถานะสินค้า">${[
+            ["ALL", "ทั้งหมด"],
+            ["UNIDENTIFIED", "Unidentified"],
+            ["IDENTIFIED", "ระบุสินค้าแล้ว"],
+          ]
+            .map(
+              ([value, label]) =>
+                `<button class="tg-button tg-filter" data-action="filter" data-value="${value}" aria-pressed="${state.filter === value}">${label}</button>`,
+            )
+            .join(
+              "",
+            )}</div><div id="tg-records-list" aria-live="polite">${recordsList()}</div></main>`;
+        }
+        function dialogFrame(title, body, footer = "", klass = "tg-sheet") {
+          return `<dialog id="tg-dialog" class="${klass}" aria-labelledby="tg-dialog-title"><div class="tg-dialog-header"><h2 id="tg-dialog-title">${title}</h2><button class="tg-icon-button" data-action="close-overlay" aria-label="ปิด" ${state.busy ? "disabled" : ""}>${icon("x")}</button></div><div class="tg-dialog-body">${body}</div>${footer ? `<div class="tg-dialog-footer">${footer}</div>` : ""}</dialog>`;
+        }
+        function overlayMarkup() {
+          const overlay = state.overlay;
+          if (!overlay) return "";
+          if (overlay.kind === "edit") {
+            const item = overlay.draft;
+            return dialogFrame(
+              "ระบุสินค้าและ Job",
+              `<div class="tg-dialog-code"><strong class="tg-mono">${escape(item.code || item.job)}</strong>${recordState(item).identified ? badge("ระบุสินค้าแล้ว", "success") : badge("Unidentified")}</div><form id="tg-edit-form" class="tg-stack">${plainField(item, "name", "ชื่อสินค้า", "edit")}${plainField(item, "job", "เลขที่ Job", "edit")}${plainField(item, "barcode", "บาร์โค้ดสินค้า", "edit")}${plainField(item, "quantity", "จำนวน", "edit")}<div class="tg-field"><label for="tg-edit-notes">หมายเหตุ</label><textarea id="tg-edit-notes" data-scope="edit" data-field="notes" maxlength="1000">${escape(item.notes)}</textarea></div>${photoMarkup(item, "edit")}<p id="tg-edit-error" class="tg-error" role="status"></p></form>`,
+              '<button class="tg-button" data-action="close-overlay">ยกเลิก</button><button id="tg-edit-save" class="tg-button tg-primary" data-action="save-edit">บันทึก</button>',
+            );
+          }
+          if (overlay.kind === "scan")
+            return dialogFrame(
+              "ทดลองสแกนบาร์โค้ด",
+              `<p class="tg-small tg-muted" style="margin-bottom:16px">${overlay.field === "job" ? "เลขที่ Job" : overlay.field === "barcode" ? "บาร์โค้ดสินค้า" : "เลือกผลสแกนตัวอย่าง หรือพิมพ์รหัส"}</p><div class="tg-field"><label for="tg-scan-code">รหัสที่สแกน</label><input class="tg-input tg-mono" id="tg-scan-code" value="${escape(overlay.code || "")}" autocomplete="off" maxlength="200"></div><div class="tg-actions"><button class="tg-button" data-action="scan-sample" data-value="FO69070073">ตัวอย่าง Job</button><button class="tg-button" data-action="scan-sample" data-value="BX004-BOX">ตัวอย่างสินค้า</button></div><p class="tg-error" id="tg-scan-error" role="status" style="margin-top:12px"></p>`,
+              '<button class="tg-button" data-action="close-overlay">ยกเลิก</button><button class="tg-button tg-primary" data-action="apply-scan">ใช้รหัสนี้</button>',
+            );
+          if (overlay.kind === "location")
+            return dialogFrame(
+              "ตำแหน่งจัดเก็บ",
+              `<div class="tg-field"><label for="tg-location-value">รหัสตำแหน่ง</label><input class="tg-input tg-mono" id="tg-location-value" value="${escape(overlay.value)}" maxlength="100"></div><div class="tg-actions">${["F1-L3", "F1-L4", "F2-L1"].map((value) => `<button class="tg-button" data-action="location-sample" data-value="${value}">${value}</button>`).join("")}</div>`,
+              '<button class="tg-button" data-action="close-overlay">ยกเลิก</button><button class="tg-button tg-primary" data-action="apply-location">เลือกตำแหน่ง</button>',
+            );
+          if (overlay.kind === "menu")
+            return dialogFrame(
+              "Top Gold",
+              `<div class="tg-stack"><button class="tg-button" data-action="menu-draft">${icon("plus")}เพิ่มรายการ</button><button class="tg-button" data-action="menu-records">${icon("list")}รายการที่บันทึก (${state.records.length})</button></div>`,
+              "",
+              "",
+            );
+          if (overlay.kind === "record-menu")
+            return dialogFrame(
+              escape(overlay.record.code || overlay.record.job),
+              `<div class="tg-stack"><button class="tg-button" data-action="menu-edit" data-id="${overlay.record.id}">${icon("pencil")}แก้ไขข้อมูล</button><button class="tg-button" data-action="copy" data-id="${overlay.record.id}">${icon("copy")}คัดลอกรหัส</button><button class="tg-button tg-danger" data-action="delete-record" data-id="${overlay.record.id}">${icon("trash-2")}ลบรายการ</button></div>`,
+              "",
+              "",
+            );
+          if (overlay.kind === "photo")
+            return dialogFrame(
+              "รูปพาเลท / ใบ Job",
+              `<img src="${escape(overlay.url)}" alt="รูปที่แนบในรายการ" style="display:block;width:100%;max-height:65dvh;object-fit:contain">`,
+              "",
+              "",
+            );
+          return "";
+        }
+        function confirmMarkup() {
+          if (!state.confirm) return "";
+          const [title, description, action] =
+            state.confirm.kind === "replace-scan"
+              ? [
+                  "แทนที่รหัสเดิม?",
+                  `ใช้ ${state.confirm.code} แทนรหัสที่กรอกไว้`,
+                  "แทนที่",
+                ]
+              : state.confirm.kind === "discard-edit"
+                ? [
+                    "ทิ้งข้อมูลที่ยังไม่บันทึก?",
+                    "ข้อมูลที่บันทึกไว้ก่อนหน้ายังคงอยู่",
+                    "ทิ้งการแก้ไข",
+                  ]
+                : state.confirm.kind === "reset"
+                  ? [
+                      "เริ่มทดลองใหม่?",
+                      "ล้างรายการและข้อมูลร่างในต้นแบบนี้",
+                      "เริ่มใหม่",
+                    ]
+                  : [
+                      "ลบรายการนี้?",
+                      "รายการที่เลือกจะถูกลบออกจากต้นแบบ",
+                      "ลบรายการ",
+                    ];
+          return `<dialog id="tg-confirm" aria-labelledby="tg-confirm-title"><div class="tg-dialog-header"><h2 id="tg-confirm-title">${escape(title)}</h2></div><div class="tg-dialog-body"><p class="tg-muted">${escape(description)}</p></div><div class="tg-dialog-footer"><button class="tg-button" data-action="cancel-confirm">ยกเลิก</button><button class="tg-button tg-danger" data-action="confirm">${action}</button></div></dialog>`;
+        }
+        function previewMarkup() {
+          if (!state.previewPhoto) return "";
+          return `<dialog id="tg-preview" aria-labelledby="tg-preview-title"><div class="tg-dialog-header"><h2 id="tg-preview-title">รูปที่แนบ</h2><button class="tg-icon-button" data-action="close-preview" aria-label="ปิดรูป">${icon("x")}</button></div><div class="tg-dialog-body"><img src="${escape(state.previewPhoto)}" alt="รูปที่แนบในรายการ" style="display:block;width:100%;max-height:65dvh;object-fit:contain"></div></dialog>`;
+        }
+        function render() {
+          const activeId = root.contains(document.activeElement)
+            ? document.activeElement.id
+            : "";
+          root.dataset.theme = state.theme;
+          root.innerHTML = `<div class="tg-prototype"><span>ต้นแบบ · ข้อมูลจำลอง</span><button data-action="reset" ${state.busy ? "disabled" : ""}>เริ่มทดลองใหม่</button></div><section class="tg-app" aria-label="Top Gold · Unidentified pallet prototype"><header class="tg-header"><button id="tg-header-nav" class="tg-icon-button" data-action="${state.screen === "draft" ? "menu" : "back"}" aria-label="${state.screen === "draft" ? "เปิดเมนู" : "ย้อนกลับ"}" ${state.busy ? "disabled" : ""}>${icon(state.screen === "draft" ? "panel-left" : "arrow-left")}</button><span class="tg-brand">Top Gold</span><div class="tg-header-end"><span class="tg-flag" role="img" aria-label="ภาษาไทย"></span><button id="tg-theme" class="tg-icon-button" data-action="theme" aria-label="เปลี่ยนเป็นโหมด${state.theme === "dark" ? "สว่าง" : "มืด"}">${icon(state.theme === "dark" ? "moon" : "sun")}</button></div></header>${state.screen === "draft" ? draftScreen() : state.screen === "receipt" ? receiptScreen() : recordsScreen()}</section><input id="tg-upload" type="file" accept="image/jpeg,image/png,image/webp" class="tg-sr-only" tabindex="-1" aria-label="เลือกรูปภาพ"><div id="tg-toast" class="tg-toast" role="status" ${state.toast ? "" : "hidden"}>${escape(state.toast)}</div>${overlayMarkup()}${previewMarkup()}${confirmMarkup()}`;
+          root.querySelectorAll("button:not([type])").forEach((button) => {
+            button.type = "button";
+          });
+          refreshIcons();
+          const dialog = root.querySelector("#tg-dialog");
+          if (dialog) {
+            dialog.showModal();
+            dialog.addEventListener("cancel", (event) => {
+              event.preventDefault();
+              requestClose();
+            });
+            dialog.addEventListener("click", (event) => {
+              if (event.target === dialog) {
+                const r = dialog.getBoundingClientRect();
+                if (
+                  event.clientX < r.left ||
+                  event.clientX > r.right ||
+                  event.clientY < r.top ||
+                  event.clientY > r.bottom
+                )
+                  requestClose();
+              }
+            });
+          }
+          const confirmation = root.querySelector("#tg-confirm");
+          if (confirmation) {
+            confirmation.showModal();
+            confirmation.addEventListener("cancel", (event) => {
+              event.preventDefault();
+              state.confirm = null;
+              render();
+            });
+          }
+          const preview = root.querySelector("#tg-preview");
+          if (preview) {
+            preview.showModal();
+            preview.addEventListener("cancel", (event) => {
+              event.preventDefault();
+              state.previewPhoto = null;
+              render();
+            });
+          }
+          const focusId = focusAfter || (dialog ? "" : activeId);
+          focusAfter = "";
+          if (focusId)
+            root
+              .querySelector(`#${CSS.escape(focusId)}`)
+              ?.focus({ preventScroll: true });
+        }
+        function refreshIcons() {
+          if (icons)
+            icons.createIcons({
+              root,
+              attrs: {
+                width: 20,
+                height: 20,
+                class: "tg-icon",
+                "stroke-width": 1.75,
+              },
+            });
+          else if (globalThis.tgCreateIcons) globalThis.tgCreateIcons(root);
+        }
+        function requestClose() {
+          if (state.busy) return;
+          if (
+            state.overlay?.kind === "edit" &&
+            JSON.stringify(state.overlay.draft) !== state.overlay.original
+          ) {
+            state.confirm = { kind: "discard-edit" };
+            render();
+            return;
+          }
+          closeOverlay();
+        }
+        function closeOverlay() {
+          focusAfter = state.overlay?.triggerId || "tg-screen-title";
+          state.overlay = null;
+          state.confirm = null;
+          render();
+        }
+        function openEdit(id) {
+          const record = state.records.find((r) => r.id === id);
+          if (!record) return;
+          state.overlay = {
+            kind: "edit",
+            draft: { ...record },
+            original: JSON.stringify(record),
+            triggerId: `tg-edit-${id}`,
+          };
+          render();
+        }
+        function updateValidity() {
+          const button = root.querySelector("#tg-save");
+          if (button) button.disabled = state.busy || Boolean(saveBlocker());
+          const blocker = root.querySelector("#tg-blocker");
+          if (blocker) blocker.textContent = saveBlocker();
+          const duplicates = root.querySelector("#tg-duplicates");
+          if (duplicates) duplicates.hidden = !duplicatePairs();
+        }
+        async function saveDrafts() {
+          if (state.busy || saveBlocker()) return;
+          state.busy = true;
+          render();
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          const records = state.drafts.map((draft) => ({
+            ...draft,
+            id: `record-${draft.key}`,
+            kind: draft.unidentified ? "UNIDENTIFIED" : "DOCUMENT",
+            code: draft.unidentified
+              ? `U${String(++state.sequence).padStart(6, "0")}`
+              : "",
+            location: state.location,
+            createdAt: Date.now(),
+            paperPhoto: "",
+          }));
+          state.records.unshift(...records);
+          state.savedIds = records.map((r) => r.id);
+          state.drafts = [];
+          state.busy = false;
+          state.screen = "receipt";
+          state.duplicatesReviewed = false;
+          focusAfter = "tg-screen-title";
+          render();
+          remember();
+        }
+        async function copyCode(id) {
+          const record = state.records.find((r) => r.id === id);
+          if (!record) return;
+          const code = record.code || record.job;
+          try {
+            await navigator.clipboard.writeText(code);
+            notify(`คัดลอก ${code} แล้ว`);
+          } catch {
+            const node =
+              root.querySelector(`#tg-code-${CSS.escape(id)}`) ||
+              root.querySelector(`[data-record="${id}"] .tg-record-title`);
+            if (node) {
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              const selection = getSelection();
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+            notify(`รหัสพาเลท: ${code}`);
+          }
+        }
+        root.addEventListener("click", async (event) => {
+          const button = event.target.closest("button[data-action]");
+          if (!button || !root.contains(button) || button.disabled) return;
+          const action = button.dataset.action;
+          if (state.busy && action !== "theme") return;
+          const key = button.dataset.key;
+          const draft = state.drafts.find((d) => d.key === key);
+          if (action === "identify" && draft) {
+            draft.unidentified = !draft.unidentified;
+            focusAfter = `tg-identify-${draft.key}`;
+            render();
+            remember();
+          } else if (action === "add") {
+            if (state.drafts.length >= 50)
+              return notify("บันทึกได้ไม่เกิน 50 รายการต่อครั้ง");
+            const item = newDraft();
+            state.drafts.push(item);
+            render();
+            root.querySelector(`#tg-identify-${item.key}`)?.focus();
+            remember();
+          } else if (action === "remove-draft" && draft) {
+            if (
+              draft.unidentified ||
+              draft.job ||
+              draft.barcode ||
+              draft.name ||
+              draft.notes ||
+              draft.photo
+            )
+              state.confirm = { kind: "remove-draft", key };
+            else state.drafts = state.drafts.filter((d) => d.key !== key);
+            render();
+            remember();
+          } else if (action === "save") await saveDrafts();
+          else if (action === "records" || action === "menu-records") {
+            state.overlay = null;
+            state.screen = "records";
+            state.filter = "ALL";
+            state.search = "";
+            focusAfter = "tg-screen-title";
+            render();
+            remember();
+          } else if (
+            ["draft", "menu-draft", "new-group", "back"].includes(action)
+          ) {
+            state.overlay = null;
+            state.screen = "draft";
+            if (!state.drafts.length) state.drafts = [newDraft()];
+            focusAfter = "tg-screen-title";
+            render();
+            remember();
+          } else if (action === "theme") {
+            state.theme = state.theme === "dark" ? "light" : "dark";
+            focusAfter = "tg-theme";
+            render();
+            remember();
+          } else if (action === "menu") {
+            state.overlay = { kind: "menu", triggerId: "tg-header-nav" };
+            render();
+          } else if (action === "location") {
+            state.overlay = { kind: "location", value: state.location };
+            render();
+          } else if (action === "location-sample") {
+            state.overlay.value = button.dataset.value;
+            root.querySelector("#tg-location-value").value =
+              button.dataset.value;
+          } else if (action === "apply-location") {
+            const value = root.querySelector("#tg-location-value").value.trim();
+            if (!value) {
+              root.querySelector("#tg-location-value").focus();
+              return;
+            }
+            state.location = value;
+            closeOverlay();
+            remember();
+          } else if (action === "close-overlay") requestClose();
+          else if (action === "filter") {
+            state.filter = button.dataset.value;
+            render();
+            remember();
+          } else if (action === "clear-search") {
+            state.search = "";
+            const input = root.querySelector("#tg-search");
+            input.value = "";
+            root.querySelector("#tg-records-list").innerHTML = recordsList();
+            refreshIcons();
+            input.focus();
+            remember();
+          } else if (action === "edit" || action === "menu-edit")
+            openEdit(button.dataset.id);
+          else if (action === "save-edit") {
+            const item = state.overlay.draft;
+            if (
+              item.kind === "DOCUMENT" &&
+              (!item.job.trim() || !item.barcode.trim())
+            ) {
+              root.querySelector("#tg-edit-error").textContent =
+                "รายการปกติต้องมีเลขที่ Job และบาร์โค้ดสินค้า";
+              return;
+            }
+            if (invalidQuantity(item.quantity)) {
+              root.querySelector("#tg-edit-error").textContent =
+                "กรอกจำนวนเป็นตัวเลขตั้งแต่ 0 ขึ้นไป หรือเว้นว่าง";
+              return;
+            }
+            if (
+              item.job.trim().length > 100 ||
+              item.barcode.trim().length > 200
+            ) {
+              root.querySelector("#tg-edit-error").textContent =
+                "เลขที่ Job ยาวได้ไม่เกิน 100 ตัวอักษร และบาร์โค้ดไม่เกิน 200 ตัวอักษร";
+              return;
+            }
+            const index = state.records.findIndex((r) => r.id === item.id);
+            if (index < 0) return closeOverlay();
+            const originalCode = state.records[index].code;
+            state.records[index] = {
+              ...item,
+              name: item.name.trim(),
+              job: item.job.trim(),
+              barcode: item.barcode.trim(),
+              code: originalCode,
+              updatedAt: Date.now(),
+            };
+            state.filter = "ALL";
+            state.search = "";
+            closeOverlay();
+            remember();
+            notify(
+              recordState(item).identified
+                ? "บันทึกข้อมูลแล้ว · รหัสพาเลทเดิม"
+                : "เก็บข้อมูลแล้ว · ยังเป็น Unidentified",
+            );
+          } else if (action === "record-menu") {
+            const record = state.records.find(
+              (r) => r.id === button.dataset.id,
+            );
+            state.overlay = { kind: "record-menu", record };
+            render();
+          } else if (action === "copy") await copyCode(button.dataset.id);
+          else if (action === "delete-record") {
+            state.confirm = { kind: "delete-record", id: button.dataset.id };
+            render();
+          } else if (action === "reset") {
+            if (hasDraftWork() || state.records.length) {
+              state.confirm = { kind: "reset" };
+              render();
+            } else notify("พร้อมเริ่มทดลอง");
+          } else if (action === "cancel-confirm") {
+            state.confirm = null;
+            render();
+          } else if (action === "confirm") {
+            const confirmation = state.confirm;
+            if (confirmation.kind === "replace-scan") {
+              const target = state.drafts.find(
+                (d) => d.key === confirmation.key,
+              );
+              if (target) target[confirmation.field] = confirmation.code;
+              state.duplicatesReviewed = false;
+              closeOverlay();
+              remember();
+              return;
+            }
+            if (confirmation.kind === "discard-edit") {
+              closeOverlay();
+              return;
+            }
+            if (confirmation.kind === "remove-draft")
+              state.drafts = state.drafts.filter(
+                (d) => d.key !== confirmation.key,
+              );
+            if (confirmation.kind === "delete-record") {
+              state.records = state.records.filter(
+                (r) => r.id !== confirmation.id,
+              );
+              state.overlay = null;
+            }
+            if (confirmation.kind === "reset") {
+              Object.assign(state, {
+                screen: "draft",
+                location: "F1-L3",
+                drafts: [newDraft()],
+                records: [],
+                savedIds: [],
+                sequence: 122,
+                filter: "ALL",
+                search: "",
+                overlay: null,
+                previewPhoto: null,
+                duplicatesReviewed: false,
+              });
+            }
+            state.confirm = null;
+            render();
+            remember();
+          } else if (action === "upload" || action === "photo-new") {
+            let target = draft;
+            if (action === "photo-new") {
+              target = state.drafts[state.drafts.length - 1];
+              if (!target) {
+                target = newDraft();
+                state.drafts.push(target);
+              }
+            }
+            uploadTarget = {
+              key: target?.key || key,
+              kind: button.dataset.kind || "draft",
+            };
+            const input = root.querySelector("#tg-upload");
+            input.value = "";
+            input.click();
+          } else if (action === "remove-photo") {
+            if (button.dataset.kind === "edit")
+              state.overlay.draft.paperPhoto = "";
+            else if (draft) draft.photo = "";
+            render();
+            remember();
+          } else if (action === "preview-photo") {
+            const record =
+              button.dataset.kind === "edit" ? state.overlay.draft : draft;
+            state.previewPhoto =
+              button.dataset.kind === "edit" ? record.paperPhoto : record.photo;
+            render();
+          } else if (action === "close-preview") {
+            state.previewPhoto = null;
+            render();
+          } else if (action === "scan-field" || action === "scan-new") {
+            let target = draft;
+            if (!target) {
+              target = state.drafts.find((d) => !d.job || !d.barcode);
+              if (!target) {
+                target = newDraft();
+                state.drafts.push(target);
+              }
+            }
+            state.overlay = {
+              kind: "scan",
+              key: target.key,
+              field: button.dataset.field || "",
+              code: "",
+              triggerId: `tg-${target.key}-${button.dataset.field || "job"}`,
+            };
+            render();
+          } else if (action === "scan-sample") {
+            state.overlay.code = button.dataset.value;
+            root.querySelector("#tg-scan-code").value = button.dataset.value;
+          } else if (action === "apply-scan") {
+            const value = root.querySelector("#tg-scan-code").value.trim();
+            if (!value || /^ISAS:/i.test(value)) {
+              root.querySelector("#tg-scan-error").textContent =
+                "ใช้รหัส Job หรือบาร์โค้ดสินค้า";
+              return;
+            }
+            const target = state.drafts.find(
+              (d) => d.key === state.overlay.key,
+            );
+            const field =
+              state.overlay.field ||
+              (/^FO\d{4,}$/i.test(value) ? "job" : "barcode");
+            if (/^U\d{6,}$/.test(value)) {
+              root.querySelector("#tg-scan-error").textContent =
+                "รหัสนี้เป็นรหัสพาเลท ใช้ค้นหาในหน้ารายการ";
+              return;
+            }
+            if (
+              state.overlay.field &&
+              (/^FO\d{4,}$/i.test(value) ? "job" : "barcode") !==
+                state.overlay.field
+            ) {
+              root.querySelector("#tg-scan-error").textContent =
+                "รหัสนี้ไม่ตรงกับช่องที่เลือก กรุณาตรวจรหัสแล้วลองอีกครั้ง";
+              return;
+            }
+            if (value.length > (field === "job" ? 100 : 200)) {
+              root.querySelector("#tg-scan-error").textContent =
+                "รหัสยาวเกินขอบเขตของช่องนี้";
+              return;
+            }
+            if (target?.[field]?.trim() && target[field].trim() !== value) {
+              state.confirm = {
+                kind: "replace-scan",
+                key: target.key,
+                field,
+                code: value,
+              };
+              render();
+              return;
+            }
+            if (target) target[field] = value;
+            state.duplicatesReviewed = false;
+            closeOverlay();
+            remember();
+          }
+        });
+        root.addEventListener("input", (event) => {
+          const input = event.target;
+          if (input.id === "tg-search") {
+            state.search = input.value;
+            root.querySelector("#tg-records-list").innerHTML = recordsList();
+            refreshIcons();
+            remember();
+            return;
+          }
+          if (input.id === "tg-scan-code") {
+            state.overlay.code = input.value;
+            return;
+          }
+          if (input.id === "tg-location-value") {
+            state.overlay.value = input.value;
+            return;
+          }
+          if (!input.dataset.field) return;
+          const target =
+            input.dataset.scope === "edit"
+              ? state.overlay?.draft
+              : state.drafts.find((d) => d.key === input.dataset.key);
+          if (target) {
+            target[input.dataset.field] = input.value;
+            if (["job", "barcode"].includes(input.dataset.field)) {
+              state.duplicatesReviewed = false;
+              const check = root.querySelector("#tg-duplicates-reviewed");
+              if (check) check.checked = false;
+            }
+            updateValidity();
+            remember();
+          }
+        });
+        root.addEventListener("change", async (event) => {
+          if (event.target.id === "tg-duplicates-reviewed") {
+            state.duplicatesReviewed = event.target.checked;
+            updateValidity();
+            remember();
+            return;
+          }
+          if (event.target.tagName === "SELECT") {
+            const target = state.drafts.find(
+              (d) => d.key === event.target.dataset.key,
+            );
+            if (target) target.format = event.target.value;
+            remember();
+          }
+          if (event.target.id !== "tg-upload") return;
+          const file = event.target.files?.[0];
+          const target = uploadTarget;
+          uploadTarget = null;
+          if (!file || !target) return;
+          if (
+            !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+            file.size > 8 * 1024 * 1024
+          ) {
+            notify("เลือกรูป JPG, PNG หรือ WebP ขนาดไม่เกิน 8 MB");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (target.kind === "edit") {
+              if (
+                state.overlay?.kind !== "edit" ||
+                state.overlay.draft.id !== target.key
+              )
+                return;
+              state.overlay.draft.paperPhoto = String(reader.result);
+            } else {
+              const draft = state.drafts.find((d) => d.key === target.key);
+              if (!draft || state.busy) return;
+              draft.photo = String(reader.result);
+            }
+            render();
+            remember();
+          };
+          reader.onerror = () => notify("เปิดรูปไม่ได้ กรุณาเลือกรูปอีกครั้ง");
+          reader.readAsDataURL(file);
+        });
+        root.addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (event.target.id === "tg-edit-form")
+            root.querySelector("#tg-edit-save")?.click();
+        });
+        render();
+      })();
+    </script>
+  </body>
+</html>

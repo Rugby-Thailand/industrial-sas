@@ -1,0 +1,367 @@
+name: Planner quality
+# One workflow owns the merge gate and the automatic release. PRs (including
+# forks and Dependabot) run only the secret-free quality jobs and the stable
+# `check`. A push to main — or a workflow_dispatch from main, which reruns full
+# CI rather than bypassing it — then releases that exact commit. The repository
+# variable STAGING_ENABLED=false skips staging during pre-user development;
+# every other value keeps staging required. There is no manual approval step.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+# PRs: one group per PR, superseded runs cancelled. Every other run gets its own
+# group (run_id), so rapid merges never replace a pending main check. Release
+# serialization lives on the staging/release jobs below, not here.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('planner-quality-pr-{0}', github.event.pull_request.number) || format('planner-quality-run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      # Later steps run even if an earlier check failed, so one run reports
+      # every independent defect; any failed step still fails the job.
+      - name: Workflow lint and action pins
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/validate-workflows.mjs --verify-pins
+      - name: Formatting
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm format:check
+      # The pinned Bun comes from the shared setup action (after the frozen
+      # install). `bun --check`, never bare `bun check`, which would run the aggregate
+      # `check` script. The production build keeps the TypeScript 6 gate.
+      - name: Typecheck (cold next typegen + Bun checker)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm typecheck
+      - name: Lint
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm lint
+      - name: Runtime dependency audit
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm audit:prod
+      # High/critical across all app and release-tool dependencies; only the
+      # exact-chain, expiring entries in scripts/ci/dependency-exceptions.json
+      # are accepted. Registry errors fail.
+      - name: Application dependency audit (exact-chain exceptions)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-dependencies.mjs --scope=app
+      - name: Release-tool dependency audit (exact-chain exceptions)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: node scripts/ci/audit-dependencies.mjs --scope=release
+      - name: Test discovery
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:test-discovery
+      - name: Clean tree after generators
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
+
+  codegen:
+    name: Convex codegen freshness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      # Credential-free anonymous local backend; refuses any CONVEX_* variable.
+      - run: pnpm ci:codegen
+      - name: Clean tree after codegen
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
+
+  test:
+    name: Tests (${{ matrix.shard }}/3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      # Every Vitest project, split by native sharding. Each shard's own exit
+      # status gates `check`; its native JUnit file is the report. Combined
+      # coverage runs in the scheduled/manual `Workspace matrix` workflow.
+      - name: Vitest shard
+        run: >-
+          pnpm exec vitest run
+          --shard=${{ matrix.shard }}/3
+          --reporter=default
+          --reporter=github-actions
+          --reporter=junit
+          --outputFile.junit=test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml
+      - name: Upload shard JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vitest-junit-${{ matrix.shard }}
+          # Re-running a failed shard replaces only its own report.
+          overwrite: true
+          path: test-results/vitest-junit/shard-${{ matrix.shard }}-3.xml
+          retention-days: 7
+          if-no-files-found: error
+
+  # Smoke, isolated navigation Next app and two workspace shards; all gate check.
+  # Smoke and navigation own separate production builds. The Vite
+  # workspace harness needs no Next.js build.
+  browser:
+    name: Browser (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: smoke
+            shard: 0
+          - suite: navigation
+            shard: 0
+          - suite: workspace-1
+            shard: 1
+          - suite: workspace-2
+            shard: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Cache Next.js build
+        if: ${{ matrix.suite == 'smoke' }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-next-bun-${{ hashFiles('pnpm-lock.yaml', '.nvmrc', '.bun-version') }}-
+      # No service credentials: this is the unconfigured production-mode build,
+      # run under the pinned Bun from the shared setup action.
+      - name: Production-mode build (credential-free)
+        if: ${{ matrix.suite == 'smoke' }}
+        run: pnpm build
+      - name: Navigation harness build (credential-free)
+        if: ${{ matrix.suite == 'navigation' }}
+        run: pnpm build:navigation
+      - name: Clean tree after build
+        if: ${{ !cancelled() && (matrix.suite == 'smoke' || matrix.suite == 'navigation') && steps.setup.outcome == 'success' }}
+        run: pnpm ci:clean-tree
+      # Exactly the browser revision bundled with the locked @playwright/test.
+      - name: Install Playwright Chromium
+        id: browsers
+        if: ${{ matrix.suite != 'navigation' }}
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install navigation browser engines
+        id: navigation-browsers
+        if: ${{ matrix.suite == 'navigation' }}
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Anonymous smoke (desktop and mobile)
+        if: ${{ !cancelled() && matrix.suite == 'smoke' && steps.browsers.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e
+      - name: Navigation regressions (desktop engines and mobile Chromium)
+        if: ${{ !cancelled() && matrix.suite == 'navigation' && steps.navigation-browsers.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_REQUIRE_BUILD: "1"
+        run: pnpm test:e2e:navigation
+      - name: Storage workspace (PR subset)
+        if: ${{ !cancelled() && (matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2') && steps.browsers.outcome == 'success' }}
+        env:
+          WORKSPACE_REPORT_NAME: ${{ matrix.suite }}
+        run: pnpm test:e2e:workspace --shard=${{ matrix.shard }}/2
+      - name: Upload browser JUnit
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-junit-${{ matrix.suite }}-${{ github.run_attempt }}
+          path: test-results/${{ matrix.suite }}-junit.xml
+          retention-days: 7
+          if-no-files-found: error
+      # Failure-only, credential-free synthetic diagnostics (traces/screenshots).
+      - name: Upload browser diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-diagnostics-${{ matrix.suite }}-${{ github.run_attempt }}
+          path: |
+            test-results/${{ matrix.suite }}/
+            playwright-report/${{ matrix.suite }}/
+          retention-days: 5
+          if-no-files-found: ignore
+
+  dependency-review:
+    name: Dependency review
+    # PR-only by design; `check` accepts its skip only on push/dispatch.
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime, development, unknown
+          # Narrow, expiring exception only (no patched release exists). Must
+          # match an unexpired entry in scripts/ci/dependency-exceptions.json;
+          # validate-workflows.mjs enforces this, so expiry breaks the PR gate.
+          allow-ghsas: GHSA-vfj7-8cjw-p6xm
+          comment-summary-in-pr: never
+
+  # Stable quality merge gate; CodeQL has separate required checks. Failed,
+  # cancelled, missing or unexpectedly skipped jobs never produce a green check.
+  check:
+    if: ${{ always() }}
+    needs: [validate, codegen, test, browser, dependency-review]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      staging_enabled: ${{ steps.release-policy.outputs.staging_enabled }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Require all quality jobs to pass
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          EVENT_NAME: ${{ github.event_name }}
+          REQUIRED_JOBS: validate,codegen,test,browser,dependency-review
+          PULL_REQUEST_ONLY: dependency-review
+        run: node scripts/ci/aggregate.mjs
+      - name: Capture staging policy
+        id: release-policy
+        env:
+          STAGING_ENABLED: ${{ vars.STAGING_ENABLED }}
+        run: node scripts/ci/release-policy.mjs
+
+  # Trusted stable staging for this exact commit. Fork/PR code never reaches
+  # it: the job runs only for main push/dispatch after `check` succeeded and
+  # only when staging is enabled by the policy captured in that check.
+  staging:
+    name: Staging release
+    needs: [check]
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.check.outputs.staging_enabled == 'true' && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment:
+      name: staging
+      url: https://industrial-sas-staging.vercel.app
+    concurrency:
+      group: industrial-sas-staging-release
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      # Vercel Trusted Sources: the controller requests the configured
+      # audience and hands browsers only a refreshed private token file.
+      id-token: write
+    outputs:
+      outcome: ${{ steps.release.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+      # Standalone locked workspace: no --ignore-workspace, which would drop
+      # its security overrides.
+      - name: Install release tools
+        run: pnpm -C tools/release install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Deploy and verify staging
+        id: release
+        env:
+          RELEASE_ENVIRONMENT: staging
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # Read-only; the controller's stale-main check.
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_ACKNOWLEDGED_DEPLOYMENTS: ${{ vars.RELEASE_ACKNOWLEDGED_DEPLOYMENTS }}
+        run: node scripts/release/run.mjs --target=staging
+      - name: Upload staging manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staging-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release-output/manifest.json
+            release-output/smoke-staging.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Automatic production release of the same commit. An intentionally skipped
+  # staging job is accepted only when the captured policy disabled it.
+  # One job holds the shared production lock (also used by the daily backup
+  # workflow) across backup,
+  # remote build, candidate smoke, promotion and live checks.
+  release:
+    name: Production release
+    needs: [check, staging]
+    if: ${{ !cancelled() && needs.check.result == 'success' && ((needs.check.outputs.staging_enabled == 'false' && needs.staging.result == 'skipped') || (needs.check.outputs.staging_enabled == 'true' && needs.staging.result == 'success' && needs.staging.outputs.outcome == 'STAGING_PASSED')) && github.repository == 'Rugby-Thailand/industrial-sas' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment:
+      name: production-release
+      url: https://app.thaipropertyai.com
+    concurrency:
+      group: industrial-sas-production-release
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "false"
+      - name: Install release tools
+        run: pnpm -C tools/release install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      # Production Convex/Clerk deploy credentials stay in Vercel. The
+      # controller takes the mandatory backup before any deployment.
+      - name: Release production
+        id: release
+        env:
+          RELEASE_ENVIRONMENT: production
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CONVEX_BACKUP_ADMIN_KEY: ${{ secrets.CONVEX_BACKUP_ADMIN_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_ACKNOWLEDGED_DEPLOYMENTS: ${{ vars.RELEASE_ACKNOWLEDGED_DEPLOYMENTS }}
+        run: node scripts/release/run.mjs --target=production
+      - name: Upload release manifest
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: production-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            release-output/manifest.json
+            release-output/backup-metadata.json
+            release-output/smoke-candidate.json
+            release-output/smoke-live.json
+          retention-days: 30
+          if-no-files-found: warn

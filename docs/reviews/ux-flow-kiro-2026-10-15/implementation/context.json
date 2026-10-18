@@ -1,0 +1,14 @@
+{
+  "base": "faca0cf5927dbe3e72da572cf1290d57d7d91511",
+  "paths": {
+    "integration": "/Users/macbook/Development/industrial-sas-ux-flow-20261015",
+    "hr": "/Users/macbook/Development/industrial-sas-ux-flow-20261015-hr",
+    "fg": "/Users/macbook/Development/industrial-sas-ux-flow-20261015-fg",
+    "storage": "/Users/macbook/Development/industrial-sas-ux-flow-20261015-storage"
+  },
+  "audit": "/Users/macbook/Development/industrial-sas/docs/reviews/ux-flow-kiro-2026-10-15",
+  "reportDirectory": "/Users/macbook/Development/industrial-sas/docs/reviews/ux-flow-kiro-2026-10-15/implementation",
+  "reviewBase": "b62999f1efa86ecaf43d6d40a175fc5de27dad8f",
+  "reviewHead": "5e58673b899c325004b3de099fbb92666465d365",
+  "pullRequest": "https://github.com/Rugby-Thailand/industrial-sas/pull/99"
+}

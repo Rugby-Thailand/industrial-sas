@@ -1,0 +1,6 @@
+{"kind":"meta","phase":"setup","run":"setup","startedAt":"2026-10-16T14:03:44.101Z","browserVersion":"151.0.7922.34","executable":"/Users/macbook/Library/Caches/ms-playwright/chromium-1234/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing","node":"v24.19.0","platform":"darwin 25.5.0 arm64","cpu":"Apple M1 Max","cpus":10,"memoryGb":32,"page":{"userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36","hardwareConcurrency":10,"deviceMemory":32,"crossOriginIsolated":false}}
+{"kind":"setup","sample":0,"spawnToReadyMs":19.799999982118607,"initMs":7.800000011920929}
+{"kind":"setup","sample":1,"spawnToReadyMs":13.799999982118607,"initMs":6}
+{"kind":"setup","sample":2,"spawnToReadyMs":13.400000005960464,"initMs":6}
+{"kind":"setup","sample":3,"spawnToReadyMs":13.300000011920929,"initMs":5.699999988079071}
+{"kind":"setup","sample":4,"spawnToReadyMs":13.5,"initMs":6}

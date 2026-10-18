@@ -1,0 +1,66 @@
+{
+  "method": "Human-readable text printed under the product barcode, read visually by Kiro from the original photo (downscaled view, native crop where small). Used only for scoring, never as decoder input. 'confidence' is the reader's judgement, not a measurement.",
+  "rows": [
+    { "id": 40, "printed": "FBN-010533ACA-BOX-F", "confidence": "high" },
+    { "id": 50, "printed": "PTP-PK663079-BOX-F", "confidence": "high" },
+    { "id": 64, "printed": "PTR-A1H160PA-PAR-F", "confidence": "high" },
+    { "id": 75, "printed": "FBN-IRS-M66615-PAA-S", "confidence": "high" },
+    {
+      "id": 81,
+      "printed": null,
+      "partial": "FBN-ADT5038256-",
+      "confidence": "illegible",
+      "note": "tape crease and blur over the suffix"
+    },
+    {
+      "id": 84,
+      "printed": "FBN-BDC0001-BOX-000S",
+      "confidence": "medium",
+      "note": "rotated photo, small text"
+    },
+    {
+      "id": 90,
+      "printed": null,
+      "partial": "FBN-ADT5097256-BOX-",
+      "confidence": "illegible",
+      "note": "strapping tape covers the last character"
+    },
+    { "id": 99, "printed": "FBN-VALPAR002-PAR-F", "confidence": "high" },
+    { "id": 105, "printed": "FBN-BXVMI005-PA01-0F", "confidence": "high" },
+    { "id": 112, "printed": "FBN-1130292-BOX-F", "confidence": "high" },
+    {
+      "id": 120,
+      "printed": "PTR-0025037000-BOX-F",
+      "confidence": "high",
+      "note": "native crop"
+    },
+    {
+      "id": 131,
+      "printed": "PTR-0020141000-PAR-F",
+      "confidence": "high",
+      "note": "native crop"
+    },
+    { "id": 137, "printed": "HAN-854867-BOX-F", "confidence": "high" },
+    {
+      "id": 142,
+      "printed": "COT-HK-C31617-PAC-S",
+      "confidence": "medium",
+      "note": "glare under film"
+    },
+    { "id": 148, "printed": "TDK-AP-002-BOX-F", "confidence": "high" },
+    {
+      "id": 152,
+      "printed": null,
+      "confidence": "illegible",
+      "note": "motion blur; text resembles TTH-D3?3421-PAD-S"
+    },
+    { "id": 155, "printed": "SST-CB30.5X100-PAD-F", "confidence": "high" },
+    {
+      "id": 165,
+      "printed": null,
+      "partial": "CPR-0001-BOX-F",
+      "confidence": "illegible",
+      "note": "too small to confirm at available resolution"
+    }
+  ]
+}

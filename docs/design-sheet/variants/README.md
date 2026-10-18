@@ -20,8 +20,8 @@ workspace use `pushState`, so Back and Forward switch variants. The hash is kept
 ## Implementation
 
 - `index.html` is a copy of `../index.html` with `../` resource paths, the
-  chooser and a baseline link. It loads `../tokens.css`, `../styles.css` and
-  `../sheet.js`, followed by `variants.css` and `variants.js`.
+  chooser and a baseline link. Since 2026-10-11 it loads `frozen-tokens.css`, `frozen-styles.css` and
+  `frozen-sheet.js` (from `8b0ef538`), followed by `variants.css` and `variants.js`.
 - `variants.js` wraps the global `renderWorkflow` from `sheet.js`. Every tab
   switch, language switch and sample action re-renders through the wrapper. After
   the baseline markup renders, it moves the existing content nodes into new
@@ -143,3 +143,7 @@ browser results are recorded in
 - The incumbent design notes already distinguish the sheet's session palette
   snapshot from the application's working-tree tokens. This extension inherits
   the sheet snapshot; it does not resolve or canonize that pre-existing drift.
+
+## Frozen comparison boundary · 2026-10-11
+
+The original sheet's adoption revision does not change these comparison specimens. Its `review.js` and `review.css` are not loaded here. The frozen CSS differs only in font URL paths (`../fonts/`) so local assets resolve. Existing variant evidence remains historical evidence for these frozen assets, not the revised root sheet.

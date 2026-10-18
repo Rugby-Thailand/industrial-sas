@@ -741,7 +741,19 @@
         "name": "sheet-phone-max",
         "value": "520px"
       }
-    ]
+    ],
+    "adoptionReview": {
+      "date": "2026-10-11",
+      "sourceBaseline": "733c6aca",
+      "scope": "Original standalone sheet only; application palette remains authoritative",
+      "denseQuery": "(width >= 48rem) and (pointer: fine)",
+      "defaultControlHeight": "48px",
+      "denseControlHeight": "36px",
+      "rootStylesheet": "review.css",
+      "rootBehavior": "review.js",
+      "historicalEvidenceBaseline": "8b0ef538",
+      "applicationImplementation": "Planned; no release in this revision"
+    }
   },
   "components": [
     {

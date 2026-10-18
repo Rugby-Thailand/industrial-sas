@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-13",
+  "fullVitest": {
+    "command": "pnpm exec vitest run --maxWorkers 2",
+    "files": 267,
+    "passedTests": 3178,
+    "failedTests": 0,
+    "artifact": "/tmp/appwide-full-after-browser.json"
+  },
+  "architecture": {
+    "command": "pnpm check:navigation",
+    "passedFixtures": 64,
+    "routes": 43,
+    "stateOverlayOwners": 187,
+    "actionIntents": 24,
+    "literalEvidenceFiles": 29
+  },
+  "normalLint": "passed",
+  "typecheck": "passed",
+  "ownedFormat": "passed",
+  "gitDiffCheck": "passed",
+  "wholeWorktreeFormat": "blocked by unrelated dirty design/research/config formatting; owned files pass",
+  "testDiscovery": {
+    "status": "worktree limitation",
+    "untrackedCollectedFiles": 23,
+    "userIndexPreserved": true
+  },
+  "browser": {
+    "engine": "Chromium",
+    "viewport": [390, 844],
+    "actualHardware": false,
+    "pageExceptions": 0,
+    "remainingDevelopmentWarning": "Client-rendered script tag during locale replacement, independently reproduced by plain Profile locale control",
+    "thaiScanConsoleErrors": 0
+  },
+  "cleanup": {
+    "ephemeralAuthenticationStateRemoved": true,
+    "ownedApp3100Stopped": true,
+    "ownedBackend3211Stopped": true,
+    "preexistingBackend3210Retained": true,
+    "savedDataRetained": true
+  },
+  "businessMutations": 0,
+  "commits": 0,
+  "pushes": 0,
+  "deployments": 0
+}

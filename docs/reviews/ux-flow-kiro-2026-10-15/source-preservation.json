@@ -1,0 +1,10 @@
+{
+  "baselineFiles": 1870,
+  "changedExistingFiles": [],
+  "missingExistingFiles": [],
+  "newFilesOutsideReview": [
+    "docs/reviews/query-performance-2026-10-15/README.md",
+    "docs/reviews/query-performance-2026-10-15/kiro-findings.md"
+  ],
+  "note": "Compared byte hashes of all tracked and nonignored untracked files that existed before Kiro launch; the review directory is excluded. Ignored caches/logs/temp files are outside this check."
+}

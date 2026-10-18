@@ -63,6 +63,33 @@ Functions use `bunVersion: "1.4.x"`, and `GET /api/runtime` reports the serving
 runtime. See [Bun runtime](docs/operations/bun-runtime.md) for exceptions,
 setup, rollback and deferred work.
 
+AI Search uses the Elysia `POST /api/ai/search` route inside Next.js, with an
+Eden client and validated request/response contracts in `src/lib/ai`.
+The browser obtains cached Clerk session/Convex tokens for its active organization.
+Clerk middleware authenticates the session bearer token; the route verifies the
+Convex JWT's signature, time validity, audience, issuer, origin, user and
+organization before forwarding it. Cookie-only clients retain the existing
+server-token path. Convex owns tenant authorization, durable quotas, grounding
+and OpenRouter credentials. `Server-Timing` reports route authentication and
+Convex-call durations; it excludes Clerk proxy time. The SDK caches signing keys;
+optional `CLERK_JWT_KEY` accepts the Clerk PEM public key to avoid the initial
+JWKS request. Maintain that configuration when Clerk rotates its signing key.
+Eden date parsing is disabled so calendar dates remain strings. Elysia 1.4's
+TypeBox and `exact-mirror` 0.2 peers are explicitly pinned together.
+
+Run `node scripts/ai-search-http-benchmark.mjs` to measure warm, in-process
+Elysia handling with synthetic auth/action results. This excludes Next.js
+hosting, network calls, real authentication and model latency; it does not
+compare against the former direct Convex path.
+
+Paste `scripts/ai-search-auth-benchmark.mjs` into the browser console of a
+signed-in local app to compare server token generation with browser token reuse.
+It uses real Clerk and normal Convex authorization/quota preflight, with a
+whitespace query that avoids OpenRouter. Results include one excluded warmup
+per path and five samples per path. The
+[Clerk authentication measurements](docs/reviews/ai-search-clerk-performance-2026-10-11.md)
+record the local result and its limits.
+
 ## Production
 
 ### CI/CD

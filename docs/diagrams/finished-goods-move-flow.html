@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow ย้ายพาเลท (Finished Goods Move)</title>
+<style>
+  :root {
+    --ink: #1f2933; --muted: #616e7c; --line: #9aa5b1; --bg: #f7f8fa;
+    --blue: #2563eb; --blue-bg: #eff6ff; --amber: #b45309; --amber-bg: #fffbeb;
+    --green: #15803d; --green-bg: #f0fdf4; --gray-bg: #f1f5f9; --red: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 "Sarabun", "Noto Sans Thai", system-ui, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 36px 0 12px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; }
+  .card { background: #fff; border: 1px solid #e4e7eb; border-radius: 12px; padding: 20px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: inherit; fill: var(--ink); }
+  .state rect { stroke-width: 2; }
+  .s-start rect { fill: #fff; stroke: var(--line); stroke-dasharray: 5 4; }
+  .s-res rect { fill: var(--blue-bg); stroke: var(--blue); }
+  .s-tr rect { fill: var(--amber-bg); stroke: var(--amber); }
+  .s-done rect { fill: var(--green-bg); stroke: var(--green); }
+  .s-end rect { fill: var(--gray-bg); stroke: var(--line); }
+  .title { font-weight: 700; font-size: 15px; }
+  .code { font: 12px ui-monospace, Menlo, monospace; fill: var(--muted); }
+  .edge { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+  .edge.alt { stroke: var(--line); stroke-dasharray: 6 4; }
+  .edge.err { stroke: var(--red); stroke-dasharray: 4 3; }
+  .lbl { font-size: 13px; }
+  .lbl-code { font: 11.5px ui-monospace, Menlo, monospace; fill: var(--blue); }
+  .lbl-err { font-size: 12px; fill: var(--red); }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden;
+    border: 1px solid #e4e7eb; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eef0f2; vertical-align: top; }
+  th { background: #f9fafb; font-weight: 600; }
+  code { font: 12.5px ui-monospace, Menlo, monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+  .p-stored { background: var(--green-bg); color: var(--green); }
+  .p-res { background: var(--blue-bg); color: var(--blue); }
+  .p-rel { background: var(--gray-bg); color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .grid .card { padding: 14px 16px; }
+  .grid b { display: block; margin-bottom: 2px; }
+  .grid span { color: var(--muted); font-size: 14px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .legend i { display: inline-block; width: 26px; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
+  .legend i.alt { border-top: 2px dashed var(--line); }
+  .legend i.err { border-top: 2px dashed var(--red); }
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Flow ย้ายพาเลท</h1>
+  <p class="lead">สถานะของ <code>finishedGoodsMoves</code> และสิ่งที่ผู้ปฏิบัติงานทำในแต่ละขั้น · อ้างอิง <code>convex/finishedGoods/workflow.ts</code></p>
+
+  <div class="card">
+    <svg viewBox="0 0 1080 470" role="img" aria-label="แผนภาพสถานะการย้ายพาเลท">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#1f2933"/>
+        </marker>
+        <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#9aa5b1"/>
+        </marker>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#b91c1c"/>
+        </marker>
+      </defs>
+
+      <!-- States (main row y=150) -->
+      <g class="state s-start"><rect x="10" y="120" width="150" height="64" rx="10"/>
+        <text x="85" y="148" text-anchor="middle" class="title">พาเลทจัดเก็บแล้ว</text>
+        <text x="85" y="168" text-anchor="middle" class="code">pallet STORED</text></g>
+
+      <g class="state s-res"><rect x="235" y="120" width="160" height="64" rx="10"/>
+        <text x="315" y="148" text-anchor="middle" class="title">จองปลายทางแล้ว</text>
+        <text x="315" y="168" text-anchor="middle" class="code">RESERVED</text></g>
+
+      <g class="state s-tr"><rect x="490" y="105" width="190" height="94" rx="10"/>
+        <text x="585" y="136" text-anchor="middle" class="title">กำลังย้าย</text>
+        <text x="585" y="156" text-anchor="middle" class="code">IN_TRANSIT</text>
+        <text x="585" y="180" text-anchor="middle" class="code">verifiedAt: ยังไม่มี / มีแล้ว</text></g>
+
+      <g class="state s-done"><rect x="900" y="120" width="160" height="64" rx="10"/>
+        <text x="980" y="148" text-anchor="middle" class="title">ย้ายเสร็จ</text>
+        <text x="980" y="168" text-anchor="middle" class="code">COMPLETED</text></g>
+
+      <!-- Terminal alternatives -->
+      <g class="state s-end"><rect x="235" y="350" width="160" height="64" rx="10"/>
+        <text x="315" y="378" text-anchor="middle" class="title">ยกเลิก</text>
+        <text x="315" y="398" text-anchor="middle" class="code">CANCELLED</text></g>
+
+      <g class="state s-end"><rect x="505" y="350" width="160" height="64" rx="10"/>
+        <text x="585" y="378" text-anchor="middle" class="title">คืนต้นทางแล้ว</text>
+        <text x="585" y="398" text-anchor="middle" class="code">RETURNED</text></g>
+
+      <!-- 1. reserve -->
+      <path class="edge" d="M160 152 H233" marker-end="url(#a)"/>
+      <text x="197" y="108" text-anchor="middle" class="lbl">① เลือกปลายทาง</text>
+      <text x="197" y="124" text-anchor="middle" class="lbl-code">reserveMove</text>
+
+      <!-- change destination loop -->
+      <path class="edge alt" d="M285 120 C 285 55, 345 55, 345 118" marker-end="url(#ag)"/>
+      <text x="315" y="40" text-anchor="middle" class="lbl">เปลี่ยนปลายทาง</text>
+      <text x="315" y="56" text-anchor="middle" class="lbl-code">reserveMove + moveId</text>
+
+      <!-- 2. start -->
+      <path class="edge" d="M395 152 H488" marker-end="url(#a)"/>
+      <text x="442" y="108" text-anchor="middle" class="lbl">② สแกนพาเลท</text>
+      <text x="442" y="124" text-anchor="middle" class="lbl-code">startMove</text>
+      <text x="505" y="218" text-anchor="end" class="lbl-err">ไม่ตรง → PALLET_MISMATCH</text>
+
+      <!-- 3. verify loop -->
+      <path class="edge" d="M555 105 C 555 35, 615 35, 615 103" marker-end="url(#a)"/>
+      <text x="585" y="22" text-anchor="middle" class="lbl">③ สแกนปลายทาง</text>
+      <text x="660" y="52" class="lbl-code">verifyMoveDestination</text>
+      <text x="660" y="70" class="lbl-err">ไม่ตรง → DESTINATION_MISMATCH</text>
+      <text x="660" y="86" class="lbl-err">(ล้าง verifiedAt)</text>
+
+      <!-- 4. complete -->
+      <path class="edge" d="M680 152 H898" marker-end="url(#a)"/>
+      <text x="789" y="132" text-anchor="middle" class="lbl">④ ยืนยันวางเสร็จ</text>
+      <text x="789" y="174" text-anchor="middle" class="lbl-code">completeMove</text>
+      <text x="789" y="192" text-anchor="middle" class="lbl-err">ต้อง verify ก่อน</text>
+
+      <!-- cancel -->
+      <path class="edge alt" d="M315 184 V348" marker-end="url(#ag)"/>
+      <text x="327" y="262" class="lbl">ยังไม่หยิบ → ยกเลิก</text>
+      <text x="327" y="280" class="lbl-code">cancelMove</text>
+
+      <!-- return -->
+      <path class="edge alt" d="M585 199 V348" marker-end="url(#ag)"/>
+      <text x="597" y="262" class="lbl">หยิบแล้ว → คืนต้นทาง + สแกนต้นทาง</text>
+      <text x="597" y="280" class="lbl-code">returnMove</text>
+
+      <!-- blocked: cancel after pickup -->
+      <path class="edge err" d="M520 199 V382 H397" marker-end="url(#ar)"/>
+      <text x="500" y="350" text-anchor="end" class="lbl-err">ยกเลิกหลังหยิบไม่ได้</text>
+      <text x="500" y="366" text-anchor="end" class="lbl-err" style="font-size:11px">MOVE_RETURN_REQUIRED</text>
+
+      <!-- issue note -->
+      <text x="900" y="250" class="lbl">ทุกสถานะที่ยัง active</text>
+      <text x="900" y="268" class="lbl">รายงานปัญหาได้</text>
+      <text x="900" y="286" class="lbl-code">reportMoveIssue</text>
+    </svg>
+    <div class="legend">
+      <span><i></i>เส้นทางหลัก</span>
+      <span><i class="alt"></i>ทางเลือก / ยกเลิก</span>
+      <span><i class="err"></i>ระบบปฏิเสธ</span>
+    </div>
+  </div>
+
+  <h2>ตำแหน่งต้นทางและปลายทางในแต่ละสถานะ (<code>finishedGoodsPlacements</code>)</h2>
+  <table>
+    <thead><tr><th>สถานะงานย้าย</th><th>ต้นทาง</th><th>ปลายทาง</th><th>พาเลทชี้ไปที่</th></tr></thead>
+    <tbody>
+      <tr><td><code>RESERVED</code></td><td><span class="pill p-stored">STORED</span></td><td><span class="pill p-res">RESERVED</span></td><td>ต้นทาง</td></tr>
+      <tr><td><code>IN_TRANSIT</code></td><td><span class="pill p-stored">STORED</span> ยังกันไว้</td><td><span class="pill p-res">RESERVED</span></td><td>ต้นทาง (ตำแหน่งยืนยันล่าสุด)</td></tr>
+      <tr><td><code>COMPLETED</code></td><td><span class="pill p-rel">RELEASED</span></td><td><span class="pill p-stored">STORED</span></td><td>ปลายทาง</td></tr>
+      <tr><td><code>CANCELLED</code> / <code>RETURNED</code></td><td><span class="pill p-stored">STORED</span></td><td><span class="pill p-rel">RELEASED</span></td><td>ต้นทาง</td></tr>
+    </tbody>
+  </table>
+
+  <h2>สิ่งที่ระบบกันไว้</h2>
+  <div class="grid">
+    <div class="card"><b>เจ้าของงานคนเดียว</b><span>คนอื่นทำต่อไม่ได้ · <code>MOVE_OWNED_BY_ANOTHER_OPERATOR</code></span></div>
+    <div class="card"><b>มีงาน active ได้งานเดียวต่อพาเลท</b><span>ต้องทำงานเดิมต่อ · <code>MOVE_ALREADY_ACTIVE</code></span></div>
+    <div class="card"><b>ข้อมูลเปลี่ยนระหว่างทาง</b><span>ต้นทางหรือปลายทางถูกแก้ ระบบหยุดให้โหลดใหม่ · <code>MOVE_SOURCE_CHANGED</code> / <code>MOVE_TARGET_CHANGED</code></span></div>
+    <div class="card"><b>พาเลทซ้อน</b><span>ต้องย้ายพาเลทบนก่อนพาเลทรองรับ · <code>FG_PALLET_SUPPORTING_STACK</code></span></div>
+    <div class="card"><b>ตรวจตำแหน่งซ้ำทุกขั้น</b><span><code>validMovePlacement</code> ทำงานทั้งตอนหยิบ, verify, วาง และคืน</span></div>
+    <div class="card"><b>คืนต้นทางได้เสมอ</b><span>ถึงปลายทางจะใช้ไม่ได้แล้ว ก็คืนพาเลทที่ต้นทางได้</span></div>
+  </div>
+
+  <footer>ขั้น ② และ ④ ใช้การกดยืนยัน (<code>ACKNOWLEDGEMENT</code>) แทนการสแกนได้ · ถ้ากดยืนยันวางเสร็จด้วยวิธีนี้ ระบบไม่บังคับให้ทำขั้น ③ ก่อน</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINE พนักงาน — ข้อความและการรับทราบ</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#fff;color:#17212f;font-family:Thonburi,"Noto Sans Thai",sans-serif}main{width:960px;margin:0 auto;padding:32px 40px 24px}.eyebrow{font-size:17px;font-weight:600;color:#1d4ed8;letter-spacing:.5px}h1{font-size:32px;line-height:1.45;margin:10px 0 8px}p{font-size:18px;color:#475569;margin:0;line-height:1.65}svg{display:block;width:880px;height:860px;margin-top:24px}.edge{fill:none;stroke:#748196;stroke-width:2.5;marker-end:url(#arrow)}.edge.blue{stroke:#1d4ed8;marker-end:url(#blue-arrow)}.box{fill:#f6f7f9;stroke:#dce2ea;stroke-width:1.5}.accent{fill:#eff6ff;stroke:#93b5f8;stroke-width:1.5}.success{fill:#eaf5ef;stroke:#8cbba1;stroke-width:1.5}.decision{fill:#fff8e8;stroke:#d5b77c;stroke-width:1.5}.node{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:8px 12px}.node strong{font-size:22px;line-height:1.5;font-weight:600}.node span{font-size:17px;color:#475569;line-height:1.65}.branch{font-size:18px;font-weight:600;fill:#17212f}.note{font-size:17px;color:#475569;line-height:1.65;border-top:1px solid #dce2ea;padding-top:18px;margin-top:16px}.note strong{color:#17212f;font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">แผน LINE สำหรับพนักงาน · FLOW หลังลดขั้น</div>
+<h1>ตั้งข้อความ → อ่าน Card → กดรับทราบ → ติดตาม</h1>
+<p>ก่อนเริ่ม: เชื่อม LINE OA และยืนยันบัญชีพนักงานแล้ว<br>ระบบใช้ bot เริ่มต้นขององค์กร ไม่ต้องเลือกใหม่ทุกคน</p>
+<svg viewBox="0 0 880 860" role="img" aria-label="HR ตั้งข้อความและผู้รับ ดูตัวอย่าง ส่งข้อความ พนักงานอ่าน Card และกดรับทราบเฉพาะข้อความที่กำหนด ระบบบันทึกและให้ HR ติดตาม">
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#748196"/></marker>
+<marker id="blue-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#1d4ed8"/></marker>
+</defs>
+<path class="edge" d="M272 45H304"/>
+<path class="edge" d="M576 45H608"/>
+<path class="edge" d="M744 90V115H440V140"/>
+<path class="edge" d="M440 230V265"/>
+<path class="edge" d="M440 355V395"/>
+<path class="edge" d="M322 456H202V535"/>
+<path class="edge blue" d="M558 456H678V535"/>
+<path class="edge blue" d="M678 625V660"/>
+<path class="edge blue" d="M678 750V785"/>
+<rect class="accent" x="0" y="0" width="272" height="90" rx="12"/>
+<foreignObject x="0" y="0" width="272" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>เลือก Card และผู้รับ</strong><span>หัวข้อ / เนื้อหา / ปุ่ม</span></div></foreignObject>
+<rect class="box" x="304" y="0" width="272" height="90" rx="12"/>
+<foreignObject x="304" y="0" width="272" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>Preview / ส่งทดสอบ</strong><span>ตรวจข้อความก่อนส่งจริง</span></div></foreignObject>
+<rect class="box" x="608" y="0" width="272" height="90" rx="12"/>
+<foreignObject x="608" y="0" width="272" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>ส่ง / เปิดแจ้งเตือน</strong><span>ครั้งเดียว / ตามเหตุการณ์</span></div></foreignObject>
+<rect class="box" x="200" y="140" width="480" height="90" rx="12"/>
+<foreignObject x="200" y="140" width="480" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>ระบบตรวจผู้รับก่อนส่ง</strong><span>พนักงานยัง active / มีสิทธิ์ / เชื่อม LINE แล้ว</span></div></foreignObject>
+<rect class="accent" x="200" y="265" width="480" height="90" rx="12"/>
+<foreignObject x="200" y="265" width="480" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>พนักงานได้รับและอ่าน Card</strong><span>สรุปสั้น อ่านง่าย มีปุ่มเปิดรายละเอียด</span></div></foreignObject>
+<path class="decision" d="M440 395L558 456L440 517L322 456Z"/>
+<foreignObject x="341" y="425" width="198" height="62"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong style="font-size:21px">ต้องรับทราบ?</strong></div></foreignObject>
+<text class="branch" x="250" y="438" text-anchor="middle">ไม่ต้อง</text>
+<text class="branch" x="624" y="438" text-anchor="middle" style="fill:#1d4ed8">ต้อง</text>
+<rect class="box" x="12" y="535" width="380" height="90" rx="12"/>
+<foreignObject x="12" y="535" width="380" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>อ่าน / เปิดรายละเอียด</strong><span>ไม่เพิ่มขั้นยืนยันที่ไม่จำเป็น</span></div></foreignObject>
+<rect class="accent" x="488" y="535" width="380" height="90" rx="12"/>
+<foreignObject x="488" y="535" width="380" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>กด “รับทราบ” ครั้งเดียว</strong><span>ไม่ต้องพิมพ์ตอบ หรือยืนยันซ้ำ</span></div></foreignObject>
+<rect class="box" x="488" y="660" width="380" height="90" rx="12"/>
+<foreignObject x="488" y="660" width="380" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>ตรวจผู้รับและรุ่นข้อความ</strong><span>บันทึกการรับทราบเพียงครั้งเดียว</span></div></foreignObject>
+<rect class="success" x="488" y="785" width="380" height="75" rx="12"/>
+<foreignObject x="488" y="785" width="380" height="75"><div xmlns="http://www.w3.org/1999/xhtml" class="node"><strong>ตอบกลับว่าบันทึกแล้ว</strong><span>HR เห็นผลในหน้าติดตาม</span></div></foreignObject>
+</svg>
+<div class="note"><strong>สถานะต้องแยกกัน:</strong> API รับคำขอส่งแล้ว ≠ เปิดรายละเอียด ≠ กดรับทราบแล้ว<br>พนักงานที่ไม่ได้เชื่อม LINE ยังอ่านและรับทราบข้อความเดียวกันในแอปได้</div>
+</main>
+</body>
+</html>

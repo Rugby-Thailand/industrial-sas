@@ -1,0 +1,13 @@
+PASS — independent spec/correctness review.
+
+Reviewed SHA: `b0a24dc9a93b62e8afda782b09d4c4a8642f32da`.
+Baseline: `218493e280bdf25d2aa4cf955048b2c336cfae62`.
+Scope: the three-dot diff and intervening commits, against the original research, probes, [21 confirmed findings](../expanded/final-ranking.md), [review decisions](../expanded/review-decisions.md), and [Back navigation contract](../../../contracts/back-navigation.md). The reviewed additions include separately confirmed ROOT-04 and ROOT-05; the five excluded policy cases remain excluded.
+
+- **Missing or partial requirements:** no concrete blocker found. Command identity and recovery remain separate from fresh submission; legacy reconciliation does not manufacture form success. Old-date clock receipts cannot become today's receipt. Current/former identity exclusion includes retained pre-rollout audits, reverse-order self-link checks, and conservative incomplete-history refusal. Employment selection applies overlap before workflow limits and refuses incomplete bounded reads. Correction prefill retains untouched event precision.
+- **Unintended scope:** none found. Schema revisions, recovery fences, retry-order variants, query refresh tokens, and the two additional history/focus fixes support the authorized defects. The established HR pilot limits and excluded policy behavior remain intact.
+- **Seemingly implemented but wrong behavior:** none remaining in the final candidate. Retained edit revisions prevent lost updates; discrete quantities use the shared precision contract. Search preserves native continuation through empty filtered pages. Ticket acquisition reserves capacity before rendering; Blob cleanup respects each owner. Clock refresh retains live subscriptions and drafts. Async completion stays with its originating scope. Shortcut receipts are consumed once after pending remount, adopt the next save baseline, and respect newer preferences. Inspector handoff waits for consumed history and focus release; deferred picker focus respects later user focus.
+
+Independent verification on this exact SHA: **16 files / 195 tests passed**, covering registered backend recovery/authorization/replay, actual HR and inventory callers, navigation, storage handoff/completion, query refresh, capacity, and photo ownership. Inventory case references name existing literal caller tests.
+
+Limits: local registered Convex/component/history tests; this review does not claim production OCC/network scheduling, physical camera validation, or a deployed-browser walkthrough. Parent's full-suite and build gates remain separate requirements before merge.

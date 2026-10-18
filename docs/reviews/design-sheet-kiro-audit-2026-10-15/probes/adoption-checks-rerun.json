@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-11",
+  "checkedAt": "2026-10-15T14:00:14.140Z",
+  "scope": "Original standalone sheet adoption revision",
+  "sourceBaseline": "733c6aca",
+  "approvedComposition": "8b0ef538",
+  "method": "jsdom local DOM/events; selected axe structural rules; source checks; hex contrast arithmetic",
+  "checks": 1624,
+  "stateCombinations": 68,
+  "structuralAxeRuns": 16,
+  "unverified": [
+    "Browser layout/overflow",
+    "Computed pointer density",
+    "Browser color contrast/axe",
+    "Physical devices/camera",
+    "Screen reader",
+    "Application build/production CSS",
+    "Deployed state"
+  ],
+  "structuralAxeRules": [
+    "button-name",
+    "label",
+    "select-name",
+    "aria-valid-attr",
+    "aria-valid-attr-value",
+    "aria-required-attr",
+    "aria-allowed-attr",
+    "aria-allowed-role",
+    "aria-input-field-name",
+    "duplicate-id-aria"
+  ],
+  "badgeContrast": {
+    "light-success": 8.67,
+    "light-warning": 8.76,
+    "light-danger": 8.29,
+    "light-pending": 9.72,
+    "dark-success": 7.98,
+    "dark-warning": 8.01,
+    "dark-danger": 8.14,
+    "dark-pending": 7.96
+  },
+  "passed": true
+}

@@ -1,6 +1,8 @@
 /* Adoption review additions; the approved original composition stays intact. */
 :root {
   --sheet-control-size: 48px;
+  --review-field-size: 40px;
+  --review-field-pad: 7px;
   --review-input-size: 16px;
   --review-input-line: 24px;
   --review-button-pad: 10px;
@@ -8,6 +10,8 @@
 @media (width >= 48rem) and (pointer: fine) {
   :root {
     --sheet-control-size: 36px;
+    --review-field-size: 32px;
+    --review-field-pad: 5px;
     --review-input-size: 14px;
     --review-input-line: 20px;
     --review-button-pad: 6px;
@@ -16,27 +20,151 @@
 .btn {
   padding-block: var(--review-button-pad);
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/*
+ * Picker sources connect the React islands to the vanilla draft handlers.
+ * They are hidden only after controls.js has mounted. While the bundle is
+ * still loading they keep their space without showing; if it fails, they
+ * are replaced by labelled read-only values (see #controls-fallback).
+ */
+.sheet-controls-pending:not(.sheet-controls-ready)
+  :is(
+    .select-input > select,
+    .field input[data-sheet-date],
+    .field input[data-sheet-time]
+  ) {
+  visibility: hidden;
+}
+.sheet-controls-ready
+  :is(
+    .select-input > select,
+    .field input[data-sheet-date],
+    .field input[data-sheet-time]
+  ),
+.field input[hidden] {
+  display: none !important;
+}
+.sheet-controls-failed
+  :is(.select-input > select, input[data-sheet-date], input[data-sheet-time]) {
+  display: none !important;
+}
+.sheet-fallback-field {
+  width: 100%;
+  min-width: 0;
+  height: var(--review-field-size);
+  padding: var(--review-field-pad) 10px;
+  border: 1px solid var(--token-border);
+  border-radius: 6.4px;
+  background: transparent;
+  color: var(--token-text);
+  font: var(--review-input-size) / var(--review-input-line) var(--sheet-sans);
+}
+.controls-fallback {
+  margin: 0 0 16px;
+  padding: 8px 0;
+  border-block: 1px solid var(--token-border);
+  color: var(--token-warning);
+  font-size: 12px;
+  line-height: 18px;
+}
+/* Pressed toggles: selected surface, link edge and ink, as well as aria-pressed. */
+.btn.outline[aria-pressed="true"],
+.btn.outline[aria-pressed="true"]:hover {
+  background: var(--token-accent-surface);
+  border-color: var(--token-link);
+  color: var(--token-link);
+}
+@media (forced-colors: active) {
+  .btn[aria-pressed="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+  }
+}
+/* Pending keeps the resting appearance and blocks repeats; not disabled. */
+.btn[aria-busy="true"] {
+  cursor: progress;
+}
+.btn.primary[aria-busy="true"],
+.btn.primary[aria-busy="true"]:hover {
+  background: var(--token-accent);
+}
+.btn[aria-busy="true"]:active {
+  transform: none;
+}
+.btn[aria-busy="true"] svg {
+  width: 16px;
+  height: 16px;
+}
+/* Disabled fields look locked like the disabled pickers beside them. */
+.field input:disabled,
+.search-input:disabled {
+  cursor: not-allowed;
+  background: var(--token-disabled-surface);
+  border-color: var(--token-border);
+  color: var(--token-disabled);
+  -webkit-text-fill-color: var(--token-disabled);
+  opacity: 1;
+}
+/* Read-only text stays legible on a transparent, quieter edge. */
+.field input[readonly] {
+  background: transparent;
+  border-color: var(--token-border);
+}
+/* Quiet and in-field icon actions never gain a fill, disabled or not. */
+.btn.quiet:disabled,
+.btn.field-scan:disabled {
+  background: transparent;
+  border-color: transparent;
+  color: var(--token-disabled);
+}
+/* Text actions use ink only; field icons have their own unchanged states. */
+.btn.quiet:not(.icon-btn) {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+  box-shadow: none;
+  text-decoration: none;
+  transition: color var(--sheet-duration);
+}
+.btn.quiet:not(.icon-btn):is(:hover, :active):not(:disabled):not(
+    [aria-disabled="true"]
+  ):not([aria-busy="true"]) {
+  color: var(--token-link);
+}
+.btn.quiet:not(.icon-btn):is(:disabled, [aria-disabled="true"]) {
+  color: var(--token-disabled);
+  cursor: not-allowed;
+}
 .field input,
-.search-input,
-.field select,
-.review-mode select,
-.pagination-example select {
+.search-input {
+  min-height: var(--review-field-size);
+  height: var(--review-field-size);
   font-size: var(--review-input-size);
   line-height: var(--review-input-line);
-  padding-block: var(--review-button-pad);
+  padding-block: var(--review-field-pad);
 }
-.field select,
-.review-mode select,
-.pagination-example select {
-  min-height: var(--sheet-control-size);
-  border: 1px solid var(--token-border-strong);
-  border-radius: 6.4px;
-  background: var(--token-surface);
-  color: var(--token-text);
-  padding-inline: 10px;
+.field .field-hint,
+.field .field-error {
+  margin-top: 4px;
+}
+.select-input {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
   max-width: 100%;
 }
-.field select {
+.field .select-input {
+  display: flex;
   width: 100%;
 }
 .review-mode {
@@ -51,23 +179,57 @@
   font-size: 12px;
   color: var(--token-muted);
 }
-.review-mode select {
-  width: auto;
-}
 .scan-required {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, 0.45fr);
   align-items: start;
 }
 .scan-input {
   position: relative;
+  display: flex;
 }
 .scan-input input {
-  padding-inline-end: calc(var(--sheet-control-size) + 4px);
+  padding-inline-end: calc(var(--review-field-size) + 4px);
 }
-.field-scan {
+.btn.field-scan {
   position: absolute;
-  right: 1px;
-  top: 0;
+  inset-block: 1px;
+  inset-inline-end: 1px;
+  width: calc(var(--review-field-size) - 2px);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--token-muted);
+}
+.field-scan svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.field-scan:focus-visible {
+  outline-offset: -2px;
+}
+.catalogue-search {
+  align-items: center;
+}
+.search-wrap {
+  display: flex;
+}
+.search-wrap > svg {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+.catalogue-search > .btn {
+  min-height: var(--review-field-size);
+  padding-block: var(--review-field-pad);
+  line-height: var(--review-input-line);
+}
+.btn.icon-btn {
+  padding: 0;
 }
 .ticket-heading {
   align-items: center;
@@ -215,6 +377,117 @@
   color: var(--token-link);
   text-underline-offset: 3px;
 }
+/* Field state specimens (examples only; not business rules). */
+.picker-states {
+  margin-top: 24px;
+}
+.picker-states > h3 {
+  font-size: 14px;
+  line-height: 20px;
+}
+.picker-states > p {
+  margin-top: 4px;
+  max-width: 72ch;
+}
+.picker-state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px 8px;
+  margin-top: 12px;
+  align-items: start;
+}
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.field .field-label-row label {
+  margin-bottom: 0;
+}
+.state-tag {
+  color: var(--token-muted);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+/*
+ * Spacing fixes · 2026-10-16 (G01–G08 in
+ * docs/reviews/design-sheet-spacing-2026-10-16/audit.md). Each relationship
+ * has one spacing owner; field sizes, label/help gaps and text are unchanged.
+ */
+/* G01: live regions stay in the DOM but take no space until they speak. */
+.control-feedback,
+.inline-feedback {
+  min-height: 0;
+  margin-top: 8px;
+}
+.control-feedback:empty,
+.inline-feedback:empty {
+  margin-top: 0;
+}
+/* G03: task demonstrations sit 16px below their heading and each other. */
+.controls-grid :is(.button-specimens, .field-grid, .picker-specimens) {
+  margin-top: 16px;
+}
+/* G02: picker help belongs to its row; the general note follows at 8px. */
+.controls-grid .picker-specimens + .picker-help {
+  margin-top: 4px;
+}
+.controls-grid .picker-help + .picker-note {
+  margin-top: 8px;
+}
+/* G04: page size and Previous/page/Next wrap as two units, never apart. */
+.pagination-example {
+  gap: 12px;
+}
+.pagination-size,
+.pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pagination-nav {
+  flex-wrap: nowrap;
+}
+/* G05: heading → attributes 8px; groups and the action 12px apart. */
+.floor-inspector dl > div:last-child {
+  margin-bottom: 0;
+}
+.floor-inspector .btn {
+  margin-top: 12px;
+}
+@media (max-width: 520px) {
+  .floor-inspector {
+    row-gap: 8px;
+  }
+  .floor-inspector h4 {
+    margin-bottom: 0;
+  }
+  .floor-inspector .btn {
+    margin-top: 0;
+  }
+}
+/* G06: success actions and no-result content separate from what precedes. */
+.ticket-toolbar.scan-success-actions {
+  margin-top: 12px;
+}
+.empty-example.catalogue-no-results {
+  margin-top: 12px;
+}
+/* G07: two-column intermediate widths keep the desktop rhythm. */
+@media screen and (width > 800px) and (width <= 1100px) {
+  main {
+    padding-block: 32px;
+  }
+  .workspace-grid,
+  .foundation-grid,
+  .controls-grid,
+  .layout-grid {
+    gap: 24px;
+  }
+}
 @media (max-width: 800px) {
   .scan-required {
     grid-template-columns: 1fr 1fr;
@@ -234,7 +507,7 @@
   .review-mode {
     padding-inline: 16px;
   }
-  .review-mode select {
+  .review-mode .select-input {
     flex: 1;
     min-width: 0;
   }
@@ -252,11 +525,49 @@
   .adoption-section {
     break-inside: avoid;
   }
-}
-
-.field select:focus-visible,
-.review-mode select:focus-visible,
-.pagination-example select:focus-visible {
-  border-color: var(--ring);
-  outline-offset: -1px;
+  /*
+   * Print is always light. styles.css resets the --token-* surfaces; these
+   * cover the dark-only inks and base variables it leaves behind. review.js
+   * also drops .dark around printing so the palette readout matches.
+   */
+  :root,
+  .dark {
+    --sheet-status-success: #084d2c;
+    --sheet-status-warning: #643900;
+    --sheet-status-danger: #851c16;
+    --sheet-status-pending: #3e258a;
+    --token-disabled: #525252;
+    --token-disabled-surface: #f5f5f5;
+    --token-accent-hover: #1024c4;
+    --token-success-contrast: #ffffff;
+    --token-danger-contrast: #ffffff;
+    --background: oklch(0.985 0 0);
+    --foreground: oklch(0.205 0 0);
+    --card: oklch(1 0 0);
+    --popover: oklch(1 0 0);
+    --primary: oklch(0.4901 0.2875 264.3293);
+    --primary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.44 0 0);
+    --accent: oklch(0.92 0.04 272);
+    --accent-foreground: oklch(0.21 0.06 268);
+    --border: oklch(0.92 0 0);
+    --ring: oklch(0.46 0.22 266);
+    --scene-floor-side: #cbd5e1;
+    --scene-grid: #a1adba;
+    --scene-dimension: #475569;
+  }
+  .badge.accent,
+  .dark .badge.accent {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #93b4e5;
+  }
+  .badge.app-success,
+  .dark .badge.app-success {
+    color: #166534;
+  }
+  .picker-states {
+    break-inside: avoid;
+  }
 }

@@ -1,0 +1,41 @@
+{
+  "engine": "Chromium",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "hardware": false,
+  "checks": [
+    {
+      "name": "Plain profile locale control has no workflow or editor",
+      "passed": true,
+      "url": "/th/hr/profile?backCheck=locale#contact",
+      "text": "โปรไฟล์\n\nข้อมูลพนักงานและตารางงานของคุณ\n\nสใ\nสมชาย ใจดี (Test account)\n\nEMP-DEMO-001 · คลังทดสอบ Local Demo\n\nใช้งาน\nรหัสพนักงาน\nEMP-DEMO-001\nสถานที่ทำงาน\nLOCAL-DEMO · คลังทดสอบ Local Demo\nหัวหน้า\nหัวหน้าทดสอบ (Supervisor)\nช่วงการจ้างงาน\nตั้งแต่ 10 สิงหาคม 2569\nเขตเวลา\nAsia/Bangkok\nตารางงาน\nวันทำงาน\nจันทร์\nอังคาร\nพุธ\nพฤหัส\nศุกร์\nเสาร์\n(วันหยุด)\nอาทิตย์\n(วันหยุด)\nกะ\n08:30–17:30 น. · พัก 60 นาที\n\nข้อมูลนี้แก้ไขโดยฝ่ายบุคคล",
+      "history": {
+        "index": 0,
+        "query": "?backCheck=locale",
+        "hash": "#contact"
+      },
+      "settledDestination": true,
+      "visibleNavigationPending": false
+    },
+    {
+      "name": "Thai dirty ticket Back choose again retains job and product",
+      "passed": true,
+      "url": "/th/finished-goods/scan?backCheck=draft&jobScanStep=1#location",
+      "text": "ใบ Job\n\nหนึ่งใบต่อพาเลท\n\nDEMO-ANNEX-F01-Z01\nระบุตำแหน่งแล้ว\nพื้นที่รับเข้า ชั้น 1\nเปลี่ยน\n\nอาคารสาธิต DEMO-ANNEX · ชั้น 1\n\nการบันทึกใบงานหรือระบุจุดจัดเก็บ ไม่ใช่การยืนยันว่าจัดเก็บพาเลทแล้ว\n\nรูปถ่าย (AI)\nสแกนบาร์โค้ด\nกรอกเอง\n#1\n·\nกรอกเอง\nเลขที่ Job\n*\nบาร์โค้ดสินค้า\n*\nประเภทหน่วยจัดเก็บ\nพาเลท\nข้อมูลเสริม\nกรอกแล้ว 0\n\nฉบับร่าง 1 ใบ\n\nบันทึก"
+    },
+    {
+      "name": "Thai subsequent native Back prompts and Keep editing retains question and draft",
+      "passed": true,
+      "url": "/th/finished-goods/scan?backCheck=draft#location",
+      "text": "ใบ Job\n\nหนึ่งใบต่อพาเลท\n\n1. อยู่ตำแหน่งไหน?\n\nสแกนบาร์โค้ดหรือ QR ของตำแหน่ง เลือกรูปภาพ หรือค้นหาด้วยรหัสหรือชื่อ\n\nDEMO-ANNEX-F01-Z01\nอาคารสาธิต DEMO-ANNEX · ชั้น 1 · พื้นที่รับเข้า ชั้น 1"
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "localeControlConsoleErrors": [
+    "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+  ],
+  "localeControlPageErrors": []
+}

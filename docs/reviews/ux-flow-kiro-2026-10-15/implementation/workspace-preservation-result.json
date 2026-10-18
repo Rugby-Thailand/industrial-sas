@@ -1,0 +1,20 @@
+{
+  "checkedFiles": 1923,
+  "changed": [
+    "docs/design-sheet/review.js",
+    "docs/design-sheet/evidence/adoption-checks.json",
+    "docs/design-sheet/index.html",
+    "docs/design-sheet/ui/calendar.tsx",
+    "docs/design-sheet/README.md",
+    "docs/design-sheet/controls.tsx",
+    "docs/design-sheet/evidence/check-controls.cjs",
+    "docs/design-sheet/evidence/README.md",
+    "docs/design-sheet/evidence/check-adoption.cjs",
+    "docs/design-sheet/ui/popover.tsx",
+    "docs/design-sheet/vite.config.mjs",
+    "docs/design-sheet/review.css",
+    "docs/design-sheet/DESIGN.md",
+    "docs/design-sheet/controls.css"
+  ],
+  "missing": []
+}

@@ -1,0 +1,37 @@
+Review the user's annotated screenshots and the UI cleanup plan. This is a review-only task. Do not implement or change application code, translations, styles, tests, contracts, existing plans, or existing audit reports. Do not run deployments, data mutations, git commits, or pushes. Preserve all working-tree changes. You may write only your review report to docs/reviews/ui-cleanup-2026-10-13/kiro-review.md.
+
+User context in Thai: “ประมาณนี้ก่อนลองให้ kiro ดูรูปและดูแผนถ้ายังสงสัยให้ถามมาได้เลย” — these references are enough for now; have Kiro inspect the pictures and plan, and ask if anything remains unclear. The earlier instruction was planning only, with red annotations marking items to remove. Green annotations specify layout changes. The user has not asked to start implementation.
+
+First visually open and inspect all three original annotated images using your image-capable tool. Do not treat file metadata, OCR alone, or another agent's prose as seeing the images. Explicitly record whether pixels were successfully inspected, and what each annotation actually marks. If you cannot inspect the images, state the limitation and do not claim visual verification.
+
+Images:
+- /Users/macbook/Development/industrial-sas/docs/plans/assets/ui-cleanup-2026-10-13/1000035454.jpg
+- /Users/macbook/Development/industrial-sas/docs/plans/assets/ui-cleanup-2026-10-13/1000035458.jpg
+- /Users/macbook/Development/industrial-sas/docs/plans/assets/ui-cleanup-2026-10-13/1000035459.jpg
+
+Then read:
+- docs/plans/ui-cleanup-2026-10-13.md (main plan; UI-001 through UI-008)
+- docs/reviews/frontend-consistency-2026-10-13/decision-review-th.md (background research only; do not expand the screenshot implementation scope to all 18 groups)
+- AGENTS.md and docs/contracts/back-navigation.md; consult exact affected entries in docs/contracts/back-navigation.json as needed.
+
+Relevant current source to verify only as necessary:
+- src/components/examples/c-sidebar-2.tsx
+- src/components/ui/sidebar.tsx
+- src/components/storageLayouts/FloorMap.tsx
+- src/components/storageLayouts/FloorMap.module.css
+- src/components/storageLayouts/LocationDetailsHost.tsx
+- src/features/storageLayouts/StorageZonesPanel.tsx
+- src/features/storageKit/QrCode.tsx
+- messages/th.json and messages/en.json
+- The existing tests named in the plan, read-only. Do not run the entire suite or a live backend.
+
+Produce a concise Thai report containing:
+1. A verdict on whether the plan matches the images, clearly distinguishing verified visual facts from assumptions and preferences.
+2. A table for UI-001–UI-008: interpretation, agree/correct/needs clarification, exact source anchor where useful, and the smallest necessary plan correction.
+3. Any concrete missing acceptance detail, shared mobile/desktop impact, accessibility or QR concern tied to these proposed changes. Do not invent new redesign work or generic checklists.
+4. At most three questions for the user, only for unresolved decisions that materially affect the result. Do not ask CSS-level implementation questions or ask again about items the annotations settle. Separate product-scope questions from implementation decisions we can resolve ourselves. If no clarification is necessary, say so.
+5. Explicit limitations and the fact that you made no application changes.
+
+The plan records a known baseline difference: the red printing-help text under the QR is not found in current source. Verify that claim before scheduling deletion. The screenshot sidebar is mobile, and the user has not answered whether removing branding also applies to desktop. Do not silently infer approval for desktop removal.
+
+Write docs/reviews/ui-cleanup-2026-10-13/kiro-review.md, then return a short summary with any essential user questions. Stop after review.

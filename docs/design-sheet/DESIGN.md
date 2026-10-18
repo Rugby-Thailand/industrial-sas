@@ -152,8 +152,8 @@ components:
     textColor: "{colors.text}"
     typography: "{typography.body}"
     rounded: "{rounded.control}"
-    padding: "6px 10px"
-    height: "36px"
+    padding: "5px 10px"
+    height: "32px"
   workflow-tab:
     backgroundColor: "transparent"
     textColor: "{colors.muted}"
@@ -174,8 +174,8 @@ components:
     height: "48px"
   input-neutral-touch:
     typography: "{typography.input-touch}"
-    padding: "10px 10px"
-    height: "48px"
+    padding: "7px 10px"
+    height: "40px"
   workflow-tab-touch:
     height: "48px"
   statistic-strip:
@@ -192,9 +192,9 @@ components:
 
 This document describes the completed [standalone design sheet](index.html), a quieter composition proposal selected by the user. The familiar blue, neutral surfaces, bilingual type and visible controls support warehouse tasks and people operations. Headings, spacing and a small number of dividers provide hierarchy; related work shares a surface.
 
-**Scope and authority:** the frontmatter is normative only for this sheet. It records the palette extracted at the start of the 2026-10-09 session, as preserved in [tokens.css](tokens.css), and the typography, shapes and component values implemented in [styles.css](styles.css). The `badge-*` colors are explicitly proposed foreground additions from the final stylesheet, requested for stronger status contrast; they are not part of the original token extraction. The proposed layout rules below are reviewable recommendations, not shipped application rules. This file does not create or replace project-wide design authority. [README.md](README.md) maps every specimen to its application sources.
+**Scope and authority:** the frontmatter is normative only for this sheet. It records the palette extracted at the start of the 2026-10-09 session, as preserved in [tokens.css](tokens.css), and the typography, shapes and component values implemented in [styles.css](styles.css) and root-only [review.css](review.css). The `badge-*` colors are explicitly proposed foreground additions from the final stylesheet, requested for stronger status contrast; they are not part of the original token extraction. The proposed layout rules below are reviewable recommendations, not shipped application rules. This file does not create or replace project-wide design authority. [README.md](README.md) maps every specimen to its application sources.
 
-**Current extracted tokens and working-tree drift:** at documentation time, `src/app/globals.css` has a different light-theme blue, canvas, text, raised surface, muted text and several semantic/hover values. For example, its blue is `#1d4ed8`, canvas is `#ffffff`, text is `#17212f`, raised surface is `#f6f7f9`, and muted text is `#475569`. Those current working-tree values are not the sheet's session snapshot. The sheet remains a composition proposal; it does not authorize a palette migration or revert other work. The current application stylesheet owns current application tokens.
+**Dated palette snapshot and current application:** at documentation time, `src/app/globals.css` has a different light-theme blue, canvas, text, raised surface, muted text and several semantic/hover values. For example, its blue is `#1d4ed8`, canvas is `#ffffff`, text is `#17212f`, raised surface is `#f6f7f9`, and muted text is `#475569`. Those current working-tree values are not the sheet's session snapshot. The sheet remains a composition proposal; it does not authorize a palette migration or revert other work. The current application stylesheet owns current application tokens.
 
 **Key Characteristics:**
 
@@ -252,13 +252,13 @@ The operating scale is compact and familiar. The document's larger introductory 
 
 **Proposed layout rules:** related task content shares a surface. Use a heading and summary before the working content, then place the task action where its scope is clear. The job scan is the default first specimen; workflow tabs, locale and theme controls let the reader compare the proposal directly.
 
-The sheet itself is capped at 1440px. Its workspace pairs an explanatory column with a flexible specimen. Foundation and control chapters use two columns; state examples use three. At the user's request, required field grids use an 8px gap and optional details use flexible rows with an 8px gap and 120px numeric-field basis. In-task sections use 16px, major task groups use 24px, and documentation chapters are separated by 40px. These are proposed density rules for the completed sheet; the general rhythm remains based on 4px.
+The sheet itself is capped at 1440px. Its workspace pairs an explanatory column with a flexible specimen. Foundation and control chapters use two columns; state examples use three. At the user's request, required field grids use an 8px gap and optional details use flexible rows with an 8px gap and 120px numeric-field basis. In-task sections use 16px, major task groups use 24px, and documentation chapters are separated by 40px (stacked chapter columns also keep 40px). Each spacing relationship has one owner: help text sits 4px below its field or field row, empty live-status rows take no space (8px above a message), and pagination wraps as two units — page size and Previous/page/Next — with 8px inside and 12px between. These are proposed density rules for the completed sheet; the general rhythm remains based on 4px.
 
-At 1100px and below, page padding and workspace gaps tighten. At 800px and below, the workspace and explanatory chapters stack; documentation navigation moves to its own row. At 520px and below, fields and floor inspector content stack, the statistic strip becomes two columns, and key task actions fill the content width. Tabs and tables scroll inside their own regions. These are this sheet's measured breakpoints, not replacements for the application's breakpoints.
+Between 801px and 1100px, while the layout still has two columns, the page keeps 32px vertical padding and the workspace and chapter columns use 24px gutters. At 800px and below, the workspace and explanatory chapters stack; documentation navigation moves to its own row. At 520px and below, fields and floor inspector content stack, the statistic strip becomes two columns, and key task actions fill the content width. Tabs and tables scroll inside their own regions. These are this sheet's measured breakpoints, not replacements for the application's breakpoints.
 
 **The Task Surface Rule.** Within this proposal, group with spacing and selective dividers before adding another container. Keep a surface when it defines a workspace or map boundary.
 
-**Proposed responsive control density:** desktop fields, buttons, tabs, documentation links and disclosure summaries use a 36px minimum target. At widths of 800px and below, controls use a 48px minimum target. This directly requested density change supersedes the sheet's initial uniform 48px recommendation and does not change production component variants.
+**Responsive control density:** fields use 32px height with 14px / 20px text at widths of at least 768px with a fine primary pointer; otherwise they use 40px height with 16px / 24px text. This compact field proposal was requested on 2026-10-14. Standalone buttons, tabs and disclosures retain their 36px / 48px targets. The root-only [review.css](review.css) owns these overrides; the 800px and 520px layout breakpoints remain independent. The application still owns its own density rules.
 
 ## Elevation & Depth
 
@@ -276,9 +276,13 @@ Visible input and outline-button edges are one pixel. The active workflow tab us
 
 ### Buttons
 
-Clear and familiar. Buttons use the control radius, 6px / 12px desktop padding (10px / 16px at touch widths), a 36px desktop minimum height and width, increasing to 48px at touch widths (800px and below), and medium-density 14px text. The blue primary action leads; outlined and quiet actions stay neutral. Destructive actions use the danger surface and a danger edge. Disabled controls use raised neutral, muted text and the weaker divider edge.
+Clear and familiar. Buttons use the control radius, 6px / 12px desktop padding (10px / 16px in touch density), a 36px desktop minimum height and width, increasing to 48px unless the ≥768px fine-pointer query matches, and medium-density 14px text. The blue primary action leads; outlined and quiet actions stay neutral. Destructive actions use the danger surface and a danger edge. Disabled controls use raised neutral, muted text and the weaker divider edge.
 
-Hover changes the fill. A press moves an enabled button down by one pixel. Color transitions run for 160ms; reduced motion removes transitions. Keyboard focus remains visible. Loading and disabled specimens are visually distinct.
+Text-only quiet actions change only their text/icon color to the theme's link ink on hover and press: no background, border, underline, shadow or movement. Disabled text actions remain transparent with disabled ink; pending actions keep their resting appearance and block repeated activation. Keyboard focus keeps its visible outline. This rule was confirmed on 2026-10-15 and also applies to the application's future ghost/link text buttons. In-field icons retain their separate no-hover/no-movement rule.
+
+Filled and outlined buttons retain their surface feedback and existing one-pixel press treatment. Color transitions run for 160ms; reduced motion removes transitions. Loading and disabled specimens are visually distinct.
+
+Toggle buttons (capture method, catalogue view, Filters) show their pressed state visibly as well as through `aria-pressed`: selected surface, link-colored edge and link ink, matching the application's `active` button variant. Forced-colors mode adds an outline. Pending actions (the Saving specimen and HR Pending write) keep the primary surface, use `aria-busy` and `aria-disabled`, show a progress cursor and ignore activation; `disabled` is reserved for unavailable actions.
 
 **The Scoped Action Rule.** Give each task one primary next action, and keep secondary actions neutral.
 
@@ -292,13 +296,24 @@ A shared task surface. The workspace specimen has one surrounding frame with the
 
 ### Inputs / Fields
 
-Neutral and legible. Fields have a task-surface fill, strong neutral edge, control radius, 6px / 10px desktop padding and a 36px desktop minimum height, increasing to 48px at touch widths (800px and below). Touch-width inputs use 10px vertical padding and 16px / 24px text. At the user's request, labels sit very close to their inputs (2px). This is a proposed field detail, not a replacement for the general 4px spacing rhythm. Hint and recovery text sit below. Focus changes the edge and shows the sheet's outline. Invalid fields receive a danger edge and explanatory recovery copy.
+Neutral and legible. Fields have a task-surface fill, strong neutral edge and control radius. Desktop fields use 32px height and 5px / 10px padding; touch/small-screen fields use 40px height, 7px / 10px padding and 16px / 24px text. Labels sit 2px above inputs. Scanner buttons share the field surface and center a 16px icon in the trailing slot, with no hover fill or pressed movement. Selects use Radix Select through a sheet-owned adaptation of the application's `SelectControl`, with matching trailing icons and app-owned popup menus. Dates use a shadcn-structured react-day-picker Calendar in a Radix Popover; times compose two Selects (hour, minute) in a Popover. Browser-native visible select/date/time controls are not part of this proposal. Search icons also center against the field itself. Hint and recovery text sit below. Focus remains visible, and invalid fields receive a danger edge and explanatory recovery copy.
+
+Field states (shown under **Field states** in the Controls chapter; requirements and ranges there are examples, not business rules):
+
+- **Empty:** a muted placeholder (“Pick a date”, “Pick a time”, HH/mm), never a silently filled value.
+- **Invalid:** danger edge, `aria-invalid` and recovery text linked with `aria-describedby`; the text follows the current value in every language.
+- **Disabled:** disabled surface, disabled ink and the weaker divider edge for text inputs, selects and pickers alike. In-field icon actions stay transparent and change only ink.
+- **Pending:** the resting appearance with a progress cursor, `aria-busy` and `aria-disabled`; it stays focusable, cannot open or change, and points at visible “Saving…” text.
+- **Read-only:** a legible, selectable read-only text box on a transparent surface with the divider edge; no popup.
+- **Dates:** confirming the selected day keeps it; only the explicit Clear date action (optional fields only) empties it. Weeks start on Monday. Thai shows Buddhist years in the trigger, caption, grid and day names with Latin digits; stored values stay Gregorian `YYYY-MM-DD`. An example-range specimen disables days outside 5–23 October 2026 with disabled ink and a strike.
+- **Times:** hour and minute are a popup draft. Done commits `HH:mm` and stays disabled until both parts are chosen; Escape, an outside click or a lock discards the draft. Optional times offer Clear time. Anything other than complete `HH:mm` is treated as empty. Hour/minute fields, status and actions share one 4px inner gutter. The status line deliberately keeps an 18px reserve even when blank, so Done does not move when validation appears; this stable gap (30px field-to-action) is an accepted exception to the 12px field-to-action target.
+- **Popups:** height is capped to Radix's available space within the viewport and scrolls internally.
 
 Job scan keeps its location first, two required identities and seven optional fields. AI origin is a small warning-colored label immediately beside the relevant field name, with a 6px inline gap and a review advisory. Editing that field clears its origin label in the interactive sheet. The entire field is not tinted to express origin.
 
 ### Navigation
 
-The document header provides section links, locale, theme and print controls. Workflow tabs are the signature navigation: muted text at rest, operating text on hover, blue text and an underline when selected. They support keyboard arrow, Home and End navigation in the sheet. Locale changes maintain the selected workflow; theme changes update both the live specimens and displayed palette values. The print control exports the current workflow and uses a light print presentation.
+The document header provides section links, locale, theme and print controls. Workflow tabs are the signature navigation: muted text at rest, operating text on hover, blue text and an underline when selected. They support keyboard arrow, Home and End navigation in the sheet. Locale changes maintain the selected workflow; theme changes update both the live specimens and displayed palette values. The print control exports the current workflow and uses a light print presentation. Printing from dark mode drops the dark class for the print and restores it afterwards, and the print stylesheet resets every dark-only ink the sheet uses, so status badges, disabled controls and the palette readout print in the light palette. The language button's accessible name starts with its visible label (ไทย / EN); the theme button keeps one name (“Dark mode”) and reports its state with `aria-pressed`.
 
 ### Statistic strip
 
@@ -310,7 +325,7 @@ Actual clock-in and clock-out values sit in two divided columns, with monospace 
 
 ### States and floor inspection
 
-Empty and failed-save examples pair a clear description with a neutral recovery action. Failure copy preserves the user's edits; loading preserves space rather than displaying invented zero totals. The floor specimen uses one schematic map next to a location inspector and keeps selection distinct from physical-area color. It is not a production geometry or 3D renderer.
+Empty and failed-save examples pair a clear description with a neutral recovery action. Finished-goods errors, refused HR writes and uncertain HR writes have separate examples; only uncertainty offers an exact safe retry. View-only hides write controls. The Review state selector belongs to documentation and is not application navigation. Loading/unavailable totals never become zero; loading totals are marked `aria-busy` and each carries visually hidden “Loading” text behind the visible ellipsis. The floor schematic has three keyboard-selectable locations; its inspector follows the selected fixture, and unknown contents are unavailable. Actual narrow floor details open in a sheet. This is not a production geometry or 3D renderer.
 
 ## Do's and Don'ts
 
@@ -329,3 +344,56 @@ Empty and failed-save examples pair a clear description with a neutral recovery 
 - **Don't** add repeated nested cards or boxed totals to the quieter specimens merely to group related content.
 - **Don't** replace neutral fields with broad AI-origin color fills in this proposal.
 - **Don't** confuse synthetic local specimen actions with backend writes, scanning, authorization or persisted attendance receipts.
+
+## Adoption revision · 2026-10-11
+
+An independent Kiro audit checked the original sheet and implementation plan against source at `733c6aca`. The approved no-inner-rail composition remains intact. [review.js](review.js) corrects specimen semantics and adds local review states without editing application code. Comparison layouts now use frozen assets; earlier screenshots/checks describe `8b0ef538`, not this revision.
+
+Scan keeps the single-ticket source/removal row, per-field scanning actions, Unit type, Change and stock note. Save is disabled for reading, incomplete identities or invalid quantities; seven optional values report the actual filled count. Product records show Ready/Draft, while storage-unit records carry workflow statuses. Warehouse totals are deliberately independent of the three synthetic rows and filters. Attendance uses factual Clocked in/out states, Buddhist-era Thai dates, missing-time hints, a confirmed receipt and correction links. Uncertain, refused, denied, pending and unlinked examples preserve the distinction in the source.
+
+The [revised adoption plan](implementation-plan.md) chooses stronger badge ink and restrained invalid edges as shared implementation work; catalogue quantities are a separate slice. The application palette remains authoritative. Floor and HR are verification/handoff steps; the separate HR self-service plan owns attendance screen edits. Root `PRODUCT.md` and project-wide design authority were not changed.
+
+Fresh visual layout/axe checks need a connected collaborative preview automation host. DOM evidence for this revision is separate from the historical screenshots.
+
+## Audit fixes · 2026-10-15
+
+The [reviewed design-sheet audit](../reviews/design-sheet-kiro-audit-2026-10-15/reviewed-audit.md) (DS-A01–DS-A21) is resolved in the sheet only; [evidence/audit-fixes-2026-10-15.md](evidence/audit-fixes-2026-10-15.md) records each resolution and its check. Approved colors, type, layout, compact 32/40px fields, centered stationary field icons and color-only text-button hover/press are unchanged. No application source changed.
+
+## Spacing fixes · 2026-10-16
+
+The [spacing audit](../reviews/design-sheet-spacing-2026-10-16/audit.md) findings G01–G08 are resolved in `review.css`, `controls.css` and minimal `review.js`/`index.html` classes; [evidence/spacing-fixes-2026-10-16.md](evidence/spacing-fixes-2026-10-16.md) maps each fix. Field heights, 2px label / 4px help / 8px sibling gaps, text and icon sizes and every audited “Keep” relationship are unchanged. No application source changed.
+
+## Preview and application differences
+
+These are deliberate for the standalone preview. They are not instructions to change the application, and the [adoption plan](system-implementation-plan.md) remains the application contract.
+
+| Area                    | Preview                                                                                     | Application / plan                                                             | Status                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------- |
+| Styling                 | Sheet-owned CSS on unstyled shadcn/Radix structure; no Tailwind build                       | Tailwind utilities in `select.tsx`, `buttonVariants.ts`, future `calendar.tsx` | Intentional; parity below                     |
+| Palette                 | 2026-10-09 snapshot in `tokens.css`                                                         | `src/app/globals.css` owns current tokens (`#1d4ed8` light primary)            | Intentional; no palette migration             |
+| Menu items              | Select items use field height (32/40px)                                                     | Plan keeps `SelectItem` at 36/48px                                             | Preview choice; application follows the plan  |
+| Calendar days           | 32px fine pointer / 36px touch                                                              | Plan targets 32/40px, to be measured at 320px                                  | Acknowledged in the plan                      |
+| Button beside a field   | Catalogue Filters shrinks to field height                                                   | Plan default keeps 36/48px and aligns with `items-end` (open question 1)       | Open decision; preview shows one option       |
+| Today                   | Fixed synthetic 2026-10-14 for reproducibility                                              | `today` from `useHrAccess().today` (organisation business date)                | Intentional                                   |
+| Date bounds             | One example-range specimen (5–23 Oct 2026); ticket dates unbounded                          | Caller-supplied `min`/`max` only where a real contract exists                  | Intentional; no business restriction inferred |
+| Pending select / picker | Focusable, resting appearance, `aria-busy` + `aria-disabled`, cannot open or change         | `SelectControl pending` currently disables the trigger and sets `aria-busy`    | Preview proposal for review; not adopted      |
+| Read-only picker        | Read-only text box with the formatted value                                                 | Not yet specified in the plan                                                  | Preview proposal                              |
+| Week start, Thai years  | Monday; Buddhist years via `react-day-picker/buddhist`, `numerals="latn"`; en-GB in English | Same (DateField contract)                                                      | Aligned                                       |
+| Time draft              | Commit on Done; Escape/outside/lock discards; empty stays empty; clearable                  | Same (TimeField contract)                                                      | Aligned                                       |
+
+### Styling ownership and token/state parity
+
+The sheet bundle compiles no Tailwind and carries no Tailwind class strings. `ui/select.tsx`, `ui/select-control.tsx`, `ui/popover.tsx` and `ui/calendar.tsx` keep the shadcn/Radix structure, `data-slot` names and Radix/react-day-picker state attributes; `controls.css` and `review.css` style those attributes. Behavior is real Radix Select/Popover and react-day-picker; appearance is a sheet adaptation and must be rebuilt with the application's own utilities on adoption.
+
+| State            | Sheet selector → token                                                               | Application utility today (`select.tsx`, `buttonVariants.ts`)                |
+| ---------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Field edge       | `.sheet-field-trigger` → `--token-border-strong`                                     | `border-input` → `--token-border-strong`                                     |
+| Placeholder      | `[data-placeholder]` → `--token-muted`                                               | `data-placeholder:text-muted`                                                |
+| Focus            | `:focus-visible` → `--ring` border + 2px outline, −1px offset                        | `focus-field`                                                                |
+| Invalid          | `[aria-invalid="true"]` → `--token-danger` edge                                      | `aria-invalid:border-destructive`                                            |
+| Disabled         | `:disabled` → `--token-disabled-surface`, `--token-disabled`, `--token-border`       | `disabled:bg-disabled-surface disabled:text-disabled disabled:border-border` |
+| Pending          | `[aria-busy="true"]` → resting surface, progress cursor                              | `aria-busy` with `disabled` (see differences)                                |
+| Highlighted item | `[data-highlighted]` → `--accent` / `--accent-foreground`                            | `focus:bg-selected focus:text-selected-foreground`                           |
+| Checked item     | `[data-state="checked"]` → check icon + 600 weight, no fill                          | `data-[state=checked]:bg-selected` (fill)                                    |
+| Pressed toggle   | `.btn.outline[aria-pressed="true"]` → `--token-accent-surface`, `--token-link`       | `active` variant: `border-link bg-selected text-link`                        |
+| Selected day     | `.rdp-selected` → `--token-accent` / `--token-accent-contrast`, same size and weight | `data-[selected-single=true]:bg-primary text-primary-foreground`             |
