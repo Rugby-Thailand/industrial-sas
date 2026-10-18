@@ -51,11 +51,11 @@ export const interpret = actionWithOrg({
   rateLimit: AI_SEARCH_RATE_LIMIT,
   handler: async (ctx, args) => {
     if (!validQuery(args.query))
-      return { ok: false as const, code: "QUERY_INVALID" };
+      return { ok: false as const, code: "QUERY_INVALID" as const };
     if (ctx.quota === undefined || !ctx.quota.allowed)
       return {
         ok: false as const,
-        code: "RATE_LIMITED",
+        code: "RATE_LIMITED" as const,
         retryAfterMs: ctx.quota?.retryAfterMs ?? AI_SEARCH_RATE_LIMIT.windowMs,
       };
     // Search uses its own model setting; the job-ticket OCR model is not
@@ -63,7 +63,7 @@ export const interpret = actionWithOrg({
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
     const model = process.env.OPENROUTER_SEARCH_MODEL?.trim();
     if (!apiKey || !model)
-      return { ok: false as const, code: "AI_UNAVAILABLE" };
+      return { ok: false as const, code: "AI_UNAVAILABLE" as const };
 
     const offset = timezoneOffsetMinutes(
       ctx.tenant.organization.settings.timezone,

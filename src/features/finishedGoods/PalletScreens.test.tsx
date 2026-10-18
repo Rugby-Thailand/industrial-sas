@@ -86,7 +86,10 @@ import {
 } from "@tests/fixtures/finished-goods-ui";
 import { PalletScreen } from "./PalletScreens";
 import { Summary } from "./PalletSummary";
-import { recommendationReason, recommendationReasons } from "./recommendationReason";
+import {
+  recommendationReason,
+  recommendationReasons,
+} from "./recommendationReason";
 
 let currentDetail: PalletDetail;
 const renderPallet = (view: "measure" | "storage" | "detail" = "detail") => {
@@ -1738,7 +1741,7 @@ it("retains the loaded measurement baseline across live updates and reloads only
     }),
   );
   expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.replace).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   fireEvent.click(
     await screen.findByRole("button", {
       name: "Discard draft and reload saved measurements",

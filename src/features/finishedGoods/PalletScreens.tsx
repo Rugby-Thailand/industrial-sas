@@ -1385,7 +1385,6 @@ function PalletDetailScreen({
   );
 }
 
-
 function LocationOnlyPalletDetail({
   warehouseId,
   detail,

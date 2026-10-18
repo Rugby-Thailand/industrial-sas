@@ -7,6 +7,8 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 const state = vi.hoisted(() => ({
   queries: new Map<string, (args: Record<string, unknown>) => unknown>(),
   action: vi.fn(),
+  getToken: vi.fn(),
+  auth: { userId: "user-a", orgId: "org-a" },
   oneShot: vi.fn(),
   push: vi.fn(),
   access: {} as Record<string, unknown>,
@@ -19,10 +21,13 @@ vi.mock("convex/react", async () => {
       args === "skip"
         ? undefined
         : state.queries.get(name(reference))?.(args as Record<string, unknown>),
-    useAction: () => state.action,
     useConvex: () => ({ query: state.oneShot }),
   };
 });
+vi.mock("@/lib/ai/client", () => ({ interpretAiSearch: state.action }));
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ ...state.auth, getToken: state.getToken }),
+}));
 vi.mock("@/components/providers/HrAccessProvider", () => ({
   useHrAccess: () => state.access,
 }));
@@ -96,6 +101,8 @@ const afterClose = async () => {
 beforeEach(() => {
   state.queries.clear();
   state.action.mockReset();
+  state.getToken.mockReset().mockResolvedValue("cached-convex-token");
+  state.auth = { userId: "user-a", orgId: "org-a" };
   state.oneShot.mockReset();
   state.push.mockReset();
   // The destination page takes focus once it has been navigated to.

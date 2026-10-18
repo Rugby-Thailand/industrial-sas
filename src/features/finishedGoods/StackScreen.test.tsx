@@ -265,7 +265,7 @@ it("shows recoverable mutation failures", async () => {
     ),
   ).toBeVisible();
   expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.replace).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
 });
 it("requires saving edited limits before reserving", () => {
   mount();
@@ -337,7 +337,7 @@ it("ignores a stacking reservation that resolves after unmount", async () => {
   // A reservation that settles after unmount must not navigate nor clear the
   // persisted request id (which would otherwise drop idempotent replay).
   expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.replace).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   expect(localStorage.length).toBe(persisted);
 });
 

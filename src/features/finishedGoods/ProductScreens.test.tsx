@@ -1921,7 +1921,7 @@ it("retains stale product edits and merges only locally changed fields into the 
     }),
   );
   expect(mocks.push).not.toHaveBeenCalled();
-    expect(mocks.replace).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Merge my changed fields" }),

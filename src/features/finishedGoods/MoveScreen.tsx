@@ -25,7 +25,11 @@ import { useRouter } from "@/i18n/navigation";
 import { fgRefs, type PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import { DestinationScanner } from "./DestinationScanner";
 import { DestinationPicker, destinationKey } from "./DestinationPicker";
-import { PlacementEditor, DestinationSummary, sceneProps } from "./PlacementEditor";
+import {
+  PlacementEditor,
+  DestinationSummary,
+  sceneProps,
+} from "./PlacementEditor";
 import { usePreviewState } from "./usePreviewState";
 import { PalletScene } from "./PalletScene";
 import { identifiesPallet } from "../../../convex/model/finishedGoods/palletIdentity";

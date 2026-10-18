@@ -4,7 +4,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
-const state = vi.hoisted(() => ({ create: vi.fn(), push: vi.fn(), replace: vi.fn() }));
+const state = vi.hoisted(() => ({
+  create: vi.fn(),
+  push: vi.fn(),
+  replace: vi.fn(),
+}));
 vi.mock("convex/react", () => ({
   useQuery: () => ({
     ok: true,

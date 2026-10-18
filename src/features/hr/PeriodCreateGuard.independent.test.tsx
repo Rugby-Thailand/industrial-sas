@@ -4,7 +4,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
-const state = vi.hoisted(() => ({ create: vi.fn(), push: vi.fn(), replace: vi.fn() }));
+const state = vi.hoisted(() => ({
+  create: vi.fn(),
+  push: vi.fn(),
+  replace: vi.fn(),
+}));
 vi.mock("convex/react", () => ({
   useQuery: () => ({
     ok: true,
@@ -104,7 +108,9 @@ it("holds navigation during creation and still opens the persisted period on suc
       new PopStateEvent("popstate", { state: window.history.state }),
     );
   });
-  expect(state.replace).toHaveBeenCalledExactlyOnceWith("/hr/periods/period-qa");
+  expect(state.replace).toHaveBeenCalledExactlyOnceWith(
+    "/hr/periods/period-qa",
+  );
   // Later commits of the saved form do not remove anything again.
   await waitFor(() => expect(back).toHaveBeenCalledOnce());
   expect(window.history.state?.__storageWorkspaceGuard).toBeUndefined();
