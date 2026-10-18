@@ -3,6 +3,7 @@
 The user clarified during your first run: primary outcome is เปิดกล้องมือถือสแกนหน้างาน (live mobile warehouse scanning). Preserve and finish useful static benchmark results, but now extend the evaluation toward the live useBarcodeCamera path. No production edits; same earlier task constraints.
 
 Need bounded, honest measurements using dataset frame replay, NOT claims that desktop times equal phones. Reuse the local Kiro server and a fixed stratified selection or all 153 unique as practical. Compare:
+
 1. Current BrowserMultiFormatReader(undefined) decoder behavior on realistic max-side 1920 frames and/or 1080 (preserve aspect, no invented detail).
 2. JS decoder with Code128 + QR format hints, otherwise same pixels.
 3. Warm WASM worker on same frame pixels, fast options and hard pass; optionally center ROI plus periodic full-frame recovery (must count lost off-center identities).

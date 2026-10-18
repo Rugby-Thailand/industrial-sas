@@ -31,7 +31,10 @@
         { "path": "docs/design-sheet/controls.tsx", "line": 155 },
         { "path": "docs/design-sheet/controls.tsx", "line": 160 },
         { "path": "docs/design-sheet/controls.tsx", "line": 169 },
-        { "path": "node_modules/react-day-picker/dist/esm/selection/useSingle.js", "line": 21 }
+        {
+          "path": "node_modules/react-day-picker/dist/esm/selection/useSingle.js",
+          "line": 21
+        }
       ],
       "trigger": "Open any date trigger (Field hierarchy Date, or scan Delivery/MFG date). Focus lands on the selected day (autoFocus). Press Enter, or click the highlighted day.",
       "actual": "Calendar is mode=\"single\" without required, so react-day-picker deselects the already-selected day and calls onSelect(undefined). The handler commits \"\" and closes the popover; the trigger shows \"Pick a date\". In the scan ticket this erases the draft delivery or MFG date and decrements the filled count.",
@@ -50,7 +53,10 @@
         { "path": "docs/design-sheet/controls.tsx", "line": 120 },
         { "path": "docs/design-sheet/controls.tsx", "line": 137 },
         { "path": "docs/design-sheet/controls.tsx", "line": 144 },
-        { "path": "docs/plans/design-system-complete-adoption-2026-10-14.md", "line": 177 }
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 177
+        }
       ],
       "trigger": "Open Time (08:30), choose hour 23, then press Escape or click outside.",
       "actual": "Each Select onValueChange calls commit() immediately. The source value is already \"23:30\" while the popover is still open, and it stays \"23:30\" after Escape. Done only closes the popover.",
@@ -69,9 +75,15 @@
         { "path": "docs/design-sheet/controls.tsx", "line": 158 },
         { "path": "docs/design-sheet/controls.tsx", "line": 163 },
         { "path": "docs/design-sheet/controls.tsx", "line": 70 },
-        { "path": "node_modules/react-day-picker/dist/esm/locale/th.js", "line": 9 },
+        {
+          "path": "node_modules/react-day-picker/dist/esm/locale/th.js",
+          "line": 9
+        },
         { "path": "docs/design-sheet/README.md", "line": 16 },
-        { "path": "docs/plans/design-system-complete-adoption-2026-10-14.md", "line": 171 }
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 171
+        }
       ],
       "trigger": "Switch to Thai and open the Date picker.",
       "actual": "The trigger reads \"วันที่: 14 ต.ค. 2569\" and the visible caption reads \"ตุลาคม 2569\". The grid's accessible name is \"ตุลาคม 2026\" and every day is named in Gregorian years, e.g. \"วันพุธที่ 14 ตุลาคม 2026, เลือกแล้ว\". Only formatCaption is overridden; the date-fns `y` token stays Gregorian. In English, display uses en-GB (\"14 Oct 2026\") while the calendar uses enUS labels and Sunday week start.",
@@ -130,7 +142,10 @@
         { "path": "docs/design-sheet/review.js", "line": 521 },
         { "path": "docs/design-sheet/index.html", "line": 381 },
         { "path": "docs/design-sheet/DESIGN.md", "line": 281 },
-        { "path": "docs/plans/design-system-complete-adoption-2026-10-14.md", "line": 55 }
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 55
+        }
       ],
       "trigger": "My day tab, Review state = Pending write.",
       "actual": "#sample-clock-out renders `disabled` with label \"Saving…\". It has no aria-busy and takes the grey .btn:disabled surface. The Controls section says \"Disabled, saving, and destructive states remain distinct\" and shows saving as a primary-styled specimen. DESIGN.md says pending actions keep their resting appearance, and the plan says pending keeps position/size and blocks repeats.",
@@ -209,9 +224,18 @@
         { "path": "docs/design-sheet/controls.css", "line": 145 },
         { "path": "docs/design-sheet/review.css", "line": 115 },
         { "path": "docs/design-sheet/controls.tsx", "line": 153 },
-        { "path": "docs/plans/design-system-complete-adoption-2026-10-14.md", "line": 43 },
-        { "path": "docs/plans/design-system-complete-adoption-2026-10-14.md", "line": 171 },
-        { "path": "docs/plans/design-system-complete-adoption-2026-10-14.md", "line": 346 },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 43
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 171
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 346
+        },
         { "path": "docs/design-sheet/DESIGN.md", "line": 261 }
       ],
       "trigger": "Compare the controls in the preview with plan §DS-1/DS-5 and DESIGN.md's density rule.",
@@ -434,17 +458,53 @@
     "Provisional score (audit.md rubric, source/probe evidence only): A11y 2, Performance 3, Theming 3, Responsive 3 (unverified), Integrity 2 = 13/20."
   ],
   "rejected": [
-    { "suspect": "Text-only quiet buttons still get hover background (styles.css:230) or 1px press (styles.css:250)", "reason": "Overridden by review.css:24-36 (`.btn.quiet:not(.icon-btn)`, equal or higher specificity, later in cascade)." },
-    { "suspect": "In-field scanner icon hover fill/translation", "reason": "controls.css:57-70 (loaded last) neutralises transform/translate/transition/shadow and hover/active background." },
-    { "suspect": "768–800px fine-pointer viewports get 48px/16px from styles.css @800px", "reason": "review.css media (≥48rem, fine) comes later at equal specificity; fields 32px/14px, buttons 36px." },
-    { "suspect": "Stale dist bundle", "reason": "dist built 22:18:30 after every source (latest calendar.tsx 22:16:59); new strings present in bundle." },
-    { "suspect": "Plan mirror drift", "reason": "system-implementation-plan.md is byte-identical to docs/plans/design-system-complete-adoption-2026-10-14.md." },
-    { "suspect": "'application primary #1d4ed8' is wrong", "reason": "src/app/globals.css:217 has --primary: #1d4ed8; the snapshot oklch value is labelled as a snapshot." },
-    { "suspect": "Nested hour Select closes the time popover", "reason": "Probe Q: Escape closes only the listbox; popover stays open, focus returns to the hour trigger." },
-    { "suspect": "Focus lost after date selection or Review-state change", "reason": "Probes: focus returns to the trigger and to #review-state-control." },
-    { "suspect": "Floor schematic dimensions inconsistent", "reason": "20 viewBox units per metre throughout (15 × 12 m, 4.8 × 2.7, 4.0 × 8.2)." },
-    { "suspect": "Thai stat values split mid-word by overflow-wrap:anywhere", "reason": "Dictionary line breaking applies first; only unbreakable runs are affected. Not substantiated." },
-    { "suspect": "40px touch fields as an accessibility failure", "reason": "Confirmed user direction; no WCAG failure claimed from a size guideline." },
-    { "suspect": "Missing camera/backend/persistence", "reason": "Intentional for a synthetic preview." }
+    {
+      "suspect": "Text-only quiet buttons still get hover background (styles.css:230) or 1px press (styles.css:250)",
+      "reason": "Overridden by review.css:24-36 (`.btn.quiet:not(.icon-btn)`, equal or higher specificity, later in cascade)."
+    },
+    {
+      "suspect": "In-field scanner icon hover fill/translation",
+      "reason": "controls.css:57-70 (loaded last) neutralises transform/translate/transition/shadow and hover/active background."
+    },
+    {
+      "suspect": "768–800px fine-pointer viewports get 48px/16px from styles.css @800px",
+      "reason": "review.css media (≥48rem, fine) comes later at equal specificity; fields 32px/14px, buttons 36px."
+    },
+    {
+      "suspect": "Stale dist bundle",
+      "reason": "dist built 22:18:30 after every source (latest calendar.tsx 22:16:59); new strings present in bundle."
+    },
+    {
+      "suspect": "Plan mirror drift",
+      "reason": "system-implementation-plan.md is byte-identical to docs/plans/design-system-complete-adoption-2026-10-14.md."
+    },
+    {
+      "suspect": "'application primary #1d4ed8' is wrong",
+      "reason": "src/app/globals.css:217 has --primary: #1d4ed8; the snapshot oklch value is labelled as a snapshot."
+    },
+    {
+      "suspect": "Nested hour Select closes the time popover",
+      "reason": "Probe Q: Escape closes only the listbox; popover stays open, focus returns to the hour trigger."
+    },
+    {
+      "suspect": "Focus lost after date selection or Review-state change",
+      "reason": "Probes: focus returns to the trigger and to #review-state-control."
+    },
+    {
+      "suspect": "Floor schematic dimensions inconsistent",
+      "reason": "20 viewBox units per metre throughout (15 × 12 m, 4.8 × 2.7, 4.0 × 8.2)."
+    },
+    {
+      "suspect": "Thai stat values split mid-word by overflow-wrap:anywhere",
+      "reason": "Dictionary line breaking applies first; only unbreakable runs are affected. Not substantiated."
+    },
+    {
+      "suspect": "40px touch fields as an accessibility failure",
+      "reason": "Confirmed user direction; no WCAG failure claimed from a size guideline."
+    },
+    {
+      "suspect": "Missing camera/backend/persistence",
+      "reason": "Intentional for a synthetic preview."
+    }
   ]
 }

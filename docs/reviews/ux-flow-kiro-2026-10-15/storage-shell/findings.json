@@ -10,17 +10,44 @@
       "expected": "The editor closes and the existing receipt ('Storage stack created…' or 'Storage stack updated…') is shown. No unsaved-work prompt appears: nothing is unsaved and the write has settled.",
       "actual": "The mutation is sent once and the editor closes. Then a modal 'Save changes before leaving? You have unsaved changes…' opens, even for a pristine default-name create. The URL keeps ?overlay…=1. 'Keep editing' leaves the editor closed with the overlay query still present (a stale foreground entry). 'Save and continue' sends 0 extra writes and closes. The success receipt is never rendered. No saved data is lost.",
       "files": [
-        { "path": "src/features/storageLayouts/StorageZonesPanel.tsx", "line": 448 },
-        { "path": "src/features/storageLayouts/StorageZonesPanel.tsx", "line": 455 },
-        { "path": "src/features/storageLayouts/StorageZonesPanel.tsx", "line": 231 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 1488 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 1184 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 1045 },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 448
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 455
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 231
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1488
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1184
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1045
+        },
         { "path": "src/hooks/useBackDisclosure.ts", "line": 53 },
         { "path": "src/components/system/useNavigationGuard.tsx", "line": 101 },
-        { "path": "src/features/storageLayouts/StorageZonesPanel.tsx", "line": 138 },
-        { "path": "src/features/storageLayouts/StorageZonesPanel.tsx", "line": 1111 },
-        { "path": "src/features/storageLayouts/StorageZonesPanel.tsx", "line": 1146 }
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 138
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 1111
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 1146
+        }
       ],
       "evidence": "rendered-component-test: probes/storage.probe.tsx 'SS-05 …' cases (real BuildingModelWorkspace, Dialog, useBackDisclosure, useWorkflowStep and useNavigationGuard; mutation mocked to succeed). 4 desired-behavior cases fail; 2 observation cases pass, recording 0 extra writes. Cause is a source-traced hypothesis: the Dialog closes and its Back step runs in the same commit that clears the child's pending flag, while the workspace guard's pending is still true because it is propagated through two layout-effect/state hops. The hidden archive receipt is source-traced only. Not browser-verified.",
       "confidence": "high (behavior); medium (exact ordering cause)",
@@ -56,13 +83,34 @@
       "expected": "A page heading, Back/breadcrumb to the declared parent (catalogue; the building for review), a short explanation, and Retry for a read failure.",
       "actual": "Only 'Storage building not found.' or 'The storage layout could not be loaded.' is rendered: 0 headings, 0 links, 0 buttons. Recovery depends on browser Back or the sidebar.",
       "files": [
-        { "path": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/page.tsx", "line": 12 },
-        { "path": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/review/page.tsx", "line": 12 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 546 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 549 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 157 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 3061 },
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 1112 }
+        {
+          "path": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/page.tsx",
+          "line": 12
+        },
+        {
+          "path": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/review/page.tsx",
+          "line": 12
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 546
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 549
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 157
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 3061
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1112
+        }
       ],
       "evidence": "rendered-component-test: probes/storage.probe.tsx 'SS-02 …' renders the real StorageBuildingEditor/StorageBuildingReview with useStorageBuilding mocked to found:false or ok:false; 3 cases fail. Route pages and backend found:false are source-traced. Not browser-verified.",
       "confidence": "high",
@@ -77,10 +125,16 @@
       "expected": "First-use empty state: 'No storage buildings yet / Create a building to start defining floor-by-floor capacity.' (TH 'ยังไม่มีอาคารจัดเก็บ…'). Filter-mismatch copy only when a filter is applied.",
       "actual": "EN 'No buildings match these filters / Change the search text or status filter…'; TH 'ไม่มีอาคารที่ตรงกับตัวกรอง'. The first-use keys are unused.",
       "files": [
-        { "path": "src/features/storageLayouts/StorageLayoutScreens.tsx", "line": 231 },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 231
+        },
         { "path": "messages/en.json", "line": 324 },
         { "path": "messages/th.json", "line": 324 },
-        { "path": "src/features/storageLayouts/StorageLocationCatalogue.tsx", "line": 290 }
+        {
+          "path": "src/features/storageLayouts/StorageLocationCatalogue.tsx",
+          "line": 290
+        }
       ],
       "evidence": "rendered-component-test: probes/storage.probe.tsx 'SS-04 …' renders the real StorageBuildingCatalogue with useQuery returning an empty ready page; EN and TH cases fail. No t('emptyTitle') caller in src (git log -S points to 983fb5a6). Not browser-verified.",
       "confidence": "high",
@@ -98,7 +152,10 @@
         { "path": "src/components/shell/WorkspaceContextBar.tsx", "line": 16 },
         { "path": "messages/en.json", "line": 122 },
         { "path": "src/lib/workspace/workspace.ts", "line": 38 },
-        { "path": "src/components/providers/WorkspaceProvider.tsx", "line": 127 },
+        {
+          "path": "src/components/providers/WorkspaceProvider.tsx",
+          "line": 127
+        },
         { "path": "convex/workspace/current.ts", "line": 52 },
         { "path": "src/components/system/QueryGate.tsx", "line": 21 }
       ],

@@ -5,10 +5,25 @@
   "mutationSubmitted": false,
   "scenario": "Pristine New Building -> explicit Back to buildings -> native Back",
   "steps": [
-    { "action": "Open catalogue", "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts?auditOrigin=storage-actions#catalogue" },
-    { "action": "Click New building", "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts/new" },
-    { "action": "Click Back to buildings without editing or submitting", "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts", "appNavigationIndex": 2 },
-    { "action": "Native history.back()", "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts/new", "appNavigationIndex": 1, "visibleForm": "New building / Create building / Back to buildings" }
+    {
+      "action": "Open catalogue",
+      "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts?auditOrigin=storage-actions#catalogue"
+    },
+    {
+      "action": "Click New building",
+      "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts/new"
+    },
+    {
+      "action": "Click Back to buildings without editing or submitting",
+      "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts",
+      "appNavigationIndex": 2
+    },
+    {
+      "action": "Native history.back()",
+      "url": "https://app.thaipropertyai.com/en/master-data/storage-layouts/new",
+      "appNavigationIndex": 1,
+      "visibleForm": "New building / Create building / Back to buildings"
+    }
   ],
   "result": "Confirmed: explicit Back pushes a fresh catalogue destination, loses the origin query/hash, and the next Back reopens the pristine creation form.",
   "toolLimit": "The evaluation that invoked history.back reported a navigation-time automation error; subsequent independent preview_status and preview_evaluate confirmed the resulting new-building URL and visible form.",

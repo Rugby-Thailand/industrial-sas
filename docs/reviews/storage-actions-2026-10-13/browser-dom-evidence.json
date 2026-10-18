@@ -147,54 +147,42 @@
       ],
       "fields": [
         {
-          "labels": [
-            "Building code\n*"
-          ],
+          "labels": ["Building code\n*"],
           "max": "",
           "min": "",
           "name": "code",
           "value": "BLDG-A"
         },
         {
-          "labels": [
-            "Building name\n*"
-          ],
+          "labels": ["Building name\n*"],
           "max": "",
           "min": "",
           "name": "name",
           "value": "Main storage"
         },
         {
-          "labels": [
-            "Width (m)\n*"
-          ],
+          "labels": ["Width (m)\n*"],
           "max": "",
           "min": "0.1",
           "name": "width",
           "value": "30"
         },
         {
-          "labels": [
-            "Depth (m)\n*"
-          ],
+          "labels": ["Depth (m)\n*"],
           "max": "",
           "min": "0.1",
           "name": "depth",
           "value": "20"
         },
         {
-          "labels": [
-            "Floor height (m)\n*"
-          ],
+          "labels": ["Floor height (m)\n*"],
           "max": "",
           "min": "0.1",
           "name": "height",
           "value": "4"
         },
         {
-          "labels": [
-            "Floors\n*"
-          ],
+          "labels": ["Floors\n*"],
           "max": "50",
           "min": "1",
           "name": "floors",
@@ -455,23 +443,17 @@
           "value": ""
         },
         {
-          "labels": [
-            "Width (m)"
-          ],
+          "labels": ["Width (m)"],
           "name": "",
           "value": "12.26"
         },
         {
-          "labels": [
-            "Depth (m)"
-          ],
+          "labels": ["Depth (m)"],
           "name": "",
           "value": "29.93"
         },
         {
-          "labels": [
-            "Floor height (m)"
-          ],
+          "labels": ["Floor height (m)"],
           "name": "",
           "value": "3.3"
         }
@@ -523,44 +505,32 @@
       ],
       "fields": [
         {
-          "labels": [
-            "Zone label"
-          ],
+          "labels": ["Zone label"],
           "name": "",
           "value": ""
         },
         {
-          "labels": [
-            "X position (m)"
-          ],
+          "labels": ["X position (m)"],
           "name": "",
           "value": "4.5"
         },
         {
-          "labels": [
-            "Y position (m)"
-          ],
+          "labels": ["Y position (m)"],
           "name": "",
           "value": "0"
         },
         {
-          "labels": [
-            "Zone width (m)"
-          ],
+          "labels": ["Zone width (m)"],
           "name": "",
           "value": "2"
         },
         {
-          "labels": [
-            "Zone depth (m)"
-          ],
+          "labels": ["Zone depth (m)"],
           "name": "",
           "value": "2"
         },
         {
-          "labels": [
-            "Maximum stack height (m)"
-          ],
+          "labels": ["Maximum stack height (m)"],
           "name": "",
           "value": "3.3"
         }
@@ -813,44 +783,32 @@
       "detectorGlobal": "undefined",
       "fields": [
         {
-          "labels": [
-            "SKU\n*"
-          ],
+          "labels": ["SKU\n*"],
           "name": "",
           "value": ""
         },
         {
-          "labels": [
-            "Product name\n*"
-          ],
+          "labels": ["Product name\n*"],
           "name": "",
           "value": ""
         },
         {
-          "labels": [
-            "Counting unit\n*"
-          ],
+          "labels": ["Counting unit\n*"],
           "name": "",
           "value": "pieces"
         },
         {
-          "labels": [
-            "Storage notes"
-          ],
+          "labels": ["Storage notes"],
           "name": "",
           "value": ""
         },
         {
-          "labels": [
-            ""
-          ],
+          "labels": [""],
           "name": "",
           "value": ""
         },
         {
-          "labels": [
-            ""
-          ],
+          "labels": [""],
           "name": "",
           "value": ""
         }

@@ -10,12 +10,7 @@
         "range": "1–20 จาก 73",
         "rows": 20,
         "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          true,
-          true,
-          false,
-          false
-        ],
+        "disabled": [true, true, false, false],
         "overflow": false
       }
     },
@@ -26,12 +21,7 @@
         "range": "21–40 จาก 73",
         "rows": 20,
         "selection": "หน้า 2 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          false,
-          false,
-          false,
-          false
-        ],
+        "disabled": [false, false, false, false],
         "overflow": false
       }
     },
@@ -42,12 +32,7 @@
         "range": "61–73 จาก 73",
         "rows": 13,
         "selection": "หน้า 4 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          false,
-          false,
-          true,
-          true
-        ],
+        "disabled": [false, false, true, true],
         "overflow": false
       }
     },
@@ -58,12 +43,7 @@
         "range": "1–50 จาก 73",
         "rows": 50,
         "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          true,
-          true,
-          false,
-          false
-        ],
+        "disabled": [true, true, false, false],
         "overflow": false
       }
     },
@@ -74,12 +54,7 @@
         "range": "1–50 จาก 53",
         "rows": 50,
         "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          true,
-          true,
-          false,
-          false
-        ],
+        "disabled": [true, true, false, false],
         "overflow": false,
         "id": "demo-filter",
         "closed": true
@@ -92,12 +67,7 @@
         "range": "0 จาก 0",
         "rows": 0,
         "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          true,
-          true,
-          true,
-          true
-        ],
+        "disabled": [true, true, true, true],
         "overflow": false
       }
     },
@@ -108,12 +78,7 @@
         "range": "1–50 จาก 126",
         "rows": 50,
         "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          true,
-          true,
-          false,
-          false
-        ],
+        "disabled": [true, true, false, false],
         "overflow": false
       }
     },
@@ -124,12 +89,7 @@
         "range": "หน้า 1 · 20 รายการ",
         "rows": 20,
         "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          true,
-          true,
-          false,
-          true
-        ],
+        "disabled": [true, true, false, true],
         "overflow": false
       }
     },
@@ -140,12 +100,7 @@
         "range": "หน้า 2 · 20 รายการ",
         "rows": 20,
         "selection": "หน้า 2 · เลือก 0 รายการในหน้านี้",
-        "disabled": [
-          false,
-          false,
-          false,
-          true
-        ],
+        "disabled": [false, false, false, true],
         "overflow": false
       }
     },

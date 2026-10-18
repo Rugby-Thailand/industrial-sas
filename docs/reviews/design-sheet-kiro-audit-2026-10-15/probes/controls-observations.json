@@ -19,10 +19,7 @@
     "selectedDayLabel": "Wednesday, October 14th, 2026, selected",
     "firstWeekday": "Sunday",
     "selectedTdClasses": "group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-(--cell-radius) [&:first-child[data-selected=true]_button]:rounded-l-(--cell-radius) rdp-day rdp-focused rdp-selected",
-    "selectedButtonClasses": [
-      "rdp-day",
-      "rdp-day_button"
-    ],
+    "selectedButtonClasses": ["rdp-day", "rdp-day_button"],
     "navChevronClass": "lucide lucide-chevron-right cn-rtl-flip size-4 rdp-chevron",
     "outsideDays": 4
   },
@@ -33,10 +30,7 @@
     "selectedDayLabel": "วันพุธที่ 14 ตุลาคม 2026, เลือกแล้ว",
     "firstWeekday": "อาทิตย์",
     "selectedTdClasses": "group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none [&:last-child[data-selected=true]_button]:rounded-r-(--cell-radius) [&:first-child[data-selected=true]_button]:rounded-l-(--cell-radius) rdp-day rdp-focused rdp-selected",
-    "selectedButtonClasses": [
-      "rdp-day",
-      "rdp-day_button"
-    ],
+    "selectedButtonClasses": ["rdp-day", "rdp-day_button"],
     "navChevronClass": "lucide lucide-chevron-right cn-rtl-flip size-4 rdp-chevron",
     "outsideDays": 4
   },
@@ -67,39 +61,15 @@
   "E_focusAfterReviewState": "review-state-control",
   "G_reading": {
     "textInputsDisabled": [
-      [
-        "ticket-factoryOrder",
-        true
-      ],
-      [
-        "ticket-productBarcodeText",
-        true
-      ],
-      [
-        "ticket-partName",
-        true
-      ],
-      [
-        "ticket-customer",
-        true
-      ],
-      [
-        "ticket-quantity",
-        true
-      ],
-      [
-        "ticket-factoryQuantity",
-        true
-      ],
-      [
-        "ticket-customerQuantity",
-        true
-      ]
+      ["ticket-factoryOrder", true],
+      ["ticket-productBarcodeText", true],
+      ["ticket-partName", true],
+      ["ticket-customer", true],
+      ["ticket-quantity", true],
+      ["ticket-factoryQuantity", true],
+      ["ticket-customerQuantity", true]
     ],
-    "scannerDisabled": [
-      true,
-      true
-    ],
+    "scannerDisabled": [true, true],
     "unitTypeDisabled": true
   },
   "H_pending": {
@@ -110,16 +80,8 @@
     "noticeRole": "status"
   },
   "H_catalogueSwitch": [
-    [
-      "Products",
-      "btn secondary",
-      "true"
-    ],
-    [
-      "Storage units",
-      "btn ghost",
-      "false"
-    ]
+    ["Products", "btn secondary", "true"],
+    ["Storage units", "btn ghost", "false"]
   ],
   "N_cssWithoutScript": {
     "review-state": "none",

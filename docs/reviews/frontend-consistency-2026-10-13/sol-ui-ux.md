@@ -10,32 +10,32 @@ This is a source-backed audit, not a screenshot verdict. High-confidence observa
 
 Inventory found 40 locale `page.tsx` entrypoints and 52 app locale production TSX files. Counts below exclude tests and `_prototype` assets and include production helpers, not only visible screens. Main screen render paths, shared controls, relevant state ownership, and custom CSS were inspected; not every line of every geometry helper was read.
 
-| Area | Production TS/TSX/CSS inventory | Coverage |
-|---|---:|---|
-| App locale routes | 52 | Auth sign-in, public about/privacy/terms, setup, root redirects, error/not-found, HR today/time/day/profile/review/employees/periods/period/requests/request/holidays/customize/settings, finished goods catalogue/new/product/packing/batch/pallet/measure/storage/move/stack/scan/records, storage catalogue/new/building/review/floor redirect/demo and route message layouts. |
-| Finished goods | 54 | Catalogue/table/mobile list/filter sheet and popovers; product/batches/batch manager; packing/completion/dimensions; pallet measurement/placement/storage/move/stack and scene controls; shared headings/status/errors/draft helpers; all job scan acquisition/location/ticket/records render paths. |
-| HR | 24 | Current dirty and untracked screens, forms, toolbar/stats/time/card/initial primitives, self-service navigation, write/format helpers, supervisor decision and period/export layouts. |
-| Storage layouts | 15 | Building and location catalogues; unmeasured registered locations; new building/settings/editor/review; zones/reserved areas; occupancy; status toggle; floor selection/query helpers. |
-| Storage kit | 3 | QR rendering/dialog and placement badge semantics. |
-| UI primitives | 47 | Page/header/breadcrumb/back/container; panel/section/description; button/icon/variants; field/input/select/search/scan/checkbox; segment/disclosure; dialog/sheet/details/confirm; notices/empty/status/reason; table/scroller/pagination; theme toggle and sidebar. |
-| Shell | 14 (+ real shell in examples) | DesktopShell alias and `examples/c-sidebar-2.tsx`; desktop rail/mobile drawer; organization/warehouse context; navigation links/pending; account/locale/theme; search trigger/provider/dialog/AI/loader/result surfaces. |
-| System | 14 | Collection toolbar/paging; query/data/access gates and query error fallback; loading/navigation guard/progress; setup/public info. |
-| Storage components | 26 | FloorMap/drawing/CSS/toolbar/list/table/inspector/bottom sheet/camera; zone draft and 2D/3D visualizer; area color picker; camera/pan/viewport/media hooks; reference/demo reachability. |
-| Scene components | 3 | SceneBox/legend, SceneToolbar, scene semantic colors. |
-| Hooks | 13 at final recheck | Mobile boundary, request/write/file/draft/format/catalogue/pagination/continuation ownership; display-facing consequences. |
-| i18n | 8 | Route/shell namespace composition, guarded localized routing, locale defaults, measurement formatting; both locale message copies inspected for reported semantics. |
+| Area               | Production TS/TSX/CSS inventory | Coverage                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------ | ------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App locale routes  |                              52 | Auth sign-in, public about/privacy/terms, setup, root redirects, error/not-found, HR today/time/day/profile/review/employees/periods/period/requests/request/holidays/customize/settings, finished goods catalogue/new/product/packing/batch/pallet/measure/storage/move/stack/scan/records, storage catalogue/new/building/review/floor redirect/demo and route message layouts. |
+| Finished goods     |                              54 | Catalogue/table/mobile list/filter sheet and popovers; product/batches/batch manager; packing/completion/dimensions; pallet measurement/placement/storage/move/stack and scene controls; shared headings/status/errors/draft helpers; all job scan acquisition/location/ticket/records render paths.                                                                              |
+| HR                 |                              24 | Current dirty and untracked screens, forms, toolbar/stats/time/card/initial primitives, self-service navigation, write/format helpers, supervisor decision and period/export layouts.                                                                                                                                                                                             |
+| Storage layouts    |                              15 | Building and location catalogues; unmeasured registered locations; new building/settings/editor/review; zones/reserved areas; occupancy; status toggle; floor selection/query helpers.                                                                                                                                                                                            |
+| Storage kit        |                               3 | QR rendering/dialog and placement badge semantics.                                                                                                                                                                                                                                                                                                                                |
+| UI primitives      |                              47 | Page/header/breadcrumb/back/container; panel/section/description; button/icon/variants; field/input/select/search/scan/checkbox; segment/disclosure; dialog/sheet/details/confirm; notices/empty/status/reason; table/scroller/pagination; theme toggle and sidebar.                                                                                                              |
+| Shell              |   14 (+ real shell in examples) | DesktopShell alias and `examples/c-sidebar-2.tsx`; desktop rail/mobile drawer; organization/warehouse context; navigation links/pending; account/locale/theme; search trigger/provider/dialog/AI/loader/result surfaces.                                                                                                                                                          |
+| System             |                              14 | Collection toolbar/paging; query/data/access gates and query error fallback; loading/navigation guard/progress; setup/public info.                                                                                                                                                                                                                                                |
+| Storage components |                              26 | FloorMap/drawing/CSS/toolbar/list/table/inspector/bottom sheet/camera; zone draft and 2D/3D visualizer; area color picker; camera/pan/viewport/media hooks; reference/demo reachability.                                                                                                                                                                                          |
+| Scene components   |                               3 | SceneBox/legend, SceneToolbar, scene semantic colors.                                                                                                                                                                                                                                                                                                                             |
+| Hooks              |             13 at final recheck | Mobile boundary, request/write/file/draft/format/catalogue/pagination/continuation ownership; display-facing consequences.                                                                                                                                                                                                                                                        |
+| i18n               |                               8 | Route/shell namespace composition, guarded localized routing, locale defaults, measurement formatting; both locale message copies inspected for reported semantics.                                                                                                                                                                                                               |
 
 ## Existing system to reuse
 
 The app already has most of the required shared vocabulary. Creating parallel replacements would increase inconsistency.
 
-* `src/app/globals.css:9` defines the canonical dense condition: width >= 768px **and fine primary pointer**. `globals.css:76` defines 48px touch / 36px dense targets and `globals.css:83` the 2/8/16/24px rhythm. `ui/buttonVariants.ts:25`, `ui/input.tsx:10`, `ui/select.tsx:30`, and planner module CSS already adopt it. `lg`, `default`, and `touch` button aliases currently share the same sizing; searching for `size="lg"` alone does not prove oversizing.
-* `ui/PageContainer.tsx:4`, `PageHeader.tsx:32`, `Panel.tsx:9`, `SectionHeader.tsx:14`, and `DescriptionList.tsx:25` provide page width, outline, one task surface, section hierarchy and metric/fact layouts.
-* `ui/FormField.tsx:67`, `FormSelect.tsx:20`, `SelectControl.tsx:79`, `ScanCodeInput.tsx:29`, `SearchField.tsx`, and `CheckboxControl.tsx` provide names, hints, invalid state, shared field shape and scan actions. Current selects have already been migrated to Radix; a generic native-select migration is obsolete.
-* `ui/ConfirmDialog.tsx:66`, `dialog.tsx:68`, `DetailsPanel.tsx:30`, and `StickyActionBar.tsx:22` provide pending-dismiss protection for confirmations, opener focus return, sheet width and measured fixed-footer inset.
-* `system/CollectionToolbar.tsx:27`, `PaginationFooter.tsx:37`, `CursorPagination.tsx:39`, `PageSizeSelect.tsx:15`, and `table/DataTable.tsx:75` provide collection presentation while keeping server/local paging state distinct.
-* `system/DataGate.tsx:30`, `QueryGate.tsx:16`, `LedgerPanelStatus.tsx:25`, `ui/Notice.tsx:66`, `EmptyState.tsx:35` already distinguish loading, denied, failed, empty and filtered states. Do not collapse these into a generic empty card.
-* `storageScene/SceneToolbar.tsx:29`, `storageLayouts/useFloorWorkspaceView.ts:54`, `FloorMap.tsx:954`, and `FloorMap.module.css:256` already solve bounded scene controls, container-aware split/inspector behavior and mobile details. Their custom anatomy has legitimate reasons.
+- `src/app/globals.css:9` defines the canonical dense condition: width >= 768px **and fine primary pointer**. `globals.css:76` defines 48px touch / 36px dense targets and `globals.css:83` the 2/8/16/24px rhythm. `ui/buttonVariants.ts:25`, `ui/input.tsx:10`, `ui/select.tsx:30`, and planner module CSS already adopt it. `lg`, `default`, and `touch` button aliases currently share the same sizing; searching for `size="lg"` alone does not prove oversizing.
+- `ui/PageContainer.tsx:4`, `PageHeader.tsx:32`, `Panel.tsx:9`, `SectionHeader.tsx:14`, and `DescriptionList.tsx:25` provide page width, outline, one task surface, section hierarchy and metric/fact layouts.
+- `ui/FormField.tsx:67`, `FormSelect.tsx:20`, `SelectControl.tsx:79`, `ScanCodeInput.tsx:29`, `SearchField.tsx`, and `CheckboxControl.tsx` provide names, hints, invalid state, shared field shape and scan actions. Current selects have already been migrated to Radix; a generic native-select migration is obsolete.
+- `ui/ConfirmDialog.tsx:66`, `dialog.tsx:68`, `DetailsPanel.tsx:30`, and `StickyActionBar.tsx:22` provide pending-dismiss protection for confirmations, opener focus return, sheet width and measured fixed-footer inset.
+- `system/CollectionToolbar.tsx:27`, `PaginationFooter.tsx:37`, `CursorPagination.tsx:39`, `PageSizeSelect.tsx:15`, and `table/DataTable.tsx:75` provide collection presentation while keeping server/local paging state distinct.
+- `system/DataGate.tsx:30`, `QueryGate.tsx:16`, `LedgerPanelStatus.tsx:25`, `ui/Notice.tsx:66`, `EmptyState.tsx:35` already distinguish loading, denied, failed, empty and filtered states. Do not collapse these into a generic empty card.
+- `storageScene/SceneToolbar.tsx:29`, `storageLayouts/useFloorWorkspaceView.ts:54`, `FloorMap.tsx:954`, and `FloorMap.module.css:256` already solve bounded scene controls, container-aware split/inspector behavior and mobile details. Their custom anatomy has legitimate reasons.
 
 ## Prioritized findings
 
@@ -191,11 +191,11 @@ Relevant current tests: `src/features/finishedGoods/FinishedGoodsMobileList.test
 
 ## Additional review candidates (do not promote without visual/product validation)
 
-* History currently shows both month and date-range selectors for the same range (`HistoryScreen.tsx:126`, `:141`), plus four large clickable metric cards (`:187`) using 48px decorative icon blocks (`HrActionCard.tsx:57`). Could become a compact month preset + secondary custom range and smaller actionable strip, but those cards intentionally filter the list; replacing them with passive DescriptionList metrics would lose behavior. Current HrStatStrip exists for passive metrics (`HrUi.tsx:55`). Preserve inspectability and selected-state semantics. Verify with `HrSimplification.test.tsx`, `SelfService.test.tsx`, `HrScreens.test.tsx` before pursuing.
-* Shared tables retain 48px header and 56px row minimum heights (`ui/table.tsx:80`, `:93`), while bounded planner table CSS uses 48/36 density (`FloorWorkspaceLocationList.module.css:95`). This may be intentional for multi-line/badged rows. A dense data-table variant may help high-volume lists; do not shrink all rows because buttons are 36px.
-* Two date inputs remain side-by-side on small phones (`HistoryScreen.tsx:73`); native date controls should be visually checked at 320px/200% zoom in Thai and English before changing to stacking. Source alone does not prove clipping.
-* QrDialog defaults to 672px-wide `md` dialog around a centered QR (`storageKit/QrDialog.tsx:33`), while scan-field dialog uses `sm` (`TicketFieldScanner.tsx:70`). `size="sm"` is likely sufficient for QR-only content, but long code/description and camera/scanner needs differ. Do not impose one width on editor, photo, QR and confirmation dialogs.
-* New building pre-fills persisted English “Main storage” (`StorageLayoutScreens.tsx:410`) on the Thai route. Prefer an explicit example placeholder or localized suggested name if product wants it. Do not translate existing records.
+- History currently shows both month and date-range selectors for the same range (`HistoryScreen.tsx:126`, `:141`), plus four large clickable metric cards (`:187`) using 48px decorative icon blocks (`HrActionCard.tsx:57`). Could become a compact month preset + secondary custom range and smaller actionable strip, but those cards intentionally filter the list; replacing them with passive DescriptionList metrics would lose behavior. Current HrStatStrip exists for passive metrics (`HrUi.tsx:55`). Preserve inspectability and selected-state semantics. Verify with `HrSimplification.test.tsx`, `SelfService.test.tsx`, `HrScreens.test.tsx` before pursuing.
+- Shared tables retain 48px header and 56px row minimum heights (`ui/table.tsx:80`, `:93`), while bounded planner table CSS uses 48/36 density (`FloorWorkspaceLocationList.module.css:95`). This may be intentional for multi-line/badged rows. A dense data-table variant may help high-volume lists; do not shrink all rows because buttons are 36px.
+- Two date inputs remain side-by-side on small phones (`HistoryScreen.tsx:73`); native date controls should be visually checked at 320px/200% zoom in Thai and English before changing to stacking. Source alone does not prove clipping.
+- QrDialog defaults to 672px-wide `md` dialog around a centered QR (`storageKit/QrDialog.tsx:33`), while scan-field dialog uses `sm` (`TicketFieldScanner.tsx:70`). `size="sm"` is likely sufficient for QR-only content, but long code/description and camera/scanner needs differ. Do not impose one width on editor, photo, QR and confirmation dialogs.
+- New building pre-fills persisted English “Main storage” (`StorageLayoutScreens.tsx:410`) on the Thai route. Prefer an explicit example placeholder or localized suggested name if product wants it. Do not translate existing records.
 
 ## Positive patterns and rejected false positives
 
@@ -215,21 +215,21 @@ Relevant current tests: `src/features/finishedGoods/FinishedGoodsMobileList.test
 
 Effort is relative implementation scope, not a promised schedule: S = one small presentation change with focused verification; M = several composed surfaces/state edges; L = cross-flow work and connected-camera/browser validation.
 
-| Finding | Severity | Effort | Confidence |
-|---|---|---|---|
-| F1 preview versus captured frame | High | M | High source evidence; camera/browser visual check needed |
-| F2 building toggle in location row | High | S–M | High |
-| F3 zone pending dismissal/edit | High | M | High |
-| F4 create-form navigation/pending | Medium | M | High for pending controls; discard-policy choice needed |
-| F5 duplicate acquisition controls | Medium | L | High duplication evidence; target hierarchy needs browser review |
-| F6 ticket camera error/retry | Medium | M | High |
-| F7 request detail parent | Medium | S | High |
-| F8 geometry icon/error reason | Medium | M | High |
-| F9 HR request pager | Low/medium | S | High |
-| F10 page/form/action anatomy | Low/medium | M–L | Source-backed candidate; screenshots needed |
-| F11 one-item row menu | Low | S | High duplication evidence; frequency/product judgment needed |
-| F12 semantic icon map | Low | S–M | High current semantics; mapping is a design decision |
-| F13 numeric display | Low | M | High raw-value evidence; business precision verification needed |
+| Finding                            | Severity   | Effort | Confidence                                                       |
+| ---------------------------------- | ---------- | ------ | ---------------------------------------------------------------- |
+| F1 preview versus captured frame   | High       | M      | High source evidence; camera/browser visual check needed         |
+| F2 building toggle in location row | High       | S–M    | High                                                             |
+| F3 zone pending dismissal/edit     | High       | M      | High                                                             |
+| F4 create-form navigation/pending  | Medium     | M      | High for pending controls; discard-policy choice needed          |
+| F5 duplicate acquisition controls  | Medium     | L      | High duplication evidence; target hierarchy needs browser review |
+| F6 ticket camera error/retry       | Medium     | M      | High                                                             |
+| F7 request detail parent           | Medium     | S      | High                                                             |
+| F8 geometry icon/error reason      | Medium     | M      | High                                                             |
+| F9 HR request pager                | Low/medium | S      | High                                                             |
+| F10 page/form/action anatomy       | Low/medium | M–L    | Source-backed candidate; screenshots needed                      |
+| F11 one-item row menu              | Low        | S      | High duplication evidence; frequency/product judgment needed     |
+| F12 semantic icon map              | Low        | S–M    | High current semantics; mapping is a design decision             |
+| F13 numeric display                | Low        | M      | High raw-value evidence; business precision verification needed  |
 
 Source drift: parent observed `JobScanScreen.test.tsx` modified externally during this audit. Final recheck also found concurrent changes to `PageBackButton.tsx`, `JobScanScreen.tsx`, `lib/navigationGuard.ts`, and a new `hooks/useWorkflowStep.ts`; header Back now first calls backWithinPage and job-scan location selection has a guarded local step. Production anchors were refreshed for these files. Parent should review those external changes separately; they do not repair the request-detail breadcrumb fallback or ticket camera frame/recovery findings. This researcher made no repository edits and did not run tests; references concern current production source. Before implementation, revalidate file/line anchors and read current tests instead of assuming a frozen tree.
 

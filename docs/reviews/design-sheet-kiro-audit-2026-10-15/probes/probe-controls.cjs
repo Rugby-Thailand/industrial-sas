@@ -14,27 +14,48 @@ function create({ withControls = true } = {}) {
   const errors = [];
   const vc = new VirtualConsole();
   vc.on("jsdomError", (error) => errors.push(error.message));
-  const dom = new JSDOM(fs.readFileSync(path.join(root, "index.html"), "utf8"), {
-    runScripts: "outside-only",
-    url: "http://localhost:3211/",
-    pretendToBeVisual: true,
-    virtualConsole: vc,
-  });
+  const dom = new JSDOM(
+    fs.readFileSync(path.join(root, "index.html"), "utf8"),
+    {
+      runScripts: "outside-only",
+      url: "http://localhost:3211/",
+      pretendToBeVisual: true,
+      virtualConsole: vc,
+    },
+  );
   const w = dom.window;
-  w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
-  w.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  w.matchMedia = () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  });
+  w.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
   w.Element.prototype.hasPointerCapture = () => false;
   w.Element.prototype.setPointerCapture = () => {};
   w.Element.prototype.releasePointerCapture = () => {};
   w.Element.prototype.scrollIntoView = () => {};
-  const files = ["sheet.js", "review.js", ...(withControls ? ["dist/controls.js"] : [])];
-  w.eval(files.map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n"));
+  const files = [
+    "sheet.js",
+    "review.js",
+    ...(withControls ? ["dist/controls.js"] : []),
+  ];
+  w.eval(
+    files.map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n"),
+  );
   const doc = w.document;
   const user = userEvent.setup({ document: doc });
   const settled = () => new Promise((r) => w.setTimeout(r, 15));
   const select = async (id, option) => {
-    await user.click(doc.getElementById(`${id}-control`) ?? doc.getElementById(id));
-    await user.click(getByRole(doc.body, "option", { name: option, exact: true }));
+    await user.click(
+      doc.getElementById(`${id}-control`) ?? doc.getElementById(id),
+    );
+    await user.click(
+      getByRole(doc.body, "option", { name: option, exact: true }),
+    );
     await settled();
   };
   return { dom, w, doc, user, settled, select, errors };
@@ -62,10 +83,14 @@ function create({ withControls = true } = {}) {
     };
     // Restore and repeat with a mouse click on the selected day.
     await c.user.click(c.doc.getElementById("demo-date-control"));
-    await c.user.click(c.doc.querySelector('.sheet-calendar [data-day="10/14/2026"]'));
+    await c.user.click(
+      c.doc.querySelector('.sheet-calendar [data-day="10/14/2026"]'),
+    );
     await c.settled();
     await c.user.click(c.doc.getElementById("demo-date-control"));
-    await c.user.click(c.doc.querySelector('.sheet-calendar [data-day="10/14/2026"]'));
+    await c.user.click(
+      c.doc.querySelector('.sheet-calendar [data-day="10/14/2026"]'),
+    );
     await c.settled();
     out.A_afterClickOnSelectedDay = {
       sourceValue: c.doc.getElementById("demo-date").value,
@@ -81,18 +106,31 @@ function create({ withControls = true } = {}) {
       await c.user.click(c.doc.getElementById("demo-date-control"));
       await c.settled();
       const grid = c.doc.querySelector('.sheet-calendar [role="grid"]');
-      const selected = c.doc.querySelector(".sheet-calendar .rdp-selected button");
+      const selected = c.doc.querySelector(
+        ".sheet-calendar .rdp-selected button",
+      );
       const res = {
-        trigger: c.doc.getElementById("demo-date-control").getAttribute("aria-label"),
-        caption: c.doc.querySelector(".sheet-calendar .rdp-caption_label")?.textContent,
+        trigger: c.doc
+          .getElementById("demo-date-control")
+          .getAttribute("aria-label"),
+        caption: c.doc.querySelector(".sheet-calendar .rdp-caption_label")
+          ?.textContent,
         gridLabel: grid?.getAttribute("aria-label"),
         selectedDayLabel: selected?.getAttribute("aria-label"),
-        firstWeekday: c.doc.querySelector(".sheet-calendar .rdp-weekday")?.getAttribute("aria-label") ??
+        firstWeekday:
+          c.doc
+            .querySelector(".sheet-calendar .rdp-weekday")
+            ?.getAttribute("aria-label") ??
           c.doc.querySelector(".sheet-calendar .rdp-weekday")?.textContent,
         selectedTdClasses: selected?.closest("td")?.className,
-        selectedButtonClasses: selected?.className.split(/\s+/).filter((k) => k.startsWith("rdp")),
-        navChevronClass: c.doc.querySelector(".sheet-calendar .rdp-button_next svg")?.getAttribute("class"),
-        outsideDays: c.doc.querySelectorAll(".sheet-calendar .rdp-outside").length,
+        selectedButtonClasses: selected?.className
+          .split(/\s+/)
+          .filter((k) => k.startsWith("rdp")),
+        navChevronClass: c.doc
+          .querySelector(".sheet-calendar .rdp-button_next svg")
+          ?.getAttribute("class"),
+        outsideDays: c.doc.querySelectorAll(".sheet-calendar .rdp-outside")
+          .length,
       };
       await c.user.keyboard("{Escape}");
       await c.settled();
@@ -113,12 +151,17 @@ function create({ withControls = true } = {}) {
     await c.user.click(c.doc.getElementById("demo-time-control"));
     await c.settled();
     out.C_emptyTimeOpen = {
-      trigger: c.doc.getElementById("demo-time-control").getAttribute("aria-label"),
+      trigger: c.doc
+        .getElementById("demo-time-control")
+        .getAttribute("aria-label"),
       hourTrigger: c.doc.getElementById("demo-time-control-hour").textContent,
-      minuteTrigger: c.doc.getElementById("demo-time-control-minute").textContent,
+      minuteTrigger: c.doc.getElementById("demo-time-control-minute")
+        .textContent,
     };
     await c.select("demo-time-control-minute", "45");
-    out.C_minuteFirst = { sourceValue: c.doc.getElementById("demo-time").value };
+    out.C_minuteFirst = {
+      sourceValue: c.doc.getElementById("demo-time").value,
+    };
     c.dom.window.close();
     const d = create();
     d.doc.getElementById("demo-time").value = "";
@@ -126,7 +169,9 @@ function create({ withControls = true } = {}) {
     await d.user.click(d.doc.getElementById("demo-time-control"));
     await d.select("demo-time-control-hour", "09");
     out.C_hourFirst = { sourceValue: d.doc.getElementById("demo-time").value };
-    out.C_clearTimeAction = !!queryAllByRole(d.doc.body, "button").find((b) => /clear/i.test(b.textContent));
+    out.C_clearTimeAction = !!queryAllByRole(d.doc.body, "button").find((b) =>
+      /clear/i.test(b.textContent),
+    );
     d.dom.window.close();
   }
 
@@ -171,9 +216,14 @@ function create({ withControls = true } = {}) {
     await c.select("review-state", "Reading");
     out.E_focusAfterReviewState = c.doc.activeElement.id;
     out.G_reading = {
-      textInputsDisabled: [...c.doc.querySelectorAll("#ticket-form input:not([hidden])")].map((i) => [i.id, i.disabled]),
-      scannerDisabled: [...c.doc.querySelectorAll(".field-scan")].map((b) => b.disabled),
-      unitTypeDisabled: c.doc.getElementById("ticket-storageFormat-control").disabled,
+      textInputsDisabled: [
+        ...c.doc.querySelectorAll("#ticket-form input:not([hidden])"),
+      ].map((i) => [i.id, i.disabled]),
+      scannerDisabled: [...c.doc.querySelectorAll(".field-scan")].map(
+        (b) => b.disabled,
+      ),
+      unitTypeDisabled: c.doc.getElementById("ticket-storageFormat-control")
+        .disabled,
     };
     c.dom.window.close();
   }
@@ -192,11 +242,9 @@ function create({ withControls = true } = {}) {
       noticeRole: c.doc.querySelector(".review-notice")?.getAttribute("role"),
     };
     c.doc.getElementById("tab-catalogue").click();
-    out.H_catalogueSwitch = [...c.doc.querySelectorAll("[data-catalogue-view]")].map((e) => [
-      e.textContent,
-      e.className,
-      e.getAttribute("aria-pressed"),
-    ]);
+    out.H_catalogueSwitch = [
+      ...c.doc.querySelectorAll("[data-catalogue-view]"),
+    ].map((e) => [e.textContent, e.className, e.getAttribute("aria-pressed")]);
     c.dom.window.close();
   }
 
@@ -204,9 +252,17 @@ function create({ withControls = true } = {}) {
   {
     const c = create({ withControls: false });
     const style = c.doc.createElement("style");
-    style.textContent = fs.readFileSync(path.join(root, "dist/controls.css"), "utf8");
+    style.textContent = fs.readFileSync(
+      path.join(root, "dist/controls.css"),
+      "utf8",
+    );
     c.doc.head.append(style);
-    const ids = ["review-state", "ticket-storageFormat", "demo-date", "demo-time"];
+    const ids = [
+      "review-state",
+      "ticket-storageFormat",
+      "demo-date",
+      "demo-time",
+    ];
     out.N_cssWithoutScript = Object.fromEntries(
       ids.map((id) => {
         const el = c.doc.getElementById(id);

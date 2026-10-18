@@ -29,10 +29,7 @@
     "spec": "PASS, 0 actionable findings",
     "correction": "History partial-date reset regression caught by Codex, reproduced with a failing caller case, fixed by Kiro, retested in EN/TH with Back/Forward/remount"
   },
-  "browserEvidence": [
-    "browser-baseline.json",
-    "browser-storage.json"
-  ],
+  "browserEvidence": ["browser-baseline.json", "browser-storage.json"],
   "limitations": [
     "Browser fixtures substitute backend/context; no authenticated live writes or physical-camera proof.",
     "Guarded JobScan Forward behavior has a documented pre-existing limitation; no-guard case is supplemental."

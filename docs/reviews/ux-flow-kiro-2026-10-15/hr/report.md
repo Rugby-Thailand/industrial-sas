@@ -12,13 +12,13 @@ Nothing in this report is browser-verified.
 
 ## Findings
 
-| ID         | P   | Finding                                                                                             | Evidence                                    | Novelty |
-| ---------- | --- | --------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------- |
-| K-UX-HR-01 | P2  | Linking an account/supervisor completes "setup" but grants no HR access, and the admin is never told | probe-backend + source-traced UI            | new     |
-| K-UX-HR-02 | P2  | Certify/Return confirmation is lost; after Return the reviewer sees "Account for this day" or "Nothing to decide" | probe-rendered + Convex client source       | new     |
-| K-UX-HR-03 | P2* | Day → Back resets the History month/filter; request → Back resets the Requests status/page           | probe-rendered remount + Next config/docs   | new     |
-| K-UX-HR-04 | P3  | The returned-request resubmission hides the return reason below the form and starts from the original punch | probe-rendered                              | new     |
-| K-UX-HR-05 | P3  | Saving an employee closes the editor with no confirmation                                           | source-traced                               | new     |
+| ID         | P   | Finding                                                                                                           | Evidence                                  | Novelty |
+| ---------- | --- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------- |
+| K-UX-HR-01 | P2  | Linking an account/supervisor completes "setup" but grants no HR access, and the admin is never told              | probe-backend + source-traced UI          | new     |
+| K-UX-HR-02 | P2  | Certify/Return confirmation is lost; after Return the reviewer sees "Account for this day" or "Nothing to decide" | probe-rendered + Convex client source     | new     |
+| K-UX-HR-03 | P2* | Day → Back resets the History month/filter; request → Back resets the Requests status/page                        | probe-rendered remount + Next config/docs | new     |
+| K-UX-HR-04 | P3  | The returned-request resubmission hides the return reason below the form and starts from the original punch       | probe-rendered                            | new     |
+| K-UX-HR-05 | P3  | Saving an employee closes the editor with no confirmation                                                         | source-traced                             | new     |
 
 \* K-UX-HR-03 is borderline P2/P3: there is no data loss, but every return breaks the earlier view the employee chose.
 
@@ -192,11 +192,11 @@ pnpm exec vitest run --config docs/reviews/ux-flow-kiro-2026-10-15/hr/probes/vit
 
 Other checks:
 
-| Check                                                                         | Result          |
-| ----------------------------------------------------------------------------- | --------------- |
-| `pnpm exec tsc -p docs/reviews/ux-flow-kiro-2026-10-15/hr/probes/tsconfig.probes.json` | Passed          |
-| ESLint on the three probe files                                               | Passed          |
-| Existing `HrScreens`, `SelfService` and `HrReviewCompletion` tests            | **30/30 passed** (`evidence/existing-hr-tests.log`) |
+| Check                                                                                  | Result                                              |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `pnpm exec tsc -p docs/reviews/ux-flow-kiro-2026-10-15/hr/probes/tsconfig.probes.json` | Passed                                              |
+| ESLint on the three probe files                                                        | Passed                                              |
+| Existing `HrScreens`, `SelfService` and `HrReviewCompletion` tests                     | **30/30 passed** (`evidence/existing-hr-tests.log`) |
 
 The existing tests passing alongside these probes confirms the gaps are not covered by the current suite.
 

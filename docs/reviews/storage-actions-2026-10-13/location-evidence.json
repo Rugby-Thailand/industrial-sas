@@ -155,39 +155,27 @@
       ],
       "fields": [
         {
-          "labels": [
-            "Zone label"
-          ],
+          "labels": ["Zone label"],
           "value": "FG1-L01"
         },
         {
-          "labels": [
-            "X position (m)"
-          ],
+          "labels": ["X position (m)"],
           "value": "0"
         },
         {
-          "labels": [
-            "Y position (m)"
-          ],
+          "labels": ["Y position (m)"],
           "value": "0"
         },
         {
-          "labels": [
-            "Zone width (m)"
-          ],
+          "labels": ["Zone width (m)"],
           "value": "2.87"
         },
         {
-          "labels": [
-            "Zone depth (m)"
-          ],
+          "labels": ["Zone depth (m)"],
           "value": "4.82"
         },
         {
-          "labels": [
-            "Maximum stack height (m)"
-          ],
+          "labels": ["Maximum stack height (m)"],
           "value": "1.5"
         }
       ],

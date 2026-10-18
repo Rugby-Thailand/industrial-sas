@@ -10,13 +10,13 @@ Evidence levels used below:
 
 ## Findings
 
-| ID | Sev | Title | Evidence | Novelty |
-|---|---|---|---|---|
-| SS-05 | P2 | A successful location create/edit in the building workspace raises “Save changes before leaving?”, and no success message appears | rendered-component-test | New |
-| SS-01 | P2 | Building/review/task routes say “Choose a warehouse” but have no warehouse selector | rendered-component-test | New |
-| SS-02 | P2 | Building and review pages that are not found or fail to load show only a one-line notice: no heading, Back, breadcrumb or retry | rendered-component-test | New |
-| SS-04 | P3 | A warehouse with no buildings says “No buildings match these filters” with no filters applied | rendered-component-test | New |
-| SS-03 | P3 | A member with no accessible warehouse, or any user while the workspace loads, is told “No organization context” | rendered-component-test | New |
+| ID    | Sev | Title                                                                                                                             | Evidence                | Novelty |
+| ----- | --- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ------- |
+| SS-05 | P2  | A successful location create/edit in the building workspace raises “Save changes before leaving?”, and no success message appears | rendered-component-test | New     |
+| SS-01 | P2  | Building/review/task routes say “Choose a warehouse” but have no warehouse selector                                               | rendered-component-test | New     |
+| SS-02 | P2  | Building and review pages that are not found or fail to load show only a one-line notice: no heading, Back, breadcrumb or retry   | rendered-component-test | New     |
+| SS-04 | P3  | A warehouse with no buildings says “No buildings match these filters” with no filters applied                                     | rendered-component-test | New     |
+| SS-03 | P3  | A member with no accessible warehouse, or any user while the workspace loads, is told “No organization context”                   | rendered-component-test | New     |
 
 ### SS-05 (P2): a successful location save is followed by a false unsaved-changes prompt, and the success message is hidden
 
@@ -43,7 +43,7 @@ Evidence levels used below:
 - **User/role:** any storage or finished-goods member with access to two or more warehouses. This happens on a new device or browser, after storage is cleared, or when a coworker's link points to a building in another warehouse.
 - **Trigger and reproduction:** With no stored warehouse, open `/th/master-data/storage-layouts/<buildingId>` directly, or its `/review` page, or any finished-goods task page.
 - **Expected:** The page that says “Choose a warehouse to see its work and records.” lets the user choose one, then shows the requested building.
-- **Actual (probe):** The panel shows “No warehouse selected / Choose a warehouse…”, but the page renders 0 `warehouse-select` controls. In the control case on `/master-data/storage-layouts`, the selector does render. The header context is `TaskWorkspaceContext`, which renders nothing when no warehouse is selected. To recover, the user must notice the sidebar, go to the catalogue, pick a warehouse, and then find the building again; the deep link is lost. If the stored warehouse is a *different* accessible warehouse, the backend returns `found:false`, so the page says “Storage building not found.” with no hint to switch (see SS-02).
+- **Actual (probe):** The panel shows “No warehouse selected / Choose a warehouse…”, but the page renders 0 `warehouse-select` controls. In the control case on `/master-data/storage-layouts`, the selector does render. The header context is `TaskWorkspaceContext`, which renders nothing when no warehouse is selected. To recover, the user must notice the sidebar, go to the catalogue, pick a warehouse, and then find the building again; the deep link is lost. If the stored warehouse is a _different_ accessible warehouse, the backend returns `found:false`, so the page says “Storage building not found.” with no hint to switch (see SS-02).
 - **Evidence:**
   - Selector shown only on the two top-level routes: `src/components/examples/c-sidebar-2.tsx:80-84`, `:88`, `:171-185`.
   - Nothing rendered when no warehouse is selected: `c-sidebar-2.tsx:483-498`.
@@ -140,11 +140,11 @@ pnpm exec tsc -p docs/reviews/ux-flow-kiro-2026-10-15/storage-shell/probes/tscon
 pnpm exec eslint docs/reviews/ux-flow-kiro-2026-10-15/storage-shell/probes/
 ```
 
-| Check | Result |
-|---|---|
-| Vitest probes | **12 failed, 3 passed (15)**, exit 1, ≈3.5 s. Raw output: `probes/probe-run.log`. The passes are the SS-01 catalogue control and two SS-05 observation cases (prompt choices send 0 extra writes). |
-| Probe TypeScript | exit 0 |
-| Probe ESLint | exit 0 |
+| Check            | Result                                                                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vitest probes    | **12 failed, 3 passed (15)**, exit 1, ≈3.5 s. Raw output: `probes/probe-run.log`. The passes are the SS-01 catalogue control and two SS-05 observation cases (prompt choices send 0 extra writes). |
+| Probe TypeScript | exit 0                                                                                                                                                                                             |
+| Probe ESLint     | exit 0                                                                                                                                                                                             |
 
 The full test suite, `pnpm check:navigation` and the app server were not run, as instructed.
 

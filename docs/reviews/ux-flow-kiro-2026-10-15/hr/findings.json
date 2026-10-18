@@ -48,7 +48,10 @@
         { "path": "src/features/hr/ReviewDetail.tsx", "line": 481 },
         { "path": "convex/hr/review.ts", "line": 386 },
         { "path": "convex/model/hr/attendance.ts", "line": 217 },
-        { "path": "node_modules/convex/dist/esm/browser/sync/request_manager.js", "line": 100 }
+        {
+          "path": "node_modules/convex/dist/esm/browser/sync/request_manager.js",
+          "line": 100
+        }
       ],
       "cause": "Write feedback lives inside CorrectionDecision/DispositionForm. Rendering of those components depends on live state that the successful write changes (pending correction; revision key). Convex resolves a successful mutation only after the reflecting query transition, so the owner publishes SAVED to an unmounted form. The existing test passes because its query never changes.",
       "evidence": "hr-ui.probe.tsx renders production ReviewDetail with a reactive query store. Control (static query): 'Returned' shown. Live update on a complete day: statuses=['Nothing on this day needs a decision.'], no 'Returned'. Live update on a missing clock-out: no status; 'Account for this day' visible.",

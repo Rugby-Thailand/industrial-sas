@@ -17,25 +17,25 @@ Repository: `/Users/macbook/Development/industrial-sas`, branch head `733c6aca`,
 
 ### 1.1 Inventory (production vs tests vs prototypes)
 
-| Area | Prod files | Prod lines | Co-located tests | Prototype/reference files |
-|---|---:|---:|---:|---|
-| `src/app` (57 route/layout/error/api files + `globals.css`) | 57 | 1,853 | 3 | — |
-| `components/ui` | 47 | 3,921 | 16 | — |
-| `components/system` | 14 | 1,211 | 10 | — |
-| `components/table` | 1 | 176 | 1 | — |
-| `components/providers` | 10 | 737 | 4 | — |
-| `components/shell` (+`search/`) | 14 | 2,200 | 7 | `_prototype/minimal-app/` (HTML/CSS/JS, 9 entries; lint-ignored) |
-| `components/examples` | 1 | 499 | 1 | `c-sidebar-2.tsx` **is the production shell** (see F18) |
-| `components/storageLayouts` | 26 | 7,749 | 14 | `Fg1ReferencePreview.tsx`, `F1F2ReferencePreview.tsx`, `Fg1SourcePlan.tsx`: about 983 lines with **no production importer** (tests only) |
-| `components/storageScene` | 3 | 247 | 1 | — |
-| `features/finishedGoods` (top level) | 39 | 13,515 | 29 | `paginationTestAdapter.ts` (test-only, in a production folder) |
-| `features/finishedGoods/jobScan` | 15 | 3,395 | 10 | `_prototype/barcode/` (HTML/JS/worker/server.mjs; lint-ignored) |
-| `features/hr` | 24 | 7,637 | 21 | — |
-| `features/storageLayouts` | 15 | 6,098 | 8 | — |
-| `features/storageKit` | 3 | 120 | 0 | — |
-| `src/hooks` | 13 | 979 | 5 | — |
-| `src/i18n` | 8 | 265 | 3 | — |
-| `tests/` | — | — | 72 integration, 23 e2e, 8 isolation, 2 property files | — |
+| Area                                                        | Prod files | Prod lines |                                      Co-located tests | Prototype/reference files                                                                                                                |
+| ----------------------------------------------------------- | ---------: | ---------: | ----------------------------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app` (57 route/layout/error/api files + `globals.css`) |         57 |      1,853 |                                                     3 | —                                                                                                                                        |
+| `components/ui`                                             |         47 |      3,921 |                                                    16 | —                                                                                                                                        |
+| `components/system`                                         |         14 |      1,211 |                                                    10 | —                                                                                                                                        |
+| `components/table`                                          |          1 |        176 |                                                     1 | —                                                                                                                                        |
+| `components/providers`                                      |         10 |        737 |                                                     4 | —                                                                                                                                        |
+| `components/shell` (+`search/`)                             |         14 |      2,200 |                                                     7 | `_prototype/minimal-app/` (HTML/CSS/JS, 9 entries; lint-ignored)                                                                         |
+| `components/examples`                                       |          1 |        499 |                                                     1 | `c-sidebar-2.tsx` **is the production shell** (see F18)                                                                                  |
+| `components/storageLayouts`                                 |         26 |      7,749 |                                                    14 | `Fg1ReferencePreview.tsx`, `F1F2ReferencePreview.tsx`, `Fg1SourcePlan.tsx`: about 983 lines with **no production importer** (tests only) |
+| `components/storageScene`                                   |          3 |        247 |                                                     1 | —                                                                                                                                        |
+| `features/finishedGoods` (top level)                        |         39 |     13,515 |                                                    29 | `paginationTestAdapter.ts` (test-only, in a production folder)                                                                           |
+| `features/finishedGoods/jobScan`                            |         15 |      3,395 |                                                    10 | `_prototype/barcode/` (HTML/JS/worker/server.mjs; lint-ignored)                                                                          |
+| `features/hr`                                               |         24 |      7,637 |                                                    21 | —                                                                                                                                        |
+| `features/storageLayouts`                                   |         15 |      6,098 |                                                     8 | —                                                                                                                                        |
+| `features/storageKit`                                       |          3 |        120 |                                                     0 | —                                                                                                                                        |
+| `src/hooks`                                                 |         13 |        979 |                                                     5 | —                                                                                                                                        |
+| `src/i18n`                                                  |          8 |        265 |                                                     3 | —                                                                                                                                        |
+| `tests/`                                                    |          — |          — | 72 integration, 23 e2e, 8 isolation, 2 property files | —                                                                                                                                        |
 
 Untracked production source in the tree: `features/hr/{HolidaysScreen,HrActionCard,HrShortcuts,RequestsScreen,ShortcutCustomizeScreen,selfService}.tsx/ts`, `app/[locale]/(desktop)/hr/{customize,holidays,requests}/**`, `app/api/ai/**`, `src/lib/ai/**`, and `src/hooks/useWorkflowStep.ts` (new during the audit). I included all of them.
 
@@ -65,6 +65,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F1. Camera capture: three stream lifecycles and three layouts for the same physical task (barcode vs AI location photo vs AI ticket photos)
 
 **Evidence**
+
 - Barcode stream: `features/finishedGoods/useBarcodeCamera.ts:55-216`. Generation token, serialised startup (`startup.current = startup.current.then(run)`, line 211), release of late grants, error classification `PERMISSION | UNAVAILABLE | DECODER | TORCH`, torch, and `getUserMedia({ width 1920, height 1080 })` at lines 87-94.
 - AI location still photo: `features/finishedGoods/jobScan/LocationPhotoCamera.tsx:36-83`. Its own generation token, `useImperativeHandle` stop and retry `attempt`, with `getUserMedia({ … height: 1440 })` at lines 55-62. **Every failure shows `cameraPermission`** ("Camera access was denied…", line 152), even when the camera is simply missing or busy.
 - AI ticket photos: `features/finishedGoods/jobScan/PhotoCapture.tsx:52-79`. A third inline `useEffect([])` with a `cancelled` flag, no generation token, **no retry path**, and a single `ERROR` state rendered as a plain `<p>` overlay with no `role` (line 137-139). The video has no `aria-label` (line 127).
@@ -76,6 +77,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 - Tests: `useBarcodeCamera.test.tsx`, `BarcodeCameraBox.test.tsx`, `LocationPhotoCamera.test.tsx` and `DestinationScanner.test.tsx` cover lifecycles. **`PhotoCapture` has no direct test.** `JobScanScreen.test.tsx:78` mocks it out.
 
 **Proposal (prefer adoption over new abstraction)**
+
 1. Extract `features/finishedGoods/camera/useStillCamera.ts` from `LocationPhotoCamera` (generation token, release, retry, error classes `PERMISSION | UNAVAILABLE`) and adopt it in `PhotoCapture`. Both are still-photo flows with the same constraints. This replaces the weakest lifecycle with the strongest existing one.
 2. Extract `features/finishedGoods/camera/CameraViewport.tsx`, a presentational component holding the measured-aspect black frame, video element, `aria-label`, an optional overlay slot (scan guide, torch, shutter) and a status/notice row that maps `PERMISSION | UNAVAILABLE | DECODER | TORCH` to the existing `JobScan` keys. Use it in all three components. `BarcodeCameraBox` keeps its scan guide and torch through the overlay slot.
 3. Extract `captureVideoFrame(video, { maxPixels, type, quality }): Promise<File>` from `LocationPhotoCamera.capture()` and use it in `PhotoCapture`.
@@ -89,6 +91,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F2. Image intake rules are duplicated with diverging limits and allowlists
 
 **Evidence**
+
 - Two validators with the same 25 MB limit and type allowlist but different error shapes: `barcodeImage.ts:19-25` `validateBarcodeFile` (throws `ImageScanError("TYPE"|"SIZE")`) and `barcodeDecoder.ts:11-19` `barcodeImageProblem` (returns `"imageType"|"imageSize"`).
 - Pixel limits are scattered: 40 MP in `barcodeDecoder.ts:240`, `prepareLocationImage.ts:28` and `LocationPhotoCamera.tsx:93`, and 16 MP in `barcodeImage.worker.ts:37`.
 - `accept="image/jpeg,image/png,image/webp"` is repeated in `BarcodeImagePicker.tsx:142` and `LocationImageReader.tsx:179,191`. `PhotoCapture.tsx:46` accepts `image/*`, and `resizeImage.ts:21-23` silently returns the **original** file when decoding fails, so an unsupported format (for example HEIC on a browser that cannot decode it) would be sent unresized to `extractJobTicket`. I did not read what the server does with it.
@@ -101,6 +104,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F3. AI actions have inconsistent icon, naming and data-use disclosure
 
 **Evidence**
+
 - Icons:
   - `Sparkles` marks AI in global search (`shell/search/SearchTriggers.tsx:67`, `SearchDialog.tsx:253`, `SearchDialogLoader.tsx:270`), the location AI toggle (`jobScan/LocationPicker.tsx:223`) and the "Read N photos with AI" submit (`PhotoCapture.tsx:217`).
   - The JOB "Photos (AI)" mode button uses `Camera` (`JobScanScreen.tsx:465`).
@@ -122,6 +126,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F4. Read-state ladders (loading / denied / not found / failed) differ by domain, and FG and storage hide denials
 
 **Evidence**
+
 - The shared contract: `components/system/DataGate.tsx:18-22`, "The refusal keeps its request ID so a denied read is never replaced by a misleading empty or missing state." HR follows it everywhere through `OutcomeGate` (17 call sites across HR screens).
 - FG collapses transport denial into "Missing": `MoveScreen.tsx:88` `if (!outcome.ok || !outcome.value) return <Missing />`, `PalletScreens.tsx:114`, `PackingScreen.tsx:339,360`, `StackScreen.tsx:180` and `BatchManager.tsx:205`. `Missing` (`finishedGoods/shared.tsx:138-151`) says the record "may belong to a different warehouse or you may not have access", with no request ID. FG never imports `DataGate`/`OutcomeGate`.
 - Storage collapses denial into a generic warning: `StorageLayoutScreens.tsx:149-152` `QueryFailure` and `517-519` (`!outcome.ok → <QueryFailure/>`). `StorageLocationCatalogue.tsx:282-284` renders raw `<p role="status">` / `<p role="alert">` with no panel, tone or icon.
@@ -131,6 +136,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 **Proposal:** adopt `OutcomeGate`/`DataGate` for the transport layer (loading + denied with request ID) in FG detail screens and storage building/catalogue screens. Keep the domain "value is null" state (`Missing`, `t("notFound")`) inside the gate's success branch. Replace the raw catalogue paragraphs with `LedgerPanelStatus`/`Notice`. Remove the two aliases once callers use the gates.
 **Benefit:** consistent, supportable denials (request IDs), the same visual hierarchy for failures across domains, and fewer ad-hoc branches. **Risk/effort:** M. **Product decision needed:** confirm whether FG intentionally hides denial behind "Missing" (its copy mentions access). If it is intentional, document the exception in `DataGate.tsx`. If not, migrate.
 **Verification:**
+
 - `PalletScreens.test.tsx`, `MoveScreen.test.tsx`, `PackingScreen.test.tsx`, `StackScreen.test.tsx` and `BatchManager.test.tsx` (expect `panel-DENIED` instead of the Missing copy for `ok:false`).
 - `StorageLayoutScreens.test.tsx`, `StorageLocationCatalogue.test.tsx`, `useStorageBuilding.test.tsx`, `DataGate.test.tsx` and `LedgerPanelStatus.test.tsx`.
 - `tests/integration/storage-location-catalogue.integration.test.ts`.
@@ -138,6 +144,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F5. Storage writes bypass the existing outcome and error helpers and show raw error codes
 
 **Evidence**
+
 - FG has a complete path: `useOperation` (`finishedGoods/shared.tsx:304-310`) → `useAsyncOperation` with `describeError = resolveWriteError(code, t, "finishedGoods")`, and `written(outcome)` (`lib/convex/mutationOutcome.ts`) turns `{ok:false}` / `{written:false}` into coded errors.
 - Storage repeats the outcome triage inline seven times: `StorageLayoutScreens.tsx:394-396, 666-667, 696-697, 1461-1464, 2945-2946`, `StorageZonesPanel.tsx:362-372, 403-410` and `BuildingStatusToggle.tsx:100-107`.
 - Storage passes `describeError: (code) => code || "NETWORK_ERROR"` (or `"UNKNOWN"`), which turns the user-facing error into the code itself: `StorageLayoutScreens.tsx:375, 627, 1194, 2902`, `StorageZonesPanel.tsx:145`, `BuildingStatusToggle.tsx:65`.
@@ -150,6 +157,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 **Preserve:** `confirmOccupiedChange` / `confirmingImpact` flows, `expectedVersion`, `operation.request(JSON.stringify(payload))` request identity and `clearRequests()` placement.
 **Benefit:** readable, translated storage errors and about 80 fewer lines of branching. **Risk/effort:** S–M.
 **Verification:**
+
 - `StorageLayoutScreens.test.tsx`, `BuildingStatusToggle.test.tsx` and `BuildingAreaDetails.test.tsx`. Update the assertions that currently expect raw codes in text.
 - `lib/resolveWriteError.test.ts` (add the storage domain case) and `hooks/useAsyncOperation.test.tsx`.
 - `tests/integration/storage-layouts.integration.test.ts` (server codes unchanged).
@@ -157,6 +165,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F6. Dialog behaviour: hand-built confirmations, inconsistent pending dismissal, width overrides, and unconfirmed destructive actions
 
 **Evidence**
+
 - `ConfirmDialog` (`ui/ConfirmDialog.tsx:12-110`) already encodes the rules: no dismissal while pending, pending label, error kept in the dialog, optional review children. It is used in 4 places (`PalletScreens.tsx:1385`, `ProductScreen.tsx:493`, `ProductBatches.tsx:513`, `JobScanRecords.tsx` delete).
 - Hand-built equivalents:
   - `MoveScreen.tsx:713-870` (cancel/return/issue). Its close X stays visible and clickable but does nothing while `op.busy`, because `onOpenChange` ignores it and `showCloseButton` is not tied to busy.
@@ -171,6 +180,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
   - I did not verify whether archive or delete is reversible.
 
 **Proposal**
+
 1. Adopt `ConfirmDialog` (with `children` for review content) in `MoveScreen`, the `PackingScreen` review and the `BatchManager` discard. The navigation-guard prompt (`useNavigationGuard.tsx:337-410`) keeps its custom three-action dialog.
 2. Add `size="xl"` (`max-w-5xl`) to `DialogContent` and replace the className widths.
 3. Standard: any action that removes or archives data needs a confirmation step. Use `ConfirmDialog tone="destructive"` in FG and storage. HR may keep the inline two-step pattern with `WriteFeedback`, because it keeps feedback in context.
@@ -178,6 +188,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 
 **Benefit:** one dismissal and pending contract and fewer accidental archives. **Risk/effort:** M.
 **Verification:**
+
 - `ui/dialog.test.tsx` and `ui/sharedControls.test.tsx` (ConfirmDialog).
 - `MoveScreen.test.tsx`, `PackingScreen.test.tsx`, `BatchManager.test.tsx`, `StorageLayoutScreens.test.tsx` and `StoragePositions.a11y.test.tsx`.
 - `HrScreens.test.tsx` and `SettingsHoliday.guard.test.tsx`.
@@ -186,6 +197,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F7. Four responsive mechanisms decide "table vs cards"
 
 **Evidence**
+
 - JS viewport hook at 1024 px, borrowed from the sidebar: `hooks/use-mobile.ts:3` (also used by `ui/sidebar.tsx:64`) drives `FinishedGoodsTable.tsx:64-80` and `FinishedGoodsCatalogue.tsx:79, 364`.
 - A second JS viewport hook at 580 px: `components/storageLayouts/useStorageLayoutMobile.ts:5`, used in `FloorLocationTable.tsx:90,370`, `StorageZonesPanel.tsx:132`, `FloorMap.tsx:140` and `FloorMapDrawing.tsx:89`.
 - Viewport CSS: `hr/HistoryScreen.tsx:293` `hidden md:block` and `PackingScreen.tsx:1350` `hidden sm:block`.
@@ -202,6 +214,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F8. The storage-location editor and reserved-area editor dialogs are near-duplicates
 
 **Evidence:** `StorageZonesPanel.tsx:420-640` and `StorageLayoutScreens.tsx:2672-2800` share the same structure:
+
 - `Dialog` + `DialogContent className="max-w-5xl"`
 - add/edit title and description
 - the grid `md:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]` containing `StorageZoneDraftPreview`
@@ -215,6 +228,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F9. Hand-rolled toggle groups use three different "selected" looks
 
 **Evidence:** `SegmentedControl` (`ui/SegmentedControl.tsx:25-95`; `variant="active"`/`ghost`, `aria-pressed`, `iconOnly`, counts) is used in 6 files. Hand-rolled equivalents:
+
 - `PalletScreens.tsx:477-495`: m/cm, `default`/`outline`.
 - `PackingScreen.tsx:905-925`: simple vs exact, `default`/`outline`.
 - `BatchManager.tsx:170-200`: view/edit, `secondary`/`ghost`.
@@ -227,6 +241,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F10. There is no popover or menu primitive; nine Radix overlays copy three surface styles
 
 **Evidence:** raw `Popover.Content`/`DropdownMenu.Content` styling appears in:
+
 - `CatalogueFilterControls.tsx:402` (bg-popover, p-4, shadow-xl)
 - `AreaColorPicker.tsx:97` (`z-[60]`, bg-popover, shadow-xl)
 - `ui/StatusReason.tsx:87` (bg-overlay, shadow-lg)
@@ -240,6 +255,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F11. Icon-only actions bypass `IconButton`, with accessible-name gaps
 
 **Evidence:** 29 `Button size="icon"` uses with hand-written `aria-label`/`title` across 14 feature files, for example:
+
 - `PalletScene.tsx:616-705` (zoom, rotate, reset)
 - `StorageZonesPanel.tsx:784, 804, 963, 979, 1048`
 - `StorageLocationCatalogue.tsx:392, 408`
@@ -260,6 +276,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F13. Page width and rhythm ownership is split between route layouts and screens
 
 **Evidence**
+
 - `app/[locale]/(desktop)/hr/layout.tsx:9` wraps every HR page in `PageContainer size="wide"`.
 - `finished-goods/layout.tsx:9` wraps in `PageContainer` (full), and FG screens then nest a second `PageContainer` (`MoveScreen.tsx:456`, `JobScanScreen.tsx` 3×, `JobScanRecords.tsx:175`).
 - `master-data/layout.tsx` has no container.
@@ -273,6 +290,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F14. Permission-gated display is inconsistent in storage
 
 **Evidence**
+
 - Three places re-implement `useCan`: `BuildingStatusToggle.tsx:54-56`, `StorageLocationCatalogue.tsx:92-95` and `StorageLayoutScreens.tsx:2895` (`navigationPermissions.includes("masterData.storageLayout.manage")`). `hooks/useCan.ts`/`useCanManage.ts` exist.
 - The storage catalogue page renders "New building" unconditionally (`app/[locale]/(desktop)/master-data/storage-layouts/page.tsx:20-27`), and `NewBuildingContent` does not check permission (`StorageLayoutScreens.tsx:369-460`). FG gates its equivalent actions on `canManage` (`FinishedGoodsCatalogue.tsx:183-211`) and shows `ViewOnlyNotice`.
 - Server authorisation still applies, as noted in `useCan.ts`.
@@ -283,6 +301,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F15. Copy that bypasses the message catalogue (TH/EN maintenance)
 
 **Evidence**
+
 - `useFGText().tr(en, th)` (`finishedGoods/shared.tsx:45-56`, "Compatibility shim") is used for **116** inline bilingual strings in `PalletScreens.tsx`, including static labels such as `tr("Lot", "ล็อต")` (line 197) and `tr("Metres", "เมตร")` (line 491). It also appears in `MoveScreen.tsx` (3, lines 576-580, 824), `FinishedGoodsCatalogue.tsx`, `FinishedGoodsTable.tsx`, `FinishedGoodsMobileList.tsx`, `ProductBatches.tsx`, `CatalogueFilterControls.tsx` and `PackingScreen.tsx`.
 - `PalletScene.tsx:76-152` embeds an `en`/`th` dictionary, and `PalletScene.tsx:597, 704-707, 810, 1128, 1154` contain `locale === "th" ? … : …` strings.
 - `FloorMapDemo.tsx` is inline bilingual.
@@ -295,6 +314,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F16. Design tokens: unused parallel semantics, one undefined class, and a literal map palette
 
 **Evidence**
+
 - `globals.css` defines a second semantic set next to the `--token-*` system: `--success/--warning/--info/--invert` (lines 203-210, 411-418) exposed as `--color-success-foreground`, `--color-warning-foreground`, `--color-info`, `--color-invert` (lines 104-110), plus `--chart-1…5`, `--color-qc-hold` (50, 178, 394) and `--color-band-*` (59-62, 198-201).
 - `grep` finds **no use** of any of them in `src` (TSX, TS or CSS), `convex` or `tests`. If they were used, `text-success-foreground` would resolve to emerald-900, while the product's success is `#166534` and badges use `--token-badge-success`. That is a drift trap.
 - `BarcodeImagePicker.tsx:188` uses `border-focus`, but there is no `--color-focus` token, so the crop outline falls back to the default border colour. The equivalent overlay in `LocationImageReader.tsx:245` uses `border-white`.
@@ -307,6 +327,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 #### F17. Layering: two component folders import feature code, and the lint guard does not cover them
 
 **Evidence:**
+
 - `components/storageLayouts/FloorMap.tsx:51,65` imports `@/features/storageKit/{PlacementStatusBadge,QrCode}`.
 - `components/shell/search/SearchDialog.tsx:23` and `results.tsx:17` import `@/features/hr/format`.
 - The `FEATURE_IMPORTS` rule covers only `src/components/{ui,system,table,providers}` (`eslint.config.mjs:185`).
@@ -317,6 +338,7 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 ### P3
 
 #### F18. Dead, test-only or misplaced code on production paths
+
 - Unused UI primitives (no importers): `ui/avatar.tsx`, `ui/progress.tsx`, `ui/separator.tsx`. `HrInitials` (`hr/HrUi.tsx:117-151`) re-implements an avatar fallback, which is fine for HR, but then `avatar.tsx` should go.
 - Test-only reference previews in `components/storageLayouts`: `Fg1ReferencePreview.tsx` (613 lines), `F1F2ReferencePreview.tsx` (93) and `Fg1SourcePlan.tsx` (277). They are also lint-exempt (`eslint.config.mjs` SectionHeader rule). Move them under `_reference/` or the test fixtures.
 - `features/finishedGoods/paginationTestAdapter.ts` (207 lines) and the `ProductScreens.tsx` facade (4 lines) are imported only by tests. Move them to `tests/support` or a `__tests__` helper.
@@ -324,53 +346,59 @@ Priority: **P1** = cross-domain inconsistency with user-visible or correctness i
 - The production shell lives at `components/examples/c-sidebar-2.tsx` and is exported as `Pattern`, re-exported by `shell/DesktopShell.tsx`. Rename and move it to `components/shell/AppShell.tsx`. There is a co-located test, `c-sidebar-2.test.tsx`, to move with it.
 - Deprecated aliases still exported: `FLOOR_PAGE_SIZES` (`system/PageSizeSelect.tsx:10-11`) and `PageHeader.description` (`ui/PageHeader.tsx:31-32`).
 - `draftGuard.ts:12,28` and `DraftGuardProvider.tsx:97` describe the guard as "HR form" only, but FG uses it too.
-**Effort:** S. **Verification:** `pnpm typecheck`, `pnpm lint` and `pnpm test`. Coverage of the moved tests is unchanged.
+  **Effort:** S. **Verification:** `pnpm typecheck`, `pnpm lint` and `pnpm test`. Coverage of the moved tests is unchanged.
 
 #### F19. Text fields: no `FormInput` counterpart to `FormSelect`, plus local wrappers
+
 - About 26 inline `FormField` + `Input` render-prop pairs. Two local wrappers do the same job: FG `Field` (`finishedGoods/shared.tsx:152-208`) and storage `Field` (`StorageLayoutScreens.tsx:470-493`). The storage one uses `id={name}` rather than `useId`, so ids would collide if two such forms mounted together. Storage also has `OverrideField` (`:1779-1808`).
 - Textarea: only `hr/CorrectionForm.tsx:29-77` (`ReasonField`, styled with `fieldControlClassName`). FG "describe the issue" uses a single-line `Field` (`MoveScreen.tsx:831-836`).
 - Inline validation outside `FormField.error`: `hr/HolidaysScreen.tsx:86-90` renders a raw `<p role="alert">` for an invalid year.
 - Filter selects without visible labels: `StorageLocationCatalogue.tsx:230-268` (`placeholder=""`, `emptyLabel=""`, `aria-label` only). HR and FG filters use visible `FormSelect` labels.
-**Proposal:** add `ui/FormInput.tsx` (FormField + Input, generated id, value/onValueChange) and `ui/Textarea.tsx` (lifted from `ReasonField`'s control). Retire FG `Field` and storage `Field`. Use `FormField error` for HolidaysScreen. Give storage filters visible labels with `FormSelect`.
-**Effort:** S–M. **Verification:** `FormField.test.tsx`, `FormSelect.test.tsx`, `HrScreens.test.tsx`, `StorageLocationCatalogue.test.tsx` and `pnpm test:a11y`.
+  **Proposal:** add `ui/FormInput.tsx` (FormField + Input, generated id, value/onValueChange) and `ui/Textarea.tsx` (lifted from `ReasonField`'s control). Retire FG `Field` and storage `Field`. Use `FormField error` for HolidaysScreen. Give storage filters visible labels with `FormSelect`.
+  **Effort:** S–M. **Verification:** `FormField.test.tsx`, `FormSelect.test.tsx`, `HrScreens.test.tsx`, `StorageLocationCatalogue.test.tsx` and `pnpm test:a11y`.
 
 #### F20. Three date and time formatting paths
+
 HR's cached, timezone-aware `Intl` (`hr/format.ts:15-117`), next-intl `useFormatter` (`jobScan/JobScanRecordRow.tsx:34,124`), and ad-hoc `new Date(move.createdAt).toLocaleString(locale)` (`PalletScreens.tsx:1437`; passes lint because a locale is given, but has no explicit time zone). **Proposal:** `lib/format/datetime.ts` (see F17) plus a `useDateFormat()` next to `useMeasureFormat`. **Effort:** S. **Verification:** `format.test.ts`, `PalletScreens.test.tsx` and `JobScanRecords.test.tsx`.
 
 #### F21. Search dialog loader and body duplicate the header, input, AI button and disclosure markup
+
 `SearchDialogLoader.tsx:217-283` and `SearchDialog.tsx:199-266` contain the same title, icon-prefixed combobox input, AI button and `global-search-ai-disclosure`. The duplication exists so focus and IME state can be handed over seamlessly. **Proposal:** a tiny presentational `SearchInputRow` in the loader chunk (no data hooks) that both render. **Risk:** the focus/IME handoff tests (`SearchDialogLoader.test.tsx`, `SearchDialogFocus.test.tsx`, `GlobalSearch.test.tsx`, `SearchTriggers.test.tsx`) must stay green, and the loader chunk must stay light. **Effort:** S.
 
 #### F22. Scene controls diverge between the pallet scene and the floor map
+
 `PalletScene.tsx:604-710` builds view, rotate, zoom (with a % output) and reset from raw `Button size="icon"` inside `SceneToolbar`, which only `PalletScene` uses. `FloorMapCameraControls.tsx:52-145` uses `IconButton` plus a popover. Both use `StorageViewModeToggle`. The camera models differ legitimately: pallet zoom is 1–2.5 with reset, floor zoom 1–8 with fit, reference and packages. **Proposal:** share only the control primitives (`IconButton`, a `SceneZoomControls` with `min/max/step` props) and the toolbar container. Keep both camera hooks. **Effort:** S. **Verification:** `PalletScene.test.tsx` (`data-camera-zoom` assertions), `PalletScene.a11y.test.tsx` and `FloorMap.workspace.test.tsx`.
 
 #### F23. Repeated "latest request wins" async pattern
+
 `BarcodeImagePicker.tsx:33-128`, `LocationImageReader.tsx:66-145` and `LocationPicker.tsx` (`lookupVersion`) each combine a version counter, an `AbortController` and `busy`/`error` state. A small `useLatestTask()` (run, cancel, isCurrent) could serve the two image readers. **Leave `LocationPicker`'s `acquisitionOpen`/`lookupVersion` as they are**, because they encode scan-session ownership. **Effort:** S–M, and the value is moderate. Do this only together with F1/F2.
 
 #### F24. HR draft-guard expression repeated
+
 `useDraftGuard(write.state.kind !== "SAVED" && <dirty>, reset, write.pending?)` appears 7 times: `CorrectionForm.tsx:112`, `EmployeeForm.tsx:158`, `PeriodsScreen.tsx:194`, `PeriodDetailScreen.tsx:690`, `ReviewDetail.tsx:275,528` and `SettingsScreen.tsx:135`. An HR-local `useHrDraftGuard(write, dirty, discard)` would remove the repetition. It is optional and low value. Keep it HR-local because it depends on `HrWriteState`.
 
 ---
 
 ## 3. Recommended ownership: global vs domain-local vs separate
 
-| Concern | Owner | Notes |
-|---|---|---|
-| Buttons, IconButton, inputs, `FormField`/`FormSelect`/**new `FormInput`/`Textarea`**, `SelectControl`, `SegmentedControl`, `CheckboxField`, `Dialog` (+ **`size="xl"`**), `ConfirmDialog`, **new `popover`/`dropdown-menu`**, `Notice`/`ErrorNotice`, `StatusBadge`, `EmptyState`, `Panel`, `SectionHeader`, `PageHeader`, `PageContainer`, `StickyActionBar`, `TableScroller`/`DataTable`, `DescriptionList`, `CollapsibleSection`/`summaryClassName` | **Global** `components/ui`, `components/table` | Lint keeps them feature-free. |
-| Glyph aliases: `ScanIcon`, **new `AiIcon`** | **Global** `components/ui` | One glyph per cross-domain intent. |
-| Read gating: `QueryGate`, `OutcomeGate`/`DataGate`, `LedgerPanelStatus`, `RouteLoading`, `QueryErrorBoundary` | **Global** `components/system` | Adopt in FG and storage (F4). |
-| Pagination: `useCursorPagination`, `useScanContinuation`, `useCatalogueSync`, `CursorPagination`, `PaginationFooter`, `PageSizeSelect` | **Global** hooks/system | HR adopts (F12). |
-| Draft and navigation guard | **Global** providers/system | Storage keeps its own `useNavigationGuard` instance for save-and-continue (`StorageLayoutScreens.tsx:977`); this is intentional. |
-| `useAsyncOperation`, `useRequestIdentity`, `written()`, `resolveWriteError` | **Global** hooks/lib | FG (`useOperation`) and **storage (`useStorageOperation`, new)** wrap them. |
-| `useHrWrite`, `WriteFeedback`, `HrGate`, `useHrError` | **HR-local** | Different outcome model (UNCERTAIN with verbatim retry, session-pinned IDs). **Do not merge with `useAsyncOperation`.** |
-| Date/time formatting (`lib/format/datetime.ts`), measure formatting | **Global** lib | Moved out of HR (F17/F20). |
-| Camera: **`useStillCamera`, `CameraViewport`, `captureVideoFrame`, `imageIntake.ts`** | **FG-local** `features/finishedGoods/camera/` | Only FG and JOB use cameras. Promote to global only if another domain needs one. |
-| `useBarcodeCamera`, `BarcodeCameraBox`, `BarcodeImagePicker`, decoder and worker | **FG-local** (unchanged) | Keep the dedupe, single-code fallback, serialised startup and torch. |
-| `LocationImageReader`, `LocationPicker`, `TicketFieldScanner`, `ticketDraft` | **JOB-local** | Session guards stay with their owners. |
-| QR (`QrCode`, `QrDialog`), `PlacementStatusBadge` | **Shared storage kit** → `components/storageKit` | Used by FG and storage; currently `features/storageKit`. |
-| `ZoneEditorDialog`, `ZoneGeometryFields`, `useStorageOperation`, `storageErrorMessage` overrides | **Storage-local** | Zones and reserved areas keep separate save models. |
-| Floor-map theme (`--plan-*` map colours), scene colours, **persisted area colours** | **Storage-local** / `lib/storageLayouts` | Alias only the light chrome to globals (F16). Never theme persisted colours. |
-| Map/scene camera hooks (`useFloorMapCamera`, PalletScene state) | **Domain-local** | Share only control primitives (F22). |
-| `HrToolbar`, `HrStatStrip`, `HrTimeCell`, `HrInitials`, `HrActionCard` | **HR-local** | `HrStatStrip` overlaps `DescriptionList layout="stat"` but differs in tone, rule and auto-fit, with one caller. Do not force it. |
+| Concern                                                                                                                                                                                                                                                                                                                                                                                                                                                | Owner                                            | Notes                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Buttons, IconButton, inputs, `FormField`/`FormSelect`/**new `FormInput`/`Textarea`**, `SelectControl`, `SegmentedControl`, `CheckboxField`, `Dialog` (+ **`size="xl"`**), `ConfirmDialog`, **new `popover`/`dropdown-menu`**, `Notice`/`ErrorNotice`, `StatusBadge`, `EmptyState`, `Panel`, `SectionHeader`, `PageHeader`, `PageContainer`, `StickyActionBar`, `TableScroller`/`DataTable`, `DescriptionList`, `CollapsibleSection`/`summaryClassName` | **Global** `components/ui`, `components/table`   | Lint keeps them feature-free.                                                                                                    |
+| Glyph aliases: `ScanIcon`, **new `AiIcon`**                                                                                                                                                                                                                                                                                                                                                                                                            | **Global** `components/ui`                       | One glyph per cross-domain intent.                                                                                               |
+| Read gating: `QueryGate`, `OutcomeGate`/`DataGate`, `LedgerPanelStatus`, `RouteLoading`, `QueryErrorBoundary`                                                                                                                                                                                                                                                                                                                                          | **Global** `components/system`                   | Adopt in FG and storage (F4).                                                                                                    |
+| Pagination: `useCursorPagination`, `useScanContinuation`, `useCatalogueSync`, `CursorPagination`, `PaginationFooter`, `PageSizeSelect`                                                                                                                                                                                                                                                                                                                 | **Global** hooks/system                          | HR adopts (F12).                                                                                                                 |
+| Draft and navigation guard                                                                                                                                                                                                                                                                                                                                                                                                                             | **Global** providers/system                      | Storage keeps its own `useNavigationGuard` instance for save-and-continue (`StorageLayoutScreens.tsx:977`); this is intentional. |
+| `useAsyncOperation`, `useRequestIdentity`, `written()`, `resolveWriteError`                                                                                                                                                                                                                                                                                                                                                                            | **Global** hooks/lib                             | FG (`useOperation`) and **storage (`useStorageOperation`, new)** wrap them.                                                      |
+| `useHrWrite`, `WriteFeedback`, `HrGate`, `useHrError`                                                                                                                                                                                                                                                                                                                                                                                                  | **HR-local**                                     | Different outcome model (UNCERTAIN with verbatim retry, session-pinned IDs). **Do not merge with `useAsyncOperation`.**          |
+| Date/time formatting (`lib/format/datetime.ts`), measure formatting                                                                                                                                                                                                                                                                                                                                                                                    | **Global** lib                                   | Moved out of HR (F17/F20).                                                                                                       |
+| Camera: **`useStillCamera`, `CameraViewport`, `captureVideoFrame`, `imageIntake.ts`**                                                                                                                                                                                                                                                                                                                                                                  | **FG-local** `features/finishedGoods/camera/`    | Only FG and JOB use cameras. Promote to global only if another domain needs one.                                                 |
+| `useBarcodeCamera`, `BarcodeCameraBox`, `BarcodeImagePicker`, decoder and worker                                                                                                                                                                                                                                                                                                                                                                       | **FG-local** (unchanged)                         | Keep the dedupe, single-code fallback, serialised startup and torch.                                                             |
+| `LocationImageReader`, `LocationPicker`, `TicketFieldScanner`, `ticketDraft`                                                                                                                                                                                                                                                                                                                                                                           | **JOB-local**                                    | Session guards stay with their owners.                                                                                           |
+| QR (`QrCode`, `QrDialog`), `PlacementStatusBadge`                                                                                                                                                                                                                                                                                                                                                                                                      | **Shared storage kit** → `components/storageKit` | Used by FG and storage; currently `features/storageKit`.                                                                         |
+| `ZoneEditorDialog`, `ZoneGeometryFields`, `useStorageOperation`, `storageErrorMessage` overrides                                                                                                                                                                                                                                                                                                                                                       | **Storage-local**                                | Zones and reserved areas keep separate save models.                                                                              |
+| Floor-map theme (`--plan-*` map colours), scene colours, **persisted area colours**                                                                                                                                                                                                                                                                                                                                                                    | **Storage-local** / `lib/storageLayouts`         | Alias only the light chrome to globals (F16). Never theme persisted colours.                                                     |
+| Map/scene camera hooks (`useFloorMapCamera`, PalletScene state)                                                                                                                                                                                                                                                                                                                                                                                        | **Domain-local**                                 | Share only control primitives (F22).                                                                                             |
+| `HrToolbar`, `HrStatStrip`, `HrTimeCell`, `HrInitials`, `HrActionCard`                                                                                                                                                                                                                                                                                                                                                                                 | **HR-local**                                     | `HrStatStrip` overlaps `DescriptionList layout="stat"` but differs in tone, rule and auto-fit, with one caller. Do not force it. |
 
 **Keep separate (do not unify):** the AI ticket-photo flow vs the AI location reader (multi-photo burst with upload vs single read with candidate review); barcode intake vs AI read; FG `Missing` copy vs HR denial copy (only the transport layer should be shared); HR inline two-step confirm vs dialog confirm; storage vs FG write retries; floor-map vs pallet camera models.
 
@@ -381,6 +409,7 @@ HR's cached, timezone-aware `Intl` (`hr/format.ts:15-117`), next-intl `useFormat
 Order: start with low-risk groups so later groups have stable primitives. Run `pnpm typecheck`, `pnpm lint`, `pnpm test` (all Vitest projects) and `pnpm test:a11y` after each group. Each group should be its own PR.
 
 **G1 — Hygiene and tokens (F16, F17, F18, F11). Effort S.**
+
 1. Remove unused UI primitives and unused token families, or alias them. Fix `border-focus`.
 2. Move `storageKit` to `components/storageKit`. Move date formatting to `lib/format/datetime.ts` and re-export it. Extend the `FEATURE_IMPORTS` lint scope.
 3. Relocate the test-only reference previews, `paginationTestAdapter.ts` and `ProductScreens.tsx`. Rename `examples/c-sidebar-2` → `shell/AppShell`.
@@ -401,6 +430,7 @@ Tests: `PalletScreens.test.tsx`, `MoveScreen.test.tsx`, `PackingScreen.test.tsx`
 Tests: `ui/dialog.test.tsx`, `sharedControls.test.tsx`, `MoveScreen.test.tsx`, `PackingScreen.test.tsx`, `BatchManager.test.tsx`, `StorageLayoutScreens.test.tsx`, `StorageZoneDraftPreview.test.tsx`, `AreaColorPicker.test.tsx`, `SettingsHoliday.guard.test.tsx`, `HrScreens.test.tsx`, `useNavigationGuard.test.tsx` (prompt unchanged).
 
 **G5 — Camera and AI acquisition (F1, F2, F3, F23). Effort M–L.** This is the highest-risk group, so do it in this order:
+
 - (a) `imageIntake.ts`
 - (b) `captureVideoFrame` + `useStillCamera` adopted by `PhotoCapture`, with a **new** `PhotoCapture.test.tsx` written first
 - (c) `CameraViewport` across the three cameras
@@ -409,6 +439,7 @@ Tests: `ui/dialog.test.tsx`, `sharedControls.test.tsx`, `MoveScreen.test.tsx`, `
 
 **Coordinate with the in-flight `useWorkflowStep` changes in `JobScanScreen`/`JobScanRecords`/`LocationPicker`.**
 Tests:
+
 - Unit: `useBarcodeCamera.test.tsx`, `BarcodeCameraBox.test.tsx`, `BarcodeImagePicker.test.tsx`, `BarcodeLocationImage.test.tsx`, `barcodeImage.test.ts`, `barcodeImage.worker.test.ts`, `barcodeImagePipeline.test.ts`, `barcodeDecoder.test.ts`.
 - Components: `DestinationScanner.test.tsx`, `jobScan/LocationPhotoCamera.test.tsx`, `LocationPicker.test.tsx`, `LocationPicker.ai.test.tsx`, `LocationPicker.image.test.tsx`, `JobScanScreen.test.tsx`, `JobScanPhotoPreview.test.tsx`, `TicketCard.test.tsx`, `ticketDraft.test.ts`, `GlobalSearch.test.tsx`, `i18n/messages.test.ts`.
 - Playwright: `tests/e2e/workspace/{barcode-scanning,barcode,location-image-ai}.spec.ts` and `tests/e2e/smoke/barcode-worker.spec.ts`. These need the local fixture; see README.

@@ -136,7 +136,8 @@ it("K-UX-HR-04 expected: the resubmission form shows why it was returned before 
     Boolean(
       reason.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING,
     );
-  const start = form.querySelectorAll<HTMLInputElement>('input[type="time"]')[0]!;
+  const start =
+    form.querySelectorAll<HTMLInputElement>('input[type="time"]')[0]!;
   expect(
     reasonBeforeOrInsideForm,
     JSON.stringify({
@@ -154,7 +155,8 @@ it("K-UX-HR-04 expected: the resubmission starts from the returned proposal, not
   const form = screen
     .getByRole("heading", { name: "Resubmit the returned request" })
     .closest("form")!;
-  const start = form.querySelectorAll<HTMLInputElement>('input[type="time"]')[0]!;
+  const start =
+    form.querySelectorAll<HTMLInputElement>('input[type="time"]')[0]!;
   const reason = form.querySelector("textarea")!;
   expect(
     start.value,

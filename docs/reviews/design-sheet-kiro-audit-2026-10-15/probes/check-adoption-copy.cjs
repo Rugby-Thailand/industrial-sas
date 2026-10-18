@@ -494,7 +494,12 @@ function contrast(fg, bg) {
     path.join(__dirname, "adoption-checks-rerun.json"),
     JSON.stringify(report, null, 2) + "\n",
   );
-  console.log("passed", report.checks, report.stateCombinations, report.structuralAxeRuns);
+  console.log(
+    "passed",
+    report.checks,
+    report.stateCombinations,
+    report.structuralAxeRuns,
+  );
 })().catch((e) => {
   console.error(e.stack);
   process.exitCode = 1;

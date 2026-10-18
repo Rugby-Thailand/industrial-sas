@@ -11,6 +11,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["docs/reviews/ux-flow-kiro-2026-10-15/hr/probes/*.probe.{ts,tsx}"],
+    include: [
+      "docs/reviews/ux-flow-kiro-2026-10-15/hr/probes/*.probe.{ts,tsx}",
+    ],
   },
 });

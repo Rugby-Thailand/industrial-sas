@@ -41,10 +41,9 @@ vi.mock("convex/react", async () => {
       state.calls.push({ name: name(reference), args });
       return state.queries.get(name(reference));
     },
-    useMutation:
-      (reference: Parameters<typeof name>[0]) => (args: unknown) =>
-        state.mutations.get(name(reference))?.(args) ??
-        Promise.reject(new Error(`no mutation ${name(reference)}`)),
+    useMutation: (reference: Parameters<typeof name>[0]) => (args: unknown) =>
+      state.mutations.get(name(reference))?.(args) ??
+      Promise.reject(new Error(`no mutation ${name(reference)}`)),
     useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }),
   };
 });
@@ -165,14 +164,20 @@ function dayDetail(input: {
         events: [],
         ...(input.pending ? { pendingCorrectionId: "c1" } : {}),
         corrections: [
-          correction(input.pending ? "PENDING" : "RETURNED", input.pending ? 1 : 2),
+          correction(
+            input.pending ? "PENDING" : "RETURNED",
+            input.pending ? 1 : 2,
+          ),
         ],
       },
     },
   };
 }
 
-async function returnCorrection(liveUpdate: boolean, endAt: number | undefined) {
+async function returnCorrection(
+  liveUpdate: boolean,
+  endAt: number | undefined,
+) {
   publish(ref(hrRefs.reviewDayDetail), dayDetail({ pending: true, endAt }));
   state.mutations.set(ref(hrRefs.decideCorrection), async () => {
     // Convex resolves a successful mutation only after the query transition

@@ -36,12 +36,12 @@
 
 ## นำไปพัฒนาจริงเป็นระยะ
 
-| ระยะ | สิ่งที่จะทำ | โค้ดหลัก |
-| --- | --- | --- |
-| 1 | แยกทางเข้างาน 3 แบบ เปลี่ยน Active เป็นป้าย ย้ายการเปลี่ยนสถานะไปตั้งค่าอาคาร เพิ่มชื่อปุ่มผัง/รายการ | `BuildingModelWorkspace`, `FloorWorkspaceToolbar`, `BuildingStatusToggle` |
-| 2 | ภาพรวม+กลุ่มขยาย ใช้ selection และรายละเอียดชุดเดียวระหว่างมุมมอง มือถือเริ่มจากรายการเมื่อ URL ไม่ระบุ | `FloorMap`, `FloorMapDrawing`, `FloorPositionDetail`, `FloorLocationTable`, `LocationDetailsHost` |
-| 3 | เชื่อมจัดเก็บ/ย้ายกับ flow เดิม พร้อมกลับมาที่ตำแหน่งและงานค้าง | `StorageZonesPanel`, `MoveScreen`, `DestinationPicker`, `PlacementEditor` |
-| 4 | เชื่อม editor ชั้น/โซนและ guard เดิม ทดสอบสิทธิ์ ข้อมูลเก่า URL และข้อมูลไม่ครบ | `FloorForm`, `useNavigationGuard`, `useCanManage`, `useWorkspaceQuery` |
+| ระยะ | สิ่งที่จะทำ                                                                                             | โค้ดหลัก                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 1    | แยกทางเข้างาน 3 แบบ เปลี่ยน Active เป็นป้าย ย้ายการเปลี่ยนสถานะไปตั้งค่าอาคาร เพิ่มชื่อปุ่มผัง/รายการ   | `BuildingModelWorkspace`, `FloorWorkspaceToolbar`, `BuildingStatusToggle`                         |
+| 2    | ภาพรวม+กลุ่มขยาย ใช้ selection และรายละเอียดชุดเดียวระหว่างมุมมอง มือถือเริ่มจากรายการเมื่อ URL ไม่ระบุ | `FloorMap`, `FloorMapDrawing`, `FloorPositionDetail`, `FloorLocationTable`, `LocationDetailsHost` |
+| 3    | เชื่อมจัดเก็บ/ย้ายกับ flow เดิม พร้อมกลับมาที่ตำแหน่งและงานค้าง                                         | `StorageZonesPanel`, `MoveScreen`, `DestinationPicker`, `PlacementEditor`                         |
+| 4    | เชื่อม editor ชั้น/โซนและ guard เดิม ทดสอบสิทธิ์ ข้อมูลเก่า URL และข้อมูลไม่ครบ                         | `FloorForm`, `useNavigationGuard`, `useCanManage`, `useWorkspaceQuery`                            |
 
 ไม่เปลี่ยน schema หรือสร้าง mutation ทางลัด การจอง การคืนต้นทาง การยืนยันและสิทธิ์ต้องใช้กฎฝั่งเซิร์ฟเวอร์เดิมทั้งหมด รวมทั้ง owner, stale checks และ request idempotency ต้องรักษา QR, 3D, split, การเพิ่มชั้น/โซนและพื้นที่สงวนผ่านทางเข้ารอง และให้ลิงก์ `floor/view/panel/editing/editZone` เดิมยังทำงาน
 

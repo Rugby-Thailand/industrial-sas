@@ -24,9 +24,9 @@ Evidence is rendered DOM PNG export through html-to-image in the parent's T3 bro
 
 ## 5. Prioritized fixes and verdict scope
 
-| Finding | Score | Evidence |
-| --- | --- | --- |
-| P1: compose submission and draft retention | Resolved | Revised event listeners and parent's recorded send/reload retests |
-| P2: 48px mobile touch targets | Resolved | Final CSS overrides, four fresh captures, and parent's 390px measurements |
+| Finding                                    | Score    | Evidence                                                                  |
+| ------------------------------------------ | -------- | ------------------------------------------------------------------------- |
+| P1: compose submission and draft retention | Resolved | Revised event listeners and parent's recorded send/reload retests         |
+| P2: 48px mobile touch targets              | Resolved | Final CSS overrides, four fresh captures, and parent's 390px measurements |
 
 No further fix is owed from this two-item verdict pass. **ship** applies to the corrected standalone local preview at that scope; it authorizes no production implementation or backend/customer expansion.
