@@ -49,7 +49,55 @@
   const notice = (text, kind = "") =>
     `<div class="notice ${kind}">${text}</div>`;
   const bots = { standard: "ผู้ช่วย HR", shift: "ผู้ช่วยงานกะ" };
+  function previewScenario(value) {
+    if (value === "fresh") return "fresh";
+    if (value === "outage") return "outage";
+    return "ready";
+  }
+  function previewPage(value) {
+    switch (value) {
+      case "connection":
+        return "connection";
+      case "bot":
+        return "bot";
+      case "employees":
+        return "employees";
+      case "employees/link":
+        return "employees/link";
+      case "cards":
+        return "cards";
+      case "cards/edit":
+        return "cards/edit";
+      case "send":
+        return "send";
+      case "tracking":
+        return "tracking";
+      case "tracking/detail":
+        return "tracking/detail";
+      case "employee/home":
+        return "employee/home";
+      case "employee/chat":
+        return "employee/chat";
+      case "employee/profile":
+        return "employee/profile";
+      case "employee/link":
+        return "employee/link";
+      case "employee/message":
+        return "employee/message";
+      case "inbox":
+        return "inbox";
+      case "flow":
+        return "flow";
+      default:
+        return "not-found";
+    }
+  }
+  function mapValue(map, key, create) {
+    if (!map.has(key)) map.set(key, create());
+    return map.get(key);
+  }
   function seed(scenario = "ready") {
+    scenario = previewScenario(scenario);
     const ready = scenario !== "fresh";
     return {
       version: 1,
@@ -204,21 +252,25 @@
           ],
         },
       ],
-      chats: {},
-      threads: {},
-      invitations: {},
-      drafts: {},
-      completed: {},
+      chats: new Map(),
+      threads: new Map(),
+      invitations: new Map(),
+      drafts: new Map(),
+      completed: new Map(),
+      chatDrafts: new Map(),
+      hrDrafts: new Map(),
+      notificationEvents: new Map(),
       nextId: 2,
     };
   }
-  let state;
+  let preferences;
   try {
-    state = JSON.parse(sessionStorage.getItem(KEY));
+    preferences = JSON.parse(sessionStorage.getItem(KEY));
   } catch {
     /* isolated preview storage may be unavailable */
   }
-  if (!state || state.version !== 1) state = seed();
+  let state = seed(preferences?.scenario);
+  state.theme = preferences?.theme === "dark" ? "dark" : "light";
   let busy = false,
     activeRoute = "",
     dirty = false,
@@ -228,7 +280,16 @@
     rollback = false;
   const save = () => {
     try {
-      sessionStorage.setItem(KEY, JSON.stringify(state));
+      // Persist display preferences only. Employee records, entered credentials,
+      // conversations and drafts stay in memory and are never rehydrated.
+      sessionStorage.setItem(
+        KEY,
+        JSON.stringify({
+          version: 1,
+          scenario: state.scenario,
+          theme: state.theme,
+        }),
+      );
     } catch {
       /* memory remains usable */
     }
@@ -250,7 +311,11 @@
   const stamp = () => "13 ต.ค. 2569 · 10:30";
   function routeData(route = location.hash.slice(2) || "connection") {
     const [page, search = ""] = route.split("?");
-    return { page, params: new URLSearchParams(search), route };
+    return {
+      page: previewPage(page),
+      params: new URLSearchParams(search),
+      route,
+    };
   }
   function toast(text) {
     $("#toast").textContent = text;
@@ -299,7 +364,7 @@
             label: "ทิ้งการแก้ไขและออก",
             danger: true,
             run: () => {
-              delete state.drafts[activeRoute];
+              state.drafts.delete(activeRoute);
               dirty = false;
               save();
               navigate(route, replace, true);
@@ -317,7 +382,7 @@
   }
   function complete(destination) {
     dirty = false;
-    delete state.drafts[activeRoute];
+    state.drafts.delete(activeRoute);
     save();
     if (history.state?.parent === destination && history.state.previewIndex > 0)
       history.back();
@@ -334,7 +399,7 @@
             label: "ยกเลิกการแก้ไข",
             danger: true,
             run: () => {
-              delete state.drafts[activeRoute];
+              state.drafts.delete(activeRoute);
               complete(destination);
             },
           },
@@ -411,7 +476,7 @@
     content,
     { compose = false, id = "phone", name = state.connection.name } = {},
   ) {
-    return `<div class="phone" id="${id}"><div class="phone-screen"><div class="phone-status"><span>9:41</span><span>LTE · 100%</span></div><div class="phone-header">${icon("back")}<strong>${escape(name)}</strong><span class="oa-label">OA</span>${icon("chat")}</div><div class="line-chat"><div class="line-day"><span>วันนี้ · ตัวอย่าง</span></div>${content}</div><form class="phone-compose" data-form="chat"><input name="message" value="${escape(state.chatDrafts?.[state.selectedEmployee] || "")}" aria-label="ข้อความถึงผู้ช่วย HR" placeholder="${compose ? "ถามผู้ช่วย HR…" : "ช่องพิมพ์ข้อความ"}" ${compose ? "" : "disabled"} autocomplete="off"><button type="${compose ? "submit" : "button"}" aria-label="ส่งข้อความ" ${compose ? "" : "disabled"}>${icon("send")}</button></form></div></div>`;
+    return `<div class="phone" id="${id}"><div class="phone-screen"><div class="phone-status"><span>9:41</span><span>LTE · 100%</span></div><div class="phone-header">${icon("back")}<strong>${escape(name)}</strong><span class="oa-label">OA</span>${icon("chat")}</div><div class="line-chat"><div class="line-day"><span>วันนี้ · ตัวอย่าง</span></div>${content}</div><form class="phone-compose" data-form="chat"><input name="message" value="${escape(state.chatDrafts.get(state.selectedEmployee) || "")}" aria-label="ข้อความถึงผู้ช่วย HR" placeholder="${compose ? "ถามผู้ช่วย HR…" : "ช่องพิมพ์ข้อความ"}" ${compose ? "" : "disabled"} autocomplete="off"><button type="${compose ? "submit" : "button"}" aria-label="ส่งข้อความ" ${compose ? "" : "disabled"}>${icon("send")}</button></form></div></div>`;
   }
   function lineText(text, from = "bot") {
     return `<div class="line-row ${from === "employee" ? "user" : ""}">${from !== "employee" ? '<span class="line-avatar">SP</span>' : ""}<div class="line-stack">${from !== "employee" ? `<div class="line-who">${from === "hr" ? "พัชราภา · HR" : escape(state.connection.name)}</div>` : ""}<div class="line-text">${escape(text)}</div></div></div>`;
@@ -426,7 +491,7 @@
   }
   function connectionView() {
     const c = state.connection,
-      draft = state.drafts.connection || {};
+      draft = state.drafts.get("connection") || {};
     return (
       header(
         "LINE สำหรับพนักงาน",
@@ -441,7 +506,7 @@
     );
   }
   function botView() {
-    const b = { ...state.bot, ...(state.drafts.bot || {}) };
+    const b = { ...state.bot, ...(state.drafts.get("bot") || {}) };
     return (
       header(
         "ผู้ช่วย HR และการแจ้งเตือน",
@@ -492,7 +557,7 @@
       invite =
         ready() && e.account && e.line !== "connected"
           ? ensureInvite(id)
-          : state.invitations[id];
+          : state.invitations.get(id);
     let content;
     if (e.line === "connected") {
       content = `<div class="panel panel-pad"><div class="person"><span class="avatar">${e.short[0]}</span><div><h2>${escape(e.lineName)}</h2><p>บัญชี LINE ที่ยืนยันกับ ${e.code}</p></div></div><hr class="divider"><dl class="info-list"><div><dt>ผู้ช่วย HR</dt><dd>${botName(e)}</dd></div><div><dt>การแจ้งเตือน</dt><dd>${e.notifications ? "เปิดรับ" : "ปิดรับ"}</dd></div><div><dt>บัญชีระบบ</dt><dd>${e.name}</dd></div></dl><div class="form-actions">${btn("ยกเลิกการเชื่อม", "unlink", `data-id="${e.id}"`, "danger")}${link("ดู LINE ของพนักงาน", `employee/chat?id=${e.id}`, "primary")}</div></div>`;
@@ -538,7 +603,7 @@
     );
   }
   function cardEditView(id) {
-    const t = { ...template(id), ...(state.drafts[activeRoute] || {}) };
+    const t = { ...template(id), ...(state.drafts.get(activeRoute) || {}) };
     const ack = t.ack === true || t.ack === "on";
     t.ack = ack;
     return (
@@ -549,7 +614,7 @@
   }
   function sendView(id) {
     const t = template(id),
-      d = state.drafts[activeRoute] || {},
+      d = state.drafts.get(activeRoute) || {},
       selected = d.audience
         ? d.audience.split(",")
         : state.employees.filter((e) => e.account).map((e) => e.id);
@@ -666,8 +731,8 @@
         header("LINE ผู้ช่วย HR", `บัญชีของ${e.short}`) +
         `<div class="empty"><h2>${e.line === "blocked" ? "บัญชี LINE นี้ถูกบล็อก" : "ยังไม่ได้เชื่อม LINE"}</h2><p>ยืนยันบัญชีเพื่อใช้ผู้ช่วย HR หรืออ่านข้อความในแอปได้ก่อน</p>${link("เชื่อม LINE ของฉัน", `employee/link?id=${e.id}`, "primary")}${link("อ่านข้อความในแอป", "employee/home", "quiet")}</div>`
       );
-    const thread = state.threads[e.id],
-      chats = state.chats[e.id] || [];
+    const thread = state.threads.get(e.id),
+      chats = state.chats.get(e.id) || [];
     return (
       header(
         "LINE ผู้ช่วย HR",
@@ -722,8 +787,8 @@
     );
   }
   function inboxView(id) {
-    const threads = Object.values(state.threads),
-      selected = state.threads[id] || threads[0];
+    const threads = [...state.threads.values()],
+      selected = state.threads.get(id) || threads[0];
     if (!threads.length)
       return (
         header(
@@ -738,7 +803,7 @@
         "กล่องข้อความ HR",
         "เรื่องของพนักงานที่ขอให้เจ้าหน้าที่ช่วย · ข้อมูลตัวอย่าง",
       ) +
-      `<div class="inbox"><nav class="thread-list" aria-label="บทสนทนาพนักงาน">${threads.map((t) => `<button class="thread-item ${t.employee === e.id ? "active" : ""}" data-route="inbox?id=${t.employee}"><strong>${employee(t.employee).name}</strong><p>${t.mode === "human" ? "HR รับช่วงแล้ว" : t.mode === "waiting" ? "รอ HR รับช่วง" : "คืนให้ผู้ช่วยแล้ว"}</p>${badge(t.mode === "human" ? "คนตอบ" : t.mode === "waiting" ? "รอรับเรื่อง" : "ผู้ช่วยตอบ", t.mode === "waiting" ? "pending" : "")}</button>`).join("")}</nav><section class="thread-body"><div class="thread-top"><div><h2>${e.name}</h2><p class="small muted">${e.code} · ${e.site}</p></div><div class="header-actions">${btn(selected.mode === "human" ? "คืนให้ผู้ช่วย" : "รับช่วงตอบ", "thread-mode", `data-id="${e.id}"`, "primary")}</div></div><div class="thread-log">${selected.messages.map((m) => `<div class="message-bubble ${m.from === "hr" ? "mine" : ""}">${escape(m.text)}<small>${m.from === "hr" ? "พัชราภา · HR" : e.short} · ${m.time}</small></div>`).join("")}</div><form class="thread-compose" data-form="hr-reply" data-id="${e.id}"><input name="message" value="${escape(state.hrDrafts?.[e.id] || "")}" aria-label="ข้อความตอบพนักงาน" placeholder="${selected.mode === "human" ? "ตอบพนักงานผ่าน LINE…" : "รับช่วงตอบก่อนส่งข้อความ"}" ${selected.mode === "human" ? "" : "disabled"} required autocomplete="off"><button class="button primary" type="submit" ${selected.mode === "human" ? "" : "disabled"}>ส่ง</button></form></section></div><p class="small muted" style="margin-top:15px">เมื่อ HR รับช่วง ผู้ช่วยพักการตอบ จนกว่า HR จะกดคืนให้ผู้ช่วย</p>`
+      `<div class="inbox"><nav class="thread-list" aria-label="บทสนทนาพนักงาน">${threads.map((t) => `<button class="thread-item ${t.employee === e.id ? "active" : ""}" data-route="inbox?id=${t.employee}"><strong>${employee(t.employee).name}</strong><p>${t.mode === "human" ? "HR รับช่วงแล้ว" : t.mode === "waiting" ? "รอ HR รับช่วง" : "คืนให้ผู้ช่วยแล้ว"}</p>${badge(t.mode === "human" ? "คนตอบ" : t.mode === "waiting" ? "รอรับเรื่อง" : "ผู้ช่วยตอบ", t.mode === "waiting" ? "pending" : "")}</button>`).join("")}</nav><section class="thread-body"><div class="thread-top"><div><h2>${e.name}</h2><p class="small muted">${e.code} · ${e.site}</p></div><div class="header-actions">${btn(selected.mode === "human" ? "คืนให้ผู้ช่วย" : "รับช่วงตอบ", "thread-mode", `data-id="${e.id}"`, "primary")}</div></div><div class="thread-log">${selected.messages.map((m) => `<div class="message-bubble ${m.from === "hr" ? "mine" : ""}">${escape(m.text)}<small>${m.from === "hr" ? "พัชราภา · HR" : e.short} · ${m.time}</small></div>`).join("")}</div><form class="thread-compose" data-form="hr-reply" data-id="${e.id}"><input name="message" value="${escape(state.hrDrafts.get(e.id) || "")}" aria-label="ข้อความตอบพนักงาน" placeholder="${selected.mode === "human" ? "ตอบพนักงานผ่าน LINE…" : "รับช่วงตอบก่อนส่งข้อความ"}" ${selected.mode === "human" ? "" : "disabled"} required autocomplete="off"><button class="button primary" type="submit" ${selected.mode === "human" ? "" : "disabled"}>ส่ง</button></form></section></div><p class="small muted" style="margin-top:15px">เมื่อ HR รับช่วง ผู้ช่วยพักการตอบ จนกว่า HR จะกดคืนให้ผู้ช่วย</p>`
     );
   }
   function flowView() {
@@ -814,12 +879,12 @@
     return `${location.origin}${location.pathname}#/employee/link?id=${encodeURIComponent(id)}`;
   }
   function ensureInvite(id) {
-    const invite = (state.invitations[id] ||= {
+    const invite = mapValue(state.invitations, id, () => ({
       friend: false,
       expired: false,
       used: false,
       expiresAt: Date.now() + 10 * 60 * 1000,
-    });
+    }));
     invite.expiresAt ||= Date.now() + 10 * 60 * 1000;
     if (employee(id).line === "unlinked" && employee(id).account && ready())
       employee(id).line = "pending";
@@ -833,7 +898,7 @@
     const id = params.get("id");
     if (page.startsWith("employee/") && page !== "employee/message" && id)
       state.selectedEmployee = employee(id).id;
-    dirty = Boolean(state.drafts[activeRoute]);
+    dirty = Boolean(state.drafts.get(activeRoute));
     document.documentElement.dataset.theme = state.theme;
     $("#theme-icon").innerHTML = icon(state.theme === "dark" ? "sun" : "moon");
     $("#scenario").value = state.scenario;
@@ -915,7 +980,7 @@
       out.audience = [...form.querySelectorAll("[name=recipient]:checked")]
         .map((x) => x.value)
         .join(",");
-    state.drafts[activeRoute] = out;
+    state.drafts.set(activeRoute, out);
     dirty = true;
     save();
     return out;
@@ -924,9 +989,9 @@
     const e = employee();
     if (!bound(e)) return toast("เชื่อมบัญชีก่อนใช้ผู้ช่วย HR");
     if (!ready()) return toast("LINE ขัดข้องในตัวอย่าง ลองอ่านข้อมูลในแอปก่อน");
-    const list = (state.chats[e.id] ||= []);
+    const list = mapValue(state.chats, e.id, () => []);
     list.push({ from: "employee", text });
-    const thread = state.threads[e.id];
+    const thread = state.threads.get(e.id);
     if (thread && thread.mode !== "bot") {
       thread.messages.push({ from: "employee", text, time: "10:30" });
       if (thread.mode === "waiting")
@@ -969,7 +1034,7 @@
     if (r.ackAt) return toast("คุณรับทราบข้อความรุ่นนี้แล้ว ไม่มีการบันทึกซ้ำ");
     await operation(button, "กำลังบันทึก…", () => {
       r.ackAt = stamp();
-      (state.chats[e.id] ||= []).push({
+      mapValue(state.chats, e.id, () => []).push({
         from: "bot",
         text: `บันทึกการรับทราบแล้ว\n${p.title}\nข้อความรุ่น ${p.version} · ${r.ackAt}`,
       });
@@ -1001,7 +1066,7 @@
         c.channel = data.channel;
         c.credentials = true;
         c.outage = false;
-        delete state.drafts[activeRoute];
+        state.drafts.delete(activeRoute);
         dirty = false;
         render();
         toast("ตรวจ credentials ตัวอย่างผ่านแล้ว");
@@ -1016,7 +1081,7 @@
           clock: form.elements.clock.checked,
           holiday: form.elements.holiday.checked,
         };
-        delete state.drafts[activeRoute];
+        state.drafts.delete(activeRoute);
         dirty = false;
         render();
         toast("บันทึกผู้ช่วยและการแจ้งเตือนแล้ว");
@@ -1043,7 +1108,7 @@
           ack: form.elements.ack.checked,
           version: t.version + 1,
         });
-        delete state.drafts[activeRoute];
+        state.drafts.delete(activeRoute);
         dirty = false;
         busy = false;
         complete("cards");
@@ -1101,7 +1166,7 @@
                   }),
                 };
                 state.publications.push(p);
-                delete state.drafts[activeRoute];
+                state.drafts.delete(activeRoute);
                 dirty = false;
                 busy = false;
                 navigate(`tracking/detail?id=${id}`, true, true);
@@ -1118,7 +1183,7 @@
     }
     if (kind === "bind") {
       const e = employee(form.dataset.id),
-        inv = state.invitations[e.id];
+        inv = state.invitations.get(e.id);
       if (!ready()) return formError("ช่องทาง LINE ยังไม่พร้อม");
       if (!inv?.friend) return formError("เพิ่มเพื่อน OA ก่อนยืนยัน");
       if (inv.expired || Date.now() > inv.expiresAt)
@@ -1143,8 +1208,7 @@
     if (kind === "chat") {
       if (data.message.trim()) {
         if (bound(employee()) && ready()) {
-          state.chatDrafts ||= {};
-          state.chatDrafts[state.selectedEmployee] = "";
+          state.chatDrafts.set(state.selectedEmployee, "");
         }
         chat(data.message.trim());
       }
@@ -1152,17 +1216,16 @@
     }
     if (kind === "hr-reply") {
       const e = employee(form.dataset.id),
-        t = state.threads[e.id];
+        t = state.threads.get(e.id);
       if (!data.message.trim() || !t || t.mode !== "human") return;
       if (!bound(e) || !ready())
         return toast("LINE ของพนักงานส่งถึงไม่ได้ กรุณาตรวจการเชื่อมต่อก่อน");
       t.messages.push({ from: "hr", text: data.message.trim(), time: "10:30" });
-      (state.chats[e.id] ||= []).push({
+      mapValue(state.chats, e.id, () => []).push({
         from: "hr",
         text: data.message.trim(),
       });
-      state.hrDrafts ||= {};
-      state.hrDrafts[e.id] = "";
+      state.hrDrafts.set(e.id, "");
       save();
       render();
       toast("ส่งคำตอบตัวอย่างแล้ว เปิดมุมพนักงานเพื่อดูข้อความได้");
@@ -1198,6 +1261,7 @@
         : current >= start || current < end;
   }
   function modalReset(scenario = "ready") {
+    scenario = previewScenario(scenario);
     openDialog(
       "เริ่มข้อมูลตัวอย่างใหม่?",
       "ข้อมูลที่ลองแก้และส่งใน preview นี้จะถูกรีเซ็ต ไม่มีผลกับระบบจริง",
@@ -1351,33 +1415,33 @@
       return;
     }
     if (a === "invite-renew") {
-      state.invitations[id] = {
+      state.invitations.set(id, {
         expired: false,
         friend: false,
         used: false,
         expiresAt: Date.now() + 10 * 60 * 1000,
-      };
+      });
       if (employee(id).line !== "connected") employee(id).line = "pending";
       save();
       render();
       return toast("สร้างคำเชิญใหม่แล้ว เริ่มเชื่อมได้");
     }
     if (a === "invite-cancel") {
-      delete state.invitations[id];
+      state.invitations.delete(id);
       employee(id).line = "unlinked";
       save();
       complete("employees");
       return toast("ยกเลิกคำเชิญแล้ว");
     }
     if (a === "friend") {
-      const inv = (state.invitations[id] ||= { expired: false });
+      const inv = mapValue(state.invitations, id, () => ({ expired: false }));
       inv.friend = true;
       save();
       render();
       return;
     }
     if (a === "expire-invite") {
-      const inv = (state.invitations[id] ||= { friend: false });
+      const inv = mapValue(state.invitations, id, () => ({ friend: false }));
       inv.expired = true;
       save();
       toast("คำเชิญหมดอายุแล้ว ลองยืนยันเพื่อดูข้อผิดพลาด");
@@ -1395,7 +1459,7 @@
             danger: true,
             run: () => {
               e.line = "unlinked";
-              delete state.invitations[e.id];
+              state.invitations.delete(e.id);
               save();
               render();
               toast("ยกเลิกการเชื่อมแล้ว");
@@ -1427,9 +1491,9 @@
     if (a === "handoff") {
       const e = employee();
       if (!bound(e)) return toast("เชื่อมบัญชีพนักงานก่อน");
-      const t = state.threads[e.id];
+      const t = state.threads.get(e.id);
       if (t && t.mode !== "bot") return toast("เรื่องนี้ส่งถึง HR แล้ว");
-      state.threads[e.id] = {
+      state.threads.set(e.id, {
         employee: e.id,
         mode: "waiting",
         messages: [
@@ -1439,8 +1503,8 @@
             time: "10:30",
           },
         ],
-      };
-      (state.chats[e.id] ||= []).push({
+      });
+      mapValue(state.chats, e.id, () => []).push({
         from: "bot",
         text: "ส่งเรื่องให้เจ้าหน้าที่ HR แล้ว\nคุณส่งรายละเอียดเพิ่มเติมในแชทนี้ได้",
       });
@@ -1449,9 +1513,9 @@
       return;
     }
     if (a === "thread-mode") {
-      const t = state.threads[id];
+      const t = state.threads.get(id);
       t.mode = t.mode === "human" ? "bot" : "human";
-      (state.chats[id] ||= []).push({
+      mapValue(state.chats, id, () => []).push({
         from: t.mode === "human" ? "hr" : "bot",
         text:
           t.mode === "human"
@@ -1529,8 +1593,7 @@
       if (!e.account || !e.active)
         return toast("พนักงานยังไม่มีบัญชีสมาชิกที่พร้อมใช้งาน");
       const key = `${kind}:${e.id}:sample-event-v1`;
-      state.notificationEvents ||= {};
-      if (state.notificationEvents[key])
+      if (state.notificationEvents.get(key))
         return toast("เหตุการณ์ตัวอย่างนี้แจ้งแล้ว ไม่มีการส่งซ้ำ");
       const snapshot = { ...template(kind === "holiday" ? "clock" : kind) };
       if (kind === "holiday")
@@ -1557,7 +1620,7 @@
           },
         ],
       });
-      state.notificationEvents[key] = id;
+      state.notificationEvents.set(key, id);
       save();
       navigate(`tracking/detail?id=${id}`);
       toast("สร้างข้อความตามเหตุการณ์ HR แล้ว");
@@ -1609,14 +1672,12 @@
     }
     const form = event.target.closest("[data-form]");
     if (form?.dataset.form === "chat") {
-      state.chatDrafts ||= {};
-      state.chatDrafts[state.selectedEmployee] = event.target.value;
+      state.chatDrafts.set(state.selectedEmployee, event.target.value);
       save();
       return;
     }
     if (form?.dataset.form === "hr-reply") {
-      state.hrDrafts ||= {};
-      state.hrDrafts[form.dataset.id] = event.target.value;
+      state.hrDrafts.set(form.dataset.id, event.target.value);
       save();
       return;
     }
@@ -1647,12 +1708,12 @@
       navigate(`employee/home?id=${event.target.value}`);
     }
     if (event.target.id === "send-template") {
-      const d = state.drafts[activeRoute];
+      const d = state.drafts.get(activeRoute);
       dirty = false;
       const next = `send?id=${event.target.value}`;
       if (d) {
-        state.drafts[next] = d;
-        delete state.drafts[activeRoute];
+        state.drafts.set(next, d);
+        state.drafts.delete(activeRoute);
       }
       navigate(next, true, true);
     }
@@ -1691,7 +1752,7 @@
                 label: "ทิ้งและย้อนกลับ",
                 danger: true,
                 run: () => {
-                  delete state.drafts[from];
+                  state.drafts.delete(from);
                   dirty = false;
                   save();
                   history.back();

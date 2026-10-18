@@ -8,7 +8,7 @@ Open `index.html` with its sibling assets, or serve this folder:
 python3 -m http.server 8770 --bind 127.0.0.1 --directory docs/previews/line-hr-onboarding-2026-10-13
 ```
 
-Open http://localhost:8770/index.html. The top selector offers ready, fresh onboarding and LINE outage scenarios. Reset clears only this preview's sample session. Dark mode, mobile layout and browser Back work within the preview.
+Open http://localhost:8770/index.html. The top selector offers ready, fresh onboarding and LINE outage scenarios. Reset clears only this preview's sample session. Dark mode, mobile layout and browser Back work within the preview. Only the scenario and theme preferences are retained in session storage. Employee records, entered credentials, conversations, invitations and drafts stay in memory and reset on reload; legacy stored records are not restored.
 
 ## Try the complete flow
 
