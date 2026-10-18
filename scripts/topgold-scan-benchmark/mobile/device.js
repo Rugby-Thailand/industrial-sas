@@ -258,7 +258,8 @@ $("file").onchange = async () => {
       sha256: hash,
       originalSize,
     };
-    $("photo").src = url;
+    // Use the image URL property directly; the file name is never HTML.
+    document.getElementById("photo").src = url;
     $("photo").hidden = false;
     $("empty-camera").hidden = true;
     $("source-info").textContent =

@@ -707,7 +707,7 @@ $("#language").addEventListener("change", (event) => {
   stopAcquisition();
   if (state.scan.phase === "reading" || state.scan.phase === "camera")
     state.scan = { phase: "idle" };
-  lang = event.target.value;
+  lang = event.target.value === "en" ? "en" : "th";
   render();
 });
 $("#theme").addEventListener("click", () => {

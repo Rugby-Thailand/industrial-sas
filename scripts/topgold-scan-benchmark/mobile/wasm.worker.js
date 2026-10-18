@@ -109,7 +109,9 @@ function centre(position) {
   ];
 }
 
-self.onmessage = async ({ data }) => {
+self.onmessage = async (event) => {
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
+  const { data } = event;
   if (data.cmd === "caps") {
     // Capability only: a worker-side native detector would avoid main-thread decode.
     const present = "BarcodeDetector" in self;

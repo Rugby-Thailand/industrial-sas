@@ -89,9 +89,9 @@ createServer(async (req, res) => {
     res.setHeader("Content-Type", route[1]);
     res.setHeader("Cache-Control", "no-store");
     res.end(await readFile(route[0]));
-  } catch (error) {
+  } catch {
     res.writeHead(500);
-    res.end(String(error));
+    res.end("Benchmark request failed");
   }
 }).listen(port, "127.0.0.1", () =>
   console.log(`Barcode benchmark: http://127.0.0.1:${port}`),

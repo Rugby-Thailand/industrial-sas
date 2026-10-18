@@ -15,7 +15,7 @@ node scripts/product-barcode-benchmark/summarize.mjs --verify
 
 The manifest references original attachments outside the repo, rather than committing approximately 18 MB of photos. On another machine, supply those same original JPEGs and update their `sourcePath` entries. Keep the names, SHA-256 values and comparison expectations intact. Photos 8/9/10 are exact byte duplicates of 1/2/3. The original images are 2160 × 2880.
 
-The setup downloads the pinned `zxing-wasm` 3.1.5 npm package, verifies its SHA-512 integrity and extracts it into the ignored `.cache` directory. WASM and images are served locally; scanning has no external requests. `package.json` and the lockfile are unchanged.
+The setup copies the reader bundle and WASM from the pinned `zxing-wasm` 3.1.5 dependency into the ignored `.cache` directory. Run the frozen dependency install first; setup itself makes no network requests. WASM and images are served locally; scanning has no external requests. `package.json` and the lockfile are unchanged.
 
 ## Rounds
 

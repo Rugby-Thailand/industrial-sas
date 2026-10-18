@@ -80,6 +80,11 @@ const variants = {
   B: "Photo & fields",
   C: "List & editor",
 };
+function previewVariant(value) {
+  if (value === "B") return "B";
+  if (value === "C") return "C";
+  return "A";
+}
 const requiredFields = ["factoryOrder", "productBarcodeText"];
 const detailFields = [
   "partName",
@@ -96,9 +101,7 @@ const numericFields = new Set([
   "customerQuantity",
 ]);
 const state = {
-  variant: variants[requested.searchParams.get("variant")]
-    ? requested.searchParams.get("variant")
-    : "A",
+  variant: previewVariant(requested.searchParams.get("variant")),
   page: requested.searchParams.get("page") || pageFromPath(requested.pathname),
   locale: requested.searchParams.get("lang") === "en" ? "en" : "th",
   theme: requested.searchParams.get("theme") === "light" ? "light" : "dark",
@@ -677,23 +680,25 @@ function reviewScreen() {
     `<div class="table-wrap"><table><thead><tr>${["floors", "dimensions", "usableArea", "blockedArea", "storageZones"].map((k) => `<th>${l(k)}</th>`).join("")}</tr></thead><tbody>${Array.from({ length: b.floors }, (_, i) => `<tr><td><button class="link" data-action="review-select-floor" data-value="${i + 1}">${l("floor", { floor: i + 1 })}</button></td><td>${b.width} × ${b.depth} × ${b.height} m</td><td>${((area.gross - area.blocked) / b.floors).toFixed(1)} m²</td><td>${(area.blocked / b.floors).toFixed(1)} m²</td><td>${b.code === "BLDG-A" ? 4 : 0}</td></tr>`).join("")}</tbody></table></div><p class="inline-notice">${tr("ข้อมูล demo จาก repo ต้องตรวจสอบโครงสร้างและตำแหน่งจริงก่อนเปิดใช้งาน", "Repository demo data. Review the actual structure and positions before activating.")}</p><button class="button primary" data-action="activate-building">${l("activate")}</button>`
   );
 }
-const screens = {
-  scan: scanScreen,
-  records: recordsScreen,
-  "finished-goods": catalogueScreen,
-  product: productScreen,
-  batch: batchScreen,
-  packing: packingScreen,
-  pallet: palletScreen,
-  measure: measureScreen,
-  storage: storageScreen,
-  move: moveScreen,
-  stack: stackScreen,
-  buildings: buildingsScreen,
-  building: buildingScreen,
-  floor: floorScreen,
-  review: reviewScreen,
-};
+const screens = new Map(
+  Object.entries({
+    scan: scanScreen,
+    records: recordsScreen,
+    "finished-goods": catalogueScreen,
+    product: productScreen,
+    batch: batchScreen,
+    packing: packingScreen,
+    pallet: palletScreen,
+    measure: measureScreen,
+    storage: storageScreen,
+    move: moveScreen,
+    stack: stackScreen,
+    buildings: buildingsScreen,
+    building: buildingScreen,
+    floor: floorScreen,
+    review: reviewScreen,
+  }),
+);
 
 function syncURL(push = false) {
   const url = new URL(location.href);
@@ -762,7 +767,7 @@ function render(preserve = false) {
   const active = preserve ? document.activeElement : null,
     id = active?.id,
     start = active?.selectionStart;
-  if (!screens[state.page]) state.page = "scan";
+  if (!screens.has(state.page)) state.page = "scan";
   if (["floor", "review"].includes(state.page)) {
     const building =
       buildings.find((b) => b.code === state.building) || buildings[0];
@@ -770,7 +775,7 @@ function render(preserve = false) {
   }
   renderShell();
   $("main").dataset.page = state.page;
-  $("main").innerHTML = screens[state.page]();
+  $("main").innerHTML = screens.get(state.page)();
   renderSavebar();
   syncURL();
   document.title = `${$("main").querySelector("h1")?.textContent} · ${state.variant} · HTML preview`;
@@ -1197,7 +1202,7 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     navigate(target.dataset.nav, target.dataset.item);
   } else if (target.dataset.variant) {
-    state.variant = target.dataset.variant;
+    state.variant = previewVariant(target.dataset.variant);
     render();
   } else action(target.dataset.action, target);
 });
@@ -1392,7 +1397,7 @@ window.addEventListener("popstate", () => {
   state.editing = params.get("editing") === "1";
   state.building =
     params.get("building") || buildingFromPath(location.pathname);
-  state.variant = variants[params.get("variant")] ? params.get("variant") : "A";
+  state.variant = previewVariant(params.get("variant"));
   state.locale = params.get("lang") === "en" ? "en" : "th";
   state.theme = params.get("theme") === "light" ? "light" : "dark";
   render();

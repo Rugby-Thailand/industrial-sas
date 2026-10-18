@@ -367,7 +367,9 @@ const variants = {
   },
 };
 
-self.onmessage = async ({ data }) => {
+self.onmessage = async (event) => {
+  if (event.origin !== "" && event.origin !== self.location.origin) return;
+  const { data } = event;
   if (data.cmd === "init") {
     const started = now();
     wasmUrl = data.wasmUrl;
