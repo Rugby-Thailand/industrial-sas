@@ -37,12 +37,26 @@
       }
     ]
   },
+  // Maintained inputs only. Archived review probes under `docs/reviews/` and
+  // local captures under `output/` are not part of this project.
   "include": [
     "next-env.d.ts",
     "types/**/*.d.ts",
-    "**/*.ts",
-    "**/*.mts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "convex/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "scripts/**/*.ts",
+    "scripts/**/*.tsx",
+    "scripts/**/*.mts",
+    "next.config.ts",
+    "playwright*.config.ts",
+    "vitest.config.mts",
+    "vitest.setup.ts",
+    // Built by `pnpm build:design-sheet`.
+    "docs/design-sheet/**/*.ts",
+    "docs/design-sheet/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     // The Playwright preview dev server builds here; see `playwright.config.ts`.
