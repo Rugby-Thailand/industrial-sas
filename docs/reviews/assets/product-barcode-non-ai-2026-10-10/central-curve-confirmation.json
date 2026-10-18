@@ -1,0 +1,253 @@
+{
+  "manualCrop": false,
+  "name": "2.jpg",
+  "region": [0.2, 0.56, 0.6, 0.12],
+  "results": [
+    {
+      "curve": 0.1,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 3.5,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 4.5,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.1,
+      "angle": 10,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 3.5,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 4.5,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.18,
+      "angle": 10,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 3.5,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 4,
+      "codes": [
+        {
+          "text": "SSD-OB3P422T-BOX-F",
+          "format": "Code128",
+          "isValid": true
+        }
+      ]
+    },
+    {
+      "curve": 0.2,
+      "angle": 4.5,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 10,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 3.5,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 4.5,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.22,
+      "angle": 10,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 3.5,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 4.5,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.3,
+      "angle": 10,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 3.5,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 4.5,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 10,
+      "codes": []
+    }
+  ]
+}

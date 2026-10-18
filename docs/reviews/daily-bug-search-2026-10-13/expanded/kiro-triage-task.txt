@@ -1,0 +1,19 @@
+Task: Categorize and RANK the already-researched bug register for this user, using Kiro. This is a concise final triage task, not another exhaustive audit. Do not edit application source, existing tests/configs or git state; do not deploy, push, access secrets/business data, run tests/builds or spawn agents. Only write the two triage artifacts specified below. Preserve other ongoing work.
+
+Read these evidence reports and their diagnostic logs where needed:
+- docs/reviews/daily-bug-search-2026-10-13/README.md (DAILY-01..03)
+- docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md (INV-01..10)
+- docs/reviews/daily-bug-search-2026-10-13/expanded/root-research.md (ROOT-01..03)
+- If available, docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md and findings.json contain further independent Kiro research; include distinct defensible findings from them, otherwise do not wait for them.
+
+The baseline has 16 distinct candidates. No quota and no invented findings. Deduplicate exact root causes and mark shared clusters (e.g. product and measurement lost updates are separate operations with different impact; version-before-replay variants are grouped in INV-01). This task should finish by reading the reports and consulting only a few critical source references; do not repeat the full research.
+
+Produce Thai output to:
+1. docs/reviews/daily-bug-search-2026-10-13/expanded/kiro-triage.md
+2. docs/reviews/daily-bug-search-2026-10-13/expanded/kiro-triage.json
+
+The JSON must be an object with keys categories, rankedFindings, mergedOrRejected, methodology. rankedFindings is an ordered array; each item has rank (1-based), sourceId (e.g. INV-02), priority (P0/P1/P2/P3), category, title (Thai), confidence (runtime-reproduced/source-demonstrated/hypothesis), rationale (Thai explaining impact, preconditions, reach and evidence), recommendedWave (1/2/3), references (array of current file:line or artifact paths). categories is an array of {name,count}; count must match the final ranked set. Do not claim P0 if there is no evidence.
+
+Rank primary by impact/severity, then likely reach/frequency and evidence; use effort only to break ties. Be conservative about security claims and API-only preconditions. ROOT-01 is documented source-based deduction about subscribed Date.now behavior, not runtime overnight reproduction. ROOT-03 proves the actual form + shared hook path under a forced warehouse rerender; normal UI departure is guarded and must not be described as bypassed. INV-06 is valid authenticated API omission, current UI usually explicit offsets. INV-07 proves the returned API cursor is unstable under concurrent inserts, not that every reactive UI timing duplicates. INV-10 proves owned URL allocations are not revoked; heap growth/crash has not been measured. Include these caveats in rationale or notes. Three prior findings remain active; keep their IDs so readers can trace them.
+
+Markdown should include category counts, all ranked rows, concise priority/evidence definitions, first implementation waves, and concrete uncertainty/rejected duplicate notes. Say no production fixes have been applied. Read current source only if a report makes an ambiguous claim. Finish both artifacts promptly and print their paths and counts.

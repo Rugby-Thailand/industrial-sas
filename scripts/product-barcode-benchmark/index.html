@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Non-AI product barcode benchmark</title>
+  </head>
+  <body>
+    <h1>Non-AI product barcode benchmark</h1>
+    <p>
+      Local ZXing decoding. No OCR, AI, upload service, or expected values in
+      the decoder.
+    </p>
+    <button onclick="runBenchmark('baseline')">Run baseline</button>
+    <button onclick="runBenchmark('bands')">Run overlapping bands</button>
+    <button onclick="runBenchmark('angles')">Run bands with rotation</button>
+    <button onclick="runBenchmark('wasm-full')">Run ZXing-C++ WASM</button>
+    <button onclick="runBenchmark('wasm-bands')">Run WASM bands</button>
+    <button onclick="runBenchmark('wasm-angles')">Run WASM angles</button>
+    <button onclick="runBenchmark('js-targeted')">Run JS product band</button>
+    <button onclick="runBenchmark('wasm-fast')">
+      Run bounded crop + rotate
+    </button>
+    <button onclick="runBenchmark('wasm-optimized')">
+      Run experimental curve fallback
+    </button>
+    <pre id="status">Ready</pre>
+    <script src="/zxing.js"></script>
+    <button
+      onclick="
+        runNegativeControls().then(
+          (result) =>
+            (document.getElementById('status').textContent = JSON.stringify(
+              result,
+              null,
+              2,
+            )),
+        )
+      "
+    >
+      Run negative controls
+    </button>
+    <script src="/benchmark.js"></script>
+    <script src="/controls.js"></script>
+  </body>
+</html>

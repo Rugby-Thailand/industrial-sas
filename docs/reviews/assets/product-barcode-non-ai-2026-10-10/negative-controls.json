@@ -1,0 +1,29 @@
+{
+  "stage": "negative-controls",
+  "decoder": "zxing-wasm 3.1.5",
+  "results": [
+    {
+      "name": "blank",
+      "productCodes": [],
+      "attempts": 140,
+      "budgetExhausted": true,
+      "totalMs": 466.5999999642372
+    },
+    {
+      "name": "printed-text-only",
+      "productCodes": [],
+      "attempts": 140,
+      "budgetExhausted": true,
+      "totalMs": 454.10000002384186
+    },
+    {
+      "name": "job-only-photo",
+      "productCodes": [],
+      "attempts": 140,
+      "budgetExhausted": true,
+      "totalMs": 3121.800000011921
+    }
+  ],
+  "passed": true,
+  "harnessSha256": "ea805c200eb9b0189b10e90b6ca531f47978ad4ec3f0f2b918c05a5f23a8d848"
+}

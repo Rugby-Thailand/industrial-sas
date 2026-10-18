@@ -1,0 +1,676 @@
+{
+  "date": "2026-10-15",
+  "method": "3 independent Kiro CLI processes, claude-opus-5.5 high effort, plus parent review and probe replay",
+  "counts": {
+    "newSubstantiveFlowDefects": 8,
+    "minorUxObservations": 6,
+    "previouslyKnown": 1
+  },
+  "findings": [
+    {
+      "id": "K-UX-HR-01",
+      "severity": "P2",
+      "title": "Linking an account or supervisor in Employees looks complete but grants no HR access, and nothing tells the admin",
+      "user": "HR administrator setting up an employee; the linked employee; the assigned supervisor",
+      "trigger": "HR admin opens Employees > Add employee, selects a member under Linked account and another member under Supervisor, then saves. Neither member holds HR_EMPLOYEE / HR_SUPERVISOR. A newly invited member, or one with only a planner role, has neither.",
+      "expected": "Setup either gives the linked member self-service access and the supervisor review access, or the Employees form/list clearly says that the role still has to be granted in Settings > HR access (ideally with a direct action).",
+      "actual": "The save succeeds and the list shows the account as linked. The employee gets 'You do not have access to this page / Ask your organization's HR administrator for access' on every HR page. The supervisor cannot open Review. Member options contain only userId/displayName, so the form cannot warn. The admin must find the separate Settings > HR access checkbox on their own.",
+      "files": [
+        {
+          "path": "convex/hr/setup.ts",
+          "line": 194
+        },
+        {
+          "path": "convex/hr/setup.ts",
+          "line": 213
+        },
+        {
+          "path": "convex/hr/setup.ts",
+          "line": 237
+        },
+        {
+          "path": "convex/hr/access.ts",
+          "line": 24
+        },
+        {
+          "path": "convex/lib/permissions.ts",
+          "line": 78
+        },
+        {
+          "path": "src/features/hr/EmployeeForm.tsx",
+          "line": 335
+        },
+        {
+          "path": "src/features/hr/EmployeeForm.tsx",
+          "line": 251
+        },
+        {
+          "path": "src/features/hr/EmployeesScreen.tsx",
+          "line": 475
+        },
+        {
+          "path": "src/components/providers/HrAccessProvider.tsx",
+          "line": 60
+        },
+        {
+          "path": "src/features/hr/HrShared.tsx",
+          "line": 46
+        },
+        {
+          "path": "convex/staging/hrDemo.ts",
+          "line": 169
+        }
+      ],
+      "cause": "Account/supervisor linkage (hrEmployees.userId/supervisorUserId) and HR roles (membershipRoles) are independent. saveEmployee never grants or checks a role, memberOptions does not return role/access state, and the form hint only says that an account is needed to clock in. The demo seed grants HR_EMPLOYEE separately, which hides the gap in fixtures.",
+      "evidence": "Probe hr-setup.probe.ts uses real registered convex-test handlers. saveEmployee writes; then access.current, self.today and the supervisor's review.queue all return ok:false; memberOptionKeys=[displayName,userId]. The control passes once setMemberAccess grants HR_EMPLOYEE. UI consequences are source-traced.",
+      "evidenceLevel": "backend handler probe (convex-test) + source-traced UI; not browser-verified",
+      "confidence": "high",
+      "novelty": "new — no earlier report covers link-without-role. Daily KIRO-04 concerns cross-site role revocation, not this setup gap.",
+      "recommendation": "Product decision: either grant HR_EMPLOYEE on link and HR_SUPERVISOR on supervisor assignment (preferred if policy allows), or add an access field to memberOptions/listEmployees and show an inline warning with a 'Grant self-service' action. Keep server authorization unchanged.",
+      "testNeeded": "Integration: link + supervisor assignment followed by access.current/review.queue for those users. Rendered: Employees form/list shows missing-access state for a linked member without the role.",
+      "reviewerScope": "hr",
+      "parentCategory": "substantive-new-flow-defect"
+    },
+    {
+      "id": "K-UX-HR-02",
+      "severity": "P2",
+      "title": "Certify/Return confirmation is never shown, and after Return the reviewer is shown an 'Account for this day' form or 'Nothing to decide'",
+      "user": "Supervisor / HR reviewer",
+      "trigger": "Review > open a day with a pending correction > Return > enter reason > Confirm return (also Certify, and Account-for-this-day submit). With live Convex data the decided state arrives before the mutation promise resolves.",
+      "expected": "A visible, announced confirmation such as 'Returned to Somchai', retained until the reviewer moves on. Any next action should be clearly separate from the completed return.",
+      "actual": "The decision component unmounts when the query drops pendingCorrectionId, so the 'Returned'/'Certified' status is lost. If the employee's own day was complete, the panel says 'Nothing on this day needs a decision.' and the desktop list shows 'The open day is not in this list's range, site or tab.' For a missing clock-out, 'Account for this day' appears immediately, as if the return still needs another action. Disposition success is also lost because its key includes the revision.",
+      "files": [
+        {
+          "path": "src/features/hr/ReviewDetail.tsx",
+          "line": 103
+        },
+        {
+          "path": "src/features/hr/ReviewDetail.tsx",
+          "line": 116
+        },
+        {
+          "path": "src/features/hr/ReviewDetail.tsx",
+          "line": 123
+        },
+        {
+          "path": "src/features/hr/ReviewDetail.tsx",
+          "line": 140
+        },
+        {
+          "path": "src/features/hr/ReviewDetail.tsx",
+          "line": 274
+        },
+        {
+          "path": "src/features/hr/ReviewDetail.tsx",
+          "line": 481
+        },
+        {
+          "path": "convex/hr/review.ts",
+          "line": 386
+        },
+        {
+          "path": "convex/model/hr/attendance.ts",
+          "line": 217
+        },
+        {
+          "path": "node_modules/convex/dist/esm/browser/sync/request_manager.js",
+          "line": 100
+        }
+      ],
+      "cause": "Write feedback lives inside CorrectionDecision/DispositionForm. Rendering of those components depends on live state that the successful write changes (pending correction; revision key). Convex resolves a successful mutation only after the reflecting query transition, so the owner publishes SAVED to an unmounted form. The existing test passes because its query never changes.",
+      "evidence": "hr-ui.probe.tsx renders production ReviewDetail with a reactive query store. Control (static query): 'Returned' shown. Live update on a complete day: statuses=['Nothing on this day needs a decision.'], no 'Returned'. Live update on a missing clock-out: no status; 'Account for this day' visible.",
+      "evidenceLevel": "rendered-component probe + Convex client source; not browser-verified",
+      "confidence": "high",
+      "novelty": "new; differs from SOL-01, which concerns erased drafts, not lost completion feedback",
+      "recommendation": "Lift the last decision receipt to ReviewDetail (keyed by employee/date) and render it above the next state, for example 'Returned to employee · reason'. Optionally offer 'Next open day'. For a returned day, explain that the employee can resubmit before offering disposition.",
+      "testNeeded": "Rendered ReviewDetail with a store that publishes the post-decision detail before resolving: Return on READY and MISSING_END days, Certify, and Dispose each show a persistent role=status confirmation.",
+      "reviewerScope": "hr",
+      "parentCategory": "substantive-new-flow-defect",
+      "parentQualification": "Return cases were rendered and replayed. Certify and disposition share the source mechanism but were not separately executed."
+    },
+    {
+      "id": "K-UX-HR-03",
+      "severity": "P2",
+      "title": "Opening a day from History (or a request from Requests) and pressing Back resets the chosen month, filter and page",
+      "user": "Employee reviewing earlier attendance or request status",
+      "trigger": "History > choose September (and optionally the 'Needs review' filter) > open a day > Back. Or: Requests > status filter / page 3 > open a request > Back.",
+      "expected": "Back restores the view the employee left, including the month/range, status filter and page.",
+      "actual": "History remounts on the current month and All. Requests remounts on page 1 and All. The employee must choose the range or page again after every day/request check.",
+      "files": [
+        {
+          "path": "src/features/hr/HistoryScreen.tsx",
+          "line": 116
+        },
+        {
+          "path": "src/features/hr/HistoryScreen.tsx",
+          "line": 166
+        },
+        {
+          "path": "src/features/hr/HistoryScreen.tsx",
+          "line": 284
+        },
+        {
+          "path": "src/features/hr/RequestsScreen.tsx",
+          "line": 59
+        },
+        {
+          "path": "src/features/hr/RequestsScreen.tsx",
+          "line": 163
+        },
+        {
+          "path": "next.config.ts",
+          "line": 15
+        }
+      ],
+      "cause": "Range, filter, status and cursors are component state, not URL state. cacheComponents is disabled, so App Router unmounts the previous route, unlike the Activity behaviour in node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md. Review and Period already use URL-backed state for comparable context.",
+      "evidence": "hr-ui.probe.tsx: after choosing September the query is from=2026-09-01; window.location.search stays empty; after the remount, month=2026-10 and the query is from 2026-10-01. Requests is source-traced.",
+      "evidenceLevel": "rendered-component remount probe + Next config/docs source; Requests source-traced; not browser-verified",
+      "confidence": "high for the mechanism; the browser Back path should still be confirmed by the parent",
+      "novelty": "new; frontend-consistency A07 covers Requests paging presentation, not Back restoration",
+      "recommendation": "Store History month/from/to/filter and Requests status/cursor stack in the query string (useUrlBackedState plus replace updates), so Day/Request Back restores them. Update the back-navigation inventory for the changed state.",
+      "testNeeded": "Caller tests: choose month/filter > open Day > native Back > same month/filter and query args. Requests: status/page > detail > Back > same page. Also cover direct entry and locale switch.",
+      "reviewerScope": "hr",
+      "parentCategory": "substantive-new-flow-defect",
+      "parentQualification": "History remount tested; native browser Back and Requests paging are source-traced, not browser-reproduced."
+    },
+    {
+      "id": "K-UX-HR-04",
+      "severity": "P3",
+      "title": "Resubmitting a returned correction starts from the original punch with an empty reason; the reviewer's reason appears only below the form",
+      "user": "Employee whose correction was returned",
+      "trigger": "Today or Requests > returned request > Open day. The form is titled 'Resubmit the returned request'.",
+      "expected": "The reviewer's return reason appears at or above the form. The form starts from the returned proposal and reason, so the employee changes only what was asked.",
+      "actual": "Times prefill from the original events (08:29 instead of the proposed 07:45), and the reason is empty. The return reason appears only in the Requests log after the form and the events panel, which is far below on mobile.",
+      "files": [
+        {
+          "path": "src/features/hr/CorrectionForm.tsx",
+          "line": 93
+        },
+        {
+          "path": "src/features/hr/CorrectionForm.tsx",
+          "line": 106
+        },
+        {
+          "path": "src/features/hr/CorrectionForm.tsx",
+          "line": 172
+        },
+        {
+          "path": "src/features/hr/DayScreen.tsx",
+          "line": 68
+        },
+        {
+          "path": "src/features/hr/DayDetailView.tsx",
+          "line": 54
+        },
+        {
+          "path": "src/features/hr/DayDetailView.tsx",
+          "line": 61
+        }
+      ],
+      "cause": "CorrectionForm initial state is the same for new and returned requests. DayDetailView renders children before the events and requests logs.",
+      "evidence": "hr-resubmit.probe.tsx renders production DayScreen: formStart=08:29, formReason='', and the return reason is after the form.",
+      "evidenceLevel": "rendered-component probe; not browser-verified",
+      "confidence": "high for behaviour; medium that prefilling the earlier proposal is the intended product rule",
+      "novelty": "new",
+      "recommendation": "When returnedId is set, show a Notice with the latest RETURNED reason and reviewer above the fields. Optionally seed times/reason from the returned proposal. Keep the original-retention semantics for untouched sides.",
+      "testNeeded": "Rendered DayScreen with a returned correction: the reason is above/inside the form, and initial values follow the chosen product rule.",
+      "reviewerScope": "hr",
+      "parentCategory": "minor-ux-observation",
+      "parentQualification": "Earlier proposal prefilling is a product decision. The return reason placement and initial values were reproduced."
+    },
+    {
+      "id": "K-UX-HR-05",
+      "severity": "P3",
+      "title": "Saving an employee closes the editor with no confirmation",
+      "user": "HR administrator",
+      "trigger": "Employees > Add employee (or Edit) > Save employee succeeds.",
+      "expected": "A visible saved state, for example 'EMP-101 saved', ideally with any follow-up such as the missing HR access in K-UX-HR-01.",
+      "actual": "On SAVED, onDone closes the form immediately (flushSync unmount + Back/replace). WriteFeedback's 'Saved' is never rendered. The admin has to scan the list for the new or changed row; other HR writes show a saved state.",
+      "files": [
+        {
+          "path": "src/features/hr/EmployeeForm.tsx",
+          "line": 227
+        },
+        {
+          "path": "src/features/hr/EmployeesScreen.tsx",
+          "line": 129
+        },
+        {
+          "path": "src/features/hr/EmployeesScreen.tsx",
+          "line": 130
+        }
+      ],
+      "cause": "Completion is modelled as editor closure only; no list-level receipt exists.",
+      "evidence": "Source-traced. Existing EmployeesNavigation tests assert closure and history ownership, not confirmation.",
+      "evidenceLevel": "source-traced only",
+      "confidence": "medium",
+      "novelty": "new",
+      "recommendation": "Pass the saved code/name to the list and render a dismissible role=status Notice after closing, without adding a Back entry.",
+      "testNeeded": "Rendered Employees save → editor closes → a status names the saved employee; the next Back is unchanged.",
+      "reviewerScope": "hr",
+      "parentCategory": "minor-ux-observation",
+      "parentQualification": "Optional receipt improvement; list updates may be adequate feedback. No failed save established."
+    },
+    {
+      "id": "FG-UX-01",
+      "severity": "P1",
+      "title": "Units created with the default Simple packing have no reachable storage path; every 'Scan Packages' step opens Job tickets, which rejects package labels",
+      "trigger": "Manager: create product → Next: packing → keep default Simple packing → Review and create → primary 'Scan Packages' (also catalogue next action, batch unit action, pallet header). Alternative path: Storage → 'Measure pallet' → batch correction editor.",
+      "expected": "A supported flow stores the units: scan package labels and location, or record outside dimensions and choose storage.",
+      "actual": "/finished-goods/scan renders JobScanScreen, which rejects ISAS: package labels and never changes unit state. Storage requires measurements. The Measure route redirects batch units to the batch editor, which shows only Quantity/Fullness for simple batches. The server refuses direct measurement (BATCH_MEASUREMENT_LOCKED), and the location-only assignment backend has no UI caller. The only escape is re-packing the batch as exact measurements, which retires units and issues new codes.",
+      "files": [
+        {
+          "path": "src/features/finishedGoods/PackingScreen.tsx",
+          "line": 136
+        },
+        {
+          "path": "src/features/finishedGoods/PackingCompletion.tsx",
+          "line": 61
+        },
+        {
+          "path": "src/features/finishedGoods/PackingCompletion.tsx",
+          "line": 88
+        },
+        {
+          "path": "src/features/finishedGoods/unitNextAction.ts",
+          "line": 19
+        },
+        {
+          "path": "src/features/finishedGoods/BatchManager.tsx",
+          "line": 310
+        },
+        {
+          "path": "src/features/finishedGoods/BatchManager.tsx",
+          "line": 746
+        },
+        {
+          "path": "src/features/finishedGoods/PalletScreens.tsx",
+          "line": 124
+        },
+        {
+          "path": "src/features/finishedGoods/PalletScreens.tsx",
+          "line": 654
+        },
+        {
+          "path": "src/features/finishedGoods/PalletScreens.tsx",
+          "line": 1043
+        },
+        {
+          "path": "src/app/[locale]/(desktop)/finished-goods/scan/page.tsx",
+          "line": 2
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/ticketDraft.ts",
+          "line": 16
+        },
+        {
+          "path": "convex/finishedGoods/workflow.ts",
+          "line": 505
+        },
+        {
+          "path": "convex/finishedGoods/workflow.ts",
+          "line": 961
+        },
+        {
+          "path": "src/lib/convex/finishedGoodsApi.ts",
+          "line": 25
+        }
+      ],
+      "evidence": "real-handler (convex-test commitBatch → recommend MEASUREMENTS_REQUIRED, saveMeasurement BATCH_MEASUREMENT_LOCKED) + pure helper probe (DESIRED fails) + source-traced; existing rendered tests assert the stale link (PackingScreen.test.tsx:883, ProductScreens.test.tsx:1706, PalletScreens.test.tsx:199). Regression origin: commit e43f00c6 replaced the package-scan UI at the same route. Product decision needed: whether dimensionless simple packing remains supported.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Stop routing unmeasured or simple units to /finished-goods/scan. Either restore a UI for the existing confirmScanAssignment flow, or let the simple-batch correction record dimensions and route to Find storage. Update the completion copy and calls to action, add an integration test proving a UI-reachable storage write, and update the four existing assertions.",
+      "reviewerScope": "finished-goods",
+      "parentCategory": "substantive-new-flow-defect"
+    },
+    {
+      "id": "FG-UX-02",
+      "severity": "P2",
+      "title": "Collected but unsent job-ticket photos are discarded without consent on navigation, Back, or panel switch",
+      "trigger": "Job tickets → choose location → Photos (AI) → collect photos (not yet 'Read N photos with AI') → navigate away / Back / tap Scan barcode / tap Photos (AI) again.",
+      "expected": "A discard prompt, or the collection is retained (Back contract: consent before discarding a surface's own unfinished form).",
+      "actual": "Navigation proceeds immediately; the PhotoCapture panel unmounts and its useFileUpload state is lost. The draft guard only counts tickets.",
+      "files": [
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 178
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 160
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 508
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 518
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/PhotoCapture.tsx",
+          "line": 48
+        }
+      ],
+      "evidence": "rendered-component: real JobScanScreen + real PhotoCapture inside DraftGuardProvider; 2 DESIRED cases fail, CONTROL (typed ticket guarded) passes.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Report the collected-photo count to JobScanWorkflow and include it in useDraftGuard. Confirm before closing a non-empty collection via Cancel, the toggles or Back, or keep it mounted across panel switches. Add caller Back/Forward cases.",
+      "reviewerScope": "finished-goods",
+      "parentCategory": "substantive-new-flow-defect"
+    },
+    {
+      "id": "FG-UX-03",
+      "severity": "P3",
+      "title": "Barcode-from-image intake on Job tickets hides its outcome; a refused 51st ticket shows no message",
+      "trigger": "Job tickets with 50 tickets → Scan barcode → Choose image → Use.",
+      "expected": "'This group holds up to 50 tickets…' (as for the live camera).",
+      "actual": "Nothing added and no message. Choosing an image turns the camera off, BarcodeCameraBox shows feedback only while the camera is on, and JobScanScreen suppresses feedback while the barcode panel is open. The success confirmation and too-long-code errors are also hidden.",
+      "files": [
+        {
+          "path": "src/features/finishedGoods/BarcodeCameraBox.tsx",
+          "line": 125
+        },
+        {
+          "path": "src/features/finishedGoods/BarcodeCameraBox.tsx",
+          "line": 185
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 291
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 565
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.capacity.test.tsx",
+          "line": 21
+        }
+      ],
+      "evidence": "rendered-component: real JobScanScreen + real BarcodeCameraBox; only useBarcodeCamera and the BarcodeImagePicker UI are substituted. DESIRED fails; CONTROL (camera path shows message) passes. Existing tests mock BarcodeCameraBox to always render feedback.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Render supplied feedback regardless of camera state (or let JobScanScreen show it when the camera is inactive), and test with the real BarcodeCameraBox.",
+      "reviewerScope": "finished-goods",
+      "parentCategory": "minor-ux-observation"
+    },
+    {
+      "id": "FG-UX-04",
+      "severity": "P3",
+      "title": "Start move: manual pallet identification is case-sensitive on the client while startMove accepts it case-insensitively",
+      "trigger": "Prepared move → Scan QR (optional) → type 'p-001' for pallet P-001 → Verify entered code.",
+      "expected": "'Pallet identified' (server accepts MANUAL code case-insensitively).",
+      "actual": "'This code does not identify this pallet'; Start move stays disabled. The client also accepts a camera read of the plain code, which the server rejects for SCAN (source-traced).",
+      "files": [
+        {
+          "path": "src/features/finishedGoods/MoveScreen.tsx",
+          "line": 456
+        },
+        {
+          "path": "convex/finishedGoods/workflow.ts",
+          "line": 1967
+        }
+      ],
+      "evidence": "rendered-component (MoveScreen harness from MoveScreen.test.tsx): CONTROL exact code passes, DESIRED lowercase fails. Backend rule source-traced.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Mirror the server rule in identify(): trim, compare manual plain codes case-insensitively, and require the QR value for SCAN.",
+      "reviewerScope": "finished-goods",
+      "parentCategory": "minor-ux-observation"
+    },
+    {
+      "id": "FG-UX-05",
+      "severity": "P1",
+      "title": "Warehouse switch (same tab or another tab) remounts Job tickets and silently drops unsent tickets",
+      "trigger": "Job tickets → location → type a ticket → change the warehouse in the header, or in another tab.",
+      "expected": "A discard/keep prompt or retained draft; pending writes blocked.",
+      "actual": "JobScanWorkflow is keyed by warehouse and remounts on the location question; the ticket is gone, with no prompt, although it is registered with useDraftGuard.",
+      "files": [
+        {
+          "path": "src/components/shell/WorkspaceContextBar.tsx",
+          "line": 41
+        },
+        {
+          "path": "src/components/providers/WorkspaceProvider.tsx",
+          "line": 99
+        },
+        {
+          "path": "src/lib/workspace/warehouseStore.ts",
+          "line": 23
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 75
+        }
+      ],
+      "evidence": "rendered-component: real warehouseStore + real QueryGate + JobScanScreen + DraftGuardProvider; 2 DESIRED cases fail. Only the server workspace snapshot is replaced.",
+      "confidence": "high",
+      "novelty": "already known: storage-actions-2026-10-13 F05 (source-only there); runtime evidence for Job tickets is new",
+      "recommendation": "Route warehouse changes (including cross-tab storage events) through the dirty/pending guard, as F05 recommends.",
+      "reviewerScope": "finished-goods",
+      "parentCategory": "previously-known",
+      "parentQualification": "Cross-tab change is a user-reachable reproduced path. The same-tab probe directly calls the store; the task header currently has no warehouse selector. Do not claim a visible same-tab action was reproduced."
+    },
+    {
+      "id": "SS-05",
+      "severity": "P2",
+      "title": "A successful location create/edit in the building workspace raises 'Save changes before leaving?' and hides the success receipt",
+      "trigger": "Storage-layout manager on /master-data/storage-layouts/<buildingId>: More actions > Add storage stack > Create storage stack, and the write succeeds. The same happens for edit-from-map (?editZone=<id>) > Save changes.",
+      "expected": "The editor closes and the existing receipt ('Storage stack created…' or 'Storage stack updated…') is shown. No unsaved-work prompt appears: nothing is unsaved and the write has settled.",
+      "actual": "The mutation is sent once and the editor closes. Then a modal 'Save changes before leaving? You have unsaved changes…' opens, even for a pristine default-name create. The URL keeps ?overlay…=1. 'Keep editing' leaves the editor closed with the overlay query still present (a stale foreground entry). 'Save and continue' sends 0 extra writes and closes. The success receipt is never rendered. No saved data is lost.",
+      "files": [
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 448
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 455
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 231
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1488
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1184
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1045
+        },
+        {
+          "path": "src/hooks/useBackDisclosure.ts",
+          "line": 53
+        },
+        {
+          "path": "src/components/system/useNavigationGuard.tsx",
+          "line": 101
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 138
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 1111
+        },
+        {
+          "path": "src/features/storageLayouts/StorageZonesPanel.tsx",
+          "line": 1146
+        }
+      ],
+      "evidence": "rendered-component-test: probes/storage.probe.tsx 'SS-05 …' cases (real BuildingModelWorkspace, Dialog, useBackDisclosure, useWorkflowStep and useNavigationGuard; mutation mocked to succeed). 4 desired-behavior cases fail; 2 observation cases pass, recording 0 extra writes. Cause is a source-traced hypothesis: the Dialog closes and its Back step runs in the same commit that clears the child's pending flag, while the workspace guard's pending is still true because it is propagated through two layout-effect/state hops. The hidden archive receipt is source-traced only. Not browser-verified.",
+      "confidence": "high (behavior); medium (exact ordering cause)",
+      "novelty": "new",
+      "recommendation": "Have the workspace guard read child pending state live (a synchronously updated ref, like childDrafts.latest), or close the editor through the disclosure/operation completion owner after pending settles. Render the success message outside the selected-zone gate, or select the newly created location. Add caller tests in StorageLayoutScreens.test.tsx: compact create/update success with no prompt, receipt visible, overlay entry consumed, next Back normal (EN/TH, plus archive). Run pnpm check:navigation.",
+      "reviewerScope": "storage-shell",
+      "parentCategory": "substantive-new-flow-defect"
+    },
+    {
+      "id": "SS-01",
+      "severity": "P2",
+      "title": "Building/review/task routes say 'Choose a warehouse' but render no warehouse selector",
+      "trigger": "A member with 2 or more accessible warehouses and no stored selection (new device, cleared storage) opens a direct building, review or finished-goods task link.",
+      "expected": "The page that instructs 'Choose a warehouse to see its work and records.' offers the selector, then renders the requested record on the same URL.",
+      "actual": "The panel 'No warehouse selected / Choose a warehouse…' renders with 0 warehouse-select controls. The control case on the catalogue route renders the selector. The user must go through the sidebar to the catalogue, choose there, and find the record again, losing the deep link. If a different accessible warehouse is stored, the backend returns found:false and the page shows 'Storage building not found.' with no hint to switch.",
+      "files": [
+        {
+          "path": "src/components/examples/c-sidebar-2.tsx",
+          "line": 81
+        },
+        {
+          "path": "src/components/examples/c-sidebar-2.tsx",
+          "line": 179
+        },
+        {
+          "path": "src/components/examples/c-sidebar-2.tsx",
+          "line": 483
+        },
+        {
+          "path": "src/components/system/QueryGate.tsx",
+          "line": 21
+        },
+        {
+          "path": "src/components/system/LedgerPanelStatus.tsx",
+          "line": 66
+        },
+        {
+          "path": "src/lib/workspace/workspace.ts",
+          "line": 50
+        },
+        {
+          "path": "convex/storageLayouts/catalogue.ts",
+          "line": 483
+        }
+      ],
+      "evidence": "rendered-component-test: probes/shell.probe.tsx 'SS-01 …' renders the real shell Pattern and QueryGate with mocked useWorkspace (2 warehouses, none selected). Detail route: 0 selectors (fail). Catalogue control: selector present (pass). The other-warehouse found:false path is source-traced. Not browser-verified.",
+      "confidence": "high",
+      "novelty": "new (13 Oct row 02 judged warehouse scoping sound and did not cover missing-selection recovery)",
+      "recommendation": "When selectedWarehouseId is undefined and the member has warehouses, render the existing selector as the WAREHOUSE_MISSING panel action (QueryGate) or in TaskWorkspaceContext. This keeps the intended rule of no switching on detail pages once a warehouse is chosen, and does not widen F05 because no draft exists in this state. Test: deep link, choose warehouse, same URL renders, with locale/query/hash preserved.",
+      "reviewerScope": "storage-shell",
+      "parentCategory": "substantive-new-flow-defect"
+    },
+    {
+      "id": "SS-02",
+      "severity": "P2",
+      "title": "Building/review not-found and read-failure states render a bare notice with no heading, Back/breadcrumb or retry",
+      "trigger": "Open /<locale>/master-data/storage-layouts/<id> or …/<id>/review when the layout read returns found:false (deleted, mistyped, or in another warehouse) or ok:false.",
+      "expected": "A page heading, Back/breadcrumb to the declared parent (catalogue; the building for review), a short explanation, and Retry for a read failure.",
+      "actual": "Only 'Storage building not found.' or 'The storage layout could not be loaded.' is rendered: 0 headings, 0 links, 0 buttons. Recovery depends on browser Back or the sidebar.",
+      "files": [
+        {
+          "path": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/page.tsx",
+          "line": 12
+        },
+        {
+          "path": "src/app/[locale]/(desktop)/master-data/storage-layouts/[buildingId]/review/page.tsx",
+          "line": 12
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 546
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 549
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 157
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 3061
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 1112
+        }
+      ],
+      "evidence": "rendered-component-test: probes/storage.probe.tsx 'SS-02 …' renders the real StorageBuildingEditor/StorageBuildingReview with useStorageBuilding mocked to found:false or ok:false; 3 cases fail. Route pages and backend found:false are source-traced. Not browser-verified.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Wrap non-ready states in PageHeader with the existing breadcrumb parent, add Retry for !ok and a not-found body naming the selected warehouse with a link to the catalogue. Review navigation inventory targets and run pnpm check:navigation. Add caller tests for both routes: heading, parent Back, direct link, Retry.",
+      "reviewerScope": "storage-shell",
+      "parentCategory": "substantive-new-flow-defect"
+    },
+    {
+      "id": "SS-04",
+      "severity": "P3",
+      "title": "Unfiltered empty building catalogue says 'No buildings match these filters'",
+      "trigger": "Open /<locale>/master-data/storage-layouts (empty search, All statuses) in a warehouse with no buildings. This is the default landing page after sign-in.",
+      "expected": "First-use empty state: 'No storage buildings yet / Create a building to start defining floor-by-floor capacity.' (TH 'ยังไม่มีอาคารจัดเก็บ…'). Filter-mismatch copy only when a filter is applied.",
+      "actual": "EN 'No buildings match these filters / Change the search text or status filter…'; TH 'ไม่มีอาคารที่ตรงกับตัวกรอง'. The first-use keys are unused.",
+      "files": [
+        {
+          "path": "src/features/storageLayouts/StorageLayoutScreens.tsx",
+          "line": 231
+        },
+        {
+          "path": "messages/en.json",
+          "line": 324
+        },
+        {
+          "path": "messages/th.json",
+          "line": 324
+        },
+        {
+          "path": "src/features/storageLayouts/StorageLocationCatalogue.tsx",
+          "line": 290
+        }
+      ],
+      "evidence": "rendered-component-test: probes/storage.probe.tsx 'SS-04 …' renders the real StorageBuildingCatalogue with useQuery returning an empty ready page; EN and TH cases fail. No t('emptyTitle') caller in src (git log -S points to 983fb5a6). Not browser-verified.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Use emptyTitle/emptyBody when search is empty and status is ALL. Otherwise keep noMatches and add Clear filters. Add an EN/TH render test for both states.",
+      "reviewerScope": "storage-shell",
+      "parentCategory": "minor-ux-observation"
+    },
+    {
+      "id": "SS-03",
+      "severity": "P3",
+      "title": "The workspace bar says 'No organization context' for a member with an organization but no accessible warehouse, and while loading",
+      "trigger": "A signed-in organization member whose scoped membership has no ACTIVE warehouse opens the storage or finished-goods catalogue; or any user while the workspace query loads.",
+      "expected": "Zero warehouses: 'No warehouse available' plus advice to ask an administrator; the page does not say 'Choose a warehouse'. Loading: a neutral loading state.",
+      "actual": "The bar shows 'No organization context / Organization and warehouse access comes from your verified account.' and the page shows 'No warehouse selected / Choose a warehouse…'. While loading, the bar also shows 'No organization context'.",
+      "files": [
+        {
+          "path": "src/components/shell/WorkspaceContextBar.tsx",
+          "line": 16
+        },
+        {
+          "path": "messages/en.json",
+          "line": 122
+        },
+        {
+          "path": "src/lib/workspace/workspace.ts",
+          "line": 38
+        },
+        {
+          "path": "src/components/providers/WorkspaceProvider.tsx",
+          "line": 127
+        },
+        {
+          "path": "convex/workspace/current.ts",
+          "line": 52
+        },
+        {
+          "path": "src/components/system/QueryGate.tsx",
+          "line": 21
+        }
+      ],
+      "evidence": "rendered-component-test: probes/shell.probe.tsx 'SS-03 …' renders the real WorkspaceContextBar and QueryGate with mocked workspace states; 2 cases fail. Zero-warehouse reachability is source-traced in convex/workspace/current.ts (scoped ACTIVE filter); no fixture creates such a member. Not browser-verified.",
+      "confidence": "high (rendering); medium (frequency)",
+      "novelty": "new",
+      "recommendation": "Split the WorkspaceContextBar early return into loading, organization-missing and zero-warehouse branches (reuse 'noWarehouses' plus an administrator hint). Give QueryGate a distinct no-access state when warehouses.length === 0. Add EN/TH tests.",
+      "reviewerScope": "storage-shell",
+      "parentCategory": "minor-ux-observation"
+    }
+  ]
+}

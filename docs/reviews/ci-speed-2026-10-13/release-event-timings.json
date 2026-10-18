@@ -1,0 +1,410 @@
+[
+  {
+    "run_id": 38347275340,
+    "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38347275340",
+    "jobs": [
+      {
+        "name": "Staging release",
+        "events": [
+          {
+            "timestamp": "2026-10-13T04:40:56.6458809Z",
+            "target": "staging",
+            "event": "preflight"
+          },
+          {
+            "timestamp": "2026-10-13T04:40:57.0647656Z",
+            "target": "staging",
+            "event": "deploy-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:41:01.2884926Z",
+            "target": "staging",
+            "event": "deploy-created"
+          },
+          {
+            "timestamp": "2026-10-13T04:43:05.0038462Z",
+            "target": "staging",
+            "event": "deploy-ready"
+          },
+          {
+            "timestamp": "2026-10-13T04:43:05.0318532Z",
+            "target": "staging",
+            "event": "verified"
+          },
+          {
+            "timestamp": "2026-10-13T04:43:05.1370374Z",
+            "target": "staging",
+            "event": "serving"
+          },
+          {
+            "timestamp": "2026-10-13T04:43:05.1374708Z",
+            "target": "staging",
+            "event": "smoke-staging-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:43:52.7082034Z",
+            "target": "staging",
+            "event": "smoke-staging"
+          },
+          {
+            "timestamp": "2026-10-13T04:43:52.7083061Z",
+            "target": "staging",
+            "event": "outcome"
+          }
+        ]
+      },
+      {
+        "name": "Production release",
+        "events": [
+          {
+            "timestamp": "2026-10-13T04:44:53.1850453Z",
+            "target": "production",
+            "event": "preflight"
+          },
+          {
+            "timestamp": "2026-10-13T04:44:53.4003278Z",
+            "target": "production",
+            "event": "backup-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:44:55.6482434Z",
+            "target": "production",
+            "event": "backup-completed"
+          },
+          {
+            "timestamp": "2026-10-13T04:44:55.8536956Z",
+            "target": "production",
+            "event": "deploy-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:44:59.2465666Z",
+            "target": "production",
+            "event": "deploy-created"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:43.6310280Z",
+            "target": "production",
+            "event": "deploy-ready"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:43.6314377Z",
+            "target": "production",
+            "event": "verified"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:44.1391299Z",
+            "target": "production",
+            "event": "candidate-bound"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:44.1395046Z",
+            "target": "production",
+            "event": "smoke-candidate-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:50.8985957Z",
+            "target": "production",
+            "event": "smoke-candidate"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:51.3764697Z",
+            "target": "production",
+            "event": "promote-request"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:52.0832423Z",
+            "target": "production",
+            "event": "serving"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:52.0836393Z",
+            "target": "production",
+            "event": "smoke-live-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:56.7238907Z",
+            "target": "production",
+            "event": "smoke-live"
+          },
+          {
+            "timestamp": "2026-10-13T04:46:56.7242039Z",
+            "target": "production",
+            "event": "outcome"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "run_id": 38344283142,
+    "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38344283142",
+    "jobs": [
+      {
+        "name": "Staging release",
+        "events": [
+          {
+            "timestamp": "2026-10-13T04:03:12.7948518Z",
+            "target": "staging",
+            "event": "preflight"
+          },
+          {
+            "timestamp": "2026-10-13T04:03:13.1589421Z",
+            "target": "staging",
+            "event": "deploy-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:03:18.3343478Z",
+            "target": "staging",
+            "event": "deploy-created"
+          },
+          {
+            "timestamp": "2026-10-13T04:04:52.1819857Z",
+            "target": "staging",
+            "event": "deploy-ready"
+          },
+          {
+            "timestamp": "2026-10-13T04:04:52.1824163Z",
+            "target": "staging",
+            "event": "verified"
+          },
+          {
+            "timestamp": "2026-10-13T04:04:52.3082876Z",
+            "target": "staging",
+            "event": "serving"
+          },
+          {
+            "timestamp": "2026-10-13T04:04:52.3088928Z",
+            "target": "staging",
+            "event": "smoke-staging-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:06:01.2044832Z",
+            "target": "staging",
+            "event": "smoke-staging"
+          },
+          {
+            "timestamp": "2026-10-13T04:06:01.2047463Z",
+            "target": "staging",
+            "event": "outcome"
+          }
+        ]
+      },
+      {
+        "name": "Production release",
+        "events": [
+          {
+            "timestamp": "2026-10-13T04:06:52.0386730Z",
+            "target": "production",
+            "event": "preflight"
+          },
+          {
+            "timestamp": "2026-10-13T04:06:52.3688026Z",
+            "target": "production",
+            "event": "backup-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:06:54.8783444Z",
+            "target": "production",
+            "event": "backup-completed"
+          },
+          {
+            "timestamp": "2026-10-13T04:06:55.1058829Z",
+            "target": "production",
+            "event": "deploy-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:06:58.1071655Z",
+            "target": "production",
+            "event": "deploy-created"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:43.0311108Z",
+            "target": "production",
+            "event": "deploy-ready"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:43.0346167Z",
+            "target": "production",
+            "event": "verified"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:43.5871603Z",
+            "target": "production",
+            "event": "candidate-bound"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:43.5874395Z",
+            "target": "production",
+            "event": "smoke-candidate-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:50.0795848Z",
+            "target": "production",
+            "event": "smoke-candidate"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:50.6020499Z",
+            "target": "production",
+            "event": "promote-request"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:51.1582362Z",
+            "target": "production",
+            "event": "serving"
+          },
+          {
+            "timestamp": "2026-10-13T04:08:51.1584963Z",
+            "target": "production",
+            "event": "smoke-live-start"
+          },
+          {
+            "timestamp": "2026-10-13T04:09:01.5687681Z",
+            "target": "production",
+            "event": "smoke-live"
+          },
+          {
+            "timestamp": "2026-10-13T04:09:01.5691138Z",
+            "target": "production",
+            "event": "outcome"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "run_id": 38300478653,
+    "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38300478653",
+    "jobs": [
+      {
+        "name": "Staging release",
+        "events": [
+          {
+            "timestamp": "2026-10-12T19:55:41.5027300Z",
+            "target": "staging",
+            "event": "preflight"
+          },
+          {
+            "timestamp": "2026-10-12T19:55:41.8048737Z",
+            "target": "staging",
+            "event": "deploy-start"
+          },
+          {
+            "timestamp": "2026-10-12T19:55:49.4407440Z",
+            "target": "staging",
+            "event": "deploy-created"
+          },
+          {
+            "timestamp": "2026-10-12T19:58:05.2558907Z",
+            "target": "staging",
+            "event": "deploy-ready"
+          },
+          {
+            "timestamp": "2026-10-12T19:58:05.2562442Z",
+            "target": "staging",
+            "event": "verified"
+          },
+          {
+            "timestamp": "2026-10-12T19:58:05.5067386Z",
+            "target": "staging",
+            "event": "serving"
+          },
+          {
+            "timestamp": "2026-10-12T19:58:05.5071562Z",
+            "target": "staging",
+            "event": "smoke-staging-start"
+          },
+          {
+            "timestamp": "2026-10-12T19:58:44.5536044Z",
+            "target": "staging",
+            "event": "smoke-staging"
+          },
+          {
+            "timestamp": "2026-10-12T19:58:44.5538022Z",
+            "target": "staging",
+            "event": "outcome"
+          }
+        ]
+      },
+      {
+        "name": "Production release",
+        "events": [
+          {
+            "timestamp": "2026-10-12T19:59:53.8560575Z",
+            "target": "production",
+            "event": "preflight"
+          },
+          {
+            "timestamp": "2026-10-12T19:59:54.0662879Z",
+            "target": "production",
+            "event": "backup-start"
+          },
+          {
+            "timestamp": "2026-10-12T19:59:56.7537295Z",
+            "target": "production",
+            "event": "backup-completed"
+          },
+          {
+            "timestamp": "2026-10-12T19:59:56.9751004Z",
+            "target": "production",
+            "event": "deploy-start"
+          },
+          {
+            "timestamp": "2026-10-12T19:59:59.6869542Z",
+            "target": "production",
+            "event": "deploy-created"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:14.5310593Z",
+            "target": "production",
+            "event": "deploy-ready"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:14.5314764Z",
+            "target": "production",
+            "event": "verified"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:15.8473215Z",
+            "target": "production",
+            "event": "candidate-bound"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:15.8477389Z",
+            "target": "production",
+            "event": "smoke-candidate-start"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:24.0002687Z",
+            "target": "production",
+            "event": "smoke-candidate"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:24.2665995Z",
+            "target": "production",
+            "event": "promote-request"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:24.6434220Z",
+            "target": "production",
+            "event": "serving"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:24.6436858Z",
+            "target": "production",
+            "event": "smoke-live-start"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:29.9426438Z",
+            "target": "production",
+            "event": "smoke-live"
+          },
+          {
+            "timestamp": "2026-10-12T20:02:29.9429853Z",
+            "target": "production",
+            "event": "outcome"
+          }
+        ]
+      }
+    ]
+  }
+]

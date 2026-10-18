@@ -1,0 +1,23 @@
+{
+  "origin": "http://localhost:3100",
+  "browser": "Chromium",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "actualMobileDevice": false,
+  "authenticatedExistingTestUser": true,
+  "checks": [
+    "Choose Location → page Back restores question, prior location text, en locale, unrelated source query and hash",
+    "Choose Location → browser Back restores question",
+    "Dirty ticket → page Back → choose again retains job/product with no discard prompt",
+    "Dirty ticket → browser Back returns question; subsequent browser Back prompts; Keep editing stays in scan",
+    "Accepted browser refresh resets unavailable in-memory draft to location question and removes orphaned step",
+    "Records selection → Location assignment → page Back retains checked record"
+  ],
+  "pageErrors": [],
+  "finalPath": "/en/finished-goods/scan/records",
+  "submittedTickets": 0,
+  "recordMutations": 0,
+  "passed": true
+}

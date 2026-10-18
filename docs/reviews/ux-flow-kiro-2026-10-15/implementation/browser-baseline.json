@@ -1,0 +1,17 @@
+{
+  "source": "faca0cf5927dbe3e72da572cf1290d57d7d91511",
+  "fixture": "scripts/system-audit-preview",
+  "port": 3297,
+  "browser": "T3 collaborative preview",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "observations": [
+    {
+      "scenario": "Job scan: choose synthetic demo location, Photo AI, inject synthetic PNG through file input, switch Scan code and back",
+      "result": "1 / 20 photos retained; Read 1 photo with AI enabled; no horizontal page overflow"
+    }
+  ],
+  "limits": "Synthetic data; camera denial substituted by existing fixture; Convex transport refuses writes/AI; not authenticated production end-to-end."
+}

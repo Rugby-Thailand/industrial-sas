@@ -1,0 +1,348 @@
+{
+  "manualCrop": true,
+  "name": "2.jpg",
+  "region": [0.3, 0.57, 0.55, 0.09],
+  "results": [
+    {
+      "curve": 0,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 2,
+      "codes": [
+        {
+          "text": "SSD-OB3;422T-BOX-F",
+          "format": "Code128",
+          "isValid": false,
+          "error": "ChecksumError @ ODCode128Reader.cpp:229"
+        },
+        {
+          "text": "SSD-OB3P422T-BOX-F",
+          "format": "Code128",
+          "isValid": true,
+          "error": ""
+        }
+      ]
+    },
+    {
+      "curve": 0.04,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.16,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": 0.16,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.16,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.16,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.16,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.16,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 2,
+      "codes": [
+        {
+          "text": "SSD-OB3P422T-BOX-F",
+          "format": "Code128",
+          "isValid": true,
+          "error": ""
+        }
+      ]
+    },
+    {
+      "curve": 0.2,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 2,
+      "codes": [
+        {
+          "text": "z-OB3P422T-BOX-F",
+          "format": "Code128",
+          "isValid": false,
+          "error": "ChecksumError @ ODCode128Reader.cpp:229"
+        }
+      ]
+    },
+    {
+      "curve": -0.04,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": -0.12,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": -0.12,
+      "angle": 0,
+      "codes": [
+        {
+          "text": "052025194820181852133447561338",
+          "format": "Code128",
+          "isValid": false,
+          "error": "ChecksumError @ ODCode128Reader.cpp:229"
+        }
+      ]
+    },
+    {
+      "curve": -0.12,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": -0.12,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": -0.12,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": -0.12,
+      "angle": 8,
+      "codes": []
+    },
+    {
+      "curve": -0.16,
+      "angle": -2,
+      "codes": []
+    },
+    {
+      "curve": -0.16,
+      "angle": 0,
+      "codes": [
+        {
+          "text": "052025194820181852133447561338",
+          "format": "Code128",
+          "isValid": false,
+          "error": "ChecksumError @ ODCode128Reader.cpp:229"
+        }
+      ]
+    },
+    {
+      "curve": -0.16,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": -0.16,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": -0.16,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": -0.16,
+      "angle": 8,
+      "codes": []
+    }
+  ]
+}

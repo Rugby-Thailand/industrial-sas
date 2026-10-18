@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-14",
+  "scope": "Standalone design-sheet refinement; no production application adoption",
+  "components": {
+    "select": "src/components/ui/SelectControl.tsx and select.tsx (shadcn/Radix)",
+    "calendar": "Adapted official radix-nova Calendar with react-day-picker 9.14.0",
+    "popover": "Adapted official radix-nova Popover with radix-ui",
+    "time": "Popover composed with hour/minute SelectControl fields; not a claimed standalone upstream TimePicker"
+  },
+  "automated": {
+    "bundleBuild": "passed",
+    "fullRepositoryTypeScript": "passed",
+    "changedSourceESLint": "passed",
+    "changedFileFormatting": "passed",
+    "baseDOMAssertions": 1624,
+    "baseStateCombinations": 68,
+    "selectedStructuralAxeRuns": 16,
+    "bundledControlInteractionAssertions": 18,
+    "bundledControlErrors": []
+  },
+  "browserDOM": {
+    "method": "T3 collaborative browser interaction and bounding rectangles",
+    "desktopFieldHeight": 32,
+    "smallScreenFieldHeight": 40,
+    "selectOptions": ["Pallet", "Package / box", "Other"],
+    "datePopupDesktop": { "width": 256, "height": 300 },
+    "datePopupAt320": { "left": 16, "right": 300, "width": 284, "height": 332 },
+    "timePopupAt390": { "width": 206.1640625, "height": 144 },
+    "thaiDateDisplay": "14 ต.ค. 2569",
+    "canonicalDateValue": "2026-10-14",
+    "sampledPageOverflow": false,
+    "exposedNativePicker": false
+  },
+  "limitations": [
+    "Screenshot capture failed; no fresh visual sign-off is claimed.",
+    "Viewport resizing does not emulate physical touch or a coarse pointer.",
+    "Full browser axe, screen readers and production application flows were not tested.",
+    "Hidden native form sources and Radix form plumbing are not exposed native picker UI.",
+    "Generated dist assets must be rebuilt locally; they are not committed."
+  ],
+  "detector": "Two upstream 0.8rem type-scale advisories were resolved to the sheet's text-xs scale."
+}

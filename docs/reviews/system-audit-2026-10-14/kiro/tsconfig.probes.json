@@ -1,0 +1,13 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "compilerOptions": { "incremental": false, "noEmit": true },
+  "include": [
+    "../../../../next-env.d.ts",
+    "../../../../types/**/*.d.ts",
+    "../../../../vitest.setup.ts",
+    "./*.probe.ts",
+    "./*.probe.tsx",
+    "./vitest.config.mts"
+  ],
+  "exclude": []
+}

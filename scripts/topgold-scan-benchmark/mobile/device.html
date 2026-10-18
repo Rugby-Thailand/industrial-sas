@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <title>ทดสอบสแกนใบ Job · TopGold</title>
+    <link
+      rel="stylesheet"
+      href="/scripts/topgold-scan-benchmark/mobile/device.css"
+    />
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <div>
+          <h1>ทดสอบสแกนใบ Job</h1>
+          <p>เทียบวิธีอ่านเลข Job และบาร์โค้ดสินค้า บนเครื่องที่ใช้งานจริง</p>
+        </div>
+        <span class="local-label">Local test</span>
+      </header>
+      <div id="message" role="status" aria-live="polite">
+        กำลังตรวจสอบเครื่อง…
+      </div>
+      <div class="workspace">
+        <section class="capture" aria-label="ภาพสำหรับสแกน">
+          <div class="viewfinder">
+            <video
+              id="video"
+              playsinline
+              muted
+              hidden
+              aria-label="ภาพจากกล้องหลัง"
+            ></video>
+            <img id="photo" hidden alt="ภาพใบ Job ที่เลือกทดสอบ" />
+            <div id="empty-camera">
+              <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+                <path d="M7 14h9l3-5h10l3 5h9v25H7z" />
+                <circle cx="24" cy="26" r="8" /></svg
+              ><strong>วางใบ Job ให้เห็น QR และบาร์โค้ดสินค้า</strong
+              ><span>เปิดกล้อง หรือเลือกภาพเพื่อเทียบด้วยภาพเดียวกัน</span>
+            </div>
+            <span id="timer" hidden>0.0 s</span>
+          </div>
+          <div class="source-actions">
+            <button id="camera" type="button">เปิดกล้องหลัง</button>
+            <label class="file-button" for="file"
+              >เลือกภาพใบ Job<input
+                id="file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+            /></label>
+            <button id="close-camera" type="button" disabled>ปิดกล้อง</button>
+            <button id="torch" type="button" aria-pressed="false" hidden>
+              เปิดไฟฉาย
+            </button>
+          </div>
+          <p id="source-info" class="caption">
+            ยังไม่ได้เลือกภาพ · สแกนเต็มภาพ ไม่มีกรอบบังคับตำแหน่ง
+          </p>
+          <section class="readings" aria-label="ผลที่อ่านได้">
+            <div>
+              <span>เลข Job</span><strong id="job-result">รอเริ่มทดสอบ</strong
+              ><small id="job-time">—</small>
+            </div>
+            <div>
+              <span>รหัสสินค้าที่อ่านพบ</span
+              ><strong id="product-result">รอเริ่มทดสอบ</strong
+              ><small id="product-time">—</small>
+            </div>
+          </section>
+          <p class="caption">
+            รหัสสินค้าเป็นค่าที่อ่านจาก Code 128 ซึ่งต้องตรวจเทียบใบจริง
+            หากพบหลายค่า จะแสดงทั้งหมดโดยไม่เลือกแทน
+          </p>
+          <details>
+            <summary>ข้อมูลดิบและการทำงานของตัวอ่าน</summary>
+            <pre id="diagnostics">ยังไม่มีผล</pre>
+          </details>
+        </section>
+        <section class="controls" aria-labelledby="settings-title">
+          <h2 id="settings-title">ตั้งค่ารอบทดสอบ</h2>
+          <fieldset id="settings">
+            <label for="method">วิธีสแกน</label>
+            <select id="method">
+              <option value="legacy">JS เดิม + fallback · อ่านต่อเฟรม</option>
+              <option value="native">Native</option>
+              <option value="wasm">WASM · worker</option>
+              <option value="mixed" selected>
+                Native → WASM → ค้นหาบาร์โค้ดสินค้า
+              </option>
+            </select>
+            <p id="method-note" class="caption">
+              กำลังตรวจสอบการรองรับ Native…
+            </p>
+            <div class="field-pair">
+              <div>
+                <label for="target">ข้อมูลที่ต้องการ</label
+                ><select id="target">
+                  <option value="both">Job + สินค้า</option>
+                  <option value="job">เลข Job</option>
+                  <option value="product">รหัสสินค้า</option>
+                </select>
+              </div>
+              <div>
+                <label for="duration">เวลาต่อรอบ</label
+                ><select id="duration">
+                  <option value="10">10 วินาที</option>
+                  <option value="15" selected>15 วินาที</option>
+                  <option value="30">30 วินาที</option>
+                </select>
+              </div>
+            </div>
+            <label for="max-side">ขนาดภาพสูงสุดด้านยาว</label
+            ><select id="max-side">
+              <option value="1920" selected>1920 px</option>
+              <option value="2560">2560 px</option>
+              <option value="1080">1080 px · เทียบผลเมื่อภาพเล็กลง</option>
+            </select>
+            <label for="sample">ชื่อใบ / เงื่อนไข</label
+            ><input
+              id="sample"
+              placeholder="เช่น ใบ 01 · ตรง · แสงปกติ"
+              maxlength="120"
+            />
+            <details class="reference">
+              <summary>ใส่คำตอบอ้างอิงเพื่อวัดความถูกต้อง</summary>
+              <p class="caption">
+                อ่านจากใบจริงก่อนเริ่ม ใช้ตรวจผลภายหลังเท่านั้น
+              </p>
+              <label for="expected-job">เลข Job ที่ถูกต้อง</label
+              ><input
+                id="expected-job"
+                autocapitalize="characters"
+                spellcheck="false"
+                placeholder="FO… หรือ FOM…"
+                maxlength="120"
+              /><label for="expected-product">รหัสสินค้าที่ถูกต้อง</label
+              ><input
+                id="expected-product"
+                autocapitalize="off"
+                spellcheck="false"
+                placeholder="พิมพ์ให้ตรงกับบาร์โค้ด รวมตัวพิมพ์เล็ก/ใหญ่"
+                maxlength="180"
+              />
+            </details>
+          </fieldset>
+          <div class="run-actions">
+            <button id="start" class="primary" type="button" disabled>
+              เริ่มจับเวลา</button
+            ><button id="stop" type="button" disabled>หยุดรอบ</button>
+          </div>
+          <p id="run-note" class="caption">
+            เปิดกล้องและรอโฟกัสก่อนเริ่ม · เวลาเตรียมตัวอ่านแยกจากเวลาสแกน
+          </p>
+          <div class="review">
+            <label for="verdict">ตรวจรอบล่าสุดกับใบจริง</label
+            ><select id="verdict" disabled>
+              <option value="unreviewed">ยังไม่ได้ตรวจ</option>
+              <option value="correct">ข้อมูลที่ต้องการถูกต้องครบ</option>
+              <option value="incorrect">มีค่าผิด / ขาดข้อมูล</option>
+              <option value="uncertain">ยังยืนยันไม่ได้</option>
+            </select>
+            <p class="caption">
+              การตรวจด้วยตาเก็บแยกจากคะแนนที่เทียบคำตอบอ้างอิง
+            </p>
+          </div>
+        </section>
+      </div>
+      <section class="history" aria-labelledby="history-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="history-title">ผลการทดลอง</h2>
+            <p id="save-status" class="caption">
+              บันทึกบนโทรศัพท์และส่งสำเนาไป Mac หลังจบรอบ
+            </p>
+          </div>
+          <div class="export-actions">
+            <button id="retry" type="button" hidden>ส่งผลไป Mac อีกครั้ง</button
+            ><button id="json" type="button" disabled>ดาวน์โหลด JSON</button
+            ><button id="csv" type="button" disabled>ดาวน์โหลด CSV</button>
+          </div>
+        </div>
+        <p id="summary" class="summary">
+          ยังไม่มีรอบทดสอบ เลือกภาพหรือเปิดกล้องเพื่อเริ่มได้เลย
+        </p>
+        <div class="table-scroll">
+          <table>
+            <caption class="sr-only">
+              ประวัติแต่ละรอบ รวมรอบที่อ่านไม่ได้และรอบที่ถูกขัดจังหวะ
+            </caption>
+            <thead>
+              <tr>
+                <th>ใบ / วิธี</th>
+                <th>ผลที่อ่านได้</th>
+                <th>เวลาแรกที่พบครบ</th>
+                <th>ตรวจคำตอบ</th>
+                <th>จบรอบ</th>
+              </tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+        <p class="caption">
+          เวลาที่พบครบเป็นเวลาจนพบผู้สมัครแต่ละช่อง ไม่ใช่เวลายืนยันตัวตนในระบบ
+          · สรุปความถูกต้องใช้เฉพาะรอบที่มีคำตอบอ้างอิงครบ
+          เปรียบเทียบแยกตามแหล่งภาพ เป้าหมาย และขนาดภาพ
+        </p>
+      </section>
+      <details class="instructions">
+        <summary>วิธีเชื่อม Android และวิธีเทียบผล</summary>
+        <ol>
+          <li>เปิด USB debugging เสียบสาย แล้วอนุญาต Mac บนโทรศัพท์</li>
+          <li>
+            บน Mac รัน
+            <code>node scripts/topgold-scan-benchmark/android-usb.mjs</code>
+            แล้วเปิด <code>http://localhost:3194</code> บน Chrome ในโทรศัพท์
+          </li>
+          <li>
+            ใช้ใบเดิม เป้าหมายเดิม และขนาดภาพเดิม สลับลำดับวิธีในแต่ละรอบ
+            เว้นช่วงพักเมื่อเครื่องร้อน
+          </li>
+          <li>
+            หน้าทดสอบนี้อ่าน QR/บาร์โค้ด ยังไม่เรียก OCR/AI หรือบันทึกใบ Job
+            เข้าระบบจริง
+          </li>
+        </ol>
+      </details>
+    </main>
+    <script
+      type="module"
+      src="/scripts/topgold-scan-benchmark/mobile/device.js"
+    ></script>
+  </body>
+</html>

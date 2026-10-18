@@ -1,0 +1,843 @@
+{
+  "all": {
+    "full1600": {
+      "images": 48,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 18,
+        "exact": 3,
+        "partial": 0,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 15,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 27,
+        "jobExact": 18,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 9,
+        "productYield": 3,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 3,
+        "productionFieldOk": 3,
+        "qrDecoded": 15,
+        "qrIsJob": 15,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 0,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 9,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 48,
+          "p50": 72,
+          "p95": 101,
+          "max": 105,
+          "mean": 77
+        },
+        "location": {
+          "n": 18,
+          "p50": 63,
+          "p95": 96,
+          "max": 96,
+          "mean": 67
+        },
+        "ticket": {
+          "n": 30,
+          "p50": 93,
+          "p95": 104,
+          "max": 105,
+          "mean": 83
+        }
+      },
+      "decodeMsP50": 32,
+      "bitmapMsP50": 32
+    },
+    "full3000": {
+      "images": 48,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 18,
+        "exact": 3,
+        "partial": 3,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 12,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 27,
+        "jobExact": 21,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 6,
+        "productYield": 3,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 3,
+        "productionFieldOk": 3,
+        "qrDecoded": 18,
+        "qrIsJob": 18,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 0,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 9,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 48,
+          "p50": 128,
+          "p95": 234,
+          "max": 240,
+          "mean": 142
+        },
+        "location": {
+          "n": 18,
+          "p50": 106,
+          "p95": 161,
+          "max": 161,
+          "mean": 114
+        },
+        "ticket": {
+          "n": 30,
+          "p50": 156,
+          "p95": 236,
+          "max": 240,
+          "mean": 159
+        }
+      },
+      "decodeMsP50": 91,
+      "bitmapMsP50": 32
+    },
+    "roiFast": {
+      "images": 48,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 18,
+        "exact": 6,
+        "partial": 0,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 12,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 27,
+        "jobExact": 12,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 15,
+        "productYield": 6,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 6,
+        "productionFieldOk": 6,
+        "qrDecoded": 12,
+        "qrIsJob": 12,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 3,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 6,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 48,
+          "p50": 136,
+          "p95": 309,
+          "max": 313,
+          "mean": 161
+        },
+        "location": {
+          "n": 18,
+          "p50": 99,
+          "p95": 161,
+          "max": 161,
+          "mean": 108
+        },
+        "ticket": {
+          "n": 30,
+          "p50": 176,
+          "p95": 313,
+          "max": 313,
+          "mean": 193
+        }
+      },
+      "decodeMsP50": 94,
+      "bitmapMsP50": 33
+    },
+    "roiHard": {
+      "images": 48,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 18,
+        "exact": 6,
+        "partial": 3,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 9,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 27,
+        "jobExact": 15,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 12,
+        "productYield": 12,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 9,
+        "productionFieldOk": 9,
+        "qrDecoded": 15,
+        "qrIsJob": 15,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 6,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 3,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 48,
+          "p50": 176,
+          "p95": 443,
+          "max": 447,
+          "mean": 200
+        },
+        "location": {
+          "n": 18,
+          "p50": 100,
+          "p95": 194,
+          "max": 194,
+          "mean": 120
+        },
+        "ticket": {
+          "n": 30,
+          "p50": 197,
+          "p95": 443,
+          "max": 447,
+          "mean": 248
+        }
+      },
+      "decodeMsP50": 128,
+      "bitmapMsP50": 33
+    },
+    "cascade": {
+      "images": 48,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 18,
+        "exact": 9,
+        "partial": 3,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 6,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 27,
+        "jobExact": 24,
+        "jobExactFom": 3,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 3,
+        "productYield": 12,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 12,
+        "productionFieldOk": 9,
+        "qrDecoded": 18,
+        "qrIsJob": 18,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 6,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 3,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 48,
+          "p50": 205,
+          "p95": 1117,
+          "max": 1170,
+          "mean": 359
+        },
+        "location": {
+          "n": 18,
+          "p50": 176,
+          "p95": 428,
+          "max": 428,
+          "mean": 194
+        },
+        "ticket": {
+          "n": 30,
+          "p50": 331,
+          "p95": 1160,
+          "max": 1170,
+          "mean": 458
+        }
+      },
+      "decodeMsP50": 172,
+      "bitmapMsP50": 33
+    }
+  },
+  "eligibleUnder16MP": {
+    "full1600": {
+      "images": 42,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 15,
+        "exact": 3,
+        "partial": 0,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 12,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 24,
+        "jobExact": 15,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 9,
+        "productYield": 3,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 3,
+        "productionFieldOk": 3,
+        "qrDecoded": 12,
+        "qrIsJob": 12,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 0,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 9,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 42,
+          "p50": 88,
+          "p95": 101,
+          "max": 105,
+          "mean": 80
+        },
+        "location": {
+          "n": 15,
+          "p50": 65,
+          "p95": 96,
+          "max": 96,
+          "mean": 68
+        },
+        "ticket": {
+          "n": 27,
+          "p50": 93,
+          "p95": 104,
+          "max": 105,
+          "mean": 86
+        }
+      },
+      "decodeMsP50": 32,
+      "bitmapMsP50": 34
+    },
+    "full3000": {
+      "images": 42,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 15,
+        "exact": 3,
+        "partial": 3,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 9,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 24,
+        "jobExact": 18,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 6,
+        "productYield": 3,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 3,
+        "productionFieldOk": 3,
+        "qrDecoded": 15,
+        "qrIsJob": 15,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 0,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 9,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 42,
+          "p50": 151,
+          "p95": 234,
+          "max": 240,
+          "mean": 146
+        },
+        "location": {
+          "n": 15,
+          "p50": 104,
+          "p95": 161,
+          "max": 161,
+          "mean": 112
+        },
+        "ticket": {
+          "n": 27,
+          "p50": 158,
+          "p95": 236,
+          "max": 240,
+          "mean": 165
+        }
+      },
+      "decodeMsP50": 91,
+      "bitmapMsP50": 33
+    },
+    "roiFast": {
+      "images": 42,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 15,
+        "exact": 3,
+        "partial": 0,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 12,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 24,
+        "jobExact": 9,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 15,
+        "productYield": 6,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 6,
+        "productionFieldOk": 6,
+        "qrDecoded": 9,
+        "qrIsJob": 9,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 3,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 6,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 42,
+          "p50": 151,
+          "p95": 309,
+          "max": 313,
+          "mean": 172
+        },
+        "location": {
+          "n": 15,
+          "p50": 108,
+          "p95": 161,
+          "max": 161,
+          "mean": 110
+        },
+        "ticket": {
+          "n": 27,
+          "p50": 189,
+          "p95": 313,
+          "max": 313,
+          "mean": 206
+        }
+      },
+      "decodeMsP50": 107,
+      "bitmapMsP50": 35
+    },
+    "roiHard": {
+      "images": 42,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 15,
+        "exact": 3,
+        "partial": 3,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 9,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 24,
+        "jobExact": 12,
+        "jobExactFom": 0,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 12,
+        "productYield": 12,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 9,
+        "productionFieldOk": 9,
+        "qrDecoded": 12,
+        "qrIsJob": 12,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 6,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 3,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 42,
+          "p50": 183,
+          "p95": 443,
+          "max": 447,
+          "mean": 216
+        },
+        "location": {
+          "n": 15,
+          "p50": 113,
+          "p95": 194,
+          "max": 194,
+          "mean": 125
+        },
+        "ticket": {
+          "n": 27,
+          "p50": 201,
+          "p95": 443,
+          "max": 447,
+          "mean": 266
+        }
+      },
+      "decodeMsP50": 141,
+      "bitmapMsP50": 35
+    },
+    "cascade": {
+      "images": 42,
+      "timeouts": 0,
+      "errors": 0,
+      "errorCodes": [],
+      "location": {
+        "scoreable": 15,
+        "exact": 6,
+        "partial": 3,
+        "wrong": 0,
+        "reviewOnly": 0,
+        "noRead": 6,
+        "multiExact": 0,
+        "wrongCodes": []
+      },
+      "ticket": {
+        "withJob": 24,
+        "jobExact": 21,
+        "jobExactFom": 3,
+        "fomTotal": 3,
+        "jobMultiple": 0,
+        "jobWrong": 0,
+        "jobReviewOnly": 0,
+        "jobNoRead": 3,
+        "productYield": 12,
+        "productAmbiguous": 0,
+        "productReviewOnly": 0,
+        "fullTicket": 12,
+        "productionFieldOk": 9,
+        "qrDecoded": 15,
+        "qrIsJob": 15,
+        "noJobLabels": [
+          "145:no-job-correct:-",
+          "145:no-job-correct:-",
+          "145:no-job-correct:-"
+        ],
+        "manual": {
+          "legible": 9,
+          "match": 6,
+          "matchPlusOther": 0,
+          "mismatch": 0,
+          "noRead": 3,
+          "mismatches": []
+        }
+      },
+      "timing": {
+        "all": {
+          "n": 42,
+          "p50": 301,
+          "p95": 1117,
+          "max": 1170,
+          "mean": 391
+        },
+        "location": {
+          "n": 15,
+          "p50": 184,
+          "p95": 428,
+          "max": 428,
+          "mean": 213
+        },
+        "ticket": {
+          "n": 27,
+          "p50": 354,
+          "p95": 1160,
+          "max": 1170,
+          "mean": 490
+        }
+      },
+      "decodeMsP50": 269,
+      "bitmapMsP50": 35
+    }
+  },
+  "rounds": {
+    "full1600": {
+      "perRound": [
+        {
+          "round": 1,
+          "p50": 72,
+          "p95": 105,
+          "mean": 80
+        },
+        {
+          "round": 2,
+          "p50": 65,
+          "p95": 101,
+          "mean": 76
+        },
+        {
+          "round": 3,
+          "p50": 65,
+          "p95": 101,
+          "mean": 76
+        }
+      ],
+      "medianRelativeSpread": 0.04,
+      "maxRelativeSpread": 0.28,
+      "identicalOutputsAcrossRounds": true
+    },
+    "full3000": {
+      "perRound": [
+        {
+          "round": 1,
+          "p50": 128,
+          "p95": 240,
+          "mean": 145
+        },
+        {
+          "round": 2,
+          "p50": 123,
+          "p95": 236,
+          "mean": 142
+        },
+        {
+          "round": 3,
+          "p50": 122,
+          "p95": 233,
+          "mean": 140
+        }
+      ],
+      "medianRelativeSpread": 0.03,
+      "maxRelativeSpread": 0.07,
+      "identicalOutputsAcrossRounds": true
+    },
+    "roiFast": {
+      "perRound": [
+        {
+          "round": 1,
+          "p50": 151,
+          "p95": 313,
+          "mean": 169
+        },
+        {
+          "round": 2,
+          "p50": 136,
+          "p95": 309,
+          "mean": 161
+        },
+        {
+          "round": 3,
+          "p50": 129,
+          "p95": 298,
+          "mean": 154
+        }
+      ],
+      "medianRelativeSpread": 0.09,
+      "maxRelativeSpread": 0.27,
+      "identicalOutputsAcrossRounds": true
+    },
+    "roiHard": {
+      "perRound": [
+        {
+          "round": 1,
+          "p50": 176,
+          "p95": 447,
+          "mean": 204
+        },
+        {
+          "round": 2,
+          "p50": 176,
+          "p95": 443,
+          "mean": 203
+        },
+        {
+          "round": 3,
+          "p50": 170,
+          "p95": 425,
+          "mean": 193
+        }
+      ],
+      "medianRelativeSpread": 0.06,
+      "maxRelativeSpread": 0.18,
+      "identicalOutputsAcrossRounds": true
+    },
+    "cascade": {
+      "perRound": [
+        {
+          "round": 1,
+          "p50": 205,
+          "p95": 1160,
+          "mean": 364
+        },
+        {
+          "round": 2,
+          "p50": 201,
+          "p95": 1170,
+          "mean": 363
+        },
+        {
+          "round": 3,
+          "p50": 197,
+          "p95": 1117,
+          "mean": 350
+        }
+      ],
+      "medianRelativeSpread": 0.04,
+      "maxRelativeSpread": 0.08,
+      "identicalOutputsAcrossRounds": true
+    }
+  }
+}

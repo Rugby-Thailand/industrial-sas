@@ -1,0 +1,188 @@
+{
+  "scope": "Finished goods and scanning journeys (catalogue/products/batches, packing, pallet measurement/storage/move/stack, barcode and photo acquisition, location selection, job-ticket scan records). Current working tree including uncommitted changes, 2026-10-15. Discovery only.",
+  "model": "Kiro CLI, claude-opus-5.5, effort high",
+  "findings": [
+    {
+      "id": "FG-UX-01",
+      "severity": "P1",
+      "title": "Units created with the default Simple packing have no reachable storage path; every 'Scan Packages' step opens Job tickets, which rejects package labels",
+      "trigger": "Manager: create product → Next: packing → keep default Simple packing → Review and create → primary 'Scan Packages' (also catalogue next action, batch unit action, pallet header). Alternative path: Storage → 'Measure pallet' → batch correction editor.",
+      "expected": "A supported flow stores the units: scan package labels and location, or record outside dimensions and choose storage.",
+      "actual": "/finished-goods/scan renders JobScanScreen, which rejects ISAS: package labels and never changes unit state. Storage requires measurements. The Measure route redirects batch units to the batch editor, which shows only Quantity/Fullness for simple batches. The server refuses direct measurement (BATCH_MEASUREMENT_LOCKED), and the location-only assignment backend has no UI caller. The only escape is re-packing the batch as exact measurements, which retires units and issues new codes.",
+      "files": [
+        { "path": "src/features/finishedGoods/PackingScreen.tsx", "line": 136 },
+        {
+          "path": "src/features/finishedGoods/PackingCompletion.tsx",
+          "line": 61
+        },
+        {
+          "path": "src/features/finishedGoods/PackingCompletion.tsx",
+          "line": 88
+        },
+        { "path": "src/features/finishedGoods/unitNextAction.ts", "line": 19 },
+        { "path": "src/features/finishedGoods/BatchManager.tsx", "line": 310 },
+        { "path": "src/features/finishedGoods/BatchManager.tsx", "line": 746 },
+        { "path": "src/features/finishedGoods/PalletScreens.tsx", "line": 124 },
+        { "path": "src/features/finishedGoods/PalletScreens.tsx", "line": 654 },
+        {
+          "path": "src/features/finishedGoods/PalletScreens.tsx",
+          "line": 1043
+        },
+        {
+          "path": "src/app/[locale]/(desktop)/finished-goods/scan/page.tsx",
+          "line": 2
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/ticketDraft.ts",
+          "line": 16
+        },
+        { "path": "convex/finishedGoods/workflow.ts", "line": 505 },
+        { "path": "convex/finishedGoods/workflow.ts", "line": 961 },
+        { "path": "src/lib/convex/finishedGoodsApi.ts", "line": 25 }
+      ],
+      "evidence": "real-handler (convex-test commitBatch → recommend MEASUREMENTS_REQUIRED, saveMeasurement BATCH_MEASUREMENT_LOCKED) + pure helper probe (DESIRED fails) + source-traced; existing rendered tests assert the stale link (PackingScreen.test.tsx:883, ProductScreens.test.tsx:1706, PalletScreens.test.tsx:199). Regression origin: commit e43f00c6 replaced the package-scan UI at the same route. Product decision needed: whether dimensionless simple packing remains supported.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Stop routing unmeasured or simple units to /finished-goods/scan. Either restore a UI for the existing confirmScanAssignment flow, or let the simple-batch correction record dimensions and route to Find storage. Update the completion copy and calls to action, add an integration test proving a UI-reachable storage write, and update the four existing assertions."
+    },
+    {
+      "id": "FG-UX-02",
+      "severity": "P2",
+      "title": "Collected but unsent job-ticket photos are discarded without consent on navigation, Back, or panel switch",
+      "trigger": "Job tickets → choose location → Photos (AI) → collect photos (not yet 'Read N photos with AI') → navigate away / Back / tap Scan barcode / tap Photos (AI) again.",
+      "expected": "A discard prompt, or the collection is retained (Back contract: consent before discarding a surface's own unfinished form).",
+      "actual": "Navigation proceeds immediately; the PhotoCapture panel unmounts and its useFileUpload state is lost. The draft guard only counts tickets.",
+      "files": [
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 178
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 160
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 508
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 518
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/PhotoCapture.tsx",
+          "line": 48
+        }
+      ],
+      "evidence": "rendered-component: real JobScanScreen + real PhotoCapture inside DraftGuardProvider; 2 DESIRED cases fail, CONTROL (typed ticket guarded) passes.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Report the collected-photo count to JobScanWorkflow and include it in useDraftGuard. Confirm before closing a non-empty collection via Cancel, the toggles or Back, or keep it mounted across panel switches. Add caller Back/Forward cases."
+    },
+    {
+      "id": "FG-UX-03",
+      "severity": "P3",
+      "title": "Barcode-from-image intake on Job tickets hides its outcome; a refused 51st ticket shows no message",
+      "trigger": "Job tickets with 50 tickets → Scan barcode → Choose image → Use.",
+      "expected": "'This group holds up to 50 tickets…' (as for the live camera).",
+      "actual": "Nothing added and no message. Choosing an image turns the camera off, BarcodeCameraBox shows feedback only while the camera is on, and JobScanScreen suppresses feedback while the barcode panel is open. The success confirmation and too-long-code errors are also hidden.",
+      "files": [
+        {
+          "path": "src/features/finishedGoods/BarcodeCameraBox.tsx",
+          "line": 125
+        },
+        {
+          "path": "src/features/finishedGoods/BarcodeCameraBox.tsx",
+          "line": 185
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 291
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 565
+        },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.capacity.test.tsx",
+          "line": 21
+        }
+      ],
+      "evidence": "rendered-component: real JobScanScreen + real BarcodeCameraBox; only useBarcodeCamera and the BarcodeImagePicker UI are substituted. DESIRED fails; CONTROL (camera path shows message) passes. Existing tests mock BarcodeCameraBox to always render feedback.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Render supplied feedback regardless of camera state (or let JobScanScreen show it when the camera is inactive), and test with the real BarcodeCameraBox."
+    },
+    {
+      "id": "FG-UX-04",
+      "severity": "P3",
+      "title": "Start move: manual pallet identification is case-sensitive on the client while startMove accepts it case-insensitively",
+      "trigger": "Prepared move → Scan QR (optional) → type 'p-001' for pallet P-001 → Verify entered code.",
+      "expected": "'Pallet identified' (server accepts MANUAL code case-insensitively).",
+      "actual": "'This code does not identify this pallet'; Start move stays disabled. The client also accepts a camera read of the plain code, which the server rejects for SCAN (source-traced).",
+      "files": [
+        { "path": "src/features/finishedGoods/MoveScreen.tsx", "line": 456 },
+        { "path": "convex/finishedGoods/workflow.ts", "line": 1967 }
+      ],
+      "evidence": "rendered-component (MoveScreen harness from MoveScreen.test.tsx): CONTROL exact code passes, DESIRED lowercase fails. Backend rule source-traced.",
+      "confidence": "high",
+      "novelty": "new",
+      "recommendation": "Mirror the server rule in identify(): trim, compare manual plain codes case-insensitively, and require the QR value for SCAN."
+    },
+    {
+      "id": "FG-UX-05",
+      "severity": "P1",
+      "title": "Warehouse switch (same tab or another tab) remounts Job tickets and silently drops unsent tickets",
+      "trigger": "Job tickets → location → type a ticket → change the warehouse in the header, or in another tab.",
+      "expected": "A discard/keep prompt or retained draft; pending writes blocked.",
+      "actual": "JobScanWorkflow is keyed by warehouse and remounts on the location question; the ticket is gone, with no prompt, although it is registered with useDraftGuard.",
+      "files": [
+        { "path": "src/components/shell/WorkspaceContextBar.tsx", "line": 41 },
+        {
+          "path": "src/components/providers/WorkspaceProvider.tsx",
+          "line": 99
+        },
+        { "path": "src/lib/workspace/warehouseStore.ts", "line": 23 },
+        {
+          "path": "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+          "line": 75
+        }
+      ],
+      "evidence": "rendered-component: real warehouseStore + real QueryGate + JobScanScreen + DraftGuardProvider; 2 DESIRED cases fail. Only the server workspace snapshot is replaced.",
+      "confidence": "high",
+      "novelty": "already known: storage-actions-2026-10-13 F05 (source-only there); runtime evidence for Job tickets is new",
+      "recommendation": "Route warehouse changes (including cross-tab storage events) through the dirty/pending guard, as F05 recommends."
+    }
+  ],
+  "rejected": [
+    "Job records 'Set location' leaving a dead Back entry: disproved; useWorkflowStep consumes an owned step once it becomes unavailable.",
+    "Location search showing only 'No matching location' for a typed pallet code: accurate but generic (server lookupError unused); not counted.",
+    "Clean product form conflict on 'Prepare more goods' after another edit: recoverable; same clean-form freshness class as DAILY-03/SOL-03; not new.",
+    "Stacked-storage upper pallet field lacks a camera action: typing or a handheld scanner works; friction only.",
+    "No success confirmation after assigning a record location: records move between filters; copy preference.",
+    "Known items rechecked in source: SOL-03 still present; INV-09 and INV-10 appear fixed; Measurement now sends expectedRevision (INV-04 client side)."
+  ],
+  "coverage": [
+    "AGENTS.md, PRODUCT.md, Back contract + JobScanWorkflow/PhotoCapture inventory entries",
+    "Prior reports: system-audit-2026-10-14, daily-bug-search-2026-10-13 (incl. expanded ranking), storage-actions-2026-10-13 F05",
+    "Job tickets: JobScanScreen, TicketCard, ticketDraft, PhotoCapture, TicketFieldScanner, LocationPicker, AddLocationForm, JobScanRecords",
+    "Acquisition: BarcodeCameraBox, BarcodeImagePicker, barcodeImagePipeline target filtering, DestinationScanner",
+    "Pallets: PalletScreens detail/measure/storage, MoveScreen selection and active move, unitNextAction",
+    "Products/batches: ProductScreen, PackingScreen draft and completion, PackingCompletion, BatchManager unit actions and available editor, catalogue header",
+    "Backend: jobScans, jobScanLocations, batches.commitBatch, batchManagement.repackAvailable, workflow.saveMeasurement/recommend/startMove, scanning exports, warehouseStore, QueryGate"
+  ],
+  "limitations": [
+    "No browser, device or physical camera testing; camera and decoder behavior was substituted in the probes.",
+    "FG-UX-01: completion and calls-to-action rendering relies on existing rendered tests and source tracing; no seeded end-to-end walkthrough.",
+    "FG-UX-04: startMove acceptance is source-traced; the probe does not execute the backend.",
+    "FG-UX-05: real multi-warehouse authorization was not exercised.",
+    "Not covered in depth: PalletScene/3D accessibility, PlacementEditor geometry, pagination performance, Thai copy quality.",
+    "Line numbers refer to the 2026-10-15 working tree."
+  ],
+  "probes": {
+    "command": "pnpm exec vitest run --config docs/reviews/ux-flow-kiro-2026-10-15/finished-goods/vitest.config.mts --reporter=verbose",
+    "result": "12 tests / 5 files: 7 failed (all DESIRED, evidence of defects), 5 passed (OBSERVED/CONTROL); exit 1; ~61 s; log evidence/probes.log",
+    "typecheck": "pnpm exec tsc -p docs/reviews/ux-flow-kiro-2026-10-15/finished-goods/tsconfig.probes.json → exit 0",
+    "lint": "pnpm exec eslint docs/reviews/ux-flow-kiro-2026-10-15/finished-goods → exit 0"
+  }
+}

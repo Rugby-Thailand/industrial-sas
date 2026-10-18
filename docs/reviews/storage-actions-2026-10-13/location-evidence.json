@@ -1,0 +1,185 @@
+{
+  "location": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Edit building settings",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Active building: FG1",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Storage map",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Building model",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Building floors",
+          "text": "Floor 1"
+        },
+        {
+          "disabled": false,
+          "label": "Filter locations",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Map view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Table view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "2D plan",
+          "text": "2D"
+        },
+        {
+          "disabled": false,
+          "label": "3D view",
+          "text": "3D"
+        },
+        {
+          "disabled": true,
+          "label": "Zoom out",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Zoom in",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Fit floor to view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Display options",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Add storage stack",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Hide details",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Edit FG1-L01",
+          "text": "Edit location"
+        }
+      ],
+      "dialogs": [],
+      "links": [
+        {
+          "href": "/en/master-data/storage-layouts",
+          "text": "Buildings & spots"
+        }
+      ],
+      "text": "Buildings & spots\nFG1\nFG1\nFG1\n\nBuilding dimensions: 12.26 × 29.93 m · Total height: 3.3 m\n\nActive\nFloor 1\n12.26 × 29.93 × 3.3 m\n2D\n3D\nL02Empty\nL03Empty\nL04\nL05\nR01\nR02Empty\nR03Empty\nR04\nR05Empty\nR06Empty\nR07Empty\nR08Empty\nR09\nR10\nL01Empty\n12.26 m\n29.93 m\n5 m\nEmpty\nStored\nReserved\nFG1 / FLOOR 01\n\n2D PLAN · 100%\n\nLocation details\nFG1-L01\n\nFG1-L01 · Floor 1\n\n●\nEmpty\nWidth × depth\n2.87 × 4.82 m\nMaximum height\n1.5 m\nArea\n13.833 m²\nStorage units\n0 units\nStored products\n\nNo stored or reserved units yet\n\nLocation actions\nQR and position labels (1)\n\nNo stored or reserved units yet\n\nEdit location"
+    }
+  },
+  "edit": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage&editZone=nn70qcanwe5hankwx8bbm492z98f122r"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "2D plan",
+          "text": "2D"
+        },
+        {
+          "disabled": false,
+          "label": "3D view",
+          "text": "3D"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Not configured"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Cancel"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Save changes"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Close dialog"
+        }
+      ],
+      "dialogs": [
+        "Edit storage stack\n\nChange this zone's position and capacity. Its location code and QR value stay the same.\n\nLive 3D position\n\nX 0 · Y 0 m\n\nFits within floor\n2D\n3D\nทางเดิน FG1-R07–FG1-R08\nทางเดิน L03–L04\nทางเดิน L04–L05\nทางเดิน FG1-R06–FG1-R07\nทางเดิน FG1-R05–FG1-R06\nทางเดิน FG1-R01–FG1-R02\nทางเดิน FG1-R08–FG1-R09\nทางเดิน FG1-R09–FG1-R10\nทางเดิน FG1-R03–FG1-R04\nทางเดิน FG1-R02–FG1-R03\nทางเดิน FG1-R04–FG1-R05\nห้ามจัดเก็บระหว่าง L01–L02\nจุดสงวนใน L02 · ตำแหน่งประมาณ\nพื้นที่รับสินค้าและช่องกลาง\nH 3.3 m\nทางเดิน FG1-R07–FG1-R08\nทางเดิน L03–L04\nทางเดิน L04–L05\nทางเดิน FG1-R06–FG1-R07\nทางเดิน FG1-R05–FG1-R06\nทางเดิน FG1-R01–FG1-R02\nทางเดิน FG1-R08–FG1-R09\nทางเดิน FG1-R09–FG1-R10\nทางเดิน FG1-R03–FG1-R04\nทางเดิน FG1-R02–FG1-R03\nทางเดิน FG1-R04–FG1-R05\nห้ามจัดเก็บระหว่าง L01–L02\nจุดสงวนใน L02 · ตำแหน่งประมาณ\nพื้นที่รับสินค้าและช่องกลาง\nW 2.87 m\nD 4.82 m\nH 1.5 m\n\nDrag the stack to position it · Arrow keys move 0.1 m\n\nZone label\nX position (m)\nY position (m)\nZone width (m)\nZone depth (m)\nStorage condition (optional)\nNot configured\n\nRecommendations compare this condition with the product requirement. Unconfigured conditions are shown as unknown.\n\nMaximum stack height (m)\nCancel\nSave changes\nClose dialog"
+      ],
+      "fields": [
+        {
+          "labels": ["Zone label"],
+          "value": "FG1-L01"
+        },
+        {
+          "labels": ["X position (m)"],
+          "value": "0"
+        },
+        {
+          "labels": ["Y position (m)"],
+          "value": "0"
+        },
+        {
+          "labels": ["Zone width (m)"],
+          "value": "2.87"
+        },
+        {
+          "labels": ["Zone depth (m)"],
+          "value": "4.82"
+        },
+        {
+          "labels": ["Maximum stack height (m)"],
+          "value": "1.5"
+        }
+      ],
+      "href": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage&editZone=nn70qcanwe5hankwx8bbm492z98f122r"
+    }
+  }
+}

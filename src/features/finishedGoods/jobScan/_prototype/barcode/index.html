@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="th" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Barcode scanning · HTML preview</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/zxing-wasm.js" defer></script>
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="scan" viewBox="0 0 24 24">
+        <path d="M4 8V4h4m8 0h4v4m0 8v4h-4m-8 0H4v-4M7 8v8m3-8v8m4-8v8m3-8v8" />
+      </symbol>
+      <symbol id="camera" viewBox="0 0 24 24">
+        <path d="M8 5l1-2h6l1 2h4v15H4V5z" />
+        <circle cx="12" cy="12" r="4" />
+      </symbol>
+      <symbol id="image" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="8" cy="8" r="1.5" />
+        <path d="M3 17l6-6 4 4 3-3 5 5" />
+      </symbol>
+      <symbol id="pin" viewBox="0 0 24 24">
+        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0116 0z" />
+        <circle cx="12" cy="10" r="2.5" />
+      </symbol>
+      <symbol id="check" viewBox="0 0 24 24">
+        <path d="M5 12l4 4L19 6" />
+      </symbol>
+      <symbol id="arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14m-6-6l6 6-6 6" />
+      </symbol>
+      <symbol id="back" viewBox="0 0 24 24">
+        <path d="M19 12H5m6-6l-6 6 6 6" />
+      </symbol>
+      <symbol id="close" viewBox="0 0 24 24">
+        <path d="M6 6l12 12M6 18L18 6" />
+      </symbol>
+      <symbol id="keyboard" viewBox="0 0 24 24">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M6 9h1m3 0h1m3 0h1m3 0h1M6 12h1m3 0h1m3 0h1m3 0h1M7 16h10" />
+      </symbol>
+      <symbol id="sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path
+          d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"
+        />
+      </symbol>
+      <symbol id="box" viewBox="0 0 24 24">
+        <path d="M3 7l9-5 9 5v10l-9 5-9-5zm0 0l9 5 9-5m-9 5v10m-4.5-17.5l9 5" />
+      </symbol>
+      <symbol id="search" viewBox="0 0 24 24">
+        <circle cx="10" cy="10" r="6" />
+        <path d="M15 15l6 6" />
+      </symbol>
+      <symbol id="chevron" viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6" />
+      </symbol>
+      <symbol id="alert" viewBox="0 0 24 24">
+        <path d="M12 3L2 21h20zM12 9v5m0 3v1" />
+      </symbol>
+      <symbol id="trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
+      </symbol>
+    </svg>
+    <div class="preview-bar">
+      <span data-copy="preview">HTML preview · ข้อมูลตัวอย่าง</span>
+      <div>
+        <a href="?page=location" data-copy="locationTab">ตำแหน่ง</a
+        ><a href="?page=product" data-copy="productTab">สินค้า / JOB</a
+        ><button id="reset" data-copy="reset">เริ่มใหม่</button>
+      </div>
+    </div>
+    <header class="topbar">
+      <div class="warehouse">
+        <svg><use href="#box" /></svg
+        ><span
+          ><strong>TG-OPT</strong
+          ><small>Top Gold Optimized Warehouse</small></span
+        >
+      </div>
+      <div class="header-tools">
+        <select id="language" aria-label="Language">
+          <option value="th">ไทย</option>
+          <option value="en">English</option></select
+        ><button id="theme" class="icon-button" aria-label="Switch theme">
+          <svg><use href="#sun" /></svg>
+        </button>
+      </div>
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <strong>Storage Planner</strong>
+        <div class="nav-label" data-copy="goods">สินค้าสำเร็จรูป</div>
+        <a href="?page=product" class="active"
+          ><svg><use href="#scan" /></svg
+          ><span data-copy="heading">สแกนใบ Job</span></a
+        >
+        <div class="nav-item">
+          <svg><use href="#box" /></svg
+          ><span data-copy="stock">สต็อกสินค้า</span>
+        </div>
+        <div class="sidebar-note" data-copy="localNote">
+          ตัวอย่างนี้ไม่บันทึกเข้าระบบจริง
+        </div>
+      </aside>
+      <main id="main"></main>
+    </div>
+    <dialog id="field-dialog" aria-labelledby="dialog-title">
+      <div id="dialog-content"></div>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "repository": "Rugby-Thailand/industrial-sas",
+  "removed_environments": [
+    "Preview",
+    "Production"
+  ],
+  "removed_deployment_records": {
+    "Preview": 60,
+    "Production": 43
+  },
+  "remaining_environments": [
+    "staging",
+    "production-release"
+  ],
+  "retained_deployment_records": 22,
+  "verification": {
+    "github_sidebar_only_current_environments": true,
+    "retained_deployment_statuses_unchanged": true,
+    "retained_environment_settings_unchanged": true,
+    "vercel_project_targets_unchanged": true,
+    "production_http_status": 200,
+    "production_page_title": "Storage Planner",
+    "authenticated_staging_http_status": 200,
+    "authenticated_staging_page_title": "Storage Planner",
+    "next_natural_release_recreation_check": "Pending the next normal release; no release was triggered by cleanup."
+  },
+  "archive": "before.json",
+  "post_cleanup_snapshot": "after.json",
+  "mutation_log": "cleanup.jsonl"
+}

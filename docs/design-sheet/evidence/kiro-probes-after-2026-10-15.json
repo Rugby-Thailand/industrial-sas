@@ -1,0 +1,108 @@
+{
+  "note": "Unmodified Kiro audit probes (docs/reviews/design-sheet-kiro-audit-2026-10-15/probes/probe-controls.cjs and probe-time-focus.cjs) re-run read-only against the fixed sheet on 2026-10-15. Compare with the audit originals in that folder (controls-observations.json, time-focus-observations.json). N_cssWithoutScript injects controls.css only; source hiding now lives in review.css and is gated on a successful mount.",
+  "ranAt": "2026-10-15T15:23:14.204Z",
+  "probeControls": {
+    "A_autofocusedDay": {
+      "text": "14",
+      "ariaLabel": "Today, Wednesday, 14 October 2026, selected"
+    },
+    "A_afterEnterOnSelectedDay": {
+      "sourceValue": "2026-10-14",
+      "triggerText": "14 Oct 2026",
+      "popoverOpen": false
+    },
+    "A_afterClickOnSelectedDay": {
+      "sourceValue": "2026-10-14",
+      "triggerText": "14 Oct 2026"
+    },
+    "B_en": {
+      "trigger": "Date: 14 Oct 2026",
+      "caption": "October 2026",
+      "gridLabel": "October 2026",
+      "selectedDayLabel": "Today, Wednesday, 14 October 2026, selected",
+      "firstWeekday": "Monday",
+      "selectedTdClasses": "rdp-day rdp-focused rdp-today rdp-selected",
+      "selectedButtonClasses": ["rdp-day_button"],
+      "navChevronClass": "lucide lucide-chevron-right rdp-chevron",
+      "outsideDays": 4
+    },
+    "B_th": {
+      "trigger": "วันที่: 14 ต.ค. 2569",
+      "caption": "ตุลาคม 2569",
+      "gridLabel": "ตุลาคม 2569",
+      "selectedDayLabel": "วันนี้, วันพุธที่ 14 ตุลาคม 2569, เลือกแล้ว",
+      "firstWeekday": "จันทร์",
+      "selectedTdClasses": "rdp-day rdp-focused rdp-today rdp-selected",
+      "selectedButtonClasses": ["rdp-day_button"],
+      "navChevronClass": "lucide lucide-chevron-right rdp-chevron",
+      "outsideDays": 4
+    },
+    "C_emptyTimeOpen": {
+      "trigger": "Time: Pick a time",
+      "hourTrigger": "HH",
+      "minuteTrigger": "mm"
+    },
+    "C_minuteFirst": {
+      "sourceValue": ""
+    },
+    "C_hourFirst": {
+      "sourceValue": ""
+    },
+    "C_clearTimeAction": false,
+    "Q_nestedEscape": {
+      "listboxOpenedInsidePopover": true,
+      "listboxAfterEscape": false,
+      "popoverAfterEscape": true,
+      "activeElement": "demo-time-control-hour"
+    },
+    "D_requiredErrorAfterLocale": {
+      "value": "JOB-1",
+      "ariaInvalid": "false",
+      "errorBeforeLocale": "",
+      "errorAfterLocale": ""
+    },
+    "E_focusAfterReviewState": "review-state-control",
+    "G_reading": {
+      "textInputsDisabled": [
+        ["ticket-factoryOrder", true],
+        ["ticket-productBarcodeText", true],
+        ["ticket-partName", true],
+        ["ticket-customer", true],
+        ["ticket-quantity", true],
+        ["ticket-factoryQuantity", true],
+        ["ticket-customerQuantity", true]
+      ],
+      "scannerDisabled": [true, true],
+      "unitTypeDisabled": true
+    },
+    "H_pending": {
+      "disabled": false,
+      "ariaBusy": "true",
+      "classes": "btn primary",
+      "text": "Saving…",
+      "noticeRole": "status"
+    },
+    "H_catalogueSwitch": [
+      ["Products", "btn outline", "true"],
+      ["Storage units", "btn outline", "false"]
+    ],
+    "N_cssWithoutScript": {
+      "review-state": "inline",
+      "ticket-storageFormat": "inline",
+      "demo-date": "inline-block",
+      "demo-time": "inline-block"
+    }
+  },
+  "probeTimeFocus": {
+    "timeCommitBeforeDone": {
+      "valueWhilePopoverOpen": "08:30",
+      "popoverOpenAfterEscape": false,
+      "valueAfterEscape": "08:30",
+      "doneButtonDisabled": null
+    },
+    "focusAfterDateSelection": "demo-date-control",
+    "focusAfterScanDateSelection": "ticket-deliveryDate-control",
+    "filledCountAfterScanDate": "7 filled",
+    "errors": []
+  }
+}

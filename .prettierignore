@@ -28,7 +28,7 @@ PROJECT_PLAN.md
 
 .cache/
 
-# Reference pages served byte-for-byte in an iframe (F1F2ReferencePreview);
+# Reference pages served byte-for-byte as same-origin frames;
 # reformatting HTML can change rendered whitespace.
 public/f1-f2-reference/
 # Rendered review gallery captured as evidence; keep it as generated.
@@ -49,3 +49,18 @@ docs/designs/hr-employee-self-service-2026-10-11/
 # reference artifacts. Their captured bytes and hashes remain authoritative.
 docs/design-sheet/
 docs/reviews/design-sheet-system-adoption-2026-10-11/
+
+# Frozen generated HR guide output and deployment-cleanup captures; their
+# original bytes are recorded by the generator and capture hashes.
+/docs/manuals/hr-user-guide-th/captures.json
+/docs/manuals/hr-user-guide-th/final-copy.json
+/docs/manuals/hr-user-guide-th/index.html
+/docs/manuals/hr-user-guide-th/pages.json
+/docs/manuals/hr-user-guide-th/pages.pending.json
+/docs/reviews/assets/github-deployment-cleanup-2026-10-10/after.json
+/docs/reviews/assets/github-deployment-cleanup-2026-10-10/before.json
+/docs/reviews/assets/github-deployment-cleanup-2026-10-10/summary.json
+
+# Vendored browser bundles used only by the standalone onboarding preview.
+/docs/previews/line-hr-onboarding-2026-10-13/assets/html-to-image.js
+/docs/previews/line-hr-onboarding-2026-10-13/assets/qrcode.js

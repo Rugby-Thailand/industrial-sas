@@ -12,8 +12,10 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="styles.css?v=20261011-audit" />
     <script src="sheet.js?v=20261011-audit" defer></script>
-    <link rel="stylesheet" href="review.css?v=20261011-audit" />
-    <script src="review.js?v=20261011-audit" defer></script>
+    <link rel="stylesheet" href="review.css?v=20261016-spacing" />
+    <script src="review.js?v=20261016-spacing" defer></script>
+    <link rel="stylesheet" href="dist/controls.css?v=20261016-spacing" />
+    <script src="dist/controls.js?v=20261015-audit-fixes" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="skip">Skip to design sheet</a>
@@ -92,7 +94,7 @@
             Based on the current system. Examples use synthetic data; no
             application workflows have been changed.
           </p>
-          <time datetime="2026-10-09">9 October 2026</time>
+          <time id="proposal-date" datetime="2026-10-09">9 October 2026</time>
         </div>
       </section>
 
@@ -361,12 +363,16 @@
                 data-i18n="saveChanges"
               >
                 Save changes</button
-              ><span
+              ><button
+                type="button"
                 class="btn primary sample-loading"
-                aria-label="Saving example"
-                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                id="demo-saving"
+                aria-disabled="true"
+                aria-busy="true"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 3a9 9 0 1 1-9 9" /></svg
-                ><span data-i18n="saving">Saving…</span></span
+                ><span data-i18n="saving">Saving…</span></button
               ><button
                 type="button"
                 class="btn destructive"
@@ -405,19 +411,256 @@
                   aria-describedby="required-error"
                   required
                 />
-                <p
-                  class="field-error"
-                  id="required-error"
-                  data-i18n="requiredError"
-                >
+                <p class="field-error" id="required-error">
                   Enter a Job No. before saving.
                 </p>
               </div>
             </div>
-            <p class="small muted" data-i18n="fieldRule">
+            <div class="field-grid picker-specimens">
+              <div class="field">
+                <label for="demo-date" data-i18n="datePicker">Date</label
+                ><input
+                  id="demo-date"
+                  data-sheet-date
+                  data-sheet-clearable
+                  value="2026-10-14"
+                />
+              </div>
+              <div class="field">
+                <label for="demo-time" data-i18n="timePicker">Time</label
+                ><input
+                  id="demo-time"
+                  data-sheet-time
+                  data-sheet-clearable
+                  value="08:30"
+                />
+              </div>
+            </div>
+            <p class="small muted picker-help" data-i18n="pickerHint">
+              Select a date or a 24-hour time.
+            </p>
+            <p class="small muted picker-note" data-i18n="fieldRule">
               Errors explain recovery. AI origin is a small label beside the
               field, never a page of amber fills.
             </p>
+          </div>
+        </div>
+        <div
+          class="picker-states"
+          role="group"
+          aria-labelledby="picker-states-title"
+        >
+          <h3 id="picker-states-title" data-i18n="fieldStates">Field states</h3>
+          <p class="small muted" data-i18n="fieldStatesNote">
+            Examples only. Requirements, ranges and pending writes here
+            illustrate states; they are not business rules.
+          </p>
+          <div class="picker-state-grid">
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-invalid-date" data-i18n="datePicker"
+                  >Date</label
+                ><span class="state-tag" data-i18n="stateInvalid">Invalid</span>
+              </div>
+              <input
+                id="state-invalid-date"
+                data-sheet-date
+                value=""
+                required
+                aria-invalid="true"
+                aria-describedby="state-invalid-date-error"
+              />
+              <p
+                class="field-error"
+                id="state-invalid-date-error"
+                data-error-for="state-invalid-date"
+                data-error-key="dateRequired"
+              >
+                Choose a date before saving.
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-invalid-time" data-i18n="timePicker"
+                  >Time</label
+                ><span class="state-tag" data-i18n="stateInvalid">Invalid</span>
+              </div>
+              <input
+                id="state-invalid-time"
+                data-sheet-time
+                value=""
+                required
+                aria-invalid="true"
+                aria-describedby="state-invalid-time-error"
+              />
+              <p
+                class="field-error"
+                id="state-invalid-time-error"
+                data-error-for="state-invalid-time"
+                data-error-key="timeRequired"
+              >
+                Choose an hour and minute before saving.
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-bounded-date" data-i18n="datePicker"
+                  >Date</label
+                ><span class="state-tag" data-i18n="stateBounded"
+                  >Example range</span
+                >
+              </div>
+              <input
+                id="state-bounded-date"
+                data-sheet-date
+                data-sheet-min="2026-10-05"
+                data-sheet-max="2026-10-23"
+                value="2026-10-14"
+                aria-describedby="state-bounded-date-hint"
+              />
+              <p
+                class="field-hint"
+                id="state-bounded-date-hint"
+                data-i18n="boundedHint"
+              >
+                Example range only: 5–23 Oct 2026.
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-empty-time" data-i18n="timePicker">Time</label
+                ><span class="state-tag" data-i18n="stateEmpty"
+                  >Empty · optional</span
+                >
+              </div>
+              <input
+                id="state-empty-time"
+                data-sheet-time
+                data-sheet-clearable
+                value=""
+                aria-describedby="state-empty-time-hint"
+              />
+              <p
+                class="field-hint"
+                id="state-empty-time-hint"
+                data-i18n="emptyTimeHint"
+              >
+                Leave empty, or choose both hour and minute.
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-pending-select" data-i18n="unitType"
+                  >Unit type</label
+                ><span class="state-tag" data-i18n="statePending">Pending</span>
+              </div>
+              <span class="select-input"
+                ><select
+                  id="state-pending-select"
+                  data-sheet-pending
+                  aria-describedby="state-pending-select-hint"
+                >
+                  <option value="PALLET" data-i18n="pallet">Pallet</option>
+                  <option value="BOX" selected data-i18n="box">
+                    Package / box
+                  </option>
+                  <option value="OTHER" data-i18n="other">Other</option>
+                </select></span
+              >
+              <p
+                class="field-hint"
+                id="state-pending-select-hint"
+                data-i18n="pendingFieldHint"
+              >
+                Saving… locked until the reply.
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-pending-date" data-i18n="datePicker"
+                  >Date</label
+                ><span class="state-tag" data-i18n="statePending">Pending</span>
+              </div>
+              <input
+                id="state-pending-date"
+                data-sheet-date
+                data-sheet-pending
+                value="2026-10-12"
+                aria-describedby="state-pending-date-hint"
+              />
+              <p
+                class="field-hint"
+                id="state-pending-date-hint"
+                data-i18n="pendingFieldHint"
+              >
+                Saving… locked until the reply.
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-readonly-text" data-i18n="locationCode"
+                  >Location code</label
+                ><span class="state-tag" data-i18n="stateReadOnly"
+                  >Read only</span
+                >
+              </div>
+              <input
+                id="state-readonly-text"
+                class="mono"
+                value="FG1-L01"
+                readonly
+                spellcheck="false"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-readonly-date" data-i18n="datePicker"
+                  >Date</label
+                ><span class="state-tag" data-i18n="stateReadOnly"
+                  >Read only</span
+                >
+              </div>
+              <input
+                id="state-readonly-date"
+                data-sheet-date
+                readonly
+                value="2026-10-09"
+              />
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-disabled-select" data-i18n="unitType"
+                  >Unit type</label
+                ><span class="state-tag" data-i18n="stateDisabled"
+                  >Disabled</span
+                >
+              </div>
+              <span class="select-input"
+                ><select id="state-disabled-select" disabled>
+                  <option value="PALLET" selected data-i18n="pallet">
+                    Pallet
+                  </option>
+                  <option value="BOX" data-i18n="box">Package / box</option>
+                  <option value="OTHER" data-i18n="other">Other</option>
+                </select></span
+              >
+            </div>
+            <div class="field">
+              <div class="field-label-row">
+                <label for="state-disabled-time" data-i18n="timePicker"
+                  >Time</label
+                ><span class="state-tag" data-i18n="stateDisabled"
+                  >Disabled</span
+                >
+              </div>
+              <input
+                id="state-disabled-time"
+                data-sheet-time
+                disabled
+                value="17:30"
+              />
+            </div>
           </div>
         </div>
         <p

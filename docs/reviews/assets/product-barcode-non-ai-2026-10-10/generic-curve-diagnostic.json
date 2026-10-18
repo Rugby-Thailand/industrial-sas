@@ -1,0 +1,287 @@
+{
+  "manualCrop": false,
+  "name": "2.jpg",
+  "region": [0, 0.56, 1, 0.28],
+  "results": [
+    {
+      "curve": 0,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": 0,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": 0.04,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": 0.08,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": 0.12,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": 0.2,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": 0.4,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": -0.04,
+      "angle": 6,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 0,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 1,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 2,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 3,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 4,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 5,
+      "codes": []
+    },
+    {
+      "curve": -0.08,
+      "angle": 6,
+      "codes": []
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useAction, useConvex } from "convex/react";
+import { useAuth } from "@clerk/nextjs";
+import { useConvex } from "convex/react";
 import {
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
 } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { interpretAiSearch } from "@/lib/ai/client";
 import { hrRefs } from "@/lib/convex/hrApi";
 import {
   resolveIntent,
@@ -66,11 +68,13 @@ export function useAiSearch(input: {
   readonly onNavigate: IntentNavigate;
 }) {
   const hr = useHrAccess();
-  const interpret = useAction(hrRefs.interpretSearch);
+  const { getToken, userId, orgId } = useAuth();
   const convex = useConvex();
   const key = JSON.stringify([
     input.query.trim(),
     hr.identityKey ?? "",
+    userId,
+    orgId,
     input.granted,
     input.context,
   ]);
@@ -134,16 +138,27 @@ export function useAiSearch(input: {
     };
     setEntry({ key: requestKey, state: { status: "RUNNING" } });
     try {
+      if (!userId || !orgId) return settle({ status: "ERROR", code: "DENIED" });
+      const [session, token] = await Promise.all([
+        getToken({ organizationId: orgId }),
+        getToken({ template: "convex", organizationId: orgId }),
+      ]);
+      if (!live()) return;
+      if (session === null || token === null)
+        return settle({ status: "ERROR", code: "DENIED" });
       const context = input.context;
-      const outcome = await interpret({
-        query: input.query.trim(),
-        context: {
-          page: context?.page ?? null,
-          employee: context?.employee !== undefined,
-          date: context?.date !== undefined,
-          period: context?.period !== undefined,
+      const outcome = await interpretAiSearch(
+        {
+          query: input.query.trim(),
+          context: {
+            page: context?.page ?? null,
+            employee: context?.employee !== undefined,
+            date: context?.date !== undefined,
+            period: context?.period !== undefined,
+          },
         },
-      });
+        { session, convex: token },
+      );
       if (!live()) return;
       if (!outcome.ok) return settle({ status: "ERROR", code: "DENIED" });
       const answer = outcome.value;

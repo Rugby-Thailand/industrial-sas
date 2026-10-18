@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>LINE พนักงาน · Industrial SAS Preview</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="assets/qrcode.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">ข้ามไปเนื้อหา</a>
+    <div class="demo-bar">
+      <span
+        ><strong>HTML Preview</strong>
+        <span class="demo-note">ข้อมูลตัวอย่าง · ไม่ส่งข้อความจริง</span></span
+      >
+      <div class="demo-actions">
+        <label class="sr-only" for="scenario">สถานการณ์ตัวอย่าง</label>
+        <select id="scenario" aria-label="สถานการณ์ตัวอย่าง">
+          <option value="ready">พร้อมลองครบ flow</option>
+          <option value="fresh">เริ่มตั้งค่าใหม่</option>
+          <option value="outage">LINE ขัดข้อง</option>
+        </select>
+        <button type="button" class="bare" data-action="reset">
+          เริ่มใหม่
+        </button>
+        <button
+          type="button"
+          class="icon-button"
+          data-action="theme"
+          aria-label="สลับธีม"
+        >
+          <span id="theme-icon"></span>
+        </button>
+      </div>
+    </div>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <div class="workspace">
+        <header class="workspace-bar">
+          <span class="organization"
+            >บริษัท สยามแพ็ก จำกัด <span class="muted">· ตัวอย่าง</span></span
+          >
+          <div class="role-picker">
+            <button
+              type="button"
+              id="hr-role"
+              data-action="role"
+              data-role="hr"
+            >
+              มุม HR</button
+            ><button
+              type="button"
+              id="employee-role"
+              data-action="role"
+              data-role="employee"
+            >
+              มุมพนักงาน
+            </button>
+          </div>
+        </header>
+        <main id="main" tabindex="-1"></main>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  </body>
+</html>

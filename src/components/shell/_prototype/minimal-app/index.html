@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- THROWAWAY HTML proposal, grounded in main 278292a. In-memory sample data only. -->
+<html lang="th" data-theme="dark" data-variant="A">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/" />
+    <title>Storage Planner · Main design preview</title>
+    <link rel="stylesheet" href="app-tokens.css?v=main-5" />
+    <link rel="stylesheet" href="style.css?v=main-5" />
+    <script src="reference-data.js?v=main-5" defer></script>
+    <script src="app.js?v=main-5" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <button
+      class="backdrop"
+      id="backdrop"
+      aria-label="Close navigation"
+      hidden
+    ></button>
+    <aside
+      id="sidebar"
+      class="sidebar"
+      aria-label="Application navigation"
+    ></aside>
+    <div class="app">
+      <header class="topbar">
+        <button
+          class="icon-button mobile"
+          data-action="menu"
+          aria-label="Open navigation"
+        >
+          ☰
+        </button>
+        <button
+          id="warehouse"
+          class="warehouse"
+          data-action="warehouse"
+        ></button>
+        <span class="preview-note">HTML preview · main</span>
+        <button id="locale" class="text-button" data-action="locale">
+          ไทย
+        </button>
+        <button
+          id="theme"
+          class="icon-button"
+          data-action="theme"
+          aria-label="Change theme"
+        ></button>
+      </header>
+      <main id="main" tabindex="-1"></main>
+      <div id="savebar"></div>
+    </div>
+    <footer class="comparison" aria-label="Preview controls">
+      <span class="design-label">PREVIEW</span>
+      <button
+        class="icon-button"
+        data-action="previous"
+        aria-label="Previous variant"
+      >
+        ←
+      </button>
+      <span id="variant-label"></span>
+      <button class="icon-button" data-action="next" aria-label="Next variant">
+        →
+      </button>
+      <div class="variant-options" role="group" aria-label="Layout">
+        <button data-variant="A">A</button><button data-variant="B">B</button
+        ><button data-variant="C">C</button>
+      </div>
+      <button class="text-button" data-action="scenarios">State</button>
+      <button class="text-button" data-action="sources">Source</button>
+    </footer>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <div class="dialog-heading">
+        <h2 id="dialog-title"></h2>
+        <button class="icon-button" data-action="close" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div id="dialog-body"></div>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>

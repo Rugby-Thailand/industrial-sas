@@ -1,0 +1,2724 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>แผนปรับหน้ารายการ · Top Gold</title>
+    <style>
+      @font-face {
+        font-family: Geist;
+        src: url("./assets/geist-latin.woff2") format("woff2");
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Noto Sans Thai";
+        src: url("./assets/noto-sans-thai.ttf") format("truetype");
+        font-display: swap;
+      }
+      :root {
+        --canvas: #fff;
+        --surface: #f6f7f9;
+        --text: #17212f;
+        --muted: #475569;
+        --line: #dce1e7;
+        --blue: #1d4ed8;
+        --selected: #edf2ff;
+        --green: #176342;
+        --green-bg: #e8f5ed;
+        --amber: #825000;
+        --amber-bg: #fff4d9;
+        --gap: 24px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 28px;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--text);
+        font:
+          15px/1.75 Geist,
+          "Noto Sans Thai",
+          sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      select,
+      summary {
+        cursor: pointer;
+      }
+      button {
+        color: inherit;
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.42;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid #5a7de0;
+        outline-offset: 3px;
+      }
+      ::selection {
+        background: #dce7ff;
+        color: #13244c;
+      }
+      input {
+        caret-color: var(--blue);
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #9aa5b4 transparent;
+      }
+      a {
+        color: var(--blue);
+        text-underline-offset: 4px;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        max-width: 25ch;
+        font-size: clamp(30px, 3vw, 42px);
+        line-height: 1.4;
+        letter-spacing: -0.025em;
+        font-weight: 650;
+        text-wrap: balance;
+      }
+      h2 {
+        font-size: 25px;
+        line-height: 1.45;
+        letter-spacing: -0.02em;
+        font-weight: 650;
+      }
+      h3 {
+        font-size: 17px;
+        line-height: 1.6;
+        font-weight: 650;
+      }
+      p + p {
+        margin-top: 12px;
+      }
+      ul,
+      ol {
+        padding-left: 22px;
+        margin: 12px 0 0;
+      }
+      li + li {
+        margin-top: 7px;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.84em;
+        overflow-wrap: anywhere;
+      }
+      :not(pre) > code {
+        padding: 2px 5px;
+        background: var(--surface);
+        border-radius: 4px;
+      }
+      pre {
+        margin: 16px 0 0;
+        padding: 20px;
+        background: #152133;
+        color: #edf2fa;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.8;
+        tab-size: 2;
+      }
+      pre code {
+        overflow-wrap: normal;
+      }
+      strong {
+        font-weight: 650;
+      }
+      .skip {
+        position: fixed;
+        left: 16px;
+        top: -80px;
+        z-index: 100;
+        padding: 10px 16px;
+        background: var(--blue);
+        color: white;
+      }
+      .skip:focus {
+        top: 12px;
+      }
+      .page {
+        max-width: 1472px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 224px minmax(0, 1fr);
+      }
+      .sidebar {
+        padding: 36px 24px;
+        border-right: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 650;
+        line-height: 1.4;
+      }
+      .brand svg {
+        color: var(--blue);
+        width: 24px;
+        height: 24px;
+      }
+      .sidebar small {
+        color: var(--muted);
+        display: block;
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      .toc {
+        display: grid;
+        gap: 3px;
+      }
+      .toc a {
+        color: var(--muted);
+        text-decoration: none;
+        border-radius: 6px;
+        padding: 8px 10px;
+        line-height: 1.6;
+        font-size: 13px;
+      }
+      .toc a:hover,
+      .toc a[aria-current] {
+        background: var(--selected);
+        color: var(--blue);
+      }
+      .side-bottom {
+        margin-top: auto;
+        color: var(--muted);
+        font-size: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 16px;
+      }
+      main {
+        min-width: 0;
+        padding: 48px 48px 64px;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 18px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--blue);
+        background: var(--selected);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+      .intro {
+        max-width: 72ch;
+        color: var(--muted);
+        font-size: 16px;
+        margin-top: 16px;
+      }
+      .scope {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+        padding: 20px 0 24px;
+        margin-top: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .scope span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .scope svg {
+        width: 17px;
+        height: 17px;
+        color: var(--green);
+      }
+      section.chapter {
+        margin-top: 56px;
+      }
+      .section-lead {
+        color: var(--muted);
+        max-width: 76ch;
+        margin-top: 8px;
+      }
+      .notice {
+        padding: 16px 20px;
+        background: var(--selected);
+        border-radius: 8px;
+        margin-top: 20px;
+        font-size: 14px;
+      }
+      .notice.amber {
+        background: var(--amber-bg);
+        color: #664100;
+      }
+      .notice h3 {
+        font-size: 15px;
+        margin-bottom: 4px;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        margin-top: 24px;
+      }
+      .rule {
+        border-top: 1px solid var(--line);
+        padding: 20px 0;
+      }
+      .rule p {
+        color: var(--muted);
+        margin-top: 7px;
+      }
+      .rule code {
+        color: var(--text);
+      }
+      .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 20px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        line-height: 1.75;
+      }
+      caption {
+        text-align: left;
+        padding: 12px 16px;
+        font-weight: 650;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        text-align: left;
+        font-weight: 650;
+        background: var(--surface);
+        color: var(--text);
+      }
+      th,
+      td {
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tbody tr:last-child td,
+      tbody tr:last-child th {
+        border-bottom: 0;
+      }
+      tbody th {
+        background: transparent;
+      }
+      td small {
+        display: block;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .file {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 5px;
+      }
+      .badge {
+        display: inline-flex;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge.cursor {
+        background: var(--selected);
+        color: var(--blue);
+      }
+      .badge.local {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .badge.backend {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+        margin-bottom: 12px;
+      }
+      .switch {
+        display: inline-flex;
+        gap: 3px;
+        border: 1px solid var(--line);
+        padding: 3px;
+        border-radius: 7px;
+        background: white;
+      }
+      .switch button {
+        border: 0;
+        background: transparent;
+        border-radius: 4px;
+        min-height: 36px;
+        padding: 6px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .switch button[aria-pressed="true"] {
+        background: #17212f;
+        color: white;
+      }
+      .switch svg {
+        height: 15px;
+        width: 15px;
+      }
+      .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .small-button {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: white;
+        min-height: 42px;
+        padding: 7px 12px;
+        font-size: 12px;
+      }
+      .small-button:hover {
+        background: var(--surface);
+      }
+      .preview-stage {
+        background: #eef0f3;
+        padding: 20px;
+        border-radius: 10px;
+      }
+      .preview-note {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 10px;
+      }
+      .preview {
+        --app-bg: #fff;
+        --app-surface: #f5f7f9;
+        --app-text: #17212f;
+        --app-muted: #475569;
+        --app-line: #dce1e7;
+        --app-blue: #1d4ed8;
+        --app-selected: #edf2ff;
+        --app-green: #176342;
+        --app-green-bg: #e8f5ed;
+        --app-amber: #825000;
+        --app-amber-bg: #fff4d9;
+        --app-control: #8a96a5;
+        width: 100%;
+        margin: auto;
+        background: var(--app-bg);
+        color: var(--app-text);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px #17212f12;
+      }
+      .preview.dark {
+        --app-bg: #090a0c;
+        --app-surface: #16191e;
+        --app-text: #eff1f5;
+        --app-muted: #b9c0cd;
+        --app-line: #303640;
+        --app-blue: #a9beff;
+        --app-selected: #222e4d;
+        --app-green: #8de1b5;
+        --app-green-bg: #153e2c;
+        --app-amber: #ffd48b;
+        --app-amber-bg: #433014;
+        --app-control: #77818f;
+      }
+      .preview.mobile {
+        width: min(390px, 100%);
+      }
+      .app-bar {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--app-line);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+      }
+      .app-bar .app-name {
+        font-weight: 650;
+      }
+      .app-bar .app-locale {
+        margin-left: auto;
+        color: var(--app-muted);
+        font-size: 12px;
+      }
+      .app-bar svg {
+        width: 18px;
+        height: 18px;
+      }
+      .app-content {
+        padding: 20px;
+      }
+      .app-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .app-title h3 {
+        font-size: 21px;
+        letter-spacing: -0.02em;
+        line-height: 1.5;
+      }
+      .app-title > svg {
+        width: 19px;
+        height: 19px;
+        flex: 0 0 auto;
+        color: var(--app-muted);
+      }
+      .collection-tools {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+      }
+      .search {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--app-control);
+        border-radius: 6px;
+        padding: 0 12px;
+        background: var(--app-bg);
+        height: 44px;
+      }
+      .search svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        color: var(--app-muted);
+      }
+      .search input {
+        width: 100%;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        color: var(--app-text);
+        background: transparent;
+        font-size: 14px;
+      }
+      .search:focus-within {
+        outline: 2px solid var(--app-blue);
+        outline-offset: 2px;
+      }
+      .search input:focus-visible {
+        outline: none;
+      }
+      .search input::placeholder {
+        color: var(--app-muted);
+        opacity: 1;
+      }
+      .icon-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        height: 44px;
+        min-width: 44px;
+        border: 1px solid var(--app-control);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--app-text);
+        flex-shrink: 0;
+        position: relative;
+      }
+      .icon-button svg {
+        width: 18px;
+        height: 18px;
+      }
+      .icon-button:hover:enabled {
+        background: var(--app-surface);
+      }
+      .icon-button.active {
+        color: var(--app-blue);
+        background: var(--app-selected);
+        border-color: var(--app-blue);
+      }
+      .filter-count {
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .filter-panel {
+        position: absolute;
+        right: 0;
+        top: 52px;
+        z-index: 3;
+        width: 272px;
+        max-width: 100%;
+        padding: 14px;
+        border: 1px solid var(--app-line);
+        border-radius: 8px;
+        background: var(--app-bg);
+        box-shadow: 0 8px 24px #0003;
+      }
+      .filter-panel[hidden] {
+        display: none;
+      }
+      .filter-panel fieldset {
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      .filter-panel legend {
+        font-size: 13px;
+        font-weight: 650;
+        margin-bottom: 6px;
+      }
+      .filter-panel label {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        padding: 9px 3px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      input[type="radio"],
+      input[type="checkbox"] {
+        accent-color: var(--app-blue);
+        width: 17px;
+        height: 17px;
+        flex-shrink: 0;
+      }
+      .filter-hint {
+        margin: 10px 0 12px;
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--app-muted);
+        font-size: 12px;
+      }
+      .filter-hint button {
+        background: transparent;
+        border: 0;
+        padding: 2px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        color: var(--app-blue);
+        font-size: 12px;
+      }
+      .demo-scroll {
+        height: 304px;
+        overflow-y: auto;
+        border-block: 1px solid var(--app-line);
+        scrollbar-color: var(--app-control) transparent;
+      }
+      .demo-row {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--app-line);
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1.7fr) minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .demo-row:last-child {
+        border-bottom: 0;
+      }
+      .job-id {
+        font-size: 14px;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+      .product-line {
+        color: var(--app-muted);
+        font-size: 12px;
+        margin-top: 3px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .location {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .status {
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--app-green-bg);
+        color: var(--app-green);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .status.waiting {
+        background: var(--app-amber-bg);
+        color: var(--app-amber);
+      }
+      .preview.mobile .demo-scroll {
+        height: 366px;
+      }
+      .preview.mobile .app-content {
+        padding: 16px;
+      }
+      .preview.mobile .app-title h3 {
+        font-size: 20px;
+      }
+      .preview.mobile .search input {
+        font-size: 16px;
+      }
+      .preview.mobile .demo-row {
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        gap: 9px;
+        padding: 15px 0;
+      }
+      .preview.mobile .row-location {
+        grid-column: 2;
+      }
+      .preview.mobile .demo-row .status {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+        align-self: center;
+      }
+      .preview.mobile .demo-row > input {
+        grid-row: 1 / span 2;
+      }
+      .preview.mobile .row-location .product-line {
+        display: none;
+      }
+      .demo-empty {
+        color: var(--app-muted);
+        font-size: 13px;
+        text-align: center;
+        padding: 56px 16px;
+      }
+      .pagination {
+        padding-top: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--app-muted);
+      }
+      .size-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      .size-control select {
+        height: 40px;
+        min-width: 62px;
+        border: 1px solid var(--app-control);
+        border-radius: 6px;
+        padding: 0 8px;
+        color: var(--app-text);
+        background: var(--app-bg);
+      }
+      .pagination-end {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-left: auto;
+      }
+      .page-range {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .page-buttons {
+        display: flex;
+        gap: 4px;
+        margin-left: auto;
+      }
+      .page-buttons .icon-button {
+        min-width: 36px;
+        height: 36px;
+        border: 0;
+      }
+      .preview.mobile .pagination-end {
+        width: 100%;
+        justify-content: space-between;
+        margin-left: 0;
+      }
+      .preview.mobile .page-buttons .icon-button {
+        min-width: 44px;
+        height: 44px;
+      }
+      .preview.mobile .app-bar {
+        padding: 14px 16px;
+      }
+      .selection-line {
+        padding: 10px 0 0;
+        font-size: 12px;
+        color: var(--app-muted);
+        min-height: 30px;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        font-size: 12px;
+        margin-top: 16px;
+        color: var(--muted);
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .legend svg {
+        width: 16px;
+        height: 16px;
+        color: var(--blue);
+      }
+      .architecture {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr 1fr;
+        gap: 20px;
+        align-items: center;
+        margin-top: 24px;
+      }
+      .architecture .column {
+        display: grid;
+        gap: 10px;
+      }
+      .architecture .node {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 15px;
+        background: white;
+      }
+      .architecture .node.primary {
+        border-color: var(--blue);
+        background: var(--selected);
+      }
+      .architecture .node b {
+        display: block;
+        font-size: 13px;
+      }
+      .architecture .node small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 5px;
+      }
+      .architecture .node .flow {
+        font-size: 12px;
+        font-weight: 500;
+        display: block;
+        color: var(--blue);
+        margin-bottom: 5px;
+      }
+      details {
+        border-top: 1px solid var(--line);
+        padding: 16px 0;
+      }
+      details:last-child {
+        border-bottom: 1px solid var(--line);
+      }
+      summary {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      details p {
+        color: var(--muted);
+        margin-top: 10px;
+      }
+      .step-list {
+        list-style: none;
+        padding: 0;
+        margin: 24px 0 0;
+      }
+      .step-list li {
+        display: grid;
+        grid-template-columns: 144px minmax(0, 1fr);
+        gap: 20px;
+        padding: 22px 0;
+        border-top: 1px solid var(--line);
+        margin: 0;
+      }
+      .step-list .phase {
+        color: var(--blue);
+        font-weight: 650;
+        font-size: 13px;
+      }
+      .step-list p {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 7px;
+      }
+      .step-list .proof {
+        color: var(--green);
+        margin-top: 9px;
+        font-size: 12px;
+      }
+      .check-list {
+        list-style: none;
+        padding: 0;
+      }
+      .check-list li {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 10px;
+        padding: 9px 0;
+        margin: 0;
+      }
+      .check-list svg {
+        color: var(--green);
+        width: 17px;
+        height: 17px;
+        margin-top: 4px;
+      }
+      .footer {
+        border-top: 1px solid var(--line);
+        margin-top: 48px;
+        padding-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      svg.icon {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      @media (max-width: 1100px) {
+        .page {
+          grid-template-columns: 184px minmax(0, 1fr);
+        }
+        main {
+          padding: 36px 28px 56px;
+        }
+        .sidebar {
+          padding: 30px 16px;
+        }
+        .app-content {
+          padding: 16px;
+        }
+        .architecture {
+          gap: 10px;
+        }
+        .architecture .node {
+          padding: 12px;
+        }
+      }
+      @media (max-width: 760px) {
+        .page {
+          display: block;
+        }
+        .sidebar {
+          height: auto;
+          position: static;
+          padding: 18px 20px 0;
+          border: 0;
+          gap: 16px;
+        }
+        .sidebar small,
+        .side-bottom {
+          display: none;
+        }
+        .toc {
+          display: flex;
+          overflow-x: auto;
+          white-space: nowrap;
+          border-bottom: 1px solid var(--line);
+          padding-bottom: 10px;
+          gap: 4px;
+        }
+        .toc a {
+          font-size: 12px;
+          padding: 7px 10px;
+        }
+        main {
+          padding: 28px 20px 40px;
+        }
+        h1 {
+          font-size: 30px;
+        }
+        h2 {
+          font-size: 23px;
+        }
+        .intro {
+          font-size: 14px;
+        }
+        section.chapter {
+          margin-top: 40px;
+        }
+        .scope {
+          gap: 10px 18px;
+        }
+        .split {
+          grid-template-columns: 1fr;
+          gap: 0;
+        }
+        .preview-stage {
+          padding: 10px;
+        }
+        .toolbar {
+          gap: 10px;
+        }
+        .architecture {
+          grid-template-columns: 1fr;
+        }
+        .architecture .column {
+          grid-template-columns: 1fr;
+        }
+        .architecture .node {
+          padding: 16px;
+        }
+        .step-list li {
+          grid-template-columns: 1fr;
+          gap: 5px;
+          padding: 18px 0;
+        }
+        .table-wrap table {
+          min-width: 680px;
+        }
+        .preview:not(.mobile) .demo-row {
+          grid-template-columns: 20px minmax(0, 1fr) auto;
+        }
+        .preview:not(.mobile) .row-location {
+          display: none;
+        }
+        .preview:not(.mobile) .pagination-end {
+          width: 100%;
+          justify-content: space-between;
+        }
+        .notice {
+          padding: 14px 16px;
+        }
+        pre {
+          padding: 16px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+      @media print {
+        .sidebar,
+        .toolbar,
+        .skip {
+          display: none;
+        }
+        .page {
+          display: block;
+        }
+        main {
+          padding: 0;
+        }
+        section.chapter {
+          break-inside: avoid;
+          margin-top: 28px;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        .preview-stage {
+          background: white;
+          padding: 0;
+        }
+        details {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">ข้ามไปยังเนื้อหา</a>
+    <svg
+      aria-hidden="true"
+      style="position: absolute; width: 0; height: 0; overflow: hidden"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <symbol id="i-box" viewBox="0 0 24 24">
+        <path d="m12 3 9 5v8l-9 5-9-5V8Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m5 12 4 4L19 6" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 4 4" />
+      </symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24">
+        <path d="M4 6h6m4 0h6M4 12h10m4 0h2M4 18h2m4 0h10" />
+        <circle cx="12" cy="6" r="2" />
+        <circle cx="16" cy="12" r="2" />
+        <circle cx="8" cy="18" r="2" />
+      </symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24">
+        <path d="m14 6-6 6 6 6" />
+      </symbol>
+      <symbol id="i-next" viewBox="0 0 24 24">
+        <path d="m10 6 6 6-6 6" />
+      </symbol>
+      <symbol id="i-first" viewBox="0 0 24 24">
+        <path d="M5 5v14m13-13-6 6 6 6" />
+      </symbol>
+      <symbol id="i-last" viewBox="0 0 24 24">
+        <path d="M19 5v14M6 6l6 6-6 6" />
+      </symbol>
+      <symbol id="i-desktop" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="13" rx="2" />
+        <path d="M8 21h8m-4-4v4" />
+      </symbol>
+      <symbol id="i-mobile" viewBox="0 0 24 24">
+        <rect x="6" y="2" width="12" height="20" rx="2" />
+        <path d="M11 18h2" />
+      </symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16" />
+      </symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24">
+        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+        <circle cx="12" cy="10" r="2.5" />
+      </symbol>
+    </svg>
+    <div class="page">
+      <aside class="sidebar">
+        <div>
+          <div class="brand">
+            <svg class="icon" aria-hidden="true"><use href="#i-box" /></svg>Top
+            Gold
+          </div>
+          <small>แผนปรับ UI หน้ารายการ</small>
+        </div>
+        <nav class="toc" aria-label="สารบัญแผน">
+          <a href="#overview" aria-current="location">ภาพรวม</a
+          ><a href="#preview">ลองหน้าตาใหม่</a
+          ><a href="#description">ลบ description</a
+          ><a href="#filters">Search และ filter</a
+          ><a href="#pagination">Global pagination</a
+          ><a href="#coverage">ครอบคลุมหน้าไหนบ้าง</a
+          ><a href="#delivery">ลำดับ implementation</a
+          ><a href="#verification">เกณฑ์ตรวจรับ</a>
+        </nav>
+        <div class="side-bottom">
+          อ้างอิง source ใน working tree<br />18 ตุลาคม 2569<br /><br />เอกสารนี้เป็นแผนและตัวอย่าง<br />ยังไม่ได้เปลี่ยน
+          production UI
+        </div>
+      </aside>
+      <main id="main">
+        <header id="overview">
+          <div class="meta">
+            <span class="tag">แผนเสนอเพื่อทบทวน</span><span>18 ต.ค. 2569</span
+            ><span>Mobile + Desktop</span>
+          </div>
+          <h1>หน้ารายการที่ใช้<br />มาตรฐานเดียวกัน</h1>
+          <p class="intro">
+            ลดคำอธิบายใต้หัวข้อ รวมการค้นหาและตัวกรองในแถวเดียว และทำ pagination
+            ผ่าน component กลางที่ทุกหน้าใช้ร่วมกัน
+            โดยต่อยอดโครงสร้างที่มีอยู่ในโปรเจกต์
+          </p>
+          <div class="scope">
+            <span
+              ><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg
+              >หัวข้อกระชับ</span
+            ><span
+              ><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg
+              >Search → Filter</span
+            ><span
+              ><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg
+              >Pagination กลาง</span
+            >
+          </div>
+          <p class="section-lead" style="margin-top: 20px; font-size: 14px">
+            ความหมายของ “global” ในแผนนี้: หน้าตา ขนาดปุ่ม ข้อความ สถานะ และ
+            accessibility อยู่ในที่เดียว
+            ส่วนแต่ละหน้ารับผิดชอบการดึงข้อมูลและส่งคำสั่งให้ component กลาง
+          </p>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                สิ่งที่จะเปลี่ยนและผลที่ผู้ใช้เห็น
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">เรื่อง</th>
+                  <th scope="col">ปัจจุบัน</th>
+                  <th scope="col">ผลลัพธ์ที่ต้องได้</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Description</th>
+                  <td>มีคำอธิบายใต้หัวข้อ เช่น ข้อความที่ขีดลบในภาพ</td>
+                  <td>ชื่อหน้า → แถวค้นหา → รายการ ชัดและต่อเนื่อง</td>
+                </tr>
+                <tr>
+                  <th scope="row">Filter</th>
+                  <td>สถานะบางหน้าเป็น tabs แยกเหนือช่องค้นหา</td>
+                  <td>ปุ่มไอคอนหลัง search เปิดตัวเลือกที่มีชื่ออ่านได้</td>
+                </tr>
+                <tr>
+                  <th scope="row">Pagination</th>
+                  <td>
+                    มี component กลางอยู่แล้ว แต่ยังมี footer
+                    เฉพาะหน้าและตารางที่ไม่แบ่งหน้า
+                  </td>
+                  <td>
+                    ใช้
+                    <code>PaginationFooter</code>
+                    กลางครบทุกชุดข้อมูลที่เป็นรายการ พร้อม controller
+                    ที่เหมาะกับแหล่งข้อมูล
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </header>
+
+        <section class="chapter" id="preview" aria-labelledby="preview-title">
+          <h2 id="preview-title">ลองหน้าตาและพฤติกรรม</h2>
+          <p class="section-lead">
+            ตัวอย่างหน้า “รายการที่สแกนแล้ว” หลังปรับ ลองค้นหา เปลี่ยนสถานะ
+            เปลี่ยนจำนวนต่อหน้า และกดหน้าแรก–สุดท้ายได้
+            ปุ่มเปลี่ยนอุปกรณ์มีไว้ตรวจรูปแบบในเอกสารนี้
+          </p>
+          <div class="toolbar">
+            <div class="toolbar-group">
+              <div class="switch" role="group" aria-label="ขนาดตัวอย่าง">
+                <button type="button" data-device="desktop" aria-pressed="true">
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-desktop" /></svg
+                  >Desktop</button
+                ><button
+                  type="button"
+                  data-device="mobile"
+                  aria-pressed="false"
+                >
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-mobile" /></svg
+                  >Mobile
+                </button>
+              </div>
+              <div class="switch" role="group" aria-label="ธีมตัวอย่าง">
+                <button type="button" data-theme="light" aria-pressed="true">
+                  Light</button
+                ><button type="button" data-theme="dark" aria-pressed="false">
+                  Dark
+                </button>
+              </div>
+              <label class="sr-only" for="demo-data-mode"
+                >รูปแบบข้อมูลในตัวอย่าง</label
+              >
+              <select
+                id="demo-data-mode"
+                class="small-button"
+                aria-label="รูปแบบข้อมูลในตัวอย่าง"
+              >
+                <option value="known">ข้อมูลครบ มีจำนวนรวม</option>
+                <option value="cursor">Cursor ยังไม่มีจำนวนรวม</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              class="small-button"
+              id="loading-toggle"
+              aria-pressed="false"
+            >
+              ลองสถานะกำลังโหลด
+            </button>
+          </div>
+          <div class="preview-stage">
+            <div class="preview" id="app-preview">
+              <div class="app-bar">
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-panel" /></svg
+                ><span class="app-name">Top Gold</span
+                ><span class="app-locale">ภาษาไทย · ข้อมูลจำลอง</span>
+              </div>
+              <div class="app-content">
+                <div class="app-title">
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-prev" />
+                  </svg>
+                  <h3>รายการที่สแกนแล้ว</h3>
+                </div>
+                <div class="collection-tools">
+                  <label class="search"
+                    ><svg class="icon" aria-hidden="true">
+                      <use href="#i-search" /></svg
+                    ><span class="sr-only">ค้นหารายการตัวอย่าง</span
+                    ><input
+                      id="demo-search"
+                      type="search"
+                      placeholder="ค้นหา Job No., สินค้า หรือตำแหน่ง"
+                      autocomplete="off"
+                  /></label>
+                  <button
+                    type="button"
+                    class="icon-button active"
+                    id="demo-filter"
+                    aria-label="ตัวกรองสถานะ: รอระบุตำแหน่ง"
+                    aria-expanded="false"
+                    aria-controls="filter-panel"
+                  >
+                    <svg class="icon" aria-hidden="true">
+                      <use href="#i-filter" /></svg
+                    ><span class="filter-count" id="filter-count">1</span>
+                  </button>
+                  <div class="filter-panel" id="filter-panel" hidden>
+                    <fieldset>
+                      <legend>สถานะตำแหน่งจัดเก็บ</legend>
+                      <label
+                        ><input
+                          type="radio"
+                          name="demo-status"
+                          value="UNMAPPED"
+                          checked
+                        />รอระบุตำแหน่ง</label
+                      ><label
+                        ><input
+                          type="radio"
+                          name="demo-status"
+                          value="MAPPED"
+                        />ระบุตำแหน่งแล้ว</label
+                      ><label
+                        ><input
+                          type="radio"
+                          name="demo-status"
+                          value="ALL"
+                        />ทั้งหมด</label
+                      >
+                    </fieldset>
+                  </div>
+                </div>
+                <div class="filter-hint">
+                  <span id="active-filter">สถานะ: รอระบุตำแหน่ง</span
+                  ><button type="button" id="clear-demo">
+                    ล้างการค้นหาและตัวกรอง
+                  </button>
+                </div>
+                <div
+                  class="demo-scroll"
+                  id="demo-scroll"
+                  tabindex="0"
+                  aria-label="รายการตัวอย่าง เลื่อนดูข้อมูลในหน้าปัจจุบัน"
+                >
+                  <div
+                    id="demo-rows"
+                    role="list"
+                    aria-label="รายการใบงานตัวอย่าง"
+                  ></div>
+                </div>
+                <nav
+                  class="pagination"
+                  id="demo-pagination"
+                  aria-label="แบ่งหน้ารายการตัวอย่าง"
+                >
+                  <label class="size-control"
+                    >รายการต่อหน้า<select id="demo-size">
+                      <option value="20">20</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </select></label
+                  >
+                  <div class="pagination-end">
+                    <span
+                      class="page-range"
+                      id="demo-range"
+                      role="status"
+                      aria-live="polite"
+                      >1–20 จาก 73</span
+                    >
+                    <div class="page-buttons">
+                      <button
+                        type="button"
+                        class="icon-button"
+                        data-page="first"
+                        aria-label="หน้าแรก"
+                      >
+                        <svg class="icon" aria-hidden="true">
+                          <use href="#i-first" />
+                        </svg></button
+                      ><button
+                        type="button"
+                        class="icon-button"
+                        data-page="previous"
+                        aria-label="หน้าก่อนหน้า"
+                      >
+                        <svg class="icon" aria-hidden="true">
+                          <use href="#i-prev" />
+                        </svg></button
+                      ><button
+                        type="button"
+                        class="icon-button"
+                        data-page="next"
+                        aria-label="หน้าถัดไป"
+                      >
+                        <svg class="icon" aria-hidden="true">
+                          <use href="#i-next" />
+                        </svg></button
+                      ><button
+                        type="button"
+                        class="icon-button"
+                        data-page="last"
+                        aria-label="หน้าสุดท้าย"
+                      >
+                        <svg class="icon" aria-hidden="true">
+                          <use href="#i-last" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </nav>
+                <div
+                  class="selection-line"
+                  id="selection-line"
+                  role="status"
+                  aria-live="polite"
+                >
+                  หน้า 1 · เลือก 0 รายการในหน้านี้
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="preview-note">
+            ข้อมูลจำลอง 126 ใบงานสำหรับทดสอบ UI • ค่าเริ่มต้นเป็น
+            “รอระบุตำแหน่ง” 73 รายการ • ตัวอย่างนี้มีจำนวนรวมครบ
+            จึงกดหน้าสุดท้ายได้ • ยังไม่ได้เชื่อม Convex
+          </p>
+          <div class="legend">
+            <span
+              ><svg class="icon" aria-hidden="true"><use href="#i-check" /></svg
+              >ไม่มี description ใต้ชื่อหน้า</span
+            ><span
+              ><svg class="icon" aria-hidden="true">
+                <use href="#i-filter" /></svg
+              >Search กับ filter แถวเดียวกัน</span
+            ><span
+              ><svg class="icon" aria-hidden="true"><use href="#i-last" /></svg
+              >Pagination ตาม ReUI c-pagination-12</span
+            >
+          </div>
+        </section>
+
+        <section
+          class="chapter"
+          id="description"
+          aria-labelledby="description-title"
+        >
+          <h2 id="description-title">ลบ description ใต้หัวข้อ</h2>
+          <p class="section-lead">
+            ใช้ขอบเขต “ข้อความอธิบายหน้าใต้ชื่อหัวข้อ” ทั่วทั้งแอป
+            ตรวจความหมายของข้อความก่อนแก้ เพราะ prop
+            ชื่อเดียวกันอาจใช้แสดงข้อมูลสำคัญ
+          </p>
+          <div class="split">
+            <div class="rule">
+              <h3>ปรับที่ shared header และ caller</h3>
+              <ul>
+                <li>
+                  ตรวจ <code>PageHeader.summary</code> และ
+                  <code>Heading.description</code> ที่แปลงไปเป็น summary
+                </li>
+                <li>
+                  นำข้อความแนะนำทั่วไปออกจากพื้นที่ใต้ชื่อหน้า เช่น
+                  <code>JobScan.locationNotStock</code> ในภาพ
+                </li>
+                <li>
+                  คำอธิบายที่ยังมีประโยชน์ย้ายไป
+                  <code>helpText</code> ของปุ่มข้อมูลเดิม โดยรักษาใจความครบ
+                </li>
+                <li>
+                  เอาพื้นที่ว่างที่เกิดจาก summary ออก แล้วใช้ spacing ของ
+                  header กลาง
+                </li>
+              </ul>
+            </div>
+            <div class="rule">
+              <h3>แยกข้อมูลจริงออกจากคำอธิบายหน้า</h3>
+              <ul>
+                <li>
+                  ชื่อสินค้า SKU จำนวนรวม พิกัด อาคาร/ชั้น และเหตุผลคำขอ
+                  เป็นข้อมูลการทำงานที่ต้องเก็บไว้
+                </li>
+                <li>
+                  ข้อมูลที่เคยซ่อนอยู่ใน summary ย้ายไปบรรทัด metadata หรือ
+                  summary ของรายการที่มีชื่อชัดเจน
+                </li>
+                <li>
+                  เก็บข้อความตรวจฟอร์ม ข้อผิดพลาด ข้อจำกัดสิทธิ์
+                  และคำเตือนผลของการลบ
+                </li>
+                <li>
+                  ไม่ลบ <code>description</code> ทุก prop
+                  แบบค้นหาแล้วแทนที่ทั้งระบบ
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                ไฟล์หลักและแนวทางแก้
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">ไฟล์</th>
+                  <th scope="col">การเปลี่ยน</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">
+                    <code>src/components/ui/PageHeader.tsx</code>
+                  </th>
+                  <td>
+                    ทำให้หัวข้อที่ไม่มีคำอธิบายจัดระยะถูกต้อง เก็บ help dialog
+                    และ Back contract เดิม
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    <code>src/features/finishedGoods/shared.tsx</code>
+                  </th>
+                  <td>
+                    ทบทวน <code>Heading</code> และค่อยย้าย caller ของ
+                    description ตามความหมายของข้อความ
+                    เพื่อไม่ให้ยอดหรือข้อมูลสินค้าหาย
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    <code>src/features/hr/*</code><br /><code
+                      >src/features/storageLayouts/*</code
+                    ><br /><code>src/app/[locale]/*</code>
+                  </th>
+                  <td>
+                    ทบทวนข้อความใต้ชื่อหน้าครบทุก route รวม setup / not-found;
+                    คงคำอธิบายที่เป็นเหตุผลข้อผิดพลาดหรือจำเป็นต่อการกู้คืน
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    <code>messages/th.json</code><br /><code
+                      >messages/en.json</code
+                    >
+                  </th>
+                  <td>
+                    ย้ายหรือปรับ copy ให้ตรงตำแหน่งใหม่ทั้งสองภาษา ลบ key
+                    เมื่อยืนยันว่าไม่มีผู้ใช้อื่นแล้ว
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="chapter" id="filters" aria-labelledby="filters-title">
+          <h2 id="filters-title">Search → Filter ในแถวเดียวกัน</h2>
+          <p class="section-lead">
+            ใช้ <code>CollectionToolbar</code> เดิมเป็นฐาน
+            ช่องค้นหาขยายตามพื้นที่และปุ่ม filter อยู่ถัดทางขวาเสมอ ลดการวาง
+            controls เฉพาะหน้าที่ทำให้แต่ละหน้าดูต่างกัน
+          </p>
+          <div class="split">
+            <div class="rule">
+              <h3>Component และ interaction กลาง</h3>
+              <ul>
+                <li>
+                  ปรับ toolbar ให้ search มี
+                  <code>min-width: 0</code> และปุ่มมีขนาดคงที่
+                  ป้องกันการตกลงอีกบรรทัดบนจอแคบ
+                </li>
+                <li>
+                  เพิ่ม <code>CollectionFilterButton</code> กลาง: ไอคอน
+                  <code>SlidersHorizontal</code>, ชื่อ accessible, สถานะเปิด
+                  และจำนวน filter ที่ใช้อยู่
+                </li>
+                <li>
+                  ตัวกรองสถานะแบบเลือกหนึ่งค่าใช้ radio พร้อมข้อความเต็ม
+                  ไม่ให้ผู้ใช้เดาความหมายไอคอน
+                </li>
+                <li>
+                  ตัวกรองหลายเงื่อนไขใช้ shared <code>Sheet</code> เดิม พร้อม
+                  Apply / Reset / Cancel และ draft ที่แยกจากค่าที่ใช้จริง
+                </li>
+                <li>
+                  ใช้ surface แบบ Back-aware เดียวกันทั้ง Mobile/Desktop
+                  โดยความกว้าง panel ปรับตามจอ
+                </li>
+              </ul>
+            </div>
+            <div class="rule">
+              <h3>การเชื่อมกับข้อมูลและ workflow</h3>
+              <ul>
+                <li>
+                  เปลี่ยนสถานะ คำค้น หรือ sort → reset หน้าแรกและ selection
+                  ที่ผูกกับหน้าปัจจุบัน
+                </li>
+                <li>
+                  หน้าใบงานคงค่าเริ่มต้น <code>UNMAPPED</code> และการ debounce
+                  search เดิม
+                </li>
+                <li>
+                  รักษา query / locale / hash และ selected-detail behavior
+                  ของหน้าที่มี deep link เช่น HR Review
+                </li>
+                <li>
+                  ปิด filter ต้องคืน focus ให้ปุ่มเปิด; pending write
+                  ป้องกันการเปลี่ยนข้อมูลตาม contract เดิม
+                </li>
+                <li>
+                  tabs ที่ใช้เลือกมุมมองตาราง/การ์ด หรือส่วนของ editor
+                  ทบทวนตามหน้าที่ ไม่แปลงเป็นตัวกรองสถานะอัตโนมัติ
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="notice">
+            <h3>การแสดงว่ากรองอะไรอยู่</h3>
+            ปุ่มมี badge จำนวนเงื่อนไข และแสดงค่าที่เลือกแบบสั้นใต้ toolbar เช่น
+            “สถานะ: รอระบุตำแหน่ง” พร้อมล้างตัวกรอง
+            ข้อความนี้เป็นสถานะข้อมูลปัจจุบัน แยกจาก description ของหน้า
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                หน้าที่ต้องทบทวน controls
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">ตำแหน่ง</th>
+                  <th scope="col">สิ่งที่จะทำ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">JobScanRecords</th>
+                  <td>
+                    นำ status SegmentedControl ออก แล้วย้ายสามสถานะเข้า filter
+                    หลัง search
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">FinishedGoodsCatalogue</th>
+                  <td>
+                    ใช้ toolbar/filter button เดียวกัน รวมเงื่อนไขข้อมูลไว้ใน
+                    filter; การเลือกสินค้า/พาเลทใช้ตัวเลือกประเภทข้อมูลที่มี
+                    label ชัดเจนใน panel
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    StorageLocationCatalogue / NamedLocationCatalogue /
+                    FloorLocationTable
+                  </th>
+                  <td>
+                    รวม status, อาคาร, ชั้น และ sort ตามที่แต่ละหน้ามี ปรับปุ่ม
+                    filter ให้เหมือนกัน รักษาปุ่ม map/table/card ตามหน้าที่เดิม
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">HR Review / Requests / History</th>
+                  <td>
+                    ใช้รูปแบบปุ่ม filter เดียวกันสำหรับสถานะ
+                    ส่วนช่วงวันที่และไซต์คง label ชัดเจน; หน้าที่ไม่มี text
+                    search ไม่สร้างช่องค้นหาที่ backend ยังไม่รองรับ
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          class="chapter"
+          id="pagination"
+          aria-labelledby="pagination-title"
+        >
+          <h2 id="pagination-title">
+            Global pagination: UI เดียว หลายแหล่งข้อมูล
+          </h2>
+          <p class="section-lead">
+            ต่อยอด <code>PaginationFooter</code> ที่มีอยู่เป็นจุดแสดงผลกลาง
+            อ้างอิงหน้าตาจาก
+            <a
+              href="https://reui.io/r/radix-nova/c-pagination-12.json"
+              target="_blank"
+              rel="noreferrer"
+              >ReUI c-pagination-12</a
+            >
+            โดยย้ายตัวอย่างมาสู่ controlled component ที่เชื่อมข้อมูลจริง
+          </p>
+          <div
+            class="architecture"
+            role="img"
+            aria-label="หน้ารายการส่งข้อมูลให้ cursor adapter หรือ local adapter แล้วใช้ PaginationFooter กลางร่วมกัน"
+          >
+            <div class="column">
+              <div class="node">
+                <b>หน้าคลังสินค้า / ใบงาน / HR</b
+                ><small>ค้นหา • กรอง • sort • ขอบเขตสิทธิ์</small>
+              </div>
+              <div class="node">
+                <b>Table / Mobile cards</b
+                ><small>ใช้ visibleRows ชุดเดียวกัน</small>
+              </div>
+            </div>
+            <div class="column">
+              <div class="node">
+                <span class="flow">Server data → adapter → footer</span
+                ><b>CursorPagination + useCursorPagination</b
+                ><small>cursor จริง • query criteria • cache ตาม scope</small>
+              </div>
+              <div class="node">
+                <span class="flow">Complete data → adapter → footer</span
+                ><b>NumberedPagination + useLocalPagination</b
+                ><small>กรอง → เรียง → slice • total ที่ครบชุด</small>
+              </div>
+            </div>
+            <div class="node primary">
+              <b>PaginationFooter</b
+              ><small
+                >Global UI เดียว<br />PageSizeSelect · ช่วงรายการ<br />First /
+                Previous / Next / Last<br />loading · disabled · i18n ·
+                a11y</small
+              >
+            </div>
+          </div>
+          <div class="notice">
+            <h3>ขอบเขตความรับผิดชอบ</h3>
+            <code>PaginationFooter</code> ไม่ fetch ข้อมูล ไม่รู้จัก
+            Convex/table type และไม่เก็บ state ของแต่ละหน้า ส่วน adapters แปลง
+            state เป็น props; controller รับผิดชอบ cursor หรือ page index;
+            feature รับผิดชอบ query และ business rules จึงใช้ footer
+            เดียวได้กับทั้งตาราง การ์ด และรายการเลือกตำแหน่ง
+            <p>
+              State ของแต่ละรายการแยกด้วย org / actor / warehouse / list ID /
+              criteria การใช้ component กลางจึงไม่ทำให้หน้า Batch, หน้า HR
+              หรือข้อมูลคนละคลังใช้ page/cursor ปะปนกัน
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                มาตรฐานที่ใช้ร่วมกันทุกหน้า
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">หัวข้อ</th>
+                  <th scope="col">ข้อกำหนด</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">ขนาดหน้า</th>
+                  <td>
+                    ค่ากลาง <code>[20, 50, 100]</code> เริ่ม 20; รวม constants
+                    ที่ปัจจุบัน local ใช้ 25 และ cursor ใช้ 20 ให้ตรงกัน รวม
+                    validator ฝั่ง server
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">ข้อมูลครบและมี total</th>
+                  <td>
+                    แสดงช่วงจริง เช่น <code>21–40 จาก 126</code>; First /
+                    Previous / Next / Last ทำงานตามขอบเขต
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">ข้อมูลยังไม่มี total</th>
+                  <td>
+                    แสดง <code>หน้า 2 · 20 รายการ</code>; ใช้ capability ของ
+                    response ตัดสินปุ่ม Last และแสดงเหตุผลในชื่อ accessible จน
+                    backend รองรับจริง โดยไม่ตีความจำนวนที่โหลดมาเป็นยอดทั้งหมด
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Mobile</th>
+                  <td>
+                    search/filter ยังอยู่แถวเดียวกัน; pagination
+                    แยกเป็นแถวขนาดหน้า และแถวช่วงข้อมูล + ปุ่มเมื่อพื้นที่ไม่พอ;
+                    touch target อย่างน้อย 44px
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Desktop</th>
+                  <td>
+                    ขนาดหน้าอยู่ซ้าย ช่วงข้อมูลกับชุดปุ่มอยู่ขวา; footer
+                    อยู่ใต้รายการและนอก horizontal scroller ของ table
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">ข้อมูลหน้าเดียว / ว่าง</th>
+                  <td>
+                    แสดง footer ให้ตำแหน่งและการปรับขนาดหน้าคงที่; disabled
+                    ปุ่มทั้งหมดเมื่อไม่มีการเปลี่ยนหน้า;
+                    ข้อมูลว่างที่ยืนยันครบแสดง <code>0 จาก 0</code>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">กำลังโหลด / error / denied</th>
+                  <td>
+                    loading ปิดปุ่มและ page-size control, ใช้
+                    <code>aria-busy</code>; error แสดง Retry และเก็บ position;
+                    denied ไม่แสดงยอดข้อมูลที่ไม่มีสิทธิ์
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Search ที่ได้หน้าว่างแต่ยังมี cursor</th>
+                  <td>
+                    เก็บ Next ไว้เมื่อ response ยังไม่
+                    <code>isDone</code> เพื่อค้นหาต่อได้; ห้ามแสดง
+                    “ไม่มีทั้งหมด” หรือยอดศูนย์ก่อนสแกนจบ
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">เปลี่ยน criteria</th>
+                  <td>
+                    ค้นหา/กรอง/sort/warehouse เปลี่ยน → หน้าแรก; page size
+                    เปลี่ยน → หน้าแรกและคงขนาดที่เลือกใน scope เดียวกัน
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Selection</th>
+                  <td>
+                    “เลือกทั้งหมด” เลือกเฉพาะ visible IDs; เปลี่ยนหน้า ล้าง
+                    filter หรือ live removal ต้องคัด selection ให้ตรง;
+                    ระหว่างเขียนข้อมูลล็อก controls ที่มีผลต่อ target
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">ยอดรวม / export / save</th>
+                  <td>
+                    คำนวณจากข้อมูลทั้งชุดหรือ server aggregate ตาม scope เดิม
+                    การแบ่งหน้ามีผลเฉพาะสิ่งที่เห็น ไม่เปลี่ยนยอดส่งออกหรือ
+                    payload ที่บันทึก
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Back / refresh</th>
+                  <td>
+                    กลับจาก detail ต้องคืน criteria, page size และ page/cursor
+                    ตาม navigation owner เดิม; query-backed filter คง URL;
+                    refresh ต้อง restore cursor
+                    ที่บันทึกได้หรือกลับหน้าแรกอย่างชัดเจนเมื่อ cursor หมดอายุ
+                    โดยไม่เปลี่ยนหน้าให้ดูว่าง
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <details open>
+            <summary>Controlled API ที่เสนอสำหรับ component กลาง</summary>
+            <p>
+              นี่เป็น contract ในแผน ยังไม่ใช่ API ที่แก้ลง production จะรักษา
+              compatibility ระหว่างทยอยย้าย caller แล้วลบ props เก่าหลังย้ายครบ
+            </p>
+            <pre><code>type PageSize = 20 | 50 | 100;
+
+type PaginationStatus =
+  | { kind: "known"; from: number; to: number; total: number }
+  | { kind: "cursor"; page: number; itemCount: number };
+
+type PaginationAction = {
+  enabled: boolean;
+  onSelect: () =&gt; void;
+};
+
+type PaginationFooterProps = {
+  label: string;
+  pageSize: PageSize;
+  onPageSizeChange: (size: PageSize) =&gt; void;
+  status: PaginationStatus;
+  actions: {
+    first: PaginationAction;
+    previous: PaginationAction;
+    next: PaginationAction;
+    last: PaginationAction;
+  };
+  loading?: boolean;
+  disabled?: boolean;
+};
+
+// Local: total มาจาก filteredRows ที่ยืนยันครบ
+// Cursor: total/last ใช้ได้ต่อเมื่อ response รับรอง capability
+// ทุก label แปลผ่าน Pagination namespace ที่จุดกลาง</code></pre>
+          </details>
+          <details>
+            <summary>ไฟล์กลางที่จะปรับหรือเพิ่ม</summary>
+            <ul>
+              <li>
+                <code>src/components/system/PaginationFooter.tsx</code> —
+                renderer เดียวตาม ReUI-12
+              </li>
+              <li>
+                <code>src/components/system/PageSizeSelect.tsx</code> —
+                ขนาดหน้า/ค่าคงที่และ disabled ที่ใช้ร่วมกัน
+              </li>
+              <li>
+                <code>src/components/system/CursorPagination.tsx</code> —
+                adapter ของ server cursor ที่มีอยู่
+              </li>
+              <li>
+                <code>src/hooks/useCursorPagination.ts</code> — คง bounded
+                history และ restoration; เพิ่ม capability ใหม่โดยไม่เดิน fetch
+                ทุกหน้าล่วงหน้า
+              </li>
+              <li>
+                <code>src/hooks/useLocalPagination.ts</code> และ
+                <code>src/components/system/NumberedPagination.tsx</code> —
+                controller/adapter สำหรับข้อมูลครบชุด
+              </li>
+              <li>
+                <code>src/components/ui/pagination.tsx</code> — semantic nav
+                primitive; ใช้ปุ่ม <code>type="button"</code> สำหรับ
+                local/cursor actions
+              </li>
+              <li>
+                <code>messages/{th,en}.json</code> และ
+                <code>src/i18n/clientMessages.ts</code> — ข้อความช่วงรายการ,
+                first/last, loading และคำอธิบาย capability
+              </li>
+            </ul>
+          </details>
+          <div class="notice amber">
+            <h3>งาน backend ที่ต้องทำให้ครบก่อนเปิดความสามารถทั้งหมด</h3>
+            Cursor APIs ปัจจุบันส่ง <code>continueCursor</code> และ
+            <code>isDone</code> แต่ไม่มี total/last cursor
+            การทำปุ่มหน้าสุดท้ายจริงต้องเพิ่ม query contract
+            ที่รองรับการเริ่มจากท้ายด้วยลำดับคงที่ และ exact aggregate
+            ที่มีขอบเขตสิทธิ์ตรงกัน งานนี้เป็น dependency ของการเปิดใช้ Last
+            และยอดรวมบนหน้ากลุ่ม cursor ไม่แก้ด้วยการโหลดทั้งฐานข้อมูลเข้า
+            browser
+          </div>
+          <details>
+            <summary>รายละเอียดการเพิ่ม total และ Last ให้ cursor APIs</summary>
+            <ol>
+              <li>
+                กำหนดลำดับที่เสถียร: sort key ตามด้วย unique ID และ bind cursor
+                กับ org / warehouse / actor / criteria / sort / page size
+              </li>
+              <li>
+                เพิ่ม response capability เช่น <code>totalItems?: number</code>,
+                <code>range?: { from; to }</code>, <code>firstCursor</code>,
+                <code>lastCursor</code>,
+                <code>previousCursor</code> โดยใช้รูปแบบ cursor ที่ตรวจสอบจาก
+                server
+              </li>
+              <li>
+                ทำ exact aggregate ที่ตรงกับ filter จริง ใช้ indexed query /
+                maintained aggregate ตามชนิดข้อมูล ทบทวนต้นทุนสำหรับ full-text
+                และ multi-filter ก่อนเลือกวิธี
+              </li>
+              <li>
+                การไป Last ต้องดึงหน้าสุดท้ายที่มีสมาชิกและลำดับตรงกับการกด Next
+                จากต้นทาง รวมกรณีจำนวนหาร page size ไม่ลงตัว;
+                ต้องย้อนกลับได้โดยไม่พึ่งประวัติที่ยังไม่เคยโหลด
+              </li>
+              <li>
+                เพิ่ม <code>pageSize=100</code> ให้ endpoint ที่ยังจำกัด 50
+                หลังทบทวน query budget เช่น HR requests; UI ไม่ส่ง size ที่
+                server ยังไม่รับ
+              </li>
+              <li>
+                live insert/delete อาจทำให้ range ขยับ: invalidate position
+                หรือคืน <code>cursorReset</code> ตาม scope และแสดงผลใหม่
+                หลีกเลี่ยงยอด range กับ rows ที่มาจากคนละ criteria/revision
+              </li>
+              <li>
+                เพิ่ม APIs สำหรับพนักงานและงวดงานที่แบ่งหน้าจริง รักษา endpoint
+                เดิมถ้ายังมี consumers สำหรับ editor/options; warning
+                <code>complete=false</code> ยังคงอยู่จนมี continuation ครบ
+              </li>
+            </ol>
+            <p>
+              หาก exact total ของบาง filter ยังมีต้นทุนไม่เหมาะสม จะแสดงสถานะแบบ
+              cursor ให้ชัดและคงข้อจำกัดนี้เป็นรายการค้างก่อนประกาศว่าได้รูปแบบ
+              ReUI-12 ครบทุก capability
+            </p>
+          </details>
+        </section>
+
+        <section class="chapter" id="coverage" aria-labelledby="coverage-title">
+          <h2 id="coverage-title">ครอบคลุมหน้าไหนบ้าง</h2>
+          <p class="section-lead">
+            สำรวจ production table และ mobile counterpart จาก source แล้ว
+            ตารางต่อไปนี้ระบุว่าต้องย้ายการแสดงผล เพิ่ม controller หรือเพิ่ม API
+            จริง รวมทั้งรายการแบบการ์ดที่ผู้ใช้เห็นแทน table บนมือถือ
+          </p>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Inventory สำหรับ implementation
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width: 27%">หน้า / component</th>
+                  <th scope="col" style="width: 16%">สถานะปัจจุบัน</th>
+                  <th scope="col">งานที่ต้องทำและข้อควรคงไว้</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">
+                    รายการที่สแกนแล้ว<code class="file"
+                      >JobScanRecords.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge cursor">Cursor เดิม</span></td>
+                  <td>
+                    ลบ page description, tabs → icon filter หลัง search, แสดง
+                    footer แม้หน้าเดียว; selection เฉพาะ visible IDs; คง
+                    Location workflow และ pending guard
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    สินค้า / พาเลท<code class="file"
+                      >FinishedGoodsCatalogue.tsx<br />FinishedGoodsTable.tsx<br />FinishedGoodsMobileList.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge cursor">Cursor เดิม</span></td>
+                  <td>
+                    ย้าย controls สู่ toolbar มาตรฐาน; adapter/footer เดียวทั้ง
+                    table และ cards; totals ของคลังยังคำนวณจาก server scope
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Batch ปัจจุบันและ legacy<code class="file"
+                      >ProductBatches.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge cursor">Cursor 2 ชุด</span></td>
+                  <td>
+                    แต่ละชุดมี pagination scope แยกกัน แต่ renderer เดียว; คง
+                    workflow ของ batch editor และ return position
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    รายการอาคาร<code class="file"
+                      >StorageLayoutScreens.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge cursor">Cursor เดิม</span></td>
+                  <td>
+                    ใช้ global footer; search/status ต่อ controller เดิม; ตรวจ
+                    empty scan ที่ยังมี continuation
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    ตำแหน่งรวม / ชื่อที่ลงทะเบียน<code class="file"
+                      >StorageLocationCatalogue.tsx<br />NamedLocationCatalogue.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge cursor">Cursor เดิม</span></td>
+                  <td>
+                    รูปแบบค้นหา/filter/footer เหมือนกัน;
+                    พิจารณาตัวเลือกอาคารที่โหลดเพิ่มเป็น options ไม่ใช่
+                    pagination ของผลลัพธ์
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    ตัวเลือกตำแหน่ง<code class="file"
+                      >jobScan/LocationPicker.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge cursor">Cursor เดิม</span></td>
+                  <td>
+                    ใช้ global footer แบบ container-aware ใน panel; สแกน QR/AI
+                    และเลือกพิกัดยังเป็น workflow เดิม
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    ตำแหน่งในชั้น / workspace<code class="file"
+                      >FloorLocationTable.tsx<br />FloorWorkspaceLocationList.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge local">Local เดิม</span></td>
+                  <td>
+                    เปลี่ยน default 25 → 20; แทน custom footer ใน workspace ด้วย
+                    component กลาง; คงการเผยแถวที่เลือกจากแผนที่และใช้
+                    visibleRows เดียว
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    พนักงาน HR<code class="file"
+                      >EmployeesScreen.tsx<br />convex/hr/setup.ts</code
+                    >
+                  </th>
+                  <td>
+                    <span class="badge backend">เพิ่ม server paging</span>
+                  </td>
+                  <td>
+                    ปัจจุบันจำกัด 99 คนต่อไซต์และไม่มี continuation; เพิ่ม paged
+                    query จริงก่อนเชื่อม footer; editor โหลดด้วย ID
+                    แยกจากหน้ารายการตามเดิม
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    รายการงวด HR<code class="file"
+                      >PeriodsScreen.tsx<br />convex/hr/periods.ts</code
+                    >
+                  </th>
+                  <td>
+                    <span class="badge backend">เพิ่ม server paging</span>
+                  </td>
+                  <td>
+                    ปัจจุบันคืนล่าสุดไม่เกิน 200 รายการ; เพิ่ม cursor
+                    ที่ไปถึงรายการเก่าได้ พร้อม permission/site scope เดิม;
+                    ไม่แบ่งเฉพาะ 200 รายการแล้วถือว่าครบ
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    ประวัติลงเวลา<code class="file">HistoryScreen.tsx</code>
+                  </th>
+                  <td><span class="badge local">เพิ่ม local paging</span></td>
+                  <td>
+                    ชุดข้อมูลตามช่วงวันที่ครบและจำกัด 31 วัน; filter → sort →
+                    slice ใช้กับ table/cards; metrics
+                    และชั่วโมงรวมยังใช้ครบช่วงวันที่
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    สรุปรายคนในงวด<code class="file"
+                      >PeriodDetailScreen.tsx<br />EmployeeTable</code
+                    >
+                  </th>
+                  <td><span class="badge local">เพิ่ม local paging</span></td>
+                  <td>
+                    aggregate rows ทั้งงวดก่อน แล้วแบ่ง employee summaries;
+                    footer totals, CSV และ closed snapshot ไม่เปลี่ยนตามหน้า
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    ตรวจคิว HR / คำขอ<code class="file"
+                      >ReviewScreen.tsx<br />RequestsScreen.tsx</code
+                    >
+                  </th>
+                  <td>
+                    <span class="badge local">Review: local</span><br /><span
+                      class="badge cursor"
+                      >Requests: cursor</span
+                    >
+                  </td>
+                  <td>
+                    Review แบ่งคิวที่ได้ครบในช่วงวันที่ และคง incomplete
+                    warning/selected detail; Requests แทน footer เฉพาะหน้าพร้อม
+                    page size กลางและยก API limit ที่จำเป็น
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    ตารางชั้นก่อนเปิดใช้อาคาร<code class="file"
+                      >StorageLayoutScreens.tsx<br />activation review</code
+                    >
+                  </th>
+                  <td><span class="badge local">เพิ่ม local paging</span></td>
+                  <td>
+                    แบ่ง complete floors เฉพาะการแสดงผล การตรวจสอบและ activate
+                    ยังใช้ข้อมูลอาคารทั้งหมด
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    รายละเอียดพื้นที่ / placements<code class="file"
+                      >BuildingAreaDetails.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge local">เพิ่ม local paging</span></td>
+                  <td>
+                    กรอง placements ก่อนแบ่งหน้า; แผนภูมิพื้นที่และ occupancy
+                    ยังใช้ข้อมูลครบชุดที่มี completeness ชัดเจน
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    สรุปการจัดแพ็ก<code class="file">PackingScreen.tsx</code>
+                  </th>
+                  <td><span class="badge local">เพิ่ม local paging</span></td>
+                  <td>
+                    draft สูงสุด 50 แถว; table/cards ใช้ slice เดียวกัน; draft,
+                    validation, allocated quantity และ save payload
+                    ยังคงครบทุกหน่วย; เปิดแถวที่เลือกต้องอยู่ในหน้าที่เห็น
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    วันหยุดแบบรายการ<code class="file"
+                      >HolidaysScreen.tsx<br />SettingsScreen.tsx</code
+                    >
+                  </th>
+                  <td><span class="badge local">เพิ่ม list paging</span></td>
+                  <td>
+                    แบ่งรายการวันหยุดก่อนแล้วจัดกลุ่มเดือนเฉพาะหน้าปัจจุบัน
+                    ถ้าเดือนต่อหน้าถัดไปแสดงหัวข้อเดือนซ้ำ; คง export ทั้งปีและ
+                    incomplete warning หาก backend แจ้งว่าข้อมูลยังไม่ครบ
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="notice">
+            <h3>ตารางเปรียบเทียบค่าคงที่</h3>
+            <code>ReviewDetail</code> เปรียบเทียบเวลาเข้า/ออกสองแถว ไม่ใช่รายการ
+            records จึงไม่เพิ่ม pagination ที่กดแล้วไม่ช่วยใช้งาน
+            จะบันทึกเหตุผลใน inventory ราย component
+            เพื่อแยกจากตารางรายการที่ต้องแบ่งหน้าครบ
+          </div>
+        </section>
+
+        <section class="chapter" id="delivery" aria-labelledby="delivery-title">
+          <h2 id="delivery-title">ลำดับ implementation</h2>
+          <p class="section-lead">
+            ทำส่วนกลางให้พร้อมก่อนย้าย caller และเพิ่ม capability backend
+            ให้ครบก่อนเปิดปุ่มที่ต้องอาศัยข้อมูลนั้น
+            แต่ละช่วงมีผลลัพธ์และหลักฐานตรวจรับชัดเจน
+          </p>
+          <ol class="step-list">
+            <li>
+              <div class="phase">Foundation</div>
+              <div>
+                <h3>กำหนด contract และพฤติกรรมกลาง</h3>
+                <p>
+                  สรุป API ของ PaginationFooter, ขนาดหน้า, ข้อความ TH/EN,
+                  capability known/cursor และ toolbar layout; อ่าน Next.js docs
+                  ของเวอร์ชันใน node_modules ก่อนแก้ runtime
+                </p>
+                <div class="proof">
+                  ผ่านเมื่อ: shared footer ทำงานกับ known / cursor / empty /
+                  loading ได้โดยไม่ผูกกับ feature
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="phase">Global controls</div>
+              <div>
+                <h3>สร้างส่วนกลางแล้วพิสูจน์กับหน้าใบงาน</h3>
+                <p>
+                  ปรับ Footer/PageSizeSelect, เพิ่ม local adapter/hook, สร้าง
+                  filter button และย้าย JobScanRecords เป็น caller แรก; ตรวจ
+                  search, filter, selection และ Location workflow
+                </p>
+                <div class="proof">
+                  ผ่านเมื่อ: Mobile/Desktop เห็นชุด controls เดียวกัน
+                  และกดเปลี่ยนหน้า/กรองแล้ว target ไม่ผิด
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="phase">Data capability</div>
+              <div>
+                <h3>เพิ่ม pagination จริงให้ API ที่ยังขาด</h3>
+                <p>
+                  ทำ paged Employees/Periods และ total/end-cursor capability
+                  สำหรับ cursor endpoints ตาม query/index ที่ใช้จริง; ตรวจ
+                  permission, sort stability, query budget และ live invalidation
+                </p>
+                <div class="proof">
+                  ผ่านเมื่อ: เข้าถึงข้อมูลเกินขอบเขตเดิมได้ และ Last / Previous
+                  ตรงกับลำดับผลลัพธ์จริง
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="phase">Caller migration</div>
+              <div>
+                <h3>ย้ายครบตาม inventory</h3>
+                <p>
+                  อัปเดต cursor callers เดิม, เพิ่ม local pagination
+                  ให้ตารางที่ยังไม่มี, ลบ footer เฉพาะหน้า; จัด page description
+                  และ metadata แยกตามความหมาย พร้อมมาตรฐาน filter
+                </p>
+                <div class="proof">
+                  ผ่านเมื่อ: ตรวจ production callsites ครบ ทุกตารางรายการอ้างอิง
+                  footer กลาง และ cards ใช้ page เดียวกับ table
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="phase">Navigation + QA</div>
+              <div>
+                <h3>ทดสอบ workflow และเก็บ screenshots</h3>
+                <p>
+                  ทบทวน navigation inventory เฉพาะ state/semantic targets
+                  ที่เปลี่ยน; รัน unit/integration/caller navigation, typecheck,
+                  ESLint และ navigation gate; ตรวจ browser แบบ batched
+                  Mobile/Desktop แล้วแก้ที่พบพร้อมกัน
+                </p>
+                <div class="proof">
+                  ส่งมอบ: screenshots จากแอปจริง 390px และ 1440px, filter
+                  เปิด/ปิด, page แรก/ถัดไป, empty/loading
+                  และบันทึกข้อจำกัดที่ยังมี
+                </div>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section
+          class="chapter"
+          id="verification"
+          aria-labelledby="verification-title"
+        >
+          <h2 id="verification-title">เกณฑ์ตรวจรับก่อนเรียกว่าเสร็จ</h2>
+          <div class="split">
+            <div>
+              <h3 style="margin-top: 24px">UI และ component กลาง</h3>
+              <ul class="check-list">
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >ไม่มีคำอธิบายหน้าใต้ header ที่อยู่ในขอบเขต
+                    และข้อมูลจริงที่ย้ายออกจาก summary ยังหาเจอ</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >Search/filter อยู่แถวเดียวที่ 320, 390, 768 และ 1440px;
+                    ไม่มี horizontal overflow ของหน้า</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >ทุก list/table ใช้ footer renderer เดียว ไม่มี markup
+                    ชุดปุ่ม pagination
+                    เฉพาะหน้าเหลือโดยไม่มีเหตุผลที่ตรวจแล้ว</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >ทดสอบ 0 / 1 / 20 / 21 / 50 / 100 / 101 รายการ, disabled,
+                    loading และปุ่มไม่ submit form</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >Keyboard, focus return, accessible names, TH/EN และ
+                    light/dark ใช้งานได้ครบ</span
+                  >
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 style="margin-top: 24px">ข้อมูลและ navigation</h3>
+              <ul class="check-list">
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >ผล filter/search/sort ถูกแบ่งหน้าหลังประมวลผลครบ และ Last
+                    ไม่ข้าม/ซ้ำข้อมูลจากลำดับที่กำหนด</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >พนักงานเกิน 99 ต่อไซต์และงวดเกิน 200 ยังเปิดได้จริง ไม่ใช่
+                    client pagination บนข้อมูลที่ถูกตัด</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >ลบแถวสุดท้ายของหน้า, live removal และ cursor reset
+                    ไม่ค้างในหน้าว่างที่ออกไม่ได้</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >ยอดรวม/CSV/save payload ไม่ลดเหลือเฉพาะหน้าปัจจุบัน;
+                    pending และ dirty drafts ได้รับการป้องกัน</span
+                  >
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span
+                    >Back ปิด foreground ก่อน, Close/Cancel แล้ว Back
+                    ถัดไปถูกต้อง; detail return, direct link, locale/query/hash,
+                    Forward และ refresh ผ่าน caller tests ที่เกี่ยวข้อง</span
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+          <details>
+            <summary>คำสั่งและ test families ที่ใช้ยืนยัน</summary>
+            <pre><code>pnpm typecheck
+pnpm lint
+pnpm check:navigation
+pnpm exec vitest run [affected unit + integration tests]
+
+# Shared UI + state
+PaginationFooter.test.tsx
+CollectionToolbar.test.tsx
+useCursorPagination.test.tsx
+useLocalPagination.test.tsx                 # เพิ่มตาม behavior จริง
+
+# Concrete callers / backend
+JobScanRecords.test.tsx
+FloorLocationTable.test.tsx
+EmployeesNavigation.test.tsx
+HrNavigation.test.tsx / HrBackNavigation.test.tsx
+catalogue-pagination.integration.test.ts
+hr-employee-reads.integration.test.ts
+[new server pagination regressions]</code></pre>
+            <p>
+              คำสั่งด้านบนเป็นแผนการตรวจรับ implementation การตรวจ HTML proposal
+              นี้แยกจากผลทดสอบ production และไม่ได้ใช้ภาพตัวอย่างเป็นหลักฐานว่า
+              backend ทำงานแล้ว
+            </p>
+          </details>
+        </section>
+        <footer class="footer">
+          <span>Top Gold · UI consistency implementation plan</span
+          ><span
+            >เอกสาร HTML + interactive demo · ยังไม่ใช่ production
+            implementation</span
+          >
+        </footer>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => [...document.querySelectorAll(selector)];
+        const icon = (id) =>
+          `<svg class="icon" aria-hidden="true" width="14" height="14"><use href="#i-${id}"/></svg>`;
+        const rows = Array.from({ length: 126 }, (_, i) => ({
+          id: i + 1,
+          job: `F068${String(60369 - i).padStart(5, "0")}`,
+          sku: i % 2 ? "SSD-CARTON-BOX-000-F" : "SNP-20010038-PAA-S",
+          product:
+            i % 2 ? "BOX (515 × 435 × 500 mm)" : "20-01-0-038 Partition S",
+          mapped: i >= 73,
+          location: i >= 73 ? `F2-L1-${(i % 9) + 1}` : "รอระบุตำแหน่ง",
+        }));
+        const labels = {
+          UNMAPPED: "รอระบุตำแหน่ง",
+          MAPPED: "ระบุตำแหน่งแล้ว",
+          ALL: "ทั้งหมด",
+        };
+        const state = {
+          page: 1,
+          size: 20,
+          status: "UNMAPPED",
+          search: "",
+          dataMode: "known",
+          loading: false,
+          selected: new Set(),
+        };
+        const view = $("#app-preview");
+        const search = $("#demo-search");
+        const filter = $("#demo-filter");
+        const panel = $("#filter-panel");
+        let opener;
+        function matchingRows() {
+          const q = state.search.trim().toLocaleLowerCase();
+          return rows.filter(
+            (row) =>
+              (state.status === "ALL" ||
+                row.mapped === (state.status === "MAPPED")) &&
+              (!q ||
+                `${row.job} ${row.sku} ${row.product} ${row.location}`
+                  .toLocaleLowerCase()
+                  .includes(q)),
+          );
+        }
+        function updateSelection() {
+          $("#selection-line").textContent =
+            `หน้า ${state.page} · เลือก ${state.selected.size} รายการในหน้านี้`;
+        }
+        function reset() {
+          state.page = 1;
+          state.selected.clear();
+          $("#demo-scroll").scrollTop = 0;
+        }
+        function closeFilter(restore = false) {
+          panel.hidden = true;
+          filter.setAttribute("aria-expanded", "false");
+          if (restore) (opener || filter).focus();
+        }
+        function render() {
+          const found = matchingRows();
+          const pages = Math.max(1, Math.ceil(found.length / state.size));
+          state.page = Math.min(state.page, pages);
+          const visible = found.slice(
+            (state.page - 1) * state.size,
+            state.page * state.size,
+          );
+          const container = $("#demo-rows");
+          container.innerHTML = visible.length
+            ? visible
+                .map(
+                  (row) =>
+                    `<div class="demo-row" role="listitem"><input type="checkbox" aria-label="เลือกใบงาน ${row.job}" data-row="${row.id}" ${state.selected.has(row.id) ? "checked" : ""} ${state.loading ? "disabled" : ""}/><div><div class="job-id">${row.job}</div><div class="product-line">${row.sku} · ${row.product}</div></div><div class="row-location"><span class="location">${row.mapped ? icon("pin") + " " : ""}${row.location}</span><div class="product-line">${row.mapped ? "อาคาร F1 + F2 · ชั้น 2" : "ยังไม่ได้เลือกจุดจัดเก็บ"}</div></div><span class="status ${row.mapped ? "" : "waiting"}">${row.mapped ? "ระบุแล้ว" : "รอระบุ"}</span></div>`,
+                )
+                .join("")
+            : '<div class="demo-empty">ไม่พบรายการที่ตรงกับการค้นหา<br/>ลองเปลี่ยนคำค้นหาหรือล้างตัวกรอง</div>';
+          $("#demo-range").textContent = state.loading
+            ? "กำลังโหลด…"
+            : state.dataMode === "cursor"
+              ? `หน้า ${state.page} · ${visible.length} รายการ`
+              : found.length
+                ? `${(state.page - 1) * state.size + 1}–${Math.min(state.page * state.size, found.length)} จาก ${found.length}`
+                : "0 จาก 0";
+          $$("[data-page]").forEach((button) => {
+            const first = ["first", "previous"].includes(button.dataset.page);
+            button.disabled =
+              state.loading ||
+              (button.dataset.page === "last" && state.dataMode === "cursor") ||
+              (first ? state.page === 1 : state.page === pages);
+            if (button.dataset.page === "last") {
+              button.setAttribute(
+                "aria-label",
+                state.dataMode === "cursor"
+                  ? "หน้าสุดท้าย: รอ last cursor จาก server"
+                  : "หน้าสุดท้าย",
+              );
+              button.title =
+                state.dataMode === "cursor"
+                  ? "เปิดใช้เมื่อ server มี last cursor"
+                  : "หน้าสุดท้าย";
+            }
+          });
+          $("#demo-data-mode").disabled = state.loading;
+          $("#demo-size").disabled = state.loading;
+          search.disabled = state.loading;
+          filter.disabled = state.loading;
+          $("#clear-demo").disabled = state.loading;
+          $("#demo-pagination").setAttribute(
+            "aria-busy",
+            String(state.loading),
+          );
+          $("#active-filter").textContent = `สถานะ: ${labels[state.status]}`;
+          filter.classList.toggle("active", state.status !== "ALL");
+          filter.setAttribute(
+            "aria-label",
+            `ตัวกรองสถานะ: ${labels[state.status]}`,
+          );
+          $("#filter-count").hidden = state.status === "ALL";
+          updateSelection();
+        }
+        search.addEventListener("input", () => {
+          state.search = search.value;
+          reset();
+          render();
+        });
+        filter.addEventListener("click", () => {
+          opener = filter;
+          panel.hidden = !panel.hidden;
+          filter.setAttribute("aria-expanded", String(!panel.hidden));
+          if (!panel.hidden) panel.querySelector("input:checked").focus();
+        });
+        $$('[name="demo-status"]').forEach((input) =>
+          input.addEventListener("change", () => {
+            state.status = input.value;
+            reset();
+            closeFilter(true);
+            render();
+          }),
+        );
+        $("#clear-demo").addEventListener("click", () => {
+          state.search = "";
+          state.status = "ALL";
+          search.value = "";
+          $('[name="demo-status"][value="ALL"]').checked = true;
+          reset();
+          closeFilter();
+          render();
+          search.focus();
+        });
+        $("#demo-size").addEventListener("change", (event) => {
+          state.size = Number(event.target.value);
+          reset();
+          render();
+        });
+        $$("[data-page]").forEach((button) =>
+          button.addEventListener("click", () => {
+            const last = Math.max(
+              1,
+              Math.ceil(matchingRows().length / state.size),
+            );
+            state.page = {
+              first: 1,
+              previous: state.page - 1,
+              next: state.page + 1,
+              last,
+            }[button.dataset.page];
+            state.selected.clear();
+            $("#demo-scroll").scrollTop = 0;
+            closeFilter();
+            render();
+          }),
+        );
+        $("#demo-rows").addEventListener("change", (event) => {
+          if (!event.target.matches("[data-row]")) return;
+          const id = Number(event.target.dataset.row);
+          event.target.checked
+            ? state.selected.add(id)
+            : state.selected.delete(id);
+          updateSelection();
+        });
+        document.addEventListener("pointerdown", (event) => {
+          if (
+            !panel.hidden &&
+            !panel.contains(event.target) &&
+            !filter.contains(event.target)
+          )
+            closeFilter();
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !panel.hidden) {
+            event.preventDefault();
+            closeFilter(true);
+          }
+        });
+        $$("[data-device]").forEach((button) =>
+          button.addEventListener("click", () => {
+            $$("[data-device]").forEach((other) =>
+              other.setAttribute("aria-pressed", String(other === button)),
+            );
+            view.classList.toggle("mobile", button.dataset.device === "mobile");
+            closeFilter();
+          }),
+        );
+        $$("[data-theme]").forEach((button) =>
+          button.addEventListener("click", () => {
+            $$("[data-theme]").forEach((other) =>
+              other.setAttribute("aria-pressed", String(other === button)),
+            );
+            view.classList.toggle("dark", button.dataset.theme === "dark");
+          }),
+        );
+        $("#loading-toggle").addEventListener("click", (event) => {
+          state.loading = !state.loading;
+          event.currentTarget.setAttribute(
+            "aria-pressed",
+            String(state.loading),
+          );
+          event.currentTarget.textContent = state.loading
+            ? "ออกจากสถานะกำลังโหลด"
+            : "ลองสถานะกำลังโหลด";
+          closeFilter();
+          render();
+        });
+        $("#demo-data-mode").addEventListener("change", (event) => {
+          state.dataMode = event.target.value;
+          reset();
+          render();
+        });
+        const tocLinks = $$(".toc a");
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting)
+                tocLinks.forEach((link) => {
+                  if (link.hash === `#${entry.target.id}`)
+                    link.setAttribute("aria-current", "location");
+                  else link.removeAttribute("aria-current");
+                });
+            });
+          },
+          { rootMargin: "-5% 0px -70% 0px" },
+        );
+        $$("header[id], section.chapter").forEach((section) =>
+          observer.observe(section),
+        );
+        if (
+          new URLSearchParams(location.search).get("device") === "mobile" ||
+          innerWidth < 760
+        )
+          $('[data-device="mobile"]').click();
+        if (new URLSearchParams(location.search).get("theme") === "dark")
+          $('[data-theme="dark"]').click();
+        render();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-13",
+  "browser": "T3 collaborative preview",
+  "artifact": "index.html",
+  "functionalChecks": [
+    {
+      "name": "Upper group has physical 6/7 row topology",
+      "pass": true
+    },
+    {
+      "name": "Invalid height blocks save",
+      "pass": true
+    },
+    {
+      "name": "Invalid height blocks save-and-leave",
+      "pass": true
+    },
+    {
+      "name": "Valid layout draft saved",
+      "pass": true
+    },
+    {
+      "name": "Unknown unit has no move action",
+      "pass": true
+    },
+    {
+      "name": "Both source and destination held",
+      "pass": true
+    },
+    {
+      "name": "Pending flow survives mode switch",
+      "pass": true
+    },
+    {
+      "name": "Reservation cancellation releases only target",
+      "pass": true
+    },
+    {
+      "name": "In-transit cannot cancel as unpicked",
+      "pass": true
+    },
+    {
+      "name": "Return restores source and releases target",
+      "pass": true
+    },
+    {
+      "name": "Empty floor state",
+      "pass": true
+    }
+  ],
+  "manualFlows": [
+    {
+      "name": "Exact search PD-L1-2; selected location preserved when switching map/list",
+      "pass": true
+    },
+    {
+      "name": "No results state and clear search/filters",
+      "pass": true
+    },
+    {
+      "name": "Move U-1001 PD-L1-1 → PD-L1-2; wrong destination code blocked; correct code + acknowledgement completes; unique unit count stays 76",
+      "pass": true
+    },
+    {
+      "name": "Incoming U-NEW-01 → PD-L1-3; verify and confirm; pending queue empty and unique unit count 77",
+      "pass": true
+    },
+    {
+      "name": "Mobile sheet opens; Escape closes and focus returns to selected location",
+      "pass": true
+    },
+    {
+      "name": "Typing creates draft; switching tasks opens guard; discard leaves original label unchanged",
+      "pass": true
+    }
+  ],
+  "responsive": [
+    {
+      "documentWidth": 320,
+      "overflow": false,
+      "width": 320
+    },
+    {
+      "documentWidth": 390,
+      "overflow": false,
+      "width": 390
+    },
+    {
+      "documentWidth": 768,
+      "overflow": false,
+      "width": 768
+    }
+  ],
+  "axeFinal": {
+    "desktopLight": [],
+    "mobileDark": {
+      "axe": [],
+      "overflow": false
+    }
+  },
+  "screenshotEvidence": {
+    "finalDesktop1440": "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-127-0-0-1-mv62v5iv-fbfed0c3.png",
+    "finalDesktop1280": "desktop-1280-th-light.png",
+    "mobile": "Final-source mobile capture unavailable: T3 preview_snapshot repeatedly returned PreviewAutomationExecutionError; preview_recording_start also failed. Earlier mobile captures precede filter and demo-caption improvements and are NOT final approval."
+  },
+  "reviewDisposition": "recapture — final mobile visual evidence missing",
+  "limitations": [
+    "Synthetic data and in-memory writes only; no production integration tested.",
+    "Automated axe checks are sampled states, not a full accessibility certification.",
+    "Viewport checks do not emulate real touch hardware.",
+    "Functional tests include real focused browser tools and DOM-driven event assertions."
+  ]
+}

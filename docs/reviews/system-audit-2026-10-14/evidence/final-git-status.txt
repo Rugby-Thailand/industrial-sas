@@ -1,0 +1,263 @@
+ M .env.example
+ M .github/workflows/quality.yml
+ M AGENTS.md
+ M README.md
+ M convex/_generated/api.d.ts
+ M convex/finishedGoods/jobScans.ts
+ M convex/finishedGoods/workflow.ts
+ M convex/hr/access.ts
+ M convex/hr/navigationIntent.ts
+ M convex/hr/periods.ts
+ M convex/hr/review.ts
+ M convex/hr/search.ts
+ M convex/hr/self.ts
+ M convex/hr/setup.ts
+ M convex/hr/shared.ts
+ M convex/lib/schemaPolicy.ts
+ M convex/model/finishedGoods/jobScans.ts
+ M convex/model/search/intent.ts
+ M convex/model/search/provider.ts
+ M convex/schema.ts
+ M convex/storageLayouts/writes.ts
+ M convex/storageLayouts/zones.ts
+ M docs/design-sheet/.impeccable/design.json
+ M docs/design-sheet/DESIGN.md
+ M docs/design-sheet/README.md
+ M docs/design-sheet/evidence/browser-checks.json
+ M docs/design-sheet/evidence/copy-checks.json
+ M docs/design-sheet/index.html
+ M docs/design-sheet/variants/README.md
+ M docs/design-sheet/variants/index.html
+ M eslint.config.mjs
+ M messages/en.json
+ M messages/th.json
+ M package.json
+ M pnpm-lock.yaml
+ M src/app/[locale]/(desktop)/master-data/storage-layouts/page.tsx
+ M src/app/[locale]/(desktop)/setup/page.tsx
+ M src/app/[locale]/not-found.tsx
+ M src/app/globals.css
+ M src/components/auth/OrganizationRequired.tsx
+ M src/components/examples/c-sidebar-2.test.tsx
+ M src/components/examples/c-sidebar-2.tsx
+ M src/components/providers/DraftGuardProvider.test.tsx
+ M src/components/providers/DraftGuardProvider.tsx
+ M src/components/providers/HrAccessProvider.tsx
+ M src/components/providers/WorkspaceAccessBoundary.test.tsx
+ M src/components/providers/WorkspaceAccessBoundary.tsx
+ M src/components/providers/draftGuard.ts
+ M src/components/shell/SidebarNavigationLink.tsx
+ M src/components/shell/WorkspaceContextBar.tsx
+ M src/components/shell/search/GlobalSearch.test.tsx
+ M src/components/shell/search/GlobalSearchProvider.tsx
+ M src/components/shell/search/SearchDialogFocus.test.tsx
+ M src/components/shell/search/SearchDialogLoader.test.tsx
+ M src/components/shell/search/SearchDialogLoader.tsx
+ M src/components/shell/search/SearchTriggers.tsx
+ M src/components/shell/search/useAiSearch.ts
+ M src/components/storageLayouts/FloorMap.tsx
+ M src/components/system/NavigationProgress.test.tsx
+ M src/components/system/NavigationProgress.tsx
+ M src/components/system/useNavigationGuard.test.tsx
+ M src/components/system/useNavigationGuard.tsx
+ M src/components/ui/ConfirmDialog.tsx
+ M src/components/ui/PageBackButton.tsx
+ M src/components/ui/PageHeader.test.tsx
+ M src/components/ui/PageHeader.tsx
+ M src/components/ui/SelectControl.test.tsx
+ M src/components/ui/SelectControl.tsx
+ M src/components/ui/StatusBadge.tsx
+ M src/components/ui/dialog.tsx
+ M src/components/ui/input.tsx
+ M src/components/ui/select.tsx
+ M src/components/ui/sheet.tsx
+ M src/components/ui/theme-contrast.test.ts
+ M src/features/finishedGoods/BarcodeCameraBox.tsx
+ M src/features/finishedGoods/BatchManager.test.tsx
+ M src/features/finishedGoods/BatchManager.tsx
+ M src/features/finishedGoods/FinishedGoodsCatalogue.tsx
+ M src/features/finishedGoods/FinishedGoodsMobileList.tsx
+ M src/features/finishedGoods/FinishedGoodsTable.tsx
+ M src/features/finishedGoods/MoveScreen.test.tsx
+ M src/features/finishedGoods/MoveScreen.tsx
+ M src/features/finishedGoods/PackingScreen.tsx
+ M src/features/finishedGoods/PalletScreens.test.tsx
+ M src/features/finishedGoods/PalletScreens.tsx
+ M src/features/finishedGoods/PlacementEditor.tsx
+ M src/features/finishedGoods/ProductBatches.navigation.test.tsx
+ M src/features/finishedGoods/ProductBatches.tsx
+ M src/features/finishedGoods/ProductScreen.tsx
+ M src/features/finishedGoods/ProductScreens.test.tsx
+ M src/features/finishedGoods/StackScreen.test.tsx
+ M src/features/finishedGoods/StackScreen.tsx
+ M src/features/finishedGoods/jobScan/AddLocationForm.tsx
+ M src/features/finishedGoods/jobScan/JobScanRecords.test.tsx
+ M src/features/finishedGoods/jobScan/JobScanRecords.tsx
+ M src/features/finishedGoods/jobScan/JobScanScreen.test.tsx
+ M src/features/finishedGoods/jobScan/JobScanScreen.tsx
+ M src/features/finishedGoods/jobScan/LocationImageReader.tsx
+ M src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx
+ M src/features/finishedGoods/jobScan/LocationPicker.test.tsx
+ M src/features/finishedGoods/jobScan/LocationPicker.tsx
+ M src/features/finishedGoods/jobScan/PhotoCapture.tsx
+ M src/features/finishedGoods/shared.tsx
+ M src/features/hr/CorrectionForm.independent.test.tsx
+ M src/features/hr/DayDetailView.tsx
+ M src/features/hr/DayScreen.tsx
+ M src/features/hr/EmployeeForm.tsx
+ M src/features/hr/EmployeesScreen.tsx
+ M src/features/hr/HistoryScreen.tsx
+ M src/features/hr/HrReviewCompletion.test.tsx
+ M src/features/hr/HrShared.tsx
+ M src/features/hr/PeriodCreateGuard.independent.test.tsx
+ M src/features/hr/PeriodDetailScreen.tsx
+ M src/features/hr/PeriodsScreen.guard.test.tsx
+ M src/features/hr/PeriodsScreen.tsx
+ M src/features/hr/ProfileScreen.tsx
+ M src/features/hr/ReviewDetail.tsx
+ M src/features/hr/ReviewScreen.tsx
+ M src/features/hr/SettingsScreen.tsx
+ M src/features/hr/TimeSideField.tsx
+ M src/features/hr/TodayScreen.independent.test.tsx
+ M src/features/hr/TodayScreen.tsx
+ M src/features/hr/format.ts
+ M src/features/hr/useHrWrite.independent.test.tsx
+ M src/features/hr/useHrWrite.ts
+ M src/features/storageLayouts/BuildingStatusToggle.tsx
+ M src/features/storageLayouts/StorageLayoutScreens.test.tsx
+ M src/features/storageLayouts/StorageLayoutScreens.tsx
+ M src/features/storageLayouts/StorageZonesPanel.tsx
+ M src/features/storageLayouts/useWorkspaceQuery.ts
+ M src/hooks/use-file-upload.ts
+ M src/hooks/useAsyncOperation.test.tsx
+ M src/hooks/useAsyncOperation.ts
+ M src/i18n/navigationClient.tsx
+ M src/lib/browser/appHistory.ts
+ M src/lib/browser/history.ts
+ M src/lib/convex/hrApi.ts
+ M src/lib/navigation.ts
+ M src/lib/navigationGuard.ts
+ M src/lib/observability/dimensions.ts
+ M src/lib/search/registry.test.ts
+ M tests/e2e/staging/flows.ts
+ M tests/fixtures/public-api-examples.ts
+ M tests/fixtures/public-contract.ts
+ M tests/fixtures/public-function-contract.json
+ M tests/integration/finished-goods-measurement-clearing.integration.test.ts
+ M tests/integration/finished-goods-moves.integration.test.ts
+ M tests/integration/finished-goods-packing.integration.test.ts
+ M tests/integration/finished-goods-stacking.integration.test.ts
+ M tests/integration/finished-goods.integration.test.ts
+ M tests/integration/hr-independent-regressions.integration.test.ts
+ M tests/integration/public-api-registered-coverage.integration.test.ts
+ M tests/integration/public-function-contract.integration.test.ts
+ M tsconfig.json
+?? .impeccable/surfaces/rage-layout-rethink-2026-10-13-index-html-ebb5f90e.md
+?? PRODUCT.md
+?? convex/hr/preferences.ts
+?? convex/hr/recovery.ts
+?? docs/contracts/
+?? docs/design-sheet/evidence/README.md
+?? docs/design-sheet/evidence/adoption-checks.json
+?? docs/design-sheet/evidence/check-adoption.cjs
+?? docs/design-sheet/implementation-plan.md
+?? docs/design-sheet/kiro-audit.md
+?? docs/design-sheet/review.css
+?? docs/design-sheet/review.js
+?? docs/design-sheet/variants/frozen-sheet.js
+?? docs/design-sheet/variants/frozen-styles.css
+?? docs/design-sheet/variants/frozen-tokens.css
+?? docs/designs/hr-employee-self-service-2026-10-11/
+?? docs/plans/assets/ui-cleanup-2026-10-13/
+?? docs/plans/bun-elysia-delivery-plan-2026-10-11.md
+?? docs/plans/bun-migration-research-2026-10-11.md
+?? docs/plans/ci-cd-speed-plan-2026-10-13.md
+?? docs/plans/cloudflare-r2-images-research-2026-10-13.md
+?? docs/plans/design-sheet-system-adoption-2026-10-11.md
+?? docs/plans/hr-employee-self-service-improvement-2026-10-11.md
+?? docs/plans/hr-production-follow-through-2026-10-11.md
+?? docs/plans/line-hr-business-onboarding-2026-10-13.md
+?? docs/plans/thailand-hr-policy-defaults-2026-10-11.md
+?? docs/plans/ui-cleanup-2026-10-13.md
+?? docs/plans/ui-consistency-and-hr-implementation-2026-10-11.md
+?? docs/previews/line-hr-flow-2026-10-13/
+?? docs/previews/line-hr-onboarding-2026-10-13/
+?? docs/previews/storage-layout-rethink-2026-10-13/
+?? docs/references/
+?? docs/reviews/ai-search-clerk-performance-2026-10-11.md
+?? docs/reviews/assets/ai-search-clerk-2026-10-11/
+?? docs/reviews/assets/bun-migration-2026-10-11/
+?? docs/reviews/back-workflow-2026-10-13/
+?? docs/reviews/bun-migration-kiro-review-2026-10-11.md
+?? docs/reviews/ci-navigation-speed-2026-10-13/
+?? docs/reviews/ci-speed-2026-10-13/
+?? docs/reviews/convex-cost-performance-2026-10-13/
+?? docs/reviews/daily-bug-search-2026-10-13/
+?? docs/reviews/design-sheet-system-adoption-2026-10-11/
+?? docs/reviews/frontend-consistency-2026-10-13/
+?? docs/reviews/navigation-2026-10-12/
+?? docs/reviews/storage-actions-2026-10-13/
+?? docs/reviews/system-audit-2026-10-14/
+?? docs/reviews/ui-cleanup-2026-10-13/
+?? docs/reviews/ui-consistency-and-hr-delivery-2026-10-11.md
+?? scripts/ai-search-auth-benchmark.mjs
+?? scripts/ai-search-http-benchmark.mjs
+?? scripts/ci/check-navigation-contract-tests.mjs
+?? scripts/ci/check-navigation-contract.mjs
+?? scripts/eslint/
+?? src/app/[locale]/(desktop)/hr/customize/
+?? src/app/[locale]/(desktop)/hr/holidays/
+?? src/app/[locale]/(desktop)/hr/requests/
+?? src/app/api/ai/
+?? src/components/auth/OrganizationRequired.test.tsx
+?? src/components/examples/c-sidebar-2.navigation.test.tsx
+?? src/components/shell/SidebarNavigationLink.test.tsx
+?? src/components/shell/search/SearchTriggers.test.tsx
+?? src/components/system/GuardMultipleEntry.test.tsx
+?? src/components/system/OrphanRouteReadiness.test.tsx
+?? src/components/ui/ForegroundBack.test.tsx
+?? src/components/ui/ForegroundOrdering.test.tsx
+?? src/features/finishedGoods/ForegroundNavigation.test.tsx
+?? src/features/finishedGoods/jobScan/JobScanScreen.capacity.test.tsx
+?? src/features/finishedGoods/jobScan/PhotoCapture.test.tsx
+?? src/features/hr/EmployeesNavigation.test.tsx
+?? src/features/hr/HolidaysScreen.tsx
+?? src/features/hr/HrActionCard.tsx
+?? src/features/hr/HrBackNavigation.test.tsx
+?? src/features/hr/HrClientReactive.test.tsx
+?? src/features/hr/HrClientRecovery.test.tsx
+?? src/features/hr/HrClockRefresh.test.tsx
+?? src/features/hr/HrNavigation.test.tsx
+?? src/features/hr/HrShortcuts.test.tsx
+?? src/features/hr/HrShortcuts.tsx
+?? src/features/hr/RequestsScreen.tsx
+?? src/features/hr/SelfService.test.tsx
+?? src/features/hr/ShortcutCustomizeScreen.test.tsx
+?? src/features/hr/ShortcutCustomizeScreen.tsx
+?? src/features/hr/ShortcutNavigation.test.tsx
+?? src/features/hr/selfService.test.ts
+?? src/features/hr/selfService.ts
+?? src/features/storageLayouts/StorageBuildingCompletion.test.tsx
+?? src/features/storageLayouts/useWorkspaceQuery.test.tsx
+?? src/hooks/use-file-upload.test.tsx
+?? src/hooks/useBackDisclosure.ts
+?? src/hooks/useHrQuery.test.tsx
+?? src/hooks/useHrQuery.ts
+?? src/hooks/useTaskCompletion.ts
+?? src/hooks/useWorkflowStep.ts
+?? src/lib/FinishedGoodsBackPolicy.test.tsx
+?? src/lib/PageBackPolicy.test.tsx
+?? src/lib/ai/
+?? src/lib/browser/appHistoryRouterReplace.test.tsx
+?? src/lib/browser/workflowControllers.ts
+?? src/lib/pageBackFallback.test.ts
+?? src/lib/pageBackFallback.ts
+?? src/lib/taskNavigation.test.tsx
+?? src/lib/taskNavigation.ts
+?? tests/integration/ai-search-http.integration.test.ts
+?? tests/integration/finished-goods-inventory-regressions.integration.test.ts
+?? tests/integration/hr-backend-bugfix.integration.test.ts
+?? tests/integration/hr-employee-reads.integration.test.ts
+?? tests/integration/hr-recovery-bugfix.integration.test.ts
+?? tests/integration/hr-shortcut-preferences.integration.test.ts
+?? tests/integration/storage-layout-replay.integration.test.ts

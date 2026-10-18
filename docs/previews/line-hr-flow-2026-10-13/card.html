@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ตัวอย่าง Card และข้อความยืนยันการรับทราบ</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #fff;
+        color: #17212f;
+        font-family: Thonburi, "Noto Sans Thai", sans-serif;
+      }
+      main {
+        width: 960px;
+        margin: 0 auto;
+        padding: 42px 40px;
+      }
+      .eyebrow {
+        font-size: 17px;
+        font-weight: 600;
+        color: #1d4ed8;
+      }
+      h1 {
+        font-size: 32px;
+        line-height: 1.45;
+        margin: 10px 0 8px;
+      }
+      .lead {
+        font-size: 18px;
+        color: #475569;
+        margin: 0 0 28px;
+        line-height: 1.65;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 400px 48px 400px;
+        gap: 16px;
+        align-items: start;
+      }
+      .label {
+        font-size: 18px;
+        color: #475569;
+        margin-bottom: 12px;
+      }
+      .card {
+        border: 1px solid #dce2ea;
+        border-radius: 14px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .brand {
+        padding: 15px 24px;
+        border-bottom: 1px solid #dce2ea;
+        font-size: 17px;
+        color: #475569;
+        background: #f6f7f9;
+      }
+      .content {
+        padding: 26px 24px;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 16px;
+        color: #1d4ed8;
+        margin-bottom: 10px;
+      }
+      h2 {
+        font-size: 26px;
+        line-height: 1.5;
+        margin: 0 0 16px;
+      }
+      .body {
+        font-size: 21px;
+        line-height: 1.85;
+        margin: 0;
+      }
+      .meta {
+        font-size: 16px;
+        color: #475569;
+        line-height: 1.8;
+        margin-top: 18px;
+      }
+      .actions {
+        padding: 0 24px 24px;
+      }
+      .primary {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        background: #1d4ed8;
+        border: 0;
+        border-radius: 8px;
+        color: #fff;
+        font:
+          600 21px Thonburi,
+          sans-serif;
+        text-align: center;
+      }
+      .secondary {
+        font-size: 18px;
+        color: #1d4ed8;
+        text-align: center;
+        margin-top: 16px;
+      }
+      .arrow {
+        padding-top: 175px;
+        text-align: center;
+        color: #748196;
+        font-size: 34px;
+      }
+      .ok {
+        background: #eaf5ef;
+        color: #0f6b3f;
+        padding: 12px 14px;
+        font-size: 19px;
+        line-height: 1.7;
+        border-radius: 8px;
+      }
+      .note {
+        font-size: 17px;
+        color: #475569;
+        line-height: 1.8;
+        margin-top: 28px;
+        border-top: 1px solid #dce2ea;
+        padding-top: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">ตัวอย่างประกอบแผน · ข้อมูลสมมติ</div>
+      <h1>Card อ่านง่าย และรับทราบได้ด้วยปุ่มเดียว</h1>
+      <p class="lead">
+        ระบบส่งข้อความยืนยันใหม่หลังบันทึกสำเร็จ ไม่แก้ Card เดิมย้อนหลัง
+      </p>
+      <div class="layout">
+        <section>
+          <div class="label">ข้อความที่พนักงานได้รับ</div>
+          <div class="card">
+            <div class="brand">ผู้ช่วย HR · บริษัทตัวอย่าง</div>
+            <div class="content">
+              <div class="tag">ประกาศทีม · ต้องรับทราบ</div>
+              <h2>แจ้งเปลี่ยนเวลา<br />ประชุมทีม</h2>
+              <p class="body">
+                วันศุกร์นี้ เริ่มประชุม<br /><strong>เวลา 09:00 น.</strong
+                ><br />ห้องประชุมชั้น 1
+              </p>
+              <div class="meta">
+                แจ้งโดย HR · ข้อความรุ่น 1<br />โปรดกดรับทราบเมื่ออ่านแล้ว
+              </div>
+            </div>
+            <div class="actions">
+              <div class="primary">รับทราบ</div>
+              <div class="secondary">ดูรายละเอียด</div>
+            </div>
+          </div>
+        </section>
+        <div class="arrow" aria-hidden="true">→</div>
+        <section>
+          <div class="label">ระบบตอบกลับหลังบันทึก</div>
+          <div class="card">
+            <div class="brand">ผู้ช่วย HR · บริษัทตัวอย่าง</div>
+            <div class="content">
+              <div class="tag" style="color: #0f6b3f">ยืนยันการรับทราบ</div>
+              <h2>บันทึกแล้ว</h2>
+              <p class="body">
+                คุณรับทราบเรื่อง<br /><strong>เปลี่ยนเวลาประชุมทีม</strong
+                ><br />เรียบร้อยแล้ว
+              </p>
+              <div class="meta">ข้อความรุ่น 1<br />ผู้รับทราบ: พนักงาน A</div>
+              <div class="ok" style="margin-top: 22px">
+                HR ตรวจสอบการรับทราบ<br />รายการนี้ได้ในระบบ
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="note">
+        ข้อความแจ้งทั่วไปใช้ปุ่ม “ดูรายละเอียด” อย่างเดียวได้<br />เพิ่มปุ่ม
+        “รับทราบ” เฉพาะข้อความที่ HR ต้องติดตามการยืนยัน
+      </div>
+    </main>
+  </body>
+</html>

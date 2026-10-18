@@ -14,7 +14,7 @@ import { messagesFor } from "@/i18n/messages";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mutation = vi.hoisted(() => vi.fn());
-const navigate = vi.hoisted(() => vi.fn());
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const layoutAccess = vi.hoisted(() => ({
   manage: true,
   activate: false,
@@ -23,7 +23,8 @@ const layoutAccess = vi.hoisted(() => ({
 }));
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
-  navigate.mockReset();
+  router.push.mockReset();
+  router.replace.mockReset();
   layoutAccess.manage = true;
   layoutAccess.activate = false;
   layoutAccess.ready = true;
@@ -38,7 +39,7 @@ vi.mock("./useStorageBuilding", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: navigate, replace: navigate }),
+  useRouter: () => ({ push: router.push, replace: router.replace }),
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "user-a", orgId: "org-a" }),
@@ -69,7 +70,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: navigate, replace: navigate }),
+  useRouter: () => ({ push: router.push, replace: router.replace }),
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -339,7 +340,8 @@ describe("BuildingModelWorkspace", () => {
       within(details).getByRole("button", { name: "Edit Occupied FG" }),
     );
     expect(screen.getByRole("dialog")).toBeVisible();
-    expect(navigate).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "Close dialog",
@@ -2516,7 +2518,8 @@ describe("building creation execution", () => {
     fireEvent.submit(form);
     await waitFor(() => expect(mutation).toHaveBeenCalledTimes(3));
     expect(mutation.mock.calls[2]![0].requestId).not.toBe(first.requestId);
-    expect(navigate).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(screen.getByText(/NETWORK_FAILURE/)).toBeVisible(),
     );
@@ -2526,7 +2529,7 @@ describe("building creation execution", () => {
     });
     fireEvent.submit(form);
     await waitFor(() =>
-      expect(navigate).toHaveBeenCalledWith(
+      expect(router.replace).toHaveBeenCalledWith(
         "/master-data/storage-layouts/new-building",
       ),
     );
@@ -2552,7 +2555,8 @@ describe("building creation execution", () => {
         value: { written: true, documentId: "late-building" },
       }),
     );
-    expect(navigate).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
   });
 });
 

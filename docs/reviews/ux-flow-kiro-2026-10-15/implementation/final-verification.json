@@ -1,0 +1,52 @@
+{
+  "head": "5e58673b899c325004b3de099fbb92666465d365",
+  "base": "b62999f1efa86ecaf43d6d40a175fc5de27dad8f",
+  "pullRequest": "https://github.com/Rugby-Thailand/industrial-sas/pull/99",
+  "passed": [
+    "navigation: 68 fixtures; 58 routes; 294 state/overlay owners; 26 actions",
+    "Prettier",
+    "Bun 1.4.3 / TypeScript 7.0.2",
+    "TypeScript 6",
+    "ESLint",
+    "Convex codegen freshness",
+    "test discovery: 372 Vitest / 16 Playwright spec files",
+    "clean tree"
+  ],
+  "coordinatorFocusedReplay": {
+    "finishedGoods": 147,
+    "storage": 171,
+    "hr": 47
+  },
+  "combinedVitest": {
+    "files": 372,
+    "passed": 4921,
+    "failed": 1,
+    "baselineFailure": "prepare-browser-suite.integration.test.ts:247 descendant cancellation process-liveness assertion; reproduced on unchanged initial main",
+    "isolatedRerunPassed": 8
+  },
+  "codexAudit": {
+    "standards": "PASS, 0 actionable findings",
+    "spec": "PASS, 0 actionable findings",
+    "correction": "History partial-date reset regression caught by Codex, reproduced with a failing caller case, fixed by Kiro, retested in EN/TH with Back/Forward/remount"
+  },
+  "browserEvidence": ["browser-baseline.json", "browser-storage.json"],
+  "limitations": [
+    "Browser fixtures substitute backend/context; no authenticated live writes or physical-camera proof.",
+    "Guarded JobScan Forward behavior has a documented pre-existing limitation; no-guard case is supplemental."
+  ],
+  "workspacePreservation": "No original application source files changed. Fourteen docs/design-sheet files changed concurrently outside this task and were left untouched.",
+  "ci": {
+    "qualityRun": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38763334030",
+    "codeqlRun": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38763334492",
+    "requiredChecks": "all SUCCESS",
+    "testShards": "3/3 SUCCESS",
+    "browserSuites": "4/4 SUCCESS",
+    "attempt": 1
+  },
+  "merge": {
+    "state": "MERGED",
+    "commit": "9b8b8c0e1e6299ebba451a21485038dff1ce97e1",
+    "mergedAt": "2026-10-15T15:50:51Z",
+    "threadLinked": true
+  }
+}

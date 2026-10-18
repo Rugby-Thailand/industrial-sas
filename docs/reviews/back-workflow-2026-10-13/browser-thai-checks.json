@@ -1,0 +1,18 @@
+{
+  "browser": "Chromium",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "actualMobileDevice": false,
+  "checks": [
+    "Thai Choose Location → UI Back retains th locale, source query/hash and location question",
+    "Actual active scan sidebar link with dirty ticket → Keep editing retains job/product",
+    "Two rapid native history.back() requests retain workflow/draft"
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "submittedTickets": 0,
+  "recordMutations": 0,
+  "passed": true
+}

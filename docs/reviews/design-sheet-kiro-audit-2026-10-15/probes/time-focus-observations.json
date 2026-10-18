@@ -1,0 +1,12 @@
+{
+  "timeCommitBeforeDone": {
+    "valueWhilePopoverOpen": "23:30",
+    "popoverOpenAfterEscape": false,
+    "valueAfterEscape": "23:30",
+    "doneButtonDisabled": null
+  },
+  "focusAfterDateSelection": "demo-date-control",
+  "focusAfterScanDateSelection": "ticket-deliveryDate-control",
+  "filledCountAfterScanDate": "7 filled",
+  "errors": []
+}

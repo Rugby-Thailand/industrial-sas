@@ -1,0 +1,23 @@
+{
+  "actionlintVersion": "1.7.12",
+  "sha256": "aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f",
+  "platform": "darwin",
+  "arch": "arm64",
+  "results": [
+    {
+      "variant": "sequential",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "variant": "background",
+      "exitCode": 1,
+      "output": "../../../..<temporary>/background.yml:9:9: unexpected key \"background\" for step to run shell command. expected one of \"continue-on-error\", \"env\", \"id\", \"if\", \"name\", \"run\", \"shell\", \"timeout-minutes\", \"working-directory\" [syntax-check]\n  |\n9 |         background: true\n  |         ^~~~~~~~~~~\n../../../..<temporary>/background.yml:11:9: step must run script with \"run\" section or run action with \"uses\" section [syntax-check]\n   |\n11 |       - wait: build\n   |         ^~~~~\n"
+    },
+    {
+      "variant": "parallel",
+      "exitCode": 1,
+      "output": "../../../..<temporary>/parallel.yml:7:9: step must run script with \"run\" section or run action with \"uses\" section [syntax-check]\n  |\n7 |       - parallel:\n  |         ^~~~~~~~~\n"
+    }
+  ]
+}

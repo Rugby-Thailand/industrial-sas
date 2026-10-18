@@ -1,0 +1,4686 @@
+{
+  "researchedOn": "2026-10-13",
+  "description": "Read-only GitHub Actions timing sample. Completed jobs only; newer main workflow may still be releasing. Timestamps are UTC; durations calculated from API fields.",
+  "runs": [
+    {
+      "runId": 38403522391,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391",
+      "headSha": "a116f39d0c257d1e33ada96a497932c11668bf47",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-13T13:15:35Z",
+      "jobs": [
+        {
+          "name": "Convex codegen freshness",
+          "id": 115317003119,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003119",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:38Z",
+          "completedAt": "2026-10-13T13:16:14Z",
+          "durationSeconds": 36,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115317003432,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003432",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:16:37Z",
+          "durationSeconds": 58,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 9
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 27
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115317003499,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003499",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:19:58Z",
+          "durationSeconds": 259,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 195
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 33
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115317003505,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003505",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:40Z",
+          "completedAt": "2026-10-13T13:16:46Z",
+          "durationSeconds": 66,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 23
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 5
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115317003509,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003509",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:17:36Z",
+          "durationSeconds": 117,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 31
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 40
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115317003523,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003523",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:16:33Z",
+          "durationSeconds": 54,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 13
+            },
+            {
+              "name": "Lint",
+              "durationSeconds": 27
+            },
+            {
+              "name": "Back navigation contract and architecture fixtures",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Dependency review",
+          "id": 115317003524,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003524",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:38Z",
+          "completedAt": "2026-10-13T13:15:46Z",
+          "durationSeconds": 8,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115317003539,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003539",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:17:38Z",
+          "durationSeconds": 119,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 74
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 1
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115317003676,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003676",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:17:44Z",
+          "durationSeconds": 125,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 13
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 82
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 1
+            }
+          ]
+        },
+        {
+          "name": "Tests (1/3)",
+          "id": 115317003704,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003704",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:17:45Z",
+          "durationSeconds": 126,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 102
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115317003716,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003716",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:17:38Z",
+          "durationSeconds": 119,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 19
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 86
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115317003828,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003828",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:16:29Z",
+          "durationSeconds": 50,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115317003880,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115317003880",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:15:39Z",
+          "completedAt": "2026-10-13T13:17:35Z",
+          "durationSeconds": 116,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 20
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 82
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "check",
+          "id": 115319016630,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115319016630",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:20:01Z",
+          "completedAt": "2026-10-13T13:20:06Z",
+          "durationSeconds": 5,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Capture staging policy",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Production release",
+          "id": 115319084367,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115319084367",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T13:20:07Z",
+          "completedAt": "2026-10-13T13:20:07Z",
+          "durationSeconds": 0,
+          "steps": []
+        },
+        {
+          "name": "Staging release",
+          "id": 115319084553,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38403522391/job/115319084553",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T13:20:07Z",
+          "completedAt": "2026-10-13T13:20:07Z",
+          "durationSeconds": 0,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "runId": 38376122524,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524",
+      "headSha": "88dd939a72eaf79a4083ee86ffe81828920578c5",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-13T09:24:51Z",
+      "jobs": [
+        {
+          "name": "Convex codegen freshness",
+          "id": 115224814340,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814340",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:56Z",
+          "completedAt": "2026-10-13T09:25:34Z",
+          "durationSeconds": 38,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 21
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (1/3)",
+          "id": 115224814436,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814436",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:27:02Z",
+          "durationSeconds": 127,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 19
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 97
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115224814547,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814547",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:27:00Z",
+          "durationSeconds": 125,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 51
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 36
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115224814548,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814548",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:25:27Z",
+          "durationSeconds": 32,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 11
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115224814569,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814569",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:26:49Z",
+          "durationSeconds": 114,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 82
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115224814601,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814601",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:25:49Z",
+          "durationSeconds": 54,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Lint",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Back navigation contract and architecture fixtures",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115224814615,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814615",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:26:06Z",
+          "durationSeconds": 71,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 7
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 34
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115224814688,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814688",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:26:50Z",
+          "durationSeconds": 115,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 24
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 66
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115224814694,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814694",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:26:27Z",
+          "durationSeconds": 92,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 45
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 20
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115224814738,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814738",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:26:55Z",
+          "durationSeconds": 120,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 19
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 72
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115224814794,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224814794",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:55Z",
+          "completedAt": "2026-10-13T09:26:44Z",
+          "durationSeconds": 109,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 82
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Dependency review",
+          "id": 115224816154,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224816154",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T09:24:52Z",
+          "completedAt": "2026-10-13T09:24:52Z",
+          "durationSeconds": 0,
+          "steps": []
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115224817059,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115224817059",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:24:56Z",
+          "completedAt": "2026-10-13T09:25:56Z",
+          "durationSeconds": 60,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 22
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 28
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "check",
+          "id": 115225694741,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115225694741",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:27:05Z",
+          "completedAt": "2026-10-13T09:27:14Z",
+          "durationSeconds": 9,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Capture staging policy",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Production release",
+          "id": 115225778295,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115225778295",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:27:18Z",
+          "completedAt": "2026-10-13T09:32:12Z",
+          "durationSeconds": 294,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Install release tools",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 25
+            },
+            {
+              "name": "Release production",
+              "durationSeconds": 237
+            },
+            {
+              "name": "Upload release manifest",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Staging release",
+          "id": 115225779537,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38376122524/job/115225779537",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T09:27:14Z",
+          "completedAt": "2026-10-13T09:27:14Z",
+          "durationSeconds": 0,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "runId": 38375545108,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108",
+      "headSha": "e176c1e652f05ef6e683de1d97cb82e113911bdd",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-13T09:20:02Z",
+      "jobs": [
+        {
+          "name": "Dependency review",
+          "id": 115222871725,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222871725",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:20:10Z",
+          "durationSeconds": 4,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115222871972,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222871972",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:22:11Z",
+          "durationSeconds": 125,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 65
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 30
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115222872082,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872082",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:22:03Z",
+          "durationSeconds": 117,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 73
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (1/3)",
+          "id": 115222872083,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872083",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:22:07Z",
+          "durationSeconds": 121,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 97
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115222872091,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872091",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:51Z",
+          "durationSeconds": 105,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 12
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 56
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115222872097,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872097",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:00Z",
+          "durationSeconds": 54,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115222872144,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872144",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:58Z",
+          "durationSeconds": 112,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 84
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115222872148,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872148",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:55Z",
+          "durationSeconds": 109,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 32
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 34
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115222872186,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872186",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:16Z",
+          "durationSeconds": 70,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Lint",
+              "durationSeconds": 39
+            },
+            {
+              "name": "Back navigation contract and architecture fixtures",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 1
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115222872313,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872313",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:07Z",
+          "completedAt": "2026-10-13T09:20:48Z",
+          "durationSeconds": 41,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 20
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115222872382,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872382",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:16Z",
+          "durationSeconds": 70,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 6
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 33
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115222872430,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872430",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:21:54Z",
+          "durationSeconds": 108,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 84
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Convex codegen freshness",
+          "id": 115222872545,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115222872545",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:20:06Z",
+          "completedAt": "2026-10-13T09:20:36Z",
+          "durationSeconds": 30,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "check",
+          "id": 115223731338,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115223731338",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T09:22:14Z",
+          "completedAt": "2026-10-13T09:22:23Z",
+          "durationSeconds": 9,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Capture staging policy",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Staging release",
+          "id": 115223812383,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115223812383",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T09:22:23Z",
+          "completedAt": "2026-10-13T09:22:23Z",
+          "durationSeconds": 0,
+          "steps": []
+        },
+        {
+          "name": "Production release",
+          "id": 115223813800,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38375545108/job/115223813800",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T09:22:23Z",
+          "completedAt": "2026-10-13T09:22:23Z",
+          "durationSeconds": 0,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "runId": 38371161577,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577",
+      "headSha": "dff728eeb9aab3a02bcf8b76cf6dd456285c9b6d",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "createdAt": "2026-10-13T08:42:56Z",
+      "jobs": [
+        {
+          "name": "Convex codegen freshness",
+          "id": 115208210511,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210511",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:43:39Z",
+          "durationSeconds": 39,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 22
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115208210705,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210705",
+          "conclusion": "failure",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:45:07Z",
+          "durationSeconds": 127,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Upload browser diagnostics",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115208210720,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210720",
+          "conclusion": "failure",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:44:37Z",
+          "durationSeconds": 97,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Upload browser diagnostics",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Dependency review",
+          "id": 115208210723,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210723",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:43:05Z",
+          "durationSeconds": 5,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115208210727,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210727",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:44:50Z",
+          "durationSeconds": 110,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 50
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 30
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115208210745,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210745",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:44:05Z",
+          "durationSeconds": 65,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 6
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 32
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115208210791,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210791",
+          "conclusion": "failure",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:44:18Z",
+          "durationSeconds": 78,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 13
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115208210878,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210878",
+          "conclusion": "failure",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:44:09Z",
+          "durationSeconds": 69,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115208210892,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210892",
+          "conclusion": "failure",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:44:19Z",
+          "durationSeconds": 79,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 20
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115208210902,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210902",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:43:37Z",
+          "durationSeconds": 37,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115208210917,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210917",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:43:41Z",
+          "durationSeconds": 41,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115208210931,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210931",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:02Z",
+          "completedAt": "2026-10-13T08:45:21Z",
+          "durationSeconds": 139,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 33
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 47
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 38
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (1/3)",
+          "id": 115208210961,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115208210961",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T08:43:00Z",
+          "completedAt": "2026-10-13T08:45:05Z",
+          "durationSeconds": 125,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 99
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "check",
+          "id": 115209144081,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115209144081",
+          "conclusion": "failure",
+          "startedAt": "2026-10-13T08:45:24Z",
+          "completedAt": "2026-10-13T08:45:32Z",
+          "durationSeconds": 8,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Staging release",
+          "id": 115209216599,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115209216599",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T08:45:32Z",
+          "completedAt": "2026-10-13T08:45:32Z",
+          "durationSeconds": 0,
+          "steps": []
+        },
+        {
+          "name": "Production release",
+          "id": 115209217545,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38371161577/job/115209217545",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T08:45:33Z",
+          "completedAt": "2026-10-13T08:45:32Z",
+          "durationSeconds": -1,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "runId": 38358574774,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774",
+      "headSha": "ad22d0b60411a47f6d0494cd83584d23b7f36bc5",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-13T06:45:59Z",
+      "jobs": [
+        {
+          "name": "Convex codegen freshness",
+          "id": 115167108577,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108577",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:46:32Z",
+          "durationSeconds": 30,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 13
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115167108748,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108748",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:47:38Z",
+          "durationSeconds": 96,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 48
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 22
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115167108797,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108797",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:03Z",
+          "completedAt": "2026-10-13T06:48:21Z",
+          "durationSeconds": 138,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 27
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 54
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 36
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (1/3)",
+          "id": 115167108815,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108815",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:47:48Z",
+          "durationSeconds": 106,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 13
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 82
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115167108820,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108820",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:47:29Z",
+          "durationSeconds": 87,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 59
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115167108848,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108848",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:46:41Z",
+          "durationSeconds": 39,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115167108861,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108861",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:03Z",
+          "completedAt": "2026-10-13T06:48:20Z",
+          "durationSeconds": 137,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 23
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 81
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115167108888,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108888",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:03Z",
+          "completedAt": "2026-10-13T06:47:12Z",
+          "durationSeconds": 69,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 21
+            },
+            {
+              "name": "Lint",
+              "durationSeconds": 35
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 1
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115167108914,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108914",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:47:42Z",
+          "durationSeconds": 100,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 74
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115167108925,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167108925",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:46:48Z",
+          "durationSeconds": 46,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115167109004,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167109004",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:47:37Z",
+          "durationSeconds": 95,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 12
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 53
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115167109038,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167109038",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:46:02Z",
+          "completedAt": "2026-10-13T06:47:10Z",
+          "durationSeconds": 68,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 9
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 3
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 24
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Dependency review",
+          "id": 115167109918,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167109918",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T06:46:00Z",
+          "completedAt": "2026-10-13T06:45:59Z",
+          "durationSeconds": -1,
+          "steps": []
+        },
+        {
+          "name": "check",
+          "id": 115167847830,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167847830",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:48:24Z",
+          "completedAt": "2026-10-13T06:48:30Z",
+          "durationSeconds": 6,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Capture staging policy",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Production release",
+          "id": 115167896670,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167896670",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:48:35Z",
+          "completedAt": "2026-10-13T06:50:48Z",
+          "durationSeconds": 133,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Install release tools",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 27
+            },
+            {
+              "name": "Release production",
+              "durationSeconds": 73
+            },
+            {
+              "name": "Upload release manifest",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Staging release",
+          "id": 115167896707,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358574774/job/115167896707",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T06:48:30Z",
+          "completedAt": "2026-10-13T06:48:30Z",
+          "durationSeconds": 0,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "runId": 38358122322,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322",
+      "headSha": "25c2898c641a592f0c6401288eac91f222590541",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-10-13T06:41:21Z",
+      "jobs": [
+        {
+          "name": "Tests (1/3)",
+          "id": 115165683247,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683247",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:42:45Z",
+          "durationSeconds": 81,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 51
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115165683489,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683489",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:43:03Z",
+          "durationSeconds": 99,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 76
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115165683511,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683511",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:42:00Z",
+          "durationSeconds": 36,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Convex codegen freshness",
+          "id": 115165683515,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683515",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:41:56Z",
+          "durationSeconds": 32,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115165683520,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683520",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:44:19Z",
+          "durationSeconds": 175,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 81
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 65
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115165683533,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683533",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:43:06Z",
+          "durationSeconds": 102,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 40
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 32
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115165683567,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683567",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:42:31Z",
+          "durationSeconds": 67,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Lint",
+              "durationSeconds": 37
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115165683579,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683579",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:43:08Z",
+          "durationSeconds": 104,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 75
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115165683586,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683586",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:25Z",
+          "completedAt": "2026-10-13T06:42:23Z",
+          "durationSeconds": 58,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 20
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 26
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115165683610,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683610",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:43:21Z",
+          "durationSeconds": 117,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 69
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115165683654,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683654",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:43:21Z",
+          "durationSeconds": 117,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 62
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 30
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115165683674,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683674",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:43:36Z",
+          "durationSeconds": 132,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 87
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 4
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 32
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Dependency review",
+          "id": 115165683715,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115165683715",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:41:24Z",
+          "completedAt": "2026-10-13T06:41:30Z",
+          "durationSeconds": 6,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "check",
+          "id": 115166587421,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115166587421",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T06:44:22Z",
+          "completedAt": "2026-10-13T06:44:29Z",
+          "durationSeconds": 7,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Capture staging policy",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Staging release",
+          "id": 115166636242,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115166636242",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T06:44:29Z",
+          "completedAt": "2026-10-13T06:44:29Z",
+          "durationSeconds": 0,
+          "steps": []
+        },
+        {
+          "name": "Production release",
+          "id": 115166637110,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38358122322/job/115166637110",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T06:44:29Z",
+          "completedAt": "2026-10-13T06:44:29Z",
+          "durationSeconds": 0,
+          "steps": []
+        }
+      ]
+    },
+    {
+      "runId": 38404232680,
+      "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680",
+      "headSha": "7a33448d563a6f12bab80f78956b4571dcbfef41",
+      "event": "push",
+      "status": "in_progress",
+      "conclusion": "",
+      "createdAt": "2026-10-13T13:20:58Z",
+      "jobs": [
+        {
+          "name": "Convex codegen freshness",
+          "id": 115319494068,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494068",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:21:32Z",
+          "durationSeconds": 30,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Run pnpm ci:codegen",
+              "durationSeconds": 5
+            },
+            {
+              "name": "Clean tree after codegen",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (smoke)",
+          "id": 115319494143,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494143",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:22:25Z",
+          "durationSeconds": 83,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 12
+            },
+            {
+              "name": "Cache Next.js build",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Production-mode build (credential-free)",
+              "durationSeconds": 25
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Anonymous smoke (desktop and mobile)",
+              "durationSeconds": 28
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Cache Next.js build",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (2/3)",
+          "id": 115319494178,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494178",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:23:02Z",
+          "durationSeconds": 120,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 29
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 77
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (style)",
+          "id": 115319494273,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494273",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:21:47Z",
+          "durationSeconds": 45,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 8
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Formatting",
+              "durationSeconds": 19
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 1
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-1)",
+          "id": 115319494292,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494292",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:23:10Z",
+          "durationSeconds": 128,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 81
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (1/3)",
+          "id": 115319494293,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494293",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:23:13Z",
+          "durationSeconds": 131,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 9
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 97
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (workspace-2)",
+          "id": 115319494326,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494326",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:22:42Z",
+          "durationSeconds": 100,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Install Playwright Chromium",
+              "durationSeconds": 18
+            },
+            {
+              "name": "Storage workspace (PR subset)",
+              "durationSeconds": 54
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (audit)",
+          "id": 115319494389,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494389",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:21:49Z",
+          "durationSeconds": 47,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 23
+            },
+            {
+              "name": "Workflow lint and action pins",
+              "durationSeconds": 3
+            },
+            {
+              "name": "Runtime dependency audit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Application dependency audit (exact-chain exceptions)",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Release-tool dependency audit (exact-chain exceptions)",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Test discovery",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Tests (3/3)",
+          "id": 115319494476,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494476",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:22:33Z",
+          "durationSeconds": 91,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 6
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 16
+            },
+            {
+              "name": "Vitest shard",
+              "durationSeconds": 62
+            },
+            {
+              "name": "Upload shard JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (types)",
+          "id": 115319494485,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494485",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:21:55Z",
+          "durationSeconds": 53,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 9
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 14
+            },
+            {
+              "name": "Typecheck (cold next typegen + Bun checker)",
+              "durationSeconds": 4
+            },
+            {
+              "name": "TypeScript 6 gate (cold generated route types)",
+              "durationSeconds": 21
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Browser (navigation)",
+          "id": 115319494613,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494613",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:22:45Z",
+          "durationSeconds": 103,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 15
+            },
+            {
+              "name": "Navigation harness build (credential-free)",
+              "durationSeconds": 52
+            },
+            {
+              "name": "Clean tree after build",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Navigation regressions (desktop engines and mobile Chromium)",
+              "durationSeconds": 24
+            },
+            {
+              "name": "Upload browser JUnit",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Validate (lint)",
+          "id": 115319494941,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319494941",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:21:02Z",
+          "completedAt": "2026-10-13T13:22:17Z",
+          "durationSeconds": 75,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 7
+            },
+            {
+              "name": "Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 17
+            },
+            {
+              "name": "Lint",
+              "durationSeconds": 41
+            },
+            {
+              "name": "Back navigation contract and architecture fixtures",
+              "durationSeconds": 4
+            },
+            {
+              "name": "Clean tree after generators",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Post Run ./.github/actions/setup-node-pnpm",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Dependency review",
+          "id": 115319495800,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115319495800",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T13:20:59Z",
+          "completedAt": "2026-10-13T13:20:59Z",
+          "durationSeconds": 0,
+          "steps": []
+        },
+        {
+          "name": "check",
+          "id": 115320536404,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115320536404",
+          "conclusion": "success",
+          "startedAt": "2026-10-13T13:23:15Z",
+          "completedAt": "2026-10-13T13:23:23Z",
+          "durationSeconds": 8,
+          "steps": [
+            {
+              "name": "Set up job",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 2
+            },
+            {
+              "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 1
+            },
+            {
+              "name": "Require all quality jobs to pass",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Capture staging policy",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "durationSeconds": 0
+            },
+            {
+              "name": "Complete job",
+              "durationSeconds": 0
+            }
+          ]
+        },
+        {
+          "name": "Staging release",
+          "id": 115320617882,
+          "url": "https://github.com/Rugby-Thailand/industrial-sas/actions/runs/38404232680/job/115320617882",
+          "conclusion": "skipped",
+          "startedAt": "2026-10-13T13:23:23Z",
+          "completedAt": "2026-10-13T13:23:23Z",
+          "durationSeconds": 0,
+          "steps": []
+        }
+      ]
+    }
+  ]
+}

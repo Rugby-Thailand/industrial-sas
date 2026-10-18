@@ -1,0 +1,23 @@
+Work in /Users/macbook/Development/industrial-sas. This is a narrow FINAL TRIAGE, not another broad research pass. Use claude-opus-5.5 high. Read only these small artifacts first:
+1. docs/reviews/daily-bug-search-2026-10-13/expanded/kiro-triage.json (your previous 16-item triage)
+2. docs/reviews/daily-bug-search-2026-10-13/expanded/review-decisions.md (independent semantic review of Kiro candidates)
+3. docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/findings.json and relevant portions of kiro/research.md
+Source spot-checks are permitted only for an unresolved priority/expected-behavior point. Do not rerun tests, inspect env/secrets/business data, browse, call other agents, change application source, existing tests/config/git state, or create PR/issues/commits. Your only writes must be:
+docs/reviews/daily-bug-search-2026-10-13/expanded/final-ranking.json
+docs/reviews/daily-bug-search-2026-10-13/expanded/final-ranking.md
+
+Task: classify and RANK the final 21 distinct confirmed bugs: the original 16 sourceIds plus KIRO-03, KIRO-05, KIRO-07, KIRO-10, KIRO-11. KIRO-08 is supporting evidence for ROOT-01, never an additional finding. Keep KIRO-01, KIRO-02, KIRO-04, KIRO-06, KIRO-09 in a SEPARATE five-item ranked policy/risk list following the independent review. Do not pad confirmed counts. These are not necessarily five bugs. Preserve Kiro's raw report as historical research, but don't rely on its provisional unreviewed claims as the final list. No payroll implementation or monetary calculation exists here; refer to attendance records and attendance CSV.
+
+Choose final P1/P2/P3 based on impact, plausible reach/preconditions, then evidence confidence; include P0 only if justified (none expected). You may adjust the five new findings' provisional priority. Distinguish scope-limited HR admin self-review bypass from ordinary employee escalation. Describe limited exposure for API-only geometry, forced workspace rerender, malformed deep links, and resource leaks without heap measurement. Two of the 21 findings use related lost-update patterns but different mutations/workflows; keep INV-03/04 separate and explain their shared remediation cluster. Replay failures are three distinct roots.
+
+JSON object schema:
+{
+  "generatedBy": {"tool":"Kiro CLI", "model":"claude-opus-5.5", "effort":"high"},
+  "totals": {"confirmed":21,"P0":0,"P1":n,"P2":n,"P3":n,"runtimeReproduced":20,"sourceDemonstrated":1,"policyRisks":5},
+  "categories":[{"name":string,"count":number}],
+  "rankedFindings":[{"rank":1-based,"sourceId":string,"priority":string,"category":string,"title":Thai concise,"confidence":"runtime-reproduced" or "source-demonstrated","rationale":Thai,"recommendedWave":1|2|3,"references":["repo/path:line",...],"report":repo-relative original report}],
+  "policyRisks":[{"rank":1-based,"sourceId":string,"category":string,"title":Thai,"observed":Thai,"decisionNeeded":Thai,"possibleImpact":Thai,"report":repo-relative Kiro report}],
+  "mergedOrRejected":[{"id":string,"decision":string,"into":string|null,"note":Thai}],
+  "methodology": {"ranking":Thai, "priorityDefinitions":object,"limitations":Thai,"inputs":array}
+}
+Ensure ranks contiguous/unique, categories sum21, priority counts sum21. References must be real; keep original exact source/probe/log paths. Keep concise rationale but include why ranked there. Markdown in Thai: totals, all21 table rank/ID/P/category/title/confidence, category totals, remediation waves, all5 policy/risk table, duplicate/rejection rationale and methodological limits. No production fixes performed. Complete outputs and stop; no further exploration.

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ใบ Job · เป้าทดลองกล้อง</title>
+    <link rel="stylesheet" href="/display.css" />
+    <script type="module" src="/display.js"></script>
+  </head>
+  <body>
+    <header id="controls">
+      <div class="intro">
+        <div>
+          <span class="eyebrow">CAMERA TEST TARGET</span>
+          <h1>ใบ Job สำหรับทดลองสแกน</h1>
+        </div>
+        <p>ใช้โทรศัพท์เล็งภาพบนจอ Mac · รูปต้นฉบับจากชุด TopGold</p>
+      </div>
+      <div class="toolbar" aria-label="ควบคุมภาพตัวอย่าง">
+        <div class="group navigation">
+          <button
+            id="previous"
+            aria-label="รูปก่อนหน้า"
+            title="รูปก่อนหน้า (←)"
+          >
+            ←
+          </button>
+          <label for="specimen">รูปตัวอย่าง</label>
+          <select id="specimen" disabled>
+            <option>กำลังโหลด…</option>
+          </select>
+          <button id="next" aria-label="รูปถัดไป" title="รูปถัดไป (→)">
+            →
+          </button>
+        </div>
+        <div class="group">
+          <button id="zoom-out" aria-label="ย่อภาพ">−</button>
+          <output id="zoom-label" aria-live="polite">100%</output>
+          <button id="zoom-in" aria-label="ขยายภาพ">+</button>
+          <button id="fit">พอดีจอ</button>
+        </div>
+        <div class="group">
+          <button id="fullscreen">เต็มจอ <span>F</span></button>
+          <button id="hide" class="primary">
+            ซ่อนแถบควบคุม <span>H</span>
+          </button>
+        </div>
+      </div>
+      <div class="details">
+        <span id="metadata">กำลังโหลดรูปต้นฉบับ</span
+        ><span>ลากเพื่อเลื่อนภาพ · + / − ขยาย · 0 พอดีจอ · ← → เปลี่ยนรูป</span>
+      </div>
+    </header>
+    <main id="stage" aria-label="ภาพใบ Job ต้นฉบับ">
+      <img id="photo" alt="ภาพใบ Job สำหรับทดลองสแกน" draggable="false" />
+      <p id="status" role="status">กำลังโหลดรูป…</p>
+    </main>
+    <button id="show" hidden>แสดงแถบควบคุม <span>H</span></button>
+    <footer id="note">
+      การสแกนรูปบนจอใช้ตรวจการทำงานเบื้องต้น ผลอาจต่างจากกระดาษจริง แสงสะท้อน
+      และหน้างาน
+    </footer>
+  </body>
+</html>

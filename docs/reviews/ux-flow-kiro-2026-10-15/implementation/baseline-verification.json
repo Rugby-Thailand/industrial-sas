@@ -1,0 +1,22 @@
+{
+  "base": "faca0cf5927dbe3e72da572cf1290d57d7d91511",
+  "focused": {
+    "files": 5,
+    "testsPassed": 39
+  },
+  "typecheck": "PASS: Bun 1.4.3 / TypeScript 7.0.2, 1035 files",
+  "fullVitest": {
+    "filesPassed": 366,
+    "filesFailed": 1,
+    "testsPassed": 4854,
+    "testsFailed": 1,
+    "failure": "prepare-browser-suite.integration.test.ts: native cancellation synchronously kills only owned children and descendants and cannot report success (line 247 process.kill(descendant,0) did not throw)",
+    "durationSeconds": 86.34
+  },
+  "isolatedFailureRerun": {
+    "file": "tests/integration/prepare-browser-suite.integration.test.ts",
+    "testsPassed": 8,
+    "testsFailed": 0,
+    "durationSeconds": 4.07
+  }
+}

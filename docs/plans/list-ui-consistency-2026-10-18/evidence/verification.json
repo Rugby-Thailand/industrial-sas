@@ -1,0 +1,198 @@
+{
+  "artifact": "HTML plan and simulated preview only",
+  "date": "2026-10-18",
+  "productionChanged": false,
+  "results": [
+    {
+      "name": "Default filter, size and first/last boundaries",
+      "passed": true,
+      "evidence": {
+        "range": "1–20 จาก 73",
+        "rows": 20,
+        "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
+        "disabled": [true, true, false, false],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Next clears selection and shows next slice",
+      "passed": true,
+      "evidence": {
+        "range": "21–40 จาก 73",
+        "rows": 20,
+        "selection": "หน้า 2 · เลือก 0 รายการในหน้านี้",
+        "disabled": [false, false, false, false],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Last page has real remainder and disables next",
+      "passed": true,
+      "evidence": {
+        "range": "61–73 จาก 73",
+        "rows": 13,
+        "selection": "หน้า 4 · เลือก 0 รายการในหน้านี้",
+        "disabled": [false, false, true, true],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Page-size reset returns to first",
+      "passed": true,
+      "evidence": {
+        "range": "1–50 จาก 73",
+        "rows": 50,
+        "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
+        "disabled": [true, true, false, false],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Status filter resets page and restores opener focus",
+      "passed": true,
+      "evidence": {
+        "range": "1–50 จาก 53",
+        "rows": 50,
+        "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
+        "disabled": [true, true, false, false],
+        "overflow": false,
+        "id": "demo-filter",
+        "closed": true
+      }
+    },
+    {
+      "name": "Empty search has accurate zero state",
+      "passed": true,
+      "evidence": {
+        "range": "0 จาก 0",
+        "rows": 0,
+        "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
+        "disabled": [true, true, true, true],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Clear restores all records",
+      "passed": true,
+      "evidence": {
+        "range": "1–50 จาก 126",
+        "rows": 50,
+        "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
+        "disabled": [true, true, false, false],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Cursor capability avoids invented total and disables Last",
+      "passed": true,
+      "evidence": {
+        "range": "หน้า 1 · 20 รายการ",
+        "rows": 20,
+        "selection": "หน้า 1 · เลือก 0 รายการในหน้านี้",
+        "disabled": [true, true, false, true],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Cursor Next remains functional",
+      "passed": true,
+      "evidence": {
+        "range": "หน้า 2 · 20 รายการ",
+        "rows": 20,
+        "selection": "หน้า 2 · เลือก 0 รายการในหน้านี้",
+        "disabled": [false, false, false, true],
+        "overflow": false
+      }
+    },
+    {
+      "name": "Loading protects controls",
+      "passed": true,
+      "evidence": {
+        "busy": "true",
+        "disabled": true
+      }
+    },
+    {
+      "name": "Escape closes filter and restores focus",
+      "passed": true,
+      "evidence": {
+        "closed": true,
+        "focus": "demo-filter"
+      }
+    },
+    {
+      "name": "Responsive layout 320px",
+      "passed": true,
+      "evidence": {
+        "width": 320,
+        "scrollWidth": 320,
+        "sameRow": true,
+        "filterAfterSearch": true
+      }
+    },
+    {
+      "name": "Responsive layout 390px",
+      "passed": true,
+      "evidence": {
+        "width": 390,
+        "scrollWidth": 390,
+        "sameRow": true,
+        "filterAfterSearch": true
+      }
+    },
+    {
+      "name": "Responsive layout 768px",
+      "passed": true,
+      "evidence": {
+        "width": 768,
+        "scrollWidth": 768,
+        "sameRow": true,
+        "filterAfterSearch": true
+      }
+    },
+    {
+      "name": "Responsive layout 1440px",
+      "passed": true,
+      "evidence": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "sameRow": true,
+        "filterAfterSearch": true
+      }
+    },
+    {
+      "name": "Screenshot proposal-desktop-light.png",
+      "passed": true,
+      "evidence": {
+        "x": 272,
+        "y": 28,
+        "width": 1120,
+        "height": 910,
+        "saved": "/Users/macbook/Development/industrial-sas/docs/plans/list-ui-consistency-2026-10-18/evidence/proposal-desktop-light.png"
+      }
+    },
+    {
+      "name": "Screenshot proposal-mobile-dark.png",
+      "passed": true,
+      "evidence": {
+        "x": 637,
+        "y": 27,
+        "width": 390,
+        "height": 734,
+        "saved": "/Users/macbook/Development/industrial-sas/docs/plans/list-ui-consistency-2026-10-18/evidence/proposal-mobile-dark.png"
+      }
+    },
+    {
+      "name": "Screenshot proposal-mobile-filter.png",
+      "passed": true,
+      "evidence": {
+        "x": 637,
+        "y": 27,
+        "width": 390,
+        "height": 734,
+        "saved": "/Users/macbook/Development/industrial-sas/docs/plans/list-ui-consistency-2026-10-18/evidence/proposal-mobile-filter.png"
+      }
+    }
+  ],
+  "screenshotCapture": "Document-coordinate clips; replaces viewport-coordinate captures"
+}

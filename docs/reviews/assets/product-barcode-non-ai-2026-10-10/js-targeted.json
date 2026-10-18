@@ -1,0 +1,879 @@
+{
+  "stage": "js-targeted",
+  "createdAt": "2026-10-10T08:24:35.300Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) T3Code(Alpha)/0.0.45 Chrome/152.0.7977.130 Electron/44.4.2 Safari/537.36",
+  "decoder": "@zxing/browser 0.2.1 (installed UMD)",
+  "initMs": 0,
+  "results": [
+    {
+      "name": "1.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 9690
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 1137.9000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 604.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 438.5999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 40.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 45.39999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 37.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 46.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 815.4000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 1272.699999988079
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 307.0999999642372
+        }
+      ],
+      "codes": [],
+      "totalMs": 14887.899999976158
+    },
+    {
+      "name": "2.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 399.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 254.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 308.4000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 347.10000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 222.30000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 236.89999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 227.5999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 278.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 285.69999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 206
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 250.0999999642372
+        }
+      ],
+      "codes": [],
+      "totalMs": 3110
+    },
+    {
+      "name": "3.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 394.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 223.30000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 230.69999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 471.0999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 241.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 195.10000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 248.29999995231628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 228.0999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 179.30000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 229.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 261.5
+        }
+      ],
+      "codes": [],
+      "totalMs": 3000.699999988079
+    },
+    {
+      "name": "4.jpg",
+      "sha256": "19ef6c97ed5bc5c061e9729b4041e7f84f63736e5a635667357f923f1237b308",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 289.10000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 213.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 172.5999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 179.79999995231628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 333.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 189.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 154.10000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 176.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 174.79999995231628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 173.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 175.4000000357628
+        }
+      ],
+      "codes": [],
+      "totalMs": 2600.5
+    },
+    {
+      "name": "5.jpg",
+      "sha256": "01137d52642a270925b2822d630f638090d2ae5756fae941dd2ea77398210cff",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 215.4000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 169.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 188.0999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 206.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 200.79999995231628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 165.5999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 175.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 206.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 166.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 168.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 196.4000000357628
+        }
+      ],
+      "codes": [],
+      "totalMs": 2108.7999999523163
+    },
+    {
+      "name": "6.jpg",
+      "sha256": "e6676d4df1883d270a8bd15e80fef34ac4440c3c221212f9e3ea176aec775680",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 242.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 251.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 300.7999999523163
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 447.69999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 388.0999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 390
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 397.39999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 410.39999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 425.69999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 549
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 401.60000002384186
+        }
+      ],
+      "codes": [],
+      "totalMs": 4328.5
+    },
+    {
+      "name": "7.jpg",
+      "sha256": "1c57f655a8f7d12c51d50020aa44a1f4b792ec90dd6747f1ff351c77e2b49778",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 527.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 467.7000000476837
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 337.2000000476837
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 378.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 281.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 375.89999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 272.30000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 305.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 292.30000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 316.5999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 326.69999998807907
+        }
+      ],
+      "codes": [],
+      "totalMs": 4003.300000011921
+    },
+    {
+      "name": "8.jpg",
+      "sha256": "e15f55c5843a53d8a4af300e90653dcc27ad45117e35cf9e18a3d5371f79de20",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 406.2999999523163
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 372.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 309.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 343.10000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 348.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 340.19999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 347.9000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 309.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 304.80000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 389.0999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 329.0999999642372
+        }
+      ],
+      "codes": [],
+      "totalMs": 3914.400000035763
+    },
+    {
+      "name": "9.jpg",
+      "sha256": "823e64dfd43314148c1323cfe633ceb248ec0ae1eaec6cbf8ba7acf347c6387f",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 210.39999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 45.40000003576279
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 37.299999952316284
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 46.69999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 331.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 314.9000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 348.10000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 344
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 256
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 326.89999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 386.60000002384186
+        }
+      ],
+      "codes": [],
+      "totalMs": 2741.099999964237
+    },
+    {
+      "name": "10.jpg",
+      "sha256": "9a22ebfebb7cd6f545910818722d85f7f89e39cc17a6e239eee0e55b23256a04",
+      "width": 2160,
+      "height": 2880,
+      "attempts": [
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 0,
+          "error": "NotFoundException",
+          "ms": 361.0999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -2,
+          "error": "NotFoundException",
+          "ms": 314.4000000357628
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 2,
+          "error": "NotFoundException",
+          "ms": 319.60000002384186
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -4,
+          "error": "NotFoundException",
+          "ms": 302.5999999642372
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 4,
+          "error": "NotFoundException",
+          "ms": 352.69999998807907
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -6,
+          "error": "NotFoundException",
+          "ms": 87.59999996423721
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 6,
+          "error": "NotFoundException",
+          "ms": 38.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -8,
+          "error": "NotFoundException",
+          "ms": 45.30000001192093
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 8,
+          "error": "NotFoundException",
+          "ms": 40.39999997615814
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": -10,
+          "error": "NotFoundException",
+          "ms": 47.5
+        },
+        {
+          "label": "code128-band",
+          "region": [0, 1612, 2160, 807],
+          "angle": 10,
+          "error": "NotFoundException",
+          "ms": 41.30000001192093
+        }
+      ],
+      "codes": [],
+      "totalMs": 2010.5
+    }
+  ]
+}

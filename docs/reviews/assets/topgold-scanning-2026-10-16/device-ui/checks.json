@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-16T16:07:08.067Z",
+  "browser": "151.0.7922.34",
+  "device": "desktop Chromium; synthetic camera/Native; real JS/WASM QR",
+  "checks": [
+    "camera denial recovers without a live track",
+    "real WASM decodes FOM QR; false expected answer does not influence decoding",
+    "manual review revision is persisted and sent to Mac",
+    "real production JS primary reader decodes QR",
+    "JOB-only QR does not finish a product target; mixed pipeline escalates",
+    "mixed pipeline skips WASM when Native finds the requested fields",
+    "ambiguous products stay visible and are not scored correct",
+    "failed save survives locally and explicit retry synchronises it",
+    "JSON and CSV exports contain the complete trial history",
+    "desktop and 390px mobile layout fit; primary controls have 48px touch targets",
+    "synthetic live frames decode; Stop rejects late work; Close ends all tracks",
+    "hiding the page cancels the worker and shuts down the camera",
+    "camera permission resolving after cancellation cannot leak a stream",
+    "Stop during worker preparation cancels without starting a timed trial",
+    "mixed mode reads through WASM when Native is entirely unavailable",
+    "server saves atomically, ignores stale revisions and rejects invalid ids/origins",
+    "no uncaught page errors"
+  ]
+}

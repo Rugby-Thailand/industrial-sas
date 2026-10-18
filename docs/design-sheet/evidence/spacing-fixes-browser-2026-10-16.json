@@ -1,0 +1,6560 @@
+{
+  "checkedAt": "2026-10-16",
+  "scope": "Current standalone HTML design sheet; spacing findings G01–G08",
+  "method": "T3 collaborative browser, real DOM/computed-style geometry in CSS pixels. Native click/keyboard used for populated feedback, time popups, save; input events used for no-results. Offscreen native-click attempts that did not enter the requested state were discarded; successful attempts scrolled into view first.",
+  "scenarioCount": 37,
+  "failures": [],
+  "verificationSummary": {
+    "G01": "Both live-status nodes remain block role=status; empty height/margin zero, populated margin 8px and natural 18/36px height.",
+    "G02": "Picker help 4px below row; general note 8px after help.",
+    "G03": "All demo group top margins 16px.",
+    "G04": "Navigation buttons remain on same row at 320/390px and Thai; group gap 12px.",
+    "G05": "Inspector heading gap 8px; attribute gap 12px; desktop action gap 12px. Mobile action remains beside attributes.",
+    "G06": "Successful scan actions and no-results content both separated by 12px.",
+    "G07": "1024px gutters 24px and vertical padding 32px; stacked columns retain 40px.",
+    "G08": "Time action/field right-edge difference zero for completed and empty times at 1280 English and 320 Thai. Validation reserve remains 18px; no popup horizontal overflow."
+  },
+  "preserved": {
+    "fieldHeights": "32px at >=768px fine pointer, 40px below",
+    "labels": "2px",
+    "hints": "4px",
+    "iconVerticalOffset": "0px",
+    "pageHorizontalOverflow": false
+  },
+  "notVerified": [
+    "Physical coarse-pointer devices",
+    "Screen reader announcements",
+    "Production application",
+    "Rendered print"
+  ],
+  "screenshots": [
+    "spacing-controls-2026-10-16.png",
+    "spacing-pagination-2026-10-16.png"
+  ],
+  "scenarios": [
+    {
+      "scenario": "1280-en-scan-closed",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -661,
+            "class": "pagination-size",
+            "h": 32,
+            "right": 1021.53125,
+            "w": 119.046875,
+            "x": 902.484375,
+            "y": -693
+          },
+          {
+            "bottom": -659,
+            "class": "pagination-nav",
+            "h": 36,
+            "right": 1227,
+            "w": 193.46875,
+            "x": 1033.53125,
+            "y": -695
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -659,
+            "h": 36,
+            "right": 1117.7109375,
+            "text": "Previous",
+            "w": 84.1796875,
+            "x": 1033.53125,
+            "y": -695
+          },
+          {
+            "bottom": -659,
+            "h": 36,
+            "right": 1227,
+            "text": "Next",
+            "w": 57.859375,
+            "x": 1169.140625,
+            "y": -695
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-catalogue",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-floor",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": {
+        "actionBox": {
+          "bottom": -1118,
+          "h": 36,
+          "right": 1227,
+          "w": 172,
+          "x": 1055,
+          "y": -1154
+        },
+        "actionGap": 12,
+        "attributeGap": 12,
+        "dlBox": {
+          "bottom": -1166,
+          "h": 88,
+          "right": 1227,
+          "w": 172,
+          "x": 1055,
+          "y": -1254
+        },
+        "headingGap": 8
+      },
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-floor",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-hr",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-hr",
+      "width": 1280
+    },
+    {
+      "scenario": "1024-en-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["24px", "24px", "24px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1024,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1024
+    },
+    {
+      "scenario": "1024-en-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -716,
+            "class": "pagination-size",
+            "h": 32,
+            "right": 765.53125,
+            "w": 119.046875,
+            "x": 646.484375,
+            "y": -748
+          },
+          {
+            "bottom": -714,
+            "class": "pagination-nav",
+            "h": 36,
+            "right": 971,
+            "w": 193.46875,
+            "x": 777.53125,
+            "y": -750
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -714,
+            "h": 36,
+            "right": 861.7109375,
+            "text": "Previous",
+            "w": 84.1796875,
+            "x": 777.53125,
+            "y": -750
+          },
+          {
+            "bottom": -714,
+            "h": 36,
+            "right": 971,
+            "text": "Next",
+            "w": 57.859375,
+            "x": 913.140625,
+            "y": -750
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["24px", "24px", "24px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1024,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-catalogue",
+      "width": 1024
+    },
+    {
+      "scenario": "768-en-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 24px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 768,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 768
+    },
+    {
+      "scenario": "768-en-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -443.5,
+            "class": "pagination-size",
+            "h": 32,
+            "right": 501.53125,
+            "w": 119.046875,
+            "x": 382.484375,
+            "y": -475.5
+          },
+          {
+            "bottom": -441.5,
+            "class": "pagination-nav",
+            "h": 36,
+            "right": 723,
+            "w": 209.46875,
+            "x": 513.53125,
+            "y": -477.5
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -441.5,
+            "h": 36,
+            "right": 605.7109375,
+            "text": "Previous",
+            "w": 92.1796875,
+            "x": 513.53125,
+            "y": -477.5
+          },
+          {
+            "bottom": -441.5,
+            "h": 36,
+            "right": 723,
+            "text": "Next",
+            "w": 65.859375,
+            "x": 657.140625,
+            "y": -477.5
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 24px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 768,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-catalogue",
+      "width": 768
+    },
+    {
+      "scenario": "390-en-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 390,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 390
+    },
+    {
+      "scenario": "390-en-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -149,
+            "class": "pagination-size",
+            "h": 40,
+            "right": 158.609375,
+            "w": 125.609375,
+            "x": 33,
+            "y": -189
+          },
+          {
+            "bottom": -89,
+            "class": "pagination-nav",
+            "h": 48,
+            "right": 242.46875,
+            "w": 209.46875,
+            "x": 33,
+            "y": -137
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -89,
+            "h": 48,
+            "right": 125.1796875,
+            "text": "Previous",
+            "w": 92.1796875,
+            "x": 33,
+            "y": -137
+          },
+          {
+            "bottom": -89,
+            "h": 48,
+            "right": 242.46875,
+            "text": "Next",
+            "w": 65.859375,
+            "x": 176.609375,
+            "y": -137
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 390,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-catalogue",
+      "width": 390
+    },
+    {
+      "scenario": "390-en-floor",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": {
+        "actionBox": {
+          "bottom": -51,
+          "h": 48,
+          "right": 357,
+          "w": 156,
+          "x": 201,
+          "y": -99
+        },
+        "actionGap": -48,
+        "attributeGap": 12,
+        "dlBox": {
+          "bottom": -51,
+          "h": 88,
+          "right": 189,
+          "w": 156,
+          "x": 33,
+          "y": -139
+        },
+        "headingGap": 8
+      },
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 390,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-floor",
+      "width": 390
+    },
+    {
+      "scenario": "390-en-hr",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 390,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-hr",
+      "width": 390
+    },
+    {
+      "scenario": "320-en-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 320
+    },
+    {
+      "scenario": "320-en-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -168,
+            "class": "pagination-size",
+            "h": 40,
+            "right": 158.609375,
+            "w": 125.609375,
+            "x": 33,
+            "y": -208
+          },
+          {
+            "bottom": -108,
+            "class": "pagination-nav",
+            "h": 48,
+            "right": 242.46875,
+            "w": 209.46875,
+            "x": 33,
+            "y": -156
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -108,
+            "h": 48,
+            "right": 125.1796875,
+            "text": "Previous",
+            "w": 92.1796875,
+            "x": 33,
+            "y": -156
+          },
+          {
+            "bottom": -108,
+            "h": 48,
+            "right": 242.46875,
+            "text": "Next",
+            "w": 65.859375,
+            "x": 176.609375,
+            "y": -156
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-catalogue",
+      "width": 320
+    },
+    {
+      "scenario": "320-en-floor",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": {
+        "actionBox": {
+          "bottom": -70,
+          "h": 48,
+          "right": 287,
+          "w": 121,
+          "x": 166,
+          "y": -118
+        },
+        "actionGap": -48,
+        "attributeGap": 12,
+        "dlBox": {
+          "bottom": -70,
+          "h": 88,
+          "right": 154,
+          "w": 121,
+          "x": 33,
+          "y": -158
+        },
+        "headingGap": 8
+      },
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-floor",
+      "width": 320
+    },
+    {
+      "scenario": "320-en-hr",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-hr",
+      "width": 320
+    },
+    {
+      "scenario": "1280-th-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-th-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -594,
+            "class": "pagination-size",
+            "h": 32,
+            "right": 1040.4453125,
+            "w": 103.75,
+            "x": 936.6953125,
+            "y": -626
+          },
+          {
+            "bottom": -592,
+            "class": "pagination-nav",
+            "h": 36,
+            "right": 1227,
+            "w": 174.5546875,
+            "x": 1052.4453125,
+            "y": -628
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -592,
+            "h": 36,
+            "right": 1127.4609375,
+            "text": "ก่อนหน้า",
+            "w": 75.015625,
+            "x": 1052.4453125,
+            "y": -628
+          },
+          {
+            "bottom": -592,
+            "h": 36,
+            "right": 1227,
+            "text": "ถัดไป",
+            "w": 56.65625,
+            "x": 1170.34375,
+            "y": -628
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-catalogue",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-th-floor",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": {
+        "actionBox": {
+          "bottom": -1051,
+          "h": 36,
+          "right": 1227,
+          "w": 172,
+          "x": 1055,
+          "y": -1087
+        },
+        "actionGap": 12,
+        "attributeGap": 12,
+        "dlBox": {
+          "bottom": -1099,
+          "h": 88,
+          "right": 1227,
+          "w": 172,
+          "x": 1055,
+          "y": -1187
+        },
+        "headingGap": 8
+      },
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-floor",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-th-hr",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-hr",
+      "width": 1280
+    },
+    {
+      "scenario": "320-th-scan-expanded",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-partName",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-customer",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-deliveryDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-manufacturingDate-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-quantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-customerQuantity",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-catalogue",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -233,
+            "class": "pagination-size",
+            "h": 40,
+            "right": 143.3125,
+            "w": 110.3125,
+            "x": 33,
+            "y": -273
+          },
+          {
+            "bottom": -173,
+            "class": "pagination-nav",
+            "h": 48,
+            "right": 223.5546875,
+            "w": 190.5546875,
+            "x": 33,
+            "y": -221
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -173,
+            "h": 48,
+            "right": 116.015625,
+            "text": "ก่อนหน้า",
+            "w": 83.015625,
+            "x": 33,
+            "y": -221
+          },
+          {
+            "bottom": -173,
+            "h": 48,
+            "right": 223.5546875,
+            "text": "ถัดไป",
+            "w": 64.65625,
+            "x": 158.8984375,
+            "y": -221
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-catalogue",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-floor",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": {
+        "actionBox": {
+          "bottom": -135,
+          "h": 48,
+          "right": 287,
+          "w": 121,
+          "x": 166,
+          "y": -183
+        },
+        "actionGap": -48,
+        "attributeGap": 12,
+        "dlBox": {
+          "bottom": -135,
+          "h": 88,
+          "right": 154,
+          "w": 121,
+          "x": 33,
+          "y": -223
+        },
+        "headingGap": 8
+      },
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-floor",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-hr",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-hr",
+      "width": 320
+    },
+    {
+      "scenario": "1280-en-no-results",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -673,
+            "class": "pagination-size",
+            "h": 32,
+            "right": 1021.53125,
+            "w": 119.046875,
+            "x": 902.484375,
+            "y": -705
+          },
+          {
+            "bottom": -671,
+            "class": "pagination-nav",
+            "h": 36,
+            "right": 1227,
+            "w": 193.46875,
+            "x": 1033.53125,
+            "y": -707
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -671,
+            "h": 36,
+            "right": 1117.7109375,
+            "text": "Previous",
+            "w": 84.1796875,
+            "x": 1033.53125,
+            "y": -707
+          },
+          {
+            "bottom": -671,
+            "h": 36,
+            "right": 1227,
+            "text": "Next",
+            "w": 57.859375,
+            "x": 1169.140625,
+            "y": -707
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": {
+          "contentGap": 12,
+          "gap": 12
+        },
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-catalogue",
+      "width": 1280
+    },
+    {
+      "scenario": "320-th-no-results",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": {
+        "children": [
+          {
+            "bottom": -2221.5,
+            "class": "pagination-size",
+            "h": 40,
+            "right": 143.3125,
+            "w": 110.3125,
+            "x": 33,
+            "y": -2261.5
+          },
+          {
+            "bottom": -2161.5,
+            "class": "pagination-nav",
+            "h": 48,
+            "right": 223.5546875,
+            "w": 190.5546875,
+            "x": 33,
+            "y": -2209.5
+          }
+        ],
+        "gap": "12px",
+        "navButtons": [
+          {
+            "bottom": -2161.5,
+            "h": 48,
+            "right": 116.015625,
+            "text": "ก่อนหน้า",
+            "w": 83.015625,
+            "x": 33,
+            "y": -2209.5
+          },
+          {
+            "bottom": -2161.5,
+            "h": 48,
+            "right": 223.5546875,
+            "text": "ถัดไป",
+            "w": 64.65625,
+            "x": 158.8984375,
+            "y": -2209.5
+          }
+        ]
+      },
+      "G05": null,
+      "G06": {
+        "empty": {
+          "contentGap": 12,
+          "gap": 12
+        },
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-catalogue",
+      "width": 320
+    },
+    {
+      "scenario": "1280-en-feedback-populated",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": false,
+          "height": 18,
+          "id": "workflow-feedback",
+          "margin": "8px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": false,
+          "height": 18,
+          "id": "control-feedback",
+          "margin": "8px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-feedback-cleared",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-time",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": {
+        "fieldToActions": 30,
+        "overflow": false,
+        "pop": {
+          "bottom": 660,
+          "h": 142,
+          "right": 1162.1640625,
+          "w": 206.1640625,
+          "x": 956,
+          "y": 518
+        },
+        "rightOffset": 0,
+        "statusHeight": 18,
+        "statusMargin": "4px 4px 0px"
+      },
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-empty-time",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": {
+        "fieldToActions": 30,
+        "overflow": false,
+        "pop": {
+          "bottom": 660,
+          "h": 142,
+          "right": 972.6640625,
+          "w": 206.1640625,
+          "x": 766.5,
+          "y": 518
+        },
+        "rightOffset": 0,
+        "statusHeight": 18,
+        "statusMargin": "4px 4px 0px"
+      },
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "1280-en-scan-saved",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": 12
+      },
+      "G07": {
+        "columns": ["32px", "32px", "32px"],
+        "pagePadding": "32px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 1280,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 32,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "en",
+      "screen": "tab-scan",
+      "width": 1280
+    },
+    {
+      "scenario": "320-th-feedback-populated",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": false,
+          "height": 18,
+          "id": "workflow-feedback",
+          "margin": "8px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": false,
+          "height": 36,
+          "id": "control-feedback",
+          "margin": "8px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-feedback-cleared",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-time",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": {
+        "fieldToActions": 30,
+        "overflow": false,
+        "pop": {
+          "bottom": 684,
+          "h": 162,
+          "right": 222.1640625,
+          "w": 206.1640625,
+          "x": 16,
+          "y": 522
+        },
+        "rightOffset": 0,
+        "statusHeight": 18,
+        "statusMargin": "4px 4px 0px"
+      },
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-empty-time",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": null
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": {
+        "fieldToActions": 30,
+        "overflow": false,
+        "pop": {
+          "bottom": 684,
+          "h": 162,
+          "right": 222.1640625,
+          "w": 206.1640625,
+          "x": 16,
+          "y": 522
+        },
+        "rightOffset": 0,
+        "statusHeight": 18,
+        "statusMargin": "4px 4px 0px"
+      },
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-factoryOrder",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-productBarcodeText",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "ticket-storageFormat-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 320
+    },
+    {
+      "scenario": "320-th-scan-saved",
+      "G02": {
+        "explanationGap": 8,
+        "helpGap": 4
+      },
+      "G03": [
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "button-specimens",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid",
+          "margin": "16px"
+        },
+        {
+          "class": "field-grid picker-specimens",
+          "margin": "16px"
+        }
+      ],
+      "G04": null,
+      "G05": null,
+      "G06": {
+        "empty": null,
+        "success": 12
+      },
+      "G07": {
+        "columns": ["40px", "40px", "40px"],
+        "pagePadding": "32px 16px",
+        "workspace": "24px"
+      },
+      "G08": null,
+      "docWidth": 320,
+      "feedback": [
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "workflow-feedback",
+          "margin": "0px",
+          "role": "status"
+        },
+        {
+          "display": "block",
+          "empty": true,
+          "height": 0,
+          "id": "control-feedback",
+          "margin": "0px",
+          "role": "status"
+        }
+      ],
+      "fields": [
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-location",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "demo-required",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "demo-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-invalid-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-bounded-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-empty-time-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": 4,
+          "id": "state-pending-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-text",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-readonly-date-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-select-control",
+          "labelGap": 2
+        },
+        {
+          "height": 40,
+          "hintGap": null,
+          "id": "state-disabled-time-control",
+          "labelGap": 2
+        }
+      ],
+      "iconOffsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "lang": "th",
+      "screen": "tab-scan",
+      "width": 320
+    }
+  ]
+}

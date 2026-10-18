@@ -1,0 +1,730 @@
+{
+  "scope": {
+    "target": "docs/design-sheet/index.html (root sheet, current working tree, 2026-10-15) with loaded assets tokens.css, styles.css, sheet.js, review.css, review.js, dist/controls.css, dist/controls.js and their sources controls.tsx, controls.css, ui/calendar.tsx, ui/popover.tsx, vite.config.mjs",
+    "documents": [
+      "docs/design-sheet/README.md",
+      "docs/design-sheet/DESIGN.md",
+      "docs/design-sheet/evidence/README.md",
+      "docs/design-sheet/evidence/check-controls.cjs",
+      "docs/design-sheet/evidence/check-adoption.cjs",
+      "docs/design-sheet/evidence/adoption-checks.json",
+      "docs/design-sheet/evidence/shadcn-ui-checks-2026-10-14.json",
+      "docs/plans/design-system-complete-adoption-2026-10-14.md (byte-identical to docs/design-sheet/system-implementation-plan.md; verified with cmp)"
+    ],
+    "appSourcesReadForBehavior": [
+      "src/components/ui/SelectControl.tsx",
+      "src/components/ui/select.tsx",
+      "src/app/globals.css (primary token only)",
+      "node_modules/react-day-picker 9.14.0 (useSingle, labels, locale/th, style.css)",
+      "node_modules/date-fns 4.1.0 locale/th"
+    ],
+    "excluded": "Frozen variants and historical screenshots (context only); production application behavior; detector and browser checks (owned by parent)"
+  },
+  "kiroModel": "claude-opus-5.5 / high",
+  "reviewer": "Codex with T3 browser verification",
+  "findings": [
+    {
+      "id": "DS-A01",
+      "severity": "P1",
+      "title": "Confirming the already-selected date clears it",
+      "category": "Date/time correctness · keyboard",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 155
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 160
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 169
+        },
+        {
+          "path": "node_modules/react-day-picker/dist/esm/selection/useSingle.js",
+          "line": 21
+        }
+      ],
+      "trigger": "Open any date trigger (Field hierarchy Date, or scan Delivery/MFG date). Focus lands on the selected day (autoFocus). Press Enter, or click the highlighted day.",
+      "actual": "Calendar is mode=\"single\" without required, so react-day-picker deselects the already-selected day and calls onSelect(undefined). The handler commits \"\" and closes the popover; the trigger shows \"Pick a date\". In the scan ticket this erases the draft delivery or MFG date and decrements the filled count.",
+      "expected": "Re-confirming the current date keeps it, and the popover closes. Clearing happens only through the explicit Clear date action.",
+      "impact": "Enter on the initially focused day is the most natural way to confirm a date with the keyboard. Doing it silently deletes the value, which is a lost-draft defect on a control the user specifically requested.",
+      "evidence": "executed-probe: probes/probe-controls.cjs A_afterEnterOnSelectedDay {sourceValue:\"\", triggerText:\"Pick a date\", popoverOpen:false}; A_afterClickOnSelectedDay {sourceValue:\"\"}. source-traced: useSingle.js:21 `if (!required && selected && isSameDay(triggerDate, selected)) newDate = undefined`.",
+      "confidence": "high",
+      "recommendation": "Pass `required` to Calendar, or ignore undefined in onSelect (keep the current value, close the popover). Leave clearing to the Clear date button. Add a regression case to check-controls for Enter and click on the selected day.",
+      "originalKiroSeverity": "P1",
+      "parentEvidence": "Corroborated in T3 browser; see browser-notes.md and browser-evidence.json."
+    },
+    {
+      "id": "DS-A02",
+      "severity": "P2",
+      "title": "Time picker commits every hour/minute change at once; Escape, outside click and Done cannot cancel",
+      "category": "Date/time correctness · documentation consistency",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 120
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 137
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 144
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 177
+        }
+      ],
+      "trigger": "Open Time (08:30), choose hour 23, then press Escape or click outside.",
+      "actual": "Each Select onValueChange calls commit() immediately. The source value is already \"23:30\" while the popover is still open, and it stays \"23:30\" after Escape. Done only closes the popover.",
+      "expected": "The plan's TimeField (line 177), which it says follows the preview (\"ตาม preview\"), holds a popup draft. It commits only on Done, disables Done while incomplete, and lets Escape or outside click discard uncommitted values.",
+      "impact": "An accidental hour change cannot be undone with Escape. The preview contradicts the contract implementers are told to copy, so reviewers approving the preview are approving different behavior from the one being planned.",
+      "evidence": "executed-probe: probes/probe-time-focus.cjs timeCommitBeforeDone {valueWhilePopoverOpen:\"23:30\", popoverOpenAfterEscape:false, valueAfterEscape:\"23:30\"}. source-traced: controls.tsx:120-121, 137, 147.",
+      "confidence": "high",
+      "recommendation": "Keep hour/minute in local popup state, initialised from the source when the popover opens. Commit on Done only, disable Done until both parts are set, and drop the draft on Escape, outside click or disable. Otherwise, change the plan wording so it no longer cites the preview.",
+      "originalKiroSeverity": "P2",
+      "parentEvidence": "Corroborated in T3 browser; see browser-notes.md and browser-evidence.json."
+    },
+    {
+      "id": "DS-A03",
+      "severity": "P2",
+      "title": "Thai calendar is announced in Gregorian years while it displays Buddhist years",
+      "category": "Locale · accessible semantics",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 158
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 163
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 70
+        },
+        {
+          "path": "node_modules/react-day-picker/dist/esm/locale/th.js",
+          "line": 9
+        },
+        {
+          "path": "docs/design-sheet/README.md",
+          "line": 16
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 171
+        }
+      ],
+      "trigger": "Switch to Thai and open the Date picker.",
+      "actual": "The trigger reads \"วันที่: 14 ต.ค. 2569\" and the visible caption reads \"ตุลาคม 2569\". The grid's accessible name is \"ตุลาคม 2026\" and every day is named in Gregorian years, e.g. \"วันพุธที่ 14 ตุลาคม 2026, เลือกแล้ว\". Only formatCaption is overridden; the date-fns `y` token stays Gregorian. In English, display uses en-GB (\"14 Oct 2026\") while the calendar uses enUS labels and Sunday week start.",
+      "expected": "Visible and announced years match. The plan specifies react-day-picker/buddhist with numerals=\"latn\" and weekStartsOn={1}.",
+      "impact": "Screen-reader users hear a year 543 years away from the visible one, in the exact area (Buddhist year correctness) the README says is solved.",
+      "evidence": "executed-probe: probes/probe-controls.cjs B_th {caption:\"ตุลาคม 2569\", gridLabel:\"ตุลาคม 2026\", selectedDayLabel:\"วันพุธที่ 14 ตุลาคม 2026, เลือกแล้ว\", firstWeekday:\"อาทิตย์\"}; B_en {selectedDayLabel:\"Wednesday, October 14th, 2026, selected\", firstWeekday:\"Sunday\"}.",
+      "confidence": "high",
+      "recommendation": "Use the Buddhist calendar entry (or override labelGrid/labelDayButton with the th-TH Intl formatter). Align the English locale with en-GB, and set the week start the plan specifies. Add Thai accessible-name assertions to the controls check.",
+      "originalKiroSeverity": "P2",
+      "parentEvidence": "Corroborated in T3 browser; see browser-notes.md and browser-evidence.json."
+    },
+    {
+      "id": "DS-A04",
+      "severity": "P2",
+      "title": "Selected/pressed toggle states are invisible",
+      "category": "State design · styling architecture",
+      "files": [
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 406
+        },
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 332
+        },
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 407
+        },
+        {
+          "path": "docs/design-sheet/styles.css",
+          "line": 225
+        }
+      ],
+      "trigger": "Catalogue: switch Products / Storage units. Scan: choose Photos (AI) / Scan barcode / Type manually. Catalogue: toggle Filters.",
+      "actual": "The view switch toggles classes `btn secondary` and `btn ghost`, but neither class exists in styles.css, review.css or controls.css, so both buttons render as the same bare .btn. The capture-method buttons and Filters update aria-pressed, but no stylesheet styles [aria-pressed]. All three render identically pressed or unpressed (Filters shows only a separate chip).",
+      "expected": "Selected and pressed states are visible as well as announced, as the workflow tabs are (styles.css:405).",
+      "impact": "Sighted users cannot tell which catalogue view or capture method is active. The specimen meant to show the Products vs Storage units distinction has no visual state.",
+      "evidence": "source-traced: rg for `secondary|ghost|aria-pressed` across the three stylesheets finds no rule. executed-probe: probes/probe-controls.cjs H_catalogueSwitch [[\"Products\",\"btn secondary\",\"true\"],[\"Storage units\",\"btn ghost\",\"false\"]].",
+      "confidence": "high",
+      "recommendation": "Define an explicit selected/pressed treatment (e.g. a segmented control with a selected surface and ink), and style [aria-pressed=\"true\"] for the capture and filter toggles. Avoid class names that look like shadcn variants but have no CSS.",
+      "originalKiroSeverity": "P2"
+    },
+    {
+      "id": "DS-A05",
+      "severity": "P2",
+      "title": "Reading lock leaves text inputs looking editable while the scanner slot turns into a grey block",
+      "category": "Disabled state · cascade",
+      "files": [
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 367
+        },
+        {
+          "path": "docs/design-sheet/styles.css",
+          "line": 491
+        },
+        {
+          "path": "docs/design-sheet/styles.css",
+          "line": 253
+        },
+        {
+          "path": "docs/design-sheet/review.css",
+          "line": 82
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 50
+        },
+        {
+          "path": "docs/design-sheet/README.md",
+          "line": 16
+        }
+      ],
+      "trigger": "Scan tab, Review state = Reading.",
+      "actual": "All ticket inputs become disabled (probe). But `.field input` sets background, color and border with no :disabled override anywhere, so the author rules beat the UA disabled styling and the text fields keep their enabled look. In the same field group, Select/date triggers switch to disabled styling (controls.css:50). The in-field scanner button picks up `.btn:disabled` background (styles.css:253 comes after .btn.quiet:234 at equal specificity), so a tinted slab appears inside an enabled-looking field.",
+      "expected": "One consistent disabled presentation across inputs, triggers and in-field actions, as README:16 claims (\"disabled states remain visible\").",
+      "impact": "The Reading state misrepresents which fields are locked and gives in-field icons a fill they otherwise never have.",
+      "evidence": "executed-probe: probes/probe-controls.cjs G_reading (all seven text inputs disabled:true, scanners disabled:true). source-traced: cascade read across styles.css:234/253/491, review.css:82, controls.css:50-55. Rendered pixels not browser-verified.",
+      "confidence": "high (cascade); medium (exact rendered appearance)",
+      "recommendation": "Add `.field input:disabled` / `.search-input:disabled` using --token-disabled-surface, --token-disabled and --token-border. Keep `.btn.field-scan:disabled` transparent, with only ink changing.",
+      "originalKiroSeverity": "P2",
+      "parentEvidence": "Corroborated in T3 browser; see browser-notes.md and browser-evidence.json."
+    },
+    {
+      "id": "DS-A06",
+      "severity": "P3",
+      "title": "Pending-state styling is inconsistent with the documented design",
+      "category": "Pending state · accessible semantics",
+      "files": [
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 521
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 381
+        },
+        {
+          "path": "docs/design-sheet/DESIGN.md",
+          "line": 281
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 55
+        }
+      ],
+      "trigger": "My day tab, Review state = Pending write.",
+      "actual": "#sample-clock-out renders `disabled` with label \"Saving…\". It has no aria-busy and takes the grey .btn:disabled surface. The Controls section says \"Disabled, saving, and destructive states remain distinct\" and shows saving as a primary-styled specimen. DESIGN.md says pending actions keep their resting appearance, and the plan says pending keeps position/size and blocks repeats.",
+      "expected": "Pending keeps the primary appearance with a busy indicator and aria-busy/aria-disabled, and blocks repeat activation without looking like a permission-disabled control.",
+      "impact": "The only live pending specimen teaches the opposite of the documented rule. Users cannot tell a pending write from an action they are not allowed to take.",
+      "evidence": "executed-probe: probes/probe-controls.cjs H_pending {disabled:true, ariaBusy:null, classes:\"btn primary\", text:\"Saving…\"}. source-traced: review.js:521, styles.css:253.",
+      "confidence": "high",
+      "recommendation": "Render the pending state like the saving specimen (primary surface, spinner, aria-busy=\"true\", aria-disabled=\"true\", click ignored), and keep `disabled` for unavailable actions.",
+      "originalKiroSeverity": "P2",
+      "reviewNote": "The Saving label and status notice already communicate pending. This is visual/semantic consistency work, not proof users receive no pending feedback."
+    },
+    {
+      "id": "DS-A07",
+      "severity": "P3",
+      "title": "Checked and keyboard-highlighted options share the same fill",
+      "category": "Focus visibility",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 100
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 113
+        }
+      ],
+      "trigger": "Open any Select (Review state, Unit type, Hour, Minute) and move with the arrow keys away from the checked option.",
+      "actual": "`[data-highlighted]` and `[data-state=\"checked\"]` share one rule (accent background and ink), and items have outline:none. Two rows carry the same fill; the focused one differs only by not having the small trailing check icon.",
+      "expected": "A focus/highlight indicator distinct from selection, e.g. selection by check plus weight, highlight by fill, or an inset ring.",
+      "impact": "Keyboard users cannot reliably see where focus is in a long list such as the 60-minute options.",
+      "evidence": "source-traced: controls.css:91-117. Browser rendering not verified by Kiro.",
+      "confidence": "high (source); medium (perceived severity)",
+      "recommendation": "Separate the two states: e.g. checked = check icon + 600 weight, highlighted = accent fill (plus a forced-colors outline).",
+      "originalKiroSeverity": "P2",
+      "reviewNote": "The checkmark still distinguishes the selected value. Treat separate focus styling as a usability improvement, not a proven keyboard blocker."
+    },
+    {
+      "id": "DS-A08",
+      "severity": "P2",
+      "title": "Printing from dark mode keeps dark-only inks and surfaces on the light print palette",
+      "category": "Print · theming · contrast",
+      "files": [
+        {
+          "path": "docs/design-sheet/styles.css",
+          "line": 1429
+        },
+        {
+          "path": "docs/design-sheet/styles.css",
+          "line": 31
+        },
+        {
+          "path": "docs/design-sheet/tokens.css",
+          "line": 29
+        },
+        {
+          "path": "docs/design-sheet/review.css",
+          "line": 164
+        },
+        {
+          "path": "docs/design-sheet/review.css",
+          "line": 172
+        },
+        {
+          "path": "docs/design-sheet/sheet.js",
+          "line": 657
+        },
+        {
+          "path": "docs/design-sheet/DESIGN.md",
+          "line": 303
+        }
+      ],
+      "trigger": "Switch to dark mode, then Print sheet.",
+      "actual": "The print block resets --token-* surfaces to light values but not --sheet-status-* (dark badge inks), --token-disabled/--token-disabled-surface (aliases of dark --muted*), `.dark .badge.accent` or `.dark .badge.app-success`. Status badges print light-on-light at 1.27–1.41:1; the earlier-ink example prints #58d19a on paper at 1.91:1; the disabled Save specimen prints as a near-black (#1d1d1d) slab; the token list prints dark oklch values next to light swatches.",
+      "expected": "DESIGN.md:303 says print uses a light presentation, so print should look the same whichever theme is active.",
+      "impact": "A printed review copy made from dark mode has unreadable status badges and misleading palette values.",
+      "evidence": "source-traced: print block styles.css:1429-1535 lacks the listed variables; executed-probe (arithmetic only): probes/probe-contrast.cjs printFromDarkMode_badges {success:1.33, warning:1.27, danger:1.38, pending:1.41, appInkExampleOnPaper:1.91}. Not printed in a browser by Kiro.",
+      "confidence": "high (cascade and arithmetic)",
+      "recommendation": "Reset --sheet-status-*, --token-disabled*, accent/app-success badge colors and --muted/--muted-foreground in the print block, or switch theme for print (beforeprint/afterprint) so the token readout also matches.",
+      "originalKiroSeverity": "P2"
+    },
+    {
+      "id": "DS-A09",
+      "severity": "P2",
+      "title": "shadcn/Tailwind styling is inert in the sheet; the controls' look is a parallel re-implementation",
+      "category": "Styling architecture · fidelity",
+      "files": [
+        {
+          "path": "docs/design-sheet/vite.config.mjs",
+          "line": 5
+        },
+        {
+          "path": "docs/design-sheet/ui/calendar.tsx",
+          "line": 39
+        },
+        {
+          "path": "docs/design-sheet/ui/popover.tsx",
+          "line": 31
+        },
+        {
+          "path": "src/components/ui/select.tsx",
+          "line": 31
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 13
+        }
+      ],
+      "trigger": "Any rendered Select, Calendar, Popover or shadcn Button in the sheet.",
+      "actual": "The bundle has no Tailwind pipeline: dist/controls.css contains only react-day-picker/style.css plus controls.css, with no utilities and no --tw-*. Every class contract of the imported app/shadcn components is a no-op, e.g. `data-placeholder:text-muted`, `focus:bg-selected`, `disabled:*`, `aria-invalid:border-destructive`, the focused-day ring, the popover shadow/ring and Button variants. controls.css and rdp defaults supply all visuals. Visible consequences include unmuted placeholders (\"HH\", \"Pick a date\" in body ink) and the leaks in DS-A07/DS-A12.",
+      "expected": "Either the app's compiled styles drive the preview, or the docs state clearly that only behavior is shared and visuals are sheet-owned approximations.",
+      "impact": "\"Actual shadcn controls\" is true for behavior but not appearance. Visual decisions approved in the sheet (item heights, highlight, placeholder ink, focus ring) will not carry over to the app, and the app's real styling is not what reviewers see.",
+      "evidence": "source-traced: vite.config.mjs plugins [react()] only; grep of dist/controls.css for `--tw-`/utility selectors returned nothing; SelectTrigger/SelectItem class strings in src/components/ui/select.tsx.",
+      "confidence": "high",
+      "recommendation": "Compile the app's Tailwind theme for the island (scoped), or document the split and style the missing states (placeholder, invalid, disabled, focus) in controls.css on purpose.",
+      "originalKiroSeverity": "P2",
+      "reviewNote": "The actual shadcn/Radix behavior is present. The issue is duplicated visual CSS and handoff fidelity, not native/fake picker behavior. The palette difference itself is an approved design constraint."
+    },
+    {
+      "id": "DS-A10",
+      "severity": "P3",
+      "title": "The sheet and adoption plan still need a clear list of deliberate differences",
+      "category": "Documentation / adoption-plan consistency",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 95
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 145
+        },
+        {
+          "path": "docs/design-sheet/review.css",
+          "line": 115
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 153
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 43
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 171
+        },
+        {
+          "path": "docs/plans/design-system-complete-adoption-2026-10-14.md",
+          "line": 346
+        },
+        {
+          "path": "docs/design-sheet/DESIGN.md",
+          "line": 261
+        }
+      ],
+      "trigger": "Compare the controls in the preview with plan §DS-1/DS-5 and DESIGN.md's density rule.",
+      "actual": "(1) Select items use the field height 32/40px; the plan keeps menu items at 36/48. (2) Calendar day targets are 32/36px; DESIGN.md says standalone targets keep 36/48. (3) `.catalogue-search > .btn` shrinks the Filters button to field height (32/40); the plan says not to shrink buttons beside fields and to align with items-end. (4) DateField per plan has weekStartsOn={1}, min/max, a caller-supplied `today`, clearable/required and the Buddhist calendar; the preview has Sunday start, no bounds, the system clock as today, always-on Clear and caption-only BE. (5) Time draft semantics (DS-A02).",
+      "expected": "Where the plan says it follows the preview, the preview shows the planned contract, or the plan records the deliberate differences.",
+      "impact": "Implementers and reviewers get two conflicting specifications for the same controls.",
+      "evidence": "source-traced: cited lines; mirror docs/design-sheet/system-implementation-plan.md is byte-identical (cmp).",
+      "confidence": "high",
+      "recommendation": "Pick one source of truth per item. Update the preview (menu item height, unshrunk Filters button, week start, bounds/today props) or add an explicit 'preview deviations' list to the plan.",
+      "originalKiroSeverity": "P2",
+      "reviewNote": "The plan explicitly acknowledges calendar sizing differences and leaves adjacent button sizing open. Production-only date bounds/today props are planned work. Do not describe every listed difference as an accidental contradiction."
+    },
+    {
+      "id": "DS-A11",
+      "severity": "P2",
+      "title": "Time value cannot be empty or cleared; the composition silently defaults or produces invalid values (latent)",
+      "category": "Coverage gap · date/time correctness",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 69
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 72
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 137
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 426
+        }
+      ],
+      "trigger": "Latent: not reachable from the current UI, because the only time field starts at 08:30 and has no clear action. Probe: set the source to \"\" and refresh, then open the picker.",
+      "actual": "`const [hour = \"08\", minute = \"30\"] = \"\".split(\":\")` yields hour \"\" (the default applies only to undefined) and minute \"30\". The popover shows HH and 30 while the trigger reads \"--:--\" (accessible name \"Time: --:--\"). Choosing minute 45 first commits \":45\"; choosing hour 09 first commits \"09:30\" with a minute the user never picked. There is no Clear time action, unlike dates.",
+      "expected": "The plan's TimeField: empty stays empty, nothing is filled in silently, incomplete selections cannot commit, and the field is clearable when the caller allows.",
+      "impact": "The preview cannot demonstrate optional, empty or incomplete time states, and its composition would emit invalid HH:mm if reused.",
+      "evidence": "executed-probe: probes/probe-controls.cjs C_emptyTimeOpen {hourTrigger:\"HH\", minuteTrigger:\"30\"}, C_minuteFirst {sourceValue:\":45\"}, C_hourFirst {sourceValue:\"09:30\"}, C_clearTimeAction:false.",
+      "confidence": "high (probe); state is latent in the current sheet",
+      "recommendation": "Parse with an explicit /^(\\d{2}):(\\d{2})$/ match, keep both parts empty when absent, disable Done until both are chosen, and add an optional/clearable time specimen.",
+      "originalKiroSeverity": "P2"
+    },
+    {
+      "id": "DS-A12",
+      "severity": "P3",
+      "title": "Calendar inherits un-reset react-day-picker defaults: oversized selected day, filled chevrons, faded weekday/outside text",
+      "category": "Visual polish · contrast",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 142
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 178
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 160
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 194
+        },
+        {
+          "path": "node_modules/react-day-picker/src/style.css",
+          "line": 286
+        },
+        {
+          "path": "node_modules/react-day-picker/src/style.css",
+          "line": 157
+        }
+      ],
+      "trigger": "Open any date picker.",
+      "actual": "(a) The selected td gets `.rdp-selected { font-size: large; font-weight: bold }`; the day button uses `font: inherit` then resets weight only, so the selected numeral renders larger (≈18px) than the other days. (b) Nav chevrons (lucide SVGs with class rdp-chevron) get `fill: var(--rdp-accent-color)` = primary, which overrides fill=\"none\" and closes the open path into a filled wedge. (c) Weekday headers (12px) and outside days keep rdp's 0.75 opacity on top of the muted ink, which calculates to about 4.09:1 on white (light theme).",
+      "expected": "Uniform day numerals, outline chevrons in muted/text ink, and weekday/outside text at the muted token's full contrast (7.77:1 unblended).",
+      "impact": "Visual inconsistency in a requested control, and supporting text that calculates below the 4.5:1 small-text ratio in light theme (arithmetic, not a browser measurement).",
+      "evidence": "executed-probe: probes/probe-controls.cjs B_en selectedTdClasses includes rdp-selected, navChevronClass includes rdp-chevron, outsideDays:4; probes/probe-contrast.cjs calendarWeekdayAndOutsideDays_opacity075.light.ratio 4.09. source-traced: rdp style.css:157-160, 261-265, 286-289, 295-297. Rendering not browser-verified.",
+      "confidence": "medium-high",
+      "recommendation": "In .sheet-calendar set font-size on day buttons explicitly, `.rdp-chevron { fill: none }`, and `--rdp-weekday-opacity: 1; --rdp-outside-opacity: 1` (outside days can stay muted through color alone).",
+      "originalKiroSeverity": "P3",
+      "reviewNote": "Parent browser confirmed selected day 18px, ordinary days 14px, filled navigation SVG and weekday opacity 0.75. Browser axe returned no contrast violation; 4.09:1 remains a source-derived arithmetic result, not a measured-pixel or independently certified failure.",
+      "parentEvidence": "Corroborated in T3 browser; see browser-notes.md and browser-evidence.json."
+    },
+    {
+      "id": "DS-A13",
+      "severity": "P3",
+      "title": "Field hierarchy shows the Job No. error again after a locale switch, even when the field is valid",
+      "category": "Error association · i18n",
+      "files": [
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 413
+        },
+        {
+          "path": "docs/design-sheet/sheet.js",
+          "line": 693
+        },
+        {
+          "path": "docs/design-sheet/sheet.js",
+          "line": 844
+        }
+      ],
+      "trigger": "Type a value into Field hierarchy › Job No. (the error clears), then toggle the language.",
+      "actual": "#required-error is a [data-i18n] element, so renderLanguage rewrites its text unconditionally. The error text comes back (\"กรอกเลขที่ Job ก่อนบันทึก\") while aria-invalid stays \"false\" and the input still references it through aria-describedby.",
+      "expected": "The error text follows validity in every locale.",
+      "impact": "A valid field shows and announces an error. Small, but it is the sheet's reference specimen for error/recovery association.",
+      "evidence": "executed-probe: probes/probe-controls.cjs D_requiredErrorAfterLocale {value:\"JOB-1\", ariaInvalid:\"false\", errorBeforeLocale:\"\", errorAfterLocale:\"กรอกเลขที่ Job ก่อนบันทึก\"}.",
+      "confidence": "high",
+      "recommendation": "Drop data-i18n from the error and re-derive it from the input's validity in renderLanguage, or remove aria-describedby while it is empty.",
+      "originalKiroSeverity": "P3",
+      "parentEvidence": "Corroborated in T3 browser; see browser-notes.md and browser-evidence.json."
+    },
+    {
+      "id": "DS-A14",
+      "severity": "P3",
+      "title": "Controls stylesheet hides form sources unconditionally; if the island script fails, fields vanish with no fallback",
+      "category": "Loading / script failure",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 2
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 17
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 228
+        }
+      ],
+      "trigger": "dist/controls.css loads but dist/controls.js fails to load or throws (blocked script, stale cache, runtime error). Also the moment before the deferred script mounts.",
+      "actual": "`.select-input > select, .field input[data-sheet-date], .field input[data-sheet-time] { display: none !important }` applies whether or not a replacement mounted. Review state, Unit type, Per page, Date and Time disappear and their labels point at nothing; no message appears. If neither dist file exists (a fresh checkout without the build), native controls show instead, which is also undocumented in the sheet.",
+      "expected": "Sources are hidden only after a successful mount (e.g. a class set by controls.js), so failure leaves usable native fallbacks.",
+      "impact": "A partial load failure looks like missing design content rather than an error.",
+      "evidence": "executed-probe: probes/probe-controls.cjs N_cssWithoutScript {review-state:\"none\", ticket-storageFormat:\"none\", demo-date:\"none\", demo-time:\"none\"} (jsdom computed display with controls.css injected and controls.js omitted).",
+      "confidence": "high",
+      "recommendation": "Scope the hiding rule to `.sheet-controls-ready` (set on <html> by controls.js), or rely solely on the `hidden` attribute that mount() already sets.",
+      "originalKiroSeverity": "P3"
+    },
+    {
+      "id": "DS-A15",
+      "severity": "P3",
+      "title": "Several accessible names omit the visible text or mix toggle semantics",
+      "category": "Accessible semantics",
+      "files": [
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 57
+        },
+        {
+          "path": "docs/design-sheet/sheet.js",
+          "line": 661
+        },
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 407
+        }
+      ],
+      "trigger": "Inspect the header toggles and the catalogue filter chip.",
+      "actual": "The language button shows \"ไทย\"/\"EN\" but is named \"Switch to Thai\"/\"Switch to English\". The filter chip shows \"Ready only\"/\"In storage only\" but is named \"Clear filters\". The theme button combines aria-pressed with a label that flips between \"Switch to dark mode\" and \"Switch to light mode\", which announces \"Switch to light mode, pressed\".",
+      "expected": "Accessible names that contain the visible label (e.g. \"ไทย – switch language\", \"Remove filter: Ready only\"), and either a stable label with aria-pressed (\"Dark mode\") or a changing label without aria-pressed.",
+      "impact": "Speech-input users cannot activate these controls by their visible text, and screen-reader output is contradictory. This conflicts with the intent of WCAG 2.5.3 (Label in Name); not separately certified.",
+      "evidence": "source-traced: cited lines.",
+      "confidence": "high",
+      "recommendation": "Rename as above; keep the theme toggle label constant while aria-pressed reports the state.",
+      "originalKiroSeverity": "P3"
+    },
+    {
+      "id": "DS-A16",
+      "severity": "P3",
+      "title": "Thai mode leaves English accessible names and an English visible date",
+      "category": "i18n",
+      "files": [
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 26
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 47
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 97
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 155
+        },
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 368
+        }
+      ],
+      "trigger": "Switch to Thai.",
+      "actual": "The wordmark (\"Storage Planner design sheet\"), nav (\"Design sheet sections\"), tablist (\"Workflow specimens\") and saving specimen (\"Saving example\") keep English accessible names under <html lang=\"th\">. The proposal date stays \"9 October 2026\". The saving specimen's aria-label sits on a role-less span, where it is not reliably exposed.",
+      "expected": "All user-facing names and dates are localized like the rest of the sheet (other dates use 2569 in Thai).",
+      "impact": "Mixed-language announcements with Thai voice settings, and an inconsistent Buddhist-year presentation.",
+      "evidence": "source-traced: these strings are absent from both copy tables and are not touched by renderLanguage (sheet.js:691-716).",
+      "confidence": "high",
+      "recommendation": "Move these names into the copy tables and set them in renderLanguage. Give the saving specimen role=\"status\" or visually hidden text instead of aria-label.",
+      "originalKiroSeverity": "P3"
+    },
+    {
+      "id": "DS-A17",
+      "severity": "P3",
+      "title": "Loading totals render as bare ellipses with no accessible loading text",
+      "category": "State semantics",
+      "files": [
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 405
+        }
+      ],
+      "trigger": "Catalogue tab, Review state = Loading.",
+      "actual": "Each statistic <dd> contains only \"…\". Screen readers read punctuation or nothing, and nothing marks the strip as busy.",
+      "expected": "A text equivalent (\"Loading\") or aria-busy on the strip, matching the 'never zero, visibly unavailable' rule.",
+      "impact": "Non-visual users cannot tell a loading total from a missing one.",
+      "evidence": "source-traced: review.js:405.",
+      "confidence": "medium",
+      "recommendation": "Render a visually hidden loading label per value, or aria-busy=\"true\" plus one status message.",
+      "originalKiroSeverity": "P3"
+    },
+    {
+      "id": "DS-A18",
+      "severity": "P3",
+      "title": "The preview build copies unrelated app public assets",
+      "category": "Build hygiene · performance",
+      "files": [
+        {
+          "path": "docs/design-sheet/vite.config.mjs",
+          "line": 12
+        },
+        {
+          "path": "docs/design-sheet/vite.config.mjs",
+          "line": 13
+        },
+        {
+          "path": "docs/design-sheet/README.md",
+          "line": 18
+        }
+      ],
+      "trigger": "pnpm build:design-sheet (vite root = repo cwd, default publicDir).",
+      "actual": "dist/ holds the app's public/ assets (barcode/zxing_reader.wasm 966 KB, f1-f2-reference/*.html, icons, manifest), which the sheet now serves, next to a 406 KB minified IIFE. emptyOutDir:true deletes anything else placed in dist.",
+      "expected": "dist contains only controls.js/controls.css (publicDir:false), as README describes.",
+      "impact": "Unrelated application artifacts are published under the design-sheet URL, plus avoidable disk and serve weight. The bundle size is measured on disk; load impact is not measured.",
+      "evidence": "source-traced + listing: `ls public` = barcode, f1-f2-reference, icons, manifest.webmanifest; same entries in docs/design-sheet/dist with identical build timestamp 22:18:30.",
+      "confidence": "high",
+      "recommendation": "Set `publicDir: false` (and optionally `root` to the sheet directory) in vite.config.mjs.",
+      "originalKiroSeverity": "P3",
+      "reviewNote": "Copied assets increase output clutter; they are not necessarily downloaded by the preview. emptyOutDir is normal build behavior, not a defect by itself."
+    },
+    {
+      "id": "DS-A19",
+      "severity": "P3",
+      "title": "Existing tests miss key picker failures and their scopes are easy to confuse",
+      "category": "Documentation / evidence accuracy",
+      "files": [
+        {
+          "path": "docs/design-sheet/evidence/check-adoption.cjs",
+          "line": 47
+        },
+        {
+          "path": "docs/design-sheet/evidence/check-adoption.cjs",
+          "line": 11
+        },
+        {
+          "path": "docs/design-sheet/README.md",
+          "line": 59
+        },
+        {
+          "path": "docs/design-sheet/review.js",
+          "line": 120
+        }
+      ],
+      "trigger": "Read README evidence claims and rerun the checks (copies in probes/).",
+      "actual": "Both checks pass today (copies: 1,624/68/16 and 18/18). But check-adoption evaluates only sheet.js+review.js: its 16 axe runs and label checks examine the hidden native fallbacks, not the mounted Radix triggers users actually operate. README:59 presents it as current evidence without that caveat (evidence/README.md does state it). The JSON still carries date \"2026-10-11\" and sourceBaseline \"733c6aca\" although it is regenerated against the current tree. No check covers DS-A01/A02/A03/A04/A11. The in-sheet adoption copy (review.js:120) lists remaining app work without the 2026-10-15 text-button rule that README says the plan now includes.",
+      "expected": "Evidence labels state the exact surface they exercise, and dated fields reflect the run.",
+      "impact": "The pass counts read as broader coverage than they are.",
+      "evidence": "executed-probe: probes/check-adoption-copy.cjs → passed 1624 68 16 (output probes/adoption-checks-rerun.json); probes/check-controls-copy.cjs → 18 assertions, errors []. source-traced: check-adoption.cjs:47-50 evaluates only sheet.js/review.js.",
+      "confidence": "high",
+      "recommendation": "Run axe and the integrity checks after mounting dist/controls.js. Derive date/baseline from the run (git rev-parse). Add regression cases for the probe findings. Update adoptionCopy.",
+      "originalKiroSeverity": "P3",
+      "reviewNote": "The old date names the historical revision and sourceBaseline is a Git base, not necessarily stale. The material gap is that the large vanilla test count excludes React islands, and the 18-control checks omit the reproduced failures."
+    },
+    {
+      "id": "DS-A20",
+      "severity": "P3",
+      "title": "The component state matrix is incomplete",
+      "category": "Design coverage gap",
+      "files": [
+        {
+          "path": "docs/design-sheet/index.html",
+          "line": 419
+        },
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 13
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 201
+        }
+      ],
+      "trigger": "Look for state specimens for the new controls.",
+      "actual": "Field hierarchy shows only a resting date and time. controls.css has no [aria-invalid] trigger style, renderEntry never passes invalid/describedBy/pending to SelectControl, and no read-only text field exists anywhere (View only replaces the form with a notice). Dates have no min/max, so MFG later than Delivery or a future MFG date is accepted without comment.",
+      "expected": "The plan's state matrix (rest/focus/invalid/focused-invalid/disabled/pending/long Thai) is shown for Select, Date and Time, including one bounded date and the danger edge DESIGN.md promises for invalid fields.",
+      "impact": "The states most likely to regress during adoption are undesigned in the sheet.",
+      "evidence": "source-traced: cited lines; plan line 241 fixture list.",
+      "confidence": "high",
+      "recommendation": "Add a compact state row per control (invalid with recovery text, disabled, pending, read-only), plus one date with min/max.",
+      "originalKiroSeverity": "P3",
+      "reviewNote": "Reading mode already demonstrates disabled text/select/date controls. Missing examples include invalid/pending/read-only pickers, empty/incomplete time, and date bounds. No business rule forbidding future MFG dates or MFG after Delivery was established by this audit."
+    },
+    {
+      "id": "DS-A21",
+      "severity": "P2",
+      "title": "Calendar popup extends outside short viewports without internal scrolling",
+      "category": "Responsive / popup geometry",
+      "files": [
+        {
+          "path": "docs/design-sheet/controls.css",
+          "line": 134
+        },
+        {
+          "path": "docs/design-sheet/controls.tsx",
+          "line": 102
+        }
+      ],
+      "trigger": "Open the calendar at a 640×320 CSS viewport with its trigger around y=70.",
+      "actual": "Popup top=114, bottom=446, height=332, max-height:none, overflow-y:visible. Radix reports 194px available. Clear date is at y=389–437, outside the viewport.",
+      "expected": "Constrain popup height to available space and provide usable internal scrolling or an appropriate compact arrangement.",
+      "impact": "The popup opens clipped and lower dates/actions are outside the visible viewport.",
+      "evidence": "Parent T3 live DOM geometry; browser-evidence.json focusedChecks.landscapeCalendar. No physical device test or usable screenshot.",
+      "confidence": "high for measured geometry",
+      "recommendation": "Use the Radix available-height variable with a viewport cap and scroll containment; verify short-height/zoom cases.",
+      "originalKiroSeverity": null
+    }
+  ],
+  "notes": [
+    "Raw Kiro findings.json/report.md preserved unchanged.",
+    "Review corrects overstatements and adds one browser-confirmed responsive issue.",
+    "Design-sheet and application source unchanged."
+  ]
+}

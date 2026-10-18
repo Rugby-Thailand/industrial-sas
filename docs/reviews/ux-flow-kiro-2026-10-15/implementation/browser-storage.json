@@ -1,0 +1,26 @@
+{
+  "fixture": "/Users/macbook/Development/industrial-sas-ux-flow-20261015/output/ux-flow-preview",
+  "sourceWorktree": "industrial-sas-ux-flow-20261015-storage",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "observations": [
+    {
+      "scenario": "missing warehouse, direct target query/hash",
+      "result": "Selected WH-B through production SelectControl; gated task rendered warehouse-b; original URL retained; no horizontal overflow"
+    },
+    {
+      "scenario": "missing building, Thai",
+      "result": "Safe Back and Buildings & spots breadcrumb present; selected-warehouse recovery hint visible"
+    },
+    {
+      "scenario": "denied building, English",
+      "result": "Safe Back and parent breadcrumb retained; access denied message and synthetic technical reference visible"
+    }
+  ],
+  "screenshots": [
+    "/Users/macbook/.t3/userdata/browser-artifacts/browser-screenshot-localhost-mv9owuxa-e1cc0a5d.png"
+  ],
+  "limits": "Production components with synthetic workspace/Convex/routing substitutions. Real routing, authorization, persistence and async completion are tested in caller/integration suites, not established by these visual fixture observations."
+}

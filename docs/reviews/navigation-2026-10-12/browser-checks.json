@@ -1,0 +1,92 @@
+{
+  "origin": "http://localhost:3102",
+  "checks": [
+    "Skip to content keeps history unchanged; Scan / browser Back returns normally",
+    "Query-only employee selection retains the page during an 800 ms RSC delay",
+    "5 active-scan-link / in-app Back cycles",
+    "Scan draft: reselect / browser Back / Keep editing / in-app Back / Discard",
+    "Mobile scan draft: active link / Keep editing / Discard / Back",
+    "HR Profile Back returns to previous page"
+  ],
+  "timings": [
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 131
+    },
+    {
+      "destination": "/en/hr/employees",
+      "ms": 71
+    },
+    {
+      "destination": "/en/finished-goods",
+      "ms": 79
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 65
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 38
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 58
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 35
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 71
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 33
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 69
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 32
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 66
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 35
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 71
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 45
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 366
+    },
+    {
+      "destination": "/en/finished-goods/scan",
+      "ms": 605
+    },
+    {
+      "destination": "/en/hr/profile",
+      "ms": 94
+    }
+  ],
+  "errors": [],
+  "finalState": {
+    "path": "/en/finished-goods",
+    "index": 3,
+    "guard": false
+  },
+  "passed": true
+}

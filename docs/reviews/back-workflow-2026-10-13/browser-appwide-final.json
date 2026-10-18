@@ -1,0 +1,111 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "engine": "Chromium",
+  "hardware": false,
+  "checks": [
+    {
+      "name": "Thai Location choose then native Back preserves question query and fragment",
+      "passed": true,
+      "url": "/th/finished-goods/scan?backCheck=all#location",
+      "history": {
+        "index": 0,
+        "query": "?backCheck=all",
+        "hash": "#location"
+      },
+      "text": "ใบ Job\n\nหนึ่งใบต่อพาเลท\n\n1. อยู่ตำแหน่งไหน?\n\nสแกนบาร์โค้ดหรือ QR ของตำแหน่ง เลือกรูปภาพ หรือค้นหาด้วยรหัสหรือชื่อ"
+    },
+    {
+      "name": "Period dirty Back keeps draft and explicit Cancel consumes creation",
+      "passed": true,
+      "url": "/en/hr/periods?backCheck=all#list",
+      "history": {
+        "index": 0,
+        "query": "?backCheck=all",
+        "hash": "#list"
+      },
+      "text": "Attendance periods\n\nCreate, review, close and export site attendance periods.\n\nNew period\nAttendance periods\nDates\tSite\tStatus\tVersion\n19 Sept 2026 – 25 Sept 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v4\n2 Feb 2026 – 2 Feb 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v2\n\nScroll the table sideways to see the remaining columns."
+    },
+    {
+      "name": "direct storage hub has no synthetic fallback loop",
+      "passed": true,
+      "url": "/en/master-data/storage-layouts?backCheck=all#list",
+      "history": {
+        "index": 0,
+        "query": "?backCheck=all",
+        "hash": "#list"
+      },
+      "text": "Storage building planner\n\nPlan buildings, floors, and QR-addressable storage spots.\n\nNew building\nAll statuses\nอาคารสาธิต DEMO-ANNEX\n\nDEMO-ANNEX\n\nActive\nChecking status…\nFloors\n2\nBuilding dimensions\n30 × 20 m\nLoading\nPreparing this page.\nอาคารร่างสำหรับทดสอบ\n\nLOCAL-DRAFT\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 0\n\nPAGINATION-0000\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 1\n\nPAGINATION-0001\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 2\n\nPAGINATION-0002\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 3\n\nPAGINATION-0003\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 4\n\nPAGINATION-0004\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 5\n\nPAGINATION-0005\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 6\n\nPAGINATION-0006\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 7\n\nPAGINATION-0007\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 8\n\nPAGINATION-0008\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 9\n\nPAGINATION-0009\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 10\n\nPAGINATION-0010\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 11\n\nPAGINATION-0011\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 12\n\nPAGINATION-0012\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 13\n\nPAGINATION-0013\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 14\n\nPAGINATION-0014\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 15\n\nPAGINATION-0015\n\nDraft\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 16\n\nPAGINATION-0016\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nPagination building 17\n\nPAGINATION-0017\n\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n10 × 10 m\nLoading\nPreparing this page.\nRecords per page\n20\nPage 1\n\nBuildings are planning master data\n\nDrafts define building dimensions, floors, and storage spots. Activate a layout when the plan is ready.\n\nRegistered locations\n\nLocations recorded during scanning. Their floor-plan layout can be added later.\n\nNo registered locations match these filters.\n\nRecords per page\n20\nPage 1",
+      "settledDestination": true,
+      "visibleNavigationPending": false
+    },
+    {
+      "name": "Storage native Back returns impact review to dirty floor dimensions",
+      "passed": true,
+      "url": "/en/master-data/storage-layouts/mn77m8h2m29gwd6v527wm3d5w58epm43?editing=1",
+      "history": {
+        "index": 2,
+        "query": "?editing=1",
+        "hash": ""
+      },
+      "text": "Buildings & spots\nอาคารสาธิต DEMO-ANNEX\nอาคารสาธิต DEMO-ANNEX\n\nDEMO-ANNEX · Building dimensions: 30 × 20 m · Total height: 8 m\n\nActive\nFloor 1\n29 × 20 × 4 m\n2D\n3D\nZ014 units\nZ03\nZ1124 units\nZ12Empty\nZ13Empty\n29 m\n20 m\n5 m\nEmpty\nStored\nReserved\n\n2D PLAN · 100%\n\nEdit floor offset\nFloor dimensions\n29 × 20 × 4 m\nWidth (m)\nDepth (m)\nFloor height (m)\n79.5%\n\nRemaining floor space\n: 79.5%\n\nFree 461 m²\n\nUnavailable areas\nAdd unavailable area\nDEMO · ทางเดินหลัก · ชั้น 1\n\nX 0 · Y 8 m · W 30 × D 2 m\n\nEdit\nRemove\nDEMO · ทางเดินขวาง · ชั้น 1\n\nX 14 · Y 0 m · W 2 × D 8 m\n\nEdit\nRemove\n\nUnsaved floor changes\n\nReview impactCancel"
+    },
+    {
+      "name": "Native Back dismisses Search and retains underlying dirty floor",
+      "passed": true,
+      "url": "/en/master-data/storage-layouts/mn77m8h2m29gwd6v527wm3d5w58epm43?editing=1",
+      "history": {
+        "index": 2,
+        "query": "?editing=1",
+        "hash": ""
+      },
+      "text": "Buildings & spots\nอาคารสาธิต DEMO-ANNEX\nอาคารสาธิต DEMO-ANNEX\n\nDEMO-ANNEX · Building dimensions: 30 × 20 m · Total height: 8 m\n\nActive\nFloor 1\n29 × 20 × 4 m\n2D\n3D\nZ014 units\nZ03\nZ1124 units\nZ12Empty\nZ13Empty\n29 m\n20 m\n5 m\nEmpty\nStored\nReserved\n\n2D PLAN · 100%\n\nEdit floor offset\nFloor dimensions\n29 × 20 × 4 m\nWidth (m)\nDepth (m)\nFloor height (m)\n79.5%\n\nRemaining floor space\n: 79.5%\n\nFree 461 m²\n\nUnavailable areas\nAdd unavailable area\nDEMO · ทางเดินหลัก · ชั้น 1\n\nX 0 · Y 8 m · W 30 × D 2 m\n\nEdit\nRemove\nDEMO · ทางเดินขวาง · ชั้น 1\n\nX 14 · Y 0 m · W 2 × D 8 m\n\nEdit\nRemove\n\nUnsaved floor changes\n\nReview impactCancel"
+    },
+    {
+      "name": "Header Back guards dirty floor then consumes only floor editor",
+      "passed": true,
+      "url": "/en/master-data/storage-layouts/mn77m8h2m29gwd6v527wm3d5w58epm43",
+      "history": {
+        "index": 1,
+        "query": "",
+        "hash": ""
+      },
+      "text": "Buildings & spots\nอาคารสาธิต DEMO-ANNEX\nอาคารสาธิต DEMO-ANNEX\n\nDEMO-ANNEX · Building dimensions: 30 × 20 m · Total height: 8 m\n\nActive\nFloor 1\n30 × 20 × 4 m\n2D\n3D\nZ014 units\nZ03\nZ1124 units\nZ12Empty\nZ13Empty\n30 m\n20 m\n5 m\nEmpty\nStored\nReserved\n\n2D PLAN · 100%\n\nEdit floor offset\nFloor dimensions\n30 × 20 × 4 m\nWidth (m)\nDepth (m)\nFloor height (m)\n80.2%\n\nRemaining floor space\n: 80.2%\n\nFree 481 m²\n\nUnavailable areas\nAdd unavailable area\nDEMO · ทางเดินหลัก · ชั้น 1\n\nX 0 · Y 8 m · W 30 × D 2 m\n\nEdit\nRemove\nDEMO · ทางเดินขวาง · ชั้น 1\n\nX 14 · Y 0 m · W 2 × D 8 m\n\nEdit\nRemove"
+    },
+    {
+      "name": "Next Header Back returns to actual catalogue origin query and fragment",
+      "passed": true,
+      "url": "/en/master-data/storage-layouts?backCheck=all#list",
+      "history": {
+        "index": 0,
+        "query": "?backCheck=all",
+        "hash": "#list"
+      },
+      "text": "Storage building planner\n\nPlan buildings, floors, and QR-addressable storage spots.\n\nNew building\nAll statuses\nอาคารสาธิต DEMO-ANNEX\n\nDEMO-ANNEX\n\nActive\nFloors\n2\nBuilding dimensions\n30 × 20 m\n84.4%\n\nRemaining floor space\n: 84.4%\n\nFree 1,013 m²\n\nอาคารร่างสำหรับทดสอบ\n\nLOCAL-DRAFT\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 0\n\nPAGINATION-0000\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 1\n\nPAGINATION-0001\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 2\n\nPAGINATION-0002\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 3\n\nPAGINATION-0003\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 4\n\nPAGINATION-0004\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 5\n\nPAGINATION-0005\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 6\n\nPAGINATION-0006\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 7\n\nPAGINATION-0007\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 8\n\nPAGINATION-0008\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 9\n\nPAGINATION-0009\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 10\n\nPAGINATION-0010\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 11\n\nPAGINATION-0011\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 12\n\nPAGINATION-0012\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 13\n\nPAGINATION-0013\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 14\n\nPAGINATION-0014\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 15\n\nPAGINATION-0015\n\nDraft\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 16\n\nPAGINATION-0016\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nPagination building 17\n\nPAGINATION-0017\n\nActive\nFloors\n1\nBuilding dimensions\n10 × 10 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 100 m²\n\nRecords per page\n20\nPage 1\n\nBuildings are planning master data\n\nDrafts define building dimensions, floors, and storage spots. Activate a layout when the plan is ready.\n\nRegistered locations\n\nLocations recorded during scanning. Their floor-plan layout can be added later.\n\nNo registered locations match these filters.\n\nRecords per page\n20\nPage 1",
+      "settledDestination": true,
+      "visibleNavigationPending": false
+    },
+    {
+      "name": "Actual locale switch retains Employees editor ownership and Cancel consumes the native editor",
+      "passed": true,
+      "url": "/en/hr/employees?backCheck=all#registry",
+      "history": {
+        "index": 0,
+        "query": "?backCheck=all",
+        "hash": "#registry"
+      },
+      "text": "Employees\n\nEmployee registry, linked accounts, supervisors and schedules.\n\nAdd employee\n\n6 employees\n\nสใ\n\nสมชาย ใจดี (Test account)\n\nEMP-DEMO-001 · LOCAL-DEMO\n\nActive\nLinked account\nLocal Tester\nSupervisor\nหัวหน้าทดสอบ (Supervisor)\nSchedule\nMon–Fri\n08:30–17:30 · 60 min break\nEdit\nวไ\n\nวิภา ไม่มีบัญชี (No account)\n\nEMP-DEMO-002 · LOCAL-DEMO\n\nActive\nLinked account\nNo account\nSupervisor\nLocal Tester\nSchedule\nMon–Fri\n08:30–17:30 · 60 min break\nEdit\nธก\n\nธนา กะดึก (Night shift)\n\nEMP-DEMO-003 · LOCAL-DEMO\n\nActive\nLinked account\nพนักงานกะดึก (Night staff)\nSupervisor\nLocal Tester\nSchedule\nEvery day\n22:00–06:00 (next day) · 30 min break\nEdit\nพ\n\nพนักงานตัวอย่างวิดีโอ\n\nEMP-VIDEO-004 · LOCAL-DEMO\n\nInactive\nLinked account\nNo account\nSupervisor\nหัวหน้าทดสอบ (Supervisor)\nSchedule\nMon–Fri\n08:30–17:30 · 60 min break\nEdit\nพH\n\nพนักงานทดสอบคู่มือ HR (QA)\n\nHR-QA-20261010 · LOCAL-DEMO\n\nInactive\nLinked account\nNo account\nSupervisor\nLocal Tester\nSchedule\nMon\n08:30–17:30 · 60 min break\nEdit\nพU\n\nพนักงานทดสอบ URL (QA)\n\nHR-QA-URL-20261010 · LOCAL-DEMO\n\nInactive\nLinked account\nNo account\nSupervisor\n—\nSchedule\nMon–Fri\n08:30–17:30 · 60 min break\nEdit",
+      "settledDestination": true,
+      "visibleNavigationPending": false
+    }
+  ],
+  "errors": [
+    "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template)."
+  ],
+  "settledDestinationVerification": {
+    "pageErrors": [],
+    "remainingConsoleWarning": "script-tag development warning independently reproduced in plain profile locale control"
+  }
+}

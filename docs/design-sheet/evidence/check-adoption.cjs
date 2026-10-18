@@ -6,10 +6,24 @@ const { JSDOM, VirtualConsole } = require("jsdom");
 const axe = require("axe-core");
 const root = path.resolve(__dirname, "..");
 const report = {
-  date: "2026-10-11",
+  // Named revisions, not run dates: the adoption revision was written on
+  // 2026-10-11 against Git base 733c6aca. checkedAt/gitHead describe this run.
+  adoptionRevisionDate: "2026-10-11",
   checkedAt: new Date().toISOString(),
+  gitHead: (() => {
+    try {
+      return require("node:child_process")
+        .execSync("git rev-parse --short HEAD", { cwd: root })
+        .toString()
+        .trim();
+    } catch {
+      return null;
+    }
+  })(),
   scope: "Original standalone sheet adoption revision",
-  sourceBaseline: "733c6aca",
+  surface:
+    "sheet.js + review.js vanilla handlers only. The React islands (dist/controls.js) are not loaded, so selects/date/time are checked as their hidden native sources; check-controls.cjs covers the mounted controls.",
+  adoptionGitBase: "733c6aca",
   approvedComposition: "8b0ef538",
   method:
     "jsdom local DOM/events; selected axe structural rules; source checks; hex contrast arithmetic",
@@ -81,12 +95,20 @@ function integrity(c) {
         .filter(Boolean))
         check(c.doc.getElementById(id), `missing ${attr} ${id}`);
   }
-  for (const el of c.doc.querySelectorAll("input,select"))
+  for (const el of c.doc.querySelectorAll("input,select")) {
+    if (el.hidden) {
+      check(
+        el.getAttribute("aria-hidden") === "true" && el.tabIndex === -1,
+        `hidden source is removed from accessibility and tab order: ${el.id}`,
+      );
+      continue;
+    }
     check(
       el.getAttribute("aria-label") ||
         c.doc.querySelector(`label[for="${el.id}"]`),
       `unlabelled ${el.id}`,
     );
+  }
   check(c.errors.length === 0, c.errors.join("\n"));
 }
 function linear(hex) {
@@ -172,12 +194,21 @@ function contrast(fg, bg) {
                 values.every((v) => /Unavailable|ไม่พร้อม/.test(v)),
                 "unavailable totals",
               );
-            else if (mode === "loading")
+            else if (mode === "loading") {
+              const strip = panel.querySelector(".stat-strip");
               check(
-                values.every((v) => v === "…"),
-                "loading totals",
+                strip.getAttribute("aria-busy") === "true" &&
+                  [...strip.querySelectorAll("dd")].every(
+                    (dd) =>
+                      dd.querySelector('[aria-hidden="true"]').textContent ===
+                        "…" &&
+                      /Loading|กำลังโหลด/.test(
+                        dd.querySelector(".sr-only").textContent,
+                      ),
+                  ),
+                "loading totals: busy strip, visible ellipsis, text equivalent",
               );
-            else
+            } else
               check(
                 values[0] === "128" && values.at(-1) === "342",
                 "warehouse counts independent of three rows",
@@ -226,11 +257,21 @@ function contrast(fg, bg) {
                   "Thai Buddhist business date",
                 );
             }
-            if (mode === "pending")
+            if (mode === "pending") {
+              const action = panel.querySelector("#sample-clock-out");
               check(
-                panel.querySelector("#sample-clock-out").disabled,
-                "pending clock locked",
+                !action.disabled &&
+                  action.getAttribute("aria-busy") === "true" &&
+                  action.getAttribute("aria-disabled") === "true",
+                "pending clock busy and locked, not disabled",
               );
+              action.click();
+              check(
+                panel.querySelector("#sample-clock-out") &&
+                  !panel.querySelector(".badge.success"),
+                "pending clock ignores activation",
+              );
+            }
             if (mode === "uncertain")
               check(
                 panel.querySelector("#safe-clock-retry") &&

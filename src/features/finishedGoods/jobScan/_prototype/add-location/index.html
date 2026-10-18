@@ -1,0 +1,1631 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Add location preview · Storage Planner</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #fafafa;
+        --surface: #fff;
+        --raised: #f4f4f4;
+        --text: #242424;
+        --muted: #626262;
+        --line: #e2e2e2;
+        --input: #858585;
+        --primary: #213ee8;
+        --link: #213ee8;
+        --success: #11643f;
+        --success-bg: #e9f5ee;
+        --warning: #825400;
+        --warning-bg: #fff5de;
+        --focus: #213ee8;
+        --radius: 8px;
+      }
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #000;
+        --surface: #0c0c0c;
+        --raised: #1d1d1d;
+        --text: #f0f0f0;
+        --muted: #b0b0b0;
+        --line: #292929;
+        --input: #858585;
+        --primary: #2443d8;
+        --link: #b0bfff;
+        --success: #74d5a7;
+        --success-bg: #10271d;
+        --warning: #f0bd6c;
+        --warning-bg: #2e2415;
+        --focus: #b0bfff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans Thai",
+          sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      a {
+        touch-action: manipulation;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+      input:focus,
+      select:focus {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      input,
+      select {
+        width: 100%;
+        min-width: 0;
+        min-height: 48px;
+        padding: 10px 12px;
+        border: 1px solid var(--input);
+        border-radius: 6px;
+        background: var(--surface);
+        caret-color: var(--link);
+      }
+      input::placeholder {
+        color: var(--muted);
+        opacity: 1;
+      }
+      ::selection {
+        background: var(--primary);
+        color: white;
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--input) var(--bg);
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: 28px;
+        line-height: 1.25;
+        letter-spacing: -0.025em;
+        font-weight: 650;
+      }
+      h2 {
+        font-size: 20px;
+        line-height: 1.4;
+        font-weight: 600;
+      }
+      h3 {
+        font-size: 17px;
+        line-height: 1.4;
+        font-weight: 600;
+      }
+      p {
+        max-width: 70ch;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .small {
+        font-size: 13px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        overflow-wrap: anywhere;
+      }
+      .icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .btn {
+        min-height: 46px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 17px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        font-weight: 550;
+        line-height: 1.35;
+        text-decoration: none;
+      }
+      .btn:hover {
+        background: var(--raised);
+      }
+      .primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+      .primary:hover {
+        background: #1e34bb;
+        border-color: #1e34bb;
+      }
+      .ghost {
+        border-color: transparent;
+        background: transparent;
+      }
+      .link {
+        background: transparent;
+        border: 0;
+        padding: 8px 0;
+        min-height: 44px;
+        color: var(--link);
+        text-align: left;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+      .icon-btn {
+        width: 46px;
+        padding: 10px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .spread {
+        justify-content: space-between;
+      }
+      .wrap {
+        flex-wrap: wrap;
+      }
+      .preview-banner {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 42px;
+        padding: 4px 24px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .preview-banner button {
+        min-height: 32px;
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      .topbar {
+        height: 66px;
+        border-bottom: 1px solid var(--line);
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        background: var(--surface);
+      }
+      .warehouse {
+        min-width: 0;
+        font-size: 14px;
+        font-weight: 550;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .warehouse span {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .topbar select {
+        width: 100px;
+        min-height: 42px;
+        padding: 7px 10px;
+        border-color: var(--line);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+      }
+      .sidebar {
+        padding: 30px 16px;
+        border-right: 1px solid var(--line);
+        min-height: calc(100vh - 108px);
+      }
+      .sidebar-title {
+        padding: 0 12px 24px;
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .nav-button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 48px;
+        padding: 12px;
+        margin-bottom: 6px;
+        text-align: left;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+      }
+      .nav-button:hover {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .nav-button[aria-current="page"] {
+        color: var(--text);
+        background: var(--raised);
+        font-weight: 600;
+      }
+      main {
+        min-width: 0;
+      }
+      .content {
+        max-width: 784px;
+        padding: 40px 32px 130px;
+        margin: auto;
+      }
+      .heading {
+        margin-bottom: 28px;
+      }
+      .heading p {
+        margin-top: 10px;
+        color: var(--muted);
+      }
+      .steps {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        list-style: none;
+        margin: 0 0 32px;
+        padding: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .steps li {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+      }
+      .step-number {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        font-variant-numeric: tabular-nums;
+      }
+      .steps .current {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .steps .current .step-number {
+        border-color: var(--primary);
+        color: #fff;
+        background: var(--primary);
+      }
+      .steps .done .step-number {
+        border-color: var(--success);
+        color: var(--success);
+      }
+      .step-rule {
+        height: 1px;
+        flex: 1;
+        background: var(--line);
+      }
+      .section {
+        margin-bottom: 24px;
+      }
+      .section-heading {
+        margin-bottom: 18px;
+      }
+      .section-heading p {
+        margin-top: 6px;
+      }
+      .search {
+        position: relative;
+        display: flex;
+        margin: 16px 0 22px;
+      }
+      .search > .icon {
+        position: absolute;
+        top: 14px;
+        left: 13px;
+        color: var(--muted);
+      }
+      .search input {
+        padding-left: 42px;
+        padding-right: 57px;
+      }
+      .search .scan {
+        position: absolute;
+        right: 1px;
+        top: 1px;
+        bottom: 1px;
+        width: 48px;
+        border: 0;
+        border-left: 1px solid var(--input);
+        border-radius: 0 5px 5px 0;
+        background: var(--primary);
+        color: #fff;
+        display: grid;
+        place-items: center;
+      }
+      .unknown {
+        display: flex;
+        gap: 14px;
+        padding: 21px 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+      .unknown > .icon {
+        color: var(--warning);
+        margin-top: 3px;
+      }
+      .unknown p {
+        color: var(--muted);
+        margin-top: 5px;
+      }
+      .unknown .btn {
+        margin-top: 16px;
+      }
+      .fallback {
+        margin-top: 9px;
+      }
+      .matches {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-block: 1px solid var(--line);
+      }
+      .matches li + li {
+        border-top: 1px solid var(--line);
+      }
+      .match {
+        width: 100%;
+        background: transparent;
+        border: 0;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        text-align: left;
+        padding: 14px 8px;
+        min-height: 64px;
+      }
+      .match:hover {
+        background: var(--raised);
+      }
+      .match > .icon {
+        color: var(--muted);
+      }
+      .match strong {
+        display: block;
+        font-size: 15px;
+      }
+      .match span {
+        min-width: 0;
+      }
+      .registration {
+        border-top: 1px solid var(--line);
+        padding-top: 24px;
+        margin-top: 22px;
+      }
+      .registration h2 {
+        margin-bottom: 7px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px 18px;
+        margin-top: 24px;
+      }
+      label {
+        display: block;
+        font-size: 14px;
+        font-weight: 550;
+        margin-bottom: 7px;
+      }
+      label .optional {
+        font-weight: 400;
+        color: var(--muted);
+        margin-left: 5px;
+        font-size: 12px;
+      }
+      .field-help {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 28px;
+      }
+      .form-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .notice {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 6px;
+        background: var(--success-bg);
+        color: var(--success);
+        display: flex;
+        align-items: start;
+        gap: 9px;
+        font-size: 13px;
+      }
+      .error {
+        color: var(--warning);
+        background: var(--warning-bg);
+      }
+      .destination {
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 22px;
+        margin-bottom: 28px;
+      }
+      .destination-code {
+        font-size: 19px;
+        font-weight: 600;
+        margin-top: 6px;
+      }
+      .breadcrumb {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+      }
+      .ticket {
+        padding: 24px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .ticket-top {
+        margin-bottom: 14px;
+      }
+      .ticket-top strong {
+        font-size: 15px;
+      }
+      .ticket .form-grid {
+        margin-top: 12px;
+      }
+      .format-controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .format-controls .btn {
+        padding: 8px 13px;
+        min-height: 42px;
+        font-size: 13px;
+      }
+      .format-controls [aria-pressed="true"] {
+        background: var(--raised);
+        border-color: var(--link);
+        color: var(--link);
+      }
+      .required-note {
+        margin-top: 15px;
+      }
+      .save-bar {
+        margin-top: 28px;
+        padding-top: 0;
+      }
+      .save-bar .btn {
+        min-width: 190px;
+      }
+      .receipt {
+        padding: 24px 0;
+      }
+      .receipt-icon {
+        width: 52px;
+        height: 52px;
+        color: var(--success);
+        margin-bottom: 18px;
+      }
+      .receipt h2 {
+        font-size: 27px;
+      }
+      .receipt dl {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 14px;
+        border-block: 1px solid var(--line);
+        padding: 24px 0;
+        margin: 26px 0;
+      }
+      dt {
+        color: var(--muted);
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .records {
+        list-style: none;
+        padding: 0;
+        margin: 26px 0;
+      }
+      .record {
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .record p {
+        margin-top: 4px;
+      }
+      .status {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--success);
+        font-size: 12px;
+      }
+      .status .icon {
+        width: 15px;
+        height: 15px;
+      }
+      .empty {
+        padding: 30px 0;
+        color: var(--muted);
+      }
+      .switcher {
+        position: fixed;
+        z-index: 20;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 5px;
+        border: 1px solid var(--input);
+        border-radius: 9px;
+        background: var(--surface);
+        max-width: calc(100vw - 24px);
+      }
+      .switcher button {
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        padding: 10px;
+        min-height: 42px;
+      }
+      .switcher button:hover {
+        background: var(--raised);
+      }
+      .switcher .variant {
+        min-width: 190px;
+        text-align: center;
+        padding: 0 8px;
+        font-size: 13px;
+      }
+      .variant small {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      dialog {
+        color: var(--text);
+        background: var(--surface);
+        border: 0;
+        padding: 0;
+      }
+      dialog::backdrop {
+        background: rgb(0 0 0 / 0.65);
+      }
+      #drawer {
+        position: fixed;
+        inset: 0 0 0 auto;
+        margin: 0;
+        width: min(520px, 100%);
+        height: 100dvh;
+        max-height: none;
+        max-width: none;
+        padding: 30px 28px 90px;
+        overflow-y: auto;
+      }
+      #drawer .registration {
+        border: 0;
+        padding: 0;
+        margin-top: 0;
+      }
+      #drawer .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .dialog-top {
+        margin-bottom: 20px;
+      }
+      #state-dialog {
+        width: min(660px, calc(100vw - 24px));
+        border-radius: 12px;
+        padding: 24px;
+      }
+      #state-dialog pre {
+        max-height: 55vh;
+        overflow: auto;
+        padding: 14px;
+        margin-top: 20px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .mobile-menu {
+        display: none;
+      }
+      @media (max-width: 900px) {
+        .layout {
+          display: block;
+        }
+        .sidebar {
+          display: none;
+          position: absolute;
+          z-index: 15;
+          top: 108px;
+          left: 0;
+          width: 250px;
+          background: var(--surface);
+          border-bottom: 1px solid var(--line);
+          min-height: auto;
+        }
+        .sidebar.open {
+          display: block;
+        }
+        .mobile-menu {
+          display: inline-flex;
+        }
+        .topbar {
+          padding: 0 16px;
+        }
+        .content {
+          padding-top: 30px;
+        }
+      }
+      @media (max-width: 540px) {
+        body {
+          font-size: 14px;
+        }
+        .preview-banner {
+          padding: 5px 14px;
+          gap: 4px;
+        }
+        .preview-banner .state-trigger {
+          display: none;
+        }
+        .topbar {
+          gap: 8px;
+          padding: 0 12px;
+        }
+        .warehouse {
+          font-size: 13px;
+        }
+        .warehouse span {
+          display: none;
+        }
+        .topbar .row {
+          gap: 5px;
+        }
+        .topbar select {
+          width: 75px;
+          font-size: 13px;
+        }
+        .content {
+          padding: 28px 20px 112px;
+        }
+        h1 {
+          font-size: 25px;
+        }
+        h2 {
+          font-size: 18px;
+        }
+        .steps {
+          gap: 8px;
+          margin-bottom: 27px;
+          font-size: 11px;
+        }
+        .steps li {
+          gap: 5px;
+        }
+        .step-number {
+          width: 22px;
+          height: 22px;
+        }
+        .heading {
+          margin-bottom: 24px;
+        }
+        .form-grid {
+          grid-template-columns: 1fr;
+          gap: 17px;
+        }
+        .actions {
+          flex-direction: column-reverse;
+        }
+        .actions .btn {
+          width: 100%;
+        }
+        .receipt dl {
+          grid-template-columns: 95px minmax(0, 1fr);
+          gap: 12px;
+        }
+        .unknown {
+          gap: 10px;
+        }
+        .save-bar {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .save-bar .btn {
+          width: 100%;
+        }
+        .switcher {
+          bottom: 12px;
+        }
+        .switcher .variant {
+          min-width: 176px;
+        }
+        #drawer {
+          padding: 22px 20px 90px;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .registration {
+          animation: reveal 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes reveal {
+          from {
+            clip-path: inset(0 0 18% 0);
+          }
+          to {
+            clip-path: inset(0);
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg style="display: none" xmlns="http://www.w3.org/2000/svg">
+      <symbol id="i-scan" viewBox="0 0 24 24">
+        <path
+          d="M7 3H4a1 1 0 0 0-1 1v3m14-4h3a1 1 0 0 1 1 1v3M3 17v3a1 1 0 0 0 1 1h3m10 0h3a1 1 0 0 0 1-1v-3M7 7v10m3-10v10m4-10v10m3-10v10"
+        />
+      </symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24">
+        <path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0Z" />
+        <circle cx="12" cy="10" r="2.5" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m7 12 3 3 7-7" />
+        <circle cx="12" cy="12" r="9" />
+      </symbol>
+      <symbol id="i-box" viewBox="0 0 24 24">
+        <path d="m12 3 9 5v8l-9 5-9-5V8l9-5ZM3 8l9 5 9-5M12 13v8M7.5 5.5l9 5" />
+      </symbol>
+      <symbol id="i-building" viewBox="0 0 24 24">
+        <path
+          d="M4 21V3h12v18M16 9h4v12M2 21h20M8 7h4M8 11h4M8 15h4M9 21v-3h3v3"
+        />
+      </symbol>
+      <symbol id="i-list" viewBox="0 0 24 24">
+        <path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1" />
+      </symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </symbol>
+      <symbol id="i-theme" viewBox="0 0 24 24">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 24 24">
+        <path d="m6 6 12 12M6 18 18 6" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14m-5-5 5 5-5 5" />
+      </symbol>
+      <symbol id="i-left" viewBox="0 0 24 24">
+        <path d="m15 5-7 7 7 7" />
+      </symbol>
+      <symbol id="i-right" viewBox="0 0 24 24">
+        <path d="m9 5 7 7-7 7" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+      </symbol>
+    </svg>
+    <div class="preview-banner">
+      <span id="preview-label"></span>
+      <div class="row">
+        <button
+          class="btn ghost state-trigger"
+          data-action="state"
+          id="state-label"
+        ></button
+        ><button
+          class="btn ghost"
+          data-action="reset"
+          id="reset-label"
+        ></button>
+      </div>
+    </div>
+    <header class="topbar">
+      <div class="row" style="min-width: 0">
+        <button
+          class="btn ghost icon-btn mobile-menu"
+          data-action="menu"
+          aria-label="Open menu"
+        >
+          <svg class="icon"><use href="#i-menu" /></svg>
+        </button>
+        <div class="warehouse">
+          TG-OPT <span>· Top Gold Optimized Warehouse</span>
+        </div>
+      </div>
+      <div class="row">
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="th">ไทย</option></select
+        ><button
+          class="btn ghost icon-btn"
+          data-action="theme"
+          aria-label="Switch light and dark theme"
+        >
+          <svg class="icon"><use href="#i-theme" /></svg>
+        </button>
+      </div>
+    </header>
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-title">Storage Planner</div>
+        <nav id="navigation" aria-label="Main navigation"></nav>
+      </aside>
+      <main id="main"><div class="content" id="content"></div></main>
+    </div>
+    <div
+      class="switcher"
+      role="group"
+      aria-label="Compare registration layouts"
+    >
+      <button data-action="previous" aria-label="Previous layout">
+        <svg class="icon"><use href="#i-left" /></svg>
+      </button>
+      <div class="variant" id="variant-label"></div>
+      <button data-action="next" aria-label="Next layout">
+        <svg class="icon"><use href="#i-right" /></svg>
+      </button>
+    </div>
+    <dialog id="drawer" aria-labelledby="registration-title"></dialog>
+    <dialog id="state-dialog" aria-labelledby="state-title">
+      <div class="row spread">
+        <h2 id="state-title">Preview state</h2>
+        <button
+          class="btn ghost icon-btn"
+          data-action="close-state"
+          aria-label="Close"
+        >
+          <svg class="icon"><use href="#i-close" /></svg>
+        </button>
+      </div>
+      <pre id="state-json"></pre>
+    </dialog>
+    <div
+      id="announcement"
+      role="status"
+      aria-live="polite"
+      style="
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      "
+    ></div>
+    <script>
+      const copy = {
+        en: {
+          preview: "Interactive preview · Sample data",
+          reset: "Reset demo",
+          state: "Show state",
+          scanNav: "Scan job tickets",
+          recordsNav: "Scanned records",
+          locationsNav: "Locations",
+          title: "Scan job tickets",
+          subtitle:
+            "Choose a location, then capture pallet or package information.",
+          location: "Location",
+          information: "Information",
+          saved: "Saved",
+          where: "Where are you?",
+          locationHint: "Scan a location barcode or search by code or name.",
+          search: "Search location",
+          placeholder: "e.g. F2-L28-18 or zone name",
+          scanSample: "Scan sample location",
+          missing: "Location not registered",
+          missingHint:
+            "Add this location to a building, then continue scanning.",
+          add: "Add location",
+          later: "Save now, set location later",
+          laterHint: "Keep the label and assign a building later.",
+          addTitle: "Add this location",
+          addHint: "Link the scanned label to the building you are in.",
+          code: "Location code",
+          name: "Location name",
+          optional: "optional",
+          namePlaceholder: "Use the code, or add a familiar name",
+          building: "Building",
+          buildingPlaceholder: "Choose a building",
+          floor: "Floor",
+          floorNone: "Not specified",
+          floorSelectHint: "Choose a building first.",
+          floorHint: "Leave blank if the floor is not known.",
+          simple: "You can add measurements later.",
+          continue: "Add location and continue",
+          cancel: "Cancel",
+          exists: "This code already exists. Choose its registered location.",
+          invalidCode: "Enter an ordinary location code, up to 200 characters.",
+          added: "Location added. You can scan this label again next time.",
+          set: "Location set",
+          needs: "Needs location",
+          change: "Change",
+          unknownBuilding: "Building not assigned",
+          capture: "Capture pallet or package information",
+          captureHint:
+            "Scan a ticket or enter its details. All items below use this location.",
+          sampleTicket: "Scan sample ticket",
+          manual: "Add manually",
+          item: "Item",
+          factoryOrder: "Factory order",
+          productCode: "Product barcode",
+          quantity: "Quantity",
+          storageFormat: "Storage format",
+          PALLET: "Pallet",
+          BOX: "Box",
+          OTHER: "Other package",
+          remove: "Remove item",
+          required: "Factory order and product barcode are required.",
+          noItems: "Scan a sample ticket or add an item manually to begin.",
+          save: "Save information",
+          count: "item(s)",
+          stockNote: "Saving information does not confirm physical storage.",
+          success: "Information saved",
+          successHint: "The location and item details are recorded together.",
+          locationCreated: "Location added to this building",
+          receiptBuilding: "Building",
+          receiptFloor: "Floor",
+          receiptLocation: "Location",
+          receiptItems: "Items saved",
+          records: "View saved records",
+          again: "Scan more at this location",
+          newScan: "Scan another location",
+          recordTitle: "Scanned records",
+          recordHint: "Saved ticket information and its assigned location.",
+          emptyRecords:
+            "No saved records yet. Complete the scan flow to see them here.",
+          start: "Start scanning",
+          locationsTitle: "Locations",
+          locationsHint: "Registered locations in this sample warehouse.",
+          layoutPending: "Layout pending",
+          demoOnly: "Demo saved in this page only. Reloading clears it.",
+          inline: "A · Inline form",
+          drawer: "B · Side drawer",
+          step: "C · Separate step",
+          recommended: "Recommended · ← / → to compare",
+          compare: "← / → to compare",
+          newLocation: "New location",
+          incomplete:
+            "Complete the factory order and product barcode, and use a non-negative quantity.",
+          stepBack: "Back to location search",
+        },
+        th: {
+          preview: "ตัวอย่างใช้งาน · ข้อมูลสมมติ",
+          reset: "เริ่มตัวอย่างใหม่",
+          state: "ดูสถานะ",
+          scanNav: "สแกนใบงาน",
+          recordsNav: "รายการที่สแกน",
+          locationsNav: "ตำแหน่งจัดเก็บ",
+          title: "สแกนใบงาน",
+          subtitle: "เลือกตำแหน่ง แล้วบันทึกข้อมูลพาเลทหรือแพ็กเกจ",
+          location: "ตำแหน่ง",
+          information: "ข้อมูล",
+          saved: "บันทึกแล้ว",
+          where: "คุณอยู่ที่ตำแหน่งไหน?",
+          locationHint: "สแกนบาร์โค้ดตำแหน่ง หรือค้นหาด้วยรหัสหรือชื่อ",
+          search: "ค้นหาตำแหน่ง",
+          placeholder: "เช่น F2-L28-18 หรือชื่อโซน",
+          scanSample: "สแกนตำแหน่งตัวอย่าง",
+          missing: "ยังไม่ได้เพิ่มตำแหน่งนี้",
+          missingHint: "เพิ่มตำแหน่งนี้ในอาคาร แล้วสแกนใบงานต่อได้เลย",
+          add: "เพิ่มตำแหน่ง",
+          later: "บันทึกก่อน ระบุตำแหน่งภายหลัง",
+          laterHint: "เก็บรหัสไว้ แล้วเลือกอาคารภายหลัง",
+          addTitle: "เพิ่มตำแหน่งนี้",
+          addHint: "เชื่อมรหัสที่สแกนกับอาคารที่คุณอยู่",
+          code: "รหัสตำแหน่ง",
+          name: "ชื่อตำแหน่ง",
+          optional: "ไม่บังคับ",
+          namePlaceholder: "ใช้รหัสเดิม หรือตั้งชื่อที่จำง่าย",
+          building: "อาคาร",
+          buildingPlaceholder: "เลือกอาคาร",
+          floor: "ชั้น",
+          floorNone: "ยังไม่ระบุ",
+          floorSelectHint: "เลือกอาคารก่อน",
+          floorHint: "เว้นไว้ได้ หากยังไม่ทราบชั้น",
+          simple: "เพิ่มขนาดและการวัดภายหลังได้",
+          continue: "เพิ่มตำแหน่งและดำเนินการต่อ",
+          cancel: "ยกเลิก",
+          exists: "มีรหัสนี้แล้ว กรุณาเลือกตำแหน่งที่ลงทะเบียนไว้",
+          invalidCode: "ระบุรหัสตำแหน่งทั่วไป ไม่เกิน 200 ตัวอักษร",
+          added: "เพิ่มตำแหน่งแล้ว ครั้งหน้าสแกนรหัสนี้ได้เลย",
+          set: "ระบุตำแหน่งแล้ว",
+          needs: "รอระบุตำแหน่ง",
+          change: "เปลี่ยน",
+          unknownBuilding: "ยังไม่ได้เลือกอาคาร",
+          capture: "บันทึกข้อมูลพาเลทหรือแพ็กเกจ",
+          captureHint: "สแกนใบงานหรือกรอกข้อมูล ทุกรายการด้านล่างใช้ตำแหน่งนี้",
+          sampleTicket: "สแกนใบงานตัวอย่าง",
+          manual: "กรอกเอง",
+          item: "รายการ",
+          factoryOrder: "เลขใบสั่งผลิต",
+          productCode: "บาร์โค้ดสินค้า",
+          quantity: "จำนวน",
+          storageFormat: "รูปแบบจัดเก็บ",
+          PALLET: "พาเลท",
+          BOX: "กล่อง",
+          OTHER: "แพ็กเกจอื่น",
+          remove: "ลบรายการ",
+          required: "ต้องระบุเลขใบสั่งผลิตและบาร์โค้ดสินค้า",
+          noItems: "เริ่มจากสแกนใบงานตัวอย่าง หรือเพิ่มรายการด้วยตนเอง",
+          save: "บันทึกข้อมูล",
+          count: "รายการ",
+          stockNote: "การบันทึกข้อมูลยังไม่ใช่การยืนยันจัดเก็บจริง",
+          success: "บันทึกข้อมูลแล้ว",
+          successHint: "ข้อมูลรายการถูกบันทึกพร้อมตำแหน่ง",
+          locationCreated: "เพิ่มตำแหน่งในอาคารนี้แล้ว",
+          receiptBuilding: "อาคาร",
+          receiptFloor: "ชั้น",
+          receiptLocation: "ตำแหน่ง",
+          receiptItems: "รายการที่บันทึก",
+          records: "ดูรายการที่บันทึก",
+          again: "สแกนต่อที่ตำแหน่งนี้",
+          newScan: "สแกนตำแหน่งอื่น",
+          recordTitle: "รายการที่สแกน",
+          recordHint: "ข้อมูลใบงานที่บันทึกและตำแหน่งที่กำหนด",
+          emptyRecords: "ยังไม่มีรายการ ลองทำขั้นตอนสแกนให้เสร็จก่อน",
+          start: "เริ่มสแกน",
+          locationsTitle: "ตำแหน่งจัดเก็บ",
+          locationsHint: "ตำแหน่งในคลังตัวอย่างนี้",
+          layoutPending: "รอเพิ่มผังตำแหน่ง",
+          demoOnly: "บันทึกเฉพาะในตัวอย่างนี้ โหลดหน้าใหม่แล้วข้อมูลจะถูกล้าง",
+          inline: "A · แบบฟอร์มในหน้า",
+          drawer: "B · แผงด้านข้าง",
+          step: "C · ขั้นตอนแยก",
+          recommended: "แนะนำ · ← / → เพื่อเปรียบเทียบ",
+          compare: "← / → เพื่อเปรียบเทียบ",
+          newLocation: "ตำแหน่งใหม่",
+          incomplete:
+            "ระบุเลขใบสั่งผลิต บาร์โค้ดสินค้า และจำนวนที่ไม่ติดลบให้ครบ",
+          stepBack: "กลับไปค้นหาตำแหน่ง",
+        },
+      };
+      const params = new URLSearchParams(location.search);
+      let lang = params.get("lang") === "th" ? "th" : "en";
+      let variant = ["A", "B", "C"].includes(params.get("variant"))
+        ? params.get("variant")
+        : "A";
+      document.documentElement.dataset.theme =
+        params.get("theme") === "light" ? "light" : "dark";
+      const buildings = [
+        {
+          id: "fg1",
+          code: "FG-1",
+          name: "Finished goods building",
+          th: "อาคารสินค้าสำเร็จรูป",
+          floors: [1, 2],
+        },
+        {
+          id: "pd",
+          code: "PD",
+          name: "Production building",
+          th: "อาคารฝ่ายผลิต",
+          floors: [1, 2],
+        },
+        {
+          id: "annex",
+          code: "ANNEX",
+          name: "Annex warehouse",
+          th: "คลังส่วนต่อขยาย",
+          floors: [1],
+        },
+      ];
+      const initialLocations = [
+        {
+          id: "loc-1",
+          code: "F1-L1-1",
+          name: "F1-L1-1",
+          building: "fg1",
+          floor: "1",
+          pending: false,
+        },
+        {
+          id: "loc-2",
+          code: "F1-L1-2",
+          name: "F1-L1-2",
+          building: "fg1",
+          floor: "1",
+          pending: false,
+        },
+        {
+          id: "loc-3",
+          code: "PD-F1-A03",
+          name: "Assembly area",
+          building: "pd",
+          floor: "1",
+          pending: false,
+        },
+      ];
+      const fresh = () => ({
+        page: "scan",
+        stage: "location",
+        search: "F2-L28-18",
+        adding: false,
+        locations: structuredClone(initialLocations),
+        selected: null,
+        registration: { code: "F2-L28-18", name: "", building: "", floor: "" },
+        tickets: [],
+        records: [],
+        added: false,
+        error: "",
+        receipt: [],
+      });
+      let state = fresh();
+      const $ = (id) => document.getElementById(id);
+      const tr = (key) => copy[lang][key] ?? key;
+      const escape = (value) =>
+        String(value ?? "").replace(
+          /[&<>"']/g,
+          (character) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[character],
+        );
+      const icon = (name, extra = "") =>
+        `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${name}" /></svg>`;
+      const buildingName = (id) => {
+        const b = buildings.find((b) => b.id === id);
+        return b
+          ? `${b.code} · ${lang === "th" ? b.th : b.name}`
+          : tr("unknownBuilding");
+      };
+      const floorName = (floor) =>
+        floor
+          ? lang === "th"
+            ? `ชั้น ${floor}`
+            : `Floor ${floor}`
+          : tr("floorNone");
+      const breadcrumb = (loc) =>
+        loc?.building
+          ? `${buildingName(loc.building)}${loc.floor ? ` → ${floorName(loc.floor)}` : ""}`
+          : tr("unknownBuilding");
+      function syncUrl() {
+        const p = new URLSearchParams(location.search);
+        p.set("variant", variant);
+        p.set("lang", lang);
+        p.set("theme", document.documentElement.dataset.theme);
+        history.replaceState(null, "", `${location.pathname}?${p}`);
+      }
+      function navigation() {
+        $("navigation").innerHTML = [
+          ["scan", "scanNav", "scan"],
+          ["records", "recordsNav", "list"],
+          ["locations", "locationsNav", "building"],
+        ]
+          .map(
+            ([page, label, i]) =>
+              `<button class="nav-button" data-page="${page}" ${state.page === page ? 'aria-current="page"' : ""}>${icon(i)}${tr(label)}</button>`,
+          )
+          .join("");
+      }
+      function progress() {
+        const stage =
+          state.stage === "location" ? 0 : state.stage === "tickets" ? 1 : 2;
+        return `<ol class="steps" aria-label="${lang === "th" ? "ขั้นตอน" : "Progress"}">${["location", "information", "saved"].map((key, i) => `${i ? '<span class="step-rule" aria-hidden="true"></span>' : ""}<li class="${i === stage ? "current" : i < stage ? "done" : ""}" ${i === stage ? 'aria-current="step"' : ""}><span class="step-number">${i + 1}</span>${tr(key)}</li>`).join("")}</ol>`;
+      }
+      function registrationForm() {
+        return `<section class="registration"><h2 id="registration-title">${tr("addTitle")}</h2><p class="muted">${tr("addHint")}</p><form id="registration-form"><div class="form-grid"><div><label for="location-code">${tr("code")}</label><input id="location-code" name="code" class="mono" value="${escape(state.registration.code)}" required maxlength="200" autocomplete="off" /></div><div><label for="location-name">${tr("name")} <span class="optional">${tr("optional")}</span></label><input id="location-name" name="name" value="${escape(state.registration.name)}" placeholder="${tr("namePlaceholder")}" maxlength="200" autocomplete="off" /></div><div><label for="building">${tr("building")} <span aria-hidden="true">*</span></label><select id="building" name="building" required><option value="">${tr("buildingPlaceholder")}</option>${buildings.map((b) => `<option value="${b.id}" ${state.registration.building === b.id ? "selected" : ""}>${escape(buildingName(b.id))}</option>`).join("")}</select></div><div><label for="floor">${tr("floor")} <span class="optional">${tr("optional")}</span></label><select id="floor" name="floor" ${state.registration.building ? "" : "disabled"}><option value="">${tr("floorNone")}</option>${(buildings.find((b) => b.id === state.registration.building)?.floors ?? []).map((f) => `<option value="${f}" ${String(f) === state.registration.floor ? "selected" : ""}>${floorName(f)}</option>`).join("")}</select><p class="field-help">${tr(state.registration.building ? "floorHint" : "floorSelectHint")}</p></div></div><p class="form-note">${icon("pin")}${tr("simple")}</p>${state.error ? `<p class="notice error" role="alert">${tr(state.error)}</p>` : ""}<div class="actions"><button type="button" class="btn ghost" data-action="cancel-add">${tr("cancel")}</button><button type="submit" class="btn primary">${tr("continue")}${icon("arrow")}</button></div></form></section>`;
+      }
+      function searchResults() {
+        const q = state.search.trim().toUpperCase();
+        const matches = state.locations.filter(
+          (l) =>
+            !q ||
+            [l.code, l.name, buildingName(l.building)].some((v) =>
+              v.toUpperCase().includes(q),
+            ),
+        );
+        if (matches.length)
+          return `<ul class="matches">${matches.map((l) => `<li><button class="match" data-location="${l.id}">${icon("pin")}<span><strong class="mono">${escape(l.code)}</strong><span class="muted small">${escape(breadcrumb(l))}</span></span></button></li>`).join("")}</ul>`;
+        if (!q) return "";
+        return `<div class="unknown">${icon("pin")}<div><h3>${tr("missing")}</h3><p class="mono" style="color:var(--text)">${escape(state.search.trim())}</p><p>${tr("missingHint")}</p>${state.adding && variant === "A" ? "" : `<button class="btn primary" data-action="add">${icon("plus")}${tr("add")}</button>`}</div></div>${state.adding && variant === "A" ? "" : `<div class="fallback"><button class="link" data-action="unmapped">${tr("later")}</button><p class="muted small">${tr("laterHint")}</p></div>`}`;
+      }
+      function locationScreen() {
+        if (state.adding && variant === "C")
+          return `<button class="link row" data-action="cancel-add">${icon("left")}${tr("stepBack")}</button>${registrationForm()}`;
+        return `<section class="section"><div class="section-heading"><h2>${tr("where")}</h2><p class="muted">${tr("locationHint")}</p></div><label for="search-input" class="small muted">${tr("search")}</label><div class="search">${icon("search")}<input id="search-input" value="${escape(state.search)}" placeholder="${tr("placeholder")}" autocomplete="off" maxlength="200" /><button class="scan" data-action="sample-location" aria-label="${tr("scanSample")}" title="${tr("scanSample")}">${icon("scan")}</button></div><div id="search-results">${searchResults()}</div>${state.adding && variant === "A" ? registrationForm() : ""}</section>`;
+      }
+      function destination() {
+        return `<section class="destination"><div class="row spread"><div class="row">${icon("pin")}<span class="muted small">${tr("location")}</span></div><button class="link" data-action="change-location">${tr("change")}</button></div><p class="destination-code mono">${escape(state.selected.code)}</p><p class="breadcrumb">${escape(breadcrumb(state.selected))}${state.selected.name !== state.selected.code ? ` → ${escape(state.selected.name)}` : ""}</p>${state.added ? `<p class="notice">${icon("check")}${tr("added")}</p>` : state.selected.unmapped ? `<p class="small" style="color:var(--warning);margin-top:10px">${tr("needs")}</p>` : ""}</section>`;
+      }
+      function ticketCard(item, index) {
+        return `<section class="ticket"><div class="row spread ticket-top"><strong>${tr("item")} ${index + 1}</strong><button class="btn ghost icon-btn" data-remove="${item.id}" aria-label="${tr("remove")} ${index + 1}">${icon("trash")}</button></div><label>${tr("storageFormat")}</label><div class="format-controls" role="group" aria-label="${tr("storageFormat")} ${index + 1}">${["PALLET", "BOX", "OTHER"].map((f) => `<button class="btn" data-format="${f}" data-item="${item.id}" aria-pressed="${item.storageFormat === f}">${tr(f)}</button>`).join("")}</div><div class="form-grid">${[
+          ["factoryOrder", "factoryOrder", "FO69070073"],
+          ["productCode", "productCode", "FBN-BXVMI004-BOX-00F"],
+          ["quantity", "quantity", "1000"],
+        ]
+          .map(
+            ([key, label, placeholder]) =>
+              `<div><label for="${key}-${item.id}">${tr(label)}${key === "quantity" ? ` <span class="optional">${tr("optional")}</span>` : " *"}</label><input id="${key}-${item.id}" data-field="${key}" data-item="${item.id}" value="${escape(item[key])}" placeholder="${placeholder}" ${key === "quantity" ? 'type="number" min="0" step="any"' : 'required maxlength="200" autocomplete="off" class="mono"'} /></div>`,
+          )
+          .join("")}</div></section>`;
+      }
+      function ticketScreen() {
+        return `${destination()}<section><div class="section-heading"><h2>${tr("capture")}</h2><p class="muted">${tr("captureHint")}</p></div><div class="row wrap"><button class="btn" data-action="sample-ticket">${icon("scan")}${tr("sampleTicket")}</button><button class="btn ghost" data-action="manual">${icon("plus")}${tr("manual")}</button></div>${state.tickets.map(ticketCard).join("")}${!state.tickets.length ? `<p class="empty">${tr("noItems")}</p>` : ""}${state.error ? `<p class="notice error" role="alert">${tr(state.error)}</p>` : ""}<div class="row spread save-bar"><span class="muted small">${state.tickets.length} ${tr("count")}</span><button class="btn primary" data-action="save" ${state.tickets.length ? "" : "disabled"}>${tr("save")}${icon("arrow")}</button></div><p class="muted small required-note">${tr("stockNote")}</p></section>`;
+      }
+      function successScreen() {
+        return `<section class="receipt">${icon("check", "receipt-icon")}<h2>${tr("success")}</h2><p class="muted" style="margin-top:10px">${tr("successHint")}</p><dl><dt>${tr("receiptBuilding")}</dt><dd>${escape(buildingName(state.selected.building))}</dd><dt>${tr("receiptFloor")}</dt><dd>${escape(floorName(state.selected.floor))}</dd><dt>${tr("receiptLocation")}</dt><dd class="mono">${escape(state.selected.code)}</dd><dt>${tr("receiptItems")}</dt><dd>${state.receipt.length} ${tr("count")}</dd></dl><div class="row wrap"><button class="btn primary" data-page="records">${tr("records")}${icon("arrow")}</button><button class="btn" data-action="more">${tr("again")}</button></div><button class="link" data-action="new-scan" style="margin-top:12px">${tr("newScan")}</button><p class="muted small" style="margin-top:20px">${tr("demoOnly")}</p></section>`;
+      }
+      function recordsScreen() {
+        return `<div class="heading"><h1>${tr("recordTitle")}</h1><p>${tr("recordHint")}</p></div>${state.records.length ? `<ul class="records">${state.records.map((record) => `<li class="record"><div class="row spread wrap"><strong class="mono">${escape(record.factoryOrder)}</strong><span class="${record.location.unmapped ? "muted small" : "status"}">${icon("pin")}${tr(record.location.unmapped ? "needs" : "set")}</span></div><p class="mono small muted">${escape(record.productCode)}</p><p class="small muted">${tr(record.storageFormat)}${record.quantity !== "" ? ` · ${escape(record.quantity)}` : ""}</p><p class="mono" style="margin-top:12px">${escape(record.location.code)}</p><p class="breadcrumb">${escape(breadcrumb(record.location))}</p></li>`).join("")}</ul>` : `<p class="empty">${tr("emptyRecords")}</p>`}<button class="btn" data-action="new-scan">${icon("scan")}${tr("start")}</button>`;
+      }
+      function locationsScreen() {
+        return `<div class="heading"><h1>${tr("locationsTitle")}</h1><p>${tr("locationsHint")}</p></div><ul class="records">${state.locations.map((l) => `<li class="record"><div class="row spread wrap"><strong class="mono">${escape(l.code)}</strong>${l.pending ? `<span class="muted small">${tr("layoutPending")}</span>` : ""}</div><p class="breadcrumb">${escape(breadcrumb(l))}</p></li>`).join("")}</ul><button class="btn" data-action="new-scan">${tr("start")}${icon("arrow")}</button>`;
+      }
+      function render() {
+        document.documentElement.lang = lang;
+        $("language").value = lang;
+        $("preview-label").textContent = tr("preview");
+        $("reset-label").textContent = tr("reset");
+        $("state-label").textContent = tr("state");
+        $("variant-label").innerHTML =
+          `${tr({ A: "inline", B: "drawer", C: "step" }[variant])}<small>${tr(variant === "A" ? "recommended" : "compare")}</small>`;
+        navigation();
+        $("content").innerHTML =
+          state.page === "records"
+            ? recordsScreen()
+            : state.page === "locations"
+              ? locationsScreen()
+              : `<div class="heading"><h1>${tr("title")}</h1><p>${tr("subtitle")}</p></div>${progress()}${state.stage === "location" ? locationScreen() : state.stage === "tickets" ? ticketScreen() : successScreen()}`;
+        if (
+          state.adding &&
+          variant === "B" &&
+          state.page === "scan" &&
+          state.stage === "location"
+        ) {
+          $("drawer").innerHTML =
+            `<div class="row spread dialog-top"><span class="muted small">${tr("newLocation")}</span><button class="btn ghost icon-btn" data-action="cancel-add" aria-label="${tr("cancel")}">${icon("close")}</button></div>${registrationForm()}`;
+          if (!$("drawer").open) $("drawer").showModal();
+        } else if ($("drawer").open) $("drawer").close();
+        syncUrl();
+      }
+      function showPage(page) {
+        state.page = page;
+        state.adding = false;
+        $("sidebar").classList.remove("open");
+        render();
+        window.scrollTo(0, 0);
+      }
+      function choose(loc, added = false) {
+        state.selected = { ...loc };
+        state.stage = "tickets";
+        state.page = "scan";
+        state.adding = false;
+        state.added = added;
+        state.error = "";
+        render();
+        window.scrollTo(0, 0);
+        $("announcement").textContent = tr(added ? "added" : "set");
+      }
+      function switchVariant(delta) {
+        const variants = ["A", "B", "C"];
+        variant = variants[(variants.indexOf(variant) + delta + 3) % 3];
+        render();
+      }
+      function addTicket(sample) {
+        const index = state.tickets.length;
+        state.tickets.push({
+          id: crypto.randomUUID(),
+          storageFormat: index % 2 ? "BOX" : "PALLET",
+          factoryOrder: sample ? `FO690700${73 + index}` : "",
+          productCode: sample ? "FBN-BXVMI004-BOX-00F" : "",
+          quantity: sample ? "1000" : "",
+        });
+        state.error = "";
+        render();
+      }
+      document.addEventListener("click", (event) => {
+        const el = event.target.closest("button");
+        if (!el) return;
+        if (el.dataset.page) {
+          showPage(el.dataset.page);
+          return;
+        }
+        if (el.dataset.location) {
+          choose(state.locations.find((l) => l.id === el.dataset.location));
+          return;
+        }
+        if (el.dataset.remove) {
+          state.tickets = state.tickets.filter(
+            (i) => i.id !== el.dataset.remove,
+          );
+          render();
+          return;
+        }
+        if (el.dataset.format) {
+          state.tickets.find((i) => i.id === el.dataset.item).storageFormat =
+            el.dataset.format;
+          render();
+          return;
+        }
+        switch (el.dataset.action) {
+          case "menu":
+            $("sidebar").classList.toggle("open");
+            break;
+          case "theme":
+            document.documentElement.dataset.theme =
+              document.documentElement.dataset.theme === "dark"
+                ? "light"
+                : "dark";
+            syncUrl();
+            break;
+          case "reset":
+            state = fresh();
+            render();
+            window.scrollTo(0, 0);
+            break;
+          case "state":
+            $("state-json").textContent = JSON.stringify(
+              { variant, ...state },
+              null,
+              2,
+            );
+            $("state-dialog").showModal();
+            break;
+          case "close-state":
+            $("state-dialog").close();
+            break;
+          case "previous":
+            switchVariant(-1);
+            break;
+          case "next":
+            switchVariant(1);
+            break;
+          case "sample-location":
+            state.search = "F2-L28-18";
+            state.adding = false;
+            const found = state.locations.find((l) => l.code === state.search);
+            if (found) choose(found);
+            else {
+              render();
+              $("announcement").textContent = tr("missing");
+            }
+            break;
+          case "add":
+            state.adding = true;
+            state.error = "";
+            state.registration = {
+              code: state.search.trim(),
+              name: "",
+              building: "",
+              floor: "",
+            };
+            render();
+            if (variant === "A")
+              $("registration-title").scrollIntoView({
+                block: "nearest",
+                behavior: "auto",
+              });
+            $("building").focus({ preventScroll: true });
+            break;
+          case "cancel-add":
+            state.adding = false;
+            state.error = "";
+            render();
+            document
+              .querySelector('[data-action="add"]')
+              ?.focus({ preventScroll: true });
+            break;
+          case "unmapped":
+            choose({
+              code: state.search.trim(),
+              name: state.search.trim(),
+              building: "",
+              floor: "",
+              unmapped: true,
+            });
+            break;
+          case "change-location":
+            state.stage = "location";
+            state.added = false;
+            state.search = state.selected.code;
+            render();
+            window.scrollTo(0, 0);
+            break;
+          case "sample-ticket":
+            addTicket(true);
+            break;
+          case "manual":
+            addTicket(false);
+            break;
+          case "save":
+            if (
+              state.tickets.some(
+                (i) =>
+                  !i.factoryOrder.trim() ||
+                  !i.productCode.trim() ||
+                  (i.quantity !== "" &&
+                    (!Number.isFinite(Number(i.quantity)) ||
+                      Number(i.quantity) < 0)),
+              )
+            ) {
+              state.error = "incomplete";
+              render();
+              return;
+            }
+            state.receipt = state.tickets.map((i) => ({
+              ...i,
+              location: { ...state.selected },
+            }));
+            state.records.push(...state.receipt);
+            state.tickets = [];
+            state.stage = "saved";
+            state.error = "";
+            render();
+            window.scrollTo(0, 0);
+            break;
+          case "more":
+            state.stage = "tickets";
+            state.added = false;
+            state.tickets = [];
+            render();
+            window.scrollTo(0, 0);
+            break;
+          case "new-scan":
+            state.page = "scan";
+            state.stage = "location";
+            state.adding = false;
+            state.selected = null;
+            state.tickets = [];
+            state.search = "";
+            state.error = "";
+            state.added = false;
+            render();
+            window.scrollTo(0, 0);
+            break;
+        }
+      });
+      document.addEventListener("input", (event) => {
+        const el = event.target;
+        if (el.id === "search-input") {
+          state.search = el.value;
+          state.adding = false;
+          state.error = "";
+          document.querySelector(".registration")?.remove();
+          $("search-results").innerHTML = searchResults();
+        }
+        if (el.closest("#registration-form") && el.name)
+          state.registration[el.name] = el.value;
+        if (el.dataset.field)
+          state.tickets.find((i) => i.id === el.dataset.item)[
+            el.dataset.field
+          ] = el.value;
+      });
+      document.addEventListener("change", (event) => {
+        if (event.target.id === "language") {
+          lang = event.target.value;
+          render();
+        }
+        if (event.target.id === "building") {
+          state.registration.building = event.target.value;
+          state.registration.floor = "";
+          render();
+          $("building").focus({ preventScroll: true });
+        }
+      });
+      document.addEventListener("submit", (event) => {
+        if (event.target.id !== "registration-form") return;
+        event.preventDefault();
+        const code = state.registration.code.trim().toUpperCase();
+        if (
+          !code ||
+          code.length > 200 ||
+          /^ISAS:/i.test(code) ||
+          /[\x00-\x1f]/.test(code)
+        ) {
+          state.error = "invalidCode";
+          render();
+          return;
+        }
+        if (state.locations.some((l) => l.code === code)) {
+          state.error = "exists";
+          render();
+          return;
+        }
+        const loc = {
+          id: crypto.randomUUID(),
+          code,
+          name: state.registration.name.trim() || code,
+          building: state.registration.building,
+          floor: state.registration.floor,
+          pending: true,
+        };
+        state.locations.push(loc);
+        choose(loc, true);
+      });
+      $("drawer").addEventListener("cancel", (event) => {
+        event.preventDefault();
+        state.adding = false;
+        state.error = "";
+        render();
+        document
+          .querySelector('[data-action="add"]')
+          ?.focus({ preventScroll: true });
+      });
+      document.addEventListener("keydown", (event) => {
+        if (
+          !["ArrowLeft", "ArrowRight"].includes(event.key) ||
+          event.target.closest("input,select,textarea,[contenteditable],dialog")
+        )
+          return;
+        event.preventDefault();
+        switchVariant(event.key === "ArrowRight" ? 1 : -1);
+      });
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "environment": "Existing Vite storage workspace fixture using production FloorMap/styles/messages; no auth/backend. Fallback inspector is used in the demo route. The main building route supplies StorageZonesPanel instead.",
+  "mobile": {
+    "dialogText": "รายละเอียดจุดจัดเก็บ\n\nPD-L12-13 · ชั้น 2\n\nPD-L12-13\n\nPD-L12-13\n\n1.4 × 2.4 × 3.3 m\n\nความสูงที่ใช้ได้: 3.3 m\n\nพื้นที่ฐานที่ใช้หรือจอง: 0%\n\n0 หน่วย\n\nยังไม่มีหน่วยที่จัดเก็บหรือจอง\n\nปิดหน้าต่าง",
+    "scrollWidth": 390,
+    "url": "http://localhost:3190/?locale=th&fixture=empty&overlay_r_b_=1",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  "desktopScreenshot": "storage-desktop-repeated-label.png",
+  "mobileScreenshot": "storage-mobile-repeated-label.png"
+}

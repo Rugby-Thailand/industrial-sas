@@ -1,0 +1,35 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "engine": "Chromium",
+  "hardware": false,
+  "checks": [
+    {
+      "name": "Thai Location choose then native Back returns to question preserving query/hash",
+      "passed": true,
+      "url": "/th/finished-goods/scan?backCheck=all#location",
+      "text": "ใบ Job\n\nหนึ่งใบต่อพาเลท\n\n1. อยู่ตำแหน่งไหน?\n\nสแกนบาร์โค้ดหรือ QR ของตำแหน่ง เลือกรูปภาพ หรือค้นหาด้วยรหัสหรือชื่อ"
+    },
+    {
+      "name": "Period pristine creation native Back dismisses before route departure",
+      "passed": true,
+      "url": "/en/hr/periods?backCheck=all#list",
+      "text": "Attendance periods\n\nCreate, review, close and export site attendance periods.\n\nNew period\nAttendance periods\nDates\tSite\tStatus\tVersion\n19 Sept 2026 – 25 Sept 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v4\n2 Feb 2026 – 2 Feb 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v2\n\nScroll the table sideways to see the remaining columns."
+    },
+    {
+      "name": "Period Forward restores creation and dirty Back Keep editing retains range",
+      "passed": true,
+      "url": "/en/hr/periods?backCheck=all&periodCreate=1#list",
+      "text": "Attendance periods\n\nCreate, review, close and export site attendance periods.\n\nNew period\nCreate a period\n\nChoose a site and up to 31 days that do not overlap another period.\n\nSite\nLOCAL-DEMO · คลังทดสอบ Local Demo\nLOCAL-DEMO · คลังทดสอบ Local Demo\nDate range\nFrom\nTo\n\nUp to 31 days\n\nCreate draft\nCancel\nAttendance periods\nDates\tSite\tStatus\tVersion\n19 Sept 2026 – 25 Sept 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v4\n2 Feb 2026 – 2 Feb 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v2\n\nScroll the table sideways to see the remaining columns."
+    },
+    {
+      "name": "Period explicit Cancel consumes owned form without another prompt",
+      "passed": true,
+      "url": "/en/hr/periods?backCheck=all#list",
+      "text": "Attendance periods\n\nCreate, review, close and export site attendance periods.\n\nNew period\nAttendance periods\nDates\tSite\tStatus\tVersion\n19 Sept 2026 – 25 Sept 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v4\n2 Feb 2026 – 2 Feb 2026\tLOCAL-DEMO · คลังทดสอบ Local Demo\t\nClosed\n\tClosed v2\n\nScroll the table sideways to see the remaining columns."
+    }
+  ],
+  "errors": ["useInsertionEffect must not schedule updates."]
+}

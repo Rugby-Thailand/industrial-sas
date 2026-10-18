@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   unit: "pieces",
   save: vi.fn(),
   commit: vi.fn(),
+  push: vi.fn(),
   replace: vi.fn(),
   batch: null as unknown,
   batchEditable: true,
@@ -75,7 +76,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ replace: mocks.replace, push: mocks.replace }),
+  useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
 }));
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import {
@@ -184,6 +185,7 @@ beforeEach(() => {
   mocks.batchEditable = true;
   mocks.save.mockReset().mockResolvedValue(success());
   mocks.commit.mockReset().mockResolvedValue(success(["unit-a", "unit-b"]));
+  mocks.push.mockReset();
   mocks.replace.mockReset();
 });
 describe("batch packing", () => {
@@ -823,9 +825,7 @@ describe("batch packing", () => {
       screen.queryByRole("link", { name: /Find storage/ }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Load latest batch" }));
-    expect(mocks.replace).toHaveBeenCalledWith(
-      "/finished-goods/batches/batch-a",
-    );
+    expect(mocks.push).toHaveBeenCalledWith("/finished-goods/batches/batch-a");
   });
 });
 

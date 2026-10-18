@@ -1,0 +1,848 @@
+{
+  "buildings": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Buildings",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "All locations",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Filter by status",
+          "text": "All statuses"
+        },
+        {
+          "disabled": false,
+          "label": "Active building: F1-F2-SB",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "View space details · อาคาร F1 + F2",
+          "text": "81.4%\n\nRemaining floor space\n: 81.4%\n\nFree 2,003.19 m²"
+        },
+        {
+          "disabled": false,
+          "label": "Active building: FG1",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "View space details · FG1",
+          "text": "79.8%\n\nRemaining floor space\n: 79.8%\n\nFree 292.64 m²"
+        },
+        {
+          "disabled": false,
+          "label": "Active building: PD",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "View space details · อาคาร PD",
+          "text": "63.6%\n\nRemaining floor space\n: 63.6%\n\nFree 467.48 m²"
+        },
+        {
+          "disabled": false,
+          "label": "Active building: SB",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "View space details · พื้นที่ SB · แร็กด้านหลังคลัง",
+          "text": "100%\n\nRemaining floor space\n: 100%\n\nFree 115.68 m²"
+        },
+        {
+          "disabled": false,
+          "label": "Records per page",
+          "text": "20"
+        },
+        {
+          "disabled": true,
+          "label": "Previous page",
+          "text": ""
+        },
+        {
+          "disabled": true,
+          "label": "Next page",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Records per page",
+          "text": "20"
+        },
+        {
+          "disabled": true,
+          "label": "Previous page",
+          "text": ""
+        },
+        {
+          "disabled": true,
+          "label": "Next page",
+          "text": ""
+        }
+      ],
+      "href": "https://app.thaipropertyai.com/en/master-data/storage-layouts",
+      "links": [
+        {
+          "href": "/en/master-data/storage-layouts/new",
+          "text": "Building"
+        },
+        {
+          "href": "/en/master-data/storage-layouts/n575kryc3hp4e788hyc7pab4hh8f1vgv",
+          "text": "F1-F2-SB\nอาคาร F1 + F2"
+        },
+        {
+          "href": "/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed",
+          "text": "FG1\nFG1"
+        },
+        {
+          "href": "/en/master-data/storage-layouts/n57c2n3sjmdpkjncn9jf0a19gh8ey9h5",
+          "text": "PD\nอาคาร PD"
+        },
+        {
+          "href": "/en/master-data/storage-layouts/n57d55pnz2hsb8fvtzvftka0sd8ftvsz",
+          "text": "SB\nพื้นที่ SB · แร็กด้านหลังคลัง"
+        },
+        {
+          "href": "/en/master-data/storage-layouts/n575kryc3hp4e788hyc7pab4hh8f1vgv",
+          "text": "อาคาร F1 + F2"
+        }
+      ],
+      "text": "Storage building planner\nSearch buildings\nBuilding\nAll statuses\nF1-F2-SB\nอาคาร F1 + F2\nActive\nChecking status…\nFloors\n2\nBuilding dimensions\n60 × 28 m\n81.4%\n\nRemaining floor space\n: 81.4%\n\nFree 2,003.19 m²\n\nFG1\nFG1\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n12.26 × 29.93 m\n79.8%\n\nRemaining floor space\n: 79.8%\n\nFree 292.64 m²\n\nPD\nอาคาร PD\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n61.5 × 11.96 m\n63.6%\n\nRemaining floor space\n: 63.6%\n\nFree 467.48 m²\n\nSB\nพื้นที่ SB · แร็กด้านหลังคลัง\nActive\nChecking status…\nFloors\n1\nBuilding dimensions\n24.1 × 4.8 m\n100%\n\nRemaining floor space\n: 100%\n\nFree 115.68 m²\n\nRecords per page\n20\nPage 1\n\nBuildings are planning master data\n\nDrafts define building dimensions, floors, and storage spots. Activate a layout when the plan is ready.\n\nRegistered locations\n\nLocations recorded during scanning. Their floor-plan layout can be added later.\n\nF2-L28-1\nF2-L28-1\n▲\nLocation recorded · Layout pending\n\nอาคาร F1 + F2\n\nDimensions and map position not recorded.\n\nRecords per page\n20\nPage 1"
+    }
+  },
+  "newBuilding": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts/new"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Create building"
+        }
+      ],
+      "fields": [
+        {
+          "labels": ["Building code\n*"],
+          "max": "",
+          "min": "",
+          "name": "code",
+          "value": "BLDG-A"
+        },
+        {
+          "labels": ["Building name\n*"],
+          "max": "",
+          "min": "",
+          "name": "name",
+          "value": "Main storage"
+        },
+        {
+          "labels": ["Width (m)\n*"],
+          "max": "",
+          "min": "0.1",
+          "name": "width",
+          "value": "30"
+        },
+        {
+          "labels": ["Depth (m)\n*"],
+          "max": "",
+          "min": "0.1",
+          "name": "depth",
+          "value": "20"
+        },
+        {
+          "labels": ["Floor height (m)\n*"],
+          "max": "",
+          "min": "0.1",
+          "name": "height",
+          "value": "4"
+        },
+        {
+          "labels": ["Floors\n*"],
+          "max": "50",
+          "min": "1",
+          "name": "floors",
+          "value": "4"
+        }
+      ],
+      "href": "https://app.thaipropertyai.com/en/master-data/storage-layouts/new",
+      "text": "Buildings & spots\nNew building\nNew building\n\nPlan buildings, floors, and QR-addressable storage spots.\n\nBuilding code\n*\nBuilding name\n*\nWidth (m)\n*\nDepth (m)\n*\nFloor height (m)\n*\nFloors\n*\nCreate building\nBack to buildings"
+    }
+  },
+  "floorEdit": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage&editing=1"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Edit building settings",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Active building: FG1",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Storage map",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Building model",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Building floors",
+          "text": "Floor 1"
+        },
+        {
+          "disabled": false,
+          "label": "Filter locations",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Map view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Table view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "2D plan",
+          "text": "2D"
+        },
+        {
+          "disabled": false,
+          "label": "3D view",
+          "text": "3D"
+        },
+        {
+          "disabled": true,
+          "label": "Zoom out",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Zoom in",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Fit floor to view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Display options",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Add storage stack",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Edit floor offset"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Floor dimensions"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Add unavailable area"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R07–FG1-R08",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R07–FG1-R08",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน L03–L04",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน L03–L04",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน L04–L05",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน L04–L05",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R06–FG1-R07",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R06–FG1-R07",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R05–FG1-R06",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R05–FG1-R06",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R01–FG1-R02",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R01–FG1-R02",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R08–FG1-R09",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R08–FG1-R09",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R09–FG1-R10",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R09–FG1-R10",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R03–FG1-R04",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R03–FG1-R04",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R02–FG1-R03",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R02–FG1-R03",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ทางเดิน FG1-R04–FG1-R05",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ทางเดิน FG1-R04–FG1-R05",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit ห้ามจัดเก็บระหว่าง L01–L02",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove ห้ามจัดเก็บระหว่าง L01–L02",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit จุดสงวนใน L02 · ตำแหน่งประมาณ",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove จุดสงวนใน L02 · ตำแหน่งประมาณ",
+          "text": "Remove"
+        },
+        {
+          "disabled": false,
+          "label": "Edit พื้นที่รับสินค้าและช่องกลาง",
+          "text": "Edit"
+        },
+        {
+          "disabled": false,
+          "label": "Remove พื้นที่รับสินค้าและช่องกลาง",
+          "text": "Remove"
+        }
+      ],
+      "fields": [
+        {
+          "labels": [],
+          "name": "",
+          "value": ""
+        },
+        {
+          "labels": ["Width (m)"],
+          "name": "",
+          "value": "12.26"
+        },
+        {
+          "labels": ["Depth (m)"],
+          "name": "",
+          "value": "29.93"
+        },
+        {
+          "labels": ["Floor height (m)"],
+          "name": "",
+          "value": "3.3"
+        }
+      ],
+      "href": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage&editing=1",
+      "text": "Buildings & spots\nFG1\nFG1\nFG1\n\nBuilding dimensions: 12.26 × 29.93 m · Total height: 3.3 m\n\nActive\nFloor 1\n12.26 × 29.93 × 3.3 m\n2D\n3D\nL01Empty\nL02Empty\nL03Empty\nL04\nL05\nR01\nR02Empty\nR03Empty\nR04\nR05Empty\nR06Empty\nR07Empty\nR08Empty\nR09\nR10\n12.26 m\n29.93 m\n5 m\nEmpty\nStored\nReserved\n\n2D PLAN · 100%\n\nEdit floor offset\nFloor dimensions\nWidth (m)\nDepth (m)\nFloor height (m)\n79.8%\n\nRemaining floor space\n: 79.8%\n\nFree 292.64 m²\n\nUnavailable areas\nAdd unavailable area\nทางเดิน FG1-R07–FG1-R08\n\nX 4.42 · Y 22.93 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nทางเดิน L03–L04\n\nX 0 · Y 26.18 m · W 2.87 × D 0.3 m\n\nEdit\nRemove\nทางเดิน L04–L05\n\nX 0 · Y 28.18 m · W 2.87 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R06–FG1-R07\n\nX 4.42 · Y 19.73 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R05–FG1-R06\n\nX 4.42 · Y 16.53 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R01–FG1-R02\n\nX 4.42 · Y 4.73 m · W 7.26 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R08–FG1-R09\n\nX 4.42 · Y 26.13 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R09–FG1-R10\n\nX 4.42 · Y 28.13 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R03–FG1-R04\n\nX 4.42 · Y 11.33 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R02–FG1-R03\n\nX 4.42 · Y 8.03 m · W 7.26 × D 0.3 m\n\nEdit\nRemove\nทางเดิน FG1-R04–FG1-R05\n\nX 4.42 · Y 13.23 m · W 7.84 × D 0.3 m\n\nEdit\nRemove\nห้ามจัดเก็บระหว่าง L01–L02\n\nX 0 · Y 4.82 m · W 2.87 × D 1.6 m\n\nEdit\nRemove\nจุดสงวนใน L02 · ตำแหน่งประมาณ\n\nX 0.2 · Y 10.9 m · W 1.2 × D 0.65 m\n\nEdit\nRemove\nพื้นที่รับสินค้าและช่องกลาง\n\nX 2.87 · Y 0 m · W 1.55 × D 29.93 m\n\nEdit\nRemove"
+    }
+  },
+  "addStack": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "2D plan",
+          "text": "2D"
+        },
+        {
+          "disabled": false,
+          "label": "3D view",
+          "text": "3D"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Not configured"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Cancel"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Create storage stack"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Close dialog"
+        }
+      ],
+      "dialogs": [
+        "Add storage stack\n\nDefine one QR-addressable stack position within this floor.\n\nLive 3D position\n\nX 4.5 · Y 0 m\n\nFits within floor\n2D\n3D\nทางเดิน FG1-R07–FG1-R08\nทางเดิน L03–L04\nทางเดิน L04–L05\nทางเดิน FG1-R06–FG1-R07\nทางเดิน FG1-R05–FG1-R06\nทางเดิน FG1-R01–FG1-R02\nทางเดิน FG1-R08–FG1-R09\nทางเดิน FG1-R09–FG1-R10\nทางเดิน FG1-R03–FG1-R04\nทางเดิน FG1-R02–FG1-R03\nทางเดิน FG1-R04–FG1-R05\nห้ามจัดเก็บระหว่าง L01–L02\nจุดสงวนใน L02 · ตำแหน่งประมาณ\nพื้นที่รับสินค้าและช่องกลาง\nH 3.3 m\nทางเดิน FG1-R07–FG1-R08\nทางเดิน L03–L04\nทางเดิน L04–L05\nทางเดิน FG1-R06–FG1-R07\nทางเดิน FG1-R05–FG1-R06\nทางเดิน FG1-R01–FG1-R02\nทางเดิน FG1-R08–FG1-R09\nทางเดิน FG1-R09–FG1-R10\nทางเดิน FG1-R03–FG1-R04\nทางเดิน FG1-R02–FG1-R03\nทางเดิน FG1-R04–FG1-R05\nห้ามจัดเก็บระหว่าง L01–L02\nจุดสงวนใน L02 · ตำแหน่งประมาณ\nพื้นที่รับสินค้าและช่องกลาง\nW 2 m\nD 2 m\nH 3.3 m\n\nDrag the stack to position it · Arrow keys move 0.1 m\n\nZone label\nX position (m)\nY position (m)\nZone width (m)\nZone depth (m)\nStorage condition (optional)\nNot configured\n\nRecommendations compare this condition with the product requirement. Unconfigured conditions are shown as unknown.\n\nMaximum stack height (m)\nCancel\nCreate storage stack\nClose dialog"
+      ],
+      "fields": [
+        {
+          "labels": ["Zone label"],
+          "name": "",
+          "value": ""
+        },
+        {
+          "labels": ["X position (m)"],
+          "name": "",
+          "value": "4.5"
+        },
+        {
+          "labels": ["Y position (m)"],
+          "name": "",
+          "value": "0"
+        },
+        {
+          "labels": ["Zone width (m)"],
+          "name": "",
+          "value": "2"
+        },
+        {
+          "labels": ["Zone depth (m)"],
+          "name": "",
+          "value": "2"
+        },
+        {
+          "labels": ["Maximum stack height (m)"],
+          "name": "",
+          "value": "3.3"
+        }
+      ]
+    }
+  },
+  "locationAttempt": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/master-data/storage-layouts/n57effrz60rbq7fqx438q6r6fx8f0hed?floor=1&view=storage"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Edit building settings",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Active building: FG1",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Storage map",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Building model",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Building floors",
+          "text": "Floor 1"
+        },
+        {
+          "disabled": false,
+          "label": "Filter locations",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Map view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Table view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "2D plan",
+          "text": "2D"
+        },
+        {
+          "disabled": false,
+          "label": "3D view",
+          "text": "3D"
+        },
+        {
+          "disabled": true,
+          "label": "Zoom out",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Zoom in",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Fit floor to view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Display options",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Add storage stack",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "2D plan",
+          "text": "2D"
+        },
+        {
+          "disabled": false,
+          "label": "3D view",
+          "text": "3D"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Not configured"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Cancel"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Create storage stack"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Close dialog"
+        }
+      ],
+      "dialogs": [
+        "Add storage stack\n\nDefine one QR-addressable stack position within this floor.\n\nLive 3D position\n\nX 4.5 · Y 0 m\n\nFits within floor\n2D\n3D\nทางเดิน FG1-R07–FG1-R08\nทางเดิน L03–L04\nทางเดิน L04–L05\nทางเดิน FG1-R06–FG1-R07\nทางเดิน FG1-R05–FG1-R06\nทางเดิน FG1-R01–FG1-R02\nทางเดิน FG1-R08–FG1-R09\nทางเดิน FG1-R09–FG1-R10\nทางเดิน FG1-R03–FG1-R04\nทางเดิน FG1-R02–FG1-R03\nทางเดิน FG1-R04–FG1-R05\nห้ามจัดเก็บระหว่าง L01–L02\nจุดสงวนใน L02 · ตำแหน่งประมาณ\nพื้นที่รับสินค้าและช่องกลาง\nH 3.3 m\nทางเดิน FG1-R07–FG1-R08\nทางเดิน L03–L04\nทางเดิน L04–L05\nทางเดิน FG1-R06–FG1-R07\nทางเดิน FG1-R05–FG1-R06\nทางเดิน FG1-R01–FG1-R02\nทางเดิน FG1-R08–FG1-R09\nทางเดิน FG1-R09–FG1-R10\nทางเดิน FG1-R03–FG1-R04\nทางเดิน FG1-R02–FG1-R03\nทางเดิน FG1-R04–FG1-R05\nห้ามจัดเก็บระหว่าง L01–L02\nจุดสงวนใน L02 · ตำแหน่งประมาณ\nพื้นที่รับสินค้าและช่องกลาง\nW 2 m\nD 2 m\nH 3.3 m\n\nDrag the stack to position it · Arrow keys move 0.1 m\n\nZone label\nX position (m)\nY position (m)\nZone width (m)\nZone depth (m)\nStorage condition (optional)\nNot configured\n\nRecommendations compare this condition with the product requirement. Unconfigured conditions are shown as unknown.\n\nMaximum stack height (m)\nCancel\nCreate storage stack\nClose dialog"
+      ],
+      "text": "Buildings & spots\nFG1\nFG1\nFG1\n\nBuilding dimensions: 12.26 × 29.93 m · Total height: 3.3 m\n\nActive\nFloor 1\n12.26 × 29.93 × 3.3 m\n2D\n3D\nL01\nL02\nL03\nL04\nL05\nR01\nR02Empty\nR03Empty\nR04\nR05Empty\nR06Empty\nR07Empty\nR08Empty\nR09\nR10\n12.26 m\n29.93 m\n5 m\nEmpty\nStored\nReserved\nFG1 / FLOOR 01\n\n2D PLAN · 100%"
+    }
+  },
+  "finishedGoods": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/finished-goods"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "About this page",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "About warehouse totals",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Products"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Storage units"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Filters"
+        },
+        {
+          "disabled": false,
+          "label": "Card view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Table view",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Records per page",
+          "text": "20"
+        },
+        {
+          "disabled": true,
+          "label": "Previous page",
+          "text": ""
+        },
+        {
+          "disabled": true,
+          "label": "Next page",
+          "text": ""
+        }
+      ],
+      "href": "https://app.thaipropertyai.com/en/finished-goods",
+      "links": [
+        {
+          "href": "/en/finished-goods/scan",
+          "text": ""
+        },
+        {
+          "href": "/en/finished-goods/new",
+          "text": "Add finished good"
+        },
+        {
+          "href": "/en/finished-goods/new",
+          "text": "Create finished good"
+        }
+      ],
+      "text": "Finished goods\nAdd finished good\n\nProducts\n\n0\n\nAwaiting measurement\n\n0\n\nAwaiting storage\n\n0\n\nStored units\n\n0\n\nProducts\nStorage units\nFilters\n\nShowing 0 records\n\nYour first finished good starts here\n\nCreate a product, then prepare a batch to pack, scan and store.\n\nCreate finished good\nRecords per page\n20\nPage 1"
+    }
+  },
+  "finishedGoodsNew": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/finished-goods/new"
+    },
+    "value": {
+      "buttons": [
+        {
+          "disabled": false,
+          "label": "Back",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "About this page",
+          "text": ""
+        },
+        {
+          "disabled": false,
+          "label": "Storage condition",
+          "text": "No special condition"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Cancel"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Save draft"
+        },
+        {
+          "disabled": false,
+          "label": null,
+          "text": "Next: Packing"
+        }
+      ],
+      "detectorGlobal": "undefined",
+      "fields": [
+        {
+          "labels": ["SKU\n*"],
+          "name": "",
+          "value": ""
+        },
+        {
+          "labels": ["Product name\n*"],
+          "name": "",
+          "value": ""
+        },
+        {
+          "labels": ["Counting unit\n*"],
+          "name": "",
+          "value": "pieces"
+        },
+        {
+          "labels": ["Storage notes"],
+          "name": "",
+          "value": ""
+        },
+        {
+          "labels": [""],
+          "name": "",
+          "value": ""
+        },
+        {
+          "labels": [""],
+          "name": "",
+          "value": ""
+        }
+      ],
+      "href": "https://app.thaipropertyai.com/en/finished-goods/new",
+      "injectedScripts": [],
+      "text": "Finished goods\nCreate finished good\nCreate finished good\n1\nProduct details\n2\nPacking and dimensions\nProduct details\nSKU\n*\nProduct name\n*\nCounting unit\n*\nStorage requirements\nNo special condition\nNo special condition\nAmbient\nDry area\nCool area\nStorage notes\nReferences (optional)\nProduct information only\n\nQuantities, packaging and actual outer dimensions belong to each preparation batch in the next step. Saving this form never changes existing storage units.\n\nSaving product details does not add storage units. Prepare more goods to start a separate batch.\n\nCancel\nSave draft\nNext: Packing"
+    }
+  },
+  "finishedGoodsDetector": {
+    "toolIcon": {
+      "_tag": "website",
+      "pageUrl": "https://app.thaipropertyai.com/en/finished-goods"
+    },
+    "value": [
+      {
+        "findings": [
+          {
+            "advisory": false,
+            "category": "slop",
+            "description": "Inter, Roboto, Fraunces, Geist, Plus Jakarta Sans, and Space Grotesk are used on so many sites they no longer feel distinctive. Each new wave of AI-generated UIs converges on the same handful of faces. Choose a face that gives your interface personality.",
+            "detail": "Primary font: geist (100% of text)",
+            "ignoreValue": "",
+            "name": "Overused font",
+            "severity": "warning",
+            "type": "overused-font"
+          }
+        ],
+        "isHidden": false,
+        "isPageLevel": true,
+        "rect": null,
+        "selector": "body",
+        "tagName": "body"
+      }
+    ]
+  }
+}

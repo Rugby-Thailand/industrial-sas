@@ -1,0 +1,575 @@
+{
+  "generatedBy": {
+    "tool": "Kiro CLI",
+    "model": "claude-opus-5.5",
+    "effort": "high"
+  },
+  "totals": {
+    "confirmed": 21,
+    "P0": 0,
+    "P1": 3,
+    "P2": 9,
+    "P3": 9,
+    "runtimeReproduced": 20,
+    "sourceDemonstrated": 1,
+    "policyRisks": 5
+  },
+  "categories": [
+    { "name": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล", "count": 3 },
+    { "name": "Concurrency / การเขียนทับด้วยข้อมูลเก่า", "count": 2 },
+    { "name": "Authorization / การแยกหน้าที่ผู้ตรวจ", "count": 1 },
+    { "name": "ขีดจำกัดเวิร์กโฟลว์และรายการแบบมีเพดาน", "count": 3 },
+    { "name": "Validation / สัญญาข้อมูลและเรขาคณิต", "count": 3 },
+    { "name": "ความสดและ ownership ของ state ฝั่ง client", "count": 4 },
+    { "name": "การนำทาง Back", "count": 1 },
+    { "name": "ความเที่ยงตรงของคำขอแก้เวลา", "count": 1 },
+    { "name": "การค้นหาและแบ่งหน้า", "count": 2 },
+    { "name": "ทรัพยากรเบราว์เซอร์", "count": 1 }
+  ],
+  "rankedFindings": [
+    {
+      "rank": 1,
+      "sourceId": "DAILY-01",
+      "priority": "P1",
+      "category": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล",
+      "title": "request ID ค้างหลัง remount ทำให้ Clock in วันใหม่ได้ใบยืนยันของวันเก่าและไม่บันทึกเวลาเข้าวันใหม่",
+      "confidence": "runtime-reproduced",
+      "rationale": "false success บน attendance record: หน้าจอแสดง receipt ของ 12 ต.ค. แต่ไม่มี clock-in ของ 13 ต.ค. เงื่อนไขคือคำสั่งเดิมเป็น UNCERTAIN (คำตอบหาย) แล้ว unmount/remount โดย ID ยังอยู่ใน session storage แต่คำสั่งใน useRef หาย scope เป็น action+employee ไม่รวม business date และ payload clock-in เป็น {} จึงค้างข้ามวัน variant Save เมนูลัดได้ REQUEST_ARGUMENT_CONFLICT รวมไว้ หลักฐานเป็น UI จริง + registered Convex functions และตัวเทียบที่ล้างเฉพาะ ID ค้างผ่านทั้งสองกรณี อันดับ 1 เพราะ reach กว้างสุดในกลุ่ม P1 (พนักงาน self-service ทุกคนหลังเครือข่ายขัดข้องครั้งเดียว) และผลเงียบ",
+      "recommendedWave": 1,
+      "references": [
+        "src/features/hr/useHrWrite.ts:88",
+        "src/features/hr/TodayScreen.tsx:92",
+        "convex/hr/self.ts:391",
+        "docs/reviews/daily-bug-search-2026-10-13/probes/hr-recovery.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/probes-red.log",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/fresh-intent-control.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/README.md"
+    },
+    {
+      "rank": 2,
+      "sourceId": "INV-04",
+      "priority": "P1",
+      "category": "Concurrency / การเขียนทับด้วยข้อมูลเก่า",
+      "title": "editor การวัดที่ค้างคืนค่าขนาดพาเลทเก่าทับการวัดของผู้อื่นโดยไม่แจ้ง",
+      "confidence": "runtime-reproduced",
+      "rationale": "ขนาดจริงของพาเลทที่ใช้วางตำแหน่ง/ซ้อนย้อนเป็นค่าเก่าเงียบ ๆ ขณะที่ผู้แก้คนที่สองได้ written=true saveMeasurement ไม่มี expected revision และฟอร์มส่ง snapshot ทั้งชุด เงื่อนไขคือสองคนเปิด Measurement ของพาเลท legacy ที่ยังไม่จองพร้อมกัน ไม่ต้องมีเครือข่ายขัดข้อง ขอบเขตคือ legacy measurement รวม pending legacy packing ส่วน preparation-batch มีการล็อกแยก handler จริงผ่าน authorization จริง ส่วนพฤติกรรมสองแท็บใน UI เป็น source-demonstrated อันดับ 2 เพราะกระทบข้อมูลกายภาพโดยไม่ต้องมีความล้มเหลวของเครือข่าย แต่ reach แคบกว่า DAILY-01 อยู่ใน cluster lost update เดียวกับ INV-03 แต่เป็นคนละ mutation",
+      "recommendedWave": 1,
+      "references": [
+        "convex/finishedGoods/workflow.ts:463",
+        "convex/finishedGoods/workflow.ts:520",
+        "src/features/finishedGoods/PalletScreens.tsx:286",
+        "src/features/finishedGoods/PalletScreens.tsx:373",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 3,
+      "sourceId": "INV-02",
+      "priority": "P1",
+      "category": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล",
+      "title": "replay การบันทึกโซนเก่าเขียนทับ position ลูกด้วยเรขาคณิตเก่า ขณะที่โซนยังเป็นค่าใหม่",
+      "confidence": "runtime-reproduced",
+      "rationale": "ข้อมูลกายภาพไม่สอดคล้องถาวร: โซนเป็น Zone B/X=2000 แต่ default position เป็น Zone A/X=1000 และ retry ตอบ written=true, replayed=true เพราะ patch ลูกที่ zones.ts:774 ไม่เช็ก replayed เงื่อนไขคือคำตอบของการบันทึก A หาย มีคนบันทึก B ต่อ แล้ว A ถูก retry ด้วย request เดิม ในโหมด SIMPLE การวางใช้ envelope ของโซน จึงพิสูจน์ความเสียหายของ metadata/geometry ลูก ไม่ได้อ้างว่าเกิดการวางที่ไม่ปลอดภัย หลักฐานเป็น mutation จริงสามครั้งที่ args ถูกต้องทั้งหมด อันดับต่ำกว่า INV-04 เพราะต้องมีทั้งคำตอบหายและการแก้แทรก",
+      "recommendedWave": 1,
+      "references": [
+        "convex/storageLayouts/zones.ts:740",
+        "convex/storageLayouts/zones.ts:774",
+        "convex/storageLayouts/zones.ts:788",
+        "convex/lib/masterDataStore.ts:276",
+        "src/features/storageLayouts/StorageZonesPanel.tsx:391",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 4,
+      "sourceId": "INV-03",
+      "priority": "P2",
+      "category": "Concurrency / การเขียนทับด้วยข้อมูลเก่า",
+      "title": "แก้หมายเหตุจาก editor สินค้าที่ค้างทำให้ชื่อสินค้าที่ถูกเปลี่ยนแล้วย้อนกลับ",
+      "confidence": "runtime-reproduced",
+      "rationale": "master data สินค้า (ชื่อ หน่วย เงื่อนไขการเก็บ อ้างอิง) ถูกคืนค่าเก่าเงียบ ๆ เมื่อแก้ฟิลด์อื่น เพราะ mutation ไม่มี expected revision และ ProductForm ส่งทุกฟิลด์จาก snapshot แรก เงื่อนไขคือสองคนเปิดฟอร์มสินค้าพร้อมกัน (Product edit, Prepare more goods, resume measurement) mutation จริงผ่าน authorization ส่วน stale state ฝั่ง caller เป็น source-demonstrated P2 เพราะเป็นข้อมูลอ้างอิงที่ตรวจเห็นและแก้คืนได้ ต่างจากขนาดกายภาพของ INV-04 อันดับสูงสุดของ P2 เพราะเกิดจากการใช้งานปกติและเขียนทับข้อมูลที่บันทึกแล้วโดยไม่แจ้ง",
+      "recommendedWave": 1,
+      "references": [
+        "convex/finishedGoods/workflow.ts:201",
+        "convex/finishedGoods/workflow.ts:336",
+        "src/features/finishedGoods/ProductScreen.tsx:211",
+        "src/features/finishedGoods/ProductScreen.tsx:278",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 5,
+      "sourceId": "KIRO-03",
+      "priority": "P2",
+      "category": "Authorization / การแยกหน้าที่ผู้ตรวจ",
+      "title": "HR admin รับรองเวลาของตัวเองได้ด้วยการ unlink → certify → relink",
+      "confidence": "runtime-reproduced",
+      "rationale": "HR-001/HR-032/HR-033 ห้ามตรวจ attendance ของตัวเอง handler จริงปฏิเสธ disposeDay ตรง ๆ ด้วย SELF_REVIEW แต่รับลำดับ unlink → dispose WORKED → relink และ certification มีผู้ตัดสินเป็นคนเดียวกัน เพราะ reviewBlocker ดูเฉพาะ link ปัจจุบัน ขอบเขตจำกัด: ต้องเป็นผู้ดูแล HR ที่ได้รับความไว้วางใจ มี employee record ของตัวเอง และตั้งใจทำหลายคำสั่ง มี audit hr.employee.save เหลืออยู่ ไม่ใช่การยกระดับสิทธิ์ของพนักงานทั่วไป จึงเป็น P2 ไม่ใช่ P1 อยู่เหนือ KIRO-05 เพราะเป็นการข้าม control ความถูกต้องของ attendance record ขณะที่ KIRO-05 ล้มแบบมีข้อความโดยข้อมูลไม่เสีย variant กลับด้าน (link บัญชีตัวเองกับ record คนอื่น) ยังไม่ได้ยืนยันแยกและไม่นับ",
+      "recommendedWave": 1,
+      "references": [
+        "convex/hr/shared.ts:211",
+        "convex/hr/setup.ts:335",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/hr-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-backend.log:26"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 6,
+      "sourceId": "KIRO-05",
+      "priority": "P2",
+      "category": "ขีดจำกัดเวิร์กโฟลว์และรายการแบบมีเพดาน",
+      "title": "record พนักงานในอดีตกินเพดานของงวดปัจจุบัน ทำให้สร้างงวดและเปิดคิวตรวจของ admin ไม่ได้",
+      "confidence": "runtime-reproduced",
+      "rationale": "siteEmployeesInRange และ review queue ของ admin take(MAX_SITE_EMPLOYEES + 1) จากทุก record ของคลังก่อนกรองช่วงจ้าง เมื่อมี record อดีตพนักงาน 100 รายการ periods.create ได้ PERIOD_TOO_LARGE/EMPLOYEES และ queue ได้ LIMIT_EXCEEDED แม้คนในงวดต่ำกว่าเพดาน 50 คนที่ประกาศไว้มาก ข้อนี้ไม่ได้คัดค้านเพดาน pilot 50 คน/31 วัน แต่ชี้ว่าการเติบโตของทะเบียนตลอดอายุกินเพดานของงวด ล้มแบบชัดเจนและไม่เสียข้อมูล แต่ถาวร เพราะห้าม hard-delete พนักงานที่มีประวัติ จึงปิดงวด/ส่งออก attendance CSV ไม่ได้และไม่มีทางแก้ใน UI fixture ใส่ record อดีตตรง ๆ และ setup ไม่มี guard จำนวนสะสม reach ขึ้นกับ turnover สะสม จึงอยู่ใต้ KIRO-03",
+      "recommendedWave": 2,
+      "references": [
+        "convex/hr/shared.ts:37",
+        "convex/hr/shared.ts:428",
+        "convex/hr/review.ts:77",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/hr-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-backend.log:42"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 7,
+      "sourceId": "INV-05",
+      "priority": "P2",
+      "category": "Validation / สัญญาข้อมูลและเรขาคณิต",
+      "title": "การวัดแบบ legacy บันทึกจำนวน 1.5 PCS ได้ แม้หน่วยนับต้องเป็นจำนวนเต็ม",
+      "confidence": "runtime-reproduced",
+      "rationale": "จำนวนสินค้าที่บันทึกขัดสัญญา precision ของหน่วย (quantityToMinor คืน null) อาจทำให้ยอดรวม/การแพ็กต่อไปผิดหรือ error ภายหลัง เงื่อนไขคือกรอกเศษใน Measurement (input step=any) หรือ default quantity ของสินค้าเป็นเศษ ขอบเขตเฉพาะ legacy measurement เพราะ batch packing ใช้ validatePacking แล้ว เส้นทาง measurement รันจริง written=true ส่วน createPallet ผ่าน default quantity เป็น source-demonstrated และรวมไว้ อยู่ใต้ KIRO-05 เพราะเป็นข้อมูลผิดรูปที่ตรวจพบภายหลังได้และจำกัดที่ legacy path",
+      "recommendedWave": 2,
+      "references": [
+        "convex/model/finishedGoods/packing.ts:16",
+        "convex/model/finishedGoods/packing.ts:30",
+        "convex/finishedGoods/workflow.ts:496",
+        "convex/finishedGoods/workflow.ts:254",
+        "convex/finishedGoods/workflow.ts:375",
+        "src/features/finishedGoods/PalletScreens.tsx:465",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 8,
+      "sourceId": "INV-09",
+      "priority": "P2",
+      "category": "ขีดจำกัดเวิร์กโฟลว์และรายการแบบมีเพดาน",
+      "title": "Job Scan รวบรวมได้เกิน 50 ใบและเปิดปุ่ม Save แต่ server ปฏิเสธทั้งกลุ่มและบันทึก 0 รายการ",
+      "confidence": "runtime-reproduced",
+      "rationale": "งานสแกนที่ทำไปแล้วบันทึกไม่ได้เลย (SCAN_GROUP_SIZE_INVALID) จนกว่าผู้ใช้จะลบรายการเอง แต่ไม่สูญข้อมูลเงียบเพราะกลุ่มยังอยู่ใน UI เงื่อนไขคือใบงานมากกว่า 50 ในกลุ่มเดียวผ่าน barcode, manual หรือหลายรอบของ photo (cap 20 รูปต่อ panel ไม่จำกัดยอดสะสม) ซึ่งเป็นไปได้ในคลังจริง หลักฐานเป็น Job Scan UI จริง + backend จริง แหล่งกล้อง/ไฟล์เป็น callback ควบคุม ไม่ได้อ้างฮาร์ดแวร์ อยู่ใต้ INV-05 เพราะล้มแบบชัดเจนและข้อมูลที่บันทึกไม่ผิด",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx:279",
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx:491",
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx:612",
+        "convex/finishedGoods/jobScans.ts:272",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-jobscan.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 9,
+      "sourceId": "INV-01",
+      "priority": "P2",
+      "category": "Idempotency / การกู้คำสั่งที่ไม่ทราบผล",
+      "title": "retry คำสั่ง layout ที่สำเร็จแล้วด้วย args เดิมถูกปฏิเสธเป็น VERSION_CONFLICT",
+      "confidence": "runtime-reproduced",
+      "rationale": "ข้อมูลในฐานถูกต้อง แต่ผู้ใช้/API client ได้ความล้มเหลวปลอมหลังคำตอบหาย เพราะการเช็ก expectedVersion/status เกิดก่อน idempotency lookup จึงกู้ผลเดิมไม่ได้และอาจสั่งซ้ำด้วยข้อมูลใหม่ เงื่อนไขคือคำตอบของ mutation ที่ commit แล้วหายแล้ว retry ด้วย request ID และ args เดิม รันจริงเฉพาะ updateStorageBuilding ส่วน floor save/floor count/schematic/status ใช้ลำดับเดียวกันแบบ source-demonstrated และรวมไว้ อยู่ใต้ INV-09 เพราะข้อมูลที่บันทึกถูกต้อง แต่จัดเข้า wave 1 ร่วมกับ INV-02 เพราะแนวแก้ replay-before-validation อยู่ใน write path เดียวกัน",
+      "recommendedWave": 1,
+      "references": [
+        "convex/storageLayouts/writes.ts:295",
+        "convex/storageLayouts/writes.ts:341",
+        "convex/storageLayouts/writes.ts:406",
+        "convex/storageLayouts/writes.ts:494",
+        "convex/storageLayouts/writes.ts:596",
+        "convex/storageLayouts/writes.ts:746",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 10,
+      "sourceId": "KIRO-10",
+      "priority": "P2",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "ฟอร์มพนักงานที่ยังไม่บันทึกถูก remount ล้าง draft เมื่อ admin อีกคนบันทึก record เดียวกัน",
+      "confidence": "runtime-reproduced",
+      "rationale": "EmployeeForm ถูก key ด้วย id:version เมื่อ live query เปลี่ยน v4→v5 ฟอร์ม remount ชื่อที่พิมพ์กลับเป็นค่าเดิม ไม่มี draft prompt และ draft guard ถูกยกเลิก ขัด Back navigation contract ที่ต้องขอความยินยอมก่อนทิ้ง draft backend มี expectedVersion/EMPLOYEE_STALE อยู่แล้ว จึงเป็นการสูญ draft ฝั่ง client ไม่ใช่ server lost update อยู่ใต้ INV-01 เพราะข้อมูลที่หายยังไม่ถูกบันทึกและต้องมี admin แก้ record เดียวกันพร้อมกัน pattern เดียวกันใน DayScreen/ReviewDetail เป็น source-demonstrated และรวมไว้ ไม่นับแยก",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/EmployeesScreen.tsx:377",
+        "src/components/providers/draftGuard.ts:88",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/hr-ui.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-ui.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 11,
+      "sourceId": "ROOT-01",
+      "priority": "P2",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "subscription HR ที่อิง Date.now ไม่ถูก invalidate เมื่อข้ามวันหรือเส้นตายของกะ",
+      "confidence": "source-demonstrated",
+      "rationale": "หน้าที่เปิดค้าง (เช่น Today บนแท็บเล็ตหน้างาน) อาจแสดงวันที่/สถานะ/nextAction เดิมข้ามเที่ยงคืนหรือหลังเส้นตายจนกว่าข้อมูลอื่นเปลี่ยนหรือ reload mutation อ่านเวลา server ใหม่เสมอ จึงไม่ได้อ้างว่า timestamp ของเหตุการณ์ผิด Today, ค่าเริ่มต้นวันที่, ประวัติ, review queue และ close readiness นับเป็น root cause เดียว orgClock อ่าน Date.now ใน query โดยไม่มี clock argument/timer และเอกสาร Convex ระบุว่า Date.now ไม่ทำให้ subscription rerun KIRO-08 เป็นหลักฐานสนับสนุนว่าคำตอบ Today เปลี่ยนตามเวลาเพียงอย่างเดียว แต่ไม่ได้จำลอง websocket subscription reach กว้างแต่เป็นหลักฐานระดับ source เท่านั้น จึงอยู่ใต้ KIRO-10",
+      "recommendedWave": 2,
+      "references": [
+        "convex/hr/shared.ts:62",
+        "convex/hr/access.ts:34",
+        "convex/hr/self.ts:163",
+        "src/features/hr/TodayScreen.tsx:60",
+        "src/components/providers/HrAccessProvider.tsx:62",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-backend.log:80",
+        "https://docs.convex.dev/understanding/best-practices#dont-use-datenow-in-queries"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/root-research.md"
+    },
+    {
+      "rank": 12,
+      "sourceId": "DAILY-02",
+      "priority": "P2",
+      "category": "การนำทาง Back",
+      "title": "ปุ่ม “กลับหน้าวันนี้” push history ใหม่ ทำให้ Back เปิด editor ที่เพิ่งออกอีกครั้ง",
+      "confidence": "runtime-reproduced",
+      "rationale": "ละเมิด Back navigation contract ของโปรเจกต์: editor ที่ปิดแล้วกลับมาเมื่อกด Back ไม่กระทบข้อมูล เกิดทุกครั้งที่ใช้ปุ่มที่เป็น Link ธรรมดา หลักฐานเป็นเบราว์เซอร์ local + native history (appNavigationIndex 2→1 กลับ /th/hr/customize) ไม่มี screenshot และการตรวจซ้ำแท็บใหม่หยุดเพราะ browser host disconnect หลังได้ผลแล้ว reach สูงแต่ผลเป็น UX จึงอยู่ท้ายกลุ่ม P2",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/ShortcutCustomizeScreen.tsx:461",
+        "docs/contracts/back-navigation.md",
+        "docs/contracts/back-navigation.json"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/README.md"
+    },
+    {
+      "rank": 13,
+      "sourceId": "KIRO-07",
+      "priority": "P3",
+      "category": "ความเที่ยงตรงของคำขอแก้เวลา",
+      "title": "ฟอร์มขอแก้เวลาตัดวินาที ด้านที่ไม่ได้แตะจึงถูกส่งและแสดงว่าเปลี่ยน",
+      "confidence": "runtime-reproduced",
+      "rationale": "prefill แปลง 08:30:45 เป็น 08:30 และ submit ส่งด้านนั้นแม้พนักงานแก้เฉพาะอีกด้าน backend จริงเก็บ proposedStartAt เร็วกว่าเดิม 45 วินาที ผู้ตรวจเห็นด้านที่ไม่ได้แก้เป็น changed และช่วงที่รับรองยาวขึ้นได้ไม่เกิน 59 วินาที event เดิมยัง immutable และความละเอียดระดับนาทีสำหรับด้านที่แก้จริงเป็นสิ่งที่รองรับ ปัญหาคือถือว่าด้านเดิมที่ไม่ได้แตะถูกแก้โดยไม่แสดงให้เห็น P3 เพราะผลต่อเวลาเล็ก แต่สูงสุดในกลุ่ม P3 เพราะเกิดได้กับคำขอแก้เกือบทุกครั้ง",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/TimeSideField.tsx:36",
+        "src/features/hr/CorrectionForm.tsx:138",
+        "src/features/hr/ReviewDetail.tsx:307",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/hr-backend.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-backend.log:73"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 14,
+      "sourceId": "KIRO-11",
+      "priority": "P3",
+      "category": "ขีดจำกัดเวิร์กโฟลว์และรายการแบบมีเพดาน",
+      "title": "รายการวันที่ยังเปิดของงวดตัดที่ 200 แถวโดยไม่แจ้ง exception ท้ายรายการจึงไม่แสดง",
+      "confidence": "runtime-reproduced",
+      "rationale": "UI จริงแสดง 200 จาก 217 แถวที่ยังเปิด และ exception MISSING_RECORD ท้ายรายการไม่แสดงโดยไม่มี notice ว่าไม่ครบ เป็นการมองเห็นงานไม่ครบ ไม่ใช่การปิดงวดสำเร็จปลอมหรือการคำนวณที่ถูกตัด เพราะ totals และการตรวจปิดงวดฝั่ง server ยังถูก และปุ่ม Review แยกเป็นทางเลี่ยง อยู่เหนือ INV-06 เพราะเกิดใน UI ปกติของงวดเดือนช่วงต้นเดือนเมื่อมีพนักงานราว 12 คนขึ้นไป",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/PeriodDetailScreen.tsx:889",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/hr-ui.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-ui.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 15,
+      "sourceId": "INV-06",
+      "priority": "P3",
+      "category": "Validation / สัญญาข้อมูลและเรขาคณิต",
+      "title": "บันทึกชั้นโดยละ offset ผ่านการตรวจแบบสืบทอด แต่ยังเก็บ offset เก่า ทำให้ชั้นล้นขอบอาคาร",
+      "confidence": "runtime-reproduced",
+      "rationale": "เรขาคณิตที่บันทึก (ชั้นกว้าง 10000 ที่ X=2000 ไปถึง 12000) ไม่ตรงกับที่ผ่านการตรวจ exposure จำกัดที่ authenticated API client ที่ละ offsetXMm/offsetYMm เท่านั้น Floor editor ปัจจุบันส่ง offset ชัดเจนตามปกติ จึงไม่ใช่ปัญหา UI ที่เกิดประจำและไม่ใช่ช่องโหว่ความปลอดภัย หลักฐานเป็น API runtime สองครั้งที่ args ถูกต้อง P3 เพราะต้องผ่าน API แต่แนะนำ wave 2 เพราะแก้ไม่กี่บรรทัดและเป็นความถูกต้องของข้อมูลกายภาพ",
+      "recommendedWave": 2,
+      "references": [
+        "convex/storageLayouts/writes.ts:49",
+        "convex/storageLayouts/writes.ts:605",
+        "convex/storageLayouts/writes.ts:667",
+        "convex/storageLayouts/writes.ts:670",
+        "convex/model/storageLayout/storageLayout.ts:190",
+        "convex/model/storageLayout/storageLayout.ts:206",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 16,
+      "sourceId": "INV-07",
+      "priority": "P3",
+      "category": "การค้นหาและแบ่งหน้า",
+      "title": "cursor แบบ offset ของการค้นหา job record เลื่อนเมื่อมีการบันทึกใหม่ระหว่างแบ่งหน้า",
+      "confidence": "runtime-reproduced",
+      "rationale": "หน้าถัดไปแสดงรายการซ้ำ (FO0003) และกรณีลบอาจข้ามรายการได้ตามกลไกเดียวกัน (ยังไม่ได้รัน) เป็นการอ่านประวัติผิด ไม่ใช่ข้อมูลเสีย เกิดเฉพาะการค้นหาแบบมีข้อความที่มี insert/delete ระหว่างขอหน้าถัดไป query ที่ไม่ค้นหาใช้ cursor ของฐานข้อมูล backend จริงพิสูจน์ว่า continuation ไม่เสถียร แต่ไม่ได้อ้างว่าทุก timing ของ reactive UI แสดงรายการซ้ำ อยู่ใต้ INV-06 เพราะไม่กระทบข้อมูลที่บันทึก",
+      "recommendedWave": 3,
+      "references": [
+        "convex/finishedGoods/jobScans.ts:406",
+        "convex/finishedGoods/jobScans.ts:417",
+        "convex/finishedGoods/jobScans.ts:420",
+        "src/features/finishedGoods/jobScan/JobScanRecords.tsx:78",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 17,
+      "sourceId": "DAILY-03",
+      "priority": "P3",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "editor เมนูลัดที่ยังไม่แก้ไม่รับ preference version ใหม่จากอีกแท็บ",
+      "confidence": "runtime-reproduced",
+      "rationale": "แสดงค่าที่บันทึกแล้วผิด (Show Profile ยัง checked และบอกว่าตรงกับที่บันทึก) จนกว่าจะ Cancel/โหลดใหม่ ถ้าแก้ต่อจะชน PREFERENCES_STALE ซึ่งป้องกันการเขียนทับ จึงไม่สูญข้อมูล เงื่อนไขคือเปิด editor ค้างขณะอีกแท็บ/อุปกรณ์บันทึก หลักฐานเป็น component จริง + registered mutation/query และตัวเทียบ remount แสดงค่าถูก เป็นอาการกลับด้านของ KIRO-10 (คนละ component/กลไก) อยู่ใต้ INV-07 เพราะจำกัดที่ preference ส่วนตัว",
+      "recommendedWave": 2,
+      "references": [
+        "src/features/hr/ShortcutCustomizeScreen.tsx:98",
+        "docs/reviews/daily-bug-search-2026-10-13/probes/hr-recovery.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/probes-red.log",
+        "docs/reviews/daily-bug-search-2026-10-13/evidence/clean-remount-control.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/README.md"
+    },
+    {
+      "rank": 18,
+      "sourceId": "ROOT-03",
+      "priority": "P3",
+      "category": "ความสดและ ownership ของ state ฝั่ง client",
+      "title": "completion ของ async operation เก่าถูกประทับ generation ใหม่ ทำให้นำทางไปอาคารของคลังเดิมหลังเปลี่ยนคลัง",
+      "confidence": "runtime-reproduced",
+      "rationale": "หลังสร้างอาคารในคลัง A สำเร็จ router.replace ไปอาคารของ A ขณะ workspace เป็น B แล้ว อาคารสร้างถูกคลังและสิทธิ์ยังตรวจที่ server จึงไม่ใช่การรั่วข้ามคลัง exposure จำกัด: พิสูจน์ด้วย forced warehouse rerender ผ่าน QueryGate ที่ caller เดียว (NewStorageBuildingForm) ต้องให้ workspace เปลี่ยนจากภายนอกขณะ create pending และการออกจากหน้าปกติมี guard อยู่แล้ว ยังไม่ได้ทำซ้ำการเปลี่ยนสิทธิ์คลังในเบราว์เซอร์ root cause อยู่ใน shared hook จึงอยู่เหนือ ROOT-02",
+      "recommendedWave": 3,
+      "references": [
+        "src/hooks/useAsyncOperation.ts:54",
+        "src/hooks/useAsyncOperation.ts:107",
+        "src/features/storageLayouts/StorageLayoutScreens.tsx:369",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/root-async-completion.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/evidence/root-probes-red.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/root-research.md"
+    },
+    {
+      "rank": 19,
+      "sourceId": "ROOT-02",
+      "priority": "P3",
+      "category": "Validation / สัญญาข้อมูลและเรขาคณิต",
+      "title": "deep link คำขอส่วนตัวที่ ID ผิดรูปทำให้ query throw แทนการแสดง NOT_FOUND",
+      "confidence": "runtime-reproduced",
+      "rationale": "ผู้ใช้เห็น error boundary แทนสถานะไม่พบรายการ และ reload ก็ซ้ำเดิม ไม่กระทบข้อมูลหรือสิทธิ์ เพราะ ID ที่ถูกรูปยังได้รับการป้องกันตามปกติ exposure จำกัดที่ URL ถูกตัด/พิมพ์ผิด/ID ผิดรูป registered query hr/self:requestDetail ปฏิเสธด้วย Validator error ใน convex-test แต่ยังไม่ได้เดินผ่าน error boundary ในเบราว์เซอร์ อยู่ใต้ ROOT-03 เพราะต้องใช้ input ผิดรูป",
+      "recommendedWave": 3,
+      "references": [
+        "src/app/[locale]/(desktop)/hr/requests/[requestId]/page.tsx:12",
+        "src/features/hr/RequestsScreen.tsx:225",
+        "convex/hr/self.ts:359",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/root-request-id.probe.ts",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/evidence/root-probes-red.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/root-research.md"
+    },
+    {
+      "rank": 20,
+      "sourceId": "INV-08",
+      "priority": "P3",
+      "category": "การค้นหาและแบ่งหน้า",
+      "title": "ค้นหาด้วยชื่อตำแหน่งที่แสดงบน job record ไม่พบรายการ",
+      "confidence": "runtime-reproduced",
+      "rationale": "ค้นหาไม่พบรายการที่ป้ายค้นหาสัญญาว่าค้นด้วยตำแหน่งได้ เพราะ predicate ไม่รวม locationName ผู้ใช้ยังค้นด้วยรหัส/ข้อความตำแหน่งได้ เกิดกับ record ที่ map กับโซน/position ที่ชื่อต่างจากรหัส หลักฐานเป็น save + list query จริง แก้เล็กและควรทำพร้อม INV-07 อยู่ใต้ ROOT-02 เพราะมีทางเลี่ยงทันที",
+      "recommendedWave": 3,
+      "references": [
+        "convex/finishedGoods/jobScans.ts:409",
+        "convex/finishedGoods/jobScans.ts:473",
+        "src/features/finishedGoods/jobScan/JobScanRecordRow.tsx:104",
+        "messages/th.json:1443",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    },
+    {
+      "rank": 21,
+      "sourceId": "INV-10",
+      "priority": "P3",
+      "category": "ทรัพยากรเบราว์เซอร์",
+      "title": "ปิด panel ถ่ายรูปแล้ว Blob URL ของรูปที่ยังไม่ส่งไม่ถูก revoke",
+      "confidence": "runtime-reproduced",
+      "rationale": "allocation ค้าง 3 รายการหลัง 3 รอบ Cancel/unmount (revoked=0) ส่วน Remove ปกติ revoke ถูกต้อง เกิดเมื่อเลือกรูปแล้ว Cancel หรือออกจากหน้าก่อนส่ง (สูงสุด 20 รูป 25 MiB ต่อรูปต่อ panel) หลักฐานเป็น lifecycle ของ component จริงพร้อม allocation/revocation spy แต่ยังไม่ได้วัด heap ที่เพิ่มขึ้นหรือ crash จึงไม่อ้างความรุนแรงด้านหน่วยความจำ อันดับสุดท้ายเพราะยังไม่มีหลักฐานผลกระทบต่อผู้ใช้",
+      "recommendedWave": 3,
+      "references": [
+        "src/hooks/use-file-upload.ts:129",
+        "src/hooks/use-file-upload.ts:143",
+        "src/hooks/use-file-upload.ts:281",
+        "src/features/finishedGoods/jobScan/PhotoCapture.tsx:45",
+        "src/features/finishedGoods/jobScan/PhotoCapture.tsx:163",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-photo.probe.tsx",
+        "docs/reviews/daily-bug-search-2026-10-13/expanded/probes/inventory-photo-evidence.log"
+      ],
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/inventory-research.md"
+    }
+  ],
+  "policyRisks": [
+    {
+      "rank": 1,
+      "sourceId": "KIRO-01",
+      "category": "วงจรการจ้างงาน / การปิดงวด",
+      "title": "แก้วันจ้างงานจนไม่รวมวันที่มีบันทึกเวลาแล้ว ทำให้เวลานั้นไม่อยู่ในงวดและ attendance CSV",
+      "observed": "พนักงานลงเวลา 2026-10-05 แล้ว HR แก้ employmentStartDate เป็น 2026-10-06 (หรือวันสิ้นสุดก่อนวันทำงานสุดท้าย) งวดใหม่ปิดได้โดยไม่มี blocker และ attendance CSV ไม่มีแถวของพนักงานคนนั้น ขณะที่ attendance record เดิมยังถูกเก็บไว้",
+      "decisionNeeded": "HR-040 ระบุให้รวมคนที่จ้างในช่วงงวด และวันจ้างใหม่อาจเป็นการแก้ทะเบียนที่ผิดโดยเจตนา spec ไม่ได้ระบุว่าวันที่มีบันทึกนอกช่วงจ้างที่แก้แล้วต้อง block การปิดงวดหรือไม่ ต้องตัดสินว่าจะ block, เตือน/ขอยืนยันตอนบันทึก หรือยอมรับกฎปัจจุบัน",
+      "possibleImpact": "ถ้าการแก้วันจ้างผิดพลาด เวลาที่ทำงานจริงจะหายจากงวดที่ปิดและ attendance CSV โดยไม่มีคำเตือน (ไม่มีการคำนวณเงินในระบบนี้)",
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 2,
+      "sourceId": "KIRO-04",
+      "category": "นโยบายสิทธิ์ / ขอบเขตคลัง",
+      "title": "HR admin ที่มี scope คลัง A ถอนหรือให้สิทธิ์ HR ของสมาชิกที่อยู่คลัง B อย่างเดียวได้",
+      "observed": "HR_ADMIN ที่ scope เฉพาะ ALPHA เห็นสมาชิกนอก scope และถอน HR_SUPERVISOR ของสมาชิกที่อยู่ BRAVO อย่างเดียวได้ (written=true) หลังจากนั้น review.queue ของผู้นั้นล้ม",
+      "decisionNeeded": "hr.admin.manage เป็น permission ระดับองค์กร และ evaluator ใช้ขอบเขตคลังเฉพาะ permission ระดับคลังโดยตั้งใจ HR-001 จำกัดการตรวจ attendance แต่ไม่ได้ระบุนโยบายการจัดการ role ต้องยืนยันว่าการให้ capability นี้หมายถึงจัดการ role HR ทั้งองค์กรหรือต้องจำกัดตามคลัง/ORG_WIDE",
+      "possibleImpact": "ถ้านโยบายตั้งใจจำกัดตามคลัง ผู้ดูแลระดับคลังจะให้/ถอนสิทธิ์ HR ข้ามคลังได้ ยังไม่ใช่ tenant leak หรือการยกระดับ role ตามอำเภอใจ",
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 3,
+      "sourceId": "KIRO-02",
+      "category": "ตารางงานและวันหยุดย้อนหลัง",
+      "title": "แก้ตารางงานหรือเพิ่มวันหยุดย้อนหลังเปลี่ยน exception ของวันที่ยังไม่มีบันทึกในงวดที่ยังเปิด",
+      "observed": "ก่อนแก้มี MISSING_RECORD ของ 2026-10-05 หลังเปลี่ยนตารางเป็น อ.–ส. รายการนั้นหายและเกิด MISSING_RECORD ใหม่ของ 2026-10-03 และเมื่อเพิ่มวันหยุดย้อนหลังคิวว่าง",
+      "decisionNeeded": "HR-012 freeze plan ของวันที่มีบันทึก และ HR-013 freeze ผลของงวดที่ปิด วันไม่มีบันทึกในงวดเปิดใช้ plan ปัจจุบัน และ pilot ไม่มี effective-dated schedule ส่วนวันหยุดที่กรอกช้าโดยชอบธรรมควรลบการขาดได้ ต้องตัดสินว่าต้องการ effective date หรือการยืนยันเมื่อแก้วันในอดีตหรือไม่",
+      "possibleImpact": "การขาดงานที่ยังไม่ตัดสินอาจหายจากคิวและจำนวนวันขาดใน attendance CSV หลังปิดงวด หรือเกิด exception ที่ block การปิดงวด",
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 4,
+      "sourceId": "KIRO-06",
+      "category": "state machine ของการลงเวลา",
+      "title": "รับรองคำขอแก้คู่เวลาระหว่างกะที่ยังเปิด ทำให้ลงเวลาออกภายหลังไม่ได้",
+      "observed": "clock-in 09:00 แล้วส่งคำขอแก้ 08:00–10:00 ขณะ IN_PROGRESS หลังรับรอง ช่วงเวลาปิดที่ 10:00 และ clock-out 17:30 ได้ HR_NOT_CLOCKED_IN",
+      "decisionNeeded": "HR-031 ตั้งใจแทน attendance ที่มีผลด้วยคู่ที่รับรอง และ HR-021 อนุญาตคู่เดียว probe เสนอเวลาออกในอดีตเองขณะพนักงานยังทำงาน ต้องตัดสินว่าจะห้าม full-pair certification ระหว่างกะเปิด หรือแสดงคำเตือนชัดขึ้น",
+      "possibleImpact": "เวลาออกจริงไม่ถูกบันทึก ต้องยื่นคำขอแก้ใหม่",
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    },
+    {
+      "rank": 5,
+      "sourceId": "KIRO-09",
+      "category": "AI Search / การตีความวันที่",
+      "title": "ช่วง 1–15 ต.ค. ที่ไม่ระบุปีถูกตีความเป็นปีก่อนและได้ NO_MATCH",
+      "observed": "วันที่ 13 ต.ค. 2026 คำค้นช่วง 1–15 ต.ค. ถูกอ่านเป็น 2025-10-01..15 (inferredYear) และได้ NO_MATCH เมื่อมีเฉพาะ draft ปี 2026",
+      "decisionNeeded": "parser ใช้นโยบาย latest past occurrence ที่มีเอกสารและ test และ inferred match ต้องให้ผู้ใช้เลือกอยู่แล้ว ต้องตัดสินว่าช่วงที่ครอบวันนี้ควรใช้ปีปัจจุบัน หรือเพิ่มคำชี้แจง/ตัวเลือกปีในผล NO_MATCH",
+      "possibleImpact": "คำค้นงวดทั่วไปไม่พบผล ผู้ใช้ต้องระบุปีเอง ไม่มีการนำทางหรือทำงานผิดอัตโนมัติ",
+      "report": "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md"
+    }
+  ],
+  "mergedOrRejected": [
+    {
+      "id": "KIRO-08",
+      "decision": "merged-supporting-evidence",
+      "into": "ROOT-01",
+      "note": "probe backend แสดงว่าคำตอบ Today เปลี่ยนตามเวลาเพียงอย่างเดียวโดยข้อมูลไม่เปลี่ยน แต่ไม่ได้จำลอง Convex websocket subscription จึงไม่ใช่ finding ใหม่และไม่ยกระดับ ROOT-01 จาก source-demonstrated"
+    },
+    {
+      "id": "KIRO-01, KIRO-02, KIRO-04, KIRO-06, KIRO-09",
+      "decision": "policy-risk-separate",
+      "into": null,
+      "note": "พฤติกรรมที่สังเกตเป็นจริง แต่ expected behavior ยังไม่ได้รับการสนับสนุนจาก product contract ตามการทบทวนอิสระ จึงแยกเป็นรายการนโยบาย/ความเสี่ยง 5 รายการ ไม่นับใน 21"
+    },
+    {
+      "id": "DAILY-01 / INV-01 / INV-02",
+      "decision": "kept-separate-three-replay-roots",
+      "into": null,
+      "note": "ธีม replay เดียวกันแต่สาม root: client ใช้ request ID ค้างกับคำสั่งใหม่ (DAILY-01), server เช็ก version/status ก่อน replay lookup (INV-01), และ child sync ไม่เช็ก replayed (INV-02)"
+    },
+    {
+      "id": "INV-03 / INV-04",
+      "decision": "kept-separate-shared-cluster",
+      "into": null,
+      "note": "รูปแบบ lost update เดียวกัน (ไม่มี expected revision + ฟอร์มส่ง snapshot เต็ม) แต่คนละ mutation/เวิร์กโฟลว์ (product master data กับขนาดพาเลท) และผลกระทบต่างกัน แก้ร่วมกันด้วย expected revision และการส่งเฉพาะฟิลด์ที่เปลี่ยน"
+    },
+    {
+      "id": "KIRO-10 / DAILY-03",
+      "decision": "kept-separate",
+      "into": null,
+      "note": "อาการกลับด้านกันในคนละ component: KIRO-10 remount ทิ้ง draft ที่ dirty, DAILY-03 editor สะอาดไม่รับ version ใหม่ ใช้ policy แก้ร่วมกันได้"
+    },
+    {
+      "id": "KIRO-10 DayScreen/ReviewDetail variants",
+      "decision": "merged",
+      "into": "KIRO-10",
+      "note": "key ตาม revision/version แบบเดียวกัน เป็น source-demonstrated ไม่นับแยก"
+    },
+    {
+      "id": "KIRO-03 inverse link variant",
+      "decision": "merged-unverified",
+      "into": "KIRO-03",
+      "note": "admin link บัญชีตัวเองกับ record คนอื่นแล้วลงเวลาแทน ยังไม่ได้ยืนยันแยก ไม่นับ"
+    },
+    {
+      "id": "INV-01 variants",
+      "decision": "merged",
+      "into": "INV-01",
+      "note": "floor save, floor-count increase, schematic approval และ status writes ใช้ลำดับ version/status-before-replay เดียวกัน source-demonstrated ไม่นับแยก"
+    },
+    {
+      "id": "DAILY-01 preference variant",
+      "decision": "merged",
+      "into": "DAILY-01",
+      "note": "Save เมนูลัดใหม่ได้ REQUEST_ARGUMENT_CONFLICT จาก request ID ค้างเดียวกัน"
+    },
+    {
+      "id": "ROOT-01 page families",
+      "decision": "merged",
+      "into": "ROOT-01",
+      "note": "Today, access defaults, history/day detail, review queue, close readiness เป็น root cause เดียว"
+    },
+    {
+      "id": "INV-05 createPallet default path",
+      "decision": "merged",
+      "into": "INV-05",
+      "note": "default quantity เศษของสินค้าถูกคัดลอกใน createPallet เป็น source-demonstrated"
+    },
+    {
+      "id": "INV-09 photo/manual paths",
+      "decision": "merged",
+      "into": "INV-09",
+      "note": "ทุกช่องทาง acquisition ขาด cap ยอดสะสมเดียวกัน"
+    },
+    {
+      "id": "Kiro raw ranking and priorities",
+      "decision": "historical-only",
+      "into": null,
+      "note": "kiro/research.md และ kiro/findings.json เก็บไว้เป็นงานวิจัยดิบ ลำดับและ priority ในนั้นเป็น provisional ไม่ใช่รายการสุดท้าย คำว่า payroll ในรายงานดิบหมายถึง attendance record/attendance CSV เพราะระบบนี้ไม่มีการคำนวณเงินเดือน"
+    },
+    {
+      "id": "Rejected leads from reports",
+      "decision": "rejected",
+      "into": null,
+      "note": "tenant/warehouse isolation, repack ของหน่วยที่ถูกถือ, stack cycle/moving support, ขีด .all(10000), camera permission/decoder ช้า, label ledger หลัง rename, barcode pair ผิดรูป, ย้าย site พนักงาน (EMPLOYEE_SITE_LOCKED), DST/ขีด pilot, ข้อกังวลความปลอดภัย AI ทั่วไป, บั๊กเก่าที่แก้แล้ว และสมมติฐานที่ Kiro ตัดทิ้งในรายงานดิบ"
+    }
+  ],
+  "methodology": {
+    "ranking": "เรียงตามผลกระทบก่อน (attendance record หรือข้อมูลกายภาพเสีย/สำเร็จปลอมแบบเงียบ > การข้าม control > เวิร์กโฟลว์ล้มแบบชัดเจน > การแสดงผล/UX) แล้วตาม reach และเงื่อนไขที่ต้องมี และสุดท้ายตามความแข็งของหลักฐาน wave พิจารณา cluster ของแนวแก้ร่วม: wave 1 คือ replay/lost update และ self-review, wave 2 คือขีดจำกัด/validation/state ฝั่ง client/Back, wave 3 คือการค้นหา, malformed input, forced rerender และทรัพยากร",
+    "priorityDefinitions": {
+      "P0": "ข้อมูลเสียหาย/รั่วในวงกว้างที่กำลังเกิดพร้อมหลักฐาน — ไม่มีรายการใด",
+      "P1": "attendance record หรือข้อมูลกายภาพเสียหาย/สำเร็จปลอมแบบเงียบ ทำซ้ำได้ด้วยการใช้งานที่ถูกต้อง",
+      "P2": "ความถูกต้อง, control หรือเวิร์กโฟลว์ล้มเหลวอย่างมีนัย หรือละเมิด contract ที่ผู้ใช้ทั่วไปเจอ",
+      "P3": "เงื่อนไขแคบ (API เท่านั้น, forced rerender, input ผิดรูป), ผลกระทบเล็ก, ค้นหา/UX หรือทรัพยากรที่ยังไม่วัดความรุนแรง"
+    },
+    "limitations": "triage นี้อ่านเฉพาะ artifact ที่ระบุและ spot-check บรรทัดอ้างอิงของ KIRO-03/05/07/10/11 ใน source เพื่อยืนยันว่ามีจริง ไม่ได้รัน test/build ใหม่ ไม่ได้ใช้เบราว์เซอร์ ไม่ได้เข้าถึง env/secret/ข้อมูลธุรกิจ และไม่ได้แก้ source/test/config/git ความมั่นใจอ้างอิงจาก log ของการรันก่อนหน้า ROOT-01 ยังไม่ได้ทำซ้ำข้ามคืนใน subscription จริง INV-03/INV-04 ฝั่ง UI สองแท็บเป็น source-demonstrated INV-10 ไม่ได้วัด heap ROOT-03 ใช้ forced rerender และ ROOT-02 ไม่ได้เดินผ่าน error boundary ในเบราว์เซอร์ ยังไม่มีการแก้ production ใด ๆ",
+    "inputs": [
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro-triage.json",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/review-decisions.md",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/findings.json",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/research.md",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-backend.log",
+      "docs/reviews/daily-bug-search-2026-10-13/expanded/kiro/evidence/hr-ui.log"
+    ]
+  }
+}

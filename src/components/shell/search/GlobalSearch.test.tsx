@@ -14,6 +14,8 @@ const state = vi.hoisted(() => ({
   queries: new Map<string, (args: Record<string, unknown>) => unknown>(),
   queryCalls: [] as { name: string; args: unknown }[],
   action: vi.fn(),
+  getToken: vi.fn(),
+  auth: { userId: "user-a", orgId: "org-a" },
   oneShot: vi.fn(),
   push: vi.fn(),
   access: {} as Record<string, unknown>,
@@ -29,10 +31,13 @@ vi.mock("convex/react", async () => {
       state.queryCalls.push({ name: key, args });
       return state.queries.get(key)?.(args as Record<string, unknown>);
     },
-    useAction: () => state.action,
     useConvex: () => ({ query: state.oneShot }),
   };
 });
+vi.mock("@/lib/ai/client", () => ({ interpretAiSearch: state.action }));
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ ...state.auth, getToken: state.getToken }),
+}));
 vi.mock("@/components/providers/HrAccessProvider", () => ({
   useHrAccess: () => state.access,
 }));
@@ -110,6 +115,8 @@ beforeEach(() => {
   state.queries.clear();
   state.queryCalls.length = 0;
   state.action.mockReset();
+  state.getToken.mockReset().mockResolvedValue("cached-convex-token");
+  state.auth = { userId: "user-a", orgId: "org-a" };
   state.oneShot.mockReset();
   state.push.mockReset();
   state.access = {
@@ -925,6 +932,72 @@ describe("AI Search lifecycle", () => {
       await screen.findByText("AI is reading your request…"),
     ).toBeInTheDocument();
   };
+
+  it("uses cached Clerk tokens for the captured organization", async () => {
+    state.action.mockResolvedValue(settingsAnswer);
+    renderSearch(<Opener mode="AI" />);
+    fireEvent.click(screen.getByRole("button", { name: "Open AI" }));
+    await screen.findByRole("dialog");
+    fireEvent.change(input(), { target: { value: "ตั้งวันหยุด" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
+    await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
+    expect(state.getToken).toHaveBeenCalledWith({ organizationId: "org-a" });
+    expect(state.getToken).toHaveBeenCalledWith({
+      template: "convex",
+      organizationId: "org-a",
+    });
+    expect(state.action.mock.calls[0]?.[1]).toEqual({
+      session: "cached-convex-token",
+      convex: "cached-convex-token",
+    });
+  });
+
+  it("refuses missing tokens before sending an HTTP request", async () => {
+    state.getToken.mockResolvedValue(null);
+    renderSearch(<Opener mode="AI" />);
+    fireEvent.click(screen.getByRole("button", { name: "Open AI" }));
+    await screen.findByRole("dialog");
+    fireEvent.change(input(), { target: { value: "ตั้งวันหยุด" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
+    expect(await screen.findByTestId("global-search-ai-error")).toBeVisible();
+    expect(state.action).not.toHaveBeenCalled();
+  });
+
+  it.each(["close", "organization"] as const)(
+    "discards pending token acquisition after %s changes",
+    async (change) => {
+      let resolve: (value: string) => void = () => {};
+      state.getToken.mockReturnValue(
+        new Promise<string>((done) => {
+          resolve = done;
+        }),
+      );
+      const view = renderWithIntl(
+        <GlobalSearchProvider>
+          <Opener mode="AI" />
+        </GlobalSearchProvider>,
+        { locale: "en", preserveProviders: true },
+      );
+      await startAi();
+      if (change === "close") {
+        fireEvent.keyDown(input(), { key: "Escape" });
+        await waitFor(() =>
+          expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+        );
+      } else {
+        // Clerk changes immediately, before Convex updates HrAccessProvider.
+        state.auth = { userId: "user-a", orgId: "org-b" };
+        view.rerender(
+          <GlobalSearchProvider>
+            <Opener mode="AI" />
+          </GlobalSearchProvider>,
+        );
+      }
+      await act(async () => resolve("late-token"));
+      expect(state.action).not.toHaveBeenCalled();
+      expect(state.push).not.toHaveBeenCalled();
+    },
+  );
 
   it("ignores a late answer after the dialog closes and reopens", async () => {
     const resolve = pending();

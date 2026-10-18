@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T15:56:48.659078+00:00",
+  "title": "Design System: Industrial SAS employee LINE preview",
+  "scope": {
+    "kind": "standalone-preview",
+    "artifact": "docs/previews/line-hr-onboarding-2026-10-13",
+    "source": "styles.css and app.js",
+    "authority": "Artifact-local extraction; does not govern production src or the repository root."
+  },
+  "extensions": {
+    "colorMeta": {
+      "blue": {
+        "role": "primary",
+        "displayName": "Royal blue"
+      },
+      "blue-soft": {
+        "role": "primary",
+        "displayName": "Soft blue selection"
+      },
+      "card-head": {
+        "role": "secondary",
+        "displayName": "Sender avatar green"
+      },
+      "chat": {
+        "role": "secondary",
+        "displayName": "LINE chat blue"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Neutral ink"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Secondary neutral text"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page headline",
+        "purpose": "Workspace page title; 24px mobile override is recorded separately."
+      },
+      "body": {
+        "displayName": "Thai body",
+        "purpose": "Default workspace content."
+      },
+      "card-body": {
+        "displayName": "Card body",
+        "purpose": "Illustrative LINE message content with 1.8 leading."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-light",
+        "value": "0 12px 35px rgba(0, 0, 0, 0.13)",
+        "purpose": "Observed --shadow for phone, toast and dialog."
+      },
+      {
+        "name": "shadow-dark",
+        "value": "0 12px 35px rgba(0, 0, 0, 0.3)",
+        "purpose": "Observed dark --shadow override."
+      }
+    ],
+    "motion": [
+      {
+        "name": "toast",
+        "value": "opacity 0.18s, transform 0.18s",
+        "purpose": "Toast enters from translateY(8px); removed for reduced motion."
+      },
+      {
+        "name": "pending",
+        "value": "spin 0.8s linear infinite",
+        "purpose": "Pending indicator only; removed for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1180px"
+      },
+      {
+        "name": "stacked-content",
+        "value": "1020px"
+      },
+      {
+        "name": "mobile",
+        "value": "720px"
+      }
+    ],
+    "interaction": [
+      {
+        "name": "keyboard-focus",
+        "value": "outline: 3px solid var(--blue); outline-offset: 3px",
+        "purpose": "Native interactive controls."
+      },
+      {
+        "name": "mobile-and-coarse-targets",
+        "value": "@media (max-width: 720px), (pointer: coarse)",
+        "purpose": "Observed final override sets listed controls to min-height:48px; icon/send controls also min-width:48px."
+      }
+    ],
+    "backdrop": {
+      "dialog": "rgba(15, 20, 35, 0.38)"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Fixed royal-blue action; themed focus ring and mobile height.",
+      "html": "<button class=\"ds-primary\">บันทึกแบบข้อความ</button>",
+      "css": ".ds-primary{min-height:40px;border:1px solid var(--line,#e2e5eb);border-radius:8px;padding:8px 15px;display:inline-flex;gap:7px;align-items:center;justify-content:center;font-size:14px;font-weight:600;white-space:normal;text-align:center;cursor:pointer;font-family:Sarabun,Thonburi,sans-serif;background:#2d55eb;color:white;border-color:#2d55eb;}.ds-primary:hover{background:#2244cb;}.ds-primary:focus-visible{outline:3px solid var(--blue,#2d55eb);outline-offset:3px;}.ds-primary:disabled{opacity:.5;cursor:not-allowed;}@media(max-width:720px){.ds-primary{min-height:48px;padding:10px 14px;}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Bordered workspace action.",
+      "html": "<button class=\"ds-secondary\">ยกเลิก</button>",
+      "css": ".ds-secondary{min-height:40px;border:1px solid var(--line,#e2e5eb);border-radius:8px;padding:8px 15px;display:inline-flex;gap:7px;align-items:center;justify-content:center;font-size:14px;font-weight:600;white-space:normal;text-align:center;cursor:pointer;font-family:Sarabun,Thonburi,sans-serif;background:var(--surface,#fff);color:var(--ink,#1a1a1f);}.ds-secondary:hover{background:var(--canvas,#f6f7f9);}.ds-secondary:focus-visible{outline:3px solid var(--blue,#2d55eb);outline-offset:3px;}@media(max-width:720px){.ds-secondary{min-height:48px;padding:10px 14px;}}"
+    },
+    {
+      "name": "Quiet button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Low-emphasis blue text action.",
+      "html": "<button class=\"ds-quiet\">ดูรายละเอียด</button>",
+      "css": ".ds-quiet{min-height:40px;border:1px solid var(--line,#e2e5eb);border-radius:8px;padding:8px 15px;display:inline-flex;gap:7px;align-items:center;justify-content:center;font-size:14px;font-weight:600;white-space:normal;text-align:center;cursor:pointer;font-family:Sarabun,Thonburi,sans-serif;background:transparent;border-color:transparent;color:var(--blue,#2d55eb);}.ds-quiet:hover{background:var(--canvas,#f6f7f9);}.ds-quiet:focus-visible{outline:3px solid var(--blue,#2d55eb);outline-offset:3px;}@media(max-width:720px){.ds-quiet{min-height:48px;padding:10px 14px;}}"
+    },
+    {
+      "name": "Labeled field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Native label and themed bordered input.",
+      "html": "<label class=\"ds-field\"><span>หัวข้อข้อความ</span><input value=\"ประชุมทีมประจำสัปดาห์\"></label>",
+      "css": ".ds-field{display:flex;flex-direction:column;gap:6px;color:var(--ink,#1a1a1f);font-family:Sarabun,Thonburi,sans-serif;}.ds-field span{font-size:14px;font-weight:600;}.ds-field input{width:100%;min-height:43px;padding:9px 12px;border:1px solid var(--line,#e2e5eb);border-radius:8px;background:var(--input,#fff);color:var(--ink,#1a1a1f);font:15px/1.65 Sarabun,Thonburi,sans-serif;}.ds-field input:focus-visible{outline:3px solid var(--blue,#2d55eb);outline-offset:3px;}@media(max-width:720px){.ds-field input{font-size:16px;min-height:48px;}}"
+    },
+    {
+      "name": "Active navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Semibold blue selected row with stroke icon.",
+      "html": "<a class=\"ds-nav\" href=\"#/cards\" aria-current=\"page\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M7 9h10M7 13h6\"/></svg>แบบข้อความ Card</a>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:11px;min-height:43px;border-radius:9px;padding:9px 12px;margin:3px 0;text-decoration:none;color:var(--blue,#2d55eb);background:var(--blue-soft,#edf2ff);font-size:14px;font-weight:600;font-family:Sarabun,Thonburi,sans-serif;}.ds-nav svg{stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}.ds-nav:focus-visible{outline:3px solid var(--blue,#2d55eb);outline-offset:3px;}@media(max-width:720px),(pointer:coarse){.ds-nav{min-height:48px;}}"
+    },
+    {
+      "name": "Acknowledgment status",
+      "kind": "chip",
+      "refersTo": "status-good",
+      "description": "Semantic chip with an explicit success label.",
+      "html": "<span class=\"ds-status\">รับทราบแล้ว</span>",
+      "css": ".ds-status{display:inline-flex;gap:5px;align-items:center;font-size:12px;padding:3px 9px;border-radius:20px;background:var(--green-bg,#e9f5ef);color:var(--green,#065f3e);white-space:nowrap;font-family:Sarabun,Thonburi,sans-serif;}"
+    },
+    {
+      "name": "Flat panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "A bordered surface without decorative elevation.",
+      "html": "<section class=\"ds-panel\"><h2>ความพร้อมของช่องทาง</h2><p>ตรวจการเชื่อมต่อก่อนเปิดใช้งาน</p></section>",
+      "css": ".ds-panel{border:1px solid var(--line,#e2e5eb);border-radius:12px;background:var(--surface,#fff);color:var(--ink,#1a1a1f);overflow:hidden;padding:23px;font-family:Sarabun,Thonburi,sans-serif;}.ds-panel h2{margin:0;font-size:19px;line-height:1.5;font-weight:600;}.ds-panel p{margin:4px 0 0;font-size:14px;color:var(--muted,#58585c);line-height:1.65;}@media(max-width:720px){.ds-panel{padding:18px;}}"
+    },
+    {
+      "name": "Branded employee Card",
+      "kind": "custom",
+      "refersTo": "flex-card",
+      "description": "Fixed-light illustrative LINE Card; actions are presentation samples.",
+      "html": "<article class=\"ds-flex\"><div class=\"ds-flex-body\"><h2>ประชุมทีมประจำสัปดาห์</h2><p>เรียนคุณ พิมพ์ชนก<br>วันศุกร์ เวลา 09:00 น.</p></div><div class=\"ds-flex-actions\"><button>รับทราบ</button><button class=\"ds-detail\">ดูรายละเอียด</button></div></article>",
+      "css": ".ds-flex{background:white;border-radius:13px;overflow:hidden;color:#17212f;font-family:Sarabun,Thonburi,sans-serif;}.ds-flex-body{padding:15px 15px 8px;}.ds-flex-body h2{font-size:19px;line-height:1.5;font-weight:600;margin:0 0 9px;color:#14213f;}.ds-flex-body p{font-size:13px;line-height:1.8;margin:0;}.ds-flex-actions{display:flex;flex-direction:column;gap:4px;padding:10px 12px 13px;}.ds-flex-actions button{border:0;border-radius:7px;min-height:43px;font-size:13px;font-weight:600;background:#2d55eb;color:white;cursor:pointer;font-family:Sarabun,Thonburi,sans-serif;}.ds-flex-actions .ds-detail{background:transparent;color:#2d55eb;}.ds-flex-actions button:focus-visible{outline:3px solid var(--blue,#2d55eb);outline-offset:3px;}@media(max-width:720px){.ds-flex-actions button{min-height:48px;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Drease / EasePOS employee extension",
+    "overview": "This record applies only to the standalone preview in this directory. It captures the finished HTML and CSS in Operate mode, following the user’s authorized reuse of Drease / EasePOS. It is not a replacement identity or a design authority for the Industrial SAS production application. The local CSS remains the source of truth; frontmatter records its light defaults and observed dark overrides.\n\nThe preview combines a flat settings rail and blue selected controls with a LINE Card and a playable employee chat. Neutral surfaces, readable Thai type and explicit labels carry the work. The signature interaction is the same publication moving from HR composition to employee acknowledgment and back to HR tracking.",
+    "keyCharacteristics": [
+      "Flat rail and content plane separated by a hairline.",
+      "Blue selection and primary actions; neutral body text.",
+      "Sarabun typography with generous Thai text leading.",
+      "White Card with a clear message title inside a blue LINE chat illustration.",
+      "Visible sample-state and receipt semantics throughout the employee flow."
+    ],
+    "rules": [
+      {
+        "name": "Scope Rule",
+        "body": "Apply this record within this preview only; production identity, navigation and authorization remain governed by the application.",
+        "section": "colors"
+      },
+      {
+        "name": "Receipt Rule",
+        "body": "Preserve separate labels for provider acceptance, an in-app detail opening and explicit acknowledgment.",
+        "section": "components"
+      },
+      {
+        "name": "Flat Shell Rule",
+        "body": "Keep the rail and workspace free of decorative elevation; reserve the observed neutral shadow for the phone illustration, toast and dialog.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep blue selected controls, neutral text and the flat two-pane relationship.",
+      "Do preserve native labels, visible keyboard focus and the final 48px mobile touch-target treatment.",
+      "Do distinguish the illustrative LINE chat from the HR workspace and label sample operations.",
+      "Do retain publication/version context in employee and HR receipt views."
+    ],
+    "donts": [
+      "Don’t promote these local tokens into a production or repository-wide identity change.",
+      "Don’t conflate provider acceptance, opening and acknowledgment.",
+      "Don’t copy the source references’ customer booking workflow into this employee HR preview.",
+      "Don’t infer live authentication, delivery or persistence from the local account selector or sample transitions."
+    ]
+  }
+}

@@ -1,0 +1,226 @@
+{
+  "checkedAt": "2026-10-16T02:12:34.286Z",
+  "gitHead": "733c6aca",
+  "surface": "index.html + sheet.js + review.js + built dist/controls.js (React islands) in jsdom; CSS cascade with var() sentinels",
+  "notVerified": [
+    "Browser layout, popup geometry and short-viewport scrolling (DS-A21 is source/attribute checked only)",
+    "Rendered print output",
+    "Rendered contrast and pixels",
+    "Physical touch devices and coarse-pointer density",
+    "Screen readers",
+    "Production application"
+  ],
+  "assertions": 159,
+  "findings": {
+    "base": [
+      "islands mounted and marked ready",
+      "no exposed native selects",
+      "no native date/time pickers",
+      "Radix selection updates draft",
+      "draft retained after remount",
+      "calendar stores civil ISO date",
+      "calendar closes after selection",
+      "Review state selection returns focus to its trigger",
+      "time retained on locale change",
+      "Thai time popup labels",
+      "Escape returns focus after locale change",
+      "no duplicate roots on language remount",
+      "no runtime errors (interaction run)",
+      "no runtime errors (cascade run)"
+    ],
+    "DS-A01": [
+      "selected day receives focus on open",
+      "Enter on selected day keeps value",
+      "Enter on selected day closes popup",
+      "trigger still shows the date",
+      "focus returns to trigger",
+      "clicking selected day keeps value",
+      "ticket delivery date survives Enter on its selected day",
+      "explicit Clear date clears",
+      "Clear date is not offered for an empty value"
+    ],
+    "DS-A20": [
+      "select disabled while reading",
+      "calendar disabled while reading",
+      "pending select is busy, focusable and not disabled",
+      "pending select does not open",
+      "typeahead cannot change a pending select",
+      "pending date stays closed and busy",
+      "pending field points at its visible status",
+      "read-only date is a legible read-only text box",
+      "read-only text field exists",
+      "disabled select and time specimens",
+      "invalid date is associated with its recovery text",
+      "a required date offers no Clear action",
+      "choosing a date clears the error",
+      "completing the time clears its error",
+      "example range disables days outside 5–23 Oct only",
+      "month navigation stays within the example range",
+      "out-of-range day cannot be chosen",
+      "Thai read-only date",
+      "read-only text is transparent with a quiet edge",
+      "invalid picker has the danger edge"
+    ],
+    "DS-A05": [
+      "reading disables every text input and in-field scanner",
+      "disabled text input uses the disabled surface, ink and edge",
+      "neighboring select uses the same disabled surface",
+      "disabled in-field scanner gains no fill"
+    ],
+    "keyboard-follow-up": [
+      "keyboard selection commits the new review state",
+      "selection consumes native Enter activation across the remount",
+      "keyboard selection closes the menu and returns focus to the new trigger"
+    ],
+    "DS-A02": [
+      "hour choice does not commit while open",
+      "Escape closes the time popup",
+      "Escape discards the draft",
+      "Escape returns focus",
+      "reopening starts from the committed value",
+      "outside click discards the draft",
+      "both parts still uncommitted before Done",
+      "Done commits a 24-hour HH:mm value",
+      "trigger shows committed time"
+    ],
+    "DS-A11": [
+      "empty time shows a muted placeholder, not a value",
+      "empty time opens with both parts empty",
+      "Done disabled while nothing is chosen",
+      "incomplete draft explains what is missing",
+      "minute alone cannot commit",
+      "Done enabled once both parts are chosen",
+      "complete draft commits HH:mm",
+      "explicit Clear time empties the value",
+      "malformed HH:mm is not shown as a time",
+      "malformed value never seeds a part",
+      "cancel leaves the source untouched"
+    ],
+    "DS-A21": [
+      "Radix supplies the available-height variable to the popup",
+      "picker popups cap height to available space and scroll"
+    ],
+    "DS-A03": [
+      "English week starts on Monday",
+      "English day name uses en-GB order",
+      "Thai trigger shows Buddhist year",
+      "Thai trigger name uses Buddhist year",
+      "locale keeps canonical Gregorian value",
+      "Thai caption uses Buddhist year",
+      "Thai grid name uses Buddhist year",
+      "Thai day name uses Buddhist year only",
+      "Thai calendar uses Latin digits",
+      "Thai week starts on Monday",
+      "Thai navigation names",
+      "Thai selection stores the Gregorian civil date"
+    ],
+    "DS-A19": [
+      "en closed: structural axe on mounted controls []",
+      "en closed: unique IDs",
+      "en closed: ARIA references resolve",
+      "en closed: labels point at mounted controls",
+      "en date open: structural axe on mounted controls []",
+      "en date open: unique IDs",
+      "en date open: ARIA references resolve",
+      "en date open: labels point at mounted controls",
+      "en time open: structural axe on mounted controls []",
+      "en time open: unique IDs",
+      "en time open: ARIA references resolve",
+      "en time open: labels point at mounted controls",
+      "en time hour listbox open: structural axe on mounted controls []",
+      "en time hour listbox open: unique IDs",
+      "en time hour listbox open: ARIA references resolve",
+      "en time hour listbox open: labels point at mounted controls",
+      "th date open: structural axe on mounted controls []",
+      "th date open: unique IDs",
+      "th date open: ARIA references resolve",
+      "th date open: labels point at mounted controls",
+      "th time open: structural axe on mounted controls []",
+      "th time open: unique IDs",
+      "th time open: ARIA references resolve",
+      "th time open: labels point at mounted controls"
+    ],
+    "DS-A07": [
+      "moving focus separates highlighted from checked",
+      "checked option: weight and check, no fill",
+      "highlighted option: fill"
+    ],
+    "DS-A13": [
+      "typing clears the error",
+      "value kept across locale",
+      "valid field shows no error after switching to Thai",
+      "empty field shows the Thai error"
+    ],
+    "DS-A15": [
+      "language button name starts with its visible label (English)",
+      "theme toggle keeps one name while aria-pressed reports state",
+      "language button name starts with its visible label (Thai)",
+      "Thai theme name is stable",
+      "filter chip name contains its visible label"
+    ],
+    "DS-A08": [
+      "dark mode before print",
+      "beforeprint switches to the light palette and readout",
+      "afterprint restores dark mode",
+      "dark-only variables reset for print ()",
+      "dark-only rules overridden in print ()"
+    ],
+    "DS-A16": [
+      "Thai wordmark name",
+      "Thai section navigation name",
+      "Thai tablist name",
+      "Thai proposal date uses the Buddhist year",
+      "saving specimen is a busy button named by its localized text"
+    ],
+    "DS-A04": [
+      "view switch uses a styled class with aria-pressed",
+      "pressed capture method has a selected surface",
+      "pressed capture method has link ink and edge",
+      "selected catalogue view is visible",
+      "pressed Filters is visible"
+    ],
+    "DS-A17": [
+      "loading totals are marked busy",
+      "each loading total has a text equivalent"
+    ],
+    "DS-A06": [
+      "pending clock-out is busy and aria-disabled, not disabled",
+      "activating a pending action does nothing",
+      "pending field keeps its resting surface",
+      "pending primary action keeps the primary surface"
+    ],
+    "DS-A09": [
+      "empty picker placeholder uses muted ink",
+      "islands import no application source",
+      "no Tailwind utility class contracts in island sources",
+      "bundle carries no Tailwind contracts"
+    ],
+    "DS-A12": [
+      "selected numeral matches other days",
+      "navigation chevrons are unfilled outlines",
+      "weekdays use muted ink at full opacity",
+      "react-day-picker default stylesheet not bundled"
+    ],
+    "DS-A14": [
+      "sources keep their space but are not shown while the bundle loads",
+      "a failed bundle shows a labelled fallback notice",
+      "failed controls retain labelled read-only values without native pickers",
+      "failure fallback retains the committed values",
+      "locale and workflow changes do not expose native selects after failure",
+      "failure values and notice follow the selected locale",
+      "sheet scripts run without errors when the bundle is missing"
+    ],
+    "DS-A18": [
+      "dist holds only the islands (controls.css,controls.js)",
+      "Vite publicDir disabled"
+    ],
+    "DS-A10": ["DESIGN.md lists intentional preview/application differences"]
+  },
+  "errors": [],
+  "thaiCalendar": {
+    "caption": "ตุลาคม 2569",
+    "grid": "ตุลาคม 2569",
+    "selectedName": "วันนี้, วันพุธที่ 14 ตุลาคม 2569, เลือกแล้ว"
+  },
+  "passed": true
+}

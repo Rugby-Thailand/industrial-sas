@@ -1,0 +1,180 @@
+{
+  "production": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 25,
+    "locationWrongCandidates": [
+      {
+        "id": 2,
+        "codes": "F1,L3.N1"
+      },
+      {
+        "id": 9,
+        "codes": "74688272"
+      },
+      {
+        "id": 13,
+        "codes": "29127276"
+      },
+      {
+        "id": 106,
+        "codes": "00277"
+      }
+    ],
+    "jobDenominator": 92,
+    "jobExact": 51,
+    "ticketPairYield": 47,
+    "fieldRoutingOk": 41,
+    "inputErrors": 20,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 598,
+    "p95WallMsAllIncludingFailures": 14934,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 694,
+    "under16MPP95WallMs": 15055
+  },
+  "prodWarm": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 26,
+    "locationWrongCandidates": [
+      {
+        "id": 2,
+        "codes": "F1,L3.N1"
+      },
+      {
+        "id": 9,
+        "codes": "74688272"
+      },
+      {
+        "id": 13,
+        "codes": "29127276"
+      },
+      {
+        "id": 106,
+        "codes": "00277"
+      }
+    ],
+    "jobDenominator": 92,
+    "jobExact": 58,
+    "ticketPairYield": 54,
+    "fieldRoutingOk": 48,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 592,
+    "p95WallMsAllIncludingFailures": 14667,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 630,
+    "under16MPP95WallMs": 14765
+  },
+  "full1600fast": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 1,
+    "locationWrongCandidates": [],
+    "jobDenominator": 92,
+    "jobExact": 64,
+    "ticketPairYield": 4,
+    "fieldRoutingOk": 4,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 70,
+    "p95WallMsAllIncludingFailures": 88,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 75,
+    "under16MPP95WallMs": 88
+  },
+  "full1600": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 7,
+    "locationWrongCandidates": [],
+    "jobDenominator": 92,
+    "jobExact": 78,
+    "ticketPairYield": 19,
+    "fieldRoutingOk": 16,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 83,
+    "p95WallMsAllIncludingFailures": 101,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 86,
+    "under16MPP95WallMs": 101
+  },
+  "full3000": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 16,
+    "locationWrongCandidates": [],
+    "jobDenominator": 92,
+    "jobExact": 81,
+    "ticketPairYield": 37,
+    "fieldRoutingOk": 31,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 139,
+    "p95WallMsAllIncludingFailures": 232,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 144,
+    "under16MPP95WallMs": 234
+  },
+  "roiFast": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 18,
+    "locationWrongCandidates": [],
+    "jobDenominator": 92,
+    "jobExact": 72,
+    "ticketPairYield": 45,
+    "fieldRoutingOk": 39,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 144,
+    "p95WallMsAllIncludingFailures": 367,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 166,
+    "under16MPP95WallMs": 373
+  },
+  "roiHard": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 22,
+    "locationWrongCandidates": [],
+    "jobDenominator": 92,
+    "jobExact": 75,
+    "ticketPairYield": 49,
+    "fieldRoutingOk": 42,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 191,
+    "p95WallMsAllIncludingFailures": 450,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 205,
+    "under16MPP95WallMs": 471
+  },
+  "cascade": {
+    "measured": 153,
+    "complete": true,
+    "locationDenominator": 58,
+    "locationExact": 23,
+    "locationWrongCandidates": [],
+    "jobDenominator": 92,
+    "jobExact": 85,
+    "ticketPairYield": 57,
+    "fieldRoutingOk": 47,
+    "inputErrors": 0,
+    "timeouts": 0,
+    "p50WallMsAllIncludingFailures": 203,
+    "p95WallMsAllIncludingFailures": 849,
+    "under16MPMeasured": 133,
+    "under16MPP50WallMs": 220,
+    "under16MPP95WallMs": 868
+  }
+}

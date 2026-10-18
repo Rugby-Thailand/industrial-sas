@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
+  replace: vi.fn(),
   close: vi.fn(),
   query: vi.fn<(name: string) => unknown>(),
   write:
@@ -81,7 +82,11 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({
+    push: mocks.push,
+    replace: mocks.replace,
+    back: () => window.history.back(),
+  }),
 }));
 
 import {
@@ -626,6 +631,7 @@ it("prevents dialog dismissal and tab changes during save and permits close afte
   });
   expect(fireEvent.click(pendingLink)).toBe(false);
   expect(mocks.push).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   resolveSave(success("receipt-a"));
   await screen.findByText("Packing updated");
   fireEvent.click(await screen.findByRole("button", { name: "Close" }));
@@ -700,6 +706,7 @@ it("keeps edits on cancelled Storage navigation and discards to the exact chosen
   fireEvent.click(screen.getByRole("button", { name: /^P-001/ }));
   fireEvent.click(screen.getByRole("link", { name: "Move unit" }));
   expect(mocks.push).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
@@ -835,6 +842,7 @@ it("does not clear the pending request when the repack commit resolves after unm
     await Promise.resolve();
   });
   expect(mocks.push).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
   expect(localStorage.getItem(requestKey)).not.toBeNull();
 });
 

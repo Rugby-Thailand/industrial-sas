@@ -1,0 +1,33 @@
+{
+  "totals": {
+    "confirmed": 21,
+    "P0": 0,
+    "P1": 3,
+    "P2": 9,
+    "P3": 9,
+    "runtimeReproduced": 20,
+    "sourceDemonstrated": 1,
+    "policyRisks": 5
+  },
+  "categories": 10,
+  "unique_contiguous_ranks": true,
+  "validated_local_references": 114,
+  "report_links_valid": true,
+  "source_preservation": {
+    "baseline_files": 734,
+    "changed_files": [],
+    "new_files": [],
+    "production_unchanged": true
+  },
+  "checks": {
+    "tsc_no_emit_exit": 0,
+    "diagnostic_eslint_exit": 0,
+    "accepted_kiro_probe_exit": 1,
+    "accepted_kiro_expected_correct_failures": 5,
+    "accepted_kiro_supporting_passes": 1,
+    "kiro_cli_research_exit": 0,
+    "kiro_cli_initial_triage_exit": 0,
+    "kiro_cli_final_triage_exit": 0
+  },
+  "note": "Diagnostic expected-correct assertions fail to demonstrate current defects. No application fix was made. One route reference was corrected from line 14 to line 12 during final verification."
+}

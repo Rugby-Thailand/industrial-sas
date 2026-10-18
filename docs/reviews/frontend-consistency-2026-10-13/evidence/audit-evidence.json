@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-13",
+  "baseCommit": "733c6acad348f1c024ef033f9d6ae8300e45e363",
+  "source": "current working tree; pre-existing tracked and untracked changes included",
+  "agents": {
+    "kiro": {
+      "model": "claude-opus-5.5",
+      "effort": "high",
+      "role": "architecture and reusability",
+      "completed": true
+    },
+    "sol": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "role": "UI/UX consistency",
+      "completed": true
+    }
+  },
+  "detector": {
+    "tool": "impeccable detect --json",
+    "sourceFiles": 335,
+    "findings": 0,
+    "limitation": "Static pattern detector only; not visual, accessibility or performance certification."
+  },
+  "browser": {
+    "tool": "T3 collaborative preview",
+    "startedFrontend": "pnpm dev:web, port 3100",
+    "backend": "Existing configured local Convex on port 3211 refused connection; backend not started or deployed; no seed performed.",
+    "checks": [
+      {
+        "route": "/en/finished-goods/scan",
+        "viewport": [1280, 800],
+        "pointer": "fine",
+        "result": "Authenticated shell and loading state only",
+        "localeTriggerPx": [112, 60],
+        "localeValuePx": [62, 46],
+        "siblingSearchControlPx": [36, 36],
+        "pageOverflow": false,
+        "screenshot": "shell-desktop.png"
+      },
+      {
+        "route": "/en/finished-goods/scan",
+        "viewport": [390, 844],
+        "pointer": "fine (viewport emulation only)",
+        "result": "Shell and loading state only",
+        "localeTriggerPx": [48, 48],
+        "pageOverflow": false,
+        "screenshot": "shell-mobile.png"
+      },
+      {
+        "route": "/en/about",
+        "viewport": [390, 844],
+        "result": "Public content rendered; no document horizontal overflow"
+      },
+      {
+        "route": "/th/about",
+        "viewport": [390, 844],
+        "result": "English public content within lang=en region under lang=th document; no document horizontal overflow"
+      }
+    ],
+    "notVerified": [
+      "data-backed feature screens",
+      "camera permission/capture on a physical device",
+      "coarse-pointer gestures",
+      "full light/dark and Thai/English state matrix",
+      "screen reader",
+      "axe",
+      "performance profile"
+    ],
+    "ownedFrontendStopped": true
+  },
+  "applicationTestsRun": false,
+  "implementationChangesByThisAudit": false,
+  "concurrentWork": {
+    "note": "Other sessions changed navigation, draft-guard and job-scan code during this read-only audit. Files were retained; none of these source changes was made by this audit. Original source baseline included all files under src. Direct-link fallback findings were superseded in the final report after rechecking new code.",
+    "observedSourceDrift": {
+      "changed": [
+        "src/components/providers/DraftGuardProvider.tsx",
+        "src/components/providers/draftGuard.ts",
+        "src/components/system/useNavigationGuard.test.tsx",
+        "src/components/system/useNavigationGuard.tsx",
+        "src/components/ui/PageBackButton.tsx",
+        "src/components/ui/PageHeader.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanRecords.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.tsx",
+        "src/features/finishedGoods/jobScan/LocationPicker.tsx",
+        "src/features/finishedGoods/shared.tsx",
+        "src/features/hr/HrNavigation.test.tsx",
+        "src/features/hr/RequestsScreen.tsx",
+        "src/lib/navigationGuard.ts"
+      ],
+      "added": ["src/hooks/useWorkflowStep.ts"],
+      "removed": []
+    }
+  },
+  "finalizedAt": "2026-10-13T09:31:42.028175+07:00",
+  "auditOutputs": "Only docs/reviews/frontend-consistency-2026-10-13 and temporary research artifacts were written by this audit."
+}
