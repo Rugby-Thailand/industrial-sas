@@ -85,6 +85,40 @@ function previewVariant(value) {
   if (value === "C") return "C";
   return "A";
 }
+function previewPage(value) {
+  switch (value) {
+    case "records":
+      return "records";
+    case "finished-goods":
+      return "finished-goods";
+    case "product":
+      return "product";
+    case "batch":
+      return "batch";
+    case "packing":
+      return "packing";
+    case "pallet":
+      return "pallet";
+    case "measure":
+      return "measure";
+    case "storage":
+      return "storage";
+    case "move":
+      return "move";
+    case "stack":
+      return "stack";
+    case "buildings":
+      return "buildings";
+    case "building":
+      return "building";
+    case "floor":
+      return "floor";
+    case "review":
+      return "review";
+    default:
+      return "scan";
+  }
+}
 const requiredFields = ["factoryOrder", "productBarcodeText"];
 const detailFields = [
   "partName",
@@ -102,7 +136,9 @@ const numericFields = new Set([
 ]);
 const state = {
   variant: previewVariant(requested.searchParams.get("variant")),
-  page: requested.searchParams.get("page") || pageFromPath(requested.pathname),
+  page: previewPage(
+    requested.searchParams.get("page") || pageFromPath(requested.pathname),
+  ),
   locale: requested.searchParams.get("lang") === "en" ? "en" : "th",
   theme: requested.searchParams.get("theme") === "light" ? "light" : "dark",
   catalogueTab: "products",
@@ -767,7 +803,7 @@ function render(preserve = false) {
   const active = preserve ? document.activeElement : null,
     id = active?.id,
     start = active?.selectionStart;
-  if (!screens.has(state.page)) state.page = "scan";
+  state.page = previewPage(state.page);
   if (["floor", "review"].includes(state.page)) {
     const building =
       buildings.find((b) => b.code === state.building) || buildings[0];
@@ -785,7 +821,7 @@ function render(preserve = false) {
   }
 }
 function navigate(page, item = "") {
-  state.page = page;
+  state.page = previewPage(page);
   state.query = "";
   if ($("dialog").open) closeDialog();
   if (page === "move" && state.zone === unit().location) state.zone = "F1-L1-3";
@@ -1392,7 +1428,9 @@ $("backdrop").addEventListener("click", () => {
 });
 window.addEventListener("popstate", () => {
   const params = new URL(location.href).searchParams;
-  state.page = params.get("page") || pageFromPath(location.pathname);
+  state.page = previewPage(
+    params.get("page") || pageFromPath(location.pathname),
+  );
   state.floor = Number(params.get("floor")) === 2 ? 2 : 1;
   state.editing = params.get("editing") === "1";
   state.building =

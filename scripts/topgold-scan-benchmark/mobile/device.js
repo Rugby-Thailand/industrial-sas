@@ -1,5 +1,6 @@
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat } from "@zxing/library";
+import { photoPreviewUrl } from "./photo-url.mjs";
 import { decodeBarcodeCanvas } from "/src/features/finishedGoods/barcodeDecoder.ts";
 import {
   METHODS,
@@ -258,8 +259,10 @@ $("file").onchange = async () => {
       sha256: hash,
       originalSize,
     };
-    // Use the image URL property directly; the file name is never HTML.
-    document.getElementById("photo").src = url;
+    document.getElementById("photo").src = photoPreviewUrl(
+      url,
+      location.origin,
+    );
     $("photo").hidden = false;
     $("empty-camera").hidden = true;
     $("source-info").textContent =

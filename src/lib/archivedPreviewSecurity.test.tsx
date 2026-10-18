@@ -5,10 +5,33 @@ import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
+import { photoPreviewUrl } from "../../scripts/topgold-scan-benchmark/mobile/photo-url.mjs";
 
 const read = (file: string) => readFileSync(resolve(file), "utf8");
 const require = createRequire(import.meta.url);
 const origin = "https://preview.example";
+
+describe("benchmark photo URL boundary", () => {
+  it("preserves locally created image object URLs", () => {
+    const url = `blob:${origin}/85f76e2f-7617-491a-bf02-13643d5479d6`;
+    expect(photoPreviewUrl(url, origin)).toBe(url);
+  });
+
+  it.each([
+    "https://attacker.example/photo.jpg",
+    "javascript:alert(1)",
+    "data:image/svg+xml,<svg onload=alert(1)>",
+    "blob:https://attacker.example/photo",
+    "blob:null/photo",
+  ])("rejects a non-local image URL %s", (url) => {
+    expect(() => photoPreviewUrl(url, origin)).toThrow();
+  });
+
+  it("encodes URL metacharacters before image property assignment", () => {
+    const encoded = photoPreviewUrl(`blob:${origin}/<img src="x">`, origin);
+    expect(encoded).toBe(`blob:${origin}/%3Cimg%20src=%22x%22%3E`);
+  });
+});
 
 function preview(directory: string, query: string, sources: string[]) {
   const doc = document.implementation.createHTMLDocument();
