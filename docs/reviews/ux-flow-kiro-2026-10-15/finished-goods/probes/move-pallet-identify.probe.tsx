@@ -16,6 +16,7 @@ import type { writeSuccess } from "@tests/fixtures/finished-goods-ui";
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
+  replace: vi.fn(),
   query: vi.fn<(name: string) => unknown>(),
   write:
     vi.fn<
@@ -48,7 +49,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({
     push: mocks.push,
     back: () => window.history.back(),
-    replace: mocks.push,
+    replace: mocks.replace,
   }),
 }));
 
@@ -99,6 +100,8 @@ const reservedMove: PalletDetail = {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  mocks.push.mockReset();
+  mocks.replace.mockReset();
   mocks.write.mockReset().mockResolvedValue(success("move-a"));
   mocks.query
     .mockReset()
