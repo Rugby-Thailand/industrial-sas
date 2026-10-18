@@ -83,12 +83,9 @@ import {
   writeFailure,
   writeSuccess as success,
 } from "@tests/fixtures/finished-goods-ui";
-import {
-  PalletScreen,
-  Summary,
-  recommendationReason,
-  recommendationReasons,
-} from "./PalletScreens";
+import { PalletScreen } from "./PalletScreens";
+import { Summary } from "./PalletSummary";
+import { recommendationReason, recommendationReasons } from "./recommendationReason";
 
 let currentDetail: PalletDetail;
 const renderPallet = (view: "measure" | "storage" | "detail" = "detail") => {

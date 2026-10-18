@@ -27,7 +27,7 @@ vi.mock("convex/react", () => ({
 
 import { messagesFor } from "@/i18n/messages";
 import { resolveWriteError } from "@/lib/resolveWriteError";
-import { recommendationReason } from "@/features/finishedGoods/PalletScreens";
+import { recommendationReason } from "@/features/finishedGoods/recommendationReason";
 
 const en = (english: string) => english;
 const th = (_english: string, thai: string) => thai;
