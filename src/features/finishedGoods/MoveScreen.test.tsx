@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
+  replace: vi.fn(),
   query: vi.fn<(name: string) => unknown>(),
   write:
     vi.fn<
@@ -79,7 +80,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({
     push: mocks.push,
     replace: (href: string) => {
-      mocks.push(href);
+      mocks.replace(href);
       const locale = window.location.pathname.startsWith("/th/") ? "th" : "en";
       window.history.replaceState({}, "", `/${locale}${href}`);
     },
@@ -166,6 +167,7 @@ beforeEach(() => {
   mocks.actorId = "user-a";
   currentDetail = storedDetail;
   mocks.push.mockReset();
+  mocks.replace.mockReset();
   mocks.write.mockReset().mockResolvedValue(success("move-a"));
   mocks.query.mockReset().mockImplementation((name) =>
     name.endsWith(":getPallet")
@@ -873,6 +875,7 @@ it("does not navigate when a move completion resolves after unmount", async () =
   resolveComplete();
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
   expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
 });
 describe("native move foreground Back", () => {
   it.each(["header", "native"])(
@@ -1033,7 +1036,7 @@ it("direct destination links dismiss selection before using the safe pallet pare
   expect(window.location.search).toBe("?kept=yes");
   expect(window.location.hash).toBe("#position");
   fireEvent.click(screen.getByRole("button", { name: "ย้อนกลับ" }));
-  expect(mocks.push).toHaveBeenCalledWith("/finished-goods/pallets/pallet-a");
+  expect(mocks.replace).toHaveBeenCalledWith("/finished-goods/pallets/pallet-a");
 });
 
 it("explicit issue Close protects its unsent description and discarding consumes only that foreground", async () => {

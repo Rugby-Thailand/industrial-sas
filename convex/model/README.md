@@ -20,23 +20,38 @@ That is not stylistic. Three things depend on it:
 
 ## What is here
 
-| Module                          | Owns                                                                              |
-| ------------------------------- | --------------------------------------------------------------------------------- |
-| `result.ts`                     | The `Result<T, E>` every module returns; no exceptions for invalid input          |
-| `guards.ts`                     | Structural guards and the shallow-frozen containers a `readonly` type cannot give |
-| `uom/quantity.ts`               | Quantity as integer thousandths of a base UOM, and its total arithmetic           |
-| `uom/ratio.ts`                  | Exact reduced rationals, composition, and exact integer scaling                   |
-| `uom/itemUom.ts`                | One item's base UOM plus alternate conversions, and item-scoped quantities        |
-| `gs1/checkDigit.ts`             | The GS1 modulo-10 check digit (GTIN, SSCC)                                        |
-| `gs1/date.ts`                   | `YYMMDD` with the GS1 century rule and explicit month-precision policy            |
-| `gs1/elementString.ts`          | Element-string parsing for nine Application Identifiers, FNC1 placement           |
-| `identifiers/normalization.ts`  | Raw scan, SKU, lot code, and GTIN normalization                                   |
-| `identifiers/lpn.ts`            | LPN namespaces, internal LPN generation and validation, SSCC as LPN               |
-| `identifiers/scanResolution.ts` | The GS1 → LPN → GTIN → SKU precedence ladder with explicit rejection              |
-| `time/businessDate.ts`          | Business date in a fixed-offset organization zone; Buddhist Era for display       |
-| `rotation/stockRotation.ts`     | FIFO/FEFO total order with stable tie-breakers and per-candidate explanation      |
-| `aiUsage/usage.ts`              | AI usage vocabulary and the validated usage record (integer nano-USD)             |
-| `aiUsage/metrics.ts`            | AI usage operation projection, summary contribution and key, report range         |
+| Module                                   | Owns                                                                                    |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| `result.ts`                              | The `Result<T, E>` every module returns; no exceptions for invalid input                |
+| `guards.ts`                              | Structural guards and the shallow-frozen containers a `readonly` type cannot give       |
+| `authorization/navigationPermissions.ts` | Storage-layout and HR permission codes that gate navigation and handlers                |
+| `finishedGoods/jobScans.ts`              | Job-ticket (FM-PD-02) AI schema, prompt, field parsing, and barcode/code checks         |
+| `finishedGoods/locationImage.ts`         | Location-label photo AI schema, prompt, candidate parsing, and image-size validation    |
+| `finishedGoods/packing.ts`               | Packing quantities in integer thousandths, package splits, and packing validation       |
+| `finishedGoods/placement.ts`             | Millimetre boxes and surfaces, overlap and placement errors, and first-fit placement    |
+| `finishedGoods/scanning.ts`              | Scan-assignment types and group/fill checks; imports `Doc`/`Id` types from `_generated` |
+| `gs1/checkDigit.ts`                      | The GS1 modulo-10 check digit (GTIN, SSCC)                                              |
+| `hr/calendar.ts`                         | ISO business dates, local minutes, and instants in fixed-offset organization zones      |
+| `hr/schedule.ts`                         | One-shift-per-day schedules and the planned day they produce                            |
+| `hr/attendance.ts`                       | One employee day's status, effective interval, minutes, and certification validity      |
+| `hr/employee.ts`                         | Employee code, name, employment-range, and reason input rules                           |
+| `hr/period.ts`                           | Bounded attendance periods: complete row set, totals, and close readiness               |
+| `hr/csv.ts`                              | Attendance CSV v1 export (UTF-8 BOM, RFC 4180, formula neutralisation)                  |
+| `identifiers/normalization.ts`           | Raw scan, SKU, lot code, and GTIN normalization                                         |
+| `inventory/requestIdentity.ts`           | UUIDv7 request IDs, operation names, request namespaces, and canonical argument text    |
+| `search/text.ts`                         | Search text normalization shared by menu matching, HR resolvers, and AI grounding       |
+| `search/dates.ts`                        | Deterministic Thai/English date expressions and ranges against a supplied business date |
+| `search/references.ts`                   | Employee-code, date, version, and selected-record references in the user's own words    |
+| `search/intent.ts`                       | The allowlisted AI navigation intents, their validation, and grounding in the query     |
+| `search/provider.ts`                     | The single OpenRouter chat request behind AI Search                                     |
+| `storageLayout/storageLayout.ts`         | Building/floor/reserved-block validation and layout summaries                           |
+| `storageLayout/storageZone.ts`           | Storage-zone rectangles, containment/overlap validation, stack planning, codes and QR   |
+| `storageLayout/storagePosition.ts`       | Area modes, position validation, rack position generation, and position QR values       |
+| `storageLayout/occupancy.ts`             | Occupied floor footprint as a rectangle union                                           |
+| `storageLayout/areaUsage.ts`             | Stored and held footprint usage per zone                                                |
+| `storageLayout/areaColor.ts`             | Normalization of supported `#RRGGBB` area colors                                        |
+| `storageLayout/fg1ApprovedPlan.ts`       | The approved FG1 layout revisions as millimetre cells and blocks                        |
+| `storageLayout/pdApprovedPlan.ts`        | The approved PD layout revision as millimetre cells and blocks                          |
 
 ## The boundary a cast cannot walk through
 

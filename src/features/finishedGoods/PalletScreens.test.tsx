@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
+  replace: vi.fn(),
   query: vi.fn<(name: string) => unknown>(),
   write:
     vi.fn<
@@ -65,7 +66,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({
     push: mocks.push,
     replace: (href: string) => {
-      mocks.push(href);
+      mocks.replace(href);
       const locale = window.location.pathname.startsWith("/th/") ? "th" : "en";
       window.history.replaceState({}, "", `/${locale}${href}`);
     },
@@ -125,6 +126,7 @@ beforeEach(() => {
   mocks.actorId = "user-a";
   currentDetail = measuredPalletDetail;
   mocks.push.mockReset();
+  mocks.replace.mockReset();
   mocks.write.mockReset().mockResolvedValue(success("pallet-a"));
   mocks.query
     .mockReset()
@@ -423,7 +425,7 @@ describe("physical pallet measurement", () => {
       screen.getByRole("button", { name: "Save and find storage" }),
     );
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-a/storage",
       ),
     );
@@ -447,7 +449,7 @@ describe("physical pallet measurement", () => {
     number("Length (m)", "1.2");
     fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-a",
       ),
     );
@@ -481,6 +483,7 @@ describe("physical pallet measurement", () => {
       screen.getByRole("spinbutton", { name: "Weight in kg (optional)" }),
     ).toHaveValue(-5);
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("restores measurement drafts after remount including the selected unit", () => {
@@ -526,7 +529,7 @@ describe("measurement revision", () => {
     number("Height (m)", "");
     fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-a",
       ),
     );
@@ -997,7 +1000,7 @@ describe("exact storage recommendations", () => {
       screen.getByRole("button", { name: "Reserve this position" }),
     );
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-a",
       ),
     );
@@ -1219,6 +1222,7 @@ describe("exact storage recommendations", () => {
       /reserved this space/,
     );
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 });
 
@@ -1294,7 +1298,7 @@ describe("reserved destination and physical storage confirmation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel reservation" }));
     fireEvent.click(screen.getByRole("button", { name: "Release space" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-a/storage",
       ),
     );
@@ -1446,7 +1450,7 @@ it("can save measurements when browser recovery storage is blocked", async () =>
     number("Length (m)", "1.5");
     fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-a",
       ),
     );
@@ -1592,6 +1596,7 @@ describe("stale measurement save lifecycle", () => {
       await Promise.resolve();
     });
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
     expect(localStorage.getItem(draftKey)).not.toBeNull();
   });
 });
@@ -1736,6 +1741,7 @@ it("retains the loaded measurement baseline across live updates and reloads only
     }),
   );
   expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
   fireEvent.click(
     await screen.findByRole("button", {
       name: "Discard draft and reload saved measurements",

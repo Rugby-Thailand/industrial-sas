@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
-const state = vi.hoisted(() => ({ create: vi.fn(), push: vi.fn() }));
+const state = vi.hoisted(() => ({ create: vi.fn(), push: vi.fn(), replace: vi.fn() }));
 vi.mock("convex/react", () => ({
   useQuery: () => ({
     ok: true,
@@ -32,7 +32,7 @@ vi.mock("@/i18n/navigation", () => ({
       {children as never}
     </a>
   ),
-  useRouter: () => ({ push: vi.fn(), replace: state.push }),
+  useRouter: () => ({ push: vi.fn(), replace: state.replace }),
 }));
 
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
@@ -126,7 +126,7 @@ it("retries a lost creation as the same command for the same site and range, the
 
   fireEvent.click(screen.getByRole("button", { name: "Try again safely" }));
   await waitFor(() =>
-    expect(state.push).toHaveBeenCalledWith("/hr/periods/period-1"),
+    expect(state.replace).toHaveBeenCalledWith("/hr/periods/period-1"),
   );
   const [first, second] = state.create.mock.calls.map(
     (call) => call[0] as Record<string, string>,

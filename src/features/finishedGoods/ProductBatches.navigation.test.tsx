@@ -16,6 +16,7 @@ import {
 const mocks = vi.hoisted(() => ({
   canManage: true,
   push: vi.fn(),
+  replace: vi.fn(),
   search: new URLSearchParams(),
   query: vi.fn<(name: string, args: unknown) => unknown>(),
 }));
@@ -38,7 +39,7 @@ vi.mock("./shared", async (importOriginal) => ({
   }),
 }));
 vi.mock("@/i18n/navigation", () => ({
-  useRouter: () => ({ push: mocks.push, replace: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
@@ -451,7 +452,7 @@ it("returns directly to the active unit after closing a correction", () => {
   navigate("?editUnit=unit-a&returnToUnit=unit-a");
   render(component());
   fireEvent.click(screen.getByRole("button", { name: "Close editor" }));
-  expect(mocks.push).toHaveBeenCalledWith(
+  expect(mocks.replace).toHaveBeenCalledWith(
     "/finished-goods/pallets/unit-a/storage",
   );
 });
@@ -460,4 +461,5 @@ it("does not navigate to a retired or foreign return unit", () => {
   render(component());
   expect(screen.getByText(/This unit was replaced/)).toBeVisible();
   expect(mocks.push).not.toHaveBeenCalled();
+  expect(mocks.replace).not.toHaveBeenCalled();
 });

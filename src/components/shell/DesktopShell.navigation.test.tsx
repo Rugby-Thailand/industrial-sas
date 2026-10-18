@@ -139,7 +139,7 @@ vi.mock("@/components/shell/NavigationPendingIndicator", () => ({
   NavigationPendingIndicator: () => null,
 }));
 
-import { Pattern } from "./c-sidebar-2";
+import { DesktopShell } from "./DesktopShell";
 import { useDraftGuard } from "@/components/providers/draftGuard";
 
 function initialRouterState(): AppRouterState {
@@ -347,9 +347,9 @@ function todayLink(container: HTMLElement) {
 
 it("mobile sidebar navigation reaches its destination after consuming the drawer history entry", async () => {
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -410,9 +410,9 @@ it.each([
       origin,
     );
     renderWithIntl(
-      <Pattern>
+      <DesktopShell>
         <Destination />
-      </Pattern>,
+      </DesktopShell>,
       { locale },
     );
     fireEvent.click(
@@ -451,9 +451,9 @@ it.each([
 
 it("mobile sidebar keeps the draft after cancelling and reaches the chosen destination after discarding", async () => {
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination dirty />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -487,9 +487,9 @@ it("mobile sidebar keeps the draft after cancelling and reaches the chosen desti
 
 it("mobile sidebar cannot leave while a scan write is pending", async () => {
   const view = renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en", preserveProviders: true },
   );
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -497,9 +497,9 @@ it("mobile sidebar cannot leave while a scan write is pending", async () => {
     name: "Primary navigation",
   });
   view.rerender(
-    <Pattern>
+    <DesktopShell>
       <Destination pending />
-    </Pattern>,
+    </DesktopShell>,
   );
   fireEvent.click(todayLink(drawer));
   expect(
@@ -531,9 +531,9 @@ it.each(["native Back", "Escape", "Close"])(
       "/en/finished-goods/scan?location=wh-1#scanner",
     );
     renderWithIntl(
-      <Pattern>
+      <DesktopShell>
         <Destination />
-      </Pattern>,
+      </DesktopShell>,
       { locale: "en" },
     );
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -565,9 +565,9 @@ it.each(["metaKey", "ctrlKey", "shiftKey", "altKey"])(
   "mobile sidebar preserves browser %s clicks without closing the drawer",
   async (modifier) => {
     renderWithIntl(
-      <Pattern>
+      <DesktopShell>
         <Destination />
-      </Pattern>,
+      </DesktopShell>,
       { locale: "en" },
     );
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -597,9 +597,9 @@ it("mobile same-page menu selection consumes the drawer and the next Back return
     "/en/finished-goods/scan",
   );
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -626,9 +626,9 @@ it("mobile same-page menu selection consumes the drawer and the next Back return
 
 it("remounting the mobile shell after navigation does not revive the consumed drawer on Back", async () => {
   const view = renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -640,9 +640,9 @@ it("remounting the mobile shell after navigation does not revive the consumed dr
   expect(window.location.pathname).toBe("/en/hr/today");
   view.unmount();
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   act(() => window.history.back());
@@ -657,9 +657,9 @@ it("remounting the mobile shell after navigation does not revive the consumed dr
 it("desktop sidebar navigation reaches its destination without creating a foreground entry", async () => {
   route.mobile = false;
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   fireEvent.click(todayLink(document.body));
@@ -688,9 +688,9 @@ async function chooseTodayFromSearch(beforeChoose?: () => void) {
 
 it("mobile Search result reaches its destination after consuming the dialog entry and Back restores the scan source", async () => {
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   await chooseTodayFromSearch();
@@ -711,9 +711,9 @@ it("mobile Search result reaches its destination after consuming the dialog entr
 
 it("mobile Search preserves a cancelled draft and consumes its dialog before the approved destination", async () => {
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination dirty />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   await chooseTodayFromSearch();
@@ -745,16 +745,16 @@ it("mobile Search preserves a cancelled draft and consumes its dialog before the
 
 it("mobile Search cannot discard a pending scan write or leave its page", async () => {
   const view = renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en", preserveProviders: true },
   );
   await chooseTodayFromSearch(() =>
     view.rerender(
-      <Pattern>
+      <DesktopShell>
         <Destination pending />
-      </Pattern>,
+      </DesktopShell>,
     ),
   );
   expect(
@@ -773,9 +773,9 @@ it("mobile Search cannot discard a pending scan write or leave its page", async 
 
 it("mobile drawer Search waits for its native Back before opening the search dialog", async () => {
   renderWithIntl(
-    <Pattern>
+    <DesktopShell>
       <Destination />
-    </Pattern>,
+    </DesktopShell>,
     { locale: "en" },
   );
   fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -842,9 +842,9 @@ it("mobile drawer Search waits for its exit animation and keeps search input foc
     });
   try {
     renderWithIntl(
-      <Pattern>
+      <DesktopShell>
         <Destination />
-      </Pattern>,
+      </DesktopShell>,
       { locale: "en" },
     );
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));

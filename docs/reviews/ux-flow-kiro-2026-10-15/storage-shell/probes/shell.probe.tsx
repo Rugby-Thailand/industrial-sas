@@ -1,9 +1,9 @@
 /**
  * Kiro UX-flow probes — shared shell warehouse context (SS-01, SS-03).
  * Each test asserts the EXPECTED behaviour; a failure on current source is the
- * evidence. Mocks mirror src/components/examples/c-sidebar-2.test.tsx: only
+ * evidence. Mocks mirror src/components/shell/DesktopShell.test.tsx: only
  * Convex, Clerk, router, HR access and workspace seams are replaced. The real
- * shell (Pattern), WorkspaceContextBar and QueryGate are rendered.
+ * shell (DesktopShell), WorkspaceContextBar and QueryGate are rendered.
  */
 import { screen } from "@testing-library/react";
 import type { MouseEvent, ReactNode } from "react";
@@ -94,7 +94,7 @@ vi.mock("@/components/shell/NavigationPendingIndicator", () => ({
   NavigationPendingIndicator: () => null,
 }));
 
-import { Pattern } from "@/components/examples/c-sidebar-2";
+import { DesktopShell } from "@/components/shell/DesktopShell";
 import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
 import { QueryGate } from "@/components/system/QueryGate";
 
@@ -113,11 +113,11 @@ beforeEach(() => {
 describe("SS-01 detail route with no selected warehouse", () => {
   it("SS-01 a building link opened without a stored warehouse offers a way to choose one", () => {
     renderWithIntl(
-      <Pattern>
+      <DesktopShell>
         <QueryGate scope="WAREHOUSE">
           {(warehouseId) => <p>building content for {warehouseId}</p>}
         </QueryGate>
-      </Pattern>,
+      </DesktopShell>,
       { locale: "en", workspace: false },
     );
     // Precondition (observed): the page asks the user to choose a warehouse.
@@ -137,9 +137,9 @@ describe("SS-01 detail route with no selected warehouse", () => {
   it("SS-01 control: the same state on the catalogue route does render the selector", () => {
     state.pathname = "/master-data/storage-layouts";
     renderWithIntl(
-      <Pattern>
+      <DesktopShell>
         <QueryGate scope="WAREHOUSE">{() => null}</QueryGate>
-      </Pattern>,
+      </DesktopShell>,
       { locale: "en", workspace: false },
     );
     expect(screen.queryAllByTestId("warehouse-select").length).toBeGreaterThan(
