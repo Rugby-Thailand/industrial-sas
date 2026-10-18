@@ -1330,46 +1330,6 @@
       ]
     },
     {
-      "id": "src/components/storageLayouts/Fg1ReferencePreview.tsx#Fg1ReferencePreview:localSelected",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Reference preview selection highlights a location inside the same map rather than replacing the workspace.",
-      "render": [
-        {
-          "shape": "and",
-          "truthy": ["text"],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/components/storageLayouts/Fg1ReferencePreview.tsx#Fg1ReferencePreview:view",
-      "policy": "presentation",
-      "uses": ["branch"],
-      "expectation": "Map/projection display toggles presentation of the same floor; it does not open a new workflow.",
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["g", "g[role=button]", "path", "rect", "text", "title"],
-          "falsy": [
-            "g",
-            "g[role=button]",
-            "polygon",
-            "polyline",
-            "text",
-            "title"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/storageLayouts/Fg1SourcePlan#Fg1SourcePlan"
-          ],
-          "falsy": []
-        }
-      ]
-    },
-    {
       "id": "src/components/storageLayouts/FloorLocationTable.tsx#LocationTable:filters",
       "policy": "presentation",
       "uses": ["branch"],
