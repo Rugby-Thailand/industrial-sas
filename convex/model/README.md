@@ -1,28 +1,33 @@
-# `convex/model` — pure domain modules
+# `convex/model` — domain modules
 
-Plan §6.2 draws the line this directory enforces: **`convex/model/**` is pure
-TypeScript domain logic with no Convex imports.** No `ctx`, no `db`, no
-`v.object`, no document ids, no clock, and no randomness. Everything a function
-needs arrives as an argument.
+This directory keeps **reusable TypeScript domain logic separate from Convex
+handlers**: validation, arithmetic, parsing, and decisions over supplied values.
+No module imports the Convex runtime or reads or writes the database. Most of the
+code is pure; everything needed to make a domain decision arrives as an argument.
+
+There are two qualifications to that boundary. `finishedGoods/scanning.ts` uses
+generated Convex document and id types, so its types are tied to the schema.
+`search/provider.ts` is an I/O adapter: it makes the AI Search request and owns its
+timeout. Neither is a reason to put database access into a domain validator.
 
 That is not stylistic. Three things depend on it:
 
-- **Testability.** Every rule here is decidable from values, so the suites are
-  ordinary function calls with no `convex-test` world and no fixtures.
-- **Determinism inside a mutation.** A Convex mutation may be re-executed. A
-  module that reads `Date.now()` or `Math.random()` cannot be replayed, which is
-  why the clock and the entropy source are injected parameters
-  (`identifiers/lpn.ts`) and why the GS1 parser takes a `referenceYear`
-  (`gs1/date.ts`).
-- **Lock-in containment** (§5 Q49). Convex is the deepest vendor dependency in
-  the project. The algebra that decides what a quantity is, what a scan means,
-  and which lot rotates first is the part that must survive a change of backend.
+- **Testability.** Domain rules can be exercised with ordinary function calls,
+  without a database harness. The provider adapter accepts a transport supplied
+  by the test, so failure handling can be checked without a live AI service.
+- **Determinism inside a mutation.** A Convex mutation may be re-executed. Domain
+  decisions must not depend on an ambient clock or randomness. `evaluateDay`
+  takes `now`, and `readDates` takes the business date against which relative
+  words are read. The same inputs can therefore reproduce the same decision.
+- **Lock-in containment.** The rules that decide whether a quantity is valid,
+  whether a box fits, or what an attendance day means should survive a change of
+  backend. Keep storage and service orchestration outside those rules.
 
 ## What is here
 
 | Module                                   | Owns                                                                                    |
 | ---------------------------------------- | --------------------------------------------------------------------------------------- |
-| `result.ts`                              | The `Result<T, E>` every module returns; no exceptions for invalid input                |
+| `result.ts`                              | Shared `Result<T, E>` success/failure values with shallow-frozen wrappers               |
 | `guards.ts`                              | Structural guards and the shallow-frozen containers a `readonly` type cannot give       |
 | `authorization/navigationPermissions.ts` | Storage-layout and HR permission codes that gate navigation and handlers                |
 | `finishedGoods/jobScans.ts`              | Job-ticket (FM-PD-02) AI schema, prompt, field parsing, and barcode/code checks         |
@@ -55,108 +60,101 @@ That is not stylistic. Three things depend on it:
 
 ## The boundary a cast cannot walk through
 
-Every type here is an interface or a `string` alias, and TypeScript erases both.
-These modules will be fed by Convex documents, HTTP bodies, and scanners, so the
-values they meet are exactly the values a cast can forge:
+TypeScript erases its types. These modules receive values from Convex documents,
+HTTP bodies, scanners, and AI responses, so their inputs can violate a declared
+type just as easily as a cast can:
 
 ```ts
-const factor = { numerator: 1, denominator: 0 } as Ratio; // compiles
-const day = { year: 2026, month: 13, day: 40 } as BusinessDate; // compiles
-(scan.byAi as Map<string, string>).set("01", "…"); // compiled, and mutated
+const day = "2026-02-30" as IsoDate; // compiles; the date does not exist
+const size = { lengthMm: NaN, widthMm: 800, heightMm: 600 } as MeasuredSize;
+const scan = 42 as unknown as string; // compiles; it is still a number
 ```
 
-So four rules hold across the directory, and are tested rather than asserted:
+Four rules guide this boundary. Their scope matters; the directory does not have
+one universal return type or a guarantee that every output is deeply immutable.
 
-1. **Every public function re-validates what it is handed** and returns a
-   `Result`. That is why `compareRatios`, `formatQuantity`, `businessDateToIso`,
-   and `compareBusinessDates` answer a result instead of a bare value: an
-   unvalidated operand would otherwise sort by `NaN` or render `NaN.NaN` onto an
-   operator's screen. `alternateUoms` answers one for the same reason at one
-   remove — its declared `readonly UomCode[]` is an alias for `readonly string[]`,
-   so a forged profile made it hand back a number or an object as a UOM code, and
-   an entry it could not read was dropped rather than named. The argument the
-   caller chose is validated too, and first: `formatQuantity`'s options bag and
-   `formatBusinessDate`'s `DisplayCalendar` are both forgeable, and blaming the
-   value would send the caller looking in the wrong place.
-2. **Nothing throws, and nothing loops.** A domain error is a value. The one
-   non-obvious case: Euclid's algorithm exits on `b !== 0`, and every remainder of
-   a non-finite operand is `NaN`, so a forged conversion factor that reached the
-   gcd never returned. `greatestCommonDivisor` is therefore private and every
-   caller validates first.
-3. **What is shallow-frozen, and what is not.** `readonly` and `ReadonlyMap` are
-   compile-time claims; a `Map` typed `ReadonlyMap` is still a `Map`. So the
-   supported-AI table, the timezone registry, an item's conversion table, and a
-   parsed scan's values are shallow-frozen null-prototype records or shallow-frozen
-   arrays, and `ok`/`fail` shallow-freeze the `Result` wrapper. Each domain value
-   constructor shallow-freezes the record it hands back: a `Quantity`, a `Ratio`,
-   an `ExactFraction`, a `BusinessDate`, a parsed element and the `byAi` lookup over
-   them, an `LpnNamespace` and a parsed LPN, a `ResolvedScan`, an `ItemUomProfile`
-   and its alternates array, a rotation candidate, exclusion, and outcome. Because
-   `Object.freeze` is shallow, that is the whole of the guarantee: `ok(value)`
-   freezes `{ ok, value }` and nothing under `value`, so a returned value is
-   immutable further down only where whatever built it froze its own output too.
-   Two things are deliberately left out, so this is not a claim of universal
-   run-time immutability. The discriminated outcome envelopes `ScaledInteger` and
-   `UomConversionOutcome` are plain objects around frozen payloads, because a caller
-   reads `kind` at the call site and keeps the `Quantity` or the `ExactFraction`,
-   never the envelope. And the structured error a failed `Result` carries is a plain
-   object inside a frozen wrapper. Null prototypes matter for the lookups keyed on
-   scanned input: with `Object.prototype` in the chain, `byAi["toString"]` answers a
-   function while the type promises a string.
-4. **An injected dependency that misbehaves is a `Result`.** A clock outside the
-   representable window, an entropy source that throws, returns the wrong number
-   of bytes, returns something that is not a `Uint8Array` at all, is a
-   `Uint8Array`-shaped `Proxy` whose reads throw, or is not a function at all —
-   each is a named error from `generateInternalLpn` rather than an exception
-   crossing the boundary.
+1. **Validate at the public boundary.** `normalizeRawScan` and
+   `verifyGs1CheckDigit` check that their inputs really are strings.
+   `normalizeCode` also checks its options: the length bound must be a positive
+   safe integer and the case-folding policy must be supported. `dayNumber`
+   refuses an impossible date with `null`, and `quantityToMinor` refuses
+   non-finite numbers and unsupported quantity precision with `null`. A declared
+   type is not evidence that those checks have happened. Some helpers assume
+   validated inputs: `compareDates`, for example, compares ISO strings
+   lexicographically. Callers must validate before using that ordering.
+2. **Domain errors are values, and work must terminate.** Validators commonly
+   return a `Result`, an error code, or `null`; callers handle the failure rather
+   than discovering it in arithmetic or rendering. `gs1CheckDigit` bounds its
+   input before iterating, and `canonicalArgumentText` caps recursive depth and
+   rejects non-finite numbers and unsupported values. A limit is a rejection,
+   not permission to return a partial answer. This is not a claim that nothing
+   throws: `addDays` and `fromLocal` throw on invalid arguments, and
+   `parseLocationLabel` throws `AI_UNREADABLE` for malformed model output. Their
+   callers must honor those contracts and translate failures at the I/O boundary.
+3. **What is shallow-frozen, and what is not.** `readonly` is a compile-time
+   claim. `frozenArray` copies and freezes an array; `frozenRecord` builds a
+   frozen null-prototype lookup. The timezone registry uses the same kind of
+   lookup, so inherited names cannot masquerade as supported zones. `ok` and
+   `fail` freeze only the `Result` wrapper: neither freezes the value or error
+   carried inside it. `validateStorageZone` explicitly freezes its returned
+   candidate, while `validateSchedule` freezes the schedule record but leaves its
+   copied `workDays` array mutable. Other modules return plain arrays or objects.
+   `Object.freeze` is shallow; immutability extends only as far as the builder
+   actually freezes, and a type annotation cannot extend that guarantee.
+4. **Translate dependency failures at the adapter boundary.**
+   `requestSearchIntent` accepts an injected `fetcher` and a timeout. A thrown
+   transport error or unsuccessful HTTP response becomes `AI_UNAVAILABLE`; an
+   abort becomes `AI_TIMEOUT`; malformed JSON or an invalid intent becomes
+   `AI_UNREADABLE`. These are failed results rather than transport exceptions
+   escaping to the caller. The adapter owns the request and abort timer, while
+   intent validation remains ordinary logic over returned values.
 
 Two semantic rules exist for the same reason — a plausible reading is not an
 acceptable answer:
 
-- **Expired means the expiration date has passed**, whatever `rotationDateSource`
-  a tenant configures (§5 Q23). The rotation source chooses the _order_; reading
-  expiry off it made an old manufacture date look like an expiry and, worse, made a
-  passed expiry look fine.
-- **A scan is classified or refused, never guessed.** A valid bare SSCC with the
-  tenant's `bareSscc` off, an internal LPN with no namespace policy to judge it by,
-  and a scan matching a registered prefix whose check character is wrong are each a
-  named rejection — not a lot code, a GTIN, or a SKU. The policy that decides all
-  of that is itself refused if a prefix is claimed twice: the rung that answers
-  whose pallet a scan is matches a registered prefix and nothing else, so a table
-  holding one prefix for two organization keys would make that answer meaningless.
-  Overlapping prefixes are not the same thing and stay legal — `PA` and `PAB` imply
-  different scan lengths, so they claim different scans and declaration order cannot
-  change the answer.
+- **A business date belongs to the organization's timezone.**
+  `timezoneOffsetMinutes` accepts only the fixed-offset zones the calendar
+  implements; a zone with daylight-saving transitions is refused rather than
+  approximated. Relative search dates use the supplied business date, so a
+  browser's timezone cannot quietly change what "yesterday" means.
+- **AI output needs evidence from the user's words.** `parseModelIntent`
+  validates an allowlisted shape; `groundIntent` then checks employee references
+  against the query and reads dates deterministically. A model-invented employee
+  code is dropped even if a record with that code happens to exist. The selected
+  record is usable only when the query refers to it and the corresponding
+  selection is available; a model flag alone is not evidence.
 
 ## What is deliberately absent
 
-- **The ledger.** `model/ledger/` in plan §8 does not exist. No posting, no
-  balance, no reversal, no idempotency. These modules are the arithmetic the
-  ledger will be built from, not a ledger.
-- **Persistence of any kind.** No table stores a quantity, a business date, an
-  LPN, or a parsed scan. Uniqueness (`INV-0005-05`), never-reuse, and
-  item-to-GTIN resolution are all owed by mutations that do not exist yet.
-- **Money.** THB minor units are a separate type with a separate scale
-  (`INV-0004-07`) and are not modelled here.
-- **Serial flows.** AI 21 parses; nothing consumes a serial while D-09 keeps the
-  feature off.
+- **Ledger posting.** `inventory/requestIdentity.ts` validates request identity,
+  encodes namespaces, and renders canonical argument text. It does not post a
+  transaction, compute a balance, or enforce idempotency against stored requests.
+- **Persistence.** These modules do not read or write tables. Employee-code
+  uniqueness, account links, and cross-organization references need the Convex
+  layer that owns the data. A valid draft is not proof that a write is authorized
+  or that a referenced record exists.
+- **Money.** Packing quantities are not currency. This directory has no money
+  type or currency-scale policy; its quantity precision must not be reused as one.
 
 ## Conventions
 
-- Values are immutable and frozen at run time, not only `readonly` in the type;
-  constructors validate and return a `Result`, and so does every operation that
-  could be handed a forged value. `Object.freeze` is shallow, so each constructor
-  freezes its own output rather than trusting that its caller will.
-- Errors are structured codes with fields, never prose: the UI owns translation
-  (D-06), so an English sentence baked into an error is untranslatable.
-- Nothing rounds. A conversion that does not land on a whole minor unit reports
-  the exact fraction and lets the caller decide (`INV-0004-05`).
-- No `Date` parsing, no `Intl`, no `localeCompare`, no floats in arithmetic, and
-  no `BigInt` — a `BigInt` cannot be stored in a Convex document, so it would
-  only move the rounding decision to the boundary.
-- No unbounded loop, and no comparator exported without validation: `sort` calls a
-  comparator with whatever the array holds, and one `NaN` comparison makes a
-  "total" order silently intransitive.
-- Every module states its own implementation status in its header, including what
-  it does **not** support. A parser that claims an unimplemented format is worse
-  than one that rejects it.
+- State what the caller must validate, what signals failure, and what is frozen.
+  Use the module's actual contract rather than assuming every operation returns
+  a `Result` or every returned array is immutable.
+- Errors use stable codes, sometimes with structured fields; the UI owns their
+  translation. Keep transport details and user-facing prose out of domain errors.
+- Keep arithmetic in its documented units. Packing allocates integer thousandths;
+  `quantityToMinor` checks that converting back reproduces the input and that
+  piece units are whole. `splitEqually` distributes remainders without changing
+  the total. Attendance's `workedMinutes` counts whole elapsed minutes and
+  subtracts the unpaid break. There is no universal rounding policy to borrow.
+- Keep calendar arithmetic independent of platform date parsing and browser
+  locale. Validate dates before ordering them, and supply the organization's
+  offset and current business date explicitly.
+- Bound work where inputs enter: package splits allow at most 50 packages, rack
+  generation validates its counts and dimensions, and attendance periods are
+  limited to 31 days. A caller must not interpret a rejected input as an empty,
+  successfully completed operation.
+- Document support limits. The HR calendar header explains its fixed-offset
+  restriction, and schedules support one shift per employee per business date.
+  A parser that claims an unimplemented format is worse than one that rejects it.
