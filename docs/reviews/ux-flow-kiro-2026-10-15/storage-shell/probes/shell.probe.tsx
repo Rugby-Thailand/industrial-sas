@@ -15,8 +15,7 @@ const state = vi.hoisted(() => ({
   pathname: "/master-data/storage-layouts/building-a",
   readiness: { kind: "READY_TO_QUERY" } as { kind: string },
   organization: { id: "org-a", name: "Demo Co" } as
-    | { id: string; name: string }
-    | undefined,
+    { id: string; name: string } | undefined,
   warehouses: [
     { id: "wh-1", code: "WH-1", name: "Main warehouse" },
     { id: "wh-2", code: "WH-2", name: "Overflow warehouse" },
