@@ -1196,7 +1196,7 @@
       "expectation": "The search Dialog consumes its owned entry before dispatching a permitted destination after native popstate processing. The underlay draft survives dialog dismissal and departure still requires dirty/pending guard approval. Back/Forward preserve the actual origin locale, query and hash.",
       "tests": [
         "src/components/shell/search/GlobalSearch.test.tsx",
-        "src/components/examples/c-sidebar-2.navigation.test.tsx"
+        "src/components/shell/DesktopShell.navigation.test.tsx"
       ],
       "cases": [
         {
@@ -1204,15 +1204,15 @@
           "name": "moves with arrows, ignores Enter while an IME composes, and returns focus on Escape"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search result reaches its destination after consuming the dialog entry and Back restores the scan source"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search preserves a cancelled draft and consumes its dialog before the approved destination"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search cannot discard a pending scan write or leave its page"
         }
       ]
@@ -1780,7 +1780,7 @@
       "expectation": "Back dismisses the drawer before page departure. A permitted destination consumes the drawer entry and waits for native popstate processing before routing. Search also waits for drawer exit/focus closure before opening its dialog. Dirty/pending drafts stay guarded; modified clicks retain browser behavior.",
       "tests": [
         "src/components/ui/ForegroundOrdering.test.tsx",
-        "src/components/examples/c-sidebar-2.navigation.test.tsx"
+        "src/components/shell/DesktopShell.navigation.test.tsx"
       ],
       "cases": [
         {
@@ -1788,35 +1788,35 @@
           "name": "real PageBackButton in foreground dismisses the topmost and next Back dismisses remaining root"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar navigation reaches its destination after consuming the drawer history entry"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar reaches %s in %s and Back/Forward preserve the source query and hash"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar keeps the draft after cancelling and reaches the chosen destination after discarding"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar cannot leave while a scan write is pending"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile drawer %s consumes its entry before the next Back leaves the scan page"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "remounting the mobile shell after navigation does not revive the consumed drawer on Back"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile drawer Search waits for its native Back before opening the search dialog"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile drawer Search waits for its exit animation and keeps search input focus"
         }
       ]
@@ -6089,7 +6089,7 @@
       "integration": "dialog",
       "tests": [
         "src/components/shell/search/GlobalSearch.test.tsx",
-        "src/components/examples/c-sidebar-2.navigation.test.tsx"
+        "src/components/shell/DesktopShell.navigation.test.tsx"
       ],
       "cases": [
         {
@@ -6097,15 +6097,15 @@
           "name": "moves with arrows, ignores Enter while an IME composes, and returns focus on Escape"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search result reaches its destination after consuming the dialog entry and Back restores the scan source"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search preserves a cancelled draft and consumes its dialog before the approved destination"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search cannot discard a pending scan write or leave its page"
         }
       ]
@@ -8163,7 +8163,7 @@
       "expectation": "Choosing a permitted search result consumes the search Dialog history entry before dispatching its guarded destination after all native popstate listeners finish. A cancelled or pending underlay draft prevents departure and Back restores the actual source.",
       "tests": [
         "src/components/shell/search/GlobalSearch.test.tsx",
-        "src/components/examples/c-sidebar-2.navigation.test.tsx"
+        "src/components/shell/DesktopShell.navigation.test.tsx"
       ],
       "cases": [
         {
@@ -8175,15 +8175,15 @@
           "name": "does not navigate while an unsaved-work guard holds the transition"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search result reaches its destination after consuming the dialog entry and Back restores the scan source"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search preserves a cancelled draft and consumes its dialog before the approved destination"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search cannot discard a pending scan write or leave its page"
         }
       ]
@@ -8483,29 +8483,29 @@
       ]
     },
     {
-      "id": "src/components/examples/c-sidebar-2.tsx#AppSidebar:$navigate:push:$dynamic",
+      "id": "src/components/shell/DesktopShell.tsx#AppSidebar:$navigate:push:$dynamic",
       "intent": "dispatch",
       "expectation": "A permitted sidebar link consumes the mobile Sheet entry before its live shell owner dispatches the destination. Desktop links retain native Link behavior. Dirty/pending drafts still gate departure and Back preserves source locale, query and hash.",
-      "tests": ["src/components/examples/c-sidebar-2.navigation.test.tsx"],
+      "tests": ["src/components/shell/DesktopShell.navigation.test.tsx"],
       "cases": [
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar navigation reaches its destination after consuming the drawer history entry"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar reaches %s in %s and Back/Forward preserve the source query and hash"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar keeps the draft after cancelling and reaches the chosen destination after discarding"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile sidebar cannot leave while a scan write is pending"
         },
         {
-          "file": "src/components/examples/c-sidebar-2.navigation.test.tsx",
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "desktop sidebar navigation reaches its destination without creating a foreground entry"
         }
       ]

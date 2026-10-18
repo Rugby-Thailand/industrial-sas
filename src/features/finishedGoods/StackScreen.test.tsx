@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   authLoaded: true,
   actorId: "user-a",
   push: vi.fn(),
+  replace: vi.fn(),
   query: vi.fn<(name: string, args: Record<string, unknown>) => unknown>(),
   write:
     vi.fn<
@@ -70,7 +71,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push, replace: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
 import {
@@ -185,7 +186,7 @@ it("reserves using explicit supporting pallet identity and server-derived previe
     ),
   );
   await waitFor(() =>
-    expect(mocks.push).toHaveBeenCalledWith("/finished-goods/pallets/upper"),
+    expect(mocks.replace).toHaveBeenCalledWith("/finished-goods/pallets/upper"),
   );
 });
 it("uses the existing move workflow for a stored upper pallet", async () => {
@@ -213,7 +214,7 @@ it("uses the existing move workflow for a stored upper pallet", async () => {
     ),
   );
   await waitFor(() =>
-    expect(mocks.push).toHaveBeenCalledWith(
+    expect(mocks.replace).toHaveBeenCalledWith(
       "/finished-goods/pallets/upper/move",
     ),
   );
@@ -264,6 +265,7 @@ it("shows recoverable mutation failures", async () => {
     ),
   ).toBeVisible();
   expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
 });
 it("requires saving edited limits before reserving", () => {
   mount();
@@ -335,6 +337,7 @@ it("ignores a stacking reservation that resolves after unmount", async () => {
   // A reservation that settles after unmount must not navigate nor clear the
   // persisted request id (which would otherwise drop idempotent replay).
   expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
   expect(localStorage.length).toBe(persisted);
 });
 

@@ -12,16 +12,16 @@ import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mutation = vi.hoisted(() => vi.fn());
-const navigate = vi.hoisted(() => vi.fn());
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
 vi.mock("@/features/storageLayouts/useStorageBuilding", () => ({
   useStorageBuilding: () => undefined,
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: navigate,
+    push: router.push,
     back: () => window.history.back(),
-    replace: navigate,
+    replace: router.replace,
   }),
 }));
 vi.mock("convex/react", () => ({
@@ -44,9 +44,9 @@ vi.mock("@/i18n/navigation", () => ({
     <a {...props}>{children}</a>
   ),
   useRouter: () => ({
-    push: navigate,
+    push: router.push,
     back: () => window.history.back(),
-    replace: navigate,
+    replace: router.replace,
   }),
 }));
 
@@ -140,7 +140,8 @@ beforeEach(() => {
   mutation
     .mockReset()
     .mockResolvedValue({ ok: true, value: { written: true } });
-  navigate.mockReset();
+  router.push.mockReset();
+  router.replace.mockReset();
 });
 
 describe("desktop location inspector (wide layout)", () => {

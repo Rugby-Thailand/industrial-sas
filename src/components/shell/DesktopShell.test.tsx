@@ -129,7 +129,7 @@ vi.mock("@/components/providers/AiUsageAccessProvider", () => ({
   }),
 }));
 
-import { Pattern } from "./c-sidebar-2";
+import { DesktopShell } from "./DesktopShell";
 import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
@@ -187,9 +187,9 @@ afterEach(() => {
 });
 
 const shell = () => (
-  <Pattern>
+  <DesktopShell>
     <Destination />
-  </Pattern>
+  </DesktopShell>
 );
 
 function renderShell() {

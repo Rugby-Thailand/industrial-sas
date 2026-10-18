@@ -10,7 +10,7 @@ import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mutation = vi.hoisted(() => vi.fn());
-const navigate = vi.hoisted(() => vi.fn());
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const access = vi.hoisted(() => ({
   building: vi.fn<() => unknown>(),
   query: vi.fn<(ref: unknown, args: unknown) => unknown>(),
@@ -21,9 +21,9 @@ vi.mock("@/features/storageLayouts/useStorageBuilding", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: navigate,
+    push: router.push,
     back: () => window.history.back(),
-    replace: navigate,
+    replace: router.replace,
   }),
 }));
 vi.mock("convex/react", () => ({
@@ -53,9 +53,9 @@ vi.mock("@/i18n/navigation", () => ({
     <a {...props}>{children}</a>
   ),
   useRouter: () => ({
-    push: navigate,
+    push: router.push,
     back: () => window.history.back(),
-    replace: navigate,
+    replace: router.replace,
   }),
 }));
 
@@ -105,15 +105,14 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/");
   window.localStorage.clear();
   window.sessionStorage.clear();
-  navigate.mockReset();
+  router.push.mockReset();
+  router.replace.mockReset();
   access.building.mockReset().mockReturnValue(undefined);
   access.query.mockReset().mockReturnValue(undefined);
-  mutation
-    .mockReset()
-    .mockResolvedValue({
-      ok: true,
-      value: { written: true, documentId: "zone-new" },
-    });
+  mutation.mockReset().mockResolvedValue({
+    ok: true,
+    value: { written: true, documentId: "zone-new" },
+  });
 });
 
 describe("SS-02 building route recovery states", () => {
@@ -175,9 +174,9 @@ describe("SS-04 empty building catalogue", () => {
       workspace: false,
     });
     // Precondition: default filters (search empty, status ALL).
-    expect(screen.getByRole("searchbox", { name: "Search buildings" })).toHaveValue(
-      "",
-    );
+    expect(
+      screen.getByRole("searchbox", { name: "Search buildings" }),
+    ).toHaveValue("");
     console.info(
       "SS-04 empty-state text:",
       JSON.stringify(
@@ -321,7 +320,9 @@ describe("SS-05 compact workspace create: successful write feedback", () => {
       "SS-05 save observation: extra writes",
       mutation.mock.calls.length - callsAfterCreate,
       mutation.mock.calls.slice(callsAfterCreate).map((call) =>
-        Object.keys(call[0] ?? {}).sort().join(","),
+        Object.keys(call[0] ?? {})
+          .sort()
+          .join(","),
       ),
       "url:",
       window.location.search,

@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   actorId: "user-a",
   warehouseId: "warehouse-a",
   push: vi.fn(),
+  replace: vi.fn(),
   save: vi.fn<
     (
       args: FunctionArgs<typeof fgRefs.saveProduct>,
@@ -100,7 +101,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
     <a {...props}>{children}</a>
   ),
-  useRouter: () => ({ push: mocks.push, replace: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -172,6 +173,7 @@ beforeEach(() => {
   mocks.actorId = "user-a";
   mocks.warehouseId = "warehouse-a";
   mocks.push.mockReset();
+  mocks.replace.mockReset();
   mocks.save.mockReset().mockResolvedValue(savedProductOutcome);
   mocks.pallet.mockReset().mockResolvedValue(createdPalletOutcome);
   mocks.query.mockReset().mockImplementation((name) =>
@@ -255,7 +257,7 @@ describe("finished good creation", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Prepare more goods" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         expect.stringMatching(
           /^\/finished-goods\/products\/product-a\/packing\?draft=[0-9a-f-]+$/,
         ),
@@ -280,7 +282,7 @@ describe("finished good creation", () => {
       screen.getByRole("button", { name: "Save product details" }),
     );
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith("/finished-goods"),
+      expect(mocks.replace).toHaveBeenCalledWith("/finished-goods"),
     );
     expect(mocks.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -297,7 +299,7 @@ describe("finished good creation", () => {
     fillValidProduct();
     fireEvent.click(screen.getByRole("button", { name: "Next: Packing" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/products/product-a/packing",
       ),
     );
@@ -322,7 +324,7 @@ describe("finished good creation", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith("/finished-goods"),
+      expect(mocks.replace).toHaveBeenCalledWith("/finished-goods"),
     );
     expect(mocks.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -361,7 +363,7 @@ describe("finished good creation", () => {
     expect(mocks.pallet).not.toHaveBeenCalled();
     submitProduct();
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/products/product-a/packing",
       ),
     );
@@ -380,6 +382,7 @@ describe("finished good creation", () => {
     );
     expect(mocks.pallet).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
     expect(
       screen.getByRole("link", { name: "Open existing product" }),
     ).toHaveAttribute("href", "/finished-goods/products/product-a");
@@ -393,7 +396,7 @@ describe("finished good creation", () => {
     renderProduct();
     submitProduct();
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/products/product-a/packing",
       ),
     );
@@ -415,6 +418,7 @@ describe("finished good creation", () => {
       screen.getByRole("dialog", { name: "Discard unsaved changes?" }),
     ).toBeVisible();
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("retains valid fields and recovers safely from malformed optional local draft values", () => {
@@ -454,7 +458,7 @@ describe("finished good creation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(localStorage.getItem(draftKey)).toBeNull();
-    expect(mocks.push).toHaveBeenCalledWith("/finished-goods");
+    expect(mocks.replace).toHaveBeenCalledWith("/finished-goods");
   });
 
   it("repeated product detail edits never submit packing settings or create storage units", async () => {
@@ -505,7 +509,7 @@ describe("returning to an existing measurement", () => {
       screen.getByRole("button", { name: "Return to measurement" }),
     );
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/pallets/pallet-original/measure",
       ),
     );
@@ -686,7 +690,7 @@ describe("product async save safety", () => {
     await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
     expect(mocks.save.mock.calls[1]?.[0].requestId).toBe(firstRequest);
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/products/product-a/packing",
       ),
     );
@@ -1026,7 +1030,7 @@ it("can create a product when browser recovery storage is unavailable", async ()
     fillValidProduct();
     submitProduct();
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(
+      expect(mocks.replace).toHaveBeenCalledWith(
         "/finished-goods/products/product-a/packing",
       ),
     );
@@ -1879,6 +1883,7 @@ describe("stale finished-good save lifecycle", () => {
       await Promise.resolve();
     });
     expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
     expect(localStorage.getItem(draftKey)).not.toBeNull();
   });
 });
@@ -1916,6 +1921,7 @@ it("retains stale product edits and merges only locally changed fields into the 
     }),
   );
   expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Merge my changed fields" }),
