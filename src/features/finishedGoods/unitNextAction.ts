@@ -1,6 +1,6 @@
 import { packageScanPath } from "@/lib/navigation";
 import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
-import { palletPath, storagePath } from "./shared";
+import { palletPath, storagePath } from "@/lib/navigation";
 
 type Unit = FinishedGoodsList["pallets"][number];
 type Action = { href: string; label: readonly [string, string] };
