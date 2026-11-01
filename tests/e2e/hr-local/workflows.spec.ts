@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import { test, expect, convexAs } from "./fixtures";
+import {
+  test,
+  expect,
+  convexAs,
+  chooseRequiredEmployment,
+  expectEmployeeList,
+} from "./fixtures";
 
 test("clock events and server times survive reload", async ({ page }, info) => {
   await page.goto("/en/hr/today");
@@ -113,6 +119,7 @@ test("offline pending employee save blocks Back until the real backend settles",
   const form = page.getByTestId("hr-employee-form");
   await form.getByLabel(/^Employee code/).fill(code);
   await form.getByLabel(/^Display name/).fill(`Pending ${code}`);
+  await chooseRequiredEmployment(page);
   await context.setOffline(true);
   try {
     await form
@@ -139,6 +146,7 @@ test("offline pending employee save blocks Back until the real backend settles",
     await context.setOffline(false);
   }
   await expect(form).toBeHidden();
+  await expectEmployeeList(page, code);
   await page.reload();
   await expect(
     page.getByRole("button", { name: `Edit Pending ${code}`, exact: true }),

@@ -3,7 +3,13 @@ import { randomUUID } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 
-import { test, expect, convexAs } from "./fixtures";
+import {
+  test,
+  expect,
+  convexAs,
+  chooseRequiredEmployment,
+  expectEmployeeList,
+} from "./fixtures";
 import { readHrFixture } from "./setup";
 
 test("real Clerk identity resolves the seeded HR employee after reload", async ({
@@ -35,10 +41,12 @@ test("employee create and edit persist through real backend and reload", async (
   const form = page.getByTestId("hr-employee-form");
   await form.getByLabel(/^Employee code/).fill(code);
   await form.getByLabel(/^Display name/).fill(`Browser ${code}`);
+  await chooseRequiredEmployment(page);
   await form
     .getByRole("button", { name: "Save employee", exact: true })
     .click();
   await expect(form).toBeHidden();
+  await expectEmployeeList(page, code);
   await page.reload();
   await page
     .getByRole("button", { name: `Edit Browser ${code}`, exact: true })
@@ -49,6 +57,7 @@ test("employee create and edit persist through real backend and reload", async (
     .getByRole("button", { name: "Save employee", exact: true })
     .click();
   await expect(form).toBeHidden();
+  await expectEmployeeList(page, code);
   await page.reload();
   await expect(
     page.getByRole("button", { name: `Edit Updated ${code}`, exact: true }),
@@ -159,9 +168,17 @@ test("employee selection survives Forward and refresh before header Back closes 
   await page.getByRole("button", { name: /^Edit .*Test account/ }).click();
   const form = page.getByTestId("hr-employee-form");
   await expect(form).toBeVisible();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("mode") === "edit" &&
+      url.searchParams.has("employee"),
+  );
+  const editorUrl = page.url();
   await page.goBack();
   await expect(form).toBeHidden();
+  await expectEmployeeList(page, "EMP-DEMO-001");
   await page.goForward();
+  await expect(page).toHaveURL(editorUrl);
   await expect(form).toBeVisible();
   await page.reload();
   await expect(form.getByLabel(/^Employee code/)).toHaveValue("EMP-DEMO-001");

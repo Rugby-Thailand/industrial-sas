@@ -1,4 +1,5 @@
 import { mkdirSync, chmodSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 import { defineConfig, devices } from "@playwright/test";
 
@@ -13,6 +14,12 @@ chmodSync("test-results/hr-local", 0o700);
 
 /** Opt-in real Clerk + loopback Convex suite; never selected by smoke/release. */
 export default defineConfig({
+  metadata: {
+    sourceHead: execFileSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim(),
+    backend: "worktree-owned anonymous Convex on loopback:3320",
+  },
   testDir: "./tests/e2e/hr-local",
   testMatch: "*.spec.ts",
   globalSetup: "./tests/e2e/hr-local/setup.ts",
@@ -36,6 +43,8 @@ export default defineConfig({
     video: "off",
     screenshot: "only-on-failure",
     serviceWorkers: "block",
+    actionTimeout: 30_000,
+    navigationTimeout: 60_000,
   },
   projects: [
     { name: "hr-desktop", use: { ...devices["Desktop Chrome"] } },

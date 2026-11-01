@@ -11,7 +11,7 @@ import {
 import { readHrFixture } from "./setup";
 
 export const test = base.extend({
-  page: async ({ page }, runTest) => {
+  page: async ({ page }, runTest, info) => {
     let ownedSession: string | undefined;
     try {
       try {
@@ -36,6 +36,22 @@ export const test = base.extend({
       }
       await runTest(page);
     } finally {
+      if (info.status !== info.expectedStatus && !page.isClosed()) {
+        try {
+          const navigation = await page.evaluate(() => ({
+            path: location.pathname + location.search + location.hash,
+            historyLength: history.length,
+            historyStateKeys: Object.keys(history.state ?? {}),
+          }));
+          if (navigation.path.startsWith("/en/hr/"))
+            await info.attach("navigation-failure", {
+              body: JSON.stringify(navigation),
+              contentType: "application/json",
+            });
+        } catch {
+          /* Diagnostic capture must not replace the original failure. */
+        }
+      }
       if (ownedSession) {
         try {
           const env = loadHrEnvironment();
@@ -50,6 +66,42 @@ export const test = base.extend({
   },
 });
 export { expect };
+
+/** Form disappearance precedes the owned browser traversal by a frame. */
+export async function expectEmployeeList(page: Page, code: string) {
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/en/hr/employees" &&
+      url.searchParams.get("q") === code &&
+      !url.searchParams.has("mode") &&
+      !url.searchParams.has("employee"),
+  );
+}
+
+/** New active employees must choose masters once the organization has them. */
+export async function chooseRequiredEmployment(page: Page) {
+  const form = page.getByTestId("hr-employee-form");
+  for (const [label, endpoint] of [
+    [/^Department( \*)?$/, "hr/org:listDepartments"],
+    [/^Position( \*)?$/, "hr/org:listPositions"],
+  ] as const) {
+    const control = form.getByLabel(label);
+    await control.scrollIntoViewIfNeeded();
+    await expect(control).toBeEnabled();
+    const result = await (await convexAs(page)).query(endpoint);
+    expect(result.ok).toBe(true);
+    const active = result.value.items.find(
+      (row: { status: string }) => row.status === "ACTIVE",
+    );
+    if (active) {
+      await control.click();
+      await page
+        .getByRole("option", { name: active.name, exact: true })
+        .click();
+      await expect(control).toHaveText(active.name);
+    }
+  }
+}
 
 export async function convexAs(page: Page) {
   const env = loadHrEnvironment();

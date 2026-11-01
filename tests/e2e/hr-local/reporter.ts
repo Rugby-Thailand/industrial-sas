@@ -21,6 +21,11 @@ export default class HrLocalReporter implements Reporter {
       "[hr-e2e] Runner error; inspect the private report.\n",
     );
   }
+  onTestBegin(test: TestCase) {
+    process.stdout.write(
+      `[hr-e2e] ${test.parent.project()?.name}: ${test.title}: started\n`,
+    );
+  }
   onTestEnd(test: TestCase, result: TestResult) {
     if (result.status === "passed") this.passed += 1;
     else if (result.status === "skipped") this.skipped += 1;

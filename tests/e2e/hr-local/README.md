@@ -63,13 +63,21 @@ inactive leave policy, foreign-site filtering and anonymous denial. Pending-save
 coverage disconnects the browser's network, checks the real queued Convex write
 blocks departure, reconnects and verifies the actual committed record.
 
+With foundation source `92fe30f0` + `857d9f8e`, `foundation.spec.ts` adds real
+company/bank persistence, PNG logo upload/readback/removal, branch persistence and
+completion, pristine Cancel + next Back, nested dirty-dialog Keep/Discard,
+department/position/level creation, employment assignments including branch and
+workplace, employment type/probation edits, and legacy employee compatibility.
+Company header Back uses the real sidebar settings link to establish provenance;
+direct settings hubs have no invented parent. These cases run on both projects.
+
 Clock writes run when a next action is available; later same-day runs verify the
 retained timestamps instead. The `real-clock-writes` annotation reports the count
 for each run. Correction tests choose an unused date and fail explicitly when
 their finite pool is exhausted. Holidays use test-only future dates and can be
 overwritten by later runs. No policy is automatically activated to enable leave.
-Leave submission/approval, non-admin authenticated actors, nested foregrounds,
-native device browsers and Phase 1 company/branch UI remain outside this suite.
+Leave submission/approval, non-admin authenticated actors, Thai-language UI and
+native device browsers remain outside this suite. Mobile is Chromium emulation.
 
 Private artifacts stay under ignored `test-results/hr-local/`,
 `playwright/.auth/` and `.cache/hr-browser/`. They can include authenticated test
