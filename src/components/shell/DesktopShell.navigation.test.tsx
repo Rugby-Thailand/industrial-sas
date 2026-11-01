@@ -15,6 +15,10 @@ import {
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
+import {
+  HEAD_REQUEST_KEY,
+  ROOT_SEGMENT_REQUEST_KEY,
+} from "next/dist/shared/lib/segment-cache/segment-value-encoding";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import type { createMutableActionQueue as CreateMutableActionQueue } from "next/dist/client/components/app-router-instance";
@@ -142,24 +146,47 @@ vi.mock("@/components/shell/NavigationPendingIndicator", () => ({
 import { DesktopShell } from "./DesktopShell";
 import { useDraftGuard } from "@/components/providers/draftGuard";
 
+function initialRouteTree(
+  requestKey: AppRouterState["root"]["tree"]["requestKey"],
+): AppRouterState["root"]["tree"] {
+  const varyPath: AppRouterState["root"]["tree"]["varyPath"] = {
+    __brand: "VaryPath",
+    id: null,
+    value: requestKey,
+    isRootParam: false,
+    parent: null,
+  };
+  return {
+    requestKey,
+    segment: "",
+    varyPath,
+    shellVaryPath: varyPath,
+    refreshState: null,
+    data: {
+      rsc: null,
+      prefetchRsc: null,
+      varyParams: null,
+      scrollRef: null,
+      bfcacheId: 0,
+    },
+    slots: null,
+    prefetchHints: 0,
+  };
+}
+
 function initialRouterState(): AppRouterState {
   return {
     tree: ["", {}],
-    cache: {
-      rsc: null,
-      prefetchRsc: null,
-      prefetchHead: null,
-      head: null,
-      slots: null,
-      scrollRef: null,
-      bfcacheId: 0,
+    root: {
+      tree: initialRouteTree(ROOT_SEGMENT_REQUEST_KEY),
+      head: initialRouteTree(HEAD_REQUEST_KEY),
     },
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
       preserveCustomHistoryState: false,
     },
-    focusAndScrollRef: {
+    scrollRef: {
       scrollRef: null,
       forceScroll: false,
       hashFragment: null,
