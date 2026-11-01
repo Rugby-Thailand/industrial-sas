@@ -3810,8 +3810,11 @@
       "id": "src/features/hr/EmployeeForm.tsx#EmployeeForm:draft",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Form/draft fields control inline validation and receipt/recovery rendering; its audited route/review owners govern Back and pending writes.",
-      "tests": ["src/features/hr/EmployeesNavigation.test.tsx"],
+      "expectation": "Form/draft fields control inline validation, the Employment group's required org masters (ACTIVE employees on create, reactivation, or once assigned; legacy unassigned ACTIVE employees stay optional) and probation end date, and receipt/recovery rendering; its audited route/review owners govern Back and pending writes.",
+      "tests": [
+        "src/features/hr/EmployeesNavigation.test.tsx",
+        "src/features/hr/EmployeeForm.employment.test.tsx"
+      ],
       "render": [
         {
           "shape": "conditional",
@@ -3831,12 +3834,281 @@
           "shape": "conditional",
           "truthy": ["p[role=status]"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/FormField#FormField",
+            "src/components/ui/input#Input"
+          ],
+          "falsy": []
         }
       ],
       "cases": [
         {
           "file": "src/features/hr/EmployeesNavigation.test.tsx",
           "name": "an in-flight employee write disables Cancel and keeps Back guarded"
+        },
+        {
+          "file": "src/features/hr/EmployeeForm.employment.test.tsx",
+          "name": "requires a department and position while active ones exist, then sends the employment fields"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrBranches.tsx#BranchesPanel:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "Add/Edit branch opens the shared Back-aware Dialog over the retained settings hub. Back or explicit Cancel dismisses it first and asks before discarding a typed branch draft (Keep editing retains it); a pending save blocks dismissal; a successful save settles its draft guard and consumes the Dialog entry before closing, so the next Back reaches the actual origin with its locale, query (?section=) and hash. Forward reopens the same branch from current data; a direct ?section=branches link has no synthetic parent.",
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "Add branch -> explicit Cancel -> next Back returns to the settings caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a dirty branch draft asks before Cancel or native Back discard it, and Keep editing retains it"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a saved branch consumes its dialog entry before the next Back reaches the caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a direct ?section=branches link focuses Branches and Cancel keeps the link without a synthetic parent"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "native Back closes a clean branch editor and Forward reopens the same branch"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a pending %s save blocks native Back and Cancel until it settles, then consumes its dialog"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a branch edited elsewhere while open is saved against the opened version and reported as stale"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrBranches.tsx#BranchEditor:$overlay:Dialog:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The branch editor's shared Dialog owns its foreground entry: native Back and Cancel close it through the draft guard, pending saves block dismissal, and completion consumes the entry before the next Back.",
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "Add branch -> explicit Cancel -> next Back returns to the settings caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a dirty branch draft asks before Cancel or native Back discard it, and Keep editing retains it"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a saved branch consumes its dialog entry before the next Back reaches the caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a direct ?section=branches link focuses Branches and Cancel keeps the link without a synthetic parent"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "native Back closes a clean branch editor and Forward reopens the same branch"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a pending %s save blocks native Back and Cancel until it settles, then consumes its dialog"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a branch edited elsewhere while open is saved against the opened version and reported as stale"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrOrgMasters.tsx#OrganizationPanel:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "Department, position and level editors share one Back-aware Dialog over the retained settings hub. Back or Cancel dismisses it before page departure, asking before discarding typed changes; a pending save blocks dismissal; a successful save consumes the Dialog entry before closing so the next Back reaches the actual origin with locale, query and hash. Forward reopens the same entry from current data.",
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "Add department -> explicit Cancel -> next Back returns to the settings caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a saved level consumes its dialog entry before the next Back reaches the caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a dirty department draft asks before native Back discards it, and Discard consumes only the dialog"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "native Back closes a clean department editor and Forward reopens the same department"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a pending %s save blocks native Back and Cancel until it settles, then consumes its dialog"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrOrgMasters.tsx#MasterEditor:$overlay:Dialog:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The master editor's shared Dialog owns its foreground entry; Cancel/Back go through the draft guard, pending saves block dismissal, and completion consumes the entry first. Forward reopens the same entry from current data.",
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "Add department -> explicit Cancel -> next Back returns to the settings caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a saved level consumes its dialog entry before the next Back reaches the caller"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a dirty department draft asks before native Back discards it, and Discard consumes only the dialog"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "native Back closes a clean department editor and Forward reopens the same department"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a pending %s save blocks native Back and Cancel until it settles, then consumes its dialog"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrOrgMasters.tsx#MasterForm:draft",
+      "policy": "presentation",
+      "expectation": "The department draft's chosen manager feeds the inline manager picker (current name, search and pages) inside the same editor Dialog; the draft is guarded until saved or discarded and creates no predecessor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a dirty department draft asks before native Back discards it, and Discard consumes only the dialog"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "the department editor shows a refused manager beside the manager field"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrOrgMasters.tsx#ManagerPickerField:search",
+      "policy": "presentation",
+      "expectation": "Manager search updates bounded inline active-employee choices, loading and recovery in the same department editor; it is not a predecessor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=status]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/features/hr/HrPagedList#HrInterrupted"],
+          "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrCompanyProfile.tsx#CompanyForm:baseline",
+      "policy": "presentation",
+      "expectation": "The saved company profile controls an inline missing-profile notice inside the same settings form; no whole-view step opens. Unsaved edits are guarded by the form's draft registration.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "company profile guards unsaved edits and maps a refused tax ID to its field"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/HrCompanyProfile.tsx#CompanyForm:draft",
+      "policy": "presentation",
+      "expectation": "Bank-account rows are repeatable inline fields of the retained company form (Add/Remove account); the draft is guarded until saved or discarded and creates no predecessor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "div",
+            "li",
+            "lucide-react#Trash2",
+            "ol",
+            "span",
+            "src/components/ui/FormField#FormField",
+            "src/components/ui/button#Button",
+            "src/components/ui/input#Input"
+          ]
+        }
+      ],
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "company profile shows its fields and adds and removes bank accounts"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "company profile guards unsaved edits and maps a refused tax ID to its field"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/EmployeePayslipsScreen.tsx#SensitiveStatementBody:employer",
+      "policy": "presentation",
+      "expectation": "After a verified download the statement card shows the issuing employer (company name, tax ID, full Thai address and the English address when present) inline; it is non-sensitive read-only detail with no command or predecessor.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["h3", "section", "span", "src/features/hr/HrShared#Facts"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
+        }
+      ],
+      "tests": ["src/features/hr/Payslips.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/Payslips.test.tsx",
+          "name": "shows the employer block from the company profile after a verified download"
         }
       ]
     },

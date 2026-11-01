@@ -65,6 +65,7 @@ import {
   useHrPagedQuery,
 } from "./HrPagedList";
 import { HrSiteSelect } from "./HrSiteSelect";
+import { orgItems, type MasterRow } from "./HrOrgShared";
 import { HrInitials, HrToolbar } from "./HrUi";
 
 type EmployeeRow = {
@@ -79,6 +80,8 @@ type EmployeeRow = {
   readonly linkedSelfAccess?: boolean | undefined;
   readonly supervisorName?: string | null | undefined;
   readonly supervisorReviewAccess?: boolean | undefined;
+  readonly departmentName?: string | undefined;
+  readonly positionName?: string | undefined;
   readonly schedule?: EmployeeRecord["schedule"];
 };
 
@@ -105,6 +108,7 @@ export function HrEmployeesScreen() {
     q: params.get("q") ?? "",
     site: params.get("site") ?? "",
     status: params.get("status") ?? "",
+    dept: params.get("dept") ?? "",
   };
   // The router starts each entry without the list's page metadata; carry
   // it into the editor entry and back into the list entry on Close, so a
@@ -221,7 +225,7 @@ export function HrEmployeesScreen() {
   );
 }
 
-const LIST_DEFAULTS = { q: "", site: "", status: "" } as const;
+const LIST_DEFAULTS = { q: "", site: "", status: "", dept: "" } as const;
 const LIST_KEYS = Object.keys(LIST_DEFAULTS);
 type ListCriteria = Readonly<Record<keyof typeof LIST_DEFAULTS, string>>;
 
@@ -270,18 +274,39 @@ function EmployeesContent({
     criteria.status === "ACTIVE" || criteria.status === "INACTIVE"
       ? criteria.status
       : undefined;
+  const departmentsOutcome = useQuery(hrRefs.listDepartments, {});
+  const departments = orgItems<MasterRow>(departmentsOutcome);
+  const department = criteria.dept === "" ? undefined : criteria.dept;
+  // A department filter waits for the department list, so the page never
+  // flashes unfiltered rows; a refused list or an unknown department is
+  // shown rather than silently dropped.
+  const departmentProblem =
+    department !== undefined &&
+    ((departmentsOutcome !== undefined && departmentsOutcome.ok !== true) ||
+      (departments !== undefined &&
+        !departments.some((row) => row.id === department)))
+      ? "NOT_FOUND"
+      : null;
+  const departmentPending =
+    department !== undefined && departments === undefined;
   const { view, paging } = useHrPagedQuery(
     hrRefs.employeesPage,
-    {
-      ...(criteria.q === "" ? {} : { search: criteria.q }),
-      ...(criteria.site === "" ? {} : { warehouseId: criteria.site }),
-      ...(status === undefined ? {} : { status }),
-    },
+    departmentPending || departmentProblem !== null
+      ? "skip"
+      : {
+          ...(criteria.q === "" ? {} : { search: criteria.q }),
+          ...(criteria.site === "" ? {} : { warehouseId: criteria.site }),
+          ...(status === undefined ? {} : { status }),
+          ...(department === undefined ? {} : { departmentId: department }),
+        },
     "employees",
     entry,
   );
   const filtered =
-    criteria.q !== "" || criteria.site !== "" || status !== undefined;
+    criteria.q !== "" ||
+    criteria.site !== "" ||
+    status !== undefined ||
+    department !== undefined;
   const clear = () => setCriteria(LIST_DEFAULTS);
   // The last save's receipt on the list it returns to. It is not a history
   // entry: opening an editor (or Forward to one) replaces it.
@@ -358,12 +383,37 @@ function EmployeesContent({
                 ]}
               />
             </div>
+            {departments !== undefined && departments.length > 0 ? (
+              <div className="grid w-full gap-2 sm:w-52">
+                <Label htmlFor={`${id}-department`}>{t("department")}</Label>
+                <SelectControl
+                  id={`${id}-department`}
+                  value={department ?? ""}
+                  onValueChange={(next) => setCriteria({ dept: next })}
+                  placeholder={t("allDepartments")}
+                  emptyLabel={t("allDepartments")}
+                  options={[
+                    { value: "", label: t("allDepartments") },
+                    ...departments.map((row) => ({
+                      value: row.id,
+                      label:
+                        row.status === "ACTIVE"
+                          ? row.name
+                          : t("inactiveOption", { name: row.name }),
+                    })),
+                  ]}
+                />
+              </div>
+            ) : null}
             {filtered ? (
               <Button type="button" variant="ghost" onClick={clear}>
                 {t("clearFilters")}
               </Button>
             ) : null}
           </HrToolbar>
+          {departmentProblem === null ? null : (
+            <HrInlineError code={departmentProblem} />
+          )}
           <HrPagedState
             view={view}
             refused={(code) => <HrInlineError code={code} />}
@@ -463,6 +513,18 @@ function EmployeeCard({
         <EmployeeStatus status={employee.status} />
       </div>
       <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted">{t("department")}</dt>
+          <dd className="break-words text-text">
+            {employee.departmentName ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted">{t("position")}</dt>
+          <dd className="break-words text-text">
+            {employee.positionName ?? "—"}
+          </dd>
+        </div>
         <div>
           <dt className="text-xs text-muted">{t("account")}</dt>
           <dd>
@@ -569,16 +631,20 @@ function EmployeeTable({
     <TableScroller label={t("tableLabel")}>
       <Table scroll={false} className="table-fixed">
         <colgroup>
-          <col className="w-[28%]" />
-          <col className="w-[17%]" />
-          <col className="w-[16%]" />
-          <col className="w-[18%]" />
-          <col className="w-[10%]" />
-          <col className="w-[11%]" />
+          <col className="w-[22%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[13%]" />
+          <col className="w-[12%]" />
+          <col className="w-[13%]" />
+          <col className="w-[8%]" />
+          <col className="w-[8%]" />
         </colgroup>
         <TableHeader>
           <TableRow>
             <TableHead>{t("employee")}</TableHead>
+            <TableHead>{t("department")}</TableHead>
+            <TableHead>{t("position")}</TableHead>
             <TableHead>{t("account")}</TableHead>
             <TableHead>{t("supervisor")}</TableHead>
             <TableHead>{t("schedule")}</TableHead>
@@ -603,6 +669,12 @@ function EmployeeTable({
                     </span>
                   </div>
                 </div>
+              </TableCell>
+              <TableCell className="break-words whitespace-normal">
+                {employee.departmentName ?? "—"}
+              </TableCell>
+              <TableCell className="break-words whitespace-normal">
+                {employee.positionName ?? "—"}
               </TableCell>
               <TableCell className="break-words whitespace-normal">
                 <AccountCell employee={employee} />

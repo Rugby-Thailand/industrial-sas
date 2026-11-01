@@ -42,6 +42,12 @@ export const TENANT_TABLES = [
   "finishedGoodsCounters",
   "finishedGoodsMoves",
   "hrEmployees",
+  "hrCompanyProfiles",
+  "hrCompanyLogos",
+  "hrBranches",
+  "hrDepartments",
+  "hrPositions",
+  "hrPositionLevels",
   "hrShortcutPreferences",
   "hrPolicyDrafts",
   "hrPolicyVersions",
@@ -148,6 +154,12 @@ export function uniquenessIndexName(key: readonly string[]): string {
 }
 
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
+  { table: "hrCompanyProfiles", key: ["orgId"], condition: ALWAYS },
+  { table: "hrCompanyLogos", key: ["orgId"], condition: ALWAYS },
+  { table: "hrBranches", key: ["orgId", "revenueBranchNo"], condition: ALWAYS },
+  { table: "hrDepartments", key: ["orgId", "nameKey"], condition: ALWAYS },
+  { table: "hrPositions", key: ["orgId", "nameKey"], condition: ALWAYS },
+  { table: "hrPositionLevels", key: ["orgId", "nameKey"], condition: ALWAYS },
   {
     table: "hrLeaveRequestRevisions",
     key: ["orgId", "leaveRequestId", "version"],
@@ -310,6 +322,7 @@ export type LookupContract = {
 };
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
+  { table: "hrDepartments", key: ["orgId", "managerEmployeeId"] },
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "storagePositions", key: ["orgId", "zoneId", "status"] },
   { table: "hrEmployees", key: ["orgId", "warehouseId"] },

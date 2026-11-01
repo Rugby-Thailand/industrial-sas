@@ -17,6 +17,8 @@ import {
 } from "../lib/tenantFunctions";
 import { isIsoDate } from "../model/hr/calendar";
 import { MAX_NAME_LENGTH, validateEmployeeDraft } from "../model/hr/employee";
+import { employeeOrgFields } from "../model/hr/orgSchema";
+import { validateEmployeeOrgReferences } from "./org";
 import { validateSchedule } from "../model/hr/schedule";
 import {
   HR_MAX_CHUNK,
@@ -32,6 +34,7 @@ import { MAX_HOLIDAY_YEAR, MIN_HOLIDAY_YEAR } from "./self";
 import {
   MAX_SITE_EMPLOYEES,
   fail,
+  diff,
   hrCommand,
   employeeReviewIdentities,
   reviewedByActor,
@@ -143,6 +146,26 @@ async function employeeItem(
     HR_PERMISSION.teamReview,
     access,
   );
+  const [branch, department, position, level] = await Promise.all([
+    employee.branchId
+      ? ctx.tenantDb.get<Doc<"hrBranches">>("hrBranches", employee.branchId)
+      : null,
+    employee.departmentId
+      ? ctx.tenantDb.get<Doc<"hrDepartments">>(
+          "hrDepartments",
+          employee.departmentId,
+        )
+      : null,
+    employee.positionId
+      ? ctx.tenantDb.get<Doc<"hrPositions">>("hrPositions", employee.positionId)
+      : null,
+    employee.levelId
+      ? ctx.tenantDb.get<Doc<"hrPositionLevels">>(
+          "hrPositionLevels",
+          employee.levelId,
+        )
+      : null,
+  ]);
   return {
     id: employee._id,
     code: employee.code,
@@ -159,13 +182,28 @@ async function employeeItem(
     ...(supervisorReviewAccess === undefined ? {} : { supervisorReviewAccess }),
     employmentStartDate: employee.employmentStartDate,
     employmentEndDate: employee.employmentEndDate,
+    branchId: employee.branchId,
+    branchName: branch?.name,
+    branchRevenueBranchNo: branch?.revenueBranchNo,
+    branchSsoEmployerAccount: branch?.ssoEmployerAccount,
+    departmentId: employee.departmentId,
+    departmentName: department?.name,
+    positionId: employee.positionId,
+    positionName: position?.name,
+    levelId: employee.levelId,
+    levelName: level?.name,
+    employmentType: employee.employmentType,
+    probationEndDate: employee.probationEndDate,
     schedule: employee.schedule,
     version: employee.version,
   };
 }
 
 export const listEmployees = queryWithOrg({
-  args: { warehouseId: v.optional(v.id("warehouses")) },
+  args: {
+    warehouseId: v.optional(v.id("warehouses")),
+    departmentId: v.optional(v.id("hrDepartments")),
+  },
   returns: v.any(),
   permissionCode: ADMIN,
   target: { table: "hrEmployees" },
@@ -187,7 +225,11 @@ export const listEmployees = queryWithOrg({
         .take(MAX_SITE_EMPLOYEES + 1);
       if (rows.length > MAX_SITE_EMPLOYEES) complete = false;
       for (const employee of rows.slice(0, MAX_SITE_EMPLOYEES))
-        items.push(await employeeItem(ctx, employee, site, names, access));
+        if (
+          args.departmentId === undefined ||
+          employee.departmentId === args.departmentId
+        )
+          items.push(await employeeItem(ctx, employee, site, names, access));
     }
     return {
       items,
@@ -215,6 +257,7 @@ export const employeesPage = queryWithOrg({
     // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
     warehouseId: v.optional(v.string()),
     status: v.optional(v.union(v.literal("ACTIVE"), v.literal("INACTIVE"))),
+    departmentId: v.optional(v.id("hrDepartments")),
   },
   returns: v.any(),
   permissionCode: ADMIN,
@@ -247,7 +290,10 @@ export const employeesPage = queryWithOrg({
     }
     const names = new Map<string, string | null>();
     const access: HrAccessCache = new Map();
-    const filtered = input.search !== "" || args.status !== undefined;
+    const filtered =
+      input.search !== "" ||
+      args.status !== undefined ||
+      args.departmentId !== undefined;
     const page = await hrScanPage<
       Employee,
       Awaited<ReturnType<typeof employeeItem>>
@@ -257,6 +303,7 @@ export const employeesPage = queryWithOrg({
         search: input.search,
         site: args.warehouseId ?? null,
         status: args.status ?? null,
+        departmentId: args.departmentId ?? null,
         order,
       },
       pageSize: input.pageSize,
@@ -269,6 +316,8 @@ export const employeesPage = queryWithOrg({
         (args.warehouseId === undefined ||
           employee.warehouseId === args.warehouseId) &&
         (args.status === undefined || employee.status === args.status) &&
+        (args.departmentId === undefined ||
+          employee.departmentId === args.departmentId) &&
         containsSearch(input.search, employee.code, employee.displayName) &&
         (await siteFor(employee.warehouseId)) !== null,
       hydrate: async (employee) => {
@@ -566,24 +615,9 @@ export const memberOptions = queryWithOrg({
   },
 });
 
-const diff = (
-  before: Record<string, unknown> | null,
-  after: Record<string, unknown>,
-) =>
-  Object.keys(after)
-    .filter(
-      (key) => JSON.stringify(before?.[key]) !== JSON.stringify(after[key]),
-    )
-    .map((key) => ({
-      field: key,
-      ...(before?.[key] === undefined
-        ? {}
-        : { from: JSON.stringify(before[key]) }),
-      ...(after[key] === undefined ? {} : { to: JSON.stringify(after[key]) }),
-    }));
-
 export const saveEmployee = mutationWithOrg({
   args: {
+    ...employeeOrgFields,
     requestId: v.string(),
     employeeId: v.optional(v.id("hrEmployees")),
     expectedVersion: v.optional(v.number()),
@@ -663,6 +697,13 @@ export const saveEmployee = mutationWithOrg({
         if (sameCode !== null && sameCode._id !== before?._id)
           return fail("EMPLOYEE_CODE_TAKEN", "code");
 
+        const invalidOrg = await validateEmployeeOrgReferences(
+          ctx,
+          args,
+          before,
+        );
+        if (invalidOrg) return invalidOrg;
+
         if (args.userId !== undefined) {
           const member = await ctx.members.get(args.userId);
           if (member === null || !member.active)
@@ -706,6 +747,12 @@ export const saveEmployee = mutationWithOrg({
           supervisorUserId: args.supervisorUserId,
           employmentStartDate: args.employmentStartDate,
           employmentEndDate: args.employmentEndDate,
+          branchId: args.branchId,
+          departmentId: args.departmentId,
+          positionId: args.positionId,
+          levelId: args.levelId,
+          employmentType: args.employmentType,
+          probationEndDate: args.probationEndDate,
           status: args.status,
           schedule,
         };

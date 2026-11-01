@@ -3,7 +3,7 @@
 import { useMutation } from "convex/react";
 import { CalendarDays, ShieldCheck, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import {
   useDraftGuard,
@@ -33,6 +33,10 @@ import {
 } from "@/lib/navigation";
 
 import { formatBusinessDate } from "./format";
+import { BranchesPanel } from "./HrBranches";
+import { CompanyProfilePanel } from "./HrCompanyProfile";
+import { OrganizationPanel } from "./HrOrgMasters";
+import { SettingsHeading } from "./HrSettingsHeading";
 import { HrPolicySettings } from "./HrPolicySettings";
 import {
   Facts,
@@ -67,7 +71,10 @@ export function HrSettingsScreen() {
   );
 }
 
-/** `?section=holidays|access|policy` moves to that panel once access settles. */
+/**
+ * `?section=holidays|access|policy|company|branches|organization` moves to
+ * that panel once access settles.
+ */
 const LIST_DEFAULTS = { hsite: "", hyear: "", mq: "" } as const;
 const LIST_KEYS = Object.keys(LIST_DEFAULTS);
 
@@ -94,34 +101,9 @@ function SettingsSections() {
       <AccessPanel />
       <HrPolicySettings />
       <PolicyPanel open={policyOpen} onToggle={setPolicyOpen} />
-    </div>
-  );
-}
-
-function SettingsHeading({
-  id,
-  icon,
-  title,
-  description,
-}: {
-  readonly id: string;
-  readonly icon: ReactNode;
-  readonly title: string;
-  readonly description?: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 border-b border-border pb-3">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-surface text-link">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <h2 id={id} className="text-lg leading-7 font-semibold text-text">
-          {title}
-        </h2>
-        {description === undefined ? null : (
-          <p className="text-sm text-muted">{description}</p>
-        )}
-      </div>
+      <CompanyProfilePanel />
+      <BranchesPanel />
+      <OrganizationPanel />
     </div>
   );
 }

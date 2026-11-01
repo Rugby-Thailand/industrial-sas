@@ -994,6 +994,22 @@ export interface AuditChange {
   readonly to?: string | undefined;
 }
 
+export const diff = (
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+) =>
+  Object.keys(after)
+    .filter(
+      (key) => JSON.stringify(before?.[key]) !== JSON.stringify(after[key]),
+    )
+    .map((key) => ({
+      field: key,
+      ...(before?.[key] === undefined
+        ? {}
+        : { from: JSON.stringify(before[key]) }),
+      ...(after[key] === undefined ? {} : { to: JSON.stringify(after[key]) }),
+    }));
+
 export interface CommandSuccess<Extra> {
   readonly documentId: string;
   readonly extra?: Extra;

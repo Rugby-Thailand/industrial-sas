@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 
@@ -27,6 +27,7 @@ import {
   useHrPagedQuery,
   type HrPageRow,
 } from "./HrPagedList";
+import { orgItems, RadioFieldset, type MasterRow } from "./HrOrgShared";
 import { SectionTitle, WriteFeedback, useHrError } from "./HrShared";
 import { HrSiteSelect } from "./HrSiteSelect";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
@@ -48,6 +49,16 @@ export interface EmployeeRecord {
   readonly supervisorReviewAccess?: boolean | undefined;
   readonly employmentStartDate: string;
   readonly employmentEndDate?: string | undefined;
+  readonly branchId?: string | undefined;
+  readonly branchName?: string | undefined;
+  readonly departmentId?: string | undefined;
+  readonly departmentName?: string | undefined;
+  readonly positionId?: string | undefined;
+  readonly positionName?: string | undefined;
+  readonly levelId?: string | undefined;
+  readonly levelName?: string | undefined;
+  readonly employmentType?: "PERMANENT" | "FIXED_TERM" | undefined;
+  readonly probationEndDate?: string | undefined;
   readonly schedule?:
     | {
         readonly workDays: readonly number[];
@@ -69,6 +80,13 @@ interface Draft {
   employmentStartDate: string;
   employmentEndDate: string;
   status: "ACTIVE" | "INACTIVE";
+  branchId: string;
+  departmentId: string;
+  positionId: string;
+  levelId: string;
+  employmentType: "" | "PERMANENT" | "FIXED_TERM";
+  onProbation: boolean;
+  probationEndDate: string;
   hasSchedule: boolean;
   workDays: number[];
   startTime: string;
@@ -90,6 +108,15 @@ const draftOf = (
   employmentStartDate: employee?.employmentStartDate ?? today,
   employmentEndDate: employee?.employmentEndDate ?? "",
   status: employee?.status ?? "ACTIVE",
+  branchId: employee?.branchId ?? "",
+  departmentId: employee?.departmentId ?? "",
+  positionId: employee?.positionId ?? "",
+  levelId: employee?.levelId ?? "",
+  // New employees start permanent; an existing record without a type keeps none.
+  employmentType:
+    employee === undefined ? "PERMANENT" : (employee.employmentType ?? ""),
+  onProbation: employee?.probationEndDate !== undefined,
+  probationEndDate: employee?.probationEndDate ?? "",
   hasSchedule: employee === undefined || employee.schedule !== undefined,
   workDays: [...(employee?.schedule?.workDays ?? [1, 2, 3, 4, 5])],
   startTime: employee?.schedule?.startTime ?? "08:30",
@@ -100,8 +127,21 @@ const draftOf = (
 
 type FieldErrors = Partial<Record<keyof Draft | "schedule", string>>;
 
+/**
+ * Org masters an ACTIVE employee needs because the organization has active
+ * entries; an inactive employee may keep none.
+ */
+interface Required {
+  readonly departmentId: boolean;
+  readonly positionId: boolean;
+}
+
 /** Client checks for fast feedback; the server re-validates every field. */
-function validate(draft: Draft, t: (key: string) => string): FieldErrors {
+function validate(
+  draft: Draft,
+  required: Required,
+  t: (key: string) => string,
+): FieldErrors {
   const errors: FieldErrors = {};
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(draft.code.trim()))
     errors.code = t("codeInvalid");
@@ -116,6 +156,18 @@ function validate(draft: Draft, t: (key: string) => string): FieldErrors {
     errors.employmentEndDate = t("endBeforeStart");
   if (draft.userId !== "" && draft.userId === draft.supervisorUserId)
     errors.supervisorUserId = t("selfSupervisor");
+  if (required.departmentId && draft.departmentId === "")
+    errors.departmentId = t("departmentRequired");
+  if (required.positionId && draft.positionId === "")
+    errors.positionId = t("positionRequired");
+  if (draft.onProbation && draft.probationEndDate === "")
+    errors.probationEndDate = t("probationEndRequired");
+  else if (
+    draft.onProbation &&
+    draft.employmentStartDate !== "" &&
+    draft.probationEndDate < draft.employmentStartDate
+  )
+    errors.probationEndDate = t("probationBeforeStart");
   if (draft.hasSchedule) {
     const breakMinutes = Number(draft.breakMinutes);
     if (draft.workDays.length === 0) errors.schedule = t("daysRequired");
@@ -165,6 +217,48 @@ export function EmployeeForm({
     setDraft(next);
     setErrors({});
   }
+  const options = useOrgOptions(employee);
+  // Mirrors the server: a legacy ACTIVE employee saved without an assignment
+  // is not forced to pick one; new, reactivated or assigned employees are.
+  const enforced = (field: "departmentId" | "positionId") =>
+    employee === undefined ||
+    employee.status !== "ACTIVE" ||
+    employee[field] !== undefined;
+  const required: Required = {
+    departmentId:
+      draft.status === "ACTIVE" &&
+      enforced("departmentId") &&
+      (options.department?.some((row) => row.status === "ACTIVE") ?? false),
+    positionId:
+      draft.status === "ACTIVE" &&
+      enforced("positionId") &&
+      (options.position?.some((row) => row.status === "ACTIVE") ?? false),
+  };
+  // A new employee starts from the suggested running code; it stays editable.
+  const suggestion = useQuery(
+    hrRefs.suggestEmployeeCode,
+    employee === undefined ? {} : "skip",
+  ) as { ok?: boolean; value?: { ok?: boolean; code?: unknown } } | undefined;
+  // No suggestion left this year: say so beside the code instead of guessing.
+  const suggestionRefused =
+    suggestion?.ok === true && suggestion.value?.ok === false
+      ? message("EMPLOYEE_CODE_EXHAUSTED")
+      : undefined;
+  const suggestedCode =
+    suggestion?.ok === true &&
+    suggestion.value?.ok === true &&
+    typeof suggestion.value.code === "string"
+      ? suggestion.value.code
+      : undefined;
+  if (
+    suggestedCode !== undefined &&
+    employee === undefined &&
+    initial.code === "" &&
+    draft.code === ""
+  ) {
+    setInitial({ ...initial, code: suggestedCode });
+    setDraft((current) => ({ ...current, code: suggestedCode }));
+  }
   // Unsaved edits survive search and navigation unless the user discards.
   useDraftGuard(
     write.state.kind !== "SAVED" && dirty,
@@ -178,7 +272,7 @@ export function EmployeeForm({
     setDraft((current) => ({ ...current, [key]: value }));
 
   const send = async () => {
-    const next = validate(draft, t);
+    const next = validate(draft, required, t);
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     const result = await write.submit((requestId) =>
@@ -199,6 +293,18 @@ export function EmployeeForm({
           ? {}
           : { employmentEndDate: draft.employmentEndDate }),
         status: draft.status,
+        ...(draft.branchId === "" ? {} : { branchId: draft.branchId }),
+        ...(draft.departmentId === ""
+          ? {}
+          : { departmentId: draft.departmentId }),
+        ...(draft.positionId === "" ? {} : { positionId: draft.positionId }),
+        ...(draft.levelId === "" ? {} : { levelId: draft.levelId }),
+        ...(draft.employmentType === ""
+          ? {}
+          : { employmentType: draft.employmentType }),
+        ...(draft.onProbation
+          ? { probationEndDate: draft.probationEndDate }
+          : {}),
         ...(draft.hasSchedule
           ? {
               schedule: {
@@ -284,7 +390,11 @@ export function EmployeeForm({
             id={`${id}-code`}
             label={t("code")}
             required
-            hint={t("codeHint")}
+            hint={
+              suggestedCode !== undefined && draft.code === suggestedCode
+                ? t("codeSuggested")
+                : (suggestionRefused ?? t("codeHint"))
+            }
             error={errors.code}
           >
             {(field) => (
@@ -311,43 +421,6 @@ export function EmployeeForm({
               />
             )}
           </FormField>
-          <div className="grid min-w-0 content-start gap-2">
-            <Label htmlFor={`${id}-site`}>{t("site")}</Label>
-            <HrSiteSelect
-              id={`${id}-site`}
-              surface={`employee-form:${employee?.id ?? "new"}:site`}
-              sites={sites}
-              value={draft.siteId}
-              onChange={(value) => set("siteId", value)}
-              placeholder={t("chooseSite")}
-              emptyLabel={t("noSites")}
-              invalid={errors.siteId !== undefined}
-              {...(errors.siteId === undefined
-                ? {}
-                : { describedBy: `${id}-site-error` })}
-            />
-            {errors.siteId ? (
-              <p
-                id={`${id}-site-error`}
-                role="alert"
-                className="text-xs leading-relaxed text-danger"
-              >
-                {errors.siteId}
-              </p>
-            ) : null}
-          </div>
-          <SelectField
-            id={`${id}-status`}
-            label={t("status")}
-            value={draft.status}
-            onChange={(value) => set("status", value as Draft["status"])}
-            options={[
-              { value: "ACTIVE", label: t("active") },
-              { value: "INACTIVE", label: t("inactive") },
-            ]}
-            placeholder={t("status")}
-            empty={t("status")}
-          />
           <MemberPickerField
             id={`${id}-member`}
             surface={`employee-form:${employee?.id ?? "new"}:account`}
@@ -367,55 +440,207 @@ export function EmployeeForm({
             none={t("noAccount")}
             option={accountOption}
           />
-          <MemberPickerField
-            id={`${id}-supervisor`}
-            surface={`employee-form:${employee?.id ?? "new"}:supervisor`}
-            label={t("supervisor")}
-            value={draft.supervisorUserId}
-            known={
-              employee?.supervisorUserId === undefined
-                ? undefined
-                : {
-                    userId: employee.supervisorUserId,
-                    label: employee.supervisorName ?? t("unknownMember"),
-                  }
-            }
-            onChange={(value) => set("supervisorUserId", value)}
-            error={errors.supervisorUserId}
-            none={t("noSupervisor")}
-            option={supervisorOption}
-          />
-          <FormField
-            id={`${id}-start`}
-            label={t("employmentStart")}
-            required
-            error={errors.employmentStartDate}
-          >
-            {(field) => (
-              <Input
-                {...field}
-                type="date"
-                value={draft.employmentStartDate}
-                onChange={(e) => set("employmentStartDate", e.target.value)}
-              />
-            )}
-          </FormField>
-          <FormField
-            id={`${id}-end`}
-            label={t("employmentEnd")}
-            hint={t("employmentEndHint")}
-            error={errors.employmentEndDate}
-          >
-            {(field) => (
-              <Input
-                {...field}
-                type="date"
-                value={draft.employmentEndDate}
-                onChange={(e) => set("employmentEndDate", e.target.value)}
-              />
-            )}
-          </FormField>
         </div>
+
+        <fieldset className="space-y-4 rounded-lg border border-border p-4">
+          <legend className="px-1 text-sm font-semibold text-text">
+            {t("employment")}
+          </legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SelectField
+              id={`${id}-department`}
+              label={t("department")}
+              required={required.departmentId}
+              value={draft.departmentId}
+              onChange={(value) => set("departmentId", value)}
+              options={orgOptions(
+                options.department,
+                draft.departmentId,
+                employee?.departmentName,
+                required.departmentId ? null : t("noDepartment"),
+                t,
+              )}
+              error={errors.departmentId}
+              placeholder={t("chooseDepartment")}
+              empty={t("noOptions")}
+              pending={options.department === undefined}
+            />
+            <SelectField
+              id={`${id}-position`}
+              label={t("position")}
+              required={required.positionId}
+              value={draft.positionId}
+              onChange={(value) => set("positionId", value)}
+              options={orgOptions(
+                options.position,
+                draft.positionId,
+                employee?.positionName,
+                required.positionId ? null : t("noPosition"),
+                t,
+              )}
+              error={errors.positionId}
+              placeholder={t("choosePosition")}
+              empty={t("noOptions")}
+              pending={options.position === undefined}
+            />
+            <SelectField
+              id={`${id}-level`}
+              label={t("level")}
+              value={draft.levelId}
+              onChange={(value) => set("levelId", value)}
+              options={orgOptions(
+                options.level,
+                draft.levelId,
+                employee?.levelName,
+                t("noLevel"),
+                t,
+              )}
+              error={errors.levelId}
+              placeholder={t("noLevel")}
+              empty={t("noOptions")}
+              pending={options.level === undefined}
+            />
+            <MemberPickerField
+              id={`${id}-supervisor`}
+              surface={`employee-form:${employee?.id ?? "new"}:supervisor`}
+              label={t("supervisor")}
+              value={draft.supervisorUserId}
+              known={
+                employee?.supervisorUserId === undefined
+                  ? undefined
+                  : {
+                      userId: employee.supervisorUserId,
+                      label: employee.supervisorName ?? t("unknownMember"),
+                    }
+              }
+              onChange={(value) => set("supervisorUserId", value)}
+              error={errors.supervisorUserId}
+              none={t("noSupervisor")}
+              option={supervisorOption}
+            />
+            <SelectField
+              id={`${id}-branch`}
+              label={t("branch")}
+              value={draft.branchId}
+              onChange={(value) => set("branchId", value)}
+              options={orgOptions(
+                options.branch,
+                draft.branchId,
+                employee?.branchName,
+                t("noBranch"),
+                t,
+              )}
+              error={errors.branchId}
+              placeholder={t("noBranch")}
+              empty={t("noOptions")}
+              pending={options.branch === undefined}
+            />
+            <div className="grid min-w-0 content-start gap-2">
+              <Label htmlFor={`${id}-site`}>{t("workplace")}</Label>
+              <HrSiteSelect
+                id={`${id}-site`}
+                surface={`employee-form:${employee?.id ?? "new"}:site`}
+                sites={sites}
+                value={draft.siteId}
+                onChange={(value) => set("siteId", value)}
+                placeholder={t("chooseSite")}
+                emptyLabel={t("noSites")}
+                invalid={errors.siteId !== undefined}
+                {...(errors.siteId === undefined
+                  ? {}
+                  : { describedBy: `${id}-site-error` })}
+              />
+              {errors.siteId ? (
+                <p
+                  id={`${id}-site-error`}
+                  role="alert"
+                  className="text-xs leading-relaxed text-danger"
+                >
+                  {errors.siteId}
+                </p>
+              ) : null}
+            </div>
+            <SelectField
+              id={`${id}-status`}
+              label={t("employmentStatus")}
+              value={draft.status}
+              onChange={(value) => set("status", value as Draft["status"])}
+              options={[
+                { value: "ACTIVE", label: t("active") },
+                { value: "INACTIVE", label: t("inactive") },
+              ]}
+              placeholder={t("employmentStatus")}
+              empty={t("employmentStatus")}
+            />
+            <FormField
+              id={`${id}-start`}
+              label={t("employmentStart")}
+              required
+              error={errors.employmentStartDate}
+            >
+              {(field) => (
+                <Input
+                  {...field}
+                  type="date"
+                  value={draft.employmentStartDate}
+                  onChange={(e) => set("employmentStartDate", e.target.value)}
+                />
+              )}
+            </FormField>
+            <FormField
+              id={`${id}-end`}
+              label={t("employmentEnd")}
+              hint={t("employmentEndHint")}
+              error={errors.employmentEndDate}
+            >
+              {(field) => (
+                <Input
+                  {...field}
+                  type="date"
+                  value={draft.employmentEndDate}
+                  onChange={(e) => set("employmentEndDate", e.target.value)}
+                />
+              )}
+            </FormField>
+          </div>
+          <RadioFieldset
+            id={`${id}-type`}
+            legend={t("employmentType")}
+            value={draft.employmentType}
+            options={(["PERMANENT", "FIXED_TERM"] as const).map((type) => ({
+              value: type,
+              label: t(`employmentTypeValue.${type}`),
+            }))}
+            onChange={(type) => set("employmentType", type)}
+            error={errors.employmentType}
+          />
+          <div className="grid gap-3 sm:grid-cols-2 sm:items-start">
+            <label className="flex min-h-touch items-center gap-2 text-sm text-text">
+              <CheckboxControl
+                checked={draft.onProbation}
+                onChange={(e) => set("onProbation", e.target.checked)}
+              />
+              {t("onProbation")}
+            </label>
+            {draft.onProbation ? (
+              <FormField
+                id={`${id}-probation`}
+                label={t("probationEnd")}
+                required
+                error={errors.probationEndDate}
+              >
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="date"
+                    value={draft.probationEndDate}
+                    onChange={(e) => set("probationEndDate", e.target.value)}
+                  />
+                )}
+              </FormField>
+            ) : null}
+          </div>
+        </fieldset>
 
         <fieldset
           id={FOCUS_TARGET_IDS.schedule}
@@ -564,6 +789,54 @@ export function EmployeeForm({
 
 type MemberOption = HrPageRow<typeof hrRefs.memberOptionsPage>;
 
+type OrgOption = Pick<MasterRow, "id" | "name" | "status">;
+
+/**
+ * Active branch/department/position/level choices, plus the employee's
+ * current (possibly inactive) reference so it stays selected unchanged.
+ */
+function useOrgOptions(employee: EmployeeRecord | undefined) {
+  const current = (id: string | undefined) =>
+    id === undefined ? {} : { currentId: id };
+  return {
+    branch: orgItems<OrgOption>(
+      useQuery(hrRefs.branchOptions, current(employee?.branchId)),
+    ),
+    department: orgItems<OrgOption>(
+      useQuery(hrRefs.departmentOptions, current(employee?.departmentId)),
+    ),
+    position: orgItems<OrgOption>(
+      useQuery(hrRefs.positionOptions, current(employee?.positionId)),
+    ),
+    level: orgItems<OrgOption>(
+      useQuery(hrRefs.levelOptions, current(employee?.levelId)),
+    ),
+  };
+}
+
+function orgOptions(
+  rows: readonly OrgOption[] | undefined,
+  value: string,
+  currentName: string | undefined,
+  none: string | null,
+  t: ReturnType<typeof useTranslations<"Hr.employees">>,
+) {
+  const shown = (rows ?? []).map((row) => ({
+    value: row.id,
+    label:
+      row.status === "ACTIVE"
+        ? row.name
+        : t("inactiveOption", { name: row.name }),
+  }));
+  return [
+    ...(none === null ? [] : [{ value: "", label: none }]),
+    ...(value !== "" && !shown.some((option) => option.value === value)
+      ? [{ value, label: currentName ?? t("selectedOption") }]
+      : []),
+    ...shown,
+  ];
+}
+
 /**
  * A member selector over every active member: a search narrows the
  * options across the whole organization and further pages stay reachable.
@@ -683,6 +956,7 @@ function SelectField({
   id,
   label,
   hint,
+  required = false,
   value,
   onChange,
   options,
@@ -694,6 +968,7 @@ function SelectField({
   readonly id: string;
   readonly label: string;
   readonly hint?: string;
+  readonly required?: boolean;
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly options: readonly {
@@ -710,13 +985,22 @@ function SelectField({
     .filter(Boolean)
     .join(" ");
   return (
-    <div className="grid min-w-0 gap-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="grid min-w-0 content-start gap-2">
+      <Label htmlFor={id}>
+        {label}
+        {required ? (
+          <span className="text-danger" aria-hidden="true">
+            {" "}
+            *
+          </span>
+        ) : null}
+      </Label>
       <SelectControl
         id={id}
         value={value}
         onValueChange={onChange}
         options={options}
+        required={required}
         placeholder={placeholder}
         emptyLabel={empty}
         invalid={error !== undefined}
@@ -746,6 +1030,8 @@ const SAFE_VALUE_FIELDS = new Set([
   "displayName",
   "employmentStartDate",
   "employmentEndDate",
+  "employmentType",
+  "probationEndDate",
   "status",
 ]);
 const LABELLED_FIELDS = new Set([
@@ -757,6 +1043,12 @@ const LABELLED_FIELDS = new Set([
   "employmentStartDate",
   "employmentEndDate",
   "status",
+  "branchId",
+  "departmentId",
+  "positionId",
+  "levelId",
+  "employmentType",
+  "probationEndDate",
   "schedule",
 ]);
 
@@ -776,7 +1068,12 @@ function auditValue(
   }
   if (typeof value !== "string") return t("auditEmpty");
   if (field === "status") return t(value === "ACTIVE" ? "active" : "inactive");
-  if (field.startsWith("employment")) return formatBusinessDate(value, locale);
+  if (field === "employmentType")
+    return value === "PERMANENT" || value === "FIXED_TERM"
+      ? t(`employmentTypeValue.${value}`)
+      : value;
+  if (field.startsWith("employment") || field === "probationEndDate")
+    return formatBusinessDate(value, locale);
   return value;
 }
 

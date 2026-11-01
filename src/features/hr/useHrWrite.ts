@@ -204,6 +204,12 @@ function operationFor(intent: string): string | undefined {
     ["notification-read:", "hr.notifications.markOne"],
     ["payslip-import-stage", "hr.payslip.stage"],
     ["payslip-publish:", "hr.payslip.publish"],
+    ["org-company", "hr.org.company.save"],
+    ["org-logo", "hr.org.logo.save"],
+    ["org-branch:", "hr.org.branch.save"],
+    ["org-department:", "hr.org.hrDepartments.save"],
+    ["org-position:", "hr.org.hrPositions.save"],
+    ["org-level:", "hr.org.hrPositionLevels.save"],
   ];
   return operations.find(([prefix]) => intent.startsWith(prefix))?.[1];
 }

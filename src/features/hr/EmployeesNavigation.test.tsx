@@ -4,17 +4,22 @@ import { useSyncExternalStore } from "react";
 import type { ComponentProps } from "react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { chooseOption } from "@tests/fixtures/select-control";
 
 const state = vi.hoisted(() => ({
   queries: new Map<string, unknown>(),
+  args: new Map<string, unknown>(),
   save: vi.fn(),
   identityKey: "audit-org:audit-user",
 }));
 vi.mock("convex/react", async () => {
   const { getFunctionName: name } = await import("convex/server");
   return {
-    useQuery: (reference: Parameters<typeof name>[0], args: unknown) =>
-      args === "skip" ? undefined : state.queries.get(name(reference)),
+    useQuery: (reference: Parameters<typeof name>[0], args: unknown) => {
+      if (args === "skip") return undefined;
+      state.args.set(name(reference), args);
+      return state.queries.get(name(reference));
+    },
     useMutation: () => state.save,
   };
 });
@@ -444,3 +449,85 @@ it("an employee save receipt gives way to the next editor and omits the handoff 
   await waitFor(() => expect(window.location.search).toBe(""));
   expect(screen.queryByTestId("hr-employee-saved")).toBeNull();
 });
+
+it("filters employees by department through the URL and lists Department and Position", async () => {
+  state.queries.set(getFunctionName(hrRefs.listDepartments), {
+    ok: true,
+    value: {
+      items: [
+        { id: "d1", name: "Sales", status: "ACTIVE", version: 1 },
+        { id: "d2", name: "Recruitment", status: "INACTIVE", version: 1 },
+      ],
+    },
+  });
+  state.queries.set(getFunctionName(hrRefs.employeesPage), {
+    ok: true,
+    value: {
+      ok: true,
+      status: "ready",
+      page: [
+        { ...employee, departmentName: "Sales", positionName: "General staff" },
+      ],
+      continueCursor: "",
+      isDone: true,
+    },
+  });
+  window.history.pushState({}, "", "/en/hr/employees?q=Som#registry");
+  renderWithIntl(
+    <DraftGuardProvider>
+      <main>
+        <HrEmployeesScreen />
+      </main>
+    </DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+  expect(
+    screen.getAllByRole("columnheader").map((cell) => cell.textContent),
+  ).toEqual(expect.arrayContaining(["Department", "Position"]));
+  expect(screen.getAllByText("General staff").length).toBeGreaterThan(0);
+  chooseOption("Department", "Recruitment (inactive)");
+  await waitFor(() =>
+    expect(new URLSearchParams(window.location.search).get("dept")).toBe("d2"),
+  );
+  expect(window.location.hash).toBe("#registry");
+  await waitFor(() =>
+    expect(state.args.get(getFunctionName(hrRefs.employeesPage))).toMatchObject(
+      { search: "Som", departmentId: "d2" },
+    ),
+  );
+});
+
+it.each(["loading", "unknown", "refused"] as const)(
+  "a department filter in the URL holds the list while departments are %s instead of showing unfiltered rows",
+  (departments) => {
+    state.queries.set(
+      getFunctionName(hrRefs.listDepartments),
+      departments === "loading"
+        ? undefined
+        : departments === "refused"
+          ? { ok: false, requestId: "q", denial: {} }
+          : {
+              ok: true,
+              value: { items: [{ id: "d1", name: "Sales", status: "ACTIVE" }] },
+            },
+    );
+    state.args.delete(getFunctionName(hrRefs.employeesPage));
+    window.history.pushState({}, "", "/en/hr/employees?dept=edited");
+    renderWithIntl(
+      <DraftGuardProvider>
+        <main>
+          <HrEmployeesScreen />
+        </main>
+      </DraftGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    expect(state.args.has(getFunctionName(hrRefs.employeesPage))).toBe(false);
+    expect(screen.queryByText("Somsak")).toBeNull();
+    if (departments === "loading")
+      expect(screen.queryByTestId("hr-error")).toBeNull();
+    else
+      expect(screen.getByTestId("hr-error")).toHaveTextContent(
+        "Not found, or not in your scope",
+      );
+  },
+);

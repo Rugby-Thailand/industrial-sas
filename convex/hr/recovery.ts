@@ -12,6 +12,13 @@ const OPERATIONS = new Map([
   ["hr.correction.submit", HR_PERMISSION.selfAccess],
   ["hr.preferences.save", HR_PERMISSION.selfAccess],
   ["hr.employee.save", HR_PERMISSION.adminManage],
+  ["hr.org.company.save", HR_PERMISSION.adminManage],
+  ["hr.org.logo.save", HR_PERMISSION.adminManage],
+  ["hr.org.branch.save", HR_PERMISSION.adminManage],
+  ["hr.org.hrDepartments.save", HR_PERMISSION.adminManage],
+  ["hr.org.hrPositions.save", HR_PERMISSION.adminManage],
+  ["hr.org.hrPositionLevels.save", HR_PERMISSION.adminManage],
+
   ["hr.holiday.save", HR_PERMISSION.adminManage],
   ["hr.holiday.delete", HR_PERMISSION.adminManage],
   ["hr.access.set", HR_PERMISSION.adminManage],

@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(35);
+    expect(coveredModules).toHaveLength(36);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 40 representative functions, not every public export
+    // The inventory covers 41 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(40);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(41);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -231,6 +231,7 @@ describe("representative registered payloads and safe HR capability gates", () =
       "hr/announcements:self": { ok: false, code: "HR_NOT_LINKED" },
       "hr/notifications:list": { ok: false, code: "HR_NOT_LINKED" },
       "hr/payslips:list": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/org:getCompanyProfile": { profile: null },
       "hr/selfPeriods:list": { ok: false, code: "HR_NOT_LINKED" },
       "finishedGoods/batches:getBatch": {
         batch: { _id: world.batchId, status: "DRAFT", revision: 1 },
