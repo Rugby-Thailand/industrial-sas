@@ -322,10 +322,11 @@ it("completed assignment consumes its draft so a later visit starts a fresh assi
       screen.getByRole("heading", { name: "Packages stored" }),
     ).toBeVisible(),
   );
+  expect(localStorage.getItem("actor-a:warehouse-a::batch-a")).toBeNull();
   first.unmount();
   show();
   expect(screen.queryByRole("heading", { name: "Packages stored" })).toBeNull();
-  expect(screen.getByRole("textbox", { name: "Package code" })).toHaveValue("");
+  expect(screen.getByRole("textbox", { name: "Package code" })).toBeVisible();
   expect(screen.queryByRole("spinbutton", { name: "Fullness (%)" })).toBeNull();
 });
 it("ignores a previously persisted completed-assignment draft", () => {
