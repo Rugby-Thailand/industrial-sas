@@ -2,7 +2,7 @@
 
 Scope: no current users; intentionally retire the unused unpaged product-batch
 endpoint. No pallet, batch, revision, ledger, payroll, audit or grant record is
-removed by this migration. This document supersedes the initial partial lane status.
+removed by this migration. See [integrated validation](validation.md) for verification and release limits.
 
 ## Public contract decision
 

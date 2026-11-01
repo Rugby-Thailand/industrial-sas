@@ -1,6 +1,6 @@
 # Payslip payload migration (inline bytes → `hrPayslipPayloads`)
 
-Status: code and fixtures complete; **not executed against any deployment**.
+Status: verified on a disposable local deployment, including exact snapshot restoration and original PDF hash checks. **Not executed against a cloud deployment.** See [integrated validation](../reviews/database-design-2026-11-01/validation.md).
 
 ## What changed
 

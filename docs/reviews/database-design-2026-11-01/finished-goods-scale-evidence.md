@@ -33,7 +33,7 @@ identity allocation and sorted-cursor invalidation. The counter concurrency test
 establishes serializable outcomes in the local harness, not backend retry rates.
 Existing catalogue-pagination tests also verify globally complete traversal,
 changed-criteria/cross-warehouse rejection, generation handling and malformed
-cursor refusal. These tests were run with this lane.
+cursor refusal. These tests were included in the affected integration run.
 
 ## Supported envelope and operating limits
 
@@ -52,5 +52,5 @@ cursor refusal. These tests were run with this lane.
   latency and reactive subscription work at representative tenant sizes. Do not
   debounce generation updates or allocate identity blocks to conceal contention.
 
-No production load, production data, external recovery, deployment or browser
-acceptance was performed by this lane. Parent owns integrated browser acceptance.
+Production load and external file recovery remain unmeasured. Integrated local
+backend, browser and snapshot recovery evidence is recorded in [validation](validation.md).
