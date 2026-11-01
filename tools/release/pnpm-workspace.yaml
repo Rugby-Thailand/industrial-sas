@@ -1,14 +1,21 @@
 # Standalone, separately locked release-tool install (run pnpm with this directory as its working directory).
 # Exact overrides patch DoS advisories in the CLI's transitive parsers within
-# the same major version; remaining reviewed items are listed with owner and
-# expiry in docs/operations/dependency-exceptions.md.
+# the same major version except scoped Zod upgrades with compatibility checks.
+# Remaining reviewed items are in docs/operations/dependency-exceptions.md.
 overrides:
   "tar@<7.5.21": 7.5.22
   "smol-toml@<1.7.1": 1.9.1
-  "@vercel/node>undici": 6.29.0
-  "vercel>undici": 6.29.0
+  "@vercel/node>undici": 6.29.1
+  "vercel>undici": 6.29.1
   "js-yaml@>=4.0.0 <4.3.2": 4.3.2
   "minimatch@>=10.0.0 <10.2.3": 10.2.6
   "path-to-regexp@>=6.0.0 <6.3.0": 6.3.0
   "path-to-regexp@>=8.0.0 <8.4.0": 8.4.2
   "@fastify/busboy@>=1.0.0 <3.2.1": 3.2.2
+  "undici@>=7.0.0 <7.30.1": 7.30.1
+  "zod@>=4.0.0 <4.6.6": 4.6.6
+  # Zod 4.6.6 retains the v3 record API used by Python-analysis schemas.
+  "@vercel/backends>zod": 4.6.6
+  "@vercel/express>zod": 4.6.6
+  "@vercel/hono>zod": 4.6.6
+  "@vercel/python-analysis>zod": 4.6.6
