@@ -79,7 +79,16 @@ async function migrateRow(
     if (
       payload === null ||
       payload.orgId !== row.orgId ||
-      payload.sourceHash !== row.sourceHash
+      payload.sourceHash !== row.sourceHash ||
+      payload.employeeId !== row.employeeId ||
+      payload.importId !== row.importId
+    )
+      return "FAILED";
+    const bytes = pdfBytes(payload.sourceBase64);
+    if (
+      bytes === null ||
+      bytes.length !== payload.byteLength ||
+      (await pdfHash(bytes)) !== row.sourceHash
     )
       return "FAILED";
     // A row is complete only once no inline copy remains.

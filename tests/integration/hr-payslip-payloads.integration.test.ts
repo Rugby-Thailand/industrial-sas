@@ -583,4 +583,37 @@ describe("legacy inline payload migration", () => {
       missingPayload: 1,
     });
   });
+
+  it("does not certify migrated payloads with corrupted bytes, length or statement ownership", async () => {
+    const { world } = await fixture();
+    const seeded = await legacy(world);
+    await pass(world, false);
+    const row = await world.t.run((ctx) => ctx.db.get(seeded[0]!.rowId));
+    const payload = await world.t.run((ctx) => ctx.db.get(row!.payloadId!));
+    const other = await world.t.run((ctx) => ctx.db.get(seeded[1]!.rowId));
+    for (const corrupt of [
+      { sourceBase64: btoa("%PDF-1.7\ncorrupted\n%%EOF") },
+      { byteLength: payload!.byteLength - 1 },
+      { employeeId: other!.employeeId },
+      { importId: other!.importId },
+    ]) {
+      await world.t.run((ctx) => ctx.db.patch(payload!._id, corrupt));
+      expect(await pass(world, true)).toMatchObject({
+        alreadyMigrated: 2,
+        integrityFailures: [row!._id],
+      });
+      await world.t.run((ctx) =>
+        ctx.db.patch(payload!._id, {
+          sourceBase64: payload!.sourceBase64,
+          byteLength: payload!.byteLength,
+          employeeId: payload!.employeeId,
+          importId: payload!.importId,
+        }),
+      );
+    }
+    expect(await pass(world, true)).toMatchObject({
+      alreadyMigrated: 3,
+      integrityFailures: [],
+    });
+  });
 });
