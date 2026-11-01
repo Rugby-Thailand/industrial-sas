@@ -108,6 +108,7 @@ import type * as model_hr_period from "../model/hr/period.js";
 import type * as model_hr_policy from "../model/hr/policy.js";
 import type * as model_hr_policySchema from "../model/hr/policySchema.js";
 import type * as model_hr_schedule from "../model/hr/schedule.js";
+import type * as model_hr_workRules from "../model/hr/workRules.js";
 import type * as model_identifiers_normalization from "../model/identifiers/normalization.js";
 import type * as model_inventory_requestIdentity from "../model/inventory/requestIdentity.js";
 import type * as model_result from "../model/result.js";
@@ -250,6 +251,7 @@ declare const fullApi: ApiFromModules<{
   "model/hr/policy": typeof model_hr_policy;
   "model/hr/policySchema": typeof model_hr_policySchema;
   "model/hr/schedule": typeof model_hr_schedule;
+  "model/hr/workRules": typeof model_hr_workRules;
   "model/identifiers/normalization": typeof model_identifiers_normalization;
   "model/inventory/requestIdentity": typeof model_inventory_requestIdentity;
   "model/result": typeof model_result;
