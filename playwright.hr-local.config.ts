@@ -18,6 +18,15 @@ export default defineConfig({
     sourceHead: execFileSync("git", ["rev-parse", "HEAD"], {
       encoding: "utf8",
     }).trim(),
+    // HEAD alone is not exact provenance when tracked/untracked files differ.
+    sourceDirty:
+      execFileSync(
+        "git",
+        ["status", "--porcelain", "--untracked-files=normal"],
+        {
+          encoding: "utf8",
+        },
+      ).trim() !== "",
     backend: "worktree-owned anonymous Convex on loopback:3320",
   },
   testDir: "./tests/e2e/hr-local",

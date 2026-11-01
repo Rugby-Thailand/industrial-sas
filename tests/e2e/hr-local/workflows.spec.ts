@@ -42,6 +42,13 @@ test("clock events and server times survive reload", async ({ page }, info) => {
     type: "real-clock-writes",
     description: String(writes),
   });
+  // The one daily cycle may already be consumed (e.g. by the other project).
+  // Retained timestamps were verified above, but no clock action ran here, so
+  // report it as skipped rather than as a passing clock-write case.
+  test.skip(
+    writes === 0,
+    "No clock action available today; only retained records were verified",
+  );
 });
 
 test("correction submits real request and preserves originals after reload", async ({

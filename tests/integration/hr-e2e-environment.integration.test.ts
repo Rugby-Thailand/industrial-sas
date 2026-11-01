@@ -49,7 +49,8 @@ describe("real HR browser harness destination guards", () => {
   });
 });
 
-it.each(["127.0.0.1", "::1"])(
+// macOS lets an exact loopback bind coexist with another wildcard listener.
+it.each(["127.0.0.1", "::1", "0.0.0.0", "::"])(
   "refuses a real occupied %s service port",
   async (host) => {
     const server = net.createServer();
