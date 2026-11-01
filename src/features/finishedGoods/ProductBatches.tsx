@@ -624,11 +624,22 @@ function BatchHistory({
   batchId: string;
   unit: string;
 }) {
-  const { t, tr } = useFGText();
+  const { t, tr, locale } = useFGText();
   const [open, setOpen] = useState(false);
+  const paging = useCursorPagination({
+    scope: `batch-history:${warehouseId}:${batchId}`,
+    criteria: {},
+  });
   const detail = useQuery(
-    fgRefs.getBatch,
-    open ? { warehouseId, batchId } : "skip",
+    fgRefs.pageBatchRevisions,
+    open
+      ? {
+          warehouseId,
+          batchId,
+          pageSize: 20,
+          ...(paging.cursor ? { cursor: paging.cursor } : {}),
+        }
+      : "skip",
   );
   return (
     <details
@@ -645,30 +656,45 @@ function BatchHistory({
           <ErrorNotice
             message={t("copy.packing-history-could-not-be-loaded")}
           />
-        ) : detail.value.history.length ? (
-          <ul className="mt-3 space-y-2">
-            {detail.value.history.map((revision) => (
-              <li
-                key={revision._id}
-                className="rounded-lg border border-border p-3"
-              >
-                {t("copy.revision")} {revision.revision} ·{" "}
-                {revision.totalQuantity ?? "—"} {unit} ·{" "}
-                {revision.status === "DRAFT"
-                  ? t("copy.draft")
-                  : unitCountLabel(
-                      revision.storageFormat,
-                      revision.palletIds.length,
-                      tr,
-                    )}
-                <span className="mt-1 block text-xs text-muted">
-                  {revision.packages
-                    .map((row) => `${row.quantity ?? "—"} ${unit}`)
-                    .join(" + ")}
-                </span>
-              </li>
-            ))}
-          </ul>
+        ) : detail.value.page.length ? (
+          <>
+            <ul className="mt-3 space-y-2">
+              {detail.value.page.map((revision) => (
+                <li
+                  key={revision._id}
+                  className="rounded-lg border border-border p-3"
+                >
+                  {t("copy.revision")} {revision.revision} ·{" "}
+                  {revision.totalQuantity ?? "—"} {unit} ·{" "}
+                  {revision.status === "DRAFT"
+                    ? t("copy.draft")
+                    : unitCountLabel(
+                        revision.storageFormat,
+                        revision.palletIds.length,
+                        tr,
+                      )}
+                  <span className="mt-1 block text-xs text-muted">
+                    {revision.packages
+                      .map((row) => `${row.quantity ?? "—"} ${unit}`)
+                      .join(" + ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <CursorPagination
+              page={paging.page}
+              pageSize={20}
+              pageSizes={[20]}
+              onPageSizeChange={paging.setPageSize}
+              onPrevious={paging.previous}
+              onNext={() => paging.next(detail.value!.continueCursor)}
+              canPrevious={paging.canPrevious}
+              canNext={!detail.value.isDone}
+              locale={locale}
+              onFirst={paging.reset}
+              historyTruncated={paging.historyTruncated}
+            />
+          </>
         ) : (
           <p className="mt-3 text-muted">
             {t("copy.no-packing-revisions-yet")}

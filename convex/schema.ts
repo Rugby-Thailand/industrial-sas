@@ -366,7 +366,11 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_versionId", byOrg("versionId"))
-    .index("by_orgId_versionId_employeeId", byOrg("versionId", "employeeId")),
+    .index("by_orgId_versionId_employeeId", byOrg("versionId", "employeeId"))
+    .index(
+      "by_orgId_versionId_employeeId_businessDate",
+      byOrg("versionId", "employeeId", "businessDate"),
+    ),
   finishedGoodsUnitContributions: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -869,6 +873,10 @@ const schema = defineSchema({
     .index("by_orgId_productId_status", byOrg("productId", "status"))
     .index("by_orgId_packingBatchId", byOrg("packingBatchId"))
     .index("by_orgId_preparationBatchId", byOrg("preparationBatchId"))
+    .index(
+      "by_orgId_preparationBatchId_retiredAt",
+      byOrg("preparationBatchId", "retiredAt"),
+    )
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
     .index(
       "by_orgId_warehouseId_productId_updatedAt",
@@ -910,6 +918,7 @@ const schema = defineSchema({
     .index("by_orgId_zoneId_status", byOrg("zoneId", "status"))
     .index("by_orgId_buildingId_status", byOrg("buildingId", "status"))
     .index("by_orgId_palletId", byOrg("palletId"))
+    .index("by_orgId_assignmentId_sequence", byOrg("assignmentId", "sequence"))
     .index(
       "by_orgId_warehouseId_positionCode",
       byOrg("warehouseId", "positionCode"),

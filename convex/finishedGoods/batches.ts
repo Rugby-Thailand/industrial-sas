@@ -26,8 +26,8 @@ import {
   nextCode,
   palletOf,
   productOf,
-  rows,
   stamp,
+  firstActiveMove,
 } from "./workflow";
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
@@ -80,28 +80,24 @@ async function unitsOf(
   ctx: TenantFunctionContext,
   batchId: Id<"finishedGoodsBatches">,
 ) {
-  return (
-    await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
+  // A batch creates at most 50 current units. Retired replacements belong to
+  // immutable revision history and must not enlarge the current-state read.
+  return ctx.tenantDb
+    .byIndex<Doc<"finishedGoodsPallets">>(
       "finishedGoodsPallets",
-      "by_orgId_preparationBatchId",
-      [{ field: "preparationBatchId", value: batchId }],
+      "by_orgId_preparationBatchId_retiredAt",
+      [
+        { field: "preparationBatchId", value: batchId },
+        { field: "retiredAt", value: undefined, missing: true },
+      ],
     )
-  ).filter((p) => !p.retiredAt);
+    .all(MAX_FG_PACKAGES);
 }
 async function withMove(
   ctx: TenantFunctionContext,
   unit: Doc<"finishedGoodsPallets">,
 ) {
-  const moves = await rows<Doc<"finishedGoodsMoves">>(
-    ctx,
-    "finishedGoodsMoves",
-    "by_orgId_palletId",
-    [{ field: "palletId", value: unit._id }],
-  );
-  const move = moves.find(
-    (m) => m.status === "RESERVED" || m.status === "IN_TRANSIT",
-  );
+  const move = await firstActiveMove(ctx, unit._id);
   return {
     ...unit,
     ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
@@ -110,7 +106,7 @@ async function withMove(
 /** Every physical hold is inspected independently of the convenience pallet status. */
 async function editableUnits(
   ctx: TenantFunctionContext,
-  units: Doc<"finishedGoodsPallets">[],
+  units: readonly Doc<"finishedGoodsPallets">[],
 ) {
   for (const unit of units) {
     if (unit.status === "RESERVED" || unit.status === "STORED") return false;
@@ -150,12 +146,6 @@ async function detail(
   batch: Doc<"finishedGoodsBatches">,
 ) {
   const units = await unitsOf(ctx, batch._id);
-  const history = await rows<Doc<"finishedGoodsBatchRevisions">>(
-    ctx,
-    "finishedGoodsBatchRevisions",
-    "by_orgId_batchId_revision",
-    [{ field: "batchId", value: batch._id }],
-  );
   const managedUnits = await Promise.all(
     units.map(async (unit) => ({
       ...(await withMove(ctx, unit)),
@@ -166,7 +156,6 @@ async function detail(
   return {
     batch,
     units: managedUnits,
-    history: history.sort((a, b) => b.revision - a.revision),
     editable,
     ...(!editable ? { blockedReason: "BATCH_NOT_EDITABLE" } : {}),
   };
@@ -380,47 +369,33 @@ export const getBatch = queryWithOrg({
     return { ...(await detail(ctx, batch)), product };
   },
 });
-export const listProductBatches = queryWithOrg({
+/** Immutable revision rows are fetched only when history is opened. */
+export const pageBatchRevisions = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    productId: v.id("finishedGoodsProducts"),
+    batchId: v.id("finishedGoodsBatches"),
+    pageSize: v.number(),
+    cursor: v.optional(v.string()),
   },
   returns: v.any(),
   permissionCode: READ,
-  target: { table: "finishedGoodsBatches" },
+  target: { table: "finishedGoodsBatchRevisions" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    if (!(await productOf(ctx, args))) return { batches: [], legacyUnits: [] };
-    const batches = await rows<Doc<"finishedGoodsBatches">>(
-      ctx,
-      "finishedGoodsBatches",
-      "by_orgId_productId",
-      [{ field: "productId", value: args.productId }],
-    );
-    const units = await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
-      "finishedGoodsPallets",
-      "by_orgId_productId",
-      [{ field: "productId", value: args.productId }],
-    );
-    return {
-      batches: await Promise.all(
-        batches
-          .filter((b) => b.warehouseId === args.warehouseId)
-          .sort((a, b) => b.updatedAt - a.updatedAt)
-          .map((b) => detail(ctx, b)),
-      ),
-      legacyUnits: await Promise.all(
-        units
-          .filter(
-            (p) =>
-              p.warehouseId === args.warehouseId &&
-              !p.preparationBatchId &&
-              !p.retiredAt,
-          )
-          .map((unit) => withMove(ctx, unit)),
-      ),
-    };
+    if (
+      !Number.isInteger(args.pageSize) ||
+      args.pageSize < 1 ||
+      args.pageSize > 25
+    )
+      throw new Error("Invalid history page size");
+    if (!(await batchOf(ctx, args.warehouseId, args.batchId))) return null;
+    return ctx.tenantDb
+      .byIndex<Doc<"finishedGoodsBatchRevisions">>(
+        "finishedGoodsBatchRevisions",
+        "by_orgId_batchId_revision",
+        [{ field: "batchId", value: args.batchId }],
+      )
+      .page({ limit: args.pageSize, cursor: args.cursor, order: "desc" });
   },
 });
 export const cancelLegacyUnit = mutationWithOrg({

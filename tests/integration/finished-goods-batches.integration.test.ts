@@ -1,3 +1,4 @@
+import { measured } from "../fixtures/query-read-stats";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
@@ -118,23 +119,86 @@ describe("preparation batches", () => {
     ]);
     expect(await batchRows(world)).toHaveLength(2);
     expect(
-      await call(world, batches.listProductBatches, {
+      await call(world, batches.getBatch, {
         warehouseId: args.warehouseId,
-        productId: args.productId,
+        batchId: (await batchRows(world))[0]!._id,
       }),
     ).toMatchObject({
       ok: true,
       value: {
-        batches: expect.arrayContaining([
-          expect.objectContaining({
-            units: expect.arrayContaining([
-              expect.objectContaining({ editable: true }),
-            ]),
-          }),
+        units: expect.arrayContaining([
+          expect.objectContaining({ editable: true }),
         ]),
-        legacyUnits: [],
       },
     });
+  });
+  it("bounds lazy revision reads and omits all history from current batch detail", async () => {
+    const { world, args } = await setup();
+    await call(world, batches.commitBatch, args);
+    const [batch] = await batchRows(world);
+    await world.t.run(async (ctx) => {
+      const oldUnit = (
+        await ctx.db.query("finishedGoodsPallets").collect()
+      )[0]!;
+      const { _id: oldId, _creationTime: oldTime, ...oldFields } = oldUnit;
+      void oldId;
+      void oldTime;
+      for (let i = 0; i < 10001; i++)
+        await ctx.db.insert("finishedGoodsPallets", {
+          ...oldFields,
+          code: `RETIRED-${i}`,
+          retiredAt: 1,
+        });
+      const template = (
+        await ctx.db.query("finishedGoodsBatchRevisions").collect()
+      )[0]!;
+      const { _id, _creationTime, ...fields } = template;
+      void _id;
+      void _creationTime;
+      for (let revision = 2; revision <= 101; revision++)
+        await ctx.db.insert("finishedGoodsBatchRevisions", {
+          ...fields,
+          revision,
+          requestId: `revision-${revision}`,
+        });
+    });
+    const input = { warehouseId: args.warehouseId, batchId: batch!._id };
+    const detail = await measured<Record<string, unknown>>(
+      world,
+      batches.getBatch,
+      input,
+    );
+    expect(detail.value).not.toHaveProperty("history");
+    expect(detail.stats.ranges.finishedGoodsBatchRevisions ?? 0).toBe(0);
+    expect(detail.stats.rangeDocs.finishedGoodsPallets).toBe(2);
+    type Page = {
+      page: Array<{ revision: number }>;
+      isDone: boolean;
+      continueCursor: string;
+    };
+    const first = await measured<Page>(world, batches.pageBatchRevisions, {
+      ...input,
+      pageSize: 20,
+    });
+    expect(first.value.page.map((r) => r.revision)).toEqual(
+      Array.from({ length: 20 }, (_, i) => 101 - i),
+    );
+    expect(first.stats.rangeDocs.finishedGoodsBatchRevisions).toBe(20);
+    const seen = [...first.value.page];
+    let page = first.value;
+    while (!page.isDone) {
+      page = (
+        await measured<Page>(world, batches.pageBatchRevisions, {
+          ...input,
+          pageSize: 20,
+          cursor: page.continueCursor,
+        })
+      ).value;
+      seen.push(...page.page);
+    }
+    expect(seen.map((r) => r.revision)).toEqual(
+      Array.from({ length: 101 }, (_, i) => 101 - i),
+    );
   });
   it("saves incomplete drafts without creating units and resumes with optimistic revision", async () => {
     const { world, args } = await setup();
@@ -529,21 +593,17 @@ describe("preparation integrity", () => {
       expectedRevision: 1,
     };
     expect(
-      await call(world, batches.listProductBatches, {
+      await call(world, batches.getBatch, {
         warehouseId: args.warehouseId,
-        productId: args.productId,
+        batchId: (await batchRows(world))[0]!._id,
       }),
     ).toMatchObject({
       ok: true,
       value: {
-        batches: [
-          expect.objectContaining({
-            units: expect.arrayContaining([
-              expect.objectContaining({ _id: unit!._id, editable: false }),
-              expect.objectContaining({ editable: true }),
-            ]),
-          }),
-        ],
+        units: expect.arrayContaining([
+          expect.objectContaining({ _id: unit!._id, editable: false }),
+          expect.objectContaining({ editable: true }),
+        ]),
       },
     });
     expect(await call(world, batches.commitBatch, change)).toMatchObject({
