@@ -13,7 +13,11 @@ export const fixturePath = "playwright/.auth/hr-local-fixture.json";
 
 export function localRun(name: string, args: Record<string, unknown>) {
   // Never permit arbitrary CLI functions, identity overrides, or remote targets.
-  if (!/^staging\/(annexDemo:bootstrapLocalDemo|hrDemo:seed)$/.test(name))
+  if (
+    !/^staging\/(annexDemo:bootstrapLocalDemo|hrDemo:(seed|setLocalTestRoles))$/.test(
+      name,
+    )
+  )
     throw new Error("HR_E2E_SEED_FUNCTION_REFUSED");
   try {
     return JSON.parse(
