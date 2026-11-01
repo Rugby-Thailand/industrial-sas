@@ -287,6 +287,75 @@ describe("policy gate, legal floors and real opening migration", () => {
       await world.t.run((ctx) => ctx.db.query("hrPolicyVersions").collect()),
     ).toHaveLength(1);
   });
+  const reopen = (
+    world: ConvexTenantWorld,
+    employeeId: Id<"hrEmployees">,
+    asOf: string,
+    expectedVersion: number,
+    granted = 6,
+  ) =>
+    call(world, policies.reconcileOpening, {
+      requestId: rid(),
+      employeeId,
+      type: "ANNUAL",
+      asOf,
+      granted,
+      used: 0,
+      reserved: 0,
+      paidUsed: 0,
+      paidReserved: 0,
+      sourceReference: "Historical opening register before activation",
+      expectedVersion,
+    });
+  it("refuses replacing a charged account even after several pre-activation opening corrections", async () => {
+    const { world, employeeId } = await fixture();
+    written(await save(world));
+    written(await opening(world, employeeId, "ANNUAL", 6));
+    written(await reopen(world, employeeId, today, 1));
+    for (const [type, grant] of [
+      ["SICK", 30],
+      ["PERSONAL", 3],
+      ["MILITARY", 60],
+    ] as const)
+      written(await opening(world, employeeId, type, grant));
+    written(
+      await call(world, policies.activate, {
+        requestId: rid(),
+        capability: "LEAVE",
+        expectedVersion: 1,
+        coverageConfirmed: true,
+        existingBenefitsReviewed: true,
+      }),
+    );
+    const request = written(
+      await submit(world, "ANNUAL", "2026-10-13", "2026-10-14"),
+    );
+    written(
+      await call(world, leave.decide, {
+        requestId: rid(),
+        leaveRequestId: request.documentId,
+        expectedVersion: 1,
+        decision: "APPROVE",
+      }),
+    );
+    const before = (await account(world))!;
+    expect(before).toMatchObject({ used: 2, paidUsed: 2 });
+    refused(
+      await reopen(world, employeeId, "2026-10-11", before.version),
+      "OPENING_ALREADY_IN_USE",
+    );
+    expect(await account(world)).toEqual(before);
+  });
+  it("locks an active uncharged opening even when asOf predates activation", async () => {
+    const { world, employeeId } = await fixture();
+    await activate(world, employeeId);
+    const before = (await account(world))!;
+    refused(
+      await reopen(world, employeeId, "2026-10-11", before.version, 30),
+      "OPENING_ACTIVE_POLICY_LOCKED",
+    );
+    expect(await account(world)).toEqual(before);
+  });
   it("cannot edit another organization's employee or expose policies to an employee", async () => {
     const { world, employeeId } = await fixture();
     const out = await call(
