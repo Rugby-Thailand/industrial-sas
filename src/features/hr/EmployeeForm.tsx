@@ -59,6 +59,14 @@ export interface EmployeeRecord {
   readonly levelName?: string | undefined;
   readonly employmentType?: "PERMANENT" | "FIXED_TERM" | undefined;
   readonly probationEndDate?: string | undefined;
+  readonly probationConfirmedDate?: string | undefined;
+  /** Offboarded: the record stays INACTIVE with this last day until reinstated. */
+  readonly separation?:
+    | {
+        readonly type: "RESIGNATION" | "TERMINATION";
+        readonly lastWorkingDate: string;
+      }
+    | undefined;
   readonly schedule?:
     | {
         readonly workDays: readonly number[];
@@ -564,10 +572,25 @@ export function EmployeeForm({
             <SelectField
               id={`${id}-status`}
               label={t("employmentStatus")}
+              {...(employee?.separation === undefined
+                ? {}
+                : {
+                    hint: t("separatedHint", {
+                      date: formatBusinessDate(
+                        employee.separation.lastWorkingDate,
+                        locale,
+                      ),
+                    }),
+                  })}
               value={draft.status}
               onChange={(value) => set("status", value as Draft["status"])}
               options={[
-                { value: "ACTIVE", label: t("active") },
+                {
+                  value: "ACTIVE",
+                  label: t("active"),
+                  // Reinstatement is a dated lifecycle event, not a toggle.
+                  disabled: employee?.separation !== undefined,
+                },
                 { value: "INACTIVE", label: t("inactive") },
               ]}
               placeholder={t("employmentStatus")}

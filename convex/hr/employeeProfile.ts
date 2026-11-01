@@ -146,7 +146,7 @@ export const saveEmployeeProfile = mutationWithOrg({
       run: async () => {
         if (employee === null) return fail("NOT_FOUND", "employeeId");
         const clock = orgClock(ctx);
-        if (clock === null) return fail("TIMEZONE_INVALID");
+        if (clock === null) return fail("TIMEZONE_UNSUPPORTED");
         const before = await onePer<Profile>(
           ctx,
           "hrEmployeeProfiles",
@@ -379,7 +379,7 @@ export const recordEmploymentEvent = mutationWithOrg({
         if (employee.version !== args.expectedVersion)
           return fail("EMPLOYEE_STALE");
         const clock = orgClock(ctx);
-        if (clock === null) return fail("TIMEZONE_INVALID");
+        if (clock === null) return fail("TIMEZONE_UNSUPPORTED");
         let command: LifecycleCommand;
         if (args.kind === "CONFIRM_PROBATION")
           command = { kind: args.kind, effectiveDate: args.effectiveDate };

@@ -3861,6 +3861,72 @@
       ]
     },
     {
+      "id": "src/features/hr/EmployeeProfileSections.tsx#EmployeeProfileSections:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "Edit personal/contact/payment details and Confirm probation / Record resignation or termination / Reinstate open the shared Back-aware Dialog over the retained URL-backed employee editor. Back or explicit Cancel dismisses the Dialog first and asks before discarding its typed draft (Keep editing retains it; the employment form underneath is untouched); a pending save blocks dismissal; a successful save settles its draft guard and consumes the Dialog entry before closing, so the next Back leaves the editor for the list with its locale, query and hash. Forward reopens the same section from current data. The section opens only inside the editor, so a direct editor link keeps the editor's audited closure.",
+      "tests": ["src/features/hr/EmployeeProfileSections.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "employee profile Edit -> explicit Cancel -> next Back closes the editor to the filtered list"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a dirty personal-details draft asks before Cancel or native Back discard it, and Keep editing retains it"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a pending contact save blocks Cancel and native Back, then the saved dialog consumes its entry before the next Back"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "native Back closes a clean payment editor and Forward reopens it"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "recording a resignation refuses today, sends a past last working day with a reason and consumes its dialog"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a remounted editor shows the saved profile again from the server"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/EmployeeProfileSections.tsx#SectionDialog:$overlay:Dialog:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The profile/payment/lifecycle shared Dialog owns its foreground entry: native Back and Cancel close it through the draft guard, pending saves block dismissal, and completion consumes the entry before the next Back.",
+      "tests": ["src/features/hr/EmployeeProfileSections.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "employee profile Edit -> explicit Cancel -> next Back closes the editor to the filtered list"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a dirty personal-details draft asks before Cancel or native Back discard it, and Keep editing retains it"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a pending contact save blocks Cancel and native Back, then the saved dialog consumes its entry before the next Back"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "native Back closes a clean payment editor and Forward reopens it"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "recording a resignation refuses today, sends a past last working day with a reason and consumes its dialog"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a remounted editor shows the saved profile again from the server"
+        }
+      ]
+    },
+    {
       "id": "src/features/hr/HrBranches.tsx#BranchesPanel:target",
       "policy": "overlay",
       "integration": "dialog",

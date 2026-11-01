@@ -45,7 +45,12 @@ import {
 } from "@/lib/navigation";
 
 import { EmployeeForm, type EmployeeRecord } from "./EmployeeForm";
-import { workDaysLabel } from "./format";
+import {
+  EmployeeProfileSections,
+  EmploymentStateBadge,
+  type EmploymentState,
+} from "./EmployeeProfileSections";
+import { formatBusinessDate, workDaysLabel } from "./format";
 import {
   HrGate,
   HrInlineError,
@@ -73,6 +78,8 @@ type EmployeeRow = {
   readonly code: string;
   readonly displayName: string;
   readonly status: "ACTIVE" | "INACTIVE";
+  readonly employmentState?: EmploymentState | undefined;
+  readonly separation?: { readonly lastWorkingDate: string } | undefined;
   readonly siteCode: string;
   readonly linkedUserId?: string | undefined;
   readonly linkedName?: string | undefined;
@@ -225,6 +232,14 @@ export function HrEmployeesScreen() {
   );
 }
 
+const STATUS_FILTERS = [
+  "ACTIVE",
+  "PROBATION",
+  "INACTIVE",
+  "FORMER",
+  "ALL",
+] as const;
+
 const LIST_DEFAULTS = { q: "", site: "", status: "", dept: "" } as const;
 const LIST_KEYS = Object.keys(LIST_DEFAULTS);
 type ListCriteria = Readonly<Record<keyof typeof LIST_DEFAULTS, string>>;
@@ -270,10 +285,8 @@ function EmployeesContent({
     LIST_DEFAULTS,
     "employees",
   );
-  const status =
-    criteria.status === "ACTIVE" || criteria.status === "INACTIVE"
-      ? criteria.status
-      : undefined;
+  // Empty lists current employees (everyone not offboarded).
+  const status = STATUS_FILTERS.find((value) => value === criteria.status);
   const departmentsOutcome = useQuery(hrRefs.listDepartments, {});
   const departments = orgItems<MasterRow>(departmentsOutcome);
   const department = criteria.dept === "" ? undefined : criteria.dept;
@@ -374,12 +387,14 @@ function EmployeesContent({
                 id={`${id}-status`}
                 value={criteria.status}
                 onValueChange={(next) => setCriteria({ status: next })}
-                placeholder={t("allStatuses")}
-                emptyLabel={t("allStatuses")}
+                placeholder={t("currentEmployees")}
+                emptyLabel={t("currentEmployees")}
                 options={[
-                  { value: "", label: t("allStatuses") },
-                  { value: "ACTIVE", label: t("active") },
-                  { value: "INACTIVE", label: t("inactive") },
+                  { value: "", label: t("currentEmployees") },
+                  ...STATUS_FILTERS.map((value) => ({
+                    value,
+                    label: t(`statusFilter.${value}`),
+                  })),
                 ]}
               />
             </div>
@@ -510,7 +525,7 @@ function EmployeeCard({
             {employee.code} · {employee.siteCode}
           </p>
         </div>
-        <EmployeeStatus status={employee.status} />
+        <EmployeeStatus employee={employee} />
       </div>
       <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
         <div>
@@ -604,13 +619,19 @@ function EmployeeEditor({
           );
         const employee = result.employee as EmployeeRecord;
         return (
-          <EmployeeForm
-            key={`${access.identityKey}:${employee.id}`}
-            employee={employee}
-            sites={access.sites}
-            today={access.today ?? ""}
-            onDone={onDone}
-          />
+          <div className="space-y-4">
+            <EmployeeForm
+              key={`${access.identityKey}:${employee.id}`}
+              employee={employee}
+              sites={access.sites}
+              today={access.today ?? ""}
+              onDone={onDone}
+            />
+            <EmployeeProfileSections
+              key={`${access.identityKey}:${employee.id}:profile`}
+              employeeId={employee.id}
+            />
+          </div>
         );
       }}
     </HrQueryState>
@@ -686,7 +707,7 @@ function EmployeeTable({
                 <ScheduleCell employee={employee} />
               </TableCell>
               <TableCell>
-                <EmployeeStatus status={employee.status} />
+                <EmployeeStatus employee={employee} />
               </TableCell>
               <TableCell className="px-2 text-right">
                 <EditButton
@@ -703,13 +724,26 @@ function EmployeeTable({
   );
 }
 
-function EmployeeStatus({ status }: { readonly status: string }) {
+/** The derived employment state, with the last working day once offboarded. */
+function EmployeeStatus({ employee }: { readonly employee: EmployeeRow }) {
   const t = useTranslations("Hr.employees");
+  const locale = useLocale();
   return (
-    <StatusBadge
-      tone={status === "ACTIVE" ? "success" : "muted"}
-      label={t(status === "ACTIVE" ? "active" : "inactive")}
-    />
+    <span className="inline-grid justify-items-start gap-1">
+      <EmploymentStateBadge
+        state={employee.employmentState ?? employee.status}
+      />
+      {employee.separation ? (
+        <span className="text-xs text-muted">
+          {t("lastDay", {
+            date: formatBusinessDate(
+              employee.separation.lastWorkingDate,
+              locale,
+            ),
+          })}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

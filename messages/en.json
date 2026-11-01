@@ -2262,7 +2262,17 @@
       "inactiveOption": "{name} (inactive)",
       "codeSuggested": "Suggested next code. You can change it.",
       "allDepartments": "All departments",
-      "selectedOption": "Current choice"
+      "selectedOption": "Current choice",
+      "currentEmployees": "Current employees",
+      "statusFilter": {
+        "ACTIVE": "Active (incl. probation)",
+        "PROBATION": "On probation",
+        "INACTIVE": "Inactive",
+        "FORMER": "Former (resigned or terminated)",
+        "ALL": "All, including former"
+      },
+      "lastDay": "Last day {date}",
+      "separatedHint": "Offboarded after {date}. Reinstate from Employment lifecycle to make them active again."
     },
     "periods": {
       "title": "Attendance periods",
@@ -2588,7 +2598,31 @@
       "LOGO_STALE": "Another administrator changed the logo. Review the current logo, then choose Remove again or apply your selected file. Your selected file is retained.",
       "LOGO_REVISION_INVALID": "The logo revision is invalid. Reload the current logo before trying again.",
       "LOGO_TOO_LARGE": "The logo must be 256 KB or smaller",
-      "BRANCH_TYPE_MISMATCH": "A head office uses branch number 00000; other branches use another number"
+      "BRANCH_TYPE_MISMATCH": "A head office uses branch number 00000; other branches use another number",
+      "EMPLOYEE_SEPARATED": "This employee was offboarded. Keep them inactive with their last working day, or reinstate them from Employment lifecycle.",
+      "LIFECYCLE_NOT_ON_PROBATION": "This employee is not on probation.",
+      "LIFECYCLE_ALREADY_SEPARATED": "This employee has already been offboarded.",
+      "LIFECYCLE_NOT_SEPARATED": "Only an offboarded employee can be reinstated.",
+      "LIFECYCLE_DATE_INVALID": "Enter a valid date.",
+      "LIFECYCLE_DATE_BEFORE_START": "The date can't be before the employment start date.",
+      "LIFECYCLE_DATE_FUTURE": "Scheduled changes aren't supported yet. Choose today or an earlier date.",
+      "LIFECYCLE_LAST_DAY_NOT_PAST": "The last working day must be before today, so the employee can still clock in and out on that day.",
+      "LIFECYCLE_REINSTATE_BEFORE_EXIT": "Reinstatement must be after the last working day.",
+      "LIFECYCLE_REASON_REQUIRED": "Enter a reason of 3–500 characters.",
+      "LIFECYCLE_TYPE_REQUIRED": "Choose resignation or termination.",
+      "PROFILE_TEXT_TOO_LONG": "This is too long.",
+      "PROFILE_NATIONAL_ID_INVALID": "Enter a valid 13-digit ID number.",
+      "PROFILE_EMAIL_INVALID": "Enter a valid email address.",
+      "PROFILE_PHONE_INVALID": "Enter a phone number using digits, spaces, + ( ) or -.",
+      "PROFILE_POSTAL_CODE_INVALID": "Enter a 5-digit postal code.",
+      "PROFILE_BIRTH_DATE_INVALID": "Enter a date of birth between 1900 and today.",
+      "PROFILE_EMERGENCY_INCOMPLETE": "An emergency contact needs a name and a phone number.",
+      "PROFILE_STALE": "These details changed since you opened them. Close and open them again.",
+      "PAYMENT_BANK_REQUIRED": "Enter the bank.",
+      "PAYMENT_ACCOUNT_INVALID": "Enter an account number of 6–20 digits.",
+      "PAYMENT_TEXT_TOO_LONG": "This is too long.",
+      "PAYMENT_BRANCH_CODE_INVALID": "Use up to 10 letters, digits or -.",
+      "PAYMENT_STALE": "Payment details changed since you opened them. Close and open them again."
     },
     "selfService": {
       "title": "Your tasks",
@@ -3280,6 +3314,136 @@
       "managerSearch": "Find an employee for manager",
       "managerPagination": "Manager choice pages",
       "noManagerMatches": "No active employee matches this search"
+    },
+    "employeeProfile": {
+      "personal": "Personal",
+      "contact": "Contact",
+      "emergency": "Emergency contact",
+      "payment": "Payment details",
+      "edit": "Edit",
+      "editPersonal": "Edit personal details",
+      "editContact": "Edit contact details",
+      "editPayment": "Edit payment details",
+      "noPersonal": "No personal details yet.",
+      "noContact": "No contact details yet.",
+      "noEmergency": "No emergency contact yet.",
+      "noPayment": "No payment details yet.",
+      "field": {
+        "title": "Title",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "firstNameEn": "First name (English)",
+        "lastNameEn": "Last name (English)",
+        "nickname": "Nickname",
+        "gender": "Gender",
+        "birthDate": "Date of birth",
+        "nationalId": "National ID",
+        "nationality": "Nationality",
+        "religion": "Religion",
+        "maritalStatus": "Marital status",
+        "email": "Email",
+        "phone": "Phone",
+        "lineId": "LINE ID",
+        "address": "Address",
+        "province": "Province",
+        "postalCode": "Postal code",
+        "emergencyName": "Name",
+        "emergencyRelationship": "Relationship",
+        "emergencyPhone": "Phone",
+        "method": "Pay by",
+        "bankName": "Bank",
+        "accountNumber": "Account number",
+        "accountName": "Account name",
+        "bankBranchCode": "Bank branch code"
+      },
+      "genderValue": {
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "OTHER": "Other"
+      },
+      "maritalStatusValue": {
+        "SINGLE": "Single",
+        "MARRIED": "Married",
+        "DIVORCED": "Divorced",
+        "WIDOWED": "Widowed"
+      },
+      "method": {
+        "BANK": "Bank transfer",
+        "CASH": "Cash"
+      },
+      "notSet": "Not set",
+      "nationalIdHint": "13 digits; dashes are removed.",
+      "emergencyHint": "Required when a name or relationship is entered.",
+      "paymentPrivate": "Visible to HR administrators only. No pay is calculated or transferred here.",
+      "accountHint": "6–20 digits; spaces and dashes are removed.",
+      "accountInvalid": "Enter an account number of 6–20 digits.",
+      "cashHint": "Choosing cash clears the saved bank details.",
+      "required": "Required.",
+      "save": "Save",
+      "close": "Close",
+      "editTitle": {
+        "personal": "Personal details",
+        "contact": "Contact and emergency contact",
+        "payment": "Payment details"
+      },
+      "dialogHint": {
+        "personal": "Leave a field empty to clear it.",
+        "contact": "Leave a field empty to clear it.",
+        "payment": "Bank details used for paying this employee.",
+        "CONFIRM_PROBATION": "Record the date probation was confirmed.",
+        "OFFBOARD": "Record a resignation or termination after the last working day.",
+        "REINSTATE": "Make an offboarded employee active again."
+      },
+      "lifecycle": "Employment lifecycle",
+      "state": {
+        "PROBATION": "Probation",
+        "ACTIVE": "Active",
+        "INACTIVE": "Inactive",
+        "RESIGNED": "Resigned",
+        "TERMINATED": "Terminated"
+      },
+      "action": {
+        "CONFIRM_PROBATION": "Confirm probation",
+        "OFFBOARD": "Record resignation or termination",
+        "REINSTATE": "Reinstate"
+      },
+      "employmentStart": "Employment start",
+      "probationEnd": "Probation ends",
+      "confirmedOn": "Confirmed on",
+      "lastWorkingDay": "Last working day",
+      "exitReason": "Exit reason",
+      "history": "Lifecycle history",
+      "noHistory": "No lifecycle changes yet.",
+      "historyTruncated": "Showing the latest 100 changes.",
+      "event": {
+        "PROBATION_CONFIRMED": "Probation confirmed",
+        "RESIGNED": "Resigned",
+        "TERMINATED": "Terminated",
+        "REINSTATED": "Reinstated"
+      },
+      "effective": "effective {date}",
+      "recorded": "Recorded {at} by {name}",
+      "offboardNotice": "Their app sign-in and HR roles are not changed. Remove access in Settings if needed. Leave balances are not settled here.",
+      "separationType": "Type",
+      "separation": {
+        "RESIGNATION": "Resignation",
+        "TERMINATION": "Termination"
+      },
+      "dateLabel": {
+        "CONFIRM_PROBATION": "Confirmation date",
+        "OFFBOARD": "Last working day",
+        "REINSTATE": "Reinstatement date"
+      },
+      "dateHint": {
+        "CONFIRM_PROBATION": "Today or earlier.",
+        "OFFBOARD": "Before today. Scheduled offboarding isn't supported yet.",
+        "REINSTATE": "After the last working day, today or earlier."
+      },
+      "reason": "Reason",
+      "reasonRequired": "Enter a reason of 3–500 characters.",
+      "dateFuture": "Choose today or an earlier date.",
+      "lastDayNotPast": "The last working day must be before today.",
+      "dateTooEarly": "Choose {date} or later."
     }
   },
   "Search": {
