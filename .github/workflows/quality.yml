@@ -68,6 +68,11 @@ jobs:
       - name: Release-tool dependency audit (exact-chain exceptions)
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: node scripts/ci/audit-dependencies.mjs --scope=release
+      - name: Release-tool schema compatibility
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        run: |
+          pnpm -C tools/release install --frozen-lockfile
+          node tools/release/check-compatibility.mjs
       - name: Test discovery
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
         run: pnpm ci:test-discovery

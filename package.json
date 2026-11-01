@@ -69,7 +69,7 @@
     "exact-mirror": "0.2.7",
     "lucide-react": "1.31.0",
     "motion": "13.4.0",
-    "next": "16.3.8",
+    "next": "16.4.1",
     "next-intl": "4.13.4",
     "next-themes": "0.4.6",
     "qrcode.react": "4.2.0",
@@ -101,7 +101,7 @@
     "convex-test": "0.0.54",
     "date-fns": "4.1.0",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.1",
     "eslint-config-prettier": "10.1.8",
     "fast-check": "4.9.0",
     "jest-axe": "11.0.0",
@@ -110,12 +110,12 @@
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",
     "react-day-picker": "9.14.0",
-    "shadcn": "4.17.0",
+    "shadcn": "4.23.0",
     "svix": "1.99.1",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",
-    "vite": "8.2.0",
+    "vite": "8.2.4",
     "vitest": "4.1.11"
   }
 }
