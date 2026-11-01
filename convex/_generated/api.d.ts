@@ -122,6 +122,8 @@ import type * as model_storageLayout_storageLayout from "../model/storageLayout/
 import type * as model_storageLayout_storagePosition from "../model/storageLayout/storagePosition.js";
 import type * as model_storageLayout_storageZone from "../model/storageLayout/storageZone.js";
 import type * as onboarding_bootstrapOrganization from "../onboarding/bootstrapOrganization.js";
+import type * as operations_duplicateAudit from "../operations/duplicateAudit.js";
+import type * as operations_temporaryRetention from "../operations/temporaryRetention.js";
 import type * as staging_annexDemo from "../staging/annexDemo.js";
 import type * as staging_e2eFixture from "../staging/e2eFixture.js";
 import type * as staging_hrDemo from "../staging/hrDemo.js";
@@ -261,6 +263,8 @@ declare const fullApi: ApiFromModules<{
   "model/storageLayout/storagePosition": typeof model_storageLayout_storagePosition;
   "model/storageLayout/storageZone": typeof model_storageLayout_storageZone;
   "onboarding/bootstrapOrganization": typeof onboarding_bootstrapOrganization;
+  "operations/duplicateAudit": typeof operations_duplicateAudit;
+  "operations/temporaryRetention": typeof operations_temporaryRetention;
   "staging/annexDemo": typeof staging_annexDemo;
   "staging/e2eFixture": typeof staging_e2eFixture;
   "staging/hrDemo": typeof staging_hrDemo;

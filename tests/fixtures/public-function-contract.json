@@ -1627,7 +1627,7 @@
       ]
     }
   },
-  "finishedGoods/batches:listProductBatches": {
+  "finishedGoods/batches:pageBatchRevisions": {
     "kind": "query",
     "visibility": "public",
     "args": {
@@ -1640,12 +1640,24 @@
           },
           "optional": false
         },
-        "productId": {
+        "batchId": {
           "fieldType": {
             "type": "id",
-            "tableName": "finishedGoodsProducts"
+            "tableName": "finishedGoodsBatches"
           },
           "optional": false
+        },
+        "pageSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
         }
       }
     },
@@ -20676,6 +20688,106 @@
           "optional": false
         }
       }
+    }
+  },
+  "operations/duplicateAudit:page": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "contract": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "limit": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "operations/temporaryRetention:sweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "table": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "idempotencyRecords"
+              },
+              {
+                "type": "literal",
+                "value": "hrPayslipTickets"
+              },
+              {
+                "type": "literal",
+                "value": "supportGrants"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "cutoff": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "limit": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "dryRun": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
     }
   },
   "staging/annexDemo:bootstrapLocalDemo": {

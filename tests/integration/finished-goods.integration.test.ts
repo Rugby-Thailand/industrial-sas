@@ -1,3 +1,4 @@
+import { measured } from "../fixtures/query-read-stats";
 import { currentStorageRevision } from "../fixtures/storage-record-revision";
 import type { Id } from "../../convex/_generated/dataModel";
 import { readCurrent } from "../../convex/workspace/current";
@@ -353,8 +354,10 @@ describe("finished goods workflow", () => {
     const product = await world.t.run((ctx) =>
       ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
     );
-    id(
-      await call(world, workflow.saveProduct, {
+    const result = await measured<{ written: boolean }>(
+      world,
+      workflow.saveProduct,
+      {
         ...fields,
         sku: "FG-1",
         warehouseId: world.warehouseId,
@@ -362,9 +365,71 @@ describe("finished goods workflow", () => {
         expectedUpdatedAt: product!.updatedAt,
         requestId: "large-warehouse-requirement",
         storageCondition: "COLD",
-      }),
+      },
     );
+    expect(result.value.written).toBe(true);
+    expect(result.stats.ranges.finishedGoodsPallets).toBe(2);
+    expect(result.stats.rangeDocs.finishedGoodsPallets ?? 0).toBe(0);
     expect(palletId).toBeTruthy();
+  });
+  it("serializes a product requirement edit against concurrent occupancy", async () => {
+    const world = await setup();
+    const { productId, palletId } = await measuredPallet(world);
+    const product = await world.t.run((ctx) =>
+      ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+    );
+    const results = await Promise.all([
+      reserve(world, palletId, "concurrent-requirement-reserve"),
+      call(world, workflow.saveProduct, {
+        ...fields,
+        sku: "FG-1",
+        warehouseId: world.warehouseId,
+        productId,
+        expectedUpdatedAt: product!.updatedAt,
+        requestId: "concurrent-requirement-edit",
+        storageCondition: "COLD",
+      }),
+    ]);
+    expect(results.map(value).filter((r) => r.written === true)).toHaveLength(
+      1,
+    );
+    const current = await world.t.run(async (ctx) => ({
+      product: await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsProducts", productId)!,
+      ),
+      pallet: await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsPallets", palletId)!,
+      ),
+    }));
+    if (current.pallet!.status === "RESERVED")
+      expect(current.product!.storageCondition).toBe("Dry");
+    else expect(current.product!.storageCondition).toBe("COLD");
+  });
+  it("allocates distinct warehouse identities under eight concurrent unit writers", async () => {
+    const world = await setup();
+    const { productId } = await measuredPallet(world);
+    const outcomes = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        call(world, workflow.createPallet, {
+          warehouseId: world.warehouseId,
+          productId,
+          requestId: `counter-load-${i}`,
+          quantity: 1,
+        }),
+      ),
+    );
+    expect(
+      outcomes.map(value).filter((row) => row.written === true),
+    ).toHaveLength(8);
+    const pallets = await world.t.run((ctx) =>
+      ctx.db.query("finishedGoodsPallets").collect(),
+    );
+    expect(new Set(pallets.map((row) => row.code)).size).toBe(9);
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("finishedGoodsCounters").collect(),
+      ),
+    ).toHaveLength(1);
   });
   it.each(["RESERVED", "STORED"] as const)(
     "protects product storage requirements for %s pallets but allows equivalent text and descriptive edits",
