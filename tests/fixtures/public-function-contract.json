@@ -25137,6 +25137,92 @@
       "type": "any"
     }
   },
+  "staging/hrDemo:setLocalTestRoles": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "clerkUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "clerkOrganizationId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "roleKeys": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "ORG_ADMIN"
+                },
+                {
+                  "type": "literal",
+                  "value": "HR_ADMIN"
+                },
+                {
+                  "type": "literal",
+                  "value": "HR_SUPERVISOR"
+                },
+                {
+                  "type": "literal",
+                  "value": "HR_EMPLOYEE"
+                }
+              ]
+            }
+          },
+          "optional": false
+        },
+        "confirmation": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "previous": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "ORG_ADMIN"
+                },
+                {
+                  "type": "literal",
+                  "value": "HR_ADMIN"
+                },
+                {
+                  "type": "literal",
+                  "value": "HR_SUPERVISOR"
+                },
+                {
+                  "type": "literal",
+                  "value": "HR_EMPLOYEE"
+                }
+              ]
+            }
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "staging/jobScanDemo:seed": {
     "kind": "mutation",
     "visibility": "internal",
