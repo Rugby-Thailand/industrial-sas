@@ -31,7 +31,7 @@ import {
 } from "../model/hr/schedule";
 import { buildDayDetail, correctionView, latestCorrection } from "./dayDetail";
 import {
-  closedPeriodCovering,
+  periodLockCode,
   dayOf,
   employeeDaysInRange,
   employmentOf,
@@ -567,8 +567,12 @@ export const clockIn = mutationWithOrg({
           case "NONWORKING":
             break;
         }
-        if (await closedPeriodCovering(ctx, employee.warehouseId, state.date))
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          state.date,
+        );
+        if (periodLock !== null) return fail(periodLock);
         const day = await ensureDay(ctx, employee, state.date, clock.offset);
         if (day.approvedLeaveRequestId !== undefined)
           return fail("HR_DAY_ON_APPROVED_LEAVE");
@@ -621,14 +625,12 @@ export const clockOut = mutationWithOrg({
           return fail("HR_CLOCK_DAY_CHANGED");
         if (state.day.approvedLeaveRequestId !== undefined)
           return fail("HR_DAY_ON_APPROVED_LEAVE");
-        if (
-          await closedPeriodCovering(
-            ctx,
-            employee.warehouseId,
-            state.day.businessDate,
-          )
-        )
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          state.day.businessDate,
+        );
+        if (periodLock !== null) return fail(periodLock);
         return await recordClock(
           ctx,
           employee,
@@ -816,8 +818,12 @@ export const submitCorrection = mutationWithOrg({
           return fail("HR_OUTSIDE_EMPLOYMENT", "businessDate");
         const reason = normalizeReason(args.reason);
         if (reason === null) return fail("REASON_REQUIRED", "reason");
-        if (await closedPeriodCovering(ctx, employee.warehouseId, date))
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          date,
+        );
+        if (periodLock !== null) return fail(periodLock);
 
         const existing = await dayOf(ctx, employee._id, date);
         if (existing?.approvedLeaveRequestId !== undefined)

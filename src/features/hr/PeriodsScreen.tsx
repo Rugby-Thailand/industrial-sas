@@ -97,7 +97,9 @@ function PeriodsContent({
     "periods",
   );
   const status =
-    criteria.status === "DRAFT" || criteria.status === "CLOSED"
+    criteria.status === "DRAFT" ||
+    criteria.status === "CLOSING" ||
+    criteria.status === "CLOSED"
       ? criteria.status
       : undefined;
   const { view, paging } = useHrPagedQuery(
@@ -140,6 +142,7 @@ function PeriodsContent({
               options={[
                 { value: "", label: t("allStatuses") },
                 { value: "DRAFT", label: t("draft") },
+                { value: "CLOSING", label: t("closing") },
                 { value: "CLOSED", label: t("closed") },
               ]}
             />
@@ -223,7 +226,7 @@ function PeriodsContent({
                             <PeriodStatus status={period.status} />
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {period.status === "DRAFT"
+                            {period.status !== "CLOSED"
                               ? t("draftVersion", {
                                   version: period.draftVersion,
                                 })
@@ -251,7 +254,13 @@ export function PeriodStatus({ status }: { readonly status: string }) {
   return (
     <StatusBadge
       tone={status === "CLOSED" ? "success" : "pending"}
-      label={t(status === "CLOSED" ? "closed" : "draft")}
+      label={t(
+        status === "CLOSED"
+          ? "closed"
+          : status === "CLOSING"
+            ? "closing"
+            : "draft",
+      )}
     />
   );
 }

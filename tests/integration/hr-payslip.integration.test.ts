@@ -613,8 +613,9 @@ describe("signed-session salary reveal and short private download grants", () =>
     const identity = fresh();
     const input = { requestId: rid(), rowId: row._id };
     const issued = written(await call(world, payslips.ticket, input, identity));
+    // The original bytes live only in the private payload record.
     await world.t.run((ctx) =>
-      ctx.db.patch("hrPayslipRows", row._id, {
+      ctx.db.patch("hrPayslipPayloads", row.payloadId!, {
         sourceBase64: btoa("%PDF-1.7\ncorrupted source\n%%EOF"),
       }),
     );

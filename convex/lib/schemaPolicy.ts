@@ -56,6 +56,7 @@ export const TENANT_TABLES = [
   "hrNotificationBatches",
   "hrPayslipImports",
   "hrPayslipRows",
+  "hrPayslipPayloads",
   "hrPayslipTickets",
   "hrHolidays",
   "hrAttendanceDays",

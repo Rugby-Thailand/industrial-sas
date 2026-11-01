@@ -353,6 +353,55 @@ it.each(["header", "native"] as const)(
     expect(screen.queryByTestId("hr-period-close-confirm")).toBeNull();
   },
 );
+it.each(["header", "native"] as const)(
+  "%s Back collapses a large-period close confirmation before page departure",
+  async (method) => {
+    state.queries.set(getFunctionName(hrRefs.periodPreview), {
+      ok: true,
+      value: {
+        ok: true,
+        period: {
+          id: "p2",
+          siteCode: "HQ",
+          siteName: "Head office",
+          startDate: "2026-09-01",
+          endDate: "2026-09-30",
+          status: "DRAFT",
+          draftVersion: 1,
+          latestClosedVersion: 0,
+          timezone: "Asia/Bangkok",
+        },
+        versions: [],
+        versionsComplete: true,
+        // A roster beyond the complete preview: reviewed and closed in pages.
+        view: { kind: "PAGED", blocker: null },
+      },
+    });
+    state.queries.set(getFunctionName(hrRefs.periodDraftEmployeesPage), {
+      ok: true,
+      value: {
+        ok: true,
+        status: "ready",
+        page: [],
+        isDone: true,
+        continueCursor: "",
+        scanned: 0,
+      },
+    });
+    window.history.pushState({}, "", "/en/hr/periods/p2");
+    renderWithIntl(
+      <DraftGuardProvider>
+        <HrPeriodDetailScreen periodId="p2" />
+      </DraftGuardProvider>,
+      { locale: "en", workspace: false },
+    );
+    fireEvent.click(screen.getByTestId("hr-period-close"));
+    expect(screen.getByTestId("hr-period-close-confirm")).toBeInTheDocument();
+    await navigateBack(method);
+    expect(window.location.pathname).toBe("/en/hr/periods/p2");
+    expect(screen.queryByTestId("hr-period-close-confirm")).toBeNull();
+  },
+);
 it("direct Period detail header Back uses Periods parent", () => {
   window.history.replaceState(
     { appNavigationIndex: 0 },

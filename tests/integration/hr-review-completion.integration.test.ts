@@ -3,6 +3,7 @@ import type { GenericId } from "convex/values";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as access from "../../convex/hr/access";
+import * as periodClose from "../../convex/hr/periodClose";
 import * as periods from "../../convex/hr/periods";
 import * as review from "../../convex/hr/review";
 import * as self from "../../convex/hr/self";
@@ -461,7 +462,7 @@ describe("replay and frozen history (HR-022, HR-041, HR-043)", () => {
       })
     ).value.documentId as GenericId<"hrPeriods">;
     const draft = (await call(w, periods.preview, { periodId })).value;
-    const closed = await call(w, periods.close, {
+    const closed = await call(w, periodClose.begin, {
       requestId: rid("close"),
       periodId,
       expectedFingerprint: draft.view.fingerprint,

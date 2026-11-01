@@ -50,6 +50,8 @@ export const list = queryWithOrg({
       .page({ limit: 25, cursor: args.cursor, order: "desc" });
     const items = [];
     for (const version of page.page) {
+      // A staged close is not history until it is published.
+      if (version.build !== undefined) continue;
       const rows = await ownedRows(ctx, version._id, employee._id);
       if (rows.length > 0 && rows.length <= 31) items.push(metadata(version));
     }
@@ -74,7 +76,8 @@ export const detail = queryWithOrg({
       "hrPeriodVersions",
       args.versionId,
     );
-    if (!version) return { ok: false as const, code: "NOT_FOUND" };
+    if (!version || version.build !== undefined)
+      return { ok: false as const, code: "NOT_FOUND" };
     const rows = [...(await ownedRows(ctx, version._id, employee._id))];
     if (!rows.length) return { ok: false as const, code: "NOT_FOUND" };
     if (rows.length > 31)

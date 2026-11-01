@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Id } from "../../convex/_generated/dataModel";
 import * as access from "../../convex/hr/access";
+import * as periodClose from "../../convex/hr/periodClose";
 import * as periods from "../../convex/hr/periods";
 import * as review from "../../convex/hr/review";
 import * as self from "../../convex/hr/self";
@@ -810,7 +811,7 @@ describe("closed period exports while browsing pages", () => {
     );
     const draft = await value(world, periods.preview, { periodId });
     expect(draft.view).toMatchObject({ kind: "DRAFT", blocker: null });
-    const closed = await value(world, periods.close, {
+    const closed = await value(world, periodClose.begin, {
       requestId: "close-paged-period",
       periodId,
       expectedFingerprint: draft.view.fingerprint,

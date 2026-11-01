@@ -3964,6 +3964,10 @@
         {
           "file": "src/features/hr/HrBackNavigation.test.tsx",
           "name": "%s Back collapses Period close confirmation before page departure"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "%s Back collapses a large-period close confirmation before page departure"
         }
       ]
     },

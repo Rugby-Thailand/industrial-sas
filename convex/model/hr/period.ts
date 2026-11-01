@@ -2,10 +2,12 @@
  * HR attendance periods: bounded range validation, the complete row set for a
  * site period, its totals and close readiness.
  *
- * Status: implemented for the pilot bounds (at most 50 employees and 31
- * business dates). Exceeding a bound is an explicit error, never a partial
- * period. Rows are generated for every employed date, including scheduled
- * days with no attendance, so an empty period cannot look complete.
+ * A period covers at most 31 business dates and any number of employees.
+ * Rows are generated for every employed date, including scheduled days with
+ * no attendance, so an empty period cannot look complete. Up to
+ * `MAX_PREVIEW_EMPLOYEES` the whole draft is previewed (and fingerprinted) in
+ * one read; larger rosters are previewed a page at a time and closed in
+ * bounded, staged chunks (see `hr/periodClose.ts`).
  */
 import { fail, ok, type Result } from "../result";
 import {
@@ -31,15 +33,13 @@ import {
 } from "./schedule";
 
 export const MAX_PERIOD_DAYS = 31;
-export const MAX_PERIOD_EMPLOYEES = 50;
+/** Rosters up to this size get a complete single-read draft preview. */
+export const MAX_PREVIEW_EMPLOYEES = 50;
 
 export type PeriodRangeError =
   | { readonly code: "PERIOD_DATE_INVALID" }
   | { readonly code: "PERIOD_RANGE_INVALID" }
-  | {
-      readonly code: "PERIOD_TOO_LARGE";
-      readonly reason: "DAYS" | "EMPLOYEES";
-    };
+  | { readonly code: "PERIOD_TOO_LARGE"; readonly reason: "DAYS" };
 
 export function validatePeriodRange(
   startDate: string,

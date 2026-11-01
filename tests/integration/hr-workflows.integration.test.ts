@@ -3,6 +3,7 @@ import type { GenericId } from "convex/values";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as access from "../../convex/hr/access";
+import * as periodClose from "../../convex/hr/periodClose";
 import * as periods from "../../convex/hr/periods";
 import * as review from "../../convex/hr/review";
 import * as self from "../../convex/hr/self";
@@ -1248,7 +1249,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
     refused(
       await call(
         world,
-        periods.close,
+        periodClose.begin,
         {
           requestId: rid("future"),
           periodId,
@@ -1267,7 +1268,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
     refused(
       await call(
         world,
-        periods.close,
+        periodClose.begin,
         {
           requestId: rid("blocked"),
           periodId,
@@ -1296,7 +1297,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
     refused(
       await call(
         world,
-        periods.close,
+        periodClose.begin,
         {
           requestId: rid("stale"),
           periodId,
@@ -1317,7 +1318,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
     const closed = written(
       await call(
         world,
-        periods.close,
+        periodClose.begin,
         {
           requestId: closeRequest,
           periodId,
@@ -1331,7 +1332,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
       written(
         await call(
           world,
-          periods.close,
+          periodClose.begin,
           {
             requestId: closeRequest,
             periodId,
@@ -1345,7 +1346,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
       (
         await call(
           world,
-          periods.close,
+          periodClose.begin,
           {
             requestId: rid("close-again"),
             periodId,
@@ -1468,7 +1469,7 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
     const v2 = written(
       await call(
         world,
-        periods.close,
+        periodClose.begin,
         {
           requestId: rid("close-v2"),
           periodId,
