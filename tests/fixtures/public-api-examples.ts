@@ -244,6 +244,9 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("hr/notifications:list", "query", () => ({})),
   example("hr/payslips:list", "query", () => ({})),
   example("hr/org:getCompanyProfile", "query", () => ({})),
+  example("hr/employeeProfile:employeeLifecycle", "query", () => ({
+    employeeId: "missing",
+  })),
   example("hr/selfPeriods:list", "query", () => ({})),
   example("finishedGoods/batches:getBatch", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,

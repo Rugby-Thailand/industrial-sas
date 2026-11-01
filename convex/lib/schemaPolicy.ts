@@ -48,6 +48,9 @@ export const TENANT_TABLES = [
   "hrDepartments",
   "hrPositions",
   "hrPositionLevels",
+  "hrEmployeeProfiles",
+  "hrEmployeePayments",
+  "hrEmploymentEvents",
   "hrShortcutPreferences",
   "hrPolicyDrafts",
   "hrPolicyVersions",
@@ -160,6 +163,16 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   { table: "hrDepartments", key: ["orgId", "nameKey"], condition: ALWAYS },
   { table: "hrPositions", key: ["orgId", "nameKey"], condition: ALWAYS },
   { table: "hrPositionLevels", key: ["orgId", "nameKey"], condition: ALWAYS },
+  {
+    table: "hrEmployeeProfiles",
+    key: ["orgId", "employeeId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrEmployeePayments",
+    key: ["orgId", "employeeId"],
+    condition: ALWAYS,
+  },
   {
     table: "hrLeaveRequestRevisions",
     key: ["orgId", "leaveRequestId", "version"],

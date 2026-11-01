@@ -18,6 +18,11 @@ import {
 import { isIsoDate } from "../model/hr/calendar";
 import { MAX_NAME_LENGTH, validateEmployeeDraft } from "../model/hr/employee";
 import { employeeOrgFields } from "../model/hr/orgSchema";
+import {
+  employmentState,
+  separationPreserved,
+  type EmploymentState,
+} from "../model/hr/lifecycle";
 import { validateEmployeeOrgReferences } from "./org";
 import { validateSchedule } from "../model/hr/schedule";
 import {
@@ -194,6 +199,17 @@ async function employeeItem(
     levelName: level?.name,
     employmentType: employee.employmentType,
     probationEndDate: employee.probationEndDate,
+    probationConfirmedDate: employee.probationConfirmedDate,
+    employmentState: employmentState(employee),
+    // The reason stays in the lifecycle history, outside the registry.
+    ...(employee.separation === undefined
+      ? {}
+      : {
+          separation: {
+            type: employee.separation.type,
+            lastWorkingDate: employee.separation.lastWorkingDate,
+          },
+        }),
     schedule: employee.schedule,
     version: employee.version,
   };
@@ -256,7 +272,20 @@ export const employeesPage = queryWithOrg({
     search: v.optional(v.string()),
     // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
     warehouseId: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("ACTIVE"), v.literal("INACTIVE"))),
+    /**
+     * Omitted: current employees (everyone not offboarded). ACTIVE and
+     * INACTIVE keep their stored-status meaning; PROBATION and FORMER
+     * (resigned or terminated) follow the lifecycle; ALL includes everyone.
+     */
+    status: v.optional(
+      v.union(
+        v.literal("ACTIVE"),
+        v.literal("INACTIVE"),
+        v.literal("PROBATION"),
+        v.literal("FORMER"),
+        v.literal("ALL"),
+      ),
+    ),
     departmentId: v.optional(v.id("hrDepartments")),
   },
   returns: v.any(),
@@ -290,6 +319,8 @@ export const employeesPage = queryWithOrg({
     }
     const names = new Map<string, string | null>();
     const access: HrAccessCache = new Map();
+    // The default (current employees) excludes only offboarded records, which
+    // are rare, so it keeps the unfiltered read size; matching still applies.
     const filtered =
       input.search !== "" ||
       args.status !== undefined ||
@@ -315,7 +346,7 @@ export const employeesPage = queryWithOrg({
       match: async (employee) =>
         (args.warehouseId === undefined ||
           employee.warehouseId === args.warehouseId) &&
-        (args.status === undefined || employee.status === args.status) &&
+        statusMatches(args.status, employee) &&
         (args.departmentId === undefined ||
           employee.departmentId === args.departmentId) &&
         containsSearch(input.search, employee.code, employee.displayName) &&
@@ -331,6 +362,27 @@ export const employeesPage = queryWithOrg({
     return { ok: true as const, ...page, sitesComplete: true };
   },
 });
+
+/** Whether an employee belongs to a registry status filter. */
+function statusMatches(
+  filter: "ACTIVE" | "INACTIVE" | "PROBATION" | "FORMER" | "ALL" | undefined,
+  employee: Employee,
+): boolean {
+  const state: EmploymentState = employmentState(employee);
+  const former = state === "RESIGNED" || state === "TERMINATED";
+  switch (filter) {
+    case undefined:
+      return !former;
+    case "ALL":
+      return true;
+    case "FORMER":
+      return former;
+    case "PROBATION":
+      return state === "PROBATION";
+    default:
+      return employee.status === filter;
+  }
+}
 
 /**
  * One employee for the editor by ID, independent of the bounded registry
@@ -691,6 +743,14 @@ export const saveEmployee = mutationWithOrg({
               return fail("EMPLOYEE_SITE_LOCKED", "warehouseId");
           }
         }
+
+        // An offboarded record stays INACTIVE with its last working day
+        // until it is reinstated through the lifecycle.
+        if (before !== null && !separationPreserved(before, args))
+          return fail(
+            "EMPLOYEE_SEPARATED",
+            args.status === "INACTIVE" ? "employmentEndDate" : "status",
+          );
 
         const sameCode = await ctx.tenantDb
           .byIndex<Employee>("hrEmployees", "by_orgId_code", [

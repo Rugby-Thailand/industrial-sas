@@ -1,6 +1,10 @@
 import { aiUsageTables } from "./aiUsage/schema";
 import { hrPolicyTables } from "./model/hr/policySchema";
 import { employeeOrgFields, hrOrgTables } from "./model/hr/orgSchema";
+import {
+  employeeLifecycleFields,
+  hrEmployeeProfileTables,
+} from "./model/hr/employeeProfileSchema";
 import { hrPayslipTables } from "./model/hr/payslipSchema";
 import { hrAnnouncementTables } from "./model/hr/announcementsSchema";
 import { defineSchema, defineTable } from "convex/server";
@@ -129,12 +133,14 @@ const hrDisposition = v.union(
 const schema = defineSchema({
   ...hrPolicyTables,
   ...hrOrgTables,
+  ...hrEmployeeProfileTables,
   ...hrPayslipTables,
   ...hrAnnouncementTables,
   ...aiUsageTables,
   hrEmployees: defineTable(
     tenantFields({
       ...employeeOrgFields,
+      ...employeeLifecycleFields,
       warehouseId: v.id("warehouses"),
       code: v.string(),
       displayName: v.string(),
