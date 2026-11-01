@@ -25,10 +25,14 @@ import {
 import {
   paymentFields,
   profileFields,
+  profileUpdateArgs,
   separationType,
 } from "../model/hr/employeeProfileSchema";
 import {
   maskAccountNumber,
+  mergeUpdate,
+  type PaymentDraft,
+  type ProfileDraft,
   validatePayment,
   validateProfile,
 } from "../model/hr/profile";
@@ -121,7 +125,8 @@ export const employeeProfile = queryWithOrg({
 
 export const saveEmployeeProfile = mutationWithOrg({
   args: {
-    ...profileFields,
+    /** Omitted fields are kept; an empty string clears a field. */
+    ...profileUpdateArgs,
     requestId: v.string(),
     employeeId: v.id("hrEmployees"),
     /** 0 before the first save. */
@@ -142,8 +147,6 @@ export const saveEmployeeProfile = mutationWithOrg({
         if (employee === null) return fail("NOT_FOUND", "employeeId");
         const clock = orgClock(ctx);
         if (clock === null) return fail("TIMEZONE_INVALID");
-        const valid = validateProfile(args, clock.today);
-        if (!valid.ok) return fail(valid.error.code, valid.error.field);
         const before = await onePer<Profile>(
           ctx,
           "hrEmployeeProfiles",
@@ -151,6 +154,13 @@ export const saveEmployeeProfile = mutationWithOrg({
         );
         if ((before?.version ?? 0) !== args.expectedVersion)
           return fail("PROFILE_STALE");
+        const merged = mergeUpdate(
+          PROFILE_KEYS,
+          before as Record<string, unknown> | null,
+          args as Record<string, unknown>,
+        );
+        const valid = validateProfile(merged as ProfileDraft, clock.today);
+        if (!valid.ok) return fail(valid.error.code, valid.error.field);
         const fields: Record<string, unknown> = {};
         for (const key of PROFILE_KEYS)
           fields[key] = (valid.value as Record<string, unknown>)[key];
@@ -237,8 +247,6 @@ export const saveEmployeePayment = mutationWithOrg({
       warehouseId: employee?.warehouseId,
       run: async () => {
         if (employee === null) return fail("NOT_FOUND", "employeeId");
-        const valid = validatePayment(args);
-        if (!valid.ok) return fail(valid.error.code, valid.error.field);
         const before = await onePer<Payment>(
           ctx,
           "hrEmployeePayments",
@@ -246,6 +254,14 @@ export const saveEmployeePayment = mutationWithOrg({
         );
         if ((before?.version ?? 0) !== args.expectedVersion)
           return fail("PAYMENT_STALE");
+        // Omitted bank fields are kept; choosing cash explicitly clears them.
+        const merged = mergeUpdate(
+          PAYMENT_KEYS,
+          before as Record<string, unknown> | null,
+          args as Record<string, unknown>,
+        );
+        const valid = validatePayment(merged as unknown as PaymentDraft);
+        if (!valid.ok) return fail(valid.error.code, valid.error.field);
         const fields: Record<string, unknown> = {};
         for (const key of PAYMENT_KEYS)
           fields[key] = (valid.value as unknown as Record<string, unknown>)[

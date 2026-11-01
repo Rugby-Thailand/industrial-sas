@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type {
-  GenericMutationCtx,
-  RegisteredMutation,
-  RegisteredQuery,
-} from "convex/server";
+import type { GenericMutationCtx } from "convex/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { DataModel } from "../../../convex/schema";
 import type { TenantFunctionOutcome } from "../../../convex/lib/tenantFunctions";
@@ -49,30 +45,30 @@ async function fixture() {
   });
   return world;
 }
-type Handler<A, R> =
-  | RegisteredMutation<"public", A, TenantFunctionOutcome<R>>
-  | RegisteredQuery<"public", A, TenantFunctionOutcome<R>>;
-async function raw<A extends Record<string, unknown>, R>(
+// Registered handlers are called directly; arguments are checked by the
+// handler's own validation paths asserted below.
+type Handler = unknown;
+async function raw(
   world: ConvexTenantWorld,
-  fn: Handler<A, R>,
-  args: A,
+  fn: Handler,
+  args: object,
   identity = ADMIN,
-): Promise<TenantFunctionOutcome<R>> {
+): Promise<TenantFunctionOutcome<unknown>> {
   return await world.t.withIdentity(identity).run((ctx) =>
     (
-      fn as unknown as {
+      fn as {
         _handler: (
           ctx: GenericMutationCtx<DataModel>,
-          args: A,
-        ) => Promise<TenantFunctionOutcome<R>>;
+          args: object,
+        ) => Promise<TenantFunctionOutcome<unknown>>;
       }
     )._handler(ctx, args),
   );
 }
-async function call<A extends Record<string, unknown>, R>(
+async function call(
   world: ConvexTenantWorld,
-  fn: Handler<A, R>,
-  args: A,
+  fn: Handler,
+  args: object,
   identity = ADMIN,
    
 ): Promise<any> {
@@ -139,7 +135,7 @@ async function lifecycle(
   });
 }
 /** One settled first page of a scanning list (it may need several reads). */
- 
+
 async function settled(
   world: ConvexTenantWorld,
   fn: unknown,
@@ -969,4 +965,99 @@ it("tenant, site and permission restrictions apply to every profile, payment and
   expect(
     await call(world, profile.employeeProfile, { employeeId: id }, TENANT_B),
   ).toEqual({ ok: false, code: "NOT_FOUND" });
+});
+
+it("callers that omit slice-03 fields never erase them; only an explicit empty value clears", async () => {
+  const world = await fixture();
+  const id = await hire(world, { probationEndDate: "2026-05-04" });
+  await lifecycle(world, id, {
+    kind: "CONFIRM_PROBATION",
+    effectiveDate: "2026-05-04",
+  });
+  // An older editor's payload knows nothing about the lifecycle fields.
+  await call(world, setup.saveEmployee, {
+    ...employeeArgs(world),
+    displayName: "Renamed by an older tab",
+    probationEndDate: "2026-05-04",
+    employeeId: id,
+    expectedVersion: 2,
+    requestId: requestId(),
+  });
+  expect(await stored(world, id)).toMatchObject({
+    displayName: "Renamed by an older tab",
+    probationConfirmedDate: "2026-05-04",
+  });
+
+  const saveProfile = (
+    fields: Record<string, unknown>,
+    expectedVersion: number,
+  ) =>
+    call(world, profile.saveEmployeeProfile, {
+      employeeId: id,
+      expectedVersion,
+      requestId: requestId(),
+      ...fields,
+    });
+  await saveProfile(
+    {
+      firstName: "Somchai",
+      gender: "MALE",
+      emergencyName: "Somsri",
+      emergencyPhone: "081 111 2222",
+    },
+    0,
+  );
+  // A contact-only save keeps the personal fields and the emergency contact.
+  await saveProfile({ phone: "02 123 4567" }, 1);
+  expect(
+    (await call(world, profile.employeeProfile, { employeeId: id })).profile,
+  ).toEqual({
+    firstName: "Somchai",
+    gender: "MALE",
+    phone: "02 123 4567",
+    emergencyName: "Somsri",
+    emergencyPhone: "081 111 2222",
+  });
+  // Clearing is explicit, and validation sees the merged record.
+  expect(await saveProfile({ emergencyPhone: "" }, 2)).toMatchObject({
+    error: { code: "PROFILE_EMERGENCY_INCOMPLETE", field: "emergencyPhone" },
+  });
+  await saveProfile({ gender: "", emergencyName: "", emergencyPhone: "" }, 2);
+  expect(
+    (await call(world, profile.employeeProfile, { employeeId: id })).profile,
+  ).toEqual({ firstName: "Somchai", phone: "02 123 4567" });
+
+  const savePayment = (
+    fields: Record<string, unknown>,
+    expectedVersion: number,
+  ) =>
+    call(world, profile.saveEmployeePayment, {
+      employeeId: id,
+      expectedVersion,
+      requestId: requestId(),
+      ...fields,
+    });
+  await savePayment(
+    {
+      method: "BANK",
+      bankName: "Example Bank",
+      accountNumber: "1234567890",
+      accountName: "Somchai",
+      bankBranchCode: "0012",
+    },
+    0,
+  );
+  await savePayment({ method: "BANK", bankName: "Other Bank" }, 1);
+  expect(
+    (await call(world, profile.employeePayment, { employeeId: id })).payment,
+  ).toMatchObject({
+    bankName: "Other Bank",
+    accountNumber: "1234567890",
+    accountName: "Somchai",
+    bankBranchCode: "0012",
+  });
+  await savePayment({ method: "BANK", bankBranchCode: "" }, 2);
+  expect(
+    (await call(world, profile.employeePayment, { employeeId: id })).payment,
+  ).not.toHaveProperty("bankBranchCode");
 });

@@ -203,6 +203,26 @@ export function validatePayment(
   );
 }
 
+/**
+ * The explicit update contract for profile and payment saves: an omitted
+ * (`undefined`) field keeps its stored value, an empty string clears it and
+ * any other value replaces it. Validation runs on the merged result.
+ */
+export function mergeUpdate<Key extends string>(
+  keys: readonly Key[],
+  stored: Partial<Record<Key, unknown>> | null,
+  update: Partial<Record<Key, unknown>>,
+): Partial<Record<Key, unknown>> {
+  const out: Partial<Record<Key, unknown>> = {};
+  for (const key of keys) {
+    const next = update[key];
+    const value =
+      next === undefined ? stored?.[key] : next === "" ? undefined : next;
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 /** The last four digits only, for lists, receipts and audit. */
 export const maskAccountNumber = (value: string): string =>
   value.length <= 4 ? "••••" : `•••• ${value.slice(-4)}`;

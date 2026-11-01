@@ -59,6 +59,30 @@ export const profileFields = {
   emergencyRelationship: text,
   emergencyPhone: text,
 };
+/**
+ * Save arguments: an omitted field keeps its stored value and an empty
+ * string clears it, so a caller that does not know a field never erases it.
+ */
+export const profileUpdateArgs = {
+  ...profileFields,
+  gender: v.optional(
+    v.union(
+      v.literal("MALE"),
+      v.literal("FEMALE"),
+      v.literal("OTHER"),
+      v.literal(""),
+    ),
+  ),
+  maritalStatus: v.optional(
+    v.union(
+      v.literal("SINGLE"),
+      v.literal("MARRIED"),
+      v.literal("DIVORCED"),
+      v.literal("WIDOWED"),
+      v.literal(""),
+    ),
+  ),
+};
 export const paymentFields = {
   method: v.union(v.literal("BANK"), v.literal("CASH")),
   bankName: text,
