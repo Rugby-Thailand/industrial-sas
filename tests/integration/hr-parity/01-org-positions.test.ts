@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { makeFunctionReference } from "convex/server";
 import type {
   GenericMutationCtx,
   RegisteredMutation,
@@ -38,7 +39,9 @@ afterEach(() => {
 });
 
 async function fixture() {
-  const world = await createConvexTenantWorld();
+  const world = await createConvexTenantWorld({
+    "../convex/hr/org.ts": () => import("../../../convex/hr/org"),
+  });
   await seedConvexAuthorization(world, {
     roleA: "HR_ADMIN",
     roleB: "HR_ADMIN",
@@ -1315,18 +1318,24 @@ it("invalid logos persist no domain change and removal is safe without an existi
   for (const ambiguous of [
     {},
     { mimeType: "image/png" },
+    { mimeType: "image/png", remove: true as const },
+    { base64: btoa("\x89PNG\r\n\x1a\n"), remove: true as const },
     {
       mimeType: "image/png",
       base64: btoa("\x89PNG\r\n\x1a\n"),
       remove: true as const,
     },
   ]) {
-    expect(
-      await call(world, org.saveCompanyLogo, {
+    const outcome = await world.t
+      .withIdentity(ADMIN)
+      .mutation(makeFunctionReference<"mutation">("hr/org:saveCompanyLogo"), {
         ...ambiguous,
         requestId: requestId(),
-      }),
-    ).toMatchObject({ written: false, error: { code: "LOGO_FILE_INVALID" } });
+      });
+    expect(outcome).toMatchObject({
+      ok: true,
+      value: { written: false, error: { code: "LOGO_FILE_INVALID" } },
+    });
     expect(await storeSnapshot(world)).toEqual(before);
   }
   const remove = { remove: true as const, requestId: requestId() };

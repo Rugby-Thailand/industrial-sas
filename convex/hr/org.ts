@@ -154,7 +154,11 @@ export const saveCompanyLogo = mutationWithOrg({
           args.mimeType === undefined || args.base64 === undefined
             ? null
             : { mimeType: args.mimeType, base64: args.base64 };
-        if (remove !== (upload === null))
+        if (
+          remove
+            ? args.mimeType !== undefined || args.base64 !== undefined
+            : upload === null
+        )
           return fail("LOGO_FILE_INVALID", "base64");
         if (upload) {
           const valid = validateCompanyLogo(upload.mimeType, upload.base64);
