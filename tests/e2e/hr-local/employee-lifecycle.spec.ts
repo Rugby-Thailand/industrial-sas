@@ -50,9 +50,7 @@ test("employee offboard reinstate preserves separation gap and refuses reversed 
     exact: true,
   });
   await d.getByLabel("Last working day", { exact: true }).fill("2026-09-30");
-  await d
-    .getByLabel("Reason", { exact: true })
-    .fill("Disposable acceptance exit");
+  await d.getByLabel(/^Reason/).fill("Disposable acceptance exit");
   await d.getByRole("button", { name: "Save", exact: true }).click();
   await expect(d).toBeHidden();
   await page.reload();
@@ -67,9 +65,7 @@ test("employee offboard reinstate preserves separation gap and refuses reversed 
   await page.getByRole("button", { name: "Reinstate", exact: true }).click();
   d = page.getByRole("dialog", { name: "Reinstate", exact: true });
   await d.getByLabel("Reinstatement date", { exact: true }).fill("2026-10-20");
-  await d
-    .getByLabel("Reason", { exact: true })
-    .fill("Disposable acceptance return");
+  await d.getByLabel(/^Reason/).fill("Disposable acceptance return");
   await d.getByRole("button", { name: "Save", exact: true }).click();
   await expect(d).toBeHidden();
   await page.reload();
@@ -174,12 +170,10 @@ test("employee reinstatement refuses missing assignments in genuine backend and 
   await dialog
     .getByLabel("Reinstatement date", { exact: true })
     .fill("2026-10-20");
-  await dialog
-    .getByLabel("Reason", { exact: true })
-    .fill("Missing assignment refusal");
+  await dialog.getByLabel(/^Reason/).fill("Missing assignment refusal");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog.getByText(/Nothing was saved/)).toBeVisible();
-  await expect(dialog.getByLabel("Reason", { exact: true })).toHaveValue(
+  await expect(dialog.getByLabel(/^Reason/)).toHaveValue(
     "Missing assignment refusal",
   );
   const lifecycle = (await api.query(LIFE, { employeeId: id })).value;
