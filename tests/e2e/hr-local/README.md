@@ -1,0 +1,82 @@
+# Real local HR browser tests
+
+This opt-in suite runs the shipping Next app and Convex handlers with a real
+Clerk test session and the designated local test organization. It is separate
+from credential-free smoke, the mocked storage workspace and staging/production.
+The normal test-discovery gate lists it without credentials or starting services.
+
+## Run
+
+Install dependencies with `pnpm install --frozen-lockfile` and Chromium with
+`pnpm exec playwright install chromium` if needed. In **this checkout**, create a
+private ignored `.env.local` containing the following settings, using the
+designated development Clerk instance's existing test keys privately:
+
+```dotenv
+CONVEX_DEPLOYMENT=anonymous:anonymous-agent
+NEXT_PUBLIC_APP_URL=http://localhost:3100
+NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3320
+NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3321
+ALLOW_LOCAL_TEST_SEED=true
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_REPLACE_PRIVATELY
+CLERK_SECRET_KEY=sk_test_REPLACE_PRIVATELY
+CLERK_JWT_ISSUER_DOMAIN=https://REPLACE.clerk.accounts.dev
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/th/sign-in
+```
+
+The exact test identity is pinned in `scripts/lib/hr-e2e-env.mjs`, matching
+`scripts/dev-login.mjs`. Setup verifies the actual Clerk user and organization
+membership before seeding or issuing tickets. It does not create external Clerk
+users or organizations. Never substitute production keys or a shared backend.
+The publishable key's decoded host must match the issuer domain. Remote targets,
+ambient selector overrides, missing seed consent, mismatching worktree state, and
+occupied service ports fail closed. Do not copy the original checkout's database.
+
+```sh
+pnpm test:e2e:hr:local
+# Focus one project or case, still using the same real services:
+pnpm test:e2e:hr:local --project hr-mobile --grep 'Cancel'
+# Discovery only: no environment file, services or authentication required.
+pnpm exec playwright test --config playwright.hr-local.config.ts --list
+```
+
+The runner starts its own anonymous Convex instance on 3320/3321, configures its
+Clerk issuer and seed opt-in, waits for the real functions, and runs Playwright.
+Playwright owns a separate `.next-e2e` Next build on localhost:3100. Services and
+their process groups are stopped on success, failure, SIGINT or SIGTERM. The
+runner refuses to reuse or stop existing services. Overall timeout is 20 minutes.
+Do not run multiple suites against the pinned test account/database concurrently.
+
+## Data and coverage
+
+Setup uses the existing guarded bootstrap and HR seed. It seeds a second local
+organization with real HR database rows for negative tenant checks; that fixture
+actor never authenticates. Only the verified real Clerk account signs in.
+Employee codes/reasons are unique per test. Fixture data is retained for review;
+the suite does not destructively reset prior clock/correction records.
+
+Desktop and mobile Chromium cover identity/read persistence, employee
+create/edit/reload, native/header Back, explicit Cancel followed by next Back,
+origin locale/query/hash, dirty Keep/Discard, Forward/refresh, clock persistence,
+correction submission with original events retained, holiday persistence,
+inactive leave policy, foreign-site filtering and anonymous denial. Pending-save
+coverage disconnects the browser's network, checks the real queued Convex write
+blocks departure, reconnects and verifies the actual committed record.
+
+Clock writes run when a next action is available; later same-day runs verify the
+retained timestamps instead. The `real-clock-writes` annotation reports the count
+for each run. Correction tests choose an unused date and fail explicitly when
+their finite pool is exhausted. Holidays use test-only future dates and can be
+overwritten by later runs. No policy is automatically activated to enable leave.
+Leave submission/approval, non-admin authenticated actors, nested foregrounds,
+native device browsers and Phase 1 company/branch UI remain outside this suite.
+
+Private artifacts stay under ignored `test-results/hr-local/`,
+`playwright/.auth/` and `.cache/hr-browser/`. They can include authenticated test
+DOM, screenshots and SDK diagnostics; never upload them. Traces, videos and
+storage-state exports are disabled. `.cache/hr-browser/processes.jsonl` records
+owned process IDs, checkout, exit and cleanup events without credentials.
+The fixture revokes only the Clerk session it created for that test, including
+on assertion failure. Console reporting omits SDK output and raw errors, which
+can contain token URLs; detailed reports remain private. Successful employee
+persistence cases capture a desktop/mobile screenshot in the private artifacts.

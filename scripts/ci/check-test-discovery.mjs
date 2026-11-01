@@ -30,6 +30,7 @@ for (const config of [
   "playwright.navigation.config.ts",
   "playwright.staging.config.ts",
   "playwright.production.config.ts",
+  "playwright.hr-local.config.ts",
 ]) {
   const report = JSON.parse(
     run("pnpm", [
