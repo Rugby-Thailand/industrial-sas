@@ -439,14 +439,15 @@ export const activate = mutationWithOrg({
       },
     }),
 });
-const LEDGER_ACTIVITY_KINDS = [
-  "RESERVE",
-  "RELEASE",
-  "CONSUME",
-  "RESTORE",
-  "CARRYOVER",
-  "POLICY_GRANT",
-] as const;
+// Exhaustive, so a new ledger kind cannot silently bypass the opening guard.
+const LEDGER_ACTIVITY_KINDS = Object.keys({
+  RESERVE: true,
+  RELEASE: true,
+  CONSUME: true,
+  RESTORE: true,
+  CARRYOVER: true,
+  POLICY_GRANT: true,
+} satisfies Record<Exclude<Doc<"hrLeaveLedger">["kind"], "OPENING">, true>);
 export const reconcileOpening = mutationWithOrg({
   args: {
     requestId: v.string(),
