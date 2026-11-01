@@ -25,7 +25,9 @@
     "hrNotifications": "/hr/notifications",
     "hrPayslips": "/hr/payslips",
     "hrPayslipImport": "/hr/payslips/import",
-    "hrFrozenPeriods": "/hr/time/periods"
+    "hrFrozenPeriods": "/hr/time/periods",
+    "hrShifts": "/hr/shifts",
+    "hrRoster": "/hr/roster"
   },
   "destinationConstants": ["FG_PATH"],
   "destinationBuilders": [
@@ -1171,6 +1173,50 @@
         {
           "file": "src/features/finishedGoods/PackageScanScreen.test.tsx",
           "name": "direct batch package scan Header Back uses its safe batch parent"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/hr/shifts/page.tsx",
+      "policy": "parent",
+      "parent": "/hr/settings",
+      "targets": ["src/features/hr/ShiftsRoster#HrShiftsScreen"],
+      "conditionalParent": "src/features/hr/HrShared#useHrBack",
+      "expectation": "Header Back first dismisses the owned foreground or assignment step; otherwise it restores the actual origin. Direct entry uses HR Settings. Caller tests cover the exact route through the parameterized screen list.",
+      "tests": [
+        "src/features/hr/HrBack.test.tsx",
+        "src/features/hr/ShiftsRoster.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrBack.test.tsx",
+          "name": "%s returns through app history when there is a previous page"
+        },
+        {
+          "file": "src/features/hr/HrBack.test.tsx",
+          "name": "direct child %s uses its exact module parent"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/hr/roster/page.tsx",
+      "policy": "parent",
+      "parent": "/hr/settings",
+      "targets": ["src/features/hr/ShiftsRoster#HrRosterScreen"],
+      "conditionalParent": "src/features/hr/HrShared#useHrBack",
+      "expectation": "Header Back first dismisses the owned foreground or assignment step; otherwise it restores the actual origin. Direct entry uses HR Settings. Caller tests cover the exact route through the parameterized screen list.",
+      "tests": [
+        "src/features/hr/HrBack.test.tsx",
+        "src/features/hr/ShiftsRoster.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/hr/HrBack.test.tsx",
+          "name": "%s returns through app history when there is a previous page"
+        },
+        {
+          "file": "src/features/hr/HrBack.test.tsx",
+          "name": "direct child %s uses its exact module parent"
         }
       ]
     }
@@ -8486,6 +8532,172 @@
       "tests": [
         "src/features/hr/HrLiveDayDrafts.test.tsx",
         "src/features/hr/HrBackNavigation.test.tsx"
+      ]
+    },
+    {
+      "id": "src/features/hr/ShiftsRoster.tsx#ShiftCatalogue:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared shift Dialog owns Add/Edit foreground history above the retained catalogue. Dirty cancellation asks for consent; pending writes block dismissal. Success uses the live operation owner and consumes the Dialog entry before the next Back. Forward reopens the same target.",
+      "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "Add shift -> explicit Cancel -> next Back returns to the shifts caller with locale, query and hash"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "native Back closes a clean shift editor and Forward reopens the same shift"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a dirty shift draft asks before native Back discards it, and Discard consumes only the dialog"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a pending shift save blocks native Back and Cancel until it settles, then consumes its dialog"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/ShiftsRoster.tsx#ShiftEditor:$overlay:Dialog:target",
+      "policy": "overlay",
+      "integration": "dialog",
+      "expectation": "The shared shift Dialog owns Add/Edit foreground history above the retained catalogue. Dirty cancellation asks for consent; pending writes block dismissal. Success uses the live operation owner and consumes the Dialog entry before the next Back. Forward reopens the same target.",
+      "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "Add shift -> explicit Cancel -> next Back returns to the shifts caller with locale, query and hash"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "native Back closes a clean shift editor and Forward reopens the same shift"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a dirty shift draft asks before native Back discards it, and Discard consumes only the dialog"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a pending shift save blocks native Back and Cancel until it settles, then consumes its dialog"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/ShiftsRoster.tsx#RosterView:assignment",
+      "policy": "workflow",
+      "integration": "useWorkflowStep",
+      "expectation": "The named rosterAssign step is entered by Assign shifts and controls the inline assignment form and selectable date cells. Back/Cancel consume this entry after dirty consent; pending writes block departure. Success settles the draft and uses the live operation owner before consuming the step. Origin locale/query/hash, Forward and direct remount are covered by caller tests.",
+      "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "roster assignment Cancel consumes its step before the next native Back restores the caller with locale, query and hash"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "native Back leaves a clean roster assignment and Forward reopens it"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a selected roster draft asks before native Back discards it and survives a remote roster update"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a pending roster save blocks Back, sends the selected revisions, then consumes the assignment step"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a refreshed roster assignment link remounts with an empty selection and Cancel removes only its step"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a second roster draft after a successful save still asks before Back discards it"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "header Back asks before discarding a roster selection, then the next Back restores the exact origin"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/ShiftsRoster.tsx#RosterView:month",
+      "policy": "presentation",
+      "expectation": "Month is an ordinary catalogue filter. Its validity selects an inline alert versus the retained query/table; loading/error/empty data affect the same roster. It creates no predecessor and cannot change during assignment. The separate assignment state owns selectable cells and its foreground form.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["RosterAssignment"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["button"],
+          "falsy": ["span"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p[role=alert]"],
+          "falsy": [
+            "RosterAssignment",
+            "src/features/hr/HrShared#HrInlineError",
+            "src/features/hr/HrShared#HrQueryState"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/EmptyState#EmptyState"],
+          "falsy": ["RosterGrid"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/features/hr/HrShared#HrInlineError"],
+          "falsy": ["RosterAssignment"]
+        }
+      ],
+      "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "roster month and employee filters keep the same page and are disabled while assigning"
+        }
+      ]
+    },
+    {
+      "id": "src/features/hr/ShiftsRoster.tsx#RosterView:search",
+      "policy": "presentation",
+      "expectation": "Employee search is an ordinary inline list filter, without a Back entry. Query loading, denial and empty results affect the retained roster; the separate assignment state owns its selectable controls. Search is disabled while assigning.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["RosterAssignment"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["button"],
+          "falsy": ["span"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/EmptyState#EmptyState"],
+          "falsy": ["RosterGrid"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/features/hr/HrShared#HrInlineError"],
+          "falsy": ["RosterAssignment"]
+        }
+      ],
+      "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "roster month and employee filters keep the same page and are disabled while assigning"
+        }
       ]
     }
   ],

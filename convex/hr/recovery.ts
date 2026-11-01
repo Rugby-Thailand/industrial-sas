@@ -24,6 +24,8 @@ const OPERATIONS = new Map([
 
   ["hr.holiday.save", HR_PERMISSION.adminManage],
   ["hr.holiday.delete", HR_PERMISSION.adminManage],
+  ["hr.shift.save", HR_PERMISSION.adminManage],
+  ["hr.roster.assign", HR_PERMISSION.adminManage],
   ["hr.access.set", HR_PERMISSION.adminManage],
   ["hr.correction.decide", HR_PERMISSION.teamReview],
   ["hr.attendance.dispose", HR_PERMISSION.teamReview],

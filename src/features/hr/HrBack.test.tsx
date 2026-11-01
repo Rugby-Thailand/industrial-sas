@@ -76,6 +76,7 @@ import { HrProfileScreen } from "./ProfileScreen";
 import { HrRequestsScreen } from "./RequestsScreen";
 import { HrReviewScreen } from "./ReviewScreen";
 import { HrSettingsScreen } from "./SettingsScreen";
+import { HrRosterScreen, HrShiftsScreen } from "./ShiftsRoster";
 import { HrTodayScreen } from "./TodayScreen";
 
 const SELF = "hr.self.access";
@@ -115,6 +116,8 @@ const SCREENS: readonly (readonly [string, ComponentType])[] = [
   ["/hr/employees", HrEmployeesScreen],
   ["/hr/periods", HrPeriodsScreen],
   ["/hr/settings", HrSettingsScreen],
+  ["/hr/shifts", HrShiftsScreen],
+  ["/hr/roster", HrRosterScreen],
   ["/hr/time/periods", HrFrozenPeriodsScreen],
   [
     "/hr/time/periods/version-1",
@@ -172,6 +175,8 @@ describe("HR page Back", () => {
           "/hr/leave/request-1",
           "/hr/leave/review/request-1",
           "/hr/payslips/statement-1",
+          "/hr/shifts",
+          "/hr/roster",
         ].includes(path),
     ),
   )(
@@ -185,6 +190,8 @@ describe("HR page Back", () => {
   );
 
   it.each([
+    ["/hr/shifts", HrShiftsScreen, "/hr/settings"],
+    ["/hr/roster", HrRosterScreen, "/hr/settings"],
     ["/hr/leave/review", HrLeaveReviewScreen, "/hr/leave"],
     [
       "/hr/announcements/manage",

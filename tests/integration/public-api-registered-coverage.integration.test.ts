@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(37);
+    expect(coveredModules).toHaveLength(38);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 42 representative functions, not every public export
+    // The inventory covers 43 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(42);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(43);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -232,6 +232,7 @@ describe("representative registered payloads and safe HR capability gates", () =
       "hr/notifications:list": { ok: false, code: "HR_NOT_LINKED" },
       "hr/payslips:list": { ok: false, code: "HR_NOT_LINKED" },
       "hr/org:getCompanyProfile": { profile: null },
+      "hr/roster:shifts": { ok: true, complete: true, items: [] },
       "hr/employeeProfile:employeeLifecycle": { ok: false, code: "NOT_FOUND" },
       "hr/selfPeriods:list": { ok: false, code: "HR_NOT_LINKED" },
       "finishedGoods/batches:getBatch": {

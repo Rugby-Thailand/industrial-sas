@@ -184,6 +184,8 @@ function operationFor(intent: string): string | undefined {
     ["employee-lifecycle:", "hr.employee.lifecycle"],
     ["holiday:delete:", "hr.holiday.delete"],
     ["holiday:", "hr.holiday.save"],
+    ["shift:", "hr.shift.save"],
+    ["roster:", "hr.roster.assign"],
     ["access:", "hr.access.set"],
     ["decision:", "hr.correction.decide"],
     ["dispose:", "hr.attendance.dispose"],

@@ -67,6 +67,8 @@ export const TENANT_TABLES = [
   "hrPayslipRows",
   "hrPayslipTickets",
   "hrHolidays",
+  "hrShifts",
+  "hrRosterAssignments",
   "hrAttendanceDays",
   "hrAttendanceEvents",
   "hrCorrectionRequests",
@@ -202,6 +204,16 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   {
     table: "hrNotifications",
     key: ["orgId", "employeeId", "eventKey"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrShifts",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrRosterAssignments",
+    key: ["orgId", "employeeId", "businessDate"],
     condition: ALWAYS,
   },
 

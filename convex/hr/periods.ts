@@ -49,7 +49,9 @@ import {
   planFromStored,
   planView,
   recordedDay,
+  rosterAssignment,
   siteEmployeesInRange,
+  siteRosterInRange,
   siteOf,
   siteAllowed,
   sitePeriods,
@@ -82,12 +84,26 @@ async function liveRows(
     MAX_PERIOD_EMPLOYEES,
   );
   if (employees === null) return null;
-  const { days, holidays } = await loadSiteDays(
-    ctx,
-    period.warehouseId,
-    datesInRange(period.startDate, period.endDate),
-  );
+  // Employee-eligibility seam: the period's employee selection stays the
+  // existing `siteEmployeesInRange` + `buildPeriodRows` employment window.
+  // The hardening lane supplies gap-aware employmentOf/isEmployedOn and
+  // isEmployedInRange there; retain those predicates at combined integration.
+  // The roster supplies plans only for dates that selection already includes.
+  const [{ days, holidays }, roster] = await Promise.all([
+    loadSiteDays(
+      ctx,
+      period.warehouseId,
+      datesInRange(period.startDate, period.endDate),
+    ),
+    siteRosterInRange(
+      ctx,
+      period.warehouseId,
+      period.startDate,
+      period.endDate,
+    ),
+  ]);
   return buildPeriodRows({
+    assignment: (id, date) => rosterAssignment(roster.get(`${id}:${date}`)),
     startDate: period.startDate,
     endDate: period.endDate,
     employees: employees.map((employee) => ({

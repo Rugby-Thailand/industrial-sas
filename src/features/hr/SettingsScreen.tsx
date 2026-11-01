@@ -36,6 +36,7 @@ import { formatBusinessDate } from "./format";
 import { BranchesPanel } from "./HrBranches";
 import { CompanyProfilePanel } from "./HrCompanyProfile";
 import { OrganizationPanel } from "./HrOrgMasters";
+import { ShiftsRosterLinks } from "./ShiftsRoster";
 import { SettingsHeading } from "./HrSettingsHeading";
 import { HrPolicySettings } from "./HrPolicySettings";
 import {
@@ -104,6 +105,7 @@ function SettingsSections() {
       <CompanyProfilePanel />
       <BranchesPanel />
       <OrganizationPanel />
+      <ShiftsRosterLinks />
     </div>
   );
 }

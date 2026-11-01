@@ -19769,6 +19769,640 @@
       ]
     }
   },
+  "hr/roster:assignRoster": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "action": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "SHIFT"
+                    },
+                    "optional": false
+                  },
+                  "shiftId": {
+                    "fieldType": {
+                      "type": "id",
+                      "tableName": "hrShifts"
+                    },
+                    "optional": false
+                  },
+                  "expectedShiftVersion": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "OFF"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "CLEAR"
+                    },
+                    "optional": false
+                  }
+                }
+              }
+            ]
+          },
+          "optional": false
+        },
+        "cells": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "employeeId": {
+                  "fieldType": {
+                    "type": "id",
+                    "tableName": "hrEmployees"
+                  },
+                  "optional": false
+                },
+                "date": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "expectedRevision": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                }
+              }
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "hr/roster:roster": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "month": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "search": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "departmentId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "hr/roster:saveShift": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "shiftId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "hrShifts"
+          },
+          "optional": true
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "code": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "name": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "description": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "color": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "sky"
+              },
+              {
+                "type": "literal",
+                "value": "teal"
+              },
+              {
+                "type": "literal",
+                "value": "green"
+              },
+              {
+                "type": "literal",
+                "value": "amber"
+              },
+              {
+                "type": "literal",
+                "value": "rose"
+              },
+              {
+                "type": "literal",
+                "value": "violet"
+              },
+              {
+                "type": "literal",
+                "value": "slate"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "ACTIVE"
+              },
+              {
+                "type": "literal",
+                "value": "INACTIVE"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "startTime": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "endTime": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "endsNextDay": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "breakMinutes": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "hr/roster:shifts": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "ACTIVE"
+              },
+              {
+                "type": "literal",
+                "value": "INACTIVE"
+              },
+              {
+                "type": "literal",
+                "value": "ALL"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "hr/search:adminEmployees": {
     "kind": "query",
     "visibility": "public",

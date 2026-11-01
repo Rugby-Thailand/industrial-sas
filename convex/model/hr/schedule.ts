@@ -4,7 +4,7 @@
  * Status: one shift per employee per business date, ISO weekday working days,
  * a local start/end time, an explicit "ends next day" flag and unpaid break
  * minutes. Site holidays and unscheduled weekdays are nonworking, not absence.
- * No rotations, swaps or per-date overrides.
+ * Dated FIXED/OFF roster overrides live in `./roster`; no rotations or swaps.
  */
 import { fail, ok, type Result } from "../result";
 import {
@@ -100,7 +100,22 @@ export function validateSchedule(
   );
 }
 
-export type NonworkingReason = "HOLIDAY" | "UNSCHEDULED" | "NO_SCHEDULE";
+/** `OFF` is an explicit dated roster override (see `./roster`). */
+export type NonworkingReason =
+  "HOLIDAY" | "UNSCHEDULED" | "NO_SCHEDULE" | "OFF";
+
+/**
+ * Which dated roster assignment produced a plan: its cell revision and, for
+ * a shift, the definition ID/code/version snapshotted at assignment time.
+ * Absent for weekly-schedule, holiday and no-schedule plans.
+ */
+export interface RosterProvenance {
+  readonly kind: "SHIFT" | "OFF";
+  readonly revision: number;
+  readonly shiftId?: string;
+  readonly shiftCode?: string;
+  readonly shiftVersion?: number;
+}
 
 /** The plan used for one business date, captured when attendance is recorded. */
 export type DayPlan =
@@ -112,12 +127,14 @@ export type DayPlan =
       readonly startTime: string;
       readonly endTime: string;
       readonly endsNextDay: boolean;
+      readonly roster?: RosterProvenance;
     }
   | {
       readonly kind: "NONWORKING";
       readonly reason: NonworkingReason;
       readonly holidayName?: string;
       readonly breakMinutes: 0;
+      readonly roster?: RosterProvenance;
     };
 
 export interface EmploymentInterval {

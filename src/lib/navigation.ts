@@ -58,6 +58,8 @@ export const ROUTES = Object.freeze({
   hrEmployees: "/hr/employees",
   hrPeriods: "/hr/periods",
   hrSettings: "/hr/settings",
+  hrShifts: "/hr/shifts",
+  hrRoster: "/hr/roster",
 });
 
 export const PLANNER_PATHS: readonly string[] = Object.freeze([

@@ -22,9 +22,9 @@ import {
   type DayStatus,
   type Disposition,
 } from "./attendance";
+import { rosterPlanFor, type RosterAssignment } from "./roster";
 import {
   isEmployedOn,
-  planFor,
   type DayPlan,
   type Employment,
   type Schedule,
@@ -122,6 +122,11 @@ export function buildPeriodRows(input: {
     date: IsoDate,
   ) => RecordedDay | undefined;
   readonly pending: (employeeId: string, date: IsoDate) => boolean;
+  /** The live dated roster assignment of an unrecorded date, if any. */
+  readonly assignment?: (
+    employeeId: string,
+    date: IsoDate,
+  ) => RosterAssignment | undefined;
 }): readonly PeriodRow[] {
   const dates = datesInRange(input.startDate, input.endDate);
   const employees = [...input.employees].sort((a, b) =>
@@ -132,11 +137,14 @@ export function buildPeriodRows(input: {
     for (const date of dates) {
       if (!isEmployedOn(employee.employment, date)) continue;
       const day = input.recorded(employee.id, date);
+      // A captured plan is never recomputed; otherwise holiday, then the
+      // dated roster assignment, then the weekly schedule fallback.
       const plan =
         day?.plan ??
-        planFor({
+        rosterPlanFor({
           date,
           schedule: employee.schedule,
+          assignment: input.assignment?.(employee.id, date),
           holidayName: input.holidayName(date),
           offsetMinutes: input.offsetMinutes,
         });
@@ -276,6 +284,20 @@ export function periodFingerprintText(rows: readonly PeriodRow[]): string {
       row.issue ?? null,
       row.disposition,
       row.correctionReason ?? null,
+      // Freeze exactly the roster decision that was reviewed, even when an
+      // OFF clear/reassignment leaves the attendance totals unchanged. Keep
+      // legacy weekly-plan fingerprints stable when no roster is present.
+      ...(row.plan.roster === undefined
+        ? []
+        : [
+            [
+              row.plan.roster.kind,
+              row.plan.roster.revision,
+              row.plan.roster.shiftId ?? null,
+              row.plan.roster.shiftCode ?? null,
+              row.plan.roster.shiftVersion ?? null,
+            ],
+          ]),
     ]),
   );
 }
