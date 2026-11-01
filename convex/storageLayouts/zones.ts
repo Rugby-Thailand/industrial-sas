@@ -367,7 +367,8 @@ export const createStorageZone = mutationWithOrg({
       )
       .first();
     const replayZone =
-      replayRecord?.resultRef === undefined
+      replayRecord?.resultRef === undefined ||
+      replayRecord.expiresAt <= Date.now()
         ? null
         : await ctx.tenantDb.get<ZoneDocument>(
             "storageZones",

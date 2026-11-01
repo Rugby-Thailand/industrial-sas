@@ -63,5 +63,7 @@ export const hrPayslipTables = {
       issuedAt: v.number(),
       expiresAt: v.number(),
     }),
-  ).index("by_orgId_userId", byOrg("userId")),
+  )
+    .index("by_orgId_userId", byOrg("userId"))
+    .index("by_orgId_expiresAt", byOrg("expiresAt")),
 };

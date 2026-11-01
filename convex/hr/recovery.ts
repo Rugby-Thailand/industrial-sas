@@ -69,7 +69,7 @@ export const reconcileRequest = mutationWithOrg({
       .unique();
     // This is deliberately status-only. It cannot rebuild another actor's
     // receipt, bypass site/report access, or report a generic write success.
-    if (existing !== null) {
+    if (existing !== null && existing.expiresAt > Date.now()) {
       if (
         existing.actorUserId !== actorUserId ||
         existing.status !== "SUCCEEDED"
