@@ -7,11 +7,11 @@ browser acceptance were run. Parent owns current-main integration and acceptance
   RESERVED/STORED behavior and transactional occupancy protection are preserved.
 - The live ProductBatches catalogue was already paged and is retained. Removed
   the unused unpaged API; migrated actual backend test callers to current detail.
-  Lazy revision history now has bounded cursor pages. Current batch units use an
+  Lazy revision history now has bounded cursor pages. Current batch units and the real batch manager share an
   active-unit index so retired replacement history cannot overflow detail reads.
   Active move lookups use exact status probes, never full movement history.
 - Corrected placement uniqueness semantics: group position labels are shared;
-  active pallet holds and assignment/sequence identities have conditional rules.
+  active pallet/status holds and assignment/sequence identities have conditional rules.
   Added supported SKU/building/zone/floor/frozen employee-day contracts and a
   bounded internal candidate audit. Writer regressions exercise duplicate SKU,
   duplicate building keys, concurrent zone allocation, shared LOCATION_ONLY
@@ -30,9 +30,9 @@ public-contract rationale, supported audit keys, deploy ordering, operator curso
 tracking and rollback limits. See [scale evidence](finished-goods-scale-evidence.md)
 for measured read bounds, local timings and production evidence limitations.
 
-Validation: broad affected suite passed 485 tests across 28 files; subsequent
-focused tests passed with the corrected employee/day contract and new expiry
-boundary case. Normal full ESLint, check:navigation (68 Node fixtures plus the
+Validation: broad affected suite passed 634 tests across 30 files; subsequent
+focused tests passed (75 batch/manager tests and 58 contract/schema tests),
+including the shared current-unit reader. Normal full ESLint, check:navigation (68 Node fixtures plus the
 inventory), pinned Bun 1.4.3 checker, changed-file formatting, production schema
 compatibility, public-function contract and credential-free codegen verification
 passed. The original warehouse-scan writer failed the new >10,000 regression;

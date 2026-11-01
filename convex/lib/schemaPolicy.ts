@@ -211,8 +211,9 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   {
     table: "finishedGoodsPlacements",
     // Position codes identify a location group and are intentionally shared.
-    // Released placements remain immutable history; only live holds are unique.
-    key: ["orgId", "palletId"],
+    // Moves legitimately retain a STORED source and RESERVED destination.
+    // Only one hold per pallet/status is live; RELEASED rows are history.
+    key: ["orgId", "palletId", "status"],
     condition: { kind: "activePlacement" },
   },
   {

@@ -54,16 +54,16 @@ expire; do not point old clients at a silently truncated replacement.
   one row, never appends another floor revision as a separate current floor.
 - Frozen period rows: organization + version + employee + business date. This records the
   existing close writer's one row per employee/day behavior, with no HR close change.
-- Placements: one live RESERVED/STORED hold per pallet. Released placements are
+- Placements: one live hold per pallet and status (RESERVED or STORED). A move
+  intentionally retains a STORED source and RESERVED destination simultaneously. Released placements are
   history. LOCATION_ONLY members intentionally share positionCode and are
   distinguished by assignment + sequence. That latter key applies only when both
   fields exist. Geometric historical position labels are not globally unique.
 
 `operations/duplicateAudit:page` is internal, read-only and tenant scoped. Pass
 `orgId`, stable `contract` key below, `limit` (1..50), then returned `cursor` until
-`isDone`. Each call scans at most 50 source rows plus at most four matches per
-source row for live-placement checks (two per status); other keys read at most
-two matches. Candidate IDs can repeat across pages. This is an online observation,
+`isDone`. Each call scans at most 50 source rows plus at most two exact-key matches per
+source row. Candidate IDs can repeat across pages. This is an online observation,
 not a frozen full-tenant certification; rerun under a write pause for migration
 sign-off. It never deletes or repairs data.
 
@@ -74,7 +74,7 @@ Supported contract keys:
 - `storageZones.warehouseId+code`
 - `storageFloors.buildingId+floorNumber`
 - `hrPeriodRows.versionId+employeeId+businessDate`
-- `finishedGoodsPlacements.palletId`
+- `finishedGoodsPlacements.palletId+status`
 - `finishedGoodsPlacements.assignmentId+sequence`
 
 ## Temporary retention and replay policy

@@ -76,7 +76,7 @@ async function batchOf(
   );
   return batch?.warehouseId === warehouseId ? batch : null;
 }
-async function unitsOf(
+export async function currentBatchUnits(
   ctx: TenantFunctionContext,
   batchId: Id<"finishedGoodsBatches">,
 ) {
@@ -145,7 +145,7 @@ async function detail(
   ctx: TenantFunctionContext,
   batch: Doc<"finishedGoodsBatches">,
 ) {
-  const units = await unitsOf(ctx, batch._id);
+  const units = await currentBatchUnits(ctx, batch._id);
   const managedUnits = await Promise.all(
     units.map(async (unit) => ({
       ...(await withMove(ctx, unit)),
@@ -245,7 +245,7 @@ async function save(
         );
         if (invalid) return failure(invalid);
       }
-      const oldUnits = before ? await unitsOf(ctx, before._id) : [];
+      const oldUnits = before ? await currentBatchUnits(ctx, before._id) : [];
       if (before?.status === "CREATED") {
         if (
           quantityToMinor(args.totalQuantity!, product.unit) !==

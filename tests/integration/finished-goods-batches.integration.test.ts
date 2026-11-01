@@ -1,3 +1,4 @@
+import * as management from "../../convex/finishedGoods/batchManagement";
 import { measured } from "../fixtures/query-read-stats";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
@@ -171,6 +172,14 @@ describe("preparation batches", () => {
     expect(detail.value).not.toHaveProperty("history");
     expect(detail.stats.ranges.finishedGoodsBatchRevisions ?? 0).toBe(0);
     expect(detail.stats.rangeDocs.finishedGoodsPallets).toBe(2);
+    const manager = await measured<{ units: unknown[] }>(
+      world,
+      management.get,
+      input,
+    );
+    expect(manager.value.units).toHaveLength(2);
+    expect(manager.stats.rangeDocs.finishedGoodsPallets).toBe(2);
+
     type Page = {
       page: Array<{ revision: number }>;
       isDone: boolean;

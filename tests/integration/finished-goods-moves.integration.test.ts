@@ -1,3 +1,4 @@
+import { page as auditDuplicates } from "../../convex/operations/duplicateAudit";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
@@ -237,6 +238,58 @@ async function placementState(
   }));
 }
 describe("stored pallet moves", () => {
+  it("does not classify a move's stored source and reserved destination as duplicate holds", async () => {
+    const world = await preparedWorld();
+    const placements = await world.t.run((ctx) =>
+      ctx.db.query("finishedGoodsPlacements").collect(),
+    );
+    expect(
+      placements
+        .filter((p) => p.palletId === world.palletId)
+        .map((p) => p.status)
+        .sort(),
+    ).toEqual(["RESERVED", "STORED"]);
+    const audit = () =>
+      world.t.run((ctx) =>
+        (
+          auditDuplicates as unknown as {
+            _handler: (
+              ctx: GenericMutationCtx<DataModel>,
+              args: unknown,
+            ) => Promise<{ findings: unknown[] }>;
+          }
+        )._handler(ctx, {
+          orgId: world.orgA,
+          contract: "finishedGoodsPlacements.palletId+status",
+          limit: 50,
+        }),
+      );
+    expect((await audit()).findings).toEqual([]);
+    await world.t.run(async (ctx) => {
+      const reserved = placements.find((row) => row.status === "RESERVED")!;
+      const { _id, _creationTime, ...fields } = reserved;
+      void _id;
+      void _creationTime;
+      // Repeated released rows are history, even for the same pallet.
+      await ctx.db.insert("finishedGoodsPlacements", {
+        ...fields,
+        status: "RELEASED",
+      });
+      await ctx.db.insert("finishedGoodsPlacements", {
+        ...fields,
+        status: "RELEASED",
+      });
+    });
+    expect((await audit()).findings).toEqual([]);
+    await world.t.run(async (ctx) => {
+      const reserved = placements.find((row) => row.status === "RESERVED")!;
+      const { _id, _creationTime, ...fields } = reserved;
+      void _id;
+      void _creationTime;
+      await ctx.db.insert("finishedGoodsPlacements", fields);
+    });
+    expect((await audit()).findings).toHaveLength(2);
+  });
   it("acknowledges pickup and placement without codes, preserves quantity and records the method", async () => {
     const w = await preparedWorld();
     const ack = {

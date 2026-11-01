@@ -65,28 +65,9 @@ export const page = internalQuery({
       const equality = contract.key
         .slice(1)
         .map((field) => ({ field, value: row[field] as string | number }));
-      const matches =
-        condition.kind === "activePlacement"
-          ? (
-              await Promise.all(
-                (["RESERVED", "STORED"] as const).map((status) =>
-                  db
-                    .byIndex<{ _id: string; orgId: TenantOrgId }>(
-                      table,
-                      "by_orgId_palletId_status",
-                      [...equality, { field: "status", value: status }],
-                    )
-                    .take(2),
-                ),
-              )
-            ).flat()
-          : await db
-              .byIndex<{ _id: string; orgId: TenantOrgId }>(
-                table,
-                index,
-                equality,
-              )
-              .take(2);
+      const matches = await db
+        .byIndex<{ _id: string; orgId: TenantOrgId }>(table, index, equality)
+        .take(2);
       if (matches.length > 1)
         findings.push({
           id: String(row._id),

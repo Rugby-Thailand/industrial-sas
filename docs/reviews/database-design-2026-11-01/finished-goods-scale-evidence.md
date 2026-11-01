@@ -8,14 +8,14 @@ bytes, p95 latency, subscription reruns or sustainable throughput.
 The focused scale run used Vitest's JSON reporter. Indicative whole-test times
 include fixture creation and assertions, rather than isolated query latency:
 
-| Real caller regression                      | Fixture / observed read bound                                                                                                           | Whole test time |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------: |
-| Product storage-condition edit              | 10,001 unrelated pallets; exactly 2 pallet ranges and 0 returned pallet documents                                                       |          283 ms |
-| Current batch detail and lazy revisions     | 10,001 retired replacements; exactly 2 current units read, 0 revision ranges for detail; history page reads exactly 20 of 101 revisions |          398 ms |
-| Concurrent requirement edit and reservation | Exactly one succeeds; a reserved pallet never acquires incompatible product requirements                                                |            8 ms |
-| Warehouse identity allocation               | Eight concurrent real createPallet calls; all succeed, 9 distinct codes including fixture unit, one warehouse counter                   |           16 ms |
-| Legacy list relation hydration              | 100 batch-created units + 1 legacy unit; exactly 2 active-move ranges for the shown legacy unit                                         |           96 ms |
-| Complete legacy traversal                   | 45 batch units + 46 legacy units, one retired legacy excluded; every remaining legacy unit appears exactly once                         |           52 ms |
+| Real caller regression                      | Fixture / observed read bound                                                                                                                                                      | Whole test time |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------: |
+| Product storage-condition edit              | 10,001 unrelated pallets; exactly 2 pallet ranges and 0 returned pallet documents                                                                                                  |          335 ms |
+| Current batch detail and lazy revisions     | 10,001 retired replacements; exactly 2 current units read by each of getBatch and the real manager, 0 revision ranges for getBatch; history page reads exactly 20 of 101 revisions |          530 ms |
+| Concurrent requirement edit and reservation | Exactly one succeeds; a reserved pallet never acquires incompatible product requirements                                                                                           |           22 ms |
+| Warehouse identity allocation               | Eight concurrent real createPallet calls; all succeed, 9 distinct codes including fixture unit, one warehouse counter                                                              |           29 ms |
+| Legacy list relation hydration              | 100 batch-created units + 1 legacy unit; exactly 2 active-move ranges for the shown legacy unit                                                                                    |          105 ms |
+| Complete legacy traversal                   | 45 batch units + 46 legacy units, one retired legacy excluded; every remaining legacy unit appears exactly once                                                                    |           56 ms |
 
 The first four regressions are in finished-goods and finished-goods-batches
 integration tests; the latter two are in legacy-unit-query-regressions. The
