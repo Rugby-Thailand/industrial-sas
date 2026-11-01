@@ -310,6 +310,41 @@ it("protects a pending package write and retains the draft when leaving is cance
     ).toBeVisible(),
   );
 });
+it("completed assignment consumes its draft so a later visit starts a fresh assignment", async () => {
+  const first = show();
+  await review();
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: /I placed these packages/ }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Confirm stored" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { name: "Packages stored" }),
+    ).toBeVisible(),
+  );
+  first.unmount();
+  show();
+  expect(screen.queryByRole("heading", { name: "Packages stored" })).toBeNull();
+  expect(screen.getByRole("textbox", { name: "Package code" })).toHaveValue("");
+  expect(screen.queryByRole("spinbutton", { name: "Fullness (%)" })).toBeNull();
+});
+it("ignores a previously persisted completed-assignment draft", () => {
+  localStorage.setItem(
+    "actor-a:warehouse-a::batch-a",
+    JSON.stringify({
+      units: [{ ...unit, fill: "100" }],
+      location,
+      sameSize: false,
+      physical: true,
+      uncertain: false,
+      receiptId: "assignment-a",
+      locationMethod: "MANUAL",
+    }),
+  );
+  show();
+  expect(screen.queryByRole("heading", { name: "Packages stored" })).toBeNull();
+  expect(screen.queryByRole("spinbutton", { name: "Fullness (%)" })).toBeNull();
+});
 
 it("ignores a location verification that resolves after the typed destination changes", async () => {
   show();
