@@ -1,5 +1,11 @@
 import type { ComponentProps, ReactNode } from "react";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "../../../../convex/schema";
@@ -100,8 +106,14 @@ function start() {
   renderWithIntl(<JobScanScreen />, { locale: "en" });
   fireEvent.click(screen.getByRole("button", { name: "Pick Dock" }));
 }
+// Limit role-name work to the three acquisition controls, not 50 ticket forms.
+function modeButton(name: string) {
+  return within(
+    screen.getByRole("group", { name: "Add job tickets by" }),
+  ).getByRole("button", { name });
+}
 function scanPairs(count: number) {
-  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  fireEvent.click(modeButton("Scan code"));
   act(() => {
     for (let i = 0; i < count; i++)
       mocks.imageCodes?.([`FO${String(i).padStart(5, "0")}`, `PRODUCT-${i}`]);
@@ -128,13 +140,17 @@ it("INV-09 rejects the 51st ticket before save and persists the accepted 50 thro
   );
   start();
   scanPairs(51);
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(50);
   expect(
-    screen.queryByRole("button", { name: "Save 51 tickets" }),
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(50);
+  expect(
+    screen.queryByText("Save 51 tickets", { selector: "button" }),
   ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
-  expect(screen.getByRole("button", { name: "Save 50 tickets" })).toBeEnabled();
-  fireEvent.click(screen.getByRole("button", { name: "Save 50 tickets" }));
+  fireEvent.click(modeButton("Scan code"));
+  expect(
+    screen.getByText("Save 50 tickets", { selector: "button" }),
+  ).toBeEnabled();
+  fireEvent.click(screen.getByText("Save 50 tickets", { selector: "button" }));
   await waitFor(() =>
     expect(
       screen.getByRole("heading", { name: "Saved 50 tickets" }),
@@ -148,8 +164,8 @@ it("INV-09 rejects the 51st ticket before save and persists the accepted 50 thro
 
 it("caps manual additions and permits completing an existing 50th ticket with a single barcode", () => {
   start();
-  fireEvent.click(screen.getByRole("button", { name: "Manual" }));
-  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  fireEvent.click(modeButton("Manual"));
+  fireEvent.click(modeButton("Scan code"));
   act(() => {
     for (let i = 0; i < 49; i++)
       mocks.imageCodes?.([`FO${String(i).padStart(5, "0")}`, `PRODUCT-${i}`]);
@@ -157,22 +173,32 @@ it("caps manual additions and permits completing an existing 50th ticket with a 
     mocks.decode?.("LAST-PRODUCT");
     mocks.decode?.("FO88888");
   });
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(50);
   expect(
-    screen.getAllByRole("textbox", { name: /Product barcode/ }).at(-1),
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(50);
+  expect(
+    screen
+      .getAllByRole("textbox", { name: /Product barcode/, hidden: true })
+      .at(-1),
   ).toHaveValue("LAST-PRODUCT");
   expect(screen.getByText(/This group holds up to 50 tickets/)).toBeVisible();
-  expect(screen.getByRole("button", { name: "Manual" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(50);
-  expect(screen.getByRole("button", { name: "Save 50 tickets" })).toBeEnabled();
+  expect(modeButton("Manual")).toBeDisabled();
+  fireEvent.click(modeButton("Scan code"));
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(50);
+  expect(
+    screen.getByText("Save 50 tickets", { selector: "button" }),
+  ).toBeEnabled();
 }, 20000);
 
 it("rejects an oversized multi-code image atomically without keeping only part of its tickets", () => {
   start();
   scanPairs(49);
   act(() => mocks.imageCodes?.(["FO60000", "FO60001", "NEW-A", "NEW-B"]));
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(49);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(49);
   expect(screen.queryByDisplayValue("FO60000")).not.toBeInTheDocument();
   expect(screen.queryByDisplayValue("FO60001")).not.toBeInTheDocument();
 }, 20000);
@@ -185,24 +211,26 @@ it("caps repeated photo groups and leaves an oversized group in its panel for co
       (_, i) => new File(["photo"], `ticket-${i}.jpg`, { type: "image/jpeg" }),
     );
   for (let i = 0; i < 2; i++) {
-    fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+    fireEvent.click(modeButton("Photo AI"));
     act(() => {
       expect(mocks.photos?.(files(20))).toBe(true);
     });
   }
   await waitFor(() =>
-    expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(
-      40,
-    ),
+    expect(
+      screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+    ).toHaveLength(40),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Photo AI" }));
+  fireEvent.click(modeButton("Photo AI"));
   expect(mocks.maxPhotos).toBe(10);
   act(() => {
     expect(mocks.photos?.(files(11))).toBe(false);
   });
   expect(screen.getByText("Inventory photo panel")).toBeVisible();
   expect(screen.getByText(/This group holds up to 50 tickets/)).toBeVisible();
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(40);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(40);
   expect(mocks.save).not.toHaveBeenCalled();
 }, 20000);
 
@@ -214,7 +242,7 @@ it("saves a ticket acquired just before submit without silently dropping it from
   });
   start();
   scanPairs(49);
-  const submit = screen.getByRole("button", { name: "Save 49 tickets" });
+  const submit = screen.getByText("Save 49 tickets", { selector: "button" });
   act(() => {
     mocks.imageCodes?.(["FO99999", "LAST-PRODUCT"]);
     fireEvent.click(submit);

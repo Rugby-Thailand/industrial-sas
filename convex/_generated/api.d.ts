@@ -17,6 +17,7 @@ import type * as aiUsage_rebuild from "../aiUsage/rebuild.js";
 import type * as aiUsage_recovery from "../aiUsage/recovery.js";
 import type * as aiUsage_reports from "../aiUsage/reports.js";
 import type * as aiUsage_validators from "../aiUsage/validators.js";
+import type * as crons from "../crons.js";
 import type * as finishedGoods_batchManagement from "../finishedGoods/batchManagement.js";
 import type * as finishedGoods_batches from "../finishedGoods/batches.js";
 import type * as finishedGoods_catalogue from "../finishedGoods/catalogue.js";
@@ -158,6 +159,7 @@ declare const fullApi: ApiFromModules<{
   "aiUsage/recovery": typeof aiUsage_recovery;
   "aiUsage/reports": typeof aiUsage_reports;
   "aiUsage/validators": typeof aiUsage_validators;
+  crons: typeof crons;
   "finishedGoods/batchManagement": typeof finishedGoods_batchManagement;
   "finishedGoods/batches": typeof finishedGoods_batches;
   "finishedGoods/catalogue": typeof finishedGoods_catalogue;

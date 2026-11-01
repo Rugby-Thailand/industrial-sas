@@ -20727,6 +20727,83 @@
       "type": "any"
     }
   },
+  "operations/temporaryRetention:dispatch": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "cutoff": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "operations/temporaryRetention:runPage": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "table": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "idempotencyRecords"
+              },
+              {
+                "type": "literal",
+                "value": "hrPayslipTickets"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "cutoff": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "remainingPages": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "operations/temporaryRetention:sweep": {
     "kind": "mutation",
     "visibility": "internal",

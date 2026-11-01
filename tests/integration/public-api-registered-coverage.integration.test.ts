@@ -236,7 +236,6 @@ describe("representative registered payloads and safe HR capability gates", () =
         batch: { _id: world.batchId, status: "DRAFT", revision: 1 },
         product: { _id: world.productId, sku: "PUBLIC-1" },
         units: [],
-        history: expect.any(Array),
         editable: true,
       },
       "finishedGoods/batchManagement:get": {
@@ -362,6 +361,27 @@ describe("representative registered payloads and safe HR capability gates", () =
       checked.push(example.name);
     }
     expect(checked.sort()).toEqual(Object.keys(expected).sort());
+    const actor = world.t.withIdentity(PUBLIC_API_ACTOR);
+    // The reviewed no-active-client migration moves immutable history out of
+    // current detail. Exercise both registered endpoints, not a mock adapter.
+    const detail = allowedValue(
+      await actor.query(api.finishedGoods.batches.getBatch, {
+        warehouseId: world.warehouses.alphaA,
+        batchId: world.batchId,
+      }),
+    );
+    expect(detail).not.toHaveProperty("history");
+    const revisions = allowedValue(
+      await actor.query(api.finishedGoods.batches.pageBatchRevisions, {
+        warehouseId: world.warehouses.alphaA,
+        batchId: world.batchId,
+        pageSize: 20,
+      }),
+    );
+    expect(revisions).toMatchObject({
+      page: [{ batchId: world.batchId, revision: 1 }],
+      isDone: true,
+    });
     expect(transport).not.toHaveBeenCalled();
   });
 

@@ -113,8 +113,16 @@ cursor with the **same tenant/table/cutoff** until `isDone`. Dry run performs no
 writes. Start the destructive pass from the beginning (`cursor` omitted), with
 `dryRun:false`; do not reuse a completed dry-run cursor. Each page is atomic.
 Resume a failed page with its last committed cursor. Repeating a run is safe.
-Run at a scheduled operator cadence per tenant; no global cross-tenant cron scan
-or unbounded automatic drain is introduced.
+The daily 03:00 UTC cron dispatches organizations in pages of 25, then sweeps
+`idempotencyRecords` and `hrPayslipTickets` separately for each tenant. Every
+transaction deletes at most 100 records; each tenant/table gets at most 20 pages
+(2,000 records) per daily pass, with one second between continuation pages. A
+fixed cutoff is carried through the pass. No cross-tenant expiry range is used.
+The worker returns `backlog:true` if its budget is exhausted. The next daily pass
+starts with the oldest surviving expiry; interrupted work is also recovered that
+way. Inspect scheduled-function failures and backlog results; use the manual
+sweep for a reviewed larger backlog. Support grants remain operator-driven
+because their retained approval history should not be scanned every day.
 
 Persist an operator run record outside the swept tables: migration version 1,
 tenant, table/contract, cutoff, dry-run mode, start/end timestamps, last committed
@@ -126,7 +134,8 @@ point-in-time observations; concurrent new expired rows may require another pass
 Operators should compare repeated dry-run counts, sweep latency and backend read/
 conflict metrics before increasing cadence. No production run has been performed.
 
-Rollback: additive indexes may remain unused. Disable operator cleanup first.
+Rollback: additive indexes may remain unused. Remove the daily cron in a forward
+release and cancel its pending scheduled functions before disabling cleanup.
 Restore old cache records only if explicitly required from a backup; do not
 restore expired credential validity. Forward-fix business outcomes using retained
 source ledgers. Retention cannot recover removed replay-cache answers, and no

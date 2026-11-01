@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { createTenantDocumentAccess, type TenantOrgId } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
 
@@ -75,6 +76,108 @@ export const sweep = internalMutation({
       retained,
       isDone: result.isDone,
       cursor: result.continueCursor,
+    };
+  },
+});
+
+/** One daily pass, with independently bounded work for each tenant. */
+export const dispatch = internalMutation({
+  args: { cursor: v.optional(v.string()), cutoff: v.optional(v.number()) },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ organizations: number; isDone: boolean }> => {
+    const cutoff = args.cutoff ?? Date.now();
+    if (!Number.isSafeInteger(cutoff) || cutoff < 0 || cutoff > Date.now())
+      throw new Error("Cutoff must be a past timestamp");
+    // Organizations are the global identity catalogue. Tenant records are only
+    // visited by the scoped sweep, never by a cross-tenant expiry range.
+    const page = await ctx.db.query("organizations").paginate({
+      numItems: 25,
+      cursor: args.cursor ?? null,
+    });
+    for (const organization of page.page) {
+      for (const table of ["idempotencyRecords", "hrPayslipTickets"] as const)
+        await ctx.scheduler.runAfter(
+          0,
+          internal.operations.temporaryRetention.runPage,
+          {
+            orgId: organization._id,
+            table,
+            cutoff,
+            remainingPages: 20,
+          },
+        );
+    }
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        1000,
+        internal.operations.temporaryRetention.dispatch,
+        {
+          cutoff,
+          cursor: page.continueCursor,
+        },
+      );
+    return { organizations: page.page.length, isDone: page.isDone };
+  },
+});
+
+export const runPage = internalMutation({
+  args: {
+    orgId: v.id("organizations"),
+    table: v.union(
+      v.literal("idempotencyRecords"),
+      v.literal("hrPayslipTickets"),
+    ),
+    cutoff: v.number(),
+    cursor: v.optional(v.string()),
+    remainingPages: v.number(),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    scanned: number;
+    deleted: number;
+    isDone: boolean;
+    backlog: boolean;
+  }> => {
+    if (
+      !Number.isInteger(args.remainingPages) ||
+      args.remainingPages < 1 ||
+      args.remainingPages > 20
+    )
+      throw new Error("Page budget must be 1..20");
+    if (!(await ctx.db.get(args.orgId)))
+      return { scanned: 0, deleted: 0, isDone: true, backlog: false };
+    const result = await ctx.runMutation(
+      internal.operations.temporaryRetention.sweep,
+      {
+        orgId: args.orgId,
+        table: args.table,
+        cutoff: args.cutoff,
+        ...(args.cursor ? { cursor: args.cursor } : {}),
+        limit: 100,
+        dryRun: false,
+      },
+    );
+    if (!result.isDone && args.remainingPages > 1)
+      await ctx.scheduler.runAfter(
+        1000,
+        internal.operations.temporaryRetention.runPage,
+        {
+          ...args,
+          cursor: result.cursor,
+          remainingPages: args.remainingPages - 1,
+        },
+      );
+    // When the budget is spent, the next daily pass starts at the oldest
+    // surviving expiry. No permanent cursor or replay receipt is needed.
+    return {
+      scanned: result.scanned,
+      deleted: result.deleted,
+      isDone: result.isDone,
+      backlog: !result.isDone && args.remainingPages === 1,
     };
   },
 });
