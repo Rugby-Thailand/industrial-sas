@@ -85,11 +85,12 @@ export function PackageAssignment({
           sameSize?: boolean;
           physical?: boolean;
           uncertain?: boolean;
-          receiptId?: string;
           locationMethod?: "MANUAL" | "SCAN";
           pendingRequest?: PendingRequest;
         };
         if (
+          // Older builds persisted the receipt; a completed draft is consumed.
+          "receiptId" in candidate ||
           !Array.isArray(candidate.units) ||
           candidate.units.length > 50 ||
           !candidate.units.every(
@@ -148,9 +149,9 @@ export function PackageAssignment({
   const [review, setReview] = useState(restored?.uncertain ?? false);
   const [uncertain, setUncertain] = useState(restored?.uncertain ?? false);
   const [storageWarning, setStorageWarning] = useState(false);
-  const [receiptId, setReceiptId] = useState<string | undefined>(
-    restored?.receiptId,
-  );
+  const [receiptId, setReceiptId] = useState<string>();
+  // Completion consumes the persisted draft; the receipt lives in memory only.
+  const completed = useRef(false);
   const [pendingRequest, setPendingRequest] = useState<
     PendingRequest | undefined
   >(restored?.pendingRequest);
@@ -161,7 +162,6 @@ export function PackageAssignment({
       sameSize,
       physical,
       uncertain,
-      ...(receiptId ? { receiptId } : {}),
       locationMethod,
       ...(pendingRequest ? { pendingRequest } : {}),
     }),
@@ -171,12 +171,12 @@ export function PackageAssignment({
       sameSize,
       physical,
       uncertain,
-      receiptId,
       locationMethod,
       pendingRequest,
     ],
   );
   useEffect(() => {
+    if (completed.current) return;
     const stored = drafts.write(key, snapshot);
     let canceled = false;
     queueMicrotask(() => {
@@ -341,6 +341,8 @@ export function PackageAssignment({
       (outcome) => {
         setUncertain(false);
         const id = written(outcome);
+        completed.current = true;
+        drafts.remove(key);
         op.clearRequests();
         setPendingRequest(undefined);
         generation.current++;
