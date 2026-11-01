@@ -33,7 +33,12 @@ import {
   type IsoDate,
 } from "../model/hr/calendar";
 import { type RecordedDay } from "../model/hr/period";
-import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
+import {
+  isEmployedInRange,
+  planFor,
+  type DayPlan,
+  type Schedule,
+} from "../model/hr/schedule";
 import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
 export type Employee = Doc<"hrEmployees">;
@@ -625,6 +630,7 @@ export const scheduleOf = (employee: Employee): Schedule | undefined =>
 export const employmentOf = (employee: Employee) => ({
   startDate: employee.employmentStartDate,
   endDate: employee.employmentEndDate,
+  intervals: employee.employmentIntervals,
 });
 
 export async function holidayName(
@@ -905,10 +911,7 @@ export const employedInRange = (
   employee: Employee,
   startDate: IsoDate,
   endDate: IsoDate,
-) =>
-  compareDates(employee.employmentStartDate, endDate) <= 0 &&
-  (employee.employmentEndDate === undefined ||
-    compareDates(startDate, employee.employmentEndDate) <= 0);
+) => isEmployedInRange(employmentOf(employee), startDate, endDate);
 
 export interface EmployeeScanBudget {
   remaining: number;
@@ -1202,4 +1205,30 @@ export async function memberName(
   const name = await ctx.members.displayName(userId);
   cache.set(userId, name);
   return name;
+}
+
+/** Authoritative event bounds, read in the same transaction as employee writes. */
+export async function employmentDateBounds(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+) {
+  const events = () =>
+    ctx.tenantDb.byIndex<Doc<"hrEmploymentEvents">>(
+      "hrEmploymentEvents",
+      "by_orgId_employeeId_effectiveDate",
+      [{ field: "employeeId", value: employee._id }],
+    );
+  const [first, last] = await Promise.all([
+    events().take(1, "asc"),
+    events().take(1, "desc"),
+  ]);
+  const dates = [
+    first[0]?.effectiveDate,
+    last[0]?.effectiveDate,
+    employee.probationConfirmedDate,
+    employee.separation?.lastWorkingDate,
+  ]
+    .filter((value): value is string => value !== undefined)
+    .sort();
+  return { first: dates[0], last: dates.at(-1) };
 }

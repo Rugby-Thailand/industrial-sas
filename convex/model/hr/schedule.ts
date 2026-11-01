@@ -120,15 +120,49 @@ export type DayPlan =
       readonly breakMinutes: 0;
     };
 
-export interface Employment {
+export interface EmploymentInterval {
   readonly startDate: IsoDate;
   readonly endDate?: IsoDate | undefined;
 }
 
+export interface Employment extends EmploymentInterval {
+  readonly intervals?: readonly EmploymentInterval[] | undefined;
+}
+
+/** Legacy start/end ranges and explicit employment intervals share this gate. */
 export const isEmployedOn = (employment: Employment, date: IsoDate): boolean =>
   compareDates(date, employment.startDate) >= 0 &&
   (employment.endDate === undefined ||
-    compareDates(date, employment.endDate) <= 0);
+    compareDates(date, employment.endDate) <= 0) &&
+  (employment.intervals === undefined ||
+    employment.intervals.some(
+      (interval) =>
+        compareDates(date, interval.startDate) >= 0 &&
+        (interval.endDate === undefined ||
+          compareDates(date, interval.endDate) <= 0),
+    ));
+
+/** Any overlap with actual employment, including the outer legacy bounds. */
+export function isEmployedInRange(
+  employment: Employment,
+  from: IsoDate,
+  to: IsoDate,
+): boolean {
+  const start = from > employment.startDate ? from : employment.startDate;
+  const end =
+    employment.endDate !== undefined && employment.endDate < to
+      ? employment.endDate
+      : to;
+  return (
+    start <= end &&
+    (employment.intervals === undefined ||
+      employment.intervals.some(
+        (interval) =>
+          interval.startDate <= end &&
+          (interval.endDate === undefined || interval.endDate >= start),
+      ))
+  );
+}
 
 export function planFor(input: {
   readonly date: IsoDate;

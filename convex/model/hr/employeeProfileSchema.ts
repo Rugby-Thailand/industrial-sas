@@ -17,6 +17,16 @@ export const employmentStateValidator = v.union(
 /** Optional lifecycle fields on `hrEmployees`; legacy records have none. */
 export const employeeLifecycleFields = {
   probationConfirmedDate: v.optional(v.string()),
+  // Inclusive employment intervals. Absent on legacy, continuously employed
+  // records; lifecycle writes materialize them without moving the hire date.
+  employmentIntervals: v.optional(
+    v.array(
+      v.object({
+        startDate: v.string(),
+        endDate: v.optional(v.string()),
+      }),
+    ),
+  ),
   separation: v.optional(
     v.object({
       type: separationType,
@@ -135,5 +145,10 @@ export const hrEmployeeProfileTables = {
       recordedAt: v.number(),
       recordedByUserId: v.id("users"),
     }),
-  ).index("by_orgId_employeeId_recordedAt", byOrg("employeeId", "recordedAt")),
+  )
+    .index("by_orgId_employeeId_recordedAt", byOrg("employeeId", "recordedAt"))
+    .index(
+      "by_orgId_employeeId_effectiveDate",
+      byOrg("employeeId", "effectiveDate"),
+    ),
 };

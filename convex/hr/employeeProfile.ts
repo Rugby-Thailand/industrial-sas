@@ -36,7 +36,13 @@ import {
   validatePayment,
   validateProfile,
 } from "../model/hr/profile";
+import { validateEmployeeOrgReferences } from "./org";
+import { isEmployedOn, openDayDeadline } from "../model/hr/schedule";
 import {
+  employmentDateBounds,
+  employmentOf,
+  openDays,
+  planFromStored,
   fail,
   hrCommand,
   memberName,
@@ -322,6 +328,7 @@ export const employeeLifecycle = queryWithOrg({
         [{ field: "employeeId", value: employee._id }],
       )
       .page({ limit: MAX_EVENTS, order: "desc" });
+    const bounds = await employmentDateBounds(ctx, employee);
     const names = new Map<string, string | null>();
     return {
       ok: true as const,
@@ -329,6 +336,9 @@ export const employeeLifecycle = queryWithOrg({
       state: employmentState(employee),
       version: employee.version,
       employmentStartDate: employee.employmentStartDate,
+      firstEffectiveDate: bounds.first,
+      latestEffectiveDate: bounds.last,
+      employmentIntervals: employee.employmentIntervals,
       probationEndDate: employee.probationEndDate,
       probationConfirmedDate: employee.probationConfirmedDate,
       separation: employee.separation,
@@ -398,7 +408,13 @@ export const recordEmploymentEvent = mutationWithOrg({
             effectiveDate: args.effectiveDate,
             reason: args.reason ?? "",
           };
-        const plan = planLifecycleTransition(employee, command, clock.today);
+        const bounds = await employmentDateBounds(ctx, employee);
+        const plan = planLifecycleTransition(
+          employee,
+          command,
+          clock.today,
+          bounds.last,
+        );
         if (!plan.ok) {
           const field =
             plan.error.field === "lastWorkingDate"
@@ -406,12 +422,38 @@ export const recordEmploymentEvent = mutationWithOrg({
               : plan.error.field;
           return fail(plan.error.code, field);
         }
+        if (args.kind === "REINSTATE") {
+          const invalidOrg = await validateEmployeeOrgReferences(
+            ctx,
+            { ...employee, status: "ACTIVE" },
+            employee,
+          );
+          if (invalidOrg) return invalidOrg;
+        }
+        if (args.kind === "OFFBOARD") {
+          // Match selfState's retained-open-day clock-out window exactly. The
+          // employee must be allowed to finish it before becoming INACTIVE.
+          const opens = await openDays(ctx, employee._id);
+          if (
+            opens.some(
+              (day) =>
+                day.clockInAt !== undefined &&
+                isEmployedOn(employmentOf(employee), day.businessDate) &&
+                clock.now <
+                  openDayDeadline(planFromStored(day.plan), day.clockInAt),
+            )
+          )
+            return fail("LIFECYCLE_OPEN_SHIFT", "effectiveDate");
+        }
         const { patch, event } = plan.value;
         const now = Date.now();
         const actor = ctx.tenant.actor._id;
         const version = employee.version + 1;
         await ctx.tenantDb.patch("hrEmployees", employee._id, {
           ...(patch.status === undefined ? {} : { status: patch.status }),
+          ...(patch.employmentIntervals === undefined
+            ? {}
+            : { employmentIntervals: patch.employmentIntervals }),
           ...(patch.probationConfirmedDate === undefined
             ? {}
             : { probationConfirmedDate: patch.probationConfirmedDate }),

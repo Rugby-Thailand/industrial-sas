@@ -22,8 +22,9 @@ import {
   type PolicyCapability,
 } from "../model/hr/policy";
 import { WORK_RULES_EXECUTION } from "../model/hr/workRules";
-import { validateSchedule } from "../model/hr/schedule";
+import { isEmployedOn, validateSchedule } from "../model/hr/schedule";
 import {
+  employmentOf,
   fail,
   hrCommand,
   siteAllowed,
@@ -179,8 +180,7 @@ async function readiness(
   for (const employee of rows) {
     if (
       employee.status !== "ACTIVE" ||
-      employee.employmentStartDate > effectiveDate ||
-      (employee.employmentEndDate && employee.employmentEndDate < effectiveDate)
+      !isEmployedOn(employmentOf(employee), effectiveDate)
     )
       continue;
     sites.add(employee.warehouseId);
@@ -514,10 +514,7 @@ export const reconcileOpening = mutationWithOrg({
           !(await siteAllowed(ctx, await siteScope(ctx), employee.warehouseId))
         )
           return fail("NOT_FOUND");
-        if (
-          args.asOf < employee.employmentStartDate ||
-          (employee.employmentEndDate && args.asOf > employee.employmentEndDate)
-        )
+        if (!isEmployedOn(employmentOf(employee), args.asOf))
           return fail("HR_OUTSIDE_EMPLOYMENT");
         const source = args.sourceReference.trim();
         if (source.length < 3 || source.length > 300)

@@ -15,6 +15,7 @@
  */
 import { fail, ok, type Result } from "../result";
 import { compareDates, isIsoDate } from "./calendar";
+import type { EmploymentInterval } from "./schedule";
 import { normalizeReason } from "./employee";
 
 export type SeparationType = "RESIGNATION" | "TERMINATION";
@@ -31,6 +32,8 @@ export type EmploymentState =
 export interface LifecycleSubject {
   readonly status: "ACTIVE" | "INACTIVE";
   readonly employmentStartDate: string;
+  readonly employmentEndDate?: string | undefined;
+  readonly employmentIntervals?: readonly EmploymentInterval[] | undefined;
   readonly probationEndDate?: string | undefined;
   readonly probationConfirmedDate?: string | undefined;
   readonly separation?: Separation | undefined;
@@ -73,6 +76,7 @@ export type LifecycleErrorCode =
   | "LIFECYCLE_ALREADY_SEPARATED"
   | "LIFECYCLE_NOT_SEPARATED"
   | "LIFECYCLE_DATE_INVALID"
+  | "LIFECYCLE_DATE_BEFORE_EVENT"
   | "LIFECYCLE_DATE_BEFORE_START"
   | "LIFECYCLE_DATE_FUTURE"
   | "LIFECYCLE_LAST_DAY_NOT_PAST"
@@ -88,6 +92,7 @@ export interface LifecycleError {
 export interface LifecycleTransition {
   readonly patch: {
     readonly status?: "ACTIVE" | "INACTIVE";
+    readonly employmentIntervals?: readonly EmploymentInterval[];
     readonly probationConfirmedDate?: string;
     /** `null` clears the stored value. */
     readonly employmentEndDate?: string | null;
@@ -109,10 +114,13 @@ function checkDate(
   value: string,
   field: string,
   subject: LifecycleSubject,
+  latestEffectiveDate?: string,
 ): LifecycleError | null {
   if (!isIsoDate(value)) return { code: "LIFECYCLE_DATE_INVALID", field };
   if (compareDates(value, subject.employmentStartDate) < 0)
     return { code: "LIFECYCLE_DATE_BEFORE_START", field };
+  if (latestEffectiveDate !== undefined && value < latestEffectiveDate)
+    return { code: "LIFECYCLE_DATE_BEFORE_EVENT", field };
   return null;
 }
 
@@ -124,11 +132,17 @@ export function planLifecycleTransition(
   subject: LifecycleSubject,
   command: LifecycleCommand,
   today: string,
+  latestEffectiveDate?: string,
 ): Result<LifecycleTransition, LifecycleError> {
   const from = employmentState(subject);
   if (command.kind === "CONFIRM_PROBATION") {
     if (from !== "PROBATION") return err("LIFECYCLE_NOT_ON_PROBATION", "kind");
-    const bad = checkDate(command.effectiveDate, "effectiveDate", subject);
+    const bad = checkDate(
+      command.effectiveDate,
+      "effectiveDate",
+      subject,
+      latestEffectiveDate,
+    );
     if (bad) return fail(bad);
     if (compareDates(command.effectiveDate, today) > 0)
       return err("LIFECYCLE_DATE_FUTURE", "effectiveDate");
@@ -145,7 +159,12 @@ export function planLifecycleTransition(
   if (command.kind === "OFFBOARD") {
     if (from === "RESIGNED" || from === "TERMINATED")
       return err("LIFECYCLE_ALREADY_SEPARATED", "kind");
-    const bad = checkDate(command.lastWorkingDate, "lastWorkingDate", subject);
+    const bad = checkDate(
+      command.lastWorkingDate,
+      "lastWorkingDate",
+      subject,
+      latestEffectiveDate,
+    );
     if (bad) return fail(bad);
     if (compareDates(command.lastWorkingDate, today) >= 0)
       return err("LIFECYCLE_LAST_DAY_NOT_PAST", "lastWorkingDate");
@@ -160,6 +179,11 @@ export function planLifecycleTransition(
     return ok({
       patch: {
         status: "INACTIVE",
+        employmentIntervals: replaceEmploymentBounds(
+          subject,
+          subject.employmentStartDate,
+          command.lastWorkingDate,
+        ),
         employmentEndDate: command.lastWorkingDate,
         separation,
       },
@@ -180,13 +204,30 @@ export function planLifecycleTransition(
     compareDates(command.effectiveDate, subject.separation.lastWorkingDate) <= 0
   )
     return err("LIFECYCLE_REINSTATE_BEFORE_EXIT", "effectiveDate");
+  if (
+    latestEffectiveDate !== undefined &&
+    command.effectiveDate < latestEffectiveDate
+  )
+    return err("LIFECYCLE_DATE_BEFORE_EVENT", "effectiveDate");
   if (compareDates(command.effectiveDate, today) > 0)
     return err("LIFECYCLE_DATE_FUTURE", "effectiveDate");
   const reason = normalizeReason(command.reason);
   if (reason === null) return err("LIFECYCLE_REASON_REQUIRED", "reason");
   const next = { ...subject, status: "ACTIVE" as const, separation: undefined };
   return ok({
-    patch: { status: "ACTIVE", employmentEndDate: null, separation: null },
+    patch: {
+      status: "ACTIVE",
+      employmentEndDate: null,
+      separation: null,
+      employmentIntervals: [
+        ...replaceEmploymentBounds(
+          subject,
+          subject.employmentStartDate,
+          subject.separation.lastWorkingDate,
+        ),
+        { startDate: command.effectiveDate },
+      ],
+    },
     event: {
       type: "REINSTATED",
       effectiveDate: command.effectiveDate,
@@ -213,4 +254,75 @@ export function separationPreserved(
     next.status === "INACTIVE" &&
     next.employmentEndDate === subject.separation.lastWorkingDate
   );
+}
+
+/** Change only the outer hire/current-end bounds; closed separation gaps stay intact. */
+export function replaceEmploymentBounds(
+  subject: LifecycleSubject,
+  startDate: string,
+  endDate?: string,
+): EmploymentInterval[] {
+  const intervals = subject.employmentIntervals ?? [
+    {
+      startDate: subject.employmentStartDate,
+      ...(subject.employmentEndDate === undefined
+        ? {}
+        : { endDate: subject.employmentEndDate }),
+    },
+  ];
+  return intervals.map((interval, index) => ({
+    startDate: index === 0 ? startDate : interval.startDate,
+    ...(index === intervals.length - 1
+      ? endDate === undefined
+        ? {}
+        : { endDate }
+      : interval.endDate === undefined
+        ? {}
+        : { endDate: interval.endDate }),
+  }));
+}
+
+export interface EmploymentDateBounds {
+  readonly first?: string | undefined;
+  readonly last?: string | undefined;
+}
+
+/** One authoritative constraint for the general editor and event history. */
+export function validateEmploymentChronology(
+  before: Pick<LifecycleSubject, "probationConfirmedDate" | "probationEndDate">,
+  next: {
+    employmentStartDate: string;
+    employmentEndDate?: string | undefined;
+    probationEndDate?: string | undefined;
+  },
+  bounds: EmploymentDateBounds,
+): { code: string; field: string } | null {
+  if (bounds.first !== undefined && next.employmentStartDate > bounds.first)
+    return {
+      code: "EMPLOYMENT_START_AFTER_EVENT",
+      field: "employmentStartDate",
+    };
+  if (
+    bounds.last !== undefined &&
+    next.employmentEndDate !== undefined &&
+    next.employmentEndDate < bounds.last
+  )
+    return { code: "EMPLOYMENT_END_BEFORE_EVENT", field: "employmentEndDate" };
+  // A planned probation end can outlive an early confirmation/exit. Keep
+  // that historical plan, but never move it beyond an already recorded event.
+  const probationBound = before.probationConfirmedDate ?? bounds.first;
+  if (
+    probationBound !== undefined &&
+    next.probationEndDate !== before.probationEndDate &&
+    next.probationEndDate !== undefined &&
+    next.probationEndDate > probationBound
+  )
+    return {
+      code:
+        before.probationConfirmedDate === undefined
+          ? "PROBATION_END_AFTER_EVENT"
+          : "PROBATION_END_AFTER_CONFIRMATION",
+      field: "probationEndDate",
+    };
+  return null;
 }

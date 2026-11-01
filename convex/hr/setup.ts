@@ -21,9 +21,12 @@ import { employeeOrgFields } from "../model/hr/orgSchema";
 import {
   employmentState,
   separationPreserved,
+  replaceEmploymentBounds,
+  validateEmploymentChronology,
   type EmploymentState,
 } from "../model/hr/lifecycle";
 import { validateEmployeeOrgReferences } from "./org";
+import { employmentDateBounds } from "./shared";
 import { validateSchedule } from "../model/hr/schedule";
 import {
   HR_MAX_CHUNK,
@@ -409,9 +412,15 @@ export const employee = queryWithOrg({
     // The registry lists active sites only; the editor follows the same rule.
     if (site === null || site.status !== "ACTIVE")
       return { ok: false as const, code: "NOT_FOUND" };
+    const bounds = await employmentDateBounds(ctx, record);
     return {
       ok: true as const,
-      employee: await employeeItem(ctx, record, site, new Map()),
+      employee: {
+        ...(await employeeItem(ctx, record, site, new Map())),
+        employmentIntervals: record.employmentIntervals,
+        firstEffectiveDate: bounds.first,
+        latestEffectiveDate: bounds.last,
+      },
     };
   },
 });
@@ -785,6 +794,14 @@ export const saveEmployee = mutationWithOrg({
         const effectiveDraft = validateEmployeeDraft({ ...args, ...orgFields });
         if (!effectiveDraft.ok)
           return fail(effectiveDraft.error.code, effectiveDraft.error.field);
+        if (before !== null) {
+          const invalidDates = validateEmploymentChronology(
+            before,
+            { ...args, ...orgFields },
+            await employmentDateBounds(ctx, before),
+          );
+          if (invalidDates) return fail(invalidDates.code, invalidDates.field);
+        }
         const invalidOrg = await validateEmployeeOrgReferences(
           ctx,
           { ...args, ...orgFields },
@@ -835,6 +852,15 @@ export const saveEmployee = mutationWithOrg({
           supervisorUserId: args.supervisorUserId,
           employmentStartDate: args.employmentStartDate,
           employmentEndDate: args.employmentEndDate,
+          ...(before?.employmentIntervals === undefined
+            ? {}
+            : {
+                employmentIntervals: replaceEmploymentBounds(
+                  before,
+                  args.employmentStartDate,
+                  args.employmentEndDate,
+                ),
+              }),
           ...orgFields,
           status: args.status,
           schedule,
