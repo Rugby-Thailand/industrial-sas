@@ -164,7 +164,7 @@ export const hrPolicyTables = {
       actorUserId: v.id("users"),
       reason: v.string(),
     }),
-  ).index("by_orgId_accountId", byOrg("accountId")),
+  ).index("by_orgId_accountId_kind", byOrg("accountId", "kind")),
   hrLeaveRequests: defineTable(tenantFields(requestFields))
     .index(
       "by_orgId_employeeId_submittedAt",
