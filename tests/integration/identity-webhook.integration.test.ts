@@ -143,6 +143,38 @@ describe("normalized Clerk mirror event kernel", () => {
     });
   });
 
+  it("does not tombstone absent parents while applying a membership delete", async () => {
+    const fixture = createIdentityMirrorPortFixture();
+    await applyIdentityWebhookEvent(
+      membershipEvent("evt_membership_delete", 20, "membership.delete"),
+      fixture.port,
+    );
+    await applyIdentityWebhookEvent(
+      {
+        eventId: "evt_org_upsert",
+        eventAt: 10,
+        type: "organization.upsert",
+        data: { clerkOrganizationId: "org_acme", name: "Acme" },
+      },
+      fixture.port,
+    );
+    await applyIdentityWebhookEvent(
+      {
+        eventId: "evt_user_upsert",
+        eventAt: 10,
+        type: "user.upsert",
+        data: { clerkUserId: "user_nok", displayName: "Nok" },
+      },
+      fixture.port,
+    );
+
+    expect(fixture.organization("org_acme")?.status).toBe("ACTIVE");
+    expect(fixture.user("user_nok")?.status).toBe("ACTIVE");
+    expect(fixture.membership("org_acme", "mem_nok_acme")?.status).toBe(
+      "REVOKED",
+    );
+  });
+
   it("cannot reactivate tombstoned identities while applying a membership delete", async () => {
     const fixture = createIdentityMirrorPortFixture();
     fixture.seedOrganization({
