@@ -1,0 +1,37 @@
+it("REVIEW PROBE: a selected cell that becomes locked by a remote capture can still leave the draft", async () => {
+  const view = open(HrRosterScreen, "/en/hr/roster#grid");
+  fireEvent.click(screen.getByRole("button", { name: "Assign shifts" }));
+  const bar = await screen.findByRole("form", {
+    name: "Assign shifts to selected dates",
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-21/ }));
+  expect(within(bar).getByRole("status")).toHaveTextContent("1 date selected");
+  // Attendance is captured for 2026-10-21 by another user: the server now
+  // refuses every action on that date (ROSTER_DAY_RECORDED).
+  const locked = rosterValue();
+  locked.employees[0]!.cells[1] = {
+    ...locked.employees[0]!.cells[1]!,
+    recorded: true,
+    lock: "RECORDED",
+  };
+  state.queries.set(getFunctionName(hrRefs.roster), query(locked));
+  view.rerender(
+    <DraftGuardProvider>
+      <main>
+        <HrRosterScreen />
+      </main>
+    </DraftGuardProvider>,
+  );
+  const cell = screen.getByRole("button", { name: /Somchai, 2026-10-21/ });
+  const stillSelected = cell.getAttribute("aria-pressed") === "true";
+  // Either the locked cell left the draft, or the admin can still deselect it.
+  expect({
+    stillSelected,
+    disabled: (cell as HTMLButtonElement).disabled,
+    status: within(bar).getByRole("status").textContent,
+  }).toEqual(
+    stillSelected
+      ? expect.objectContaining({ disabled: false })
+      : expect.objectContaining({ stillSelected: false }),
+  );
+});
