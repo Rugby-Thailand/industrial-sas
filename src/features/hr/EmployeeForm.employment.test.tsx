@@ -320,3 +320,34 @@ it("requires a department again when an inactive employee becomes active", () =>
   expect(screen.getByLabelText("Department *")).toBeInTheDocument();
   expect(screen.getByLabelText("Position *")).toBeInTheDocument();
 });
+
+it("recorded lifecycle dates bound hire, current end and probation edits without changing history", () => {
+  render({
+    ...E001,
+    probationConfirmedDate: "2024-05-07",
+    firstEffectiveDate: "2024-05-07",
+    latestEffectiveDate: "2026-10-19",
+  });
+  expect(screen.getByLabelText(/^Employment start/)).toHaveAttribute(
+    "max",
+    "2024-05-07",
+  );
+  expect(screen.getByLabelText(/^Employment end/)).toHaveAttribute(
+    "min",
+    "2026-10-19",
+  );
+  expect(screen.getByLabelText(/^Probation end date/)).toHaveAttribute(
+    "max",
+    "2024-05-07",
+  );
+  fireEvent.change(screen.getByLabelText(/^Employment start/), {
+    target: { value: "2025-01-01" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
+  expect(
+    screen.getByText(
+      "The hire date cannot be after an existing employment event. Keep the recorded history.",
+    ),
+  ).toBeVisible();
+  expect(state.save).not.toHaveBeenCalled();
+});

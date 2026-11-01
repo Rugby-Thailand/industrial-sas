@@ -3857,14 +3857,18 @@
         {
           "file": "src/features/hr/EmployeeForm.employment.test.tsx",
           "name": "requires a department and position while active ones exist, then sends the employment fields"
+        },
+        {
+          "file": "src/features/hr/EmployeeForm.employment.test.tsx",
+          "name": "recorded lifecycle dates bound hire, current end and probation edits without changing history"
         }
       ]
     },
     {
-      "id": "src/features/hr/EmployeeProfileSections.tsx#EmployeeProfileSections:target",
+      "id": "src/features/hr/EmployeeProfileSections.tsx#EmployeeProfileSession:target",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Edit personal/contact/payment details and Confirm probation / Record resignation or termination / Reinstate open the shared Back-aware Dialog over the retained URL-backed employee editor. Back or explicit Cancel dismisses the Dialog first and asks before discarding its typed draft (Keep editing retains it; the employment form underneath is untouched); a pending save blocks dismissal; a successful save settles its draft guard and consumes the Dialog entry before closing, so the next Back leaves the editor for the list with its locale, query and hash. Forward reopens the same section from current data. The section opens only inside the editor, so a direct editor link keeps the editor's audited closure.",
+      "expectation": "Edit personal/contact/payment details and Confirm probation / Record resignation or termination / Reinstate open the shared Back-aware Dialog over the retained URL-backed employee editor. Back or explicit Cancel dismisses the Dialog first and asks before discarding its typed draft (Keep editing retains it; the employment form underneath is untouched); a pending save blocks dismissal; a successful save settles its draft guard and consumes the Dialog entry before closing, so the next Back leaves the editor for the list with its locale, query and hash. Forward reopens the same section from current data. The section opens only inside the editor, so a direct editor link keeps the editor's audited closure. The target stores the opening snapshot and stable form/operation owner until discard/completion; live version/loading refreshes retain drafts and pending protection and show stale feedback. The enclosing identity/employee key invalidates private sessions on actor or tenant changes; an old completion cannot close a new session.",
       "tests": ["src/features/hr/EmployeeProfileSections.test.tsx"],
       "cases": [
         {
@@ -3890,6 +3894,30 @@
         {
           "file": "src/features/hr/EmployeeProfileSections.test.tsx",
           "name": "a remounted editor shows the saved profile again from the server"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "hardening U1 keeps dirty profile draft when another editor updates server version"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "hardening U2 completes original save after live query version refresh"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "$name session keeps its pending owner through query refresh, blocks Cancel/header/native Back, then consumes completion to the query/hash origin"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a refreshed dirty personal session survives loading and header Back, then explicit discard consumes the entry before the next Back"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "Forward opens a fresh payment session after Back while a remount reads current server values"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "identity change to %s invalidates private sessions and an old pending result cannot close the new actor's dialog"
         }
       ]
     },
@@ -3923,6 +3951,30 @@
         {
           "file": "src/features/hr/EmployeeProfileSections.test.tsx",
           "name": "a remounted editor shows the saved profile again from the server"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "hardening U1 keeps dirty profile draft when another editor updates server version"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "hardening U2 completes original save after live query version refresh"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "$name session keeps its pending owner through query refresh, blocks Cancel/header/native Back, then consumes completion to the query/hash origin"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a refreshed dirty personal session survives loading and header Back, then explicit discard consumes the entry before the next Back"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "Forward opens a fresh payment session after Back while a remount reads current server values"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "identity change to %s invalidates private sessions and an old pending result cannot close the new actor's dialog"
         }
       ]
     },
@@ -4106,7 +4158,11 @@
       "uses": ["branch"],
       "expectation": "Selected logo bytes remain an inline file draft with filename and an explicit apply-to-current action after a stale refusal. This opens no foreground or route. File reading and writes protect Back; stale drafts require consent before departure; success clears only the selected file. The command retains its observed row identity/revision across query refresh and retry/remount.",
       "render": [
-        { "shape": "conditional", "truthy": ["p"], "falsy": [] },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],

@@ -18,6 +18,8 @@ import { useDraftGuard } from "@/components/providers/draftGuard";
 import { hrRefs } from "@/lib/convex/hrApi";
 import { FOCUS_TARGET_IDS } from "@/lib/navigation";
 
+import { validateEmploymentChronology } from "../../../convex/model/hr/lifecycle";
+
 import { formatBusinessDate, formatDateTime, weekdayName } from "./format";
 import {
   HrInterrupted,
@@ -60,6 +62,8 @@ export interface EmployeeRecord {
   readonly employmentType?: "PERMANENT" | "FIXED_TERM" | undefined;
   readonly probationEndDate?: string | undefined;
   readonly probationConfirmedDate?: string | undefined;
+  readonly firstEffectiveDate?: string | undefined;
+  readonly latestEffectiveDate?: string | undefined;
   /** Offboarded: the record stays INACTIVE with this last day until reinstated. */
   readonly separation?:
     | {
@@ -281,6 +285,29 @@ export function EmployeeForm({
 
   const send = async () => {
     const next = validate(draft, required, t);
+    if (baseline !== undefined) {
+      const invalidDates = validateEmploymentChronology(
+        baseline,
+        {
+          employmentStartDate: draft.employmentStartDate,
+          employmentEndDate: draft.employmentEndDate || undefined,
+          probationEndDate: draft.onProbation
+            ? draft.probationEndDate
+            : undefined,
+        },
+        {
+          first:
+            baseline.firstEffectiveDate ??
+            baseline.probationConfirmedDate ??
+            baseline.separation?.lastWorkingDate,
+          last:
+            baseline.latestEffectiveDate ??
+            baseline.probationConfirmedDate ??
+            baseline.separation?.lastWorkingDate,
+        },
+      );
+      if (invalidDates) next[invalidDates.field] = message(invalidDates.code);
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     const result = await write.submit((requestId) =>
@@ -607,6 +634,11 @@ export function EmployeeForm({
                   {...field}
                   type="date"
                   value={draft.employmentStartDate}
+                  max={
+                    baseline?.firstEffectiveDate ??
+                    baseline?.probationConfirmedDate ??
+                    baseline?.separation?.lastWorkingDate
+                  }
                   onChange={(e) => set("employmentStartDate", e.target.value)}
                 />
               )}
@@ -622,6 +654,9 @@ export function EmployeeForm({
                   {...field}
                   type="date"
                   value={draft.employmentEndDate}
+                  min={
+                    baseline?.latestEffectiveDate ?? draft.employmentStartDate
+                  }
                   onChange={(e) => set("employmentEndDate", e.target.value)}
                 />
               )}
@@ -658,6 +693,12 @@ export function EmployeeForm({
                     {...field}
                     type="date"
                     value={draft.probationEndDate}
+                    min={draft.employmentStartDate}
+                    max={
+                      baseline?.probationConfirmedDate ??
+                      baseline?.firstEffectiveDate ??
+                      baseline?.separation?.lastWorkingDate
+                    }
                     onChange={(e) => set("probationEndDate", e.target.value)}
                   />
                 )}

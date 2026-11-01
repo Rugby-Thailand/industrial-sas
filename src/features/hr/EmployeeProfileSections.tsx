@@ -120,6 +120,8 @@ interface Lifecycle {
   readonly state: EmploymentState;
   readonly version: number;
   readonly employmentStartDate: string;
+  readonly latestEffectiveDate?: string;
+  readonly firstEffectiveDate?: string;
   readonly probationEndDate?: string;
   readonly probationConfirmedDate?: string;
   readonly separation?: {
@@ -157,6 +159,21 @@ export function EmployeeProfileSections({
 }: {
   readonly employeeId: string;
 }) {
+  const identity = useHrAccess().identityKey ?? "anonymous";
+  return (
+    <EmployeeProfileSession
+      key={`${identity}:${employeeId}`}
+      employeeId={employeeId}
+    />
+  );
+}
+
+/** Actor/tenant/employee changes invalidate private editor state and callbacks. */
+function EmployeeProfileSession({
+  employeeId,
+}: {
+  readonly employeeId: string;
+}) {
   const t = useTranslations("Hr.employeeProfile");
   const profileOutcome = useQuery(hrRefs.employeeProfile, { employeeId });
   const paymentOutcome = useQuery(hrRefs.employeePayment, { employeeId });
@@ -168,12 +185,19 @@ export function EmployeeProfileSections({
     paymentOutcome,
   );
   const lifecycle = answer<Lifecycle>(lifecycleOutcome);
-  const [target, setTarget] = useState<Target | null>(null);
+  const [target, setTarget] = useState<{
+    kind: Target;
+    profile: typeof profile;
+    payment: typeof payment;
+    lifecycle: typeof lifecycle;
+  } | null>(null);
   // Forward reopens the editor this entry belonged to.
   const last = useRef<Target>("personal");
+  // A section owns the exact snapshot/version it opened with. Live query
+  // refreshes update summaries and stale feedback, never this session owner.
   const open = (next: Target) => {
     last.current = next;
-    setTarget(next);
+    setTarget({ kind: next, profile, payment, lifecycle });
   };
   const busy = target !== null;
   return (
@@ -231,12 +255,19 @@ export function EmployeeProfileSections({
         </ProfileCard>
       </div>
       <SectionDialog
-        target={target}
+        target={target?.kind ?? null}
         employeeId={employeeId}
-        profile={profile}
-        payment={payment}
-        lifecycle={lifecycle}
-        onOpenChange={(next) => setTarget(next ? last.current : null)}
+        profile={target?.profile}
+        payment={target?.payment}
+        lifecycle={target?.lifecycle}
+        currentVersion={
+          target?.kind === "personal" || target?.kind === "contact"
+            ? profile?.version
+            : target?.kind === "payment"
+              ? payment?.version
+              : lifecycle?.version
+        }
+        onOpenChange={(next) => (next ? open(last.current) : setTarget(null))}
       />
     </div>
   );
@@ -499,6 +530,7 @@ function SectionDialog({
   profile,
   payment,
   lifecycle,
+  currentVersion,
   onOpenChange,
 }: {
   readonly target: Target | null;
@@ -507,6 +539,7 @@ function SectionDialog({
   readonly payment:
     { payment: PaymentValues | null; version: number } | undefined;
   readonly lifecycle: Lifecycle | undefined;
+  readonly currentVersion: number | undefined;
   readonly onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("Hr.employeeProfile");
@@ -535,10 +568,19 @@ function SectionDialog({
             {target === null ? "" : t(`dialogHint.${target}`)}
           </DialogDescription>
         </DialogHeader>
+        {currentVersion !== undefined &&
+        currentVersion !==
+          (target === "personal" || target === "contact"
+            ? profile?.version
+            : target === "payment"
+              ? payment?.version
+              : lifecycle?.version) ? (
+          <Notice tone="warning" title={t("sessionStale")} />
+        ) : null}
         {(target === "personal" || target === "contact") &&
         profile !== undefined ? (
           <ProfileForm
-            key={`${target}:${profile.version}`}
+            key={target}
             section={target}
             employeeId={employeeId}
             opened={profile}
@@ -548,7 +590,7 @@ function SectionDialog({
         ) : null}
         {target === "payment" && payment !== undefined ? (
           <PaymentForm
-            key={`payment:${payment.version}`}
+            key="payment"
             employeeId={employeeId}
             opened={payment}
             onPending={setPending}
@@ -560,7 +602,7 @@ function SectionDialog({
           target === "REINSTATE") &&
         lifecycle !== undefined ? (
           <LifecycleForm
-            key={`${target}:${lifecycle.version}`}
+            key={target}
             kind={target}
             employeeId={employeeId}
             opened={lifecycle}
@@ -642,6 +684,7 @@ function TextField({
   hint,
   onChange,
   type = "text",
+  min,
   max,
   inputMode,
 }: {
@@ -653,6 +696,7 @@ function TextField({
   readonly hint?: string;
   readonly onChange: (value: string) => void;
   readonly type?: "text" | "date" | "email" | "tel";
+  readonly min?: string;
   readonly max?: string;
   readonly inputMode?: "numeric" | "tel" | "email";
 }) {
@@ -669,6 +713,7 @@ function TextField({
           type={type}
           value={value}
           autoComplete="off"
+          {...(min === undefined ? {} : { min })}
           {...(max === undefined ? {} : { max })}
           {...(inputMode === undefined ? {} : { inputMode })}
           onChange={(event) => onChange(event.target.value)}
@@ -997,10 +1042,14 @@ function LifecycleForm({
   // Scheduled changes are not supported: dates are bounded by today, and a
   // last working day must already have passed.
   const max = kind === "OFFBOARD" ? previousDay(today) : today;
-  const min =
+  const min = [
     kind === "REINSTATE" && subject.separation
       ? nextDay(subject.separation.lastWorkingDate)
-      : subject.employmentStartDate;
+      : subject.employmentStartDate,
+    subject.latestEffectiveDate ?? subject.employmentStartDate,
+  ]
+    .sort()
+    .at(-1)!;
   const { write, draft, setDraft, errors, setErrors, guard } = useDialogForm(
     `employee-lifecycle:${employeeId}:${kind}:${subject.version}`,
     {
@@ -1055,6 +1104,9 @@ function LifecycleForm({
       {kind === "OFFBOARD" ? (
         <Notice tone="warning" title={t("offboardNotice")} />
       ) : null}
+      {kind === "REINSTATE" ? (
+        <Notice tone="neutral" title={t("reinstateAssignments")} />
+      ) : null}
       <fieldset disabled={write.locked} className="grid gap-5">
         {kind === "OFFBOARD" ? (
           <RadioFieldset
@@ -1079,6 +1131,7 @@ function LifecycleForm({
           value={draft.date}
           error={errors.date}
           hint={t(`dateHint.${kind}`)}
+          min={min}
           max={max}
           onChange={(value) =>
             setDraft((current) => ({ ...current, date: value }))

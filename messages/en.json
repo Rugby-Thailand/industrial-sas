@@ -2603,6 +2603,12 @@
       "LIFECYCLE_NOT_ON_PROBATION": "This employee is not on probation.",
       "LIFECYCLE_ALREADY_SEPARATED": "This employee has already been offboarded.",
       "LIFECYCLE_NOT_SEPARATED": "Only an offboarded employee can be reinstated.",
+      "LIFECYCLE_DATE_BEFORE_EVENT": "The date must be on or after the latest recorded employment event. History cannot be rewritten here.",
+      "EMPLOYMENT_START_AFTER_EVENT": "The hire date cannot be after an existing employment event. Keep the recorded history.",
+      "EMPLOYMENT_END_BEFORE_EVENT": "The end date cannot be before the latest employment event.",
+      "PROBATION_END_AFTER_EVENT": "The probation end cannot be moved after a recorded employment event. Keep the historical plan.",
+      "PROBATION_END_AFTER_CONFIRMATION": "The probation end cannot be moved after the recorded confirmation date.",
+      "LIFECYCLE_OPEN_SHIFT": "This employee has an open shift. Have them clock out, or resolve the attendance record, before offboarding.",
       "LIFECYCLE_DATE_INVALID": "Enter a valid date.",
       "LIFECYCLE_DATE_BEFORE_START": "The date can't be before the employment start date.",
       "LIFECYCLE_DATE_FUTURE": "Scheduled changes aren't supported yet. Choose today or an earlier date.",
@@ -3316,6 +3322,8 @@
       "noManagerMatches": "No active employee matches this search"
     },
     "employeeProfile": {
+      "sessionStale": "These details changed while this editor was open. Your draft is retained. A stale save will be refused; cancel and reopen to use the latest details.",
+      "reinstateAssignments": "If department or position is required, cancel this dialog, update the employment fields below while keeping the employee inactive and the last working day, save, then reopen Reinstate.",
       "personal": "Personal",
       "contact": "Contact",
       "emergency": "Emergency contact",

@@ -296,7 +296,10 @@ export function validateEmploymentChronology(
     probationEndDate?: string | undefined;
   },
   bounds: EmploymentDateBounds,
-): { code: string; field: string } | null {
+): {
+  code: string;
+  field: "employmentStartDate" | "employmentEndDate" | "probationEndDate";
+} | null {
   if (bounds.first !== undefined && next.employmentStartDate > bounds.first)
     return {
       code: "EMPLOYMENT_START_AFTER_EVENT",

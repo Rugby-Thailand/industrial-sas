@@ -194,7 +194,11 @@ function screenAt(url = LIST) {
     </DraftGuardProvider>
   );
   return {
-    view: renderWithIntl(tree(), { locale: "en", workspace: false }),
+    view: renderWithIntl(tree(), {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    }),
     tree,
   };
 }
@@ -470,3 +474,408 @@ it("a remounted editor shows the saved profile again from the server", async () 
   expect(within(personal).getByText("Somsak")).toBeVisible();
   expect(here()).toBe(editorUrl);
 });
+
+it("hardening U1 keeps dirty profile draft when another editor updates server version", async () => {
+  const { view, tree } = screenAt();
+  await openEditor();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit personal details" }),
+  );
+  const dialog = await screen.findByRole("dialog", {
+    name: "Personal details",
+  });
+  fireEvent.change(within(dialog).getByLabelText("Nickname"), {
+    target: { value: "Unsaved nickname" },
+  });
+  state.queries.set(
+    getFunctionName(hrRefs.employeeProfile),
+    query({
+      ok: true,
+      version: 3,
+      profile: { firstName: "Somsak", email: "changed-elsewhere@example.com" },
+    }),
+  );
+  view.rerender(tree());
+  expect(screen.getByLabelText("Nickname")).toHaveValue("Unsaved nickname");
+});
+
+it("hardening U2 completes original save after live query version refresh", async () => {
+  let resolve: (value: unknown) => void = () => undefined;
+  const save = mutation(hrRefs.saveEmployeeProfile);
+  save.mockReturnValue(new Promise((done) => (resolve = done)));
+  const { view, tree } = screenAt();
+  await openEditor();
+  const editorUrl = here();
+  fireEvent.click(screen.getByRole("button", { name: "Edit contact details" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Contact and emergency contact",
+  });
+  fireEvent.change(within(dialog).getByLabelText("Email"), {
+    target: { value: "saved@example.com" },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  state.queries.set(
+    getFunctionName(hrRefs.employeeProfile),
+    query({ ok: true, version: 3, profile: { email: "saved@example.com" } }),
+  );
+  view.rerender(tree());
+  await act(async () => resolve(saved("p1")));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(here()).toBe(editorUrl));
+  await traverse("back");
+  await waitFor(() => expect(here()).toBe(LIST));
+});
+
+it("hardening U3 loaded ID-only request offers status recovery with no original callback", async () => {
+  screenAt();
+  await openEditor();
+  // This is the exact storage record useHrWrite leaves when a response is lost;
+  // a new document has no in-memory owner.command callback.
+  window.sessionStorage.setItem(
+    `hr-request:${state.identityKey}|employee-profile:e7:personal:2`,
+    JSON.stringify({ version: 1, requestId: "reload-request-0001" }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit personal details" }),
+  );
+  const dialog = await screen.findByRole("dialog", {
+    name: "Personal details",
+  });
+  expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+  expect(
+    within(dialog).queryByText(/saved request reference could not be read/i),
+  ).toBeNull();
+});
+
+const editors = [
+  {
+    name: "personal",
+    action: "Edit personal details",
+    title: "Personal details",
+    field: "Nickname",
+    value: "Retained personal draft",
+    ref: hrRefs.saveEmployeeProfile,
+    queryRef: hrRefs.employeeProfile,
+    expectedVersion: 2,
+    refresh: () =>
+      query({ ok: true, version: 3, profile: { nickname: "Other editor" } }),
+  },
+  {
+    name: "contact",
+    action: "Edit contact details",
+    title: "Contact and emergency contact",
+    field: "Email",
+    value: "private@example.com",
+    ref: hrRefs.saveEmployeeProfile,
+    queryRef: hrRefs.employeeProfile,
+    expectedVersion: 2,
+    refresh: () =>
+      query({ ok: true, version: 3, profile: { email: "other@example.com" } }),
+  },
+  {
+    name: "payment",
+    action: "Edit payment details",
+    title: "Payment details",
+    field: "Bank",
+    value: "Retained private bank",
+    ref: hrRefs.saveEmployeePayment,
+    queryRef: hrRefs.employeePayment,
+    expectedVersion: 1,
+    refresh: () => query({ ok: true, version: 2, payment: { method: "CASH" } }),
+  },
+  {
+    name: "lifecycle",
+    action: "Record resignation or termination",
+    title: "Record resignation or termination",
+    field: "Reason",
+    value: "Retained departure reason",
+    ref: hrRefs.recordEmploymentEvent,
+    queryRef: hrRefs.employeeLifecycle,
+    expectedVersion: 4,
+    refresh: () => lifecycle({ version: 5, state: "INACTIVE" }),
+  },
+];
+
+it.each(editors)(
+  "$name session keeps its pending owner through query refresh, blocks Cancel/header/native Back, then consumes completion to the query/hash origin",
+  async (editor) => {
+    let resolve: (value: unknown) => void = () => undefined;
+    const save = mutation(editor.ref);
+    save.mockReturnValue(new Promise((done) => (resolve = done)));
+    const { view, tree } = screenAt();
+    await openEditor();
+    const origin = here();
+    // Capture the actual page-header control before the modal hides its underlay.
+    const headerBack = screen.getByRole("button", { name: "Back" });
+    fireEvent.click(screen.getByRole("button", { name: editor.action }));
+    const dialog = await screen.findByRole("dialog", { name: editor.title });
+    fireEvent.change(
+      within(dialog).getByLabelText(
+        editor.field === "Reason" ? /Reason/ : editor.field,
+      ),
+      { target: { value: editor.value } },
+    );
+    if (editor.name === "lifecycle")
+      fireEvent.change(within(dialog).getByLabelText("Last working day"), {
+        target: { value: "2026-10-19" },
+      });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    state.queries.set(getFunctionName(editor.queryRef), editor.refresh());
+    if (editor.name === "lifecycle")
+      state.queries.set(
+        getFunctionName(hrRefs.employee),
+        query({
+          ok: true,
+          employee: {
+            ...employee,
+            version: 5,
+            status: "INACTIVE",
+            employmentState: "RESIGNED",
+            employmentEndDate: "2026-10-19",
+            separation: { type: "RESIGNATION", lastWorkingDate: "2026-10-19" },
+          },
+        }),
+      );
+    view.rerender(tree());
+    expect(
+      screen.getByLabelText(
+        editor.field === "Reason" ? /Reason/ : editor.field,
+      ),
+    ).toHaveValue(editor.value);
+    expect(within(dialog).getByText(/Your draft is retained/)).toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(headerBack);
+    await traverse("back");
+    expect(screen.getByRole("dialog", { name: editor.title })).toBeVisible();
+    expect(
+      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeNull();
+    expect(save.mock.calls[0]![0]).toMatchObject({
+      expectedVersion: editor.expectedVersion,
+    });
+    // Persist only identity/operation, never the private draft.
+    const stored =
+      Object.values(window.sessionStorage).join(" ") +
+      Object.values(window.localStorage).join(" ");
+    expect(stored).not.toContain(editor.value);
+    expect(stored).not.toContain("1234567890");
+    await act(async () => resolve(saved("e7")));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(here()).toBe(origin));
+    await traverse("back");
+    await waitFor(() => expect(here()).toBe(LIST));
+    await traverse("forward");
+    await waitFor(() => expect(here()).toBe(origin));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
+
+it("a refreshed dirty personal session survives loading and header Back, then explicit discard consumes the entry before the next Back", async () => {
+  const { view, tree } = screenAt();
+  await openEditor();
+  const origin = here();
+  const headerBack = screen.getByRole("button", { name: "Back" });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit personal details" }),
+  );
+  fireEvent.change(screen.getByLabelText("Nickname"), {
+    target: { value: "Keep this draft" },
+  });
+  state.queries.set(getFunctionName(hrRefs.employeeProfile), undefined);
+  view.rerender(tree());
+  expect(screen.getByLabelText("Nickname")).toHaveValue("Keep this draft");
+  state.queries.set(
+    getFunctionName(hrRefs.employeeProfile),
+    query({ ok: true, version: 8, profile: { nickname: "Another editor" } }),
+  );
+  view.rerender(tree());
+  fireEvent.click(headerBack);
+  await leavePrompt();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeNull(),
+  );
+  expect(screen.getByLabelText("Nickname")).toHaveValue("Keep this draft");
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Personal details" })).getByRole(
+      "button",
+      { name: "Cancel" },
+    ),
+  );
+  await leavePrompt();
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(here()).toBe(origin));
+  await traverse("back");
+  await waitFor(() => expect(here()).toBe(LIST));
+});
+
+it("Forward opens a fresh payment session after Back while a remount reads current server values", async () => {
+  const { view, tree } = screenAt();
+  await openEditor();
+  fireEvent.click(screen.getByRole("button", { name: "Edit payment details" }));
+  await screen.findByRole("dialog", { name: "Payment details" });
+  await traverse("back");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  state.queries.set(
+    getFunctionName(hrRefs.employeePayment),
+    query({
+      ok: true,
+      version: 2,
+      payment: {
+        method: "BANK",
+        bankName: "Current bank",
+        accountNumber: "9876543210",
+      },
+    }),
+  );
+  view.rerender(tree());
+  await traverse("forward");
+  await screen.findByRole("dialog", { name: "Payment details" });
+  expect(screen.getByLabelText("Bank")).toHaveValue("Current bank");
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  view.unmount();
+  renderWithIntl(tree(), { locale: "en", workspace: false });
+  fireEvent.click(screen.getByRole("button", { name: "Edit payment details" }));
+  await screen.findByRole("dialog", { name: "Payment details" });
+  expect(screen.getByLabelText("Account number")).toHaveValue("9876543210");
+});
+
+it.each(["org-a:other-actor", "org-b:other-actor"])(
+  "identity change to %s invalidates private sessions and an old pending result cannot close the new actor's dialog",
+  async (identity) => {
+    let resolve: (value: unknown) => void = () => undefined;
+    mutation(hrRefs.saveEmployeeProfile).mockReturnValue(
+      new Promise((done) => (resolve = done)),
+    );
+    const { view, tree } = screenAt();
+    await openEditor();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit personal details" }),
+    );
+    fireEvent.change(screen.getByLabelText("Nickname"), {
+      target: { value: "Old actor private draft" },
+    });
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }),
+    );
+    await waitFor(() =>
+      expect(mutation(hrRefs.saveEmployeeProfile)).toHaveBeenCalledOnce(),
+    );
+    state.identityKey = identity;
+    state.queries.set(
+      getFunctionName(hrRefs.employeeProfile),
+      query({ ok: true, version: 2, profile: { nickname: "New actor data" } }),
+    );
+    view.rerender(tree());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit personal details" }),
+    );
+    await screen.findByRole("dialog", { name: "Personal details" });
+    expect(screen.getByLabelText("Nickname")).toHaveValue("New actor data");
+    await act(async () => resolve(saved("e7")));
+    expect(
+      screen.getByRole("dialog", { name: "Personal details" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Nickname")).toHaveValue("New actor data");
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    ).toBeEnabled();
+  },
+);
+
+const recoveryEditors = [
+  {
+    action: "Edit personal details",
+    title: "Personal details",
+    intent: "employee-profile:e7:personal:2",
+    operation: "hr.employee.profile.save",
+  },
+  {
+    action: "Edit payment details",
+    title: "Payment details",
+    intent: "employee-payment:e7:1",
+    operation: "hr.employee.payment.save",
+  },
+  {
+    action: "Record resignation or termination",
+    title: "Record resignation or termination",
+    intent: "employee-lifecycle:e7:OFFBOARD:4",
+    operation: "hr.employee.lifecycle",
+  },
+];
+for (const status of ["COMMITTED", "FENCED"] as const) {
+  it.each(recoveryEditors)(
+    `$operation ID-only reload recovery handles ${status} with no original callback and no private payload replay`,
+    async (editor) => {
+      const recover = mutation(hrRefs.reconcileRequest);
+      recover.mockResolvedValue({
+        ok: true,
+        value: { resolved: true, status },
+      });
+      // New document representation: only the serialized ID, no owner.command
+      // ever existed for this actor/intent in this test's module lifetime.
+      window.sessionStorage.setItem(
+        `hr-request:${state.identityKey}|${editor.intent}`,
+        JSON.stringify({
+          version: 1,
+          requestId: "employee-reload-request-0001",
+        }),
+      );
+      screenAt();
+      await openEditor();
+      fireEvent.click(screen.getByRole("button", { name: editor.action }));
+      const dialog = await screen.findByRole("dialog", { name: editor.title });
+      expect(
+        within(dialog).getByRole("button", { name: "Save" }),
+      ).toBeDisabled();
+      fireEvent.click(
+        within(dialog).getByRole("button", { name: "Check previous write" }),
+      );
+      await waitFor(() =>
+        expect(recover).toHaveBeenCalledWith({
+          operation: editor.operation,
+          requestId: "employee-reload-request-0001",
+        }),
+      );
+      expect(
+        await within(dialog).findByText(
+          status === "COMMITTED"
+            ? "The previous write was saved"
+            : "The previous write did not apply",
+        ),
+      ).toBeVisible();
+      expect(
+        within(dialog).getByRole("button", { name: "Save" }),
+      ).toBeEnabled();
+      for (const ref of [
+        hrRefs.saveEmployeeProfile,
+        hrRefs.saveEmployeePayment,
+        hrRefs.recordEmploymentEvent,
+      ])
+        expect(mutation(ref)).not.toHaveBeenCalled();
+      expect(
+        window.sessionStorage.getItem(
+          `hr-request:${state.identityKey}|${editor.intent}`,
+        ),
+      ).toBeNull();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await traverse("back");
+      await waitFor(() => expect(here()).toBe(LIST));
+    },
+  );
+}
