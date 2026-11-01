@@ -14201,50 +14201,34 @@
     "kind": "mutation",
     "visibility": "public",
     "args": {
-      "type": "union",
-      "value": [
-        {
-          "type": "object",
-          "value": {
-            "requestId": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "mimeType": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "base64": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            }
-          }
+      "type": "object",
+      "value": {
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
         },
-        {
-          "type": "object",
-          "value": {
-            "requestId": {
-              "fieldType": {
-                "type": "string"
-              },
-              "optional": false
-            },
-            "remove": {
-              "fieldType": {
-                "type": "literal",
-                "value": true
-              },
-              "optional": false
-            }
-          }
+        "mimeType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "base64": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "remove": {
+          "fieldType": {
+            "type": "literal",
+            "value": true
+          },
+          "optional": true
         }
-      ]
+      }
     },
     "returns": {
       "type": "union",

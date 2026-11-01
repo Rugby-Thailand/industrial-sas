@@ -1311,6 +1311,24 @@ it("invalid logos persist no domain change and removal is safe without an existi
     });
     expect(await storeSnapshot(world)).toEqual(before);
   }
+  // The object validator admits ambiguous shapes; the handler refuses them.
+  for (const ambiguous of [
+    {},
+    { mimeType: "image/png" },
+    {
+      mimeType: "image/png",
+      base64: btoa("\x89PNG\r\n\x1a\n"),
+      remove: true as const,
+    },
+  ]) {
+    expect(
+      await call(world, org.saveCompanyLogo, {
+        ...ambiguous,
+        requestId: requestId(),
+      }),
+    ).toMatchObject({ written: false, error: { code: "LOGO_FILE_INVALID" } });
+    expect(await storeSnapshot(world)).toEqual(before);
+  }
   const remove = { remove: true as const, requestId: requestId() };
   saved(await call(world, org.saveCompanyLogo, remove, TENANT_B));
   expect(

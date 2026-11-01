@@ -132,14 +132,13 @@ export const getCompanyLogo = queryWithOrg({
 });
 
 export const saveCompanyLogo = mutationWithOrg({
-  args: v.union(
-    v.object({
-      requestId: v.string(),
-      mimeType: v.string(),
-      base64: v.string(),
-    }),
-    v.object({ requestId: v.string(), remove: v.literal(true) }),
-  ),
+  // Convex requires object args: either { mimeType, base64 } or { remove }.
+  args: {
+    requestId: v.string(),
+    mimeType: v.optional(v.string()),
+    base64: v.optional(v.string()),
+    remove: v.optional(v.literal(true)),
+  },
   returns: v.any(),
   permissionCode: ADMIN,
   target: { table: "hrCompanyLogos" },
@@ -150,20 +149,25 @@ export const saveCompanyLogo = mutationWithOrg({
       payload: args,
       table: "hrCompanyLogos",
       run: async () => {
-        if (!("remove" in args)) {
-          const valid = validateCompanyLogo(args.mimeType, args.base64);
+        const remove = args.remove === true;
+        const upload =
+          args.mimeType === undefined || args.base64 === undefined
+            ? null
+            : { mimeType: args.mimeType, base64: args.base64 };
+        if (remove !== (upload === null))
+          return fail("LOGO_FILE_INVALID", "base64");
+        if (upload) {
+          const valid = validateCompanyLogo(upload.mimeType, upload.base64);
           if (!valid.ok) return fail(valid.error.code, valid.error.field);
         }
         const before = await companyLogo(ctx);
         const profile = await companyProfile(ctx);
-        const remove = "remove" in args;
         let id: string = before?._id ?? ctx.tenant.organization._id;
         if (remove) {
           if (before) await ctx.tenantDb.delete("hrCompanyLogos", before._id);
-        } else {
+        } else if (upload) {
           const fields = {
-            mimeType: args.mimeType,
-            base64: args.base64,
+            ...upload,
             ...audit(ctx, before),
           };
           if (before)
