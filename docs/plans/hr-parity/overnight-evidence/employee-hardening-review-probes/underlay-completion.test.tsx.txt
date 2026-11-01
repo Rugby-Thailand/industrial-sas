@@ -1,0 +1,230 @@
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { getFunctionName } from "convex/server";
+import { useSyncExternalStore, type ComponentProps } from "react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { chooseOption } from "@tests/fixtures/select-control";
+
+// Component/caller tests of the real Employees screen and editor with the
+// Convex client mocked at the hook boundary. They are not browser or backend
+// end-to-end tests; registered backend behavior is covered in
+// tests/integration/hr-parity/03-employee-offboard.test.ts.
+
+const state = vi.hoisted(() => ({
+  queries: new Map<string, unknown>(),
+  args: new Map<string, unknown>(),
+  mutations: new Map<string, ReturnType<typeof vi.fn>>(),
+  identityKey: "org-a:user-a",
+}));
+vi.mock("convex/react", async () => {
+  const { getFunctionName: name } = await import("convex/server");
+  return {
+    useQuery: (reference: Parameters<typeof name>[0], args: unknown) => {
+      if (args === "skip") return undefined;
+      state.args.set(name(reference), args);
+      return state.queries.get(name(reference));
+    },
+    useMutation: (reference: Parameters<typeof name>[0]) => {
+      const key = name(reference);
+      if (!state.mutations.has(key)) state.mutations.set(key, vi.fn());
+      return state.mutations.get(key);
+    },
+  };
+});
+vi.mock("@/components/providers/HrAccessProvider", () => ({
+  useHrAccess: () => ({
+    status: "READY",
+    permissions: ["hr.admin.manage"],
+    timezoneSupported: true,
+    timezone: "Asia/Bangkok",
+    today: "2026-10-20",
+    identityKey: state.identityKey,
+    sites: [{ id: "w1", code: "HQ", name: "Head office" }],
+  }),
+  useHrCan: () => true,
+}));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => {
+    const query = useSyncExternalStore(
+      (listener) => {
+        window.addEventListener("app-query-state", listener);
+        window.addEventListener("popstate", listener);
+        return () => {
+          window.removeEventListener("app-query-state", listener);
+          window.removeEventListener("popstate", listener);
+        };
+      },
+      () => window.location.search,
+    );
+    return new URLSearchParams(query);
+  },
+}));
+vi.mock("@/i18n/navigation", () => {
+  function navigate(href: string, mode: "pushState" | "replaceState") {
+    window.history[mode]({}, "", `/en${href}`);
+    window.dispatchEvent(new Event("app-query-state"));
+  }
+  const router = {
+    push: (href: string) => navigate(href, "pushState"),
+    replace: (href: string) => navigate(href, "replaceState"),
+    back: () => window.history.back(),
+    forward: () => window.history.forward(),
+  };
+  return {
+    Link: (props: ComponentProps<"a">) => <a {...props} />,
+    useRouter: () => router,
+  };
+});
+
+import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import { trackAppHistory } from "@/lib/browser/appHistory";
+import { hrRefs } from "@/lib/convex/hrApi";
+import { HrEmployeesScreen } from "@/features/hr/EmployeesScreen";
+
+const employee = {
+  id: "e7",
+  code: "EMP-007",
+  displayName: "Somsak",
+  status: "ACTIVE",
+  employmentState: "ACTIVE",
+  siteId: "w1",
+  siteCode: "HQ",
+  linkedActive: false,
+  employmentStartDate: "2026-01-05",
+  version: 4,
+};
+const former = {
+  ...employee,
+  id: "e8",
+  code: "EMP-008",
+  displayName: "Malee",
+  status: "INACTIVE",
+  employmentState: "RESIGNED",
+  employmentEndDate: "2026-09-30",
+  separation: { type: "RESIGNATION", lastWorkingDate: "2026-09-30" },
+};
+const query = (value: unknown) => ({ ok: true, requestId: "q", value });
+const page = (rows: unknown[]) =>
+  query({
+    ok: true,
+    status: "ready",
+    page: rows,
+    continueCursor: "",
+    isDone: true,
+  });
+const saved = (documentId: string) => ({
+  ok: true,
+  value: { written: true, documentId, replayed: false },
+});
+const mutation = (reference: Parameters<typeof getFunctionName>[0]) => {
+  const key = getFunctionName(reference);
+  if (!state.mutations.has(key)) state.mutations.set(key, vi.fn());
+  return state.mutations.get(key)!;
+};
+const lifecycle = (overrides: Record<string, unknown> = {}) =>
+  query({
+    ok: true,
+    today: "2026-10-20",
+    state: "ACTIVE",
+    version: 4,
+    employmentStartDate: "2026-01-05",
+    complete: true,
+    events: [],
+    ...overrides,
+  });
+
+let stopTracking: () => void;
+let actor = 0;
+beforeEach(() => {
+  state.identityKey = `org-a:user-${++actor}`;
+  state.queries.clear();
+  state.args.clear();
+  state.mutations.clear();
+  window.sessionStorage.clear();
+  state.queries.set(getFunctionName(hrRefs.employeesPage), page([employee]));
+  state.queries.set(
+    getFunctionName(hrRefs.employee),
+    query({ ok: true, employee }),
+  );
+  state.queries.set(getFunctionName(hrRefs.memberOptionsPage), page([]));
+  state.queries.set(
+    getFunctionName(hrRefs.employeeProfile),
+    query({
+      ok: true,
+      version: 2,
+      profile: { firstName: "Somsak", emergencyName: "Malee" },
+    }),
+  );
+  state.queries.set(
+    getFunctionName(hrRefs.employeePayment),
+    query({
+      ok: true,
+      version: 1,
+      payment: {
+        method: "BANK",
+        bankName: "Example Bank",
+        accountNumber: "1234567890",
+        accountMasked: "•••• 7890",
+      },
+    }),
+  );
+  state.queries.set(getFunctionName(hrRefs.employeeLifecycle), lifecycle());
+  window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/hr/today");
+  stopTracking = trackAppHistory();
+});
+afterEach(() => stopTracking());
+
+const here = () =>
+  window.location.pathname + window.location.search + window.location.hash;
+const LIST = "/en/hr/employees?status=ALL#registry";
+function screenAt(url = LIST) {
+  window.history.pushState({}, "", url);
+  const tree = () => (
+    <DraftGuardProvider>
+      <main>
+        <HrEmployeesScreen />
+      </main>
+    </DraftGuardProvider>
+  );
+  return {
+    view: renderWithIntl(tree(), {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    }),
+    tree,
+  };
+}
+async function traverse(delta: "back" | "forward") {
+  await act(async () => {
+    window.history[delta]();
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+  });
+}
+async function openEditor() {
+  fireEvent.click(screen.getAllByRole("button", { name: /Edit.*Somsak/ })[0]!);
+  await screen.findByTestId("hr-employee-profile");
+}
+const leavePrompt = () =>
+  screen.findByRole("dialog", { name: "Save changes before leaving?" });
+
+it("independent successful personal foreground completion preserves a dirty employment underlay without asking to discard it",async()=>{
+ screenAt();await openEditor();
+ fireEvent.change(screen.getByLabelText(/^Display name/),{target:{value:"Unsaved employment name"}});
+ fireEvent.click(screen.getByRole("button",{name:"Edit personal details"}));
+ const dialog=await screen.findByRole("dialog",{name:"Personal details"});
+ fireEvent.change(within(dialog).getByLabelText("Nickname"),{target:{value:"Saved personal nickname"}});
+ mutation(hrRefs.saveEmployeeProfile).mockResolvedValue(saved("e7"));
+ fireEvent.click(within(dialog).getByRole("button",{name:"Save"}));
+ await waitFor(()=>expect(mutation(hrRefs.saveEmployeeProfile)).toHaveBeenCalledOnce());
+ await waitFor(()=>expect(screen.queryByRole("dialog",{name:"Personal details"})).toBeNull());
+ expect(screen.queryByRole("dialog",{name:"Save changes before leaving?"})).toBeNull();
+ expect(screen.getByLabelText(/^Display name/)).toHaveValue("Unsaved employment name");
+});

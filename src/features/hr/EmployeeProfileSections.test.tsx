@@ -879,3 +879,157 @@ for (const status of ["COMMITTED", "FENCED"] as const) {
     },
   );
 }
+
+it.each([
+  {
+    action: "Edit personal details",
+    title: "Personal details",
+    field: "Nickname",
+    value: "Retained stale nickname",
+    ref: hrRefs.saveEmployeeProfile,
+    queryRef: hrRefs.employeeProfile,
+    version: 2,
+    code: "PROFILE_STALE",
+    refresh: query({
+      ok: true,
+      version: 3,
+      profile: { nickname: "Newer server value" },
+    }),
+  },
+  {
+    action: "Edit payment details",
+    title: "Payment details",
+    field: "Account name",
+    value: "Retained stale account holder",
+    ref: hrRefs.saveEmployeePayment,
+    queryRef: hrRefs.employeePayment,
+    version: 1,
+    code: "PAYMENT_STALE",
+    refresh: query({ ok: true, version: 2, payment: { method: "CASH" } }),
+  },
+])(
+  "independent $code response retains the pinned draft after loading and version advance without overwriting the newer snapshot",
+  async (editor) => {
+    let resolve: (value: unknown) => void = () => undefined;
+    const save = mutation(editor.ref);
+    save.mockReturnValue(new Promise((done) => (resolve = done)));
+    const { view, tree } = screenAt();
+    await openEditor();
+    fireEvent.click(screen.getByRole("button", { name: editor.action }));
+    const dialog = await screen.findByRole("dialog", { name: editor.title });
+    fireEvent.change(within(dialog).getByLabelText(editor.field), {
+      target: { value: editor.value },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    state.queries.set(getFunctionName(editor.queryRef), undefined);
+    view.rerender(tree());
+    expect(within(dialog).getByLabelText(editor.field)).toHaveValue(
+      editor.value,
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    state.queries.set(getFunctionName(editor.queryRef), editor.refresh);
+    view.rerender(tree());
+    await act(async () =>
+      resolve({
+        ok: true,
+        value: { written: false, error: { code: editor.code } },
+      }),
+    );
+    await waitFor(() =>
+      expect(within(dialog).getByTestId("hr-write-refused")).toBeVisible(),
+    );
+    expect(within(dialog).getByLabelText(editor.field)).toHaveValue(
+      editor.value,
+    );
+    expect(save.mock.calls[0]![0]).toMatchObject({
+      expectedVersion: editor.version,
+    });
+    expect(save).toHaveBeenCalledOnce();
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeEnabled();
+  },
+);
+
+it("independent reinstatement refusal can return to inactive employment assignment editing", async () => {
+  const separated = {
+    ...employee,
+    status: "INACTIVE",
+    employmentState: "RESIGNED",
+    employmentEndDate: "2026-09-30",
+    separation: { type: "RESIGNATION", lastWorkingDate: "2026-09-30" },
+  };
+  state.queries.set(
+    getFunctionName(hrRefs.employee),
+    query({ ok: true, employee: separated }),
+  );
+  state.queries.set(
+    getFunctionName(hrRefs.employeeLifecycle),
+    lifecycle({
+      state: "RESIGNED",
+      separation: {
+        type: "RESIGNATION",
+        lastWorkingDate: "2026-09-30",
+        reason: "Earlier departure",
+      },
+    }),
+  );
+  state.queries.set(
+    getFunctionName(hrRefs.departmentOptions),
+    query({ items: [{ id: "d1", name: "Sales", status: "ACTIVE" }] }),
+  );
+  state.queries.set(
+    getFunctionName(hrRefs.positionOptions),
+    query({ items: [{ id: "p1", name: "Staff", status: "ACTIVE" }] }),
+  );
+  mutation(hrRefs.recordEmploymentEvent).mockResolvedValue({
+    ok: true,
+    value: {
+      written: false,
+      error: { code: "DEPARTMENT_REQUIRED", field: "departmentId" },
+    },
+  });
+  screenAt();
+  await openEditor();
+  const editorUrl = here();
+  fireEvent.click(screen.getByRole("button", { name: "Reinstate" }));
+  const dialog = await screen.findByRole("dialog", { name: "Reinstate" });
+  expect(
+    within(dialog).getByText(/update the employment fields below/),
+  ).toBeVisible();
+  fireEvent.change(within(dialog).getByRole("textbox", { name: /Reason/ }), {
+    target: { value: "Returning employee" },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(within(dialog).getByText("Choose a department")).toBeVisible(),
+  );
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  const confirm = await screen.findByRole("dialog", {
+    name: "Save changes before leaving?",
+  });
+  fireEvent.click(
+    within(confirm).getByRole("button", { name: "Discard changes" }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(here()).toBe(editorUrl));
+  chooseOption("Department", "Sales");
+  chooseOption("Position", "Staff");
+  const save = mutation(hrRefs.saveEmployee);
+  save.mockResolvedValue({
+    ok: true,
+    value: { written: false, error: { code: "EMPLOYEE_STALE" } },
+  });
+  fireEvent.submit(screen.getByTestId("hr-employee-form"));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0]![0]).toMatchObject({
+    status: "INACTIVE",
+    employmentEndDate: "2026-09-30",
+    departmentId: "d1",
+    positionId: "p1",
+    replaceOrgFields: true,
+  });
+});

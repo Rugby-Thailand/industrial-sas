@@ -1,0 +1,38 @@
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { getFunctionName } from "convex/server";
+import type { ComponentProps } from "react";
+import { beforeEach, expect, it, vi } from "vitest";
+import { renderWithIntl } from "@tests/fixtures/intl-render";
+import payload from "../../../docs/plans/hr-parity/overnight-evidence/employee-hardening-review-probes/gap-day.json";
+const state=vi.hoisted(()=>({queries:new Map<string,unknown>(),mutate:vi.fn()}));
+vi.mock("convex/react",async()=>{
+ const {getFunctionName:name}=await import("convex/server");
+ return {useQuery:(ref:Parameters<typeof name>[0],args:unknown)=>args==="skip"?undefined:state.queries.get(name(ref)),useMutation:()=>state.mutate};
+});
+vi.mock("@/components/providers/HrAccessProvider",()=>({useHrAccess:()=>({status:"READY",permissions:["hr.self.access","hr.team.review"],timezoneSupported:true,timezone:"Asia/Bangkok",today:"2026-10-20",identityKey:"gap-test:fixture",sites:[]}),useHrCan:()=>true}));
+vi.mock("next/navigation",()=>({useSearchParams:()=>new URLSearchParams()}));
+vi.mock("@/i18n/navigation",()=>({Link:(props:ComponentProps<"a">)=><a {...props}/>,useRouter:()=>({push:vi.fn(),replace:vi.fn()})}));
+import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import { hrRefs } from "@/lib/convex/hrApi";
+import { HrDayScreen } from "./DayScreen";
+import { ReviewDetail } from "./ReviewDetail";
+beforeEach(()=>{state.queries.clear();state.mutate.mockReset();window.sessionStorage.clear();window.history.replaceState({},"","/en/hr/time/2026-10-05");});
+it("independent actual self-day caller never offers a correction for a separation gap",async()=>{
+ state.queries.set(getFunctionName(hrRefs.selfDayDetail),{ok:true,value:payload.self});
+ state.mutate.mockResolvedValue({ok:true,value:payload.rejected});
+ renderWithIntl(<DraftGuardProvider><main><HrDayScreen businessDate="2026-10-05"/></main></DraftGuardProvider>,{locale:"en"});
+ expect(screen.getByText("No attendance")).toBeVisible();
+ fireEvent.change(screen.getByLabelText("Correct clock-in"),{target:{value:"09:00"}});
+ fireEvent.change(screen.getByLabelText("Correct clock-out"),{target:{value:"18:00"}});
+ fireEvent.change(screen.getByRole("textbox",{name:/Reason/}),{target:{value:"The offered correction cannot apply"}});
+ fireEvent.click(screen.getByTestId("hr-correction-submit"));
+ await waitFor(()=>expect(state.mutate).toHaveBeenCalledOnce());
+ await waitFor(()=>expect(screen.getByTestId("hr-write-refused")).toBeVisible());
+ expect(screen.queryByTestId("hr-correction-submit")).toBeNull();
+});
+it("independent actual review-day caller never offers an absence disposition for a separation gap",()=>{
+ state.queries.set(getFunctionName(hrRefs.reviewDayDetail),{ok:true,value:payload.review});
+ renderWithIntl(<DraftGuardProvider><main><ReviewDetail employeeId={payload.review.employee.id} businessDate="2026-10-05"/></main></DraftGuardProvider>,{locale:"en"});
+ expect(screen.getByText("No attendance")).toBeVisible();
+ expect(screen.queryByTestId("hr-dispose-submit")).toBeNull();
+});
