@@ -18300,6 +18300,134 @@
                   "value": "SHA256"
                 },
                 "optional": false
+              },
+              "workRules": {
+                "fieldType": {
+                  "type": "object",
+                  "value": {
+                    "attendance": {
+                      "fieldType": {
+                        "type": "object",
+                        "value": {
+                          "lateAfterMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "veryLateAfterMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "absentAfterMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "excludeGraceMinutesFromLate": {
+                            "fieldType": {
+                              "type": "boolean"
+                            },
+                            "optional": true
+                          }
+                        }
+                      },
+                      "optional": true
+                    },
+                    "overtime": {
+                      "fieldType": {
+                        "type": "object",
+                        "value": {
+                          "automaticCalculation": {
+                            "fieldType": {
+                              "type": "boolean"
+                            },
+                            "optional": true
+                          },
+                          "beforeShiftStartMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "afterShiftEndMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "minimumMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "maximumOutsideShiftMinutes": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": true
+                          },
+                          "rounding": {
+                            "fieldType": {
+                              "type": "object",
+                              "value": {
+                                "direction": {
+                                  "fieldType": {
+                                    "type": "literal",
+                                    "value": "DOWN"
+                                  },
+                                  "optional": false
+                                },
+                                "intervalMinutes": {
+                                  "fieldType": {
+                                    "type": "number"
+                                  },
+                                  "optional": false
+                                }
+                              }
+                            },
+                            "optional": true
+                          },
+                          "eligibility": {
+                            "fieldType": {
+                              "type": "object",
+                              "value": {
+                                "requirePassedProbation": {
+                                  "fieldType": {
+                                    "type": "boolean"
+                                  },
+                                  "optional": true
+                                },
+                                "minimumTenureDays": {
+                                  "fieldType": {
+                                    "type": "number"
+                                  },
+                                  "optional": true
+                                },
+                                "excludedGroupKeys": {
+                                  "fieldType": {
+                                    "type": "array",
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "optional": true
+                                }
+                              }
+                            },
+                            "optional": true
+                          }
+                        }
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                "optional": true
               }
             }
           },
