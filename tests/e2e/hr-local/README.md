@@ -71,6 +71,16 @@ workplace, employment type/probation edits, and legacy employee compatibility.
 Company header Back uses the real sidebar settings link to establish provenance;
 direct settings hubs have no invented parent. These cases run on both projects.
 
+With protocol correction `cfd6dcdf`, `protocols.spec.ts` additionally verifies all
+six employment fields survive an actual old-client mutation and UI reload. Two
+real pages interleave logo changes while only editor A's genuine file reading is
+delayed. The real backend refuses its stale upload/removal; the UI retains bytes
+and requires explicit reapplication. Checks also cover pending file-read Back,
+request replay after a newer upload, partial-upload/removal refusal without domain
+metadata changes, legacy no-token refusal, delete/recreate ABA, and reload readback.
+Authentication, Convex transport and backend are never mocked. Reports record the
+exact checkout HEAD in metadata.
+
 Clock writes run when a next action is available; later same-day runs verify the
 retained timestamps instead. The `real-clock-writes` annotation reports the count
 for each run. Correction tests choose an unused date and fail explicitly when

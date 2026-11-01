@@ -1,7 +1,59 @@
 # browser-harness evidence
 
-Status: active combined verification. **Not release-ready**: independent review
-found old-client field loss and stale logo commands; correction protocols pending.
+Status: scoped harness and Phase 1 verification complete. No blanket release-readiness claim.
+The independently reviewed protocol defects now have carried fixes and real
+desktop/mobile protocol coverage; remaining wider reviews belong to the coordinator.
+
+## Protocol correction and final run
+
+- Source `cfd6dcdf294648b16aa2a3796984bc44a4f79030` cherry-picked as `da1b2b90`;
+  optional evidence `962b3a69` as `a0a3bb73`. Broader employee changes were not ported.
+- Scoped harness commits: `b2054a71`, `85d29bf6`, `052a9877`.
+- `pnpm test:e2e:hr:local protocols.spec.ts`: **exit 0, 4 passed / 0 failed /
+  0 skipped**, both desktop and mobile, actual Next + local Convex + genuine Clerk.
+- The final combined `pnpm test:e2e:hr:local` now covers **38 cases / 4 spec files**
+  at exact committed head **`052a9877`**, whose production code includes the protocol
+  correction above. **Exit 0: 38 passed / 0 failed / 0 skipped / 0 flaky**, zero
+  retries, 414.729 seconds. Report metadata records full tested HEAD
+  `052a987769f0c7aad317db8476fe290d822504c6`. No test/production code changed after
+  that run; final changes only document results and rerun instructions.
+- New registered HTTP checks preserve all six fields on a real legacy employee
+  write, then verify UI reload. Two genuine pages observe/interleave logo changes;
+  only A's actual File.arrayBuffer completion is delayed. Auth, backend and transport
+  remain real. Pending native Back is protected, stale selected bytes retained, and
+  explicit Apply uses the reviewed current revision. Stale remove, legacy no-token
+  remove, partial+remove shapes and delete/recreate ABA are refused without domain
+  metadata change. The final run adds replay-after-newer-upload preservation too.
+- Final checks after services stopped: `pnpm lint` exit 0; `pnpm check:navigation`
+  exit 0 (68 Node fixtures, 58 route/error policies, **302** owners, 26 intents);
+  `pnpm typecheck:ts6` exit 0. The six-file focused command listed below, now with
+  `--maxWorkers=2`, exited 0: **116 tests / 6 files passed** in 7.67 seconds.
+  Full Bun checker and production build were not rerun in this lane; another
+  checkout's results are not credited here. No broader employee changes carried.
+- Private final report: `.cache/hr-browser/final-passed-report.json`; latest copy
+  `test-results/hr-local/report.json`. Twenty PNG files include original screenshots
+  and report attachment copies, not twenty distinct scenarios. No artifacts uploaded.
+- Backend binary pinned by runner: `precompiled-2026-10-06-a3538c6`, Convex CLI 1.46.0.
+- Final runtime groups **Convex 30324 / Playwright 30341** exited/cleaned (Playwright
+  exit 0, Convex intentional SIGTERM). Captured 12 live owned processes/descendants;
+  final scan found **zero survivors** and **zero started groups lacking cleanup**.
+  No listener remained on 3100/3320/3321; no run lock remained. Every owned service
+  is stopped; original/user services were untouched. Final check sessions 49414
+  (lint), 65327 (navigation), 95842 (TS6), 40599 (focused tests) all exited 0.
+
+Final handback checks: `pnpm ci:test-discovery` exited 0 (**379 Vitest files /
+21 Playwright specs**); scoped Prettier check and `git diff --check` exited 0.
+Sessions 85026 (discovery), 76707 (format), 40911 (protocol matrix) and 15605
+(protocol ESLint) all completed with exit 0. Final scan again found zero owned
+process/group survivors, zero missing cleanup records, no run lock and no listeners
+on 3100/3320/3321. This checkout's private environment and local test database are
+retained for reruns; no service remains running.
+
+Rerun from this checkout: **`pnpm test:e2e:hr:local`**. Integrators already carrying
+the four production source commits should cherry-pick only the three scoped harness
+code commits above plus the final documentation commit, rather than duplicating
+the carried foundation cherry-picks. Earlier failed attempts below are retained
+and are not counted as passing evidence.
 
 ## Foundation integration and current results
 
@@ -9,7 +61,7 @@ found old-client field loss and stale logo commands; correction protocols pendin
 - Authorized source `92fe30f0` and `857d9f8e` cherry-picked as `84cc04e7` and `c2b19ec1`.
 - Parent shape fix `eb5542ac` cherry-picked as **`d1577678da79032f5fe8c782b4ef826a188d8b47`**.
 - No original production implementation was written in this lane. The production
-  changes here are those authorized cherry-picks; scoped browser additions pending commit.
+  changes here are those authorized cherry-picks; browser additions committed as listed above.
 - Read foundation evidence and the independent review in checkout `t3-e98679ab`.
 - Combined command: `pnpm test:e2e:hr:local`, 34 cases, production source
   **`d1577678da79032f5fe8c782b4ef826a188d8b47`**: exit 1, **33 passed / 1 failed /
@@ -69,8 +121,9 @@ no identifiers were printed and no unrelated sessions touched.
 Node 24.19.0 / pnpm 10.33.2 / Next 16.3.8 / Playwright 1.62.1. Next uses its documented
 Node fallback and isolated `.next-e2e`. No production build, physical-device, Thai UI,
 active leave submission/approval or non-admin authenticated coverage is claimed.
-The review's old-client omission and stale logo races remain unverified until the
-correction protocol lands. A green current combined run would not establish release readiness.
+At this earlier stage, old-client omission and stale logo races were not verified.
+The later protocol correction/results are recorded at the top of this file.
+A green scoped suite alone would not establish blanket release readiness.
 
 Baseline full run completed at 22:24 Bangkok: `pnpm test:e2e:hr:local`, exit 1,
 21 passed / 1 failed / 0 skipped (22 cases; 5.4 minutes). The failed mobile
@@ -96,7 +149,7 @@ real foundation and focused mobile runs above.
 - Checkout: `/Users/macbook/.t3/worktrees/industrial-sas/t3-2a0c98b6`
 - Branch: `t3/hr-playwright-harness`
 - Base: `a2e964e2045269231fc0df429d52cc51f53e2658`
-- Scoped commit: checkpoint `b2054a71`; Phase 1 browser additions pending final verification.
+- Scoped code commits: `b2054a71`, `85d29bf6`, `052a9877`; final documentation commit records handback.
 - Scope: opt-in config, HR browser tests, guarded seed/auth support and owned-service runner; authorized foundation cherry-picks as listed above. No default smoke/release config or original checkout edits.
 
 ## Environment and isolation
@@ -131,7 +184,7 @@ Initial real desktop passes: authenticated employee read/reload, Cancel + next n
 - Scoped ESLint initial session 72025: exited 1 (fixture callback named `use` triggered React hook lint; renamed without exemption).
 - Vitest session 2504: exited 0.
 - Normal lint session 93312 and navigation session 82892: exited 0.
-- Owned runner journals every PID/start/exit/cleanup in `.cache/hr-browser/processes.jsonl`. Completed groups include Convex 57901 / Playwright 58064 (baseline), Convex 58973 (failed preflight probe), Convex 69687 / Playwright 69727 (foundation desktop), Convex 73133 / Playwright 73155 (foundation matrix). Each has cleanup records. Later focused/current groups are in the same journal; final no-listener/process verification pending.
+- Owned runner journals every PID/start/exit/cleanup in `.cache/hr-browser/processes.jsonl`. Completed groups include Convex 57901 / Playwright 58064 (baseline), Convex 58973 (failed preflight probe), Convex 69687 / Playwright 69727 (foundation desktop), Convex 73133 / Playwright 73155 (foundation matrix). Every group, including later focused/final groups, has cleanup records. Final scan: zero owned survivors and no listeners on 3100/3320/3321.
 
 Private ignored artifacts: `.cache/hr-browser/` logs and process journal, `test-results/hr-local/` report/failure screenshots, `playwright/.auth/` fixture IDs. Do not publish/upload these credentialed browser artifacts.
 
