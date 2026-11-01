@@ -152,6 +152,7 @@ beforeEach(() => {
     getFunctionName(hrRefs.companyProfile),
     query({ profile: company }),
   );
+  state.queries.set(getFunctionName(hrRefs.companyLogo), query(null));
   state.queries.set(
     getFunctionName(hrRefs.listBranches),
     query({ items: [hq] }),
@@ -201,7 +202,7 @@ function openSettings(url = "/en/hr/settings?section=branches#org") {
         <HrSettingsScreen />
       </main>
     </DraftGuardProvider>,
-    { locale: "en", workspace: false },
+    { locale: "en", workspace: false, preserveProviders: true },
   );
 }
 async function traverse(delta: "back" | "forward") {
@@ -588,7 +589,11 @@ it("company logo previews the stored image even before the first profile save, c
   );
   state.queries.set(
     getFunctionName(hrRefs.companyLogo),
-    query({ mimeType: "image/png", base64: "iVBORw0KGgo=" }),
+    query({
+      mimeType: "image/png",
+      base64: "iVBORw0KGgo=",
+      revision: { id: "logo-1", version: 1 },
+    }),
   );
   openSettings("/en/hr/settings?section=company");
   const form = screen.getByRole("form", { name: "Company profile" });
@@ -618,6 +623,7 @@ it("company logo previews the stored image even before the first profile save, c
   expect(save.mock.calls[0]![0]).toMatchObject({
     mimeType: "image/png",
     base64: "iVBORw0KGgo=",
+    expectedRevision: { id: "logo-1", version: 1 },
   });
   fireEvent.click(within(form).getByRole("button", { name: "Remove logo" }));
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
@@ -797,4 +803,226 @@ it("the department editor shows a refused manager beside the manager field", asy
   expect(
     await within(editor).findByText(message, { selector: "p[role=alert]" }),
   ).toBeVisible();
+});
+
+it("logo intent pins the observed revision before file reading and query refresh; stale uploads stay selected until explicitly reapplied", async () => {
+  const save = mutation(hrRefs.saveCompanyLogo);
+  save
+    .mockResolvedValueOnce(refused("LOGO_STALE", "expectedRevision"))
+    .mockResolvedValue(saved("logo-1"));
+  const revision = { id: "logo-1", version: 1 };
+  const logo = { mimeType: "image/png", base64: "iVBORw0KGgo=", revision };
+  state.queries.set(getFunctionName(hrRefs.companyLogo), query(logo));
+  const view = openSettings("/en/hr/settings?section=company&keep=1#logo");
+  const bytes = deferred();
+  const file = new File(["png"], "my-selected.png", { type: "image/png" });
+  Object.defineProperty(file, "arrayBuffer", { value: () => bytes.promise });
+  fireEvent.change(screen.getByLabelText(field("Company logo")), {
+    target: { files: [file] },
+  });
+  await traverse("back");
+  expect(here()).toBe("/en/hr/settings?section=company&keep=1#logo");
+  state.queries.set(
+    getFunctionName(hrRefs.companyLogo),
+    query({ ...logo, revision: { ...revision, version: 2 } }),
+  );
+  view.rerender(settingsTree());
+  await act(async () =>
+    bytes.resolve(
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).buffer,
+    ),
+  );
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0]![0]).toMatchObject({ expectedRevision: revision });
+  expect(
+    await screen.findByText(/Another administrator changed the logo/),
+  ).toBeVisible();
+  expect(screen.getByText("Selected file: my-selected.png")).toBeVisible();
+  await traverse("back");
+  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Apply selected file to current logo" }),
+  );
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+  expect(save.mock.calls[1]![0]).toMatchObject({
+    expectedRevision: { ...revision, version: 2 },
+    base64: "iVBORw0KGgo=",
+  });
+  expect(save.mock.calls[1]![0].requestId).not.toBe(
+    save.mock.calls[0]![0].requestId,
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByText("Selected file: my-selected.png"),
+    ).not.toBeInTheDocument(),
+  );
+  await traverse("back");
+  await waitFor(() => expect(here()).toBe("/en/hr/today"));
+});
+
+it("logo uncertain retry retains the removal snapshot across refresh and remount", async () => {
+  const save = mutation(hrRefs.saveCompanyLogo);
+  save
+    .mockRejectedValueOnce(new Error("lost response"))
+    .mockResolvedValue(saved("logo-1"));
+  const logo = {
+    mimeType: "image/png",
+    base64: "iVBORw0KGgo=",
+    revision: { id: "logo-1", version: 3 },
+  };
+  state.queries.set(getFunctionName(hrRefs.companyLogo), query(logo));
+  const view = openSettings("/en/hr/settings?section=company#logo");
+  fireEvent.click(screen.getByRole("button", { name: "Remove logo" }));
+  await screen.findByTestId("hr-write-uncertain");
+  state.queries.set(
+    getFunctionName(hrRefs.companyLogo),
+    query({ ...logo, revision: { id: "logo-new", version: 1 } }),
+  );
+  view.unmount();
+  renderWithIntl(settingsTree(), { locale: "en", workspace: false });
+  fireEvent.click(screen.getByRole("button", { name: "Try again safely" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+  expect(save.mock.calls[0]![0]).toMatchObject({
+    remove: true,
+    expectedRevision: logo.revision,
+  });
+  expect(save.mock.calls[1]![0]).toEqual(save.mock.calls[0]![0]);
+});
+
+it.each(["header", "native"] as const)(
+  "%s Back cannot abandon a pending logo removal after query refresh, then returns to its origin",
+  async (kind) => {
+    const save = mutation(hrRefs.saveCompanyLogo);
+    const pending = deferred();
+    save.mockReturnValue(pending.promise);
+    const logo = {
+      mimeType: "image/png",
+      base64: "iVBORw0KGgo=",
+      revision: { id: "logo-1", version: 1 },
+    };
+    state.queries.set(getFunctionName(hrRefs.companyLogo), query(logo));
+    const view = openSettings("/en/hr/settings?section=company&keep=1#logo");
+    fireEvent.click(screen.getByRole("button", { name: "Remove logo" }));
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    state.queries.set(
+      getFunctionName(hrRefs.companyLogo),
+      query({ ...logo, revision: { ...logo.revision, version: 2 } }),
+    );
+    view.rerender(settingsTree());
+    if (kind === "header")
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    else {
+      await traverse("back");
+      expect(
+        await screen.findByTestId("navigation-guard-pending"),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: "Discard changes" }),
+      ).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+    }
+    expect(here()).toBe("/en/hr/settings?section=company&keep=1#logo");
+    expect(screen.getByRole("button", { name: "Remove logo" })).toBeDisabled();
+    expect(save.mock.calls[0]![0]).toMatchObject({
+      remove: true,
+      expectedRevision: logo.revision,
+    });
+    await act(async () =>
+      pending.resolve(refused("LOGO_STALE", "expectedRevision")),
+    );
+    expect(
+      await screen.findByText(/Another administrator changed the logo/),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remove logo" })).toBeEnabled();
+    await traverse("back");
+    await waitFor(() => expect(here()).toBe("/en/hr/today"));
+    await traverse("forward");
+    await waitFor(() =>
+      expect(here()).toBe("/en/hr/settings?section=company&keep=1#logo"),
+    );
+  },
+);
+
+it("a logo file read completing after unmount or tenant change cannot submit or transfer a selected draft", async () => {
+  const save = mutation(hrRefs.saveCompanyLogo);
+  state.queries.set(getFunctionName(hrRefs.companyLogo), query(null));
+  const view = openSettings("/en/hr/settings?section=company#logo");
+  const bytes = deferred();
+  const file = new File(["png"], "old-tenant.png", { type: "image/png" });
+  Object.defineProperty(file, "arrayBuffer", { value: () => bytes.promise });
+  fireEvent.change(screen.getByLabelText(field("Company logo")), {
+    target: { files: [file] },
+  });
+  state.identityKey = "org-other:user-a";
+  view.rerender(settingsTree());
+  await act(async () =>
+    bytes.resolve(
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).buffer,
+    ),
+  );
+  expect(save).not.toHaveBeenCalled();
+  expect(
+    screen.queryByText("Selected file: old-tenant.png"),
+  ).not.toBeInTheDocument();
+  const second = deferred();
+  // A distinct file lets a second mounted read own a distinct callback.
+  const another = new File(["png"], "unmounted.png", { type: "image/png" });
+  Object.defineProperty(another, "arrayBuffer", {
+    value: () => second.promise,
+  });
+  fireEvent.change(screen.getByLabelText(field("Company logo")), {
+    target: { files: [another] },
+  });
+  view.unmount();
+  await act(async () => second.resolve(new ArrayBuffer(8)));
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("a stale selected logo survives nested branch Cancel; discarding the file then next Back restores the locale/query/hash origin", async () => {
+  mutation(hrRefs.saveCompanyLogo).mockResolvedValue(
+    refused("LOGO_STALE", "expectedRevision"),
+  );
+  window.history.replaceState({}, "", "/th/hr/today?keep=origin#source");
+  state.queries.set(getFunctionName(hrRefs.companyLogo), query(null));
+  openSettings("/th/hr/settings?section=company&keep=settings#logo");
+  fireEvent.change(screen.getByLabelText(field("Company logo")), {
+    target: {
+      files: [new File(["png"], "retained.png", { type: "image/png" })],
+    },
+  });
+  expect(await screen.findByText("Selected file: retained.png")).toBeVisible();
+  const beforeBranch = appHistoryIndex();
+  fireEvent.click(screen.getByRole("button", { name: "Add branch" }));
+  const editor = await branchDialog();
+  fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(appHistoryIndex()).toBe(beforeBranch));
+  expect(screen.getByText("Selected file: retained.png")).toBeVisible();
+  await traverse("back");
+  const guard = await screen.findByRole("dialog", {
+    name: "Save changes before leaving?",
+  });
+  fireEvent.click(
+    within(guard).getByRole("button", { name: "Discard changes" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await waitFor(() =>
+    expect(here()).toBe("/th/hr/settings?section=company&keep=settings#logo"),
+  );
+  expect(
+    screen.queryByText("Selected file: retained.png"),
+  ).not.toBeInTheDocument();
+  await traverse("back");
+  await waitFor(() => expect(here()).toBe("/th/hr/today?keep=origin#source"));
 });

@@ -9,6 +9,9 @@ import {
   useDraftGuard,
   usePendingGuard,
 } from "@/components/providers/draftGuard";
+import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { useAsyncOperation } from "@/hooks/useAsyncOperation";
+import type { RefValue } from "@/lib/convex/clientRef";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
@@ -515,38 +518,69 @@ function base64Of(bytes: ArrayBuffer): string {
 
 /**
  * The logo is its own command: choosing a file saves it at once and Remove
- * clears it, independent of unsaved profile text. The preview reads the
- * stored image only when the profile reports one.
+ * clears it, independent of unsaved profile text. Its small independent
+ * query also finds a logo saved before the first company profile exists.
  */
 function CompanyLogoField({ id }: { readonly id: string }) {
+  const identity = useHrAccess().identityKey;
+  return <CompanyLogoEditor key={identity} id={id} />;
+}
+
+function CompanyLogoEditor({ id }: { readonly id: string }) {
   const t = useTranslations("Hr.org");
   const message = useHrError();
   const save = useMutation(hrRefs.saveCompanyLogo);
   const write = useHrWrite("org-logo");
+  const identity = useHrAccess().identityKey;
+  const read = useAsyncOperation({
+    scope: `org-logo-file:${identity}`,
+    describeError: () => message("LOGO_FILE_INVALID"),
+    navigation: "write",
+  });
+  const busy = write.locked || read.busy;
   usePendingGuard(write.pending);
-  // Read directly (it is small): a logo saved before the first profile
-  // exists has no `hasLogo` flag to announce it.
-  const outcome = useQuery(hrRefs.companyLogo, {}) as
-    | { ok?: boolean; value?: { mimeType?: unknown; base64?: unknown } | null }
-    | undefined;
+  const outcome = useQuery(hrRefs.companyLogo, {});
   const stored = outcome?.ok === true ? outcome.value : undefined;
-  const preview =
-    typeof stored?.mimeType === "string" && typeof stored.base64 === "string"
-      ? `data:${stored.mimeType};base64,${stored.base64}`
-      : null;
+  const preview = stored
+    ? `data:${stored.mimeType};base64,${stored.base64}`
+    : null;
+  type Logo = NonNullable<RefValue<typeof hrRefs.companyLogo>>;
+  type Upload = { mimeType: string; base64: string; name: string };
+  const [selected, setSelected] = useState<Upload>();
   const [error, setError] = useState<string>();
-  // Remounting the file input clears its chosen file.
   const [fileKey, setFileKey] = useState(0);
+  const clearSelection = () => {
+    setSelected(undefined);
+    setFileKey((key) => key + 1);
+  };
+  useDraftGuard(selected !== undefined, clearSelection, busy);
   const finish = (result: HrWriteState<unknown>) => {
     setError(
       result.kind === "REFUSED" && result.code.startsWith("LOGO_")
         ? message(result.code)
         : undefined,
     );
-    if (result.kind !== "UNCERTAIN") setFileKey((key) => key + 1);
+    // Keep a refused or uncertain file available for review/retry.
+    if (result.kind === "SAVED") clearSelection();
+  };
+  const upload = async (
+    file: Upload,
+    expectedRevision: Logo["revision"] | null,
+  ) => {
+    setError(undefined);
+    finish(
+      await write.submit((requestId) =>
+        save({
+          requestId,
+          mimeType: file.mimeType,
+          base64: file.base64,
+          expectedRevision,
+        }),
+      ),
+    );
   };
   const choose = async (file: File | undefined) => {
-    if (file === undefined) return;
+    if (file === undefined || busy || stored === undefined) return;
     if (!LOGO_TYPES.includes(file.type) || file.size === 0) {
       setError(message("LOGO_FILE_INVALID"));
       return;
@@ -555,26 +589,40 @@ function CompanyLogoField({ id }: { readonly id: string }) {
       setError(message("LOGO_TOO_LARGE"));
       return;
     }
+    // Capture the user's observation before asynchronous file IO. Query
+    // refreshes must not silently authorize this intent against a newer row.
+    const expectedRevision = stored?.revision ?? null;
     setError(undefined);
-    const base64 = base64Of(await file.arrayBuffer());
-    finish(
-      await write.submit((requestId) =>
-        save({ requestId, mimeType: file.type, base64 }),
-      ),
+    await read.run(
+      async () => ({
+        mimeType: file.type,
+        base64: base64Of(await file.arrayBuffer()),
+        name: file.name,
+      }),
+      (file) => {
+        setSelected(file);
+        void upload(file, expectedRevision);
+      },
     );
   };
   const remove = async () => {
+    if (busy || !stored) return;
+    const expectedRevision = stored.revision;
     setError(undefined);
     finish(
-      await write.submit((requestId) => save({ requestId, remove: true })),
+      await write.submit((requestId) =>
+        save({ requestId, remove: true, expectedRevision }),
+      ),
     );
   };
+  const stale =
+    write.state.kind === "REFUSED" && write.state.code === "LOGO_STALE";
   return (
     <FormField
       id={id}
       label={t("logo")}
       hint={t("logoHint")}
-      error={error}
+      error={error ?? (read.error || undefined)}
       className="sm:col-span-2"
     >
       {(field) => (
@@ -591,7 +639,7 @@ function CompanyLogoField({ id }: { readonly id: string }) {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={write.locked}
+                disabled={busy || stored === undefined}
                 onClick={() => void remove()}
               >
                 {t("removeLogo")}
@@ -603,9 +651,24 @@ function CompanyLogoField({ id }: { readonly id: string }) {
             key={fileKey}
             type="file"
             accept={LOGO_TYPES.join(",")}
-            disabled={write.locked}
+            disabled={busy || stored === undefined}
             onChange={(e) => void choose(e.target.files?.[0])}
           />
+          {selected ? (
+            <p className="text-sm text-muted">
+              {t("logoSelected", { name: selected.name })}
+            </p>
+          ) : null}
+          {stale && selected ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || stored === undefined}
+              onClick={() => void upload(selected, stored?.revision ?? null)}
+            >
+              {t("applySelectedLogo")}
+            </Button>
+          ) : null}
           <WriteFeedback
             // A refused file is explained once, beside the field.
             state={

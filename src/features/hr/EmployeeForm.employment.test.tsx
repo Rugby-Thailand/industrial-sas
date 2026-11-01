@@ -199,6 +199,7 @@ describe("employee Employment group (S01-13..18)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
     await waitFor(() => expect(state.save).toHaveBeenCalledOnce());
     expect(state.save.mock.calls[0]![0]).toMatchObject({
+      replaceOrgFields: true,
       code: "6900012",
       displayName: "Malee",
       warehouseId: "w1",
@@ -242,6 +243,7 @@ describe("employee Employment group (S01-13..18)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save employee" }));
     await waitFor(() => expect(state.save).toHaveBeenCalledOnce());
     expect(state.save.mock.calls[0]![0]).toMatchObject({
+      replaceOrgFields: true,
       employeeId: "e1",
       expectedVersion: 4,
       departmentId: "d-old",

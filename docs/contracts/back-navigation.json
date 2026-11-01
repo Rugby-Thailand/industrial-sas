@@ -4035,6 +4035,39 @@
       ]
     },
     {
+      "id": "src/features/hr/HrCompanyProfile.tsx#CompanyLogoEditor:selected",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Selected logo bytes remain an inline file draft with filename and an explicit apply-to-current action after a stale refusal. This opens no foreground or route. File reading and writes protect Back; stale drafts require consent before departure; success clears only the selected file. The command retains its observed row identity/revision across query refresh and retry/remount.",
+      "render": [
+        { "shape": "conditional", "truthy": ["p"], "falsy": [] },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/hr/HrOrgSettings.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "%s Back cannot abandon a pending logo removal after query refresh, then returns to its origin"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "a stale selected logo survives nested branch Cancel; discarding the file then next Back restores the locale/query/hash origin"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "logo intent pins the observed revision before file reading and query refresh; stale uploads stay selected until explicitly reapplied"
+        },
+        {
+          "file": "src/features/hr/HrOrgSettings.test.tsx",
+          "name": "logo uncertain retry retains the removal snapshot across refresh and remount"
+        }
+      ]
+    },
+    {
       "id": "src/features/hr/HrCompanyProfile.tsx#CompanyForm:baseline",
       "policy": "presentation",
       "expectation": "The saved company profile controls an inline missing-profile notice inside the same settings form; no whole-view step opens. Unsaved edits are guarded by the form's draft registration.",

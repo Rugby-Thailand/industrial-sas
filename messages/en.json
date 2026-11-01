@@ -2585,6 +2585,8 @@
       "POSITION_REQUIRED": "Choose a position",
       "ORG_REFERENCE_UNAVAILABLE": "This choice is inactive or no longer available",
       "EMPLOYEE_CODE_EXHAUSTED": "No suggested code is left for this year. Enter a code",
+      "LOGO_STALE": "Another administrator changed the logo. Review the current logo, then choose Remove again or apply your selected file. Your selected file is retained.",
+      "LOGO_REVISION_INVALID": "The logo revision is invalid. Reload the current logo before trying again.",
       "LOGO_TOO_LARGE": "The logo must be 256 KB or smaller",
       "BRANCH_TYPE_MISMATCH": "A head office uses branch number 00000; other branches use another number"
     },
@@ -3188,6 +3190,8 @@
       "phone": "Phone",
       "fax": "Fax",
       "logo": "Company logo",
+      "logoSelected": "Selected file: {name}",
+      "applySelectedLogo": "Apply selected file to current logo",
       "logoHint": "PNG, JPEG or WebP, up to 256 KB. It is saved as soon as you choose it.",
       "logoCurrent": "Current company logo",
       "removeLogo": "Remove logo",

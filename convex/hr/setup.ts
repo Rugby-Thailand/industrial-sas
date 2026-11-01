@@ -618,6 +618,9 @@ export const memberOptions = queryWithOrg({
 export const saveEmployee = mutationWithOrg({
   args: {
     ...employeeOrgFields,
+    // Modern callers replace this complete six-field group; legacy omission
+    // preserves each saved value while still accepting supplied updates.
+    replaceOrgFields: v.optional(v.literal(true)),
     requestId: v.string(),
     employeeId: v.optional(v.id("hrEmployees")),
     expectedVersion: v.optional(v.number()),
@@ -697,9 +700,34 @@ export const saveEmployee = mutationWithOrg({
         if (sameCode !== null && sameCode._id !== before?._id)
           return fail("EMPLOYEE_CODE_TAKEN", "code");
 
+        const orgFields = {
+          branchId:
+            args.branchId ??
+            (args.replaceOrgFields ? undefined : before?.branchId),
+          departmentId:
+            args.departmentId ??
+            (args.replaceOrgFields ? undefined : before?.departmentId),
+          positionId:
+            args.positionId ??
+            (args.replaceOrgFields ? undefined : before?.positionId),
+          levelId:
+            args.levelId ??
+            (args.replaceOrgFields ? undefined : before?.levelId),
+          employmentType:
+            args.employmentType ??
+            (args.replaceOrgFields ? undefined : before?.employmentType),
+          probationEndDate:
+            args.probationEndDate ??
+            (args.replaceOrgFields ? undefined : before?.probationEndDate),
+        };
+        // Validate the same effective values we persist, including retained
+        // probation dates and tenant/current-inactive reference constraints.
+        const effectiveDraft = validateEmployeeDraft({ ...args, ...orgFields });
+        if (!effectiveDraft.ok)
+          return fail(effectiveDraft.error.code, effectiveDraft.error.field);
         const invalidOrg = await validateEmployeeOrgReferences(
           ctx,
-          args,
+          { ...args, ...orgFields },
           before,
         );
         if (invalidOrg) return invalidOrg;
@@ -747,12 +775,7 @@ export const saveEmployee = mutationWithOrg({
           supervisorUserId: args.supervisorUserId,
           employmentStartDate: args.employmentStartDate,
           employmentEndDate: args.employmentEndDate,
-          branchId: args.branchId,
-          departmentId: args.departmentId,
-          positionId: args.positionId,
-          levelId: args.levelId,
-          employmentType: args.employmentType,
-          probationEndDate: args.probationEndDate,
+          ...orgFields,
           status: args.status,
           schedule,
         };

@@ -127,7 +127,11 @@ export const getCompanyLogo = queryWithOrg({
     const logo = await companyLogo(ctx);
     return logo === null
       ? null
-      : { mimeType: logo.mimeType, base64: logo.base64 };
+      : {
+          mimeType: logo.mimeType,
+          base64: logo.base64,
+          revision: { id: logo._id, version: logo.version },
+        };
   },
 });
 
@@ -138,6 +142,17 @@ export const saveCompanyLogo = mutationWithOrg({
     mimeType: v.optional(v.string()),
     base64: v.optional(v.string()),
     remove: v.optional(v.literal(true)),
+    // null means observed absent. Row identity fences delete/recreate ABA.
+    // No token is legacy: safe only while no logo currently exists.
+    expectedRevision: v.optional(
+      v.union(
+        v.null(),
+        v.object({
+          id: v.id("hrCompanyLogos"),
+          version: v.number(),
+        }),
+      ),
+    ),
   },
   returns: v.any(),
   permissionCode: ADMIN,
@@ -165,6 +180,20 @@ export const saveCompanyLogo = mutationWithOrg({
           if (!valid.ok) return fail(valid.error.code, valid.error.field);
         }
         const before = await companyLogo(ctx);
+        const expected = args.expectedRevision;
+        if (
+          expected &&
+          (!Number.isSafeInteger(expected.version) || expected.version < 1)
+        )
+          return fail("LOGO_REVISION_INVALID", "expectedRevision");
+        if (
+          before
+            ? !expected ||
+              expected.id !== before._id ||
+              expected.version !== before.version
+            : expected != null
+        )
+          return fail("LOGO_STALE", "expectedRevision");
         const profile = await companyProfile(ctx);
         let id: string = before?._id ?? ctx.tenant.organization._id;
         if (remove) {
@@ -574,10 +603,10 @@ export async function validateEmployeeOrgReferences(
   ctx: TenantFunctionContext,
   args: {
     status: "ACTIVE" | "INACTIVE";
-    branchId?: string;
-    departmentId?: string;
-    positionId?: string;
-    levelId?: string;
+    branchId?: string | undefined;
+    departmentId?: string | undefined;
+    positionId?: string | undefined;
+    levelId?: string | undefined;
   },
   before: Employee | null,
 ) {

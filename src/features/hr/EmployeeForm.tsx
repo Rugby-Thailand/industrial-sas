@@ -278,6 +278,7 @@ export function EmployeeForm({
     const result = await write.submit((requestId) =>
       save({
         requestId,
+        replaceOrgFields: true,
         ...(baseline === undefined
           ? {}
           : { employeeId: baseline.id, expectedVersion: baseline.version }),

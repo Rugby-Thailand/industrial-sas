@@ -14227,6 +14227,35 @@
             "value": true
           },
           "optional": true
+        },
+        "expectedRevision": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "value": {
+                  "id": {
+                    "fieldType": {
+                      "type": "id",
+                      "tableName": "hrCompanyLogos"
+                    },
+                    "optional": false
+                  },
+                  "version": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  }
+                }
+              }
+            ]
+          },
+          "optional": true
         }
       }
     },
@@ -21742,6 +21771,13 @@
         "probationEndDate": {
           "fieldType": {
             "type": "string"
+          },
+          "optional": true
+        },
+        "replaceOrgFields": {
+          "fieldType": {
+            "type": "literal",
+            "value": true
           },
           "optional": true
         },

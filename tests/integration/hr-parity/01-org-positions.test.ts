@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { makeFunctionReference } from "convex/server";
-import type {
-  GenericMutationCtx,
-  RegisteredMutation,
-  RegisteredQuery,
-} from "convex/server";
+import type { RegisteredMutation, RegisteredQuery } from "convex/server";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { DataModel } from "../../../convex/schema";
 import type { TenantFunctionOutcome } from "../../../convex/lib/tenantFunctions";
 import * as org from "../../../convex/hr/org";
 import * as setup from "../../../convex/hr/setup";
@@ -41,6 +36,9 @@ afterEach(() => {
 async function fixture() {
   const world = await createConvexTenantWorld({
     "../convex/hr/org.ts": () => import("../../../convex/hr/org"),
+    "../convex/hr/setup.ts": () => import("../../../convex/hr/setup"),
+    "../convex/hr/recovery.ts": () => import("../../../convex/hr/recovery"),
+    "../convex/hr/payslips.ts": () => import("../../../convex/hr/payslips"),
   });
   await seedConvexAuthorization(world, {
     roleA: "HR_ADMIN",
@@ -56,16 +54,19 @@ async function call<A extends Record<string, unknown>, R>(
   args: A,
   identity = ADMIN,
 ): Promise<R> {
-  const out = await world.t.withIdentity(identity).run((ctx) =>
-    (
-      fn as unknown as {
-        _handler: (
-          ctx: GenericMutationCtx<DataModel>,
-          args: A,
-        ) => Promise<TenantFunctionOutcome<R>>;
-      }
-    )._handler(ctx, args),
-  );
+  const entry = Object.entries({ org, setup, recovery, payslips })
+    .flatMap(([module, exports]) =>
+      Object.entries(exports).map(([name, value]) => ({ module, name, value })),
+    )
+    .find((entry) => entry.value === fn)!;
+  const name = `hr/${entry.module}:${entry.name}`;
+  const client = world.t.withIdentity(identity);
+  const out = (await ("isMutation" in fn
+    ? client.mutation(makeFunctionReference<"mutation">(name), args)
+    : client.query(
+        makeFunctionReference<"query">(name),
+        args,
+      ))) as TenantFunctionOutcome<R>;
   expect(out.ok, JSON.stringify(out)).toBe(true);
   if (!out.ok) throw new Error("Unexpected authorization denial");
   return out.value;
@@ -598,6 +599,7 @@ it("[guess] S01-19 department and position are required to save an employee", as
       positionId: assignments.positionId,
       employeeId: legacyId,
       expectedVersion: 3,
+      replaceOrgFields: true,
       requestId: requestId(),
     }),
   ).toMatchObject({
@@ -1136,39 +1138,69 @@ it("rejects every foreign org assignment and hides foreign current options", asy
 it("requires HR administration for every org read and write", async () => {
   const world = await fixture();
   const actor = await seedSecondActorForOrgA(world, "HR_EMPLOYEE");
+  const employeeId = await world.t.run((ctx) =>
+    ctx.db.insert("hrEmployees", {
+      ...employee(world),
+      orgId: world.orgB,
+      version: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+      createdByUserId: world.userA,
+      updatedByUserId: world.userA,
+    }),
+  );
   const before = await storeSnapshot(world);
-  for (const fn of [
-    org.getCompanyProfile,
-    org.saveCompanyProfile,
-    org.getCompanyLogo,
-    org.saveCompanyLogo,
-    org.listBranches,
-    org.saveBranch,
-    org.branchOptions,
-    org.listDepartments,
-    org.saveDepartment,
-    org.departmentOptions,
-    org.listPositions,
-    org.savePosition,
-    org.positionOptions,
-    org.listLevels,
-    org.saveLevel,
-    org.levelOptions,
-    org.managementView,
-    org.suggestEmployeeCode,
-  ]) {
-    const out = await world.t
-      .withIdentity({ ...ADMIN, subject: actor.clerkUserId })
-      .run((ctx) =>
-        (
-          fn as unknown as {
-            _handler: (
-              ctx: GenericMutationCtx<DataModel>,
-              args: object,
-            ) => Promise<TenantFunctionOutcome<unknown>>;
-          }
-        )._handler(ctx, {}),
-      );
+  for (const [name, kind, args] of [
+    ["getCompanyProfile", "query", {}],
+    ["saveCompanyProfile", "mutation", { ...company, requestId: requestId() }],
+    ["getCompanyLogo", "query", {}],
+    [
+      "saveCompanyLogo",
+      "mutation",
+      {
+        mimeType: "image/png",
+        base64: btoa("\x89PNG\r\n\x1a\n"),
+        expectedRevision: null,
+        requestId: requestId(),
+      },
+    ],
+    ["listBranches", "query", {}],
+    ["saveBranch", "mutation", { ...branch, requestId: requestId() }],
+    ["branchOptions", "query", {}],
+    ["listDepartments", "query", {}],
+    [
+      "saveDepartment",
+      "mutation",
+      { name: "Sales", status: "ACTIVE", requestId: requestId() },
+    ],
+    ["departmentOptions", "query", {}],
+    ["listPositions", "query", {}],
+    [
+      "savePosition",
+      "mutation",
+      { name: "Staff", status: "ACTIVE", requestId: requestId() },
+    ],
+    ["positionOptions", "query", {}],
+    ["listLevels", "query", {}],
+    [
+      "saveLevel",
+      "mutation",
+      { name: "Staff", sortOrder: 0, status: "ACTIVE", requestId: requestId() },
+    ],
+    ["levelOptions", "query", {}],
+    ["managementView", "query", { employeeId }],
+    ["suggestEmployeeCode", "query", {}],
+  ] as const) {
+    const client = world.t.withIdentity({
+      ...ADMIN,
+      subject: actor.clerkUserId,
+    });
+    const out = await (kind === "mutation"
+      ? client.mutation(
+          makeFunctionReference<"mutation">(`hr/org:${name}`),
+          args,
+        )
+      : client.query(makeFunctionReference<"query">(`hr/org:${name}`), args));
     expect(out).toMatchObject({
       ok: false,
       denial: { kind: "AUTHORIZATION_DENIED" },
@@ -1189,7 +1221,7 @@ it("company logos are tenant scoped, versioned, replayable and independently rem
   expect(saved(await call(world, org.saveCompanyLogo, args)).replayed).toBe(
     true,
   );
-  expect(await call(world, org.getCompanyLogo, {})).toEqual(logo);
+  expect(await call(world, org.getCompanyLogo, {})).toMatchObject(logo);
   expect(await call(world, org.getCompanyLogo, {}, TENANT_B)).toBeNull();
   // A logo may be saved before a profile; creating the profile derives presence.
   saved(
@@ -1212,8 +1244,10 @@ it("company logos are tenant scoped, versioned, replayable and independently rem
     ),
   );
   expect(other.documentId).not.toBe(receipt.documentId);
-  expect(await call(world, org.getCompanyLogo, {})).toEqual(logo);
-  expect(await call(world, org.getCompanyLogo, {}, TENANT_B)).toEqual(jpeg);
+  expect(await call(world, org.getCompanyLogo, {})).toMatchObject(logo);
+  expect(await call(world, org.getCompanyLogo, {}, TENANT_B)).toMatchObject(
+    jpeg,
+  );
   const replacement = {
     mimeType: "image/webp",
     base64: btoa("RIFF\x00\x00\x00\x00WEBP"),
@@ -1221,10 +1255,11 @@ it("company logos are tenant scoped, versioned, replayable and independently rem
   saved(
     await call(world, org.saveCompanyLogo, {
       ...replacement,
+      expectedRevision: (await call(world, org.getCompanyLogo, {}))!.revision,
       requestId: requestId(),
     }),
   );
-  expect(await call(world, org.getCompanyLogo, {})).toEqual(replacement);
+  expect(await call(world, org.getCompanyLogo, {})).toMatchObject(replacement);
   expect(
     await world.t.run((ctx) =>
       ctx.db.get(receipt.documentId as Id<"hrCompanyLogos">),
@@ -1238,7 +1273,11 @@ it("company logos are tenant scoped, versioned, replayable and independently rem
     createdAt: NOW,
     updatedAt: NOW,
   });
-  const remove = { requestId: requestId(), remove: true as const };
+  const remove = {
+    requestId: requestId(),
+    remove: true as const,
+    expectedRevision: (await call(world, org.getCompanyLogo, {}))!.revision,
+  };
   saved(await call(world, org.saveCompanyLogo, remove));
   expect(await call(world, org.getCompanyLogo, {})).toBeNull();
   expect((await call(world, org.getCompanyProfile, {})).profile).toMatchObject({
@@ -1254,7 +1293,7 @@ it("company logos are tenant scoped, versioned, replayable and independently rem
   expect(saved(await call(world, org.saveCompanyLogo, remove)).replayed).toBe(
     true,
   );
-  expect(await call(world, org.getCompanyLogo, {})).toEqual(logo);
+  expect(await call(world, org.getCompanyLogo, {})).toMatchObject(logo);
   expect((await call(world, org.getCompanyProfile, {})).profile?.hasLogo).toBe(
     true,
   );
@@ -1265,7 +1304,7 @@ it("company logos are tenant scoped, versioned, replayable and independently rem
       requestId: requestId(),
     }),
   );
-  expect(await call(world, org.getCompanyLogo, {})).toEqual(logo);
+  expect(await call(world, org.getCompanyLogo, {})).toMatchObject(logo);
   const audits = await world.t.run((ctx) =>
     ctx.db.query("auditEvents").collect(),
   );
@@ -1646,6 +1685,645 @@ it("all org saves reconcile committed requests after reload and fence absent req
     expect(
       await call(world, save, { ...payload, requestId: absent.requestId }),
     ).toMatchObject({ written: false, error: { code: "REQUEST_RETIRED" } });
+    expect(await storeSnapshot(world)).toEqual(before);
+  }
+});
+
+it.each(["ACTIVE", "INACTIVE"] as const)(
+  "protocol: legacy %s name edits preserve all six employment fields",
+  async (status) => {
+    const world = await fixture();
+    const assignments = await masters(world);
+    const branchId = saved(
+      await call(world, org.saveBranch, { ...branch, requestId: requestId() }),
+    ).documentId as Id<"hrBranches">;
+    const levelId = saved(
+      await call(world, org.saveLevel, {
+        name: "Staff",
+        sortOrder: 0,
+        status: "ACTIVE",
+        requestId: requestId(),
+      }),
+    ).documentId as Id<"hrPositionLevels">;
+    const fields = {
+      ...assignments,
+      branchId,
+      levelId,
+      employmentType: "FIXED_TERM" as const,
+      probationEndDate: "2026-04-01",
+    };
+    const employeeId = saved(
+      await call(world, setup.saveEmployee, {
+        ...employee(world),
+        status,
+        ...fields,
+        requestId: requestId(),
+      }),
+    ).documentId as Id<"hrEmployees">;
+    const args = {
+      ...employee(world),
+      status,
+      displayName: "Legacy name edit",
+      employeeId,
+      expectedVersion: 1,
+      requestId: requestId(),
+    };
+    saved(await call(world, setup.saveEmployee, args));
+    expect(
+      (await call(world, setup.employee, { employeeId })).employee,
+    ).toMatchObject({ ...fields, displayName: "Legacy name edit", version: 2 });
+    expect(saved(await call(world, setup.saveEmployee, args)).replayed).toBe(
+      true,
+    );
+    const audits = await world.t.run((ctx) =>
+      ctx.db.query("auditEvents").collect(),
+    );
+    const edits = audits.filter(
+      (row) =>
+        row.action === "hr.employee.save" &&
+        row.changes?.some(
+          (change) =>
+            change.field === "displayName" &&
+            change.to?.includes("Legacy name edit"),
+        ),
+    );
+    expect(edits).toHaveLength(1);
+    for (const field of Object.keys(fields))
+      expect(edits[0]!.changes?.some((change) => change.field === field)).toBe(
+        false,
+      );
+  },
+);
+
+it("protocol: a legacy stale logo command cannot remove or overwrite a newer logo", async () => {
+  const world = await fixture();
+  const logo = { mimeType: "image/png", base64: btoa("\x89PNG\r\n\x1a\n") };
+  saved(
+    await call(world, org.saveCompanyLogo, { ...logo, requestId: requestId() }),
+  );
+  const observed = (await call(world, org.getCompanyLogo, {}))!;
+  // The second observer saves B; this also runs against the old implementation
+  // in the differential repro, whose read has no revision yet.
+  saved(
+    await call(world, org.saveCompanyLogo, {
+      mimeType: "image/jpeg",
+      base64: btoa("\xff\xd8\xff"),
+      requestId: requestId(),
+      ...(observed.revision === undefined
+        ? {}
+        : { expectedRevision: observed.revision }),
+    }),
+  );
+  const before = await storeSnapshot(world);
+  for (const command of [{ remove: true as const }, logo]) {
+    expect(
+      await call(world, org.saveCompanyLogo, {
+        ...command,
+        requestId: requestId(),
+      }),
+    ).toMatchObject({ written: false, error: { code: "LOGO_STALE" } });
+    expect(await storeSnapshot(world)).toEqual(before);
+  }
+});
+
+async function allOrgFields(world: ConvexTenantWorld) {
+  return {
+    ...(await masters(world)),
+    branchId: saved(
+      await call(world, org.saveBranch, { ...branch, requestId: requestId() }),
+    ).documentId as Id<"hrBranches">,
+    levelId: saved(
+      await call(world, org.saveLevel, {
+        name: "Staff",
+        sortOrder: 0,
+        status: "ACTIVE",
+        requestId: requestId(),
+      }),
+    ).documentId as Id<"hrPositionLevels">,
+    employmentType: "FIXED_TERM" as const,
+    probationEndDate: "2026-04-01",
+  };
+}
+
+it.each(["ACTIVE", "INACTIVE"] as const)(
+  "protocol: modern %s replacement clears only permitted fields and audits the effective values",
+  async (status) => {
+    const world = await fixture();
+    const fields = await allOrgFields(world);
+    const employeeId = saved(
+      await call(world, setup.saveEmployee, {
+        ...employee(world),
+        ...fields,
+        status,
+        requestId: requestId(),
+      }),
+    ).documentId as Id<"hrEmployees">;
+    const required =
+      status === "ACTIVE"
+        ? { departmentId: fields.departmentId, positionId: fields.positionId }
+        : {};
+    const command = {
+      ...employee(world),
+      ...required,
+      employeeId,
+      status,
+      replaceOrgFields: true as const,
+      expectedVersion: 1,
+      requestId: requestId(),
+    };
+    saved(await call(world, setup.saveEmployee, command));
+    const row = (await call(world, setup.employee, { employeeId })).employee!;
+    for (const field of Object.keys(fields) as (keyof typeof fields)[]) {
+      if (field in required) expect(row[field]).toBe(fields[field]);
+      else expect(row[field]).toBeUndefined();
+    }
+    expect(row.version).toBe(2);
+    expect(saved(await call(world, setup.saveEmployee, command)).replayed).toBe(
+      true,
+    );
+    const audits = await world.t.run((ctx) =>
+      ctx.db.query("auditEvents").collect(),
+    );
+    const cleared = audits.filter(
+      (row) =>
+        row.action === "hr.employee.save" &&
+        row.changes?.some(
+          (change) =>
+            change.field === "probationEndDate" && change.to === undefined,
+        ),
+    );
+    expect(cleared).toHaveLength(1);
+    for (const field of Object.keys(fields).filter(
+      (field) => !(field in required),
+    ))
+      expect(cleared[0]!.changes).toContainEqual({
+        field,
+        from: JSON.stringify(fields[field as keyof typeof fields]),
+      });
+    const snapshot = await storeSnapshot(world);
+    for (const expectedVersion of [undefined, 0, 1]) {
+      expect(
+        await call(world, setup.saveEmployee, {
+          ...employee(world),
+          status,
+          employeeId,
+          ...(expectedVersion === undefined ? {} : { expectedVersion }),
+          requestId: requestId(),
+        }),
+      ).toMatchObject({ written: false, error: { code: "EMPLOYEE_STALE" } });
+      expect(await storeSnapshot(world)).toEqual(snapshot);
+    }
+  },
+);
+
+it("protocol: legacy supplied org fields update individually and retained values are validated", async () => {
+  const world = await fixture();
+  const fields = await allOrgFields(world);
+  const employeeId = saved(
+    await call(world, setup.saveEmployee, {
+      ...employee(world),
+      ...fields,
+      requestId: requestId(),
+    }),
+  ).documentId as Id<"hrEmployees">;
+  const nextDepartment = saved(
+    await call(world, org.saveDepartment, {
+      name: "Other",
+      status: "ACTIVE",
+      requestId: requestId(),
+    }),
+  ).documentId as Id<"hrDepartments">;
+  saved(
+    await call(world, setup.saveEmployee, {
+      ...employee(world),
+      employeeId,
+      expectedVersion: 1,
+      departmentId: nextDepartment,
+      employmentType: "PERMANENT",
+      requestId: requestId(),
+    }),
+  );
+  expect(
+    (await call(world, setup.employee, { employeeId })).employee,
+  ).toMatchObject({
+    ...fields,
+    departmentId: nextDepartment,
+    employmentType: "PERMANENT",
+    version: 2,
+  });
+  // A corrupt historical effective date cannot slip through an omitted input.
+  await world.t.run((ctx) =>
+    ctx.db.patch(employeeId, { probationEndDate: "invalid" }),
+  );
+  const snapshot = await storeSnapshot(world);
+  expect(
+    await call(world, setup.saveEmployee, {
+      ...employee(world),
+      employeeId,
+      expectedVersion: 2,
+      requestId: requestId(),
+    }),
+  ).toMatchObject({
+    written: false,
+    error: { code: "EMPLOYMENT_DATE_INVALID", field: "probationEndDate" },
+  });
+  expect(await storeSnapshot(world)).toEqual(snapshot);
+});
+
+it.each(["ACTIVE", "INACTIVE"] as const)(
+  "protocol: %s legacy omissions retain current inactive references but reject newly supplied inactive and foreign references",
+  async (status) => {
+    const world = await fixture();
+    const fields = await allOrgFields(world);
+    const employeeId = saved(
+      await call(world, setup.saveEmployee, {
+        ...employee(world),
+        ...fields,
+        status,
+        requestId: requestId(),
+      }),
+    ).documentId as Id<"hrEmployees">;
+    const refs = [
+      ["branchId", "hrBranches"],
+      ["departmentId", "hrDepartments"],
+      ["positionId", "hrPositions"],
+      ["levelId", "hrPositionLevels"],
+    ] as const;
+    const otherIds = await world.t.run(async (ctx) => {
+      const result: Record<string, { inactive: string; foreign: string }> = {};
+      for (const [field, table] of refs) {
+        const current = (await ctx.db.get(fields[field]))!;
+        const { _id: _id, _creationTime: _time, ...data } = current;
+        await ctx.db.patch(fields[field], { status: "INACTIVE" });
+        result[field] = {
+          inactive: await ctx.db.insert(table, {
+            ...data,
+            status: "INACTIVE",
+          } as never),
+          foreign: await ctx.db.insert(table, {
+            ...data,
+            orgId: world.orgB,
+          } as never),
+        };
+      }
+      return result;
+    });
+    saved(
+      await call(world, setup.saveEmployee, {
+        ...employee(world),
+        employeeId,
+        status,
+        expectedVersion: 1,
+        requestId: requestId(),
+      }),
+    );
+    expect(
+      (await call(world, setup.employee, { employeeId })).employee,
+    ).toMatchObject({ ...fields, version: 2 });
+    const snapshot = await storeSnapshot(world);
+    for (const [field] of refs)
+      for (const id of Object.values(otherIds[field]!)) {
+        expect(
+          await call(world, setup.saveEmployee, {
+            ...employee(world),
+            employeeId,
+            status,
+            expectedVersion: 2,
+            [field]: id,
+            requestId: requestId(),
+          }),
+        ).toMatchObject({
+          written: false,
+          error: { code: "ORG_REFERENCE_UNAVAILABLE", field },
+        });
+        expect(await storeSnapshot(world)).toEqual(snapshot);
+      }
+  },
+);
+
+it("protocol: observed logo revisions fence two-tab replacement, removal, creation races and delete/recreate ABA", async () => {
+  const world = await fixture();
+  saved(
+    await call(world, org.saveCompanyProfile, {
+      ...company,
+      requestId: requestId(),
+    }),
+  );
+  const png = { mimeType: "image/png", base64: btoa("\x89PNG\r\n\x1a\n") };
+  const jpeg = { mimeType: "image/jpeg", base64: btoa("\xff\xd8\xff") };
+  const create = { ...png, expectedRevision: null, requestId: requestId() };
+  const receipt = saved(await call(world, org.saveCompanyLogo, create));
+  const observed = (await call(world, org.getCompanyLogo, {}))!;
+  expect(observed.revision).toEqual({ id: receipt.documentId, version: 1 });
+  const replace = {
+    ...jpeg,
+    expectedRevision: observed.revision,
+    requestId: requestId(),
+  };
+  saved(await call(world, org.saveCompanyLogo, replace));
+  const current = (await call(world, org.getCompanyLogo, {}))!;
+  expect(current.revision).toEqual({ id: receipt.documentId, version: 2 });
+  const snapshot = await storeSnapshot(world);
+  for (const input of [
+    { ...png, expectedRevision: null },
+    { ...png, expectedRevision: observed.revision },
+    { remove: true as const, expectedRevision: observed.revision },
+  ]) {
+    expect(
+      await call(world, org.saveCompanyLogo, {
+        ...input,
+        requestId: requestId(),
+      }),
+    ).toMatchObject({ written: false, error: { code: "LOGO_STALE" } });
+    expect(await storeSnapshot(world)).toEqual(snapshot);
+  }
+  expect(saved(await call(world, org.saveCompanyLogo, create)).replayed).toBe(
+    true,
+  );
+  expect(await storeSnapshot(world)).toEqual(snapshot);
+  const remove = {
+    remove: true as const,
+    expectedRevision: current.revision,
+    requestId: requestId(),
+  };
+  saved(await call(world, org.saveCompanyLogo, remove));
+  expect(await call(world, org.getCompanyLogo, {})).toBeNull();
+  const absentSnapshot = await storeSnapshot(world);
+  expect(
+    await call(world, org.saveCompanyLogo, {
+      ...png,
+      expectedRevision: current.revision,
+      requestId: requestId(),
+    }),
+  ).toMatchObject({ written: false, error: { code: "LOGO_STALE" } });
+  expect(await storeSnapshot(world)).toEqual(absentSnapshot);
+  saved(
+    await call(world, org.saveCompanyLogo, {
+      ...png,
+      expectedRevision: null,
+      requestId: requestId(),
+    }),
+  );
+  const recreated = (await call(world, org.getCompanyLogo, {}))!;
+  expect(recreated.revision.version).toBe(1);
+  expect(recreated.revision.id).not.toBe(observed.revision.id);
+  const recreatedSnapshot = await storeSnapshot(world);
+  for (const input of [
+    { ...jpeg, expectedRevision: observed.revision },
+    { remove: true as const, expectedRevision: observed.revision },
+  ]) {
+    expect(
+      await call(world, org.saveCompanyLogo, {
+        ...input,
+        requestId: requestId(),
+      }),
+    ).toMatchObject({ written: false, error: { code: "LOGO_STALE" } });
+    expect(await storeSnapshot(world)).toEqual(recreatedSnapshot);
+  }
+  for (const replay of [create, replace, remove])
+    expect(saved(await call(world, org.saveCompanyLogo, replay)).replayed).toBe(
+      true,
+    );
+  expect(await storeSnapshot(world)).toEqual(recreatedSnapshot);
+  expect(
+    await call(world, org.saveCompanyLogo, { ...replace, base64: png.base64 }),
+  ).toMatchObject({
+    written: false,
+    error: { code: "REQUEST_ARGUMENT_CONFLICT" },
+  });
+  expect(await storeSnapshot(world)).toEqual(recreatedSnapshot);
+  const audits = await world.t.run((ctx) =>
+    ctx.db.query("auditEvents").collect(),
+  );
+  expect(
+    audits.filter(
+      (row) => row.action === "hr.org.logo.save" && row.outcome === "ALLOWED",
+    ),
+  ).toHaveLength(4);
+  expect(JSON.stringify(audits)).not.toContain(png.base64);
+});
+
+it("protocol: modern ACTIVE replacement cannot clear required assignments", async () => {
+  const world = await fixture();
+  const fields = await allOrgFields(world);
+  const employeeId = saved(
+    await call(world, setup.saveEmployee, {
+      ...employee(world),
+      ...fields,
+      requestId: requestId(),
+    }),
+  ).documentId as Id<"hrEmployees">;
+  const before = await storeSnapshot(world);
+  for (const field of ["departmentId", "positionId"] as const) {
+    const { [field]: _cleared, ...retained } = fields;
+    expect(
+      await call(world, setup.saveEmployee, {
+        ...employee(world),
+        ...retained,
+        employeeId,
+        expectedVersion: 1,
+        replaceOrgFields: true,
+        requestId: requestId(),
+      }),
+    ).toMatchObject({
+      written: false,
+      error: {
+        code:
+          field === "departmentId"
+            ? "DEPARTMENT_REQUIRED"
+            : "POSITION_REQUIRED",
+        field,
+      },
+    });
+    expect(await storeSnapshot(world)).toEqual(before);
+  }
+});
+
+it("protocol: registered logo validators and authorization refuse malformed and unauthorized commands without metadata changes", async () => {
+  const world = await fixture();
+  const logo = { mimeType: "image/png", base64: btoa("\x89PNG\r\n\x1a\n") };
+  saved(
+    await call(world, org.saveCompanyProfile, {
+      ...company,
+      requestId: requestId(),
+    }),
+  );
+  saved(
+    await call(world, org.saveCompanyLogo, {
+      ...logo,
+      requestId: requestId(),
+      expectedRevision: null,
+    }),
+  );
+  const revision = (await call(world, org.getCompanyLogo, {}))!.revision;
+  const before = await storeSnapshot(world);
+  const reference = makeFunctionReference<"mutation">("hr/org:saveCompanyLogo");
+  for (const invalid of [
+    { remove: false },
+    { extra: true, ...logo },
+    { remove: "true" },
+    { ...logo, expectedRevision: 1 },
+    { ...logo, expectedRevision: { id: revision.id } },
+    { ...logo, expectedRevision: { ...revision, version: "1" } },
+    { ...logo, expectedRevision: { ...revision, extra: true } },
+    { ...logo, expectedRevision: { ...revision, id: world.orgA } },
+  ]) {
+    await expect(
+      world.t
+        .withIdentity(ADMIN)
+        .mutation(reference, { ...invalid, requestId: requestId() }),
+    ).rejects.toThrow();
+    expect(await storeSnapshot(world)).toEqual(before);
+  }
+  for (const version of [0, -1, 1.5, NaN, Infinity]) {
+    expect(
+      await call(world, org.saveCompanyLogo, {
+        ...logo,
+        expectedRevision: { ...revision, version },
+        requestId: requestId(),
+      }),
+    ).toMatchObject({
+      written: false,
+      error: { code: "LOGO_REVISION_INVALID" },
+    });
+    expect(await storeSnapshot(world)).toEqual(before);
+  }
+  // A valid foreign row token never grants access to that tenant's logo.
+  expect(
+    await call(
+      world,
+      org.saveCompanyLogo,
+      { remove: true, expectedRevision: revision, requestId: requestId() },
+      TENANT_B,
+    ),
+  ).toMatchObject({ written: false, error: { code: "LOGO_STALE" } });
+  expect(await storeSnapshot(world)).toEqual(before);
+  const actor = await seedSecondActorForOrgA(world, "HR_EMPLOYEE");
+  const unauthorized = world.t.withIdentity({
+    ...ADMIN,
+    subject: actor.clerkUserId,
+  });
+  expect(
+    await unauthorized.mutation(reference, {
+      remove: true,
+      expectedRevision: revision,
+      requestId: requestId(),
+    }),
+  ).toMatchObject({ ok: false, denial: { kind: "AUTHORIZATION_DENIED" } });
+  expect(
+    await unauthorized.query(
+      makeFunctionReference<"query">("hr/org:getCompanyLogo"),
+      {},
+    ),
+  ).toMatchObject({ ok: false });
+  for (const client of [
+    world.t,
+    world.t.withIdentity({ ...ADMIN, org_id: "org_absent" }),
+  ]) {
+    await expect(
+      client.mutation(reference, {
+        remove: true,
+        expectedRevision: revision,
+        requestId: requestId(),
+      }),
+    ).rejects.toThrow(/TENANT_CONTEXT_DENIED/);
+    await expect(
+      client.query(makeFunctionReference<"query">("hr/org:getCompanyLogo"), {}),
+    ).rejects.toThrow(/TENANT_CONTEXT_DENIED/);
+  }
+  expect(await storeSnapshot(world)).toEqual(before);
+});
+
+it("protocol: supplied legacy values update each of the six fields independently", async () => {
+  const world = await fixture();
+  const fields = await allOrgFields(world);
+  const employeeId = saved(
+    await call(world, setup.saveEmployee, {
+      ...employee(world),
+      ...fields,
+      requestId: requestId(),
+    }),
+  ).documentId as Id<"hrEmployees">;
+  const replacements = {
+    departmentId: saved(
+      await call(world, org.saveDepartment, {
+        name: "Other dept",
+        status: "ACTIVE",
+        requestId: requestId(),
+      }),
+    ).documentId,
+    positionId: saved(
+      await call(world, org.savePosition, {
+        name: "Other role",
+        status: "ACTIVE",
+        requestId: requestId(),
+      }),
+    ).documentId,
+    branchId: saved(
+      await call(world, org.saveBranch, {
+        ...branch,
+        name: "Branch",
+        type: "BRANCH",
+        revenueBranchNo: "00001",
+        requestId: requestId(),
+      }),
+    ).documentId,
+    levelId: saved(
+      await call(world, org.saveLevel, {
+        name: "Manager",
+        sortOrder: 1,
+        status: "ACTIVE",
+        requestId: requestId(),
+      }),
+    ).documentId,
+    employmentType: "PERMANENT",
+    probationEndDate: "2026-05-01",
+  };
+  const expected: Record<string, string> = { ...fields };
+  let expectedVersion = 1;
+  for (const [field, value] of Object.entries(replacements)) {
+    const command = {
+      ...employee(world),
+      employeeId,
+      expectedVersion,
+      [field]: value,
+      requestId: requestId(),
+    };
+    saved(await call(world, setup.saveEmployee, command));
+    expected[field] = value;
+    expectedVersion += 1;
+    expect(
+      (await call(world, setup.employee, { employeeId })).employee,
+    ).toMatchObject({ ...expected, version: expectedVersion });
+  }
+});
+
+it("protocol: employee site denial leaves all foundation fields untouched", async () => {
+  const world = await fixture();
+  const fields = await allOrgFields(world);
+  const employeeId = saved(
+    await call(world, setup.saveEmployee, {
+      ...employee(world),
+      ...fields,
+      requestId: requestId(),
+    }),
+  ).documentId as Id<"hrEmployees">;
+  const before = await storeSnapshot(world);
+  for (const warehouseId of [
+    world.warehouses.bravoA,
+    world.warehouses.alphaB,
+  ]) {
+    expect(
+      await call(world, setup.saveEmployee, {
+        ...employee(world),
+        employeeId,
+        expectedVersion: 1,
+        warehouseId,
+        replaceOrgFields: true,
+        status: "INACTIVE",
+        requestId: requestId(),
+      }),
+    ).toMatchObject({ written: false, error: { code: "SITE_UNAVAILABLE" } });
     expect(await storeSnapshot(world)).toEqual(before);
   }
 });
