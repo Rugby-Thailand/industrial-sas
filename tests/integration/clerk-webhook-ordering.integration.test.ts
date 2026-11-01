@@ -383,6 +383,45 @@ describe("signed Clerk source clocks through the registered HTTP route", () => {
     });
   });
 
+  it("keeps unmirrored parents repairable when a membership deletion arrives first", async () => {
+    const t = await world();
+    const at = Date.now() - 20_000;
+    // Svix does not guarantee order: the removal precedes the parents' events.
+    await send(
+      t,
+      "evt_member_removed",
+      membership("organizationMembership.deleted", at + 3_000),
+    );
+    await send(t, "evt_user_created", profile(at + 1_000, at + 1_000));
+    await send(t, "evt_org_updated", {
+      type: "organization.updated",
+      timestamp: at + 10_000,
+      data: { id: "org_clock", name: "Clock Organization", updated_at: at },
+    });
+    expect((await user(t))?.status).toBe("ACTIVE");
+    const org = await t.t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("organizations")
+          .withIndex("by_clerkOrganizationId", (q) =>
+            q.eq("clerkOrganizationId", "org_clock"),
+          )
+          .unique(),
+    );
+    expect(org?.status).toBe("ACTIVE");
+    expect((await memberships(t)).map((row) => row.status)).toEqual([
+      "REVOKED",
+    ]);
+    // A genuine deletion still tombstones the provisioned parent.
+    await send(t, "evt_user_delete", {
+      type: "user.deleted",
+      timestamp: at + 11_000,
+      data: { id: "user_clock" },
+    });
+    await send(t, "evt_late_profile", profile(at + 12_000, at + 2_000));
+    expect((await user(t))?.status).toBe("DEACTIVATED");
+  });
+
   it.each([
     ["missing", undefined],
     ["negative", -1],
