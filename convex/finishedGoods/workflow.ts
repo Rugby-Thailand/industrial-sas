@@ -317,19 +317,23 @@ export const saveProduct = mutationWithOrg({
           normalizedCondition(before.storageCondition) !==
             normalizedCondition(storageCondition)
         ) {
-          const pallets = await rows<Doc<"finishedGoodsPallets">>(
-            ctx,
-            "finishedGoodsPallets",
-            "by_orgId_warehouseId_code",
-            [{ field: "warehouseId", value: args.warehouseId }],
+          // Both exact index ranges participate in Convex OCC: a concurrent
+          // reservation or storage transition conflicts with this requirement edit.
+          const occupied = await Promise.all(
+            (["RESERVED", "STORED"] as const).map((status) =>
+              ctx.tenantDb
+                .byIndex<Doc<"finishedGoodsPallets">>(
+                  "finishedGoodsPallets",
+                  "by_orgId_productId_status",
+                  [
+                    { field: "productId", value: before._id },
+                    { field: "status", value: status },
+                  ],
+                )
+                .first(),
+            ),
           );
-          if (
-            pallets.some(
-              (pallet) =>
-                pallet.productId === before._id &&
-                (pallet.status === "RESERVED" || pallet.status === "STORED"),
-            )
-          ) {
+          if (occupied.some(Boolean)) {
             return failure("LOCATION_OCCUPIED", "storageCondition");
           }
         }

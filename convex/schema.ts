@@ -866,6 +866,7 @@ const schema = defineSchema({
   )
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
     .index("by_orgId_productId", byOrg("productId"))
+    .index("by_orgId_productId_status", byOrg("productId", "status"))
     .index("by_orgId_packingBatchId", byOrg("packingBatchId"))
     .index("by_orgId_preparationBatchId", byOrg("preparationBatchId"))
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))

@@ -332,6 +332,40 @@ describe("finished goods workflow", () => {
         expect.objectContaining({ status: "RESERVED" }),
       ]);
   });
+  it("changes requirements with more than 10000 unrelated warehouse pallets", async () => {
+    const world = await setup();
+    const { productId, palletId } = await measuredPallet(world);
+    const other = await measuredPallet(world, "unrelated");
+    await world.t.run(async (ctx) => {
+      const template = await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsPallets", other.palletId)!,
+      );
+      const { _id, _creationTime, ...row } = template!;
+      void _id;
+      void _creationTime;
+      for (let i = 0; i < 10001; i++) {
+        await ctx.db.insert("finishedGoodsPallets", {
+          ...row,
+          code: `UNRELATED-${i}`,
+        });
+      }
+    });
+    const product = await world.t.run((ctx) =>
+      ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+    );
+    id(
+      await call(world, workflow.saveProduct, {
+        ...fields,
+        sku: "FG-1",
+        warehouseId: world.warehouseId,
+        productId,
+        expectedUpdatedAt: product!.updatedAt,
+        requestId: "large-warehouse-requirement",
+        storageCondition: "COLD",
+      }),
+    );
+    expect(palletId).toBeTruthy();
+  });
   it.each(["RESERVED", "STORED"] as const)(
     "protects product storage requirements for %s pallets but allows equivalent text and descriptive edits",
     async (status) => {
