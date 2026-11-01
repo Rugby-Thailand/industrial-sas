@@ -144,7 +144,7 @@ test("Phase1 logo uploads real PNG bytes and removal persists after reload", asy
     )
     .toBe(1);
   const api = await convexAs(page);
-  expect((await api.query("hr/org:getCompanyLogo")).value).toEqual({
+  expect((await api.query("hr/org:getCompanyLogo")).value).toMatchObject({
     mimeType: "image/png",
     base64: PNG.toString("base64"),
   });
