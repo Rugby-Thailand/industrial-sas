@@ -938,3 +938,61 @@ describe("storage building planner", () => {
     ).toMatchObject({ ok: false });
   });
 });
+
+it("rejects duplicate building business keys and allocates distinct zone codes under concurrent writers", async () => {
+  const world = await createPlannerWorld();
+  const warehouseId = world.warehouses.alphaA;
+  const input = {
+    warehouseId,
+    code: "UNIQUE",
+    name: "Building",
+    widthMm: 10000,
+    depthMm: 10000,
+    defaultFloorHeightMm: 4000,
+    floorCount: 1,
+  };
+  const first = value(
+    await call(world, createStorageBuilding, {
+      ...input,
+      requestId: "unique-building",
+    }),
+  );
+  expect(first).toMatchObject({ written: true });
+  expect(
+    value(
+      await call(world, createStorageBuilding, {
+        ...input,
+        code: " unique ",
+        requestId: "duplicate-building",
+      }),
+    ),
+  ).toMatchObject({ written: false, error: { code: "DUPLICATE_KEY" } });
+  const buildingId = first.documentId;
+  const zones = await Promise.all(
+    [0, 3000].map((xMm) =>
+      call(world, createStorageZone, {
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        requestId: `unique-zone-${xMm}`,
+        label: "Zone",
+        xMm,
+        yMm: 0,
+        widthMm: 1000,
+        depthMm: 1000,
+        maxStackHeightMm: 3000,
+      }),
+    ),
+  );
+  expect(zones.map(value).filter((result) => result.written)).toHaveLength(2);
+  await world.t.run(async (ctx) => {
+    const rows = await ctx.db.query("storageZones").collect();
+    expect(new Set(rows.map((row) => row.code)).size).toBe(2);
+    const floors = await ctx.db.query("storageFloors").collect();
+    expect(
+      floors.filter(
+        (row) => row.buildingId === buildingId && row.floorNumber === 1,
+      ),
+    ).toHaveLength(1);
+  });
+});

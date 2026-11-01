@@ -1357,6 +1357,15 @@ describe("periods and CSV export (HR-040 – HR-043)", () => {
     ).toMatchObject({ error: { code: "PERIOD_ALREADY_CLOSED" } });
 
     const versionId = closed.documentId as string;
+    const frozenRows = await world.t.run((ctx) =>
+      ctx.db.query("hrPeriodRows").collect(),
+    );
+    const versionRows = frozenRows.filter((row) => row.versionId === versionId);
+    expect(versionRows.length).toBeGreaterThan(0);
+    expect(
+      new Set(versionRows.map((row) => `${row.employeeId}:${row.businessDate}`))
+        .size,
+    ).toBe(versionRows.length);
     expect(
       await call(world, periods.exportCsv, {
         requestId: rid("emp-export"),

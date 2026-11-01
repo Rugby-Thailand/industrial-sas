@@ -1,3 +1,5 @@
+import { page as auditDuplicates } from "../../convex/operations/duplicateAudit";
+import { UNIQUENESS_CONTRACTS } from "../../convex/lib/schemaPolicy";
 import { describe, expect, it } from "vitest";
 import {
   getStorageBuilding,
@@ -292,11 +294,38 @@ describe("ordered package scanning", () => {
       const placements = await ctx.db
         .query("finishedGoodsPlacements")
         .collect();
+      expect(new Set(placements.map((row) => row.positionCode)).size).toBe(1);
+      expect(
+        new Set(
+          placements.map((row) =>
+            row.mode === "LOCATION_ONLY" ? row.sequence : null,
+          ),
+        ).size,
+      ).toBe(2);
       expect(placements.map((row) => [row.mode, row.status])).toEqual([
         ["LOCATION_ONLY", "STORED"],
         ["LOCATION_ONLY", "STORED"],
       ]);
     });
+    for (const condition of ["activePlacement", "whenPresent"]) {
+      const rule = UNIQUENESS_CONTRACTS.find(
+        (c) =>
+          c.table === "finishedGoodsPlacements" &&
+          c.condition.kind === condition,
+      )!;
+      const contract = `${rule.table}.${rule.key.slice(1).join("+")}`;
+      const result = await world.t.run((ctx) =>
+        (
+          auditDuplicates as unknown as {
+            _handler: (
+              ctx: GenericMutationCtx<DataModel>,
+              args: unknown,
+            ) => Promise<{ findings: unknown[] }>;
+          }
+        )._handler(ctx, { orgId: world.orgA, contract, limit: 1 }),
+      );
+      expect(result.findings).toEqual([]);
+    }
   });
   it("distinguishes an unregistered barcode from an unavailable package", async () => {
     const world = await setup();
