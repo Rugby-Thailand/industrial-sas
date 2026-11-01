@@ -1,3 +1,4 @@
+import { appendFileSync, mkdirSync } from "node:fs";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { createClerkClient } from "@clerk/backend";
 import { test as base, expect, type Page } from "@playwright/test";
@@ -13,6 +14,30 @@ import { readHrFixture } from "./setup";
 export const test = base.extend({
   page: async ({ page }, runTest, info) => {
     let ownedSession: string | undefined;
+    const authEvents: object[] = [];
+    page.on("response", (response) => {
+      const url = new URL(response.url());
+      if (
+        url.hostname === "localhost" &&
+        response.request().isNavigationRequest()
+      )
+        authEvents.push({
+          event: "document-response",
+          at: Date.now(),
+          path: url.pathname,
+          status: response.status(),
+        });
+    });
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) {
+        const url = new URL(frame.url());
+        authEvents.push({
+          event: "navigation",
+          at: Date.now(),
+          path: url.pathname,
+        });
+      }
+    });
     try {
       try {
         await setupClerkTestingToken({ page });
@@ -34,6 +59,7 @@ export const test = base.extend({
         // Never print Clerk SDK errors that could contain a one-time ticket.
         throw new Error("HR_E2E_REAL_CLERK_SIGN_IN_FAILED");
       }
+      await authCheckpoint(page, "fixture-ready");
       await runTest(page);
     } finally {
       if (info.status !== info.expectedStatus && !page.isClosed()) {
@@ -53,6 +79,18 @@ export const test = base.extend({
         }
       }
       if (ownedSession) {
+        await authCheckpoint(page, "fixture-final", ownedSession);
+        mkdirSync(".cache/hr-browser", { recursive: true, mode: 0o700 });
+        appendFileSync(
+          ".cache/hr-browser/session-navigation.jsonl",
+          JSON.stringify({
+            test: info.title,
+            project: info.project.name,
+            status: info.status,
+            events: authEvents,
+          }) + "\n",
+          { mode: 0o600 },
+        );
         try {
           const env = loadHrEnvironment();
           await createClerkClient({
@@ -120,4 +158,59 @@ export async function convexAs(page: Page) {
     mutation: (name: string, args: Record<string, unknown>) =>
       client.mutation(makeFunctionReference<"mutation">(name), args),
   };
+}
+
+/** Private metadata only: no cookies, JWTs, request URLs or unrelated sessions. */
+export async function authCheckpoint(
+  page: Page,
+  stage: string,
+  ownedId?: string,
+) {
+  const browser = await page
+    .evaluate(() => ({
+      path: location.pathname,
+      sessionId: window.Clerk?.session?.id ?? null,
+      userId: window.Clerk?.user?.id ?? null,
+      organizationId: window.Clerk?.organization?.id ?? null,
+      status: window.Clerk?.session?.status ?? null,
+    }))
+    .catch(() => null);
+  const cookies = await page.context().cookies("http://localhost:3100");
+  const cookieMetadata = cookies
+    .filter(
+      (cookie) =>
+        cookie.name.startsWith("__session") ||
+        cookie.name.startsWith("__client"),
+    )
+    .map((cookie) => ({
+      name: cookie.name,
+      present: cookie.value.length > 0,
+      expires: cookie.expires,
+      sameSite: cookie.sameSite,
+      secure: cookie.secure,
+    }));
+  const id = ownedId ?? browser?.sessionId;
+  let server: object | null = null;
+  if (id) {
+    try {
+      const session = await createClerkClient({
+        secretKey: loadHrEnvironment().CLERK_SECRET_KEY,
+      }).sessions.getSession(id);
+      server = {
+        status: session.status,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        lastActiveAt: session.lastActiveAt,
+      };
+    } catch {
+      server = { unavailable: true };
+    }
+  }
+  mkdirSync(".cache/hr-browser", { recursive: true, mode: 0o700 });
+  appendFileSync(
+    ".cache/hr-browser/session-checkpoints.jsonl",
+    JSON.stringify({ stage, at: Date.now(), browser, cookieMetadata, server }) +
+      "\n",
+    { mode: 0o600 },
+  );
 }

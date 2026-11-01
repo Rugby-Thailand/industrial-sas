@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 
 import { HR_TEST_IDENTITY } from "../../../scripts/lib/hr-e2e-env.mjs";
-import { test, expect, convexAs } from "./fixtures";
+import { test, expect, convexAs, authCheckpoint } from "./fixtures";
 import { localRun } from "./setup";
 
 type RoleKey = "ORG_ADMIN" | "HR_ADMIN" | "HR_SUPERVISOR" | "HR_EMPLOYEE";
@@ -79,7 +79,9 @@ async function expectAdminDenied(page: Page) {
 }
 
 async function expectSelfService(page: Page) {
+  await authCheckpoint(page, "after-local-role-change");
   await page.goto("/en/hr/today");
+  await authCheckpoint(page, "after-self-navigation");
   await expect(
     page.getByRole("heading", { name: "My day", exact: true }),
   ).toBeVisible();

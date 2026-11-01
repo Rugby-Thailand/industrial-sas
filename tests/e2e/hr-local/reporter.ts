@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import type {
   FullResult,
   Reporter,
@@ -14,8 +15,16 @@ export default class HrLocalReporter implements Reporter {
   printsToStdio() {
     return true;
   }
-  onStdOut() {}
-  onStdErr() {}
+  onStdOut(chunk: string | Buffer) {
+    appendFileSync(".cache/hr-browser/runner-output.log", chunk, {
+      mode: 0o600,
+    });
+  }
+  onStdErr(chunk: string | Buffer) {
+    appendFileSync(".cache/hr-browser/runner-output.log", chunk, {
+      mode: 0o600,
+    });
+  }
   onError() {
     process.stderr.write(
       "[hr-e2e] Runner error; inspect the private report.\n",
