@@ -41,14 +41,23 @@ export interface NavigationDraftControl {
    * This entry's work is complete (saved or cleared). It stops guarding at
    * once, and stays inert until it next reports clean. `then` runs after the
    * shell's history buffer is removed, or through the normal prompt when
-   * other entries still hold unsaved or pending work.
+   * other entries still hold unsaved or pending work. For a saved foreground
+   * form, `foregroundOnly` retains unrelated underlay drafts while serializing
+   * completion after buffer removal. The caller must complete its owned Dialog.
    */
-  readonly settle: (then?: Transition) => void;
+  readonly settle: (
+    then?: Transition,
+    options?: { readonly foregroundOnly: true },
+  ) => void;
 }
 
 export interface NavigationDraftOwner {
   readonly update: (id: string, entry: DraftRegistration | null) => void;
-  readonly settle: (id: string, then?: Transition) => void;
+  readonly settle: (
+    id: string,
+    then?: Transition,
+    foregroundScope?: string,
+  ) => void;
   readonly requestTransition: (action: Transition) => void;
 }
 
@@ -127,11 +136,19 @@ export function useNavigationDraft(
           action();
         } else owner.requestTransition(action);
       },
-      settle: (then?: Transition) => {
+      settle: (
+        then?: Transition,
+        options?: { readonly foregroundOnly: true },
+      ) => {
         if (owner === null) then?.();
-        else owner.settle(id, then);
+        else
+          owner.settle(
+            id,
+            then,
+            options?.foregroundOnly ? foregroundScope : undefined,
+          );
       },
     }),
-    [owner, id],
+    [owner, id, foregroundScope],
   );
 }

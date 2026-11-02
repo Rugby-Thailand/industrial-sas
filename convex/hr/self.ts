@@ -747,11 +747,19 @@ export const dayDetail = queryWithOrg({
       return { ok: false as const, code: "DATE_INVALID" };
     const employee = await linkedEmployee(ctx);
     if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
+    const detail = await buildDayDetail(
+      ctx,
+      employee,
+      args.businessDate,
+      clock,
+    );
+    if (detail === null)
+      return { ok: false as const, code: "HR_OUTSIDE_EMPLOYMENT" };
     return {
       ok: true as const,
       timezone: clock.timezone,
       today: clock.today,
-      detail: await buildDayDetail(ctx, employee, args.businessDate, clock),
+      detail,
     };
   },
 });

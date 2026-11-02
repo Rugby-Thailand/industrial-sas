@@ -771,7 +771,10 @@ function ProfileForm({
   };
   const finish = (result: HrWriteState<unknown>) => {
     setErrors(refusal(result));
-    if (result.kind === "SAVED") guard.settle(onSaved);
+    if (result.kind === "SAVED") {
+      // Serialize buffer removal while retaining the employment draft beneath.
+      guard.settle(onSaved, { foregroundOnly: true });
+    }
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -911,7 +914,10 @@ function PaymentForm({
   ) => setDraft((current) => ({ ...current, [key]: value }));
   const finish = (result: HrWriteState<unknown>) => {
     setErrors(refusal(result));
-    if (result.kind === "SAVED") guard.settle(onSaved);
+    if (result.kind === "SAVED") {
+      // Serialize buffer removal while retaining the employment draft beneath.
+      guard.settle(onSaved, { foregroundOnly: true });
+    }
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -1067,7 +1073,10 @@ function LifecycleForm({
         ? refused
         : { ...refused, date: refused.effectiveDate },
     );
-    if (result.kind === "SAVED") guard.settle(onSaved);
+    if (result.kind === "SAVED") {
+      // Serialize buffer removal while retaining the employment draft beneath.
+      guard.settle(onSaved, { foregroundOnly: true });
+    }
   };
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();

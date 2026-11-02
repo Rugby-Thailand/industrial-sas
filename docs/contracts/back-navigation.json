@@ -3919,6 +3919,10 @@
       "cases": [
         {
           "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "independent successful personal foreground completion preserves a dirty employment underlay without asking to discard it"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
           "name": "employee profile Edit -> explicit Cancel -> next Back closes the editor to the filtered list"
         },
         {
@@ -3974,6 +3978,10 @@
       "expectation": "The profile/payment/lifecycle shared Dialog owns its foreground entry: native Back and Cancel close it through the draft guard, pending saves block dismissal, and completion consumes the entry before the next Back.",
       "tests": ["src/features/hr/EmployeeProfileSections.test.tsx"],
       "cases": [
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "independent successful personal foreground completion preserves a dirty employment underlay without asking to discard it"
+        },
         {
           "file": "src/features/hr/EmployeeProfileSections.test.tsx",
           "name": "employee profile Edit -> explicit Cancel -> next Back closes the editor to the filtered list"

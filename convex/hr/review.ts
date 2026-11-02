@@ -523,6 +523,14 @@ export const dayDetail = queryWithOrg({
       "warehouses",
       employee.warehouseId,
     );
+    const detail = await buildDayDetail(
+      ctx,
+      employee,
+      args.businessDate,
+      clock,
+    );
+    if (detail === null)
+      return { ok: false as const, code: "HR_OUTSIDE_EMPLOYMENT" };
     return {
       ok: true as const,
       timezone: clock.timezone,
@@ -535,7 +543,7 @@ export const dayDetail = queryWithOrg({
         siteCode: site?.code ?? "",
         siteName: site?.name ?? "",
       },
-      detail: await buildDayDetail(ctx, employee, args.businessDate, clock),
+      detail,
     };
   },
 });

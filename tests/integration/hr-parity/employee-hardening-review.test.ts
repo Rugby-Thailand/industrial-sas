@@ -427,3 +427,92 @@ it("independent final shift refusal follows captured plan until its exact deadli
   ).toMatchObject({ written: false, error: { code: "HR_OPEN_DAY_EXPIRED" } });
   expect((await event(w, id, "OFFBOARD", "2026-10-19")).written).toBe(true);
 });
+
+it("independent gap direct detail never invents a missing attendance obligation", async () => {
+  const w = await fixture();
+  const schedule = {
+    workDays: [1, 2, 3, 4, 5, 6, 7],
+    startTime: "09:00",
+    endTime: "18:00",
+    endsNextDay: false,
+    breakMinutes: 60,
+  };
+  const selfId = await hire(w, { userId: w.userA, schedule });
+  const otherId = await hire(w, { code: "E002", schedule });
+  for (const id of [selfId, otherId]) {
+    expect((await event(w, id, "OFFBOARD", "2026-09-30")).written).toBe(true);
+    expect((await event(w, id, "REINSTATE", "2026-10-19")).written).toBe(true);
+  }
+  const self = await query(w, api.hr.self.dayDetail, {
+    businessDate: "2026-10-05",
+  });
+  const review = await query(w, api.hr.review.dayDetail, {
+    employeeId: otherId,
+    businessDate: "2026-10-05",
+  });
+  const history = await query(w, api.hr.self.history, {
+    from: "2026-10-05",
+    to: "2026-10-05",
+  });
+  const rejected = await mutation(w, api.hr.self.submitCorrection, {
+    businessDate: "2026-10-05",
+    start: { minute: 540, nextDay: false },
+    end: { minute: 1080, nextDay: false },
+    reason: "This gap was not employment",
+    requestId: requestId(),
+  });
+  const disposition = await mutation(w, api.hr.review.disposeDay, {
+    employeeId: otherId,
+    businessDate: "2026-10-05",
+    expectedRevision: 0,
+    disposition: "ABSENT",
+    reason: "This gap was not employment",
+    requestId: requestId(),
+  });
+
+  expect(history.rows).toEqual([]);
+  expect(rejected).toMatchObject({
+    written: false,
+    error: { code: "HR_OUTSIDE_EMPLOYMENT" },
+  });
+  expect(disposition).toMatchObject({
+    written: false,
+    error: { code: "HR_OUTSIDE_EMPLOYMENT" },
+  });
+  expect(self).toMatchObject({ ok: false, code: "HR_OUTSIDE_EMPLOYMENT" });
+  expect(review).toMatchObject({ ok: false, code: "HR_OUTSIDE_EMPLOYMENT" });
+});
+
+it("captured day remains readable after employment dates exclude it", async () => {
+  const w = await fixture();
+  const id = await hire(w, { userId: w.userA, schedule: daily });
+  vi.setSystemTime(Date.UTC(2026, 9, 5, 2));
+  expect(
+    (
+      await mutation(w, api.hr.self.clockIn, {
+        expectedBusinessDate: "2026-10-05",
+        requestId: requestId(),
+      })
+    ).written,
+  ).toBe(true);
+  vi.setSystemTime(Date.UTC(2026, 9, 5, 11));
+  expect(
+    (
+      await mutation(w, api.hr.self.clockOut, {
+        expectedBusinessDate: "2026-10-05",
+        requestId: requestId(),
+      })
+    ).written,
+  ).toBe(true);
+  const before = await query(w, api.hr.self.dayDetail, {
+    businessDate: "2026-10-05",
+  });
+  vi.setSystemTime(Date.UTC(2026, 9, 20, 3));
+  expect((await event(w, id, "OFFBOARD", "2026-09-30")).written).toBe(true);
+  expect((await event(w, id, "REINSTATE", "2026-10-19")).written).toBe(true);
+  const after = await query(w, api.hr.self.dayDetail, {
+    businessDate: "2026-10-05",
+  });
+  expect(after.ok).toBe(true);
+  expect(after.detail).toEqual(before.detail);
+});

@@ -3,9 +3,11 @@ import type { Doc } from "../_generated/dataModel";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
 import { evaluateDay, certificationIsCurrent } from "../model/hr/attendance";
 import type { IsoDate } from "../model/hr/calendar";
+import { isEmployedOn } from "../model/hr/schedule";
 import {
   closedPeriodCovering,
   dayOf,
+  employmentOf,
   livePlan,
   memberName,
   planFromStored,
@@ -131,6 +133,9 @@ export async function buildDayDetail(
 ) {
   const names = new Map<string, string | null>();
   const day = await dayOf(ctx, employee._id, date);
+  // Recorded evidence remains readable even if employment bounds later change.
+  // An absent date outside employment must not invent an attendance obligation.
+  if (day === null && !isEmployedOn(employmentOf(employee), date)) return null;
   const plan = day
     ? planFromStored(day.plan)
     : await livePlan(ctx, employee, date, clock.offset);

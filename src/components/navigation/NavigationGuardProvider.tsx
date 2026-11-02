@@ -632,12 +632,18 @@ function createGuardMachine(deps: MachineDeps) {
     sync();
   }
 
-  function settle(id: string, then?: Transition) {
+  function settle(id: string, then?: Transition, foregroundScope?: string) {
     settled.add(id);
     entries.delete(id);
     publish();
     if (active()) {
-      if (then) requestTransition(then);
+      if (then)
+        requestTransition(
+          then,
+          foregroundScope === undefined
+            ? undefined
+            : { preserveDraftScope: `foreground:${foregroundScope}` },
+        );
       return;
     }
     if (then) proceed(then);

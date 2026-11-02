@@ -1033,3 +1033,51 @@ it("independent reinstatement refusal can return to inactive employment assignme
     replaceOrgFields: true,
   });
 });
+
+it("independent successful personal foreground completion preserves a dirty employment underlay without asking to discard it", async () => {
+  screenAt();
+  await openEditor();
+  fireEvent.change(screen.getByLabelText(/^Display name/), {
+    target: { value: "Unsaved employment name" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit personal details" }),
+  );
+  const dialog = await screen.findByRole("dialog", {
+    name: "Personal details",
+  });
+  fireEvent.change(within(dialog).getByLabelText("Nickname"), {
+    target: { value: "Saved personal nickname" },
+  });
+  mutation(hrRefs.saveEmployeeProfile).mockResolvedValue(saved("e7"));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(mutation(hrRefs.saveEmployeeProfile)).toHaveBeenCalledOnce(),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Personal details" }),
+    ).toBeNull(),
+  );
+  expect(
+    screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+  ).toBeNull();
+  expect(screen.getByLabelText(/^Display name/)).toHaveValue(
+    "Unsaved employment name",
+  );
+  await traverse("back");
+  await leavePrompt();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeNull(),
+  );
+  expect(screen.getByLabelText(/^Display name/)).toHaveValue(
+    "Unsaved employment name",
+  );
+  await traverse("back");
+  await leavePrompt();
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  await waitFor(() => expect(here()).toBe(LIST));
+});
