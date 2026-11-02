@@ -127,6 +127,8 @@ test("roster real batch SHIFT OFF Clear persists and selected newly recorded cel
   });
   expect(shift.value.written).toBe(true);
   const prepare = async () => {
+    // The site's documented view filter resets to the first site on remount.
+    await site(page, warehouseId);
     await page.getByLabel("Month", { exact: true }).fill("2026-10");
     await page.getByLabel("Employee code or name", { exact: true }).fill(code);
     await expect(
