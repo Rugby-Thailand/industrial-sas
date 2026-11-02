@@ -276,8 +276,18 @@
     "ownedGroupsChecked": 65,
     "liveGroups": [],
     "t3OwnedTabClosed": true,
-    "headedCaptureContextsClosed": true
+    "headedCaptureContextsClosed": true,
+    "sameCheckoutServiceProcesses": 0,
+    "finalAuditAt": "2026-11-02T19:49:48.960Z",
+    "auditCorrection": "Initial inline-shell audit matched its own zsh command text; no service process. Corrected process-type filter and free-port preflight passed."
   },
   "outputDirectory": "/Users/macbook/.t3/worktrees/industrial-sas/t3-fe2d6cf1/output/hr-verified-english",
-  "privateLogs": ".cache/hr-browser/runs/ and .cache/hr-verified/"
+  "privateLogs": ".cache/hr-browser/runs/ and .cache/hr-verified/",
+  "clockObservation": {
+    "previousPrintedUTC": "2026-11-02T18:19:06Z",
+    "nextPrintedUTC": "2026-11-02T19:49:15Z",
+    "phase": "after capture and checks",
+    "cause": "unknown",
+    "mediaDurations": "ffprobe; not the whole task epoch span"
+  }
 }

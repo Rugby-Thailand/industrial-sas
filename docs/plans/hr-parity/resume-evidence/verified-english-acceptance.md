@@ -97,4 +97,6 @@ After all owned services stopped: normal lint, navigation, discovery, TS6 and th
 
 All **42 owned Clerk sessions are revoked**, with zero active or unknown lookups; unrelated sessions were not queried or revoked. Local roles before/final restoration were exactly ORG_ADMIN, HR_ADMIN, HR_EMPLOYEE. All 65 journalled process groups are gone. Owned headed contexts and the T3 tab are closed. Final loopback and wildcard preflight found 3110/3320/3321 free and no run lock. No private logs, credentials, Clerk IDs or private PII are included in this publication bundle. See evidence/final-checks.json, sessions-final.json, roles-final.json, process-groups-final.json and ports-final.json.
 
+Observed post-capture clock gap: UTC was 18:19:06 at the checks/readback inspection and 19:49:15 at the next printed clock observation. Cause unknown. Captured frame/event epochs and ffprobe durations are retained verbatim; this post-capture gap is not represented as tutorial time or claimed active work time.
+
 RESULT: company-org=PASS employee=PASS shifts-roster=PASS
