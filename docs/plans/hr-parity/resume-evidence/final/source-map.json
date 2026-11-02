@@ -432,5 +432,25 @@
       "local": "41d8ec472e1d451a1aa4f4f96b5f1ef2d8fde265",
       "method": "cherry-pick test/evidence only"
     }
+  ],
+  "finalLaneCommits": [
+    {
+      "sha": "e0df521328335dd2c891abc54c89fd936210368d",
+      "subject": "test(hr): pin final acceptance source and resolve duplicated test type import"
+    },
+    {
+      "sha": "b6782dd0b3b8332220743c49cd5eeab470899899",
+      "subject": "test(hr): add guarded real active-leave submission and claim-lock acceptance"
+    }
+  ],
+  "copyAndAuditFollowups": [
+    {
+      "source": "b42f07c1f77213dd1f55c0bcdf215de60eae624d",
+      "local": "36b3ebf9a8aff3311d8826777de41d6723fc723d"
+    },
+    {
+      "source": "76b49800247bb334d9e2533f3042cef221be2869",
+      "local": "55a4a9c90afd4f0e5464f214a7781f1a7d41b66f"
+    }
   ]
 }
