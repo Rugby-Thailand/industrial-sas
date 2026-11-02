@@ -32,12 +32,12 @@ test("roster fixed shift UI saves and reloads while pristine Cancel consumes its
   const { api, warehouseId } = await site(page);
   await page.getByRole("button", { name: "Add shift", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Add shift", exact: true });
-  await dialog.getByLabel("Shift code", { exact: true }).fill(code);
+  await dialog.getByLabel(/^Shift code(?: \*)?$/).fill(code);
   await dialog
-    .getByLabel("Shift name", { exact: true })
+    .getByLabel(/^Shift name(?: \*)?$/)
     .fill("Synthetic morning shift");
-  await dialog.getByLabel("Start", { exact: true }).fill("08:00");
-  await dialog.getByLabel("End", { exact: true }).fill("17:00");
+  await dialog.getByLabel(/^Start(?: \*)?$/).fill("08:00");
+  await dialog.getByLabel(/^End(?: \*)?$/).fill("17:00");
   await dialog.getByLabel("Unpaid break (minutes)", { exact: true }).fill("60");
   await dialog.getByRole("button", { name: "Save shift", exact: true }).click();
   await expect(dialog).toBeHidden();

@@ -44,9 +44,6 @@ function written(outcome: Outcome) {
   expect(value, JSON.stringify(value)).toMatchObject({ written: true });
   return value;
 }
-function refused(outcome: Outcome, code: string) {
-  expect(result(outcome)).toMatchObject({ written: false, error: { code } });
-}
 const today = "2026-10-12";
 async function fixture() {
   const world = await createConvexTenantWorld({
@@ -237,17 +234,24 @@ it("registered approval refuses a roster change after leave captured its plan wi
       cells: [{ employeeId, date: "2026-10-13", expectedRevision: 0 }],
     }),
   );
-  refused(
+  const decision = result(
     await call(world, "hr/leave:decide", {
       requestId: rid(),
       leaveRequestId: request.documentId,
       expectedVersion: 1,
       decision: "APPROVE",
     }),
-    "LEAVE_PLAN_STALE",
   );
-  expect(await account(world)).toMatchObject({ used: 0, reserved: 1 });
-  expect(
-    await world.t.run((ctx) => ctx.db.query("hrAttendanceDays").collect()),
-  ).toEqual([]);
+  // Capture every invariant in a single failed run; the first bad result must
+  // not hide the actual account/attendance consequences from the handoff.
+  expect.soft(decision).toMatchObject({
+    written: false,
+    error: { code: "LEAVE_PLAN_STALE" },
+  });
+  expect.soft(await account(world)).toMatchObject({ used: 0, reserved: 1 });
+  expect
+    .soft(
+      await world.t.run((ctx) => ctx.db.query("hrAttendanceDays").collect()),
+    )
+    .toEqual([]);
 });

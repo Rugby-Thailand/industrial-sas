@@ -1,0 +1,475 @@
+[
+  {
+    "label": "baseline-payment-pending-fenced",
+    "source": {
+      "sourceHead": "9be5ad826c3b7ab34bb8b6aa4ceae878605577a7",
+      "sourceDirty": false,
+      "backend": "worktree-owned anonymous Convex on loopback:3320",
+      "actualWorkers": 1
+    },
+    "stats": {
+      "startTime": "2026-11-02T12:53:47.294Z",
+      "duration": 175184.09600000002,
+      "expected": 4,
+      "skipped": 0,
+      "unexpected": 2,
+      "flaky": 0
+    },
+    "privateArchive": ".cache/hr-browser/resume-run1",
+    "tests": [
+      {
+        "title": "employee real response-gated pending save retains Back protection through query refresh and consumes completion entry",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 24761
+          }
+        ]
+      },
+      {
+        "title": "employee committed ID-only real reload recovers without sensitive payload storage",
+        "project": "hr-desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 41909,
+            "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('dialog', { name: 'Payment details', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 30000ms\n  - waiting for getByRole('dialog', { name: 'Payment details', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "employee unsent ID-only real reload fences request without replaying private draft",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 13136
+          }
+        ]
+      },
+      {
+        "title": "employee real response-gated pending save retains Back protection through query refresh and consumes completion entry",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11970
+          }
+        ]
+      },
+      {
+        "title": "employee committed ID-only real reload recovers without sensitive payload storage",
+        "project": "hr-mobile",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 41051,
+            "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('dialog', { name: 'Payment details', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 30000ms\n  - waiting for getByRole('dialog', { name: 'Payment details', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "employee unsent ID-only real reload fences request without replaying private draft",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12895
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "baseline-profile-lifecycle",
+    "source": {
+      "sourceHead": "43d026409daceadcb75c281b6ec6cfff568e186d",
+      "sourceDirty": false,
+      "backend": "worktree-owned anonymous Convex on loopback:3320",
+      "actualWorkers": 1
+    },
+    "stats": {
+      "startTime": "2026-11-02T13:00:19.116Z",
+      "duration": 161814.67500000002,
+      "expected": 0,
+      "skipped": 0,
+      "unexpected": 3,
+      "flaky": 0
+    },
+    "privateArchive": ".cache/hr-browser/resume-run2-baseline-profile-lifecycle",
+    "tests": [
+      {
+        "title": "employee personal committed response loss retains reachable ID-only recovery after version advances",
+        "project": "hr-desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 48295,
+            "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('dialog', { name: 'Personal details', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 30000ms\n  - waiting for getByRole('dialog', { name: 'Personal details', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "employee contact committed response loss retains reachable ID-only recovery after version advances",
+        "project": "hr-desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 45134,
+            "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('dialog', { name: 'Contact and emergency contact', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 30000ms\n  - waiting for getByRole('dialog', { name: 'Contact and emergency contact', exact: true }).getByRole('button', { name: 'Check previous write', exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "employee committed offboard response loss exposes recovery after its original action disappears",
+        "project": "hr-desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 42802,
+            "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('button', { name: 'Check previous write', exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 30000ms\n  - waiting for getByRole('button', { name: 'Check previous write', exact: true })\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "recovery-fix-employee",
+    "source": {
+      "sourceHead": "9a826d53f7a08d5394272ea77ad06e8c012b4350",
+      "sourceDirty": false,
+      "backend": "worktree-owned anonymous Convex on loopback:3320",
+      "actualWorkers": 1
+    },
+    "stats": {
+      "startTime": "2026-11-02T13:05:33.294Z",
+      "duration": 478562.496,
+      "expected": 27,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "privateArchive": ".cache/hr-browser/resume-run3-recovery-fix",
+    "tests": [
+      {
+        "title": "employee offboard reinstate preserves separation gap and refuses reversed chronology through real reload",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 21252
+          }
+        ]
+      },
+      {
+        "title": "employee reinstatement refuses missing assignments in genuine backend and retains draft",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16496
+          }
+        ]
+      },
+      {
+        "title": "employee payment and profile are denied to own local employee role with exact grant restoration",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16099
+          }
+        ]
+      },
+      {
+        "title": "employee offboard reinstate preserves separation gap and refuses reversed chronology through real reload",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 20331
+          }
+        ]
+      },
+      {
+        "title": "employee reinstatement refuses missing assignments in genuine backend and retains draft",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16585
+          }
+        ]
+      },
+      {
+        "title": "employee payment and profile are denied to own local employee role with exact grant restoration",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 17962
+          }
+        ]
+      },
+      {
+        "title": "employee personal committed response loss retains reachable ID-only recovery after version advances",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11925
+          }
+        ]
+      },
+      {
+        "title": "employee contact committed response loss retains reachable ID-only recovery after version advances",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 13209
+          }
+        ]
+      },
+      {
+        "title": "employee committed offboard response loss exposes recovery after its original action disappears",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11819
+          }
+        ]
+      },
+      {
+        "title": "employee profile unsent reload finds FENCED recovery after an independent version advance",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12529
+          }
+        ]
+      },
+      {
+        "title": "employee payment unsent reload finds FENCED recovery after an independent version advance",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 15902
+          }
+        ]
+      },
+      {
+        "title": "employee lifecycle unsent reload finds FENCED recovery after an independent version advance",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16762
+          }
+        ]
+      },
+      {
+        "title": "employee personal committed response loss retains reachable ID-only recovery after version advances",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12694
+          }
+        ]
+      },
+      {
+        "title": "employee contact committed response loss retains reachable ID-only recovery after version advances",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12590
+          }
+        ]
+      },
+      {
+        "title": "employee committed offboard response loss exposes recovery after its original action disappears",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12576
+          }
+        ]
+      },
+      {
+        "title": "employee profile unsent reload finds FENCED recovery after an independent version advance",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 13833
+          }
+        ]
+      },
+      {
+        "title": "employee payment unsent reload finds FENCED recovery after an independent version advance",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12677
+          }
+        ]
+      },
+      {
+        "title": "employee lifecycle unsent reload finds FENCED recovery after an independent version advance",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12873
+          }
+        ]
+      },
+      {
+        "title": "employee personal contact emergency and private payment create edit and reload persist",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 28073
+          }
+        ]
+      },
+      {
+        "title": "employee dirty personal draft survives independent subscription refresh and stale save refuses without overwrite",
+        "project": "hr-desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 41913,
+            "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('button', { name: 'Add employee', exact: true })\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 30000ms\n  - waiting for getByRole('button', { name: 'Add employee', exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "employee real response-gated pending save retains Back protection through query refresh and consumes completion entry",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 15246
+          }
+        ]
+      },
+      {
+        "title": "employee committed ID-only real reload recovers without sensitive payload storage",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16675
+          }
+        ]
+      },
+      {
+        "title": "employee unsent ID-only real reload fences request without replaying private draft",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 17935
+          }
+        ]
+      },
+      {
+        "title": "employee personal contact emergency and private payment create edit and reload persist",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 18256
+          }
+        ]
+      },
+      {
+        "title": "employee dirty personal draft survives independent subscription refresh and stale save refuses without overwrite",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11697
+          }
+        ]
+      },
+      {
+        "title": "employee real response-gated pending save retains Back protection through query refresh and consumes completion entry",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11728
+          }
+        ]
+      },
+      {
+        "title": "employee committed ID-only real reload recovers without sensitive payload storage",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11906
+          }
+        ]
+      },
+      {
+        "title": "employee unsent ID-only real reload fences request without replaying private draft",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12971
+          }
+        ]
+      }
+    ]
+  }
+]

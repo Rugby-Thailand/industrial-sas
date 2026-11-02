@@ -247,5 +247,12 @@
       "author": "Rugby <rugbykritsakorn@gmail.com>",
       "authorDate": "2026-11-02T02:58:02+07:00"
     }
-  ]
+  ],
+  "incrementalRecovery": {
+    "source": "281c1e75ec288138b3b10a2d6351efe97c120b65",
+    "sourceCheckout": "/Users/macbook/.t3/worktrees/industrial-sas/t3-513a7554",
+    "local": "cfbab8b7bd5952d12ba0fceff87487ca5fd9fa83",
+    "subject": "fix(hr): keep employee write recovery reachable after a version-advancing commit",
+    "note": "Applied only after archiving the common-baseline failures. Author, author date and co-author trailers preserved."
+  }
 }
