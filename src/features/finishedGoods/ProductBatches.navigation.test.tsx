@@ -463,3 +463,48 @@ it("does not navigate to a retired or foreign return unit", () => {
   expect(mocks.push).not.toHaveBeenCalled();
   expect(mocks.replace).not.toHaveBeenCalled();
 });
+
+it("loads revision history only when expanded and pages without changing locale query or hash", async () => {
+  navigate("?filter=keep#history");
+  mocks.query.mockImplementation((name, args) => {
+    if (name.endsWith(":pageBatchRevisions")) {
+      const cursor = (args as { cursor?: string }).cursor;
+      return querySuccess({
+        page: [
+          {
+            _id: cursor ? "revision-1" : "revision-2",
+            revision: cursor ? 1 : 2,
+            totalQuantity: 500,
+            storageFormat: "PALLET",
+            palletIds: ["unit-a"],
+            packages: [],
+          },
+        ],
+        isDone: !!cursor,
+        continueCursor: "older",
+      });
+    }
+    return batches();
+  });
+  render(component());
+  expect(
+    mocks.query.mock.calls.some(([name]) =>
+      name.endsWith(":pageBatchRevisions"),
+    ),
+  ).toBe(false);
+  const disclosure = screen.getByText("Packing history").closest("details")!;
+  disclosure.open = true;
+  fireEvent(disclosure, new Event("toggle"));
+  await screen.findByText(/Revision 2/);
+  const historyNext = Array.from(disclosure.querySelectorAll("button")).find(
+    (button) => button.getAttribute("aria-label") === "Next page",
+  )!;
+  fireEvent.click(historyNext);
+  await screen.findByText(/Revision 1/);
+  expect(window.location.pathname).toContain("/en/");
+  expect(window.location.search).toBe("?filter=keep");
+  expect(window.location.hash).toBe("#history");
+  expect(
+    mocks.query.mock.calls.some(([name]) => name.endsWith(":getBatch")),
+  ).toBe(false);
+});

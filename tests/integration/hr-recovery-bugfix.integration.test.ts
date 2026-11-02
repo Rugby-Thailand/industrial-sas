@@ -298,3 +298,36 @@ describe("HR clock command business-date ownership", () => {
     );
   });
 });
+
+describe("expired reconciliation receipts", () => {
+  it("retires an expired command consistently before cleanup and keeps its permanent cancellation fence", async () => {
+    const w = await world();
+    const command = { requestId: "expired-clock-reconcile" };
+    expect(await actor(w).mutation(api.hr.self.clockIn, command)).toMatchObject(
+      { ok: true, value: { written: true } },
+    );
+    await w.t.run(async (ctx) => {
+      for (const row of await ctx.db.query("idempotencyRecords").collect())
+        if (row.operation === OPERATION && row.requestId === command.requestId)
+          await ctx.db.patch(row._id, { expiresAt: Date.now() });
+    });
+    expect(
+      await actor(w).mutation(api.hr.recovery.reconcileRequest, {
+        operation: OPERATION,
+        ...command,
+      }),
+    ).toMatchObject({ ok: true, value: { resolved: true, status: "FENCED" } });
+    expect(await actor(w).mutation(api.hr.self.clockIn, command)).toMatchObject(
+      {
+        ok: true,
+        value: { written: false, error: { code: "REQUEST_RETIRED" } },
+      },
+    );
+    const fences = await w.t.run((ctx) =>
+      ctx.db.query("idempotencyRecords").collect(),
+    );
+    expect(
+      fences.filter((row) => row.expiresAt === Number.MAX_SAFE_INTEGER),
+    ).toHaveLength(1);
+  });
+});

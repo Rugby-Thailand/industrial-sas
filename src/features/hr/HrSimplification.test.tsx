@@ -396,7 +396,7 @@ const row = (
 });
 
 function period(input: {
-  readonly status: "DRAFT" | "CLOSED";
+  readonly status: "DRAFT" | "CLOSING" | "CLOSED";
   readonly draftVersion: number;
   readonly latestClosedVersion: number;
   readonly versions: readonly number[];
@@ -517,7 +517,7 @@ describe("period next action", () => {
         row("B", "2026-09-03", "READY"),
       ]),
     });
-    const close = mutation(hrRefs.closePeriod);
+    const close = mutation(hrRefs.beginClose);
     close.mockResolvedValue({
       ok: true,
       requestId: "m",
@@ -625,6 +625,233 @@ describe("period next action", () => {
         "Outside-shift time is informational, not approved overtime.",
       ),
     ).toHaveLength(1);
+  });
+});
+
+const pageOutcome = (page: readonly unknown[]) => ({
+  ok: true,
+  requestId: "q",
+  value: {
+    ok: true,
+    status: "ready",
+    page,
+    isDone: true,
+    continueCursor: "",
+    scanned: page.length,
+  },
+});
+
+describe("staged period close", () => {
+  // Earlier cases leave a confirmation step in jsdom's shared history.
+  beforeEach(() => window.history.replaceState(null, "", "/"));
+  const closing = (view: Record<string, unknown>) =>
+    period({
+      status: "CLOSING",
+      draftVersion: 1,
+      latestClosedVersion: 0,
+      versions: [],
+      view: {
+        kind: "CLOSING",
+        versionId: "build1",
+        version: 1,
+        employees: 25,
+        days: 75,
+        ...view,
+      },
+    });
+
+  it("reviews a large draft in pages and closes it without a whole-period fingerprint", async () => {
+    // A version no earlier case opened, so no confirmation step is restored.
+    period({
+      status: "DRAFT",
+      draftVersion: 7,
+      latestClosedVersion: 0,
+      versions: [],
+      view: {
+        kind: "PAGED",
+        blocker: null,
+        closeFailure: {
+          code: "PERIOD_NOT_READY",
+          employeeId: "e9",
+          businessDate: "2026-09-03",
+        },
+      },
+    });
+    state.queries.set(
+      ref(hrRefs.periodDraftEmployeesPage),
+      pageOutcome([
+        {
+          employeeId: "e9",
+          code: "EMP-9",
+          name: "Employee 9",
+          totals: {
+            days: 3,
+            workedMinutes: 960,
+            exceptions: 1,
+            unfinished: 0,
+          },
+          rows: [row("9", "2026-09-03", "EXCEPTION", "MISSING_RECORD")],
+        },
+      ]),
+    );
+    const begin = mutation(hrRefs.beginClose);
+    begin.mockResolvedValue({
+      ok: true,
+      requestId: "m",
+      value: { written: true, documentId: "build1", replayed: false },
+    });
+    renderPeriod();
+    // The last discarded attempt names its reason and the day to fix.
+    const failed = screen.getByTestId("hr-period-close-failed");
+    expect(failed).toHaveTextContent("nothing was published");
+    expect(
+      within(failed).getByRole("link", { name: /Review open days/ }),
+    ).toHaveAttribute("href", expect.stringContaining("employee=e9"));
+    expect(screen.getByText("Employee 9")).toBeVisible();
+    fireEvent.click(screen.getByTestId("hr-period-close"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm closing v7" }));
+    await waitFor(() => expect(begin).toHaveBeenCalledTimes(1));
+    expect(begin.mock.calls[0]![0]).not.toHaveProperty("expectedFingerprint");
+  });
+
+  it("drives each build step once and resumes on Continue", async () => {
+    closing({ state: "BUILDING", step: 3 });
+    const advance = mutation(hrRefs.advanceClose);
+    advance.mockResolvedValue({
+      ok: true,
+      requestId: "m",
+      value: { written: true, documentId: "p1", replayed: false },
+    });
+    const page = () => (
+      <DraftGuardProvider>
+        <HrPeriodDetailScreen periodId="p1" />
+      </DraftGuardProvider>
+    );
+    const view = renderWithIntl(page(), {
+      locale: "en",
+      preserveProviders: true,
+    });
+    await waitFor(() => expect(advance).toHaveBeenCalledTimes(1));
+    expect(advance.mock.calls[0]![0]).toMatchObject({
+      periodId: "p1",
+      versionId: "build1",
+      step: 3,
+    });
+    expect(screen.getByTestId("hr-period-closing")).toHaveTextContent(
+      "25 employees and 75 days",
+    );
+    // A re-render of the same step never sends it again.
+    view.rerender(page());
+    expect(advance).toHaveBeenCalledTimes(1);
+    // An interrupted step is resumed explicitly with the same step.
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(advance).toHaveBeenCalledTimes(2);
+    expect(advance.mock.calls[1]![0]).toMatchObject({ step: 3 });
+  });
+
+  it("publishes only the prepared candidate, or returns it to draft", async () => {
+    closing({
+      state: "READY",
+      step: 6,
+      fingerprint: "chain-6",
+      totals: {
+        employees: 120,
+        days: 360,
+        workedMinutes: 0,
+        outsideShiftMinutes: 0,
+        absentDays: 0,
+        leaveDays: 0,
+        nonworkingDays: 360,
+      },
+    });
+    const advance = mutation(hrRefs.advanceClose);
+    const publish = mutation(hrRefs.publishClose);
+    const cancel = mutation(hrRefs.cancelClose);
+    publish.mockResolvedValue({
+      ok: true,
+      requestId: "m",
+      value: { written: true, documentId: "build1", replayed: false },
+    });
+    cancel.mockResolvedValue({
+      ok: true,
+      requestId: "m",
+      value: { written: true, documentId: "p1", replayed: false },
+    });
+    renderPeriod();
+    const prepared = screen.getByTestId("hr-period-prepared");
+    expect(prepared).toHaveTextContent("120");
+    expect(prepared).toHaveTextContent("360");
+    expect(advance).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("hr-period-publish"));
+    await waitFor(() =>
+      expect(publish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          periodId: "p1",
+          versionId: "build1",
+          expectedFingerprint: "chain-6",
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByTestId("hr-period-cancel-close"));
+    await waitFor(() =>
+      expect(cancel).toHaveBeenCalledWith(
+        expect.objectContaining({ periodId: "p1", versionId: "build1" }),
+      ),
+    );
+  });
+
+  it("downloads a large version as one file joined from every part", async () => {
+    period({
+      status: "CLOSED",
+      draftVersion: 1,
+      latestClosedVersion: 1,
+      versions: [1],
+      view: { ...closedView(1), rowsPaged: true, rows: [] },
+    });
+    state.queries.set(
+      ref(hrRefs.periodVersionRowsPage),
+      pageOutcome([{ ...row("A", "2026-09-02", "READY"), plan }]),
+    );
+    const exportCsv = mutation(hrRefs.exportCsv);
+    exportCsv
+      .mockResolvedValueOnce({
+        ok: true,
+        requestId: "m",
+        value: {
+          written: true,
+          fileName: "attendance.csv",
+          content: "head\r\nA\r\n",
+          isDone: false,
+          continueCursor: "EMP-A",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        requestId: "m",
+        value: {
+          written: true,
+          fileName: "attendance.csv",
+          content: "B\r\n",
+          isDone: true,
+        },
+      });
+    const created: Blob[] = [];
+    const createObjectURL = vi.fn((blob: Blob) => {
+      created.push(blob);
+      return "blob:csv";
+    });
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    renderPeriod();
+    fireEvent.click(screen.getByTestId("hr-period-export"));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(exportCsv).toHaveBeenCalledTimes(2);
+    const [first, second] = exportCsv.mock.calls.map((call) => call[0]);
+    expect(second).toMatchObject({
+      versionId: "ver1",
+      cursor: "EMP-A",
+      requestId: `${first.requestId}-p2`,
+    });
+    expect(await created[0]!.text()).toBe("head\r\nA\r\nB\r\n");
   });
 });
 

@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -193,13 +199,16 @@ function otherTab(warehouseId: string) {
 }
 async function chooseImageCodes(codes: string[]) {
   mocks.decode.mockResolvedValueOnce(codes);
-  fireEvent.change(screen.getByLabelText("Choose image"), {
+  const picker = screen.getByText("Choose image", {
+    selector: "button",
+  }).parentElement!;
+  fireEvent.change(within(picker).getByLabelText("Choose image"), {
     target: {
       files: [new File(["photo"], "ticket.webp", { type: "image/webp" })],
     },
   });
   fireEvent.click(
-    await screen.findByRole("button", { name: "Use scanned code(s)" }),
+    await within(picker).findByRole("button", { name: "Use scanned code(s)" }),
   );
 }
 
@@ -273,12 +282,16 @@ it("announces the 50-ticket refusal and a successful read on the barcode image p
       mocks.camera!(`PRODUCT-${index}`);
     }
   });
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(50);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(50);
   await chooseImageCodes(["FO99999", "PRODUCT-LAST"]);
   expect(
     await screen.findByText(/This group holds up to 50 tickets/),
   ).toBeVisible();
-  expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(50);
+  expect(
+    screen.getAllByRole("textbox", { name: /Job No\./, hidden: true }),
+  ).toHaveLength(50);
   expect(screen.queryByDisplayValue("FO99999")).not.toBeInTheDocument();
 }, 30000);
 

@@ -292,11 +292,31 @@ const schema = defineSchema({
       warehouseId: v.id("warehouses"),
       startDate: v.string(),
       endDate: v.string(),
-      status: v.union(v.literal("DRAFT"), v.literal("CLOSED")),
+      /**
+       * CLOSING: a staged close is building, awaiting publication or being
+       * discarded. Attendance, correction, leave, holiday and employee writes
+       * that could change the period are refused exactly as when CLOSED.
+       */
+      status: v.union(
+        v.literal("DRAFT"),
+        v.literal("CLOSING"),
+        v.literal("CLOSED"),
+      ),
       /** The version number the current draft will close as. */
       draftVersion: v.number(),
       latestClosedVersion: v.number(),
       revisionReason: v.optional(v.string()),
+      /** The unpublished version a CLOSING period is building. */
+      closingVersionId: v.optional(v.id("hrPeriodVersions")),
+      /** Why the last staged close was discarded, for the next attempt. */
+      closeFailure: v.optional(
+        v.object({
+          code: v.string(),
+          employeeId: v.optional(v.id("hrEmployees")),
+          businessDate: v.optional(v.string()),
+          at: v.number(),
+        }),
+      ),
       createdAt: v.number(),
       createdByUserId: v.id("users"),
       updatedAt: v.number(),
@@ -304,6 +324,11 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_warehouseId_startDate", byOrg("warehouseId", "startDate"))
+    // Covering-date locks and overlap checks read only periods ending on or
+    // after a date; no start/length/overlap invariant is assumed.
+    .index("by_orgId_warehouseId_endDate", byOrg("warehouseId", "endDate"))
+    // A site's in-progress close, for roster writes that must wait for it.
+    .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status"))
     // Newest-first period registry across sites (paged HR list).
     .index("by_orgId_startDate", byOrg("startDate")),
   /**
@@ -341,6 +366,36 @@ const schema = defineSchema({
       }),
       closedByUserId: v.id("users"),
       closedAt: v.number(),
+      /**
+       * Present only while a staged close builds this version; every reader
+       * of published history ignores it. While building, `totals` and
+       * `fingerprint` hold the running totals and fingerprint chain.
+       */
+      build: v.optional(
+        v.object({
+          state: v.union(
+            v.literal("BUILDING"),
+            v.literal("READY"),
+            v.literal("CANCELLING"),
+          ),
+          /** Advances on every applied chunk; a stale step is a no-op. */
+          step: v.number(),
+          /** Consistent snapshot time and zone every chunk evaluates with. */
+          snapshotAt: v.number(),
+          offsetMinutes: v.number(),
+          /** Code of the last processed employee (index order). */
+          cursor: v.optional(v.string()),
+          /** The reviewer's complete-preview fingerprint: publish on match. */
+          expectedFingerprint: v.optional(v.string()),
+          failure: v.optional(
+            v.object({
+              code: v.string(),
+              employeeId: v.optional(v.id("hrEmployees")),
+              businessDate: v.optional(v.string()),
+            }),
+          ),
+        }),
+      ),
     }),
   )
     .index("by_orgId_periodId_version", byOrg("periodId", "version"))
@@ -366,7 +421,16 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_versionId", byOrg("versionId"))
-    .index("by_orgId_versionId_employeeId", byOrg("versionId", "employeeId")),
+    .index("by_orgId_versionId_employeeId", byOrg("versionId", "employeeId"))
+    .index(
+      "by_orgId_versionId_employeeId_businessDate",
+      byOrg("versionId", "employeeId", "businessDate"),
+    )
+    // Frozen rows in export order, read a bounded page at a time.
+    .index(
+      "by_orgId_versionId_employeeCode_businessDate",
+      byOrg("versionId", "employeeCode", "businessDate"),
+    ),
   finishedGoodsUnitContributions: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -866,8 +930,13 @@ const schema = defineSchema({
   )
     .index("by_orgId_warehouseId_code", byOrg("warehouseId", "code"))
     .index("by_orgId_productId", byOrg("productId"))
+    .index("by_orgId_productId_status", byOrg("productId", "status"))
     .index("by_orgId_packingBatchId", byOrg("packingBatchId"))
     .index("by_orgId_preparationBatchId", byOrg("preparationBatchId"))
+    .index(
+      "by_orgId_preparationBatchId_retiredAt",
+      byOrg("preparationBatchId", "retiredAt"),
+    )
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
     .index(
       "by_orgId_warehouseId_productId_updatedAt",
@@ -909,6 +978,7 @@ const schema = defineSchema({
     .index("by_orgId_zoneId_status", byOrg("zoneId", "status"))
     .index("by_orgId_buildingId_status", byOrg("buildingId", "status"))
     .index("by_orgId_palletId", byOrg("palletId"))
+    .index("by_orgId_assignmentId_sequence", byOrg("assignmentId", "sequence"))
     .index(
       "by_orgId_warehouseId_positionCode",
       byOrg("warehouseId", "positionCode"),

@@ -55,7 +55,9 @@ describe("uniqueness and bounded-lookup contracts", () => {
     const undeclared = UNIQUENESS_CONTRACTS.filter(
       (contract) =>
         contract.condition.kind !== "always" &&
-        contract.condition.kind !== "whenPresent",
+        contract.condition.kind !== "whenPresent" &&
+        contract.condition.kind !== "nonEmpty" &&
+        contract.condition.kind !== "activePlacement",
     );
     expect(undeclared).toEqual([]);
   });

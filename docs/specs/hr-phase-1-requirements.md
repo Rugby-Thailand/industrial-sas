@@ -17,7 +17,7 @@ This specification implements **Phase 1** of the reviewed proposal. Phase 2 and 
 - Start with one scheduled shift per employee per business date, working weekdays, optional unpaid break minutes and site holidays. Support shifts crossing midnight. There is no shift-swap engine.
 - The implementation must allow authorized configuration of employees, supervisors, shifts and holidays. Do not ship hard-coded employee names or production seed data.
 - A documented CSV v1 is the initial export contract. Do not claim that a payroll provider has accepted it. Mapping to the company's actual payroll format is a launch decision.
-- Use explicit safe pilot bounds of at most 50 employees per site period and at most 31 business dates per period unless an implementation supports a tested paginated alternative. Return a visible limit error rather than a partial result. Lists must also be bounded.
+- Use explicit safe pilot bounds of at most 50 employees per site period and at most 31 business dates per period unless an implementation supports a tested paginated alternative. (2026-11-01: the employee bound is replaced by the tested paged review and staged close in [hr-period-staged-close.md](../operations/hr-period-staged-close.md); the 31-date bound remains.) Return a visible limit error rather than a partial result. Lists must also be bounded.
 - Production adoption still requires an owner to choose the pilot site/people, confirm clock policy and the CSV format, and determine whether leave/approved OT must move into Phase 1. These do not block building the configurable pilot.
 
 ## People, permissions and navigation

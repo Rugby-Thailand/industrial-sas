@@ -25,6 +25,7 @@ async function fixture(role = "HR_EMPLOYEE") {
     "../convex/hr/self.ts": () => import("../../convex/hr/self"),
     "../convex/hr/selfPeriods.ts": () => import("../../convex/hr/selfPeriods"),
     "../convex/hr/periods.ts": () => import("../../convex/hr/periods"),
+    "../convex/hr/periodClose.ts": () => import("../../convex/hr/periodClose"),
   });
   await seedConvexAuthorization(world, { roleA: role, roleB: "HR_EMPLOYEE" });
   const [employeeId, otherId, tenantBId] = await world.t.run(async (ctx) => {
@@ -369,7 +370,7 @@ describe("employee frozen periods and retained correction filters", () => {
     expect(
       value(
         await f.client.mutation(
-          makeFunctionReference<"mutation">("hr/periods:close"),
+          makeFunctionReference<"mutation">("hr/periodClose:begin"),
           {
             requestId: "frozen_period_close",
             periodId: created.documentId,

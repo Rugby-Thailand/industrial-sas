@@ -56,6 +56,7 @@ export const TENANT_TABLES = [
   "hrNotificationBatches",
   "hrPayslipImports",
   "hrPayslipRows",
+  "hrPayslipPayloads",
   "hrPayslipTickets",
   "hrHolidays",
   "hrAttendanceDays",
@@ -127,7 +128,9 @@ export function fieldWords(fieldPath: string): readonly string[] {
 
 export type UniquenessCondition =
   | { readonly kind: "always" }
-  | { readonly kind: "whenPresent"; readonly fields: readonly string[] };
+  | { readonly kind: "whenPresent"; readonly fields: readonly string[] }
+  | { readonly kind: "nonEmpty"; readonly field: string }
+  | { readonly kind: "activePlacement" };
 
 export const ALWAYS: UniquenessCondition = Object.freeze({
   kind: "always",
@@ -208,13 +211,46 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   },
   {
     table: "finishedGoodsPlacements",
-    key: ["orgId", "warehouseId", "positionCode"],
-    condition: ALWAYS,
+    // Position codes identify a location group and are intentionally shared.
+    // Moves legitimately retain a STORED source and RESERVED destination.
+    // Only one hold per pallet/status is live; RELEASED rows are history.
+    key: ["orgId", "palletId", "status"],
+    condition: { kind: "activePlacement" },
   },
   {
     table: "finishedGoodsCounters",
     key: ["orgId", "warehouseId"],
     condition: ALWAYS,
+  },
+  {
+    table: "finishedGoodsProducts",
+    key: ["orgId", "warehouseId", "sku"],
+    condition: { kind: "nonEmpty", field: "sku" },
+  },
+  {
+    table: "storageBuildings",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storageZones",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storageFloors",
+    key: ["orgId", "buildingId", "floorNumber"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrPeriodRows",
+    key: ["orgId", "versionId", "employeeId", "businessDate"],
+    condition: ALWAYS,
+  },
+  {
+    table: "finishedGoodsPlacements",
+    key: ["orgId", "assignmentId", "sequence"],
+    condition: whenPresent("assignmentId", "sequence"),
   },
   { table: "organizations", key: ["clerkOrganizationId"], condition: ALWAYS },
   { table: "users", key: ["clerkUserId"], condition: ALWAYS },

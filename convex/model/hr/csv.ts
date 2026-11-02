@@ -96,6 +96,22 @@ export function renderAttendanceCsv(
   return `\uFEFF${lines.join("\r\n")}\r\n`;
 }
 
+/**
+ * One part of a multi-part export: the first part is a complete file start
+ * (byte-order mark and header); later parts carry only records, so joining
+ * every part in order equals `renderAttendanceCsv` over all rows.
+ */
+export function renderAttendanceCsvPart(
+  version: CsvVersion,
+  rows: readonly CsvRow[],
+  first: boolean,
+): string {
+  const whole = renderAttendanceCsv(version, rows);
+  if (first) return whole;
+  const records = whole.slice(whole.indexOf("\r\n") + 2);
+  return rows.length === 0 ? "" : records;
+}
+
 export function attendanceCsvFileName(version: CsvVersion): string {
   const site = version.siteCode.replace(/[^A-Za-z0-9_-]/g, "_") || "site";
   return `attendance_${site}_${version.startDate}_${version.endDate}_v${version.version}.csv`;

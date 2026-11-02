@@ -2260,7 +2260,8 @@
       "sitesIncomplete": "Your site access includes more sites than can be listed; periods of the unlisted sites are not shown",
       "noMatches": "No matching periods",
       "noMatchesHint": "Change or clear the filters.",
-      "pagination": "Period list pages"
+      "pagination": "Period list pages",
+      "closing": "Closing"
     },
     "period": {
       "title": "Attendance period",
@@ -2270,8 +2271,6 @@
       "versionLabel": "Version shown",
       "currentDraft": "Current draft (v{version})",
       "closedOption": "v{version} closed {at}",
-      "limit": "This period exceeds the employee limit",
-      "limitHint": "The pilot supports up to 50 employees per period; no partial data is shown.",
       "totals": "Period totals",
       "employees": "Employees",
       "days": "Days",
@@ -2323,7 +2322,19 @@
       "openPagination": "Open day pages",
       "employeePagination": "Employee breakdown pages",
       "allVersions": "All versions",
-      "allVersionsPagination": "Version pages"
+      "allVersionsPagination": "Version pages",
+      "pagedReadyHint": "Closing checks every employee in steps and freezes the period's attendance meanwhile. You review the totals before publishing.",
+      "pagedHint": "This period is reviewed a page at a time. Totals and readiness are confirmed while closing.",
+      "closeFailed": "The last close attempt was stopped and nothing was published",
+      "closingProgress": "Closing v{version}: {employees} employees and {days} days checked so far. Attendance for this period is frozen meanwhile.",
+      "closingDiscard": "Discarding the prepared close and returning to the draft…",
+      "closingContinue": "Continue",
+      "closingReady": "v{version} is prepared from frozen data. Check the totals, then publish it or return to the draft.",
+      "publishVersion": "Publish v{version}",
+      "cancelClose": "Return to draft",
+      "frozenRows": "Frozen rows",
+      "frozenRowsPagination": "Frozen row pages",
+      "date": "Date"
     },
     "settings": {
       "title": "HR settings",
@@ -2430,7 +2441,7 @@
       "ROLE_LIMIT_REACHED": "This member has the maximum number of roles",
       "PERIOD_DATE_INVALID": "The period dates are not valid",
       "PERIOD_RANGE_INVALID": "The end date cannot be before the start date",
-      "PERIOD_TOO_LARGE": "The period exceeds 31 days or 50 employees",
+      "PERIOD_TOO_LARGE": "The period exceeds 31 days",
       "PERIOD_OVERLAP": "The dates overlap another period for this site",
       "PERIOD_ALREADY_CLOSED": "This period is already closed",
       "PERIOD_INCLUDES_FUTURE": "Cannot close yet: the period has not ended",
@@ -2497,6 +2508,7 @@
       "PAYSLIP_EMPLOYEE_CHANGED": "Employee mapping changed after validation. Validate a new import.",
       "PAYSLIP_HASH_MISMATCH": "The PDF fingerprint does not match. Check the original file.",
       "PAYSLIP_SOURCE_INTEGRITY_FAILED": "Stored source data or files no longer match the validated import. Contact the administrator.",
+      "PAYSLIP_SOURCE_MIGRATION_PENDING": "Some original payslip files are still being moved to private storage. Try again after the administrator completes the migration.",
       "PAYSLIP_PDF_INVALID": "Use an original PDF within the supported file size.",
       "PAYSLIP_PERIOD_INVALID": "Choose a valid statement period.",
       "PAYSLIP_PERIOD_MISMATCH": "The source period does not match the selected period.",
@@ -2525,7 +2537,16 @@
       "EMPLOYEE_SELF_LINK_REVIEWED": "Ask another HR administrator to link your account: you have already reviewed this employee's attendance",
       "CLOCK_DATE_CHANGED": "The workday changed before this clock could be saved. Check today and start a new clock command.",
       "REQUEST_RETIRED": "The earlier request was safely retired. Check the current record before saving a new command.",
-      "REQUEST_RECOVERY_UNAVAILABLE": "The request could not be stored in this browser, so nothing was sent. Enable browser storage and try again."
+      "REQUEST_RECOVERY_UNAVAILABLE": "The request could not be stored in this browser, so nothing was sent. Enable browser storage and try again.",
+      "HR_PERIOD_CLOSING": "This attendance period is being closed. Try again after HR publishes or cancels the close",
+      "PERIOD_CLOSE_IN_PROGRESS": "A close of this period is already in progress",
+      "PERIOD_CLOSE_STEP_STALE": "That close step was already applied; the latest progress is shown",
+      "PERIOD_CLOSE_READY": "The close is prepared and waiting to be published",
+      "PERIOD_CLOSE_NOT_READY": "The close is not prepared for publishing",
+      "PERIOD_CLOSE_NOT_IN_PROGRESS": "No close is in progress for this period",
+      "PERIOD_CLOSE_UNAVAILABLE": "The close in progress cannot be read. Contact the administrator",
+      "PERIOD_PREVIEW_INCOMPLETE": "This period is too large for a single review. Close it from the paged view",
+      "PERIOD_NOT_DRAFT": "This period is no longer a draft"
     },
     "selfService": {
       "title": "Your tasks",

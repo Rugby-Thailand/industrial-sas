@@ -2,6 +2,7 @@ import type { GenericMutationCtx } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Id } from "../../convex/_generated/dataModel";
+import * as periodClose from "../../convex/hr/periodClose";
 import * as periods from "../../convex/hr/periods";
 import * as review from "../../convex/hr/review";
 import * as self from "../../convex/hr/self";
@@ -412,7 +413,7 @@ describe("HR self-service contract regressions", () => {
       })) as {
         value: { view: { fingerprint: string } };
       };
-      return call(world, periods.close, {
+      return call(world, periodClose.begin, {
         requestId,
         periodId: periodId,
         expectedFingerprint: preview.value.view.fingerprint,

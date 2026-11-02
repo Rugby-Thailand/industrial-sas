@@ -28,7 +28,7 @@ import { activePolicy, leaveAccount } from "./policies";
 import { deliverNotification } from "./notifications";
 import { hrListInput, hrPageArgs, hrScanPage } from "./pagination";
 import {
-  closedPeriodCovering,
+  periodLockCode,
   dayOf,
   employmentOf,
   ensureDay,
@@ -483,8 +483,8 @@ async function planLeaveRequest(
   for (const date of allDates) {
     if (!isEmployedOn(employmentOf(employee), date))
       return fail("HR_OUTSIDE_EMPLOYMENT");
-    if (await closedPeriodCovering(ctx, employee.warehouseId, date))
-      return fail("HR_PERIOD_CLOSED");
+    const periodLock = await periodLockCode(ctx, employee.warehouseId, date);
+    if (periodLock !== null) return fail(periodLock);
     const day = await dayOf(ctx, employee._id, date);
     const plan = day
       ? day.plan
@@ -1009,8 +1009,12 @@ export const decide = mutationWithOrg({
           if (args.decision === "CONFIRM_CANCEL" && row.from <= clock.today)
             return fail("LEAVE_STARTED_HR_ADJUSTMENT_REQUIRED");
           for (const date of row.dates) {
-            if (await closedPeriodCovering(ctx, employee.warehouseId, date))
-              return fail("HR_PERIOD_CLOSED");
+            const periodLock = await periodLockCode(
+              ctx,
+              employee.warehouseId,
+              date,
+            );
+            if (periodLock !== null) return fail(periodLock);
             const day = await dayOf(ctx, employee._id, date);
             const snapshot = row.daySnapshots.find(
               (item) => item.date === date,
@@ -1352,8 +1356,12 @@ export const adjust = mutationWithOrg({
         const clock = orgClock(ctx);
         if (!clock) return fail("TIMEZONE_UNSUPPORTED");
         for (const date of restore) {
-          if (await closedPeriodCovering(ctx, employee.warehouseId, date))
-            return fail("HR_PERIOD_CLOSED");
+          const periodLock = await periodLockCode(
+            ctx,
+            employee.warehouseId,
+            date,
+          );
+          if (periodLock !== null) return fail(periodLock);
           const day = await dayOf(ctx, employee._id, date);
           if (
             !day ||

@@ -968,22 +968,70 @@ export async function sitePeriods(
     .all(MAX_SITE_PERIODS);
 }
 
-/** A closed period covering this site date, which no normal write may change. */
+/**
+ * Site periods that end on or after `date`, one checked index range. Legacy
+ * imports may violate period length and non-overlap invariants, so callers
+ * filter starts themselves; reading every period ending later is exact for
+ * any data, and fails (never truncates) beyond `MAX_SITE_PERIODS`.
+ */
+export async function sitePeriodsEndingFrom(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<readonly Doc<"hrPeriods">[]> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrPeriods">>(
+      "hrPeriods",
+      "by_orgId_warehouseId_endDate",
+      [{ field: "warehouseId", value: warehouseId }],
+      { field: "endDate", lower: { value: date, inclusive: true } },
+    )
+    .all(MAX_SITE_PERIODS);
+}
+
+/**
+ * A closed or closing period covering this site date, which no normal write
+ * may change. A CLOSING period is frozen too: its staged close reads a
+ * consistent snapshot. Writers refuse with `periodLockCode`.
+ */
 export async function closedPeriodCovering(
   ctx: TenantFunctionContext,
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
-  // Legacy imports may violate both range length and non-overlap invariants.
-  const periods = await sitePeriods(ctx, warehouseId);
+  const periods = await sitePeriodsEndingFrom(ctx, warehouseId, date);
   return (
     periods.find(
       (period) =>
-        period.status === "CLOSED" &&
+        period.status !== "DRAFT" &&
         compareDates(period.startDate, date) <= 0 &&
         compareDates(date, period.endDate) <= 0,
     ) ?? null
   );
+}
+
+/** The refusal code for a write on a frozen site date, or null when open. */
+export async function periodLockCode(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<"HR_PERIOD_CLOSED" | "HR_PERIOD_CLOSING" | null> {
+  const period = await closedPeriodCovering(ctx, warehouseId, date);
+  if (period === null) return null;
+  return period.status === "CLOSING" ? "HR_PERIOD_CLOSING" : "HR_PERIOD_CLOSED";
+}
+
+/** A site period whose staged close is in progress, if any. */
+export async function closingPeriodAt(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+): Promise<Doc<"hrPeriods"> | null> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrPeriods">>("hrPeriods", "by_orgId_warehouseId_status", [
+      { field: "warehouseId", value: warehouseId },
+      { field: "status", value: "CLOSING" },
+    ])
+    .first();
 }
 
 /* Command envelope --------------------------------------------------------- */

@@ -3,7 +3,14 @@
 import { useMutation, useQuery } from "convex/react";
 import { ArrowRight, Download, Lock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 
 import {
@@ -72,6 +79,15 @@ import { useHrWrite, type HrWriteState } from "./useHrWrite";
 
 type Preview = Extract<RefValue<typeof hrRefs.periodPreview>, { ok: true }>;
 type Row = Extract<Preview["view"], { rows: unknown }>["rows"][number];
+type ClosingView = Exclude<
+  Extract<Preview["view"], { kind: "CLOSING" }>,
+  { state: "UNAVAILABLE" }
+>;
+type CloseFailure = {
+  readonly code: string;
+  readonly employeeId?: string;
+  readonly businessDate?: string;
+};
 
 export function HrPeriodDetailScreen({
   periodId,
@@ -236,7 +252,7 @@ function PeriodView({
   });
 
   const versionOptions = [
-    ...(period.status === "DRAFT"
+    ...(period.status !== "CLOSED"
       ? [
           {
             value: "",
@@ -268,7 +284,7 @@ function PeriodView({
   const selectedValue =
     version !== undefined
       ? String(version)
-      : period.status === "DRAFT"
+      : period.status !== "CLOSED"
         ? ""
         : String(period.latestClosedVersion);
 
@@ -279,7 +295,7 @@ function PeriodView({
       ? { closed: true, version: view.version }
       : { closed: false, version: period.draftVersion };
   const current =
-    period.status === "DRAFT"
+    period.status !== "CLOSED"
       ? !shown.closed
       : shown.closed && shown.version === period.latestClosedVersion;
   const rows = view.kind === "DRAFT" || view.kind === "CLOSED" ? view.rows : [];
@@ -290,10 +306,14 @@ function PeriodView({
   // other versions are where to go next); it follows Back/Forward too.
   const [versionsOpen, setVersionsOpen] = useUrlBackedState(
     `${version ?? ""}:${view.kind}`,
-    version !== undefined ||
-      view.kind === "TIMEZONE_UNSUPPORTED" ||
-      view.kind === "LIMIT",
+    version !== undefined || view.kind === "TIMEZONE_UNSUPPORTED",
   );
+  const closeFailure =
+    (view.kind === "DRAFT" || view.kind === "PAGED") &&
+    "closeFailure" in view &&
+    view.closeFailure !== undefined
+      ? (view.closeFailure as CloseFailure)
+      : null;
 
   return (
     <div className="space-y-4">
@@ -351,6 +371,9 @@ function PeriodView({
         {view.kind === "DRAFT" || view.kind === "CLOSED" ? (
           <Totals view={view} />
         ) : null}
+        {closeFailure === null ? null : (
+          <CloseFailureNotice failure={closeFailure} />
+        )}
         {/* The one next step for the version on screen. */}
         {view.kind === "DRAFT" ? (
           <CloseControls
@@ -360,6 +383,19 @@ function PeriodView({
             fingerprint={view.fingerprint}
             rows={view.rows}
           />
+        ) : view.kind === "PAGED" ? (
+          <CloseControls
+            periodId={period.id}
+            version={period.draftVersion}
+            blocker={view.blocker}
+            rows={[]}
+          />
+        ) : view.kind === "CLOSING" ? (
+          view.state === "UNAVAILABLE" ? (
+            <HrInlineError code="PERIOD_CLOSE_UNAVAILABLE" />
+          ) : (
+            <ClosingControls periodId={period.id} view={view} />
+          )
         ) : view.kind === "CLOSED" ? (
           <ClosedControls
             periodId={period.id}
@@ -372,7 +408,8 @@ function PeriodView({
             canExport={canExport}
           />
         ) : null}
-        {hasVersions || (period.revisionReason && period.status === "DRAFT") ? (
+        {hasVersions ||
+        (period.revisionReason && period.status !== "CLOSED") ? (
           <HrDisclosure
             label={t("versions")}
             badge={
@@ -384,7 +421,7 @@ function PeriodView({
             contentClassName="space-y-3"
             testId="hr-period-versions"
           >
-            {period.revisionReason && period.status === "DRAFT" ? (
+            {period.revisionReason && period.status !== "CLOSED" ? (
               <p className="text-sm break-words text-text">
                 {t("revisionReason", { reason: period.revisionReason })}
               </p>
@@ -437,13 +474,13 @@ function PeriodView({
         />
       ) : null}
 
-      {view.kind === "LIMIT" ? (
-        <Notice
-          tone="danger"
-          role="alert"
-          title={t("limit")}
-          body={t("limitHint")}
-        />
+      {view.kind === "PAGED" ? <DraftEmployees periodId={period.id} /> : null}
+      {view.kind === "CLOSED" && view.rowsPaged ? (
+        <Panel className="py-1">
+          <HrDisclosure label={t("frozenRows")} testId="hr-period-frozen-rows">
+            <FrozenRows versionId={view.versionId} timezone={period.timezone} />
+          </HrDisclosure>
+        </Panel>
       ) : null}
 
       {/* Days still open are the work list of a blocked draft: shown. */}
@@ -609,11 +646,7 @@ function VersionNumberPicker({
   );
 }
 
-function Totals({
-  view,
-}: {
-  readonly view: Extract<Preview["view"], { totals: unknown }>;
-}) {
+function Totals({ view }: { readonly view: { readonly totals: unknown } }) {
   const t = useTranslations("Hr.period");
   const totals = view.totals as {
     employees: number;
@@ -666,13 +699,14 @@ function CloseControls({
   readonly periodId: string;
   readonly version: number;
   readonly blocker: string | null;
-  readonly fingerprint: string;
+  /** A complete preview's fingerprint; absent for a paged (large) draft. */
+  readonly fingerprint?: string;
   readonly rows: readonly Row[];
 }) {
   const t = useTranslations("Hr.period");
   const message = useHrError();
   const canReview = useHrCan(HR_CODES.review);
-  const close = useMutation(hrRefs.closePeriod);
+  const close = useMutation(hrRefs.beginClose);
   const write = useHrWrite(`period:close:${periodId}:${version}`);
   const confirmation = useWorkflowStep(
     "periodClose",
@@ -686,7 +720,13 @@ function CloseControls({
   usePendingGuard(write.pending);
   const send = async () => {
     await write.submit((requestId) =>
-      close({ requestId, periodId, expectedFingerprint: fingerprint }),
+      close({
+        requestId,
+        periodId,
+        ...(fingerprint === undefined
+          ? {}
+          : { expectedFingerprint: fingerprint }),
+      }),
     );
   };
   // Open days are resolved in Review: go straight to the first one.
@@ -709,7 +749,9 @@ function CloseControls({
       aria-label={t("closeTitle", { version })}
     >
       {blocker === null ? (
-        <p className="text-sm text-muted">{t("readyHint")}</p>
+        <p className="text-sm text-muted">
+          {t(fingerprint === undefined ? "pagedReadyHint" : "readyHint")}
+        </p>
       ) : (
         <Notice
           tone="warning"
@@ -769,6 +811,350 @@ function CloseControls({
   );
 }
 
+/** Why the last close attempt was discarded, with the day to fix first. */
+function CloseFailureNotice({ failure }: { readonly failure: CloseFailure }) {
+  const t = useTranslations("Hr.period");
+  const message = useHrError();
+  const canReview = useHrCan(HR_CODES.review);
+  const reviewHref =
+    failure.code === "PERIOD_NOT_READY" && canReview
+      ? hrReviewPath(
+          failure.employeeId === undefined || failure.businessDate === undefined
+            ? {}
+            : { employeeId: failure.employeeId, date: failure.businessDate },
+        )
+      : null;
+  return (
+    <Notice
+      tone="warning"
+      role="status"
+      title={t("closeFailed")}
+      body={message(failure.code)}
+      testId="hr-period-close-failed"
+    >
+      {reviewHref === null ? null : (
+        <Button asChild>
+          <Link href={reviewHref}>
+            {t("reviewOpen")}
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        </Button>
+      )}
+    </Notice>
+  );
+}
+
+/**
+ * A staged close in progress. Whoever has the period open drives the build
+ * (or discard) one server step at a time; each step is applied exactly once,
+ * so concurrent tabs and retries are safe, and reopening the page resumes an
+ * interrupted close. A prepared candidate is published only by its reviewer.
+ */
+function ClosingControls({
+  periodId,
+  view,
+}: {
+  readonly periodId: string;
+  readonly view: ClosingView;
+}) {
+  const t = useTranslations("Hr.period");
+  const advance = useMutation(hrRefs.advanceClose);
+  const publish = useMutation(hrRefs.publishClose);
+  const cancel = useMutation(hrRefs.cancelClose);
+  const { versionId, step } = view;
+  const publishing = useHrWrite(`period:publish:${periodId}:${versionId}`);
+  const cancelling = useHrWrite(`period:cancel:${periodId}:${versionId}`);
+  usePendingGuard(publishing.pending || cancelling.pending);
+  const working = view.state === "BUILDING" || view.state === "CANCELLING";
+  const sent = useRef<string | null>(null);
+  const drive = (force: boolean) => {
+    if (!working) return;
+    const key = `${versionId}:${step}`;
+    if (!force && sent.current === key) return;
+    sent.current = key;
+    // A refused or lost step is harmless: the subscription shows the
+    // current step and the next render (or Continue) sends that one.
+    void advance({
+      requestId: crypto.randomUUID(),
+      periodId,
+      versionId,
+      step,
+    }).catch(() => undefined);
+  };
+  useEffect(() => drive(false));
+  if (working)
+    return (
+      <section
+        id={FOCUS_TARGET_IDS.export}
+        className="space-y-3 rounded-lg"
+        aria-label={t("closeTitle", { version: view.version })}
+        data-testid="hr-period-closing"
+      >
+        <p role="status" className="text-sm text-text">
+          {view.state === "CANCELLING"
+            ? t("closingDiscard")
+            : t("closingProgress", {
+                version: view.version,
+                employees: view.employees,
+                days: view.days,
+              })}
+        </p>
+        <Button type="button" variant="outline" onClick={() => drive(true)}>
+          {t("closingContinue")}
+        </Button>
+      </section>
+    );
+  const fingerprint = "fingerprint" in view ? view.fingerprint : undefined;
+  const totals = "totals" in view ? view.totals : undefined;
+  return (
+    <section
+      id={FOCUS_TARGET_IDS.export}
+      className="space-y-3 rounded-lg"
+      aria-label={t("closeTitle", { version: view.version })}
+      data-testid="hr-period-prepared"
+    >
+      <p className="text-sm text-muted">
+        {t("closingReady", { version: view.version })}
+      </p>
+      {totals === undefined ? null : <Totals view={{ totals }} />}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          disabled={
+            publishing.locked || cancelling.pending || fingerprint === undefined
+          }
+          onClick={() =>
+            void publishing.submit((requestId) =>
+              publish({
+                requestId,
+                periodId,
+                versionId,
+                expectedFingerprint: fingerprint ?? "",
+              }),
+            )
+          }
+          data-testid="hr-period-publish"
+        >
+          <Lock aria-hidden="true" />
+          {t("publishVersion", { version: view.version })}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={publishing.pending || cancelling.locked}
+          onClick={() =>
+            void cancelling.submit((requestId) =>
+              cancel({ requestId, periodId, versionId }),
+            )
+          }
+          data-testid="hr-period-cancel-close"
+        >
+          {t("cancelClose")}
+        </Button>
+      </div>
+      <WriteFeedback
+        state={publishing.state}
+        onRetry={() => void publishing.retry()}
+      />
+      <WriteFeedback
+        state={cancelling.state}
+        onRetry={() => void cancelling.retry()}
+      />
+    </section>
+  );
+}
+
+/** A large draft's employees, one server page at a time. */
+function DraftEmployees({ periodId }: { readonly periodId: string }) {
+  const t = useTranslations("Hr.period");
+  const canReview = useHrCan(HR_CODES.review);
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.periodDraftEmployeesPage,
+    { periodId },
+    `period-draft-employees:${periodId}`,
+  );
+  return (
+    <section aria-label={t("byEmployee")} className="space-y-2">
+      <SectionTitle>{t("byEmployee")}</SectionTitle>
+      <p className="text-sm text-muted">{t("pagedHint")}</p>
+      <HrPagedState<typeof hrRefs.periodDraftEmployeesPage>
+        view={view}
+        refused={(code) => <HrInlineError code={code} />}
+      >
+        {(_value, items) => (
+          <TableScroller label={t("byEmployee")}>
+            <Table scroll={false} className="min-w-[40rem]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("employee")}</TableHead>
+                  <TableHead className="text-right">{t("days")}</TableHead>
+                  <TableHead className="text-right">{t("worked")}</TableHead>
+                  <TableHead className="text-right">{t("open")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => {
+                  const open = item.totals.exceptions + item.totals.unfinished;
+                  const first = item.rows.find(
+                    (row) => row.status === "EXCEPTION",
+                  );
+                  return (
+                    <TableRow key={item.employeeId}>
+                      <TableCell>
+                        <span className="block font-semibold text-text">
+                          {item.name}
+                        </span>
+                        <span className="text-xs text-muted">{item.code}</span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {item.totals.days}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <Duration minutes={item.totals.workedMinutes} />
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {canReview && first !== undefined ? (
+                          <Link
+                            href={hrReviewPath({
+                              employeeId: first.employeeId,
+                              date: first.businessDate,
+                            })}
+                            className="font-semibold text-warning underline"
+                          >
+                            {open}
+                          </Link>
+                        ) : (
+                          <span
+                            className={
+                              open > 0
+                                ? "font-semibold text-warning"
+                                : undefined
+                            }
+                          >
+                            {open}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableScroller>
+        )}
+      </HrPagedState>
+      <HrPager paging={paging} label={t("employeePagination")} />
+    </section>
+  );
+}
+
+/** A large closed version's frozen rows, one server page at a time. */
+function FrozenRows({
+  versionId,
+  timezone,
+}: {
+  readonly versionId: string;
+  readonly timezone: string;
+}) {
+  const t = useTranslations("Hr.period");
+  const locale = useLocale();
+  const { view, paging } = useHrPagedQuery(
+    hrRefs.periodVersionRowsPage,
+    { versionId },
+    `period-version-rows:${versionId}`,
+  );
+  return (
+    <section aria-label={t("frozenRows")} className="space-y-2">
+      <HrPagedState<typeof hrRefs.periodVersionRowsPage>
+        view={view}
+        refused={(code) => <HrInlineError code={code} />}
+      >
+        {(_value, rows) => (
+          <TableScroller label={t("frozenRows")}>
+            <Table scroll={false} className="min-w-[40rem]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("employee")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead className="text-right">{t("worked")}</TableHead>
+                  <TableHead className="text-right">{t("outside")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={`${row.employeeId}:${row.businessDate}`}>
+                    <TableCell>
+                      <span className="block font-semibold text-text">
+                        {row.employeeName}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {row.employeeCode}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {formatBusinessDate(row.businessDate, locale, {
+                        weekday: true,
+                        short: true,
+                      })}
+                      <span className="sr-only"> {timezone}</span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Duration minutes={row.workedMinutes} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Duration minutes={row.outsideShiftMinutes} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableScroller>
+        )}
+      </HrPagedState>
+      <HrPager paging={paging} label={t("frozenRowsPagination")} />
+    </section>
+  );
+}
+
+type ExportSend = ReturnType<typeof useMutation<typeof hrRefs.exportCsv>>;
+type ExportOutcome = Awaited<ReturnType<ExportSend>>;
+
+/**
+ * Every part of a version's CSV, joined in order. Each part is its own
+ * audited command whose ID derives from the first, so a retried download
+ * replays the same parts instead of recording new ones.
+ */
+async function exportAllParts(
+  exportCsv: ExportSend,
+  requestId: string,
+  versionId: string,
+): Promise<ExportOutcome> {
+  const first = await exportCsv({ requestId, versionId });
+  const firstValue = (first as { ok: boolean; value?: Record<string, unknown> })
+    .value;
+  if (!first.ok || firstValue?.written !== true || firstValue.isDone !== false)
+    return first;
+  let content = String(firstValue.content ?? "");
+  let cursor = String(firstValue.continueCursor ?? "");
+  for (let part = 2; ; part += 1) {
+    const next = await exportCsv({
+      requestId: `${requestId}-p${part}`,
+      versionId,
+      cursor,
+    });
+    const value = (next as { ok: boolean; value?: Record<string, unknown> })
+      .value;
+    if (!next.ok || value?.written !== true) return next;
+    content += String(value.content ?? "");
+    if (value.isDone !== false) break;
+    cursor = String(value.continueCursor ?? "");
+  }
+  return {
+    ...first,
+    value: { ...firstValue, content, isDone: true },
+  } as ExportOutcome;
+}
+
 function downloadCsv(fileName: string, content: string) {
   const url = URL.createObjectURL(
     new Blob([content], { type: "text/csv;charset=utf-8" }),
@@ -821,7 +1207,7 @@ function ClosedControls({
   const download = async () => {
     deliver(
       await exporting.submit((requestId) =>
-        exportCsv({ requestId, versionId }),
+        exportAllParts(exportCsv, requestId, versionId),
       ),
     );
   };

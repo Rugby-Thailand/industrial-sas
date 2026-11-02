@@ -4,12 +4,30 @@ import { vi } from "vitest";
 import type { DataModel } from "../../convex/schema";
 import type { ConvexTenantWorld } from "./convex-tenant-world";
 
-/** Index ranges, returned documents and point reads per table, plus clock reads. */
+/**
+ * Index ranges, returned documents and point reads per table, plus clock
+ * reads. `bytes` approximates the document bytes each table returned (JSON
+ * length of every document from ranges and point reads).
+ */
 export interface ReadMeter {
   readonly ranges: Record<string, number>;
   readonly docs: Record<string, number>;
+  readonly bytes: Record<string, number>;
   readonly gets: number;
   clock: number;
+}
+
+function addBytes(meter: ReadMeter, table: string, answer: unknown) {
+  const docs = Array.isArray(answer)
+    ? answer
+    : answer && typeof answer === "object" && "page" in answer
+      ? (answer as { page: unknown[] }).page
+      : answer
+        ? [answer]
+        : [];
+  const name = table || "unknown";
+  for (const doc of docs)
+    meter.bytes[name] = (meter.bytes[name] ?? 0) + JSON.stringify(doc).length;
 }
 
 const TERMINAL = new Set(["take", "paginate", "collect", "first", "unique"]);
@@ -39,6 +57,7 @@ function wrapQuery<Q extends object>(
                 ? 1
                 : 0;
           meter.docs[table] = (meter.docs[table] ?? 0) + rows;
+          addBytes(meter, table, answer);
           return answer;
         });
       };
@@ -57,7 +76,13 @@ export async function meteredCall<T = unknown>(
   args: unknown,
   identity: { subject: string; org_id: string },
 ): Promise<{ outcome: T; meter: ReadMeter }> {
-  const meter: ReadMeter = { ranges: {}, docs: {}, gets: 0, clock: 0 };
+  const meter: ReadMeter = {
+    ranges: {},
+    docs: {},
+    bytes: {},
+    gets: 0,
+    clock: 0,
+  };
   const outcome = await world.t.withIdentity(identity).run(async (ctx) => {
     const db = new Proxy(ctx.db, {
       get(target, property, receiver) {
@@ -65,7 +90,17 @@ export async function meteredCall<T = unknown>(
         if (property === "get")
           return (...params: unknown[]) => {
             (meter as { gets: number }).gets += 1;
-            return Reflect.apply(member, target, params);
+            // db.get(table, id) names its table; db.get(id) does not.
+            const table =
+              params.length > 1 && typeof params[0] === "string"
+                ? params[0]
+                : "";
+            return Promise.resolve(Reflect.apply(member, target, params)).then(
+              (answer: unknown) => {
+                addBytes(meter, table, answer);
+                return answer;
+              },
+            );
           };
         if (property === "query")
           return (table: string) =>
