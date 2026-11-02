@@ -3914,7 +3914,7 @@
       "id": "src/features/hr/EmployeeProfileSections.tsx#EmployeeProfileSession:target",
       "policy": "overlay",
       "integration": "dialog",
-      "expectation": "Edit personal/contact/payment details and Confirm probation / Record resignation or termination / Reinstate open the shared Back-aware Dialog over the retained URL-backed employee editor. Back or explicit Cancel dismisses the Dialog first and asks before discarding its typed draft (Keep editing retains it; the employment form underneath is untouched); a pending save blocks dismissal; a successful save settles its draft guard and consumes the Dialog entry before closing, so the next Back leaves the editor for the list with its locale, query and hash. Forward reopens the same section from current data. The section opens only inside the editor, so a direct editor link keeps the editor's audited closure. The target stores the opening snapshot and stable form/operation owner until discard/completion; live version/loading refreshes retain drafts and pending protection and show stale feedback. The enclosing identity/employee key invalidates private sessions on actor or tenant changes; an old completion cannot close a new session.",
+      "expectation": "Edit personal/contact/payment details and Confirm probation / Record resignation or termination / Reinstate open the shared Back-aware Dialog over the retained URL-backed employee editor. Back or explicit Cancel dismisses the Dialog first and asks before discarding its typed draft (Keep editing retains it; the employment form underneath is untouched); a pending save blocks dismissal; a successful save settles its draft guard and consumes the Dialog entry before closing, so the next Back leaves the editor for the list with its locale, query and hash. Forward reopens the same section from current data. The section opens only inside the editor, so a direct editor link keeps the editor's audited closure. The target stores the opening snapshot and stable form/operation owner until discard/completion; a write with an unknown outcome is keyed by actor/tenant/employee/operation (never the version it advances) and stores only its request ID, operation and captured revision, so after reload it stays checkable as COMMITTED or FENCED without replay; live version/loading refreshes retain drafts and pending protection and show stale feedback. The enclosing identity/employee key invalidates private sessions on actor or tenant changes; an old completion cannot close a new session.",
       "tests": ["src/features/hr/EmployeeProfileSections.test.tsx"],
       "cases": [
         {
@@ -3968,6 +3968,18 @@
         {
           "file": "src/features/hr/EmployeeProfileSections.test.tsx",
           "name": "identity change to %s invalidates private sessions and an old pending result cannot close the new actor's dialog"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "durable $name recovery survives reload after the version advances and resolves $status without replay or private storage"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "durable payment recovery is private to its actor: another actor after reload sees no receipt and the owner still can check it"
+        },
+        {
+          "file": "src/features/hr/EmployeeProfileSections.test.tsx",
+          "name": "a lost payment response retried after query refresh resends its captured revision and request instead of a new command"
         }
       ]
     },

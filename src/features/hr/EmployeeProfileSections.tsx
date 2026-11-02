@@ -620,8 +620,12 @@ function useDialogForm<Draft>(
   intent: string,
   initial: Draft,
   onPending: (pending: boolean) => void,
+  revision: number,
 ) {
-  const write = useHrWrite(intent);
+  // The intent is version-free so a COMMITTED write that advances the
+  // version stays recoverable after reload; the opened revision is captured
+  // with the request record and the pinned command instead.
+  const write = useHrWrite(intent, undefined, revision);
   useLayoutEffect(() => {
     onPending(write.pending);
     return () => onPending(false);
@@ -748,9 +752,10 @@ function ProfileForm({
     keys.map((key) => [key, opened.profile[key] ?? ""]),
   ) as Record<ProfileKey, string>;
   const { write, draft, setDraft, errors, setErrors, guard } = useDialogForm(
-    `employee-profile:${employeeId}:${section}:${version}`,
+    `employee-profile:${employeeId}:${section}`,
     initial,
     onPending,
+    version,
   );
   const set = (key: ProfileKey, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -898,7 +903,7 @@ function PaymentForm({
   const [version] = useState(opened.version);
   const stored = opened.payment;
   const { write, draft, setDraft, errors, setErrors, guard } = useDialogForm(
-    `employee-payment:${employeeId}:${version}`,
+    `employee-payment:${employeeId}`,
     {
       method: stored?.method ?? "BANK",
       bankName: stored?.bankName ?? "",
@@ -907,6 +912,7 @@ function PaymentForm({
       bankBranchCode: stored?.bankBranchCode ?? "",
     },
     onPending,
+    version,
   );
   const set = <Key extends keyof typeof draft>(
     key: Key,
@@ -1057,13 +1063,16 @@ function LifecycleForm({
     .sort()
     .at(-1)!;
   const { write, draft, setDraft, errors, setErrors, guard } = useDialogForm(
-    `employee-lifecycle:${employeeId}:${kind}:${subject.version}`,
+    // One unknown lifecycle command blocks every lifecycle action for this
+    // employee until it is checked, whichever action the new state offers.
+    `employee-lifecycle:${employeeId}`,
     {
       date: kind === "OFFBOARD" ? "" : today,
       separationType: "RESIGNATION" as "RESIGNATION" | "TERMINATION",
       reason: "",
     },
     onPending,
+    subject.version,
   );
   const finish = (result: HrWriteState<unknown>) => {
     const refused = refusal(result);

@@ -533,7 +533,7 @@ it("hardening U3 loaded ID-only request offers status recovery with no original 
   // This is the exact storage record useHrWrite leaves when a response is lost;
   // a new document has no in-memory owner.command callback.
   window.sessionStorage.setItem(
-    `hr-request:${state.identityKey}|employee-profile:e7:personal:2`,
+    `hr-request:${state.identityKey}|employee-profile:e7:personal`,
     JSON.stringify({ version: 1, requestId: "reload-request-0001" }),
   );
   fireEvent.click(
@@ -801,19 +801,19 @@ const recoveryEditors = [
   {
     action: "Edit personal details",
     title: "Personal details",
-    intent: "employee-profile:e7:personal:2",
+    intent: "employee-profile:e7:personal",
     operation: "hr.employee.profile.save",
   },
   {
     action: "Edit payment details",
     title: "Payment details",
-    intent: "employee-payment:e7:1",
+    intent: "employee-payment:e7",
     operation: "hr.employee.payment.save",
   },
   {
     action: "Record resignation or termination",
     title: "Record resignation or termination",
-    intent: "employee-lifecycle:e7:OFFBOARD:4",
+    intent: "employee-lifecycle:e7",
     operation: "hr.employee.lifecycle",
   },
 ];
@@ -1080,4 +1080,255 @@ it("independent successful personal foreground completion preserves a dirty empl
   await leavePrompt();
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() => expect(here()).toBe(LIST));
+});
+
+// Durable recovery from the actual caller: the first command's response is
+// lost, then a reload starts a new module lifetime (no in-memory owner or
+// callback) while the server version has advanced. The ID-only record must
+// stay reachable for the same actor/tenant/employee/operation without ever
+// storing the private draft or replaying it.
+const lostResponseEditors = [
+  {
+    name: "personal",
+    action: "Edit personal details",
+    reopen: "Edit personal details",
+    title: "Personal details",
+    reopenTitle: "Personal details",
+    field: "Nickname",
+    value: "Private nickname draft",
+    ref: hrRefs.saveEmployeeProfile,
+    queryRef: hrRefs.employeeProfile,
+    operation: "hr.employee.profile.save",
+    opened: 2,
+    advanced: () =>
+      query({ ok: true, version: 3, profile: { nickname: "Server value" } }),
+  },
+  {
+    name: "payment",
+    action: "Edit payment details",
+    reopen: "Edit payment details",
+    title: "Payment details",
+    reopenTitle: "Payment details",
+    field: "Account name",
+    value: "Private account holder",
+    ref: hrRefs.saveEmployeePayment,
+    queryRef: hrRefs.employeePayment,
+    operation: "hr.employee.payment.save",
+    opened: 1,
+    advanced: () =>
+      query({ ok: true, version: 2, payment: { method: "CASH" } }),
+  },
+  {
+    name: "lifecycle",
+    action: "Record resignation or termination",
+    reopen: "Record resignation or termination",
+    title: "Record resignation or termination",
+    reopenTitle: "Record resignation or termination",
+    field: "Reason",
+    value: "Private departure reason",
+    ref: hrRefs.recordEmploymentEvent,
+    queryRef: hrRefs.employeeLifecycle,
+    operation: "hr.employee.lifecycle",
+    opened: 4,
+    advanced: () => lifecycle({ version: 5 }),
+  },
+];
+async function loseFirstResponse(editor: (typeof lostResponseEditors)[number]) {
+  const save = mutation(editor.ref);
+  save.mockRejectedValue(new Error("connection lost"));
+  const { view } = screenAt();
+  await openEditor();
+  const origin = here();
+  fireEvent.click(screen.getByRole("button", { name: editor.action }));
+  const dialog = await screen.findByRole("dialog", { name: editor.title });
+  const label = editor.field === "Reason" ? /Reason/ : editor.field;
+  fireEvent.change(within(dialog).getByLabelText(label), {
+    target: { value: editor.value },
+  });
+  if (editor.name === "lifecycle")
+    fireEvent.change(within(dialog).getByLabelText("Last working day"), {
+      target: { value: "2026-10-19" },
+    });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await within(dialog).findByTestId("hr-write-uncertain");
+  expect(save).toHaveBeenCalledOnce();
+  const sent = save.mock.calls[0]![0] as {
+    requestId: string;
+    expectedVersion: number;
+  };
+  expect(sent.expectedVersion).toBe(editor.opened);
+  return { save, sent, view, origin };
+}
+const storedText = () =>
+  Object.values(window.sessionStorage).join(" ") +
+  Object.values(window.localStorage).join(" ");
+/** A real reload: new module instances, so no owner/callback survives. */
+async function reloadAt(url: string) {
+  stopTracking();
+  vi.resetModules();
+  const [intl, guard, history, employees] = await Promise.all([
+    import("@tests/fixtures/intl-render"),
+    import("@/components/providers/DraftGuardProvider"),
+    import("@/lib/browser/appHistory"),
+    import("@/features/hr/EmployeesScreen"),
+  ]);
+  window.history.replaceState({ appNavigationIndex: 0 }, "", url);
+  stopTracking = history.trackAppHistory();
+  return intl.renderWithIntl(
+    <guard.DraftGuardProvider>
+      <main>
+        <employees.HrEmployeesScreen />
+      </main>
+    </guard.DraftGuardProvider>,
+    { locale: "en", workspace: false },
+  );
+}
+
+it.each(
+  lostResponseEditors.flatMap((editor) =>
+    (["COMMITTED", "FENCED"] as const).map((status) => ({ ...editor, status })),
+  ),
+)(
+  "durable $name recovery survives reload after the version advances and resolves $status without replay or private storage",
+  async ({ status, ...editor }) => {
+    // An unrelated employee's uncertain write must stay untouched.
+    const unrelated = `hr-request:${state.identityKey}|employee-payment:e9`;
+    window.sessionStorage.setItem(
+      unrelated,
+      JSON.stringify({ version: 1, requestId: "unrelated-request-0001" }),
+    );
+    const { save, sent, view, origin } = await loseFirstResponse(editor);
+    expect(storedText()).not.toContain(editor.value);
+    expect(storedText()).not.toContain("1234567890");
+    expect(storedText()).toContain(sent.requestId);
+    // Only identity/operation and the captured command revision persist.
+    const record = Object.entries(window.sessionStorage).find(([, value]) =>
+      value.includes(sent.requestId),
+    )!;
+    expect(record[0]).not.toMatch(/:\d+$/);
+    expect(Object.keys(JSON.parse(record[1])).sort()).toEqual([
+      "operation",
+      "requestId",
+      "revision",
+      "version",
+    ]);
+    expect(JSON.parse(record[1])).toMatchObject({
+      operation: editor.operation,
+      revision: editor.opened,
+    });
+    view.unmount();
+    // COMMITTED advanced the version with this write; FENCED with another
+    // editor's write. Either way the reopened session sees a new version.
+    state.queries.set(getFunctionName(editor.queryRef), editor.advanced());
+    const recover = mutation(hrRefs.reconcileRequest);
+    recover.mockResolvedValue({ ok: true, value: { resolved: true, status } });
+    await reloadAt(origin);
+    fireEvent.click(await screen.findByRole("button", { name: editor.reopen }));
+    const dialog = await screen.findByRole("dialog", {
+      name: editor.reopenTitle,
+    });
+    expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Check previous write" }),
+    );
+    await waitFor(() =>
+      expect(recover).toHaveBeenCalledWith({
+        operation: editor.operation,
+        requestId: sent.requestId,
+      }),
+    );
+    expect(
+      await within(dialog).findByText(
+        status === "COMMITTED"
+          ? "The previous write was saved"
+          : "The previous write did not apply",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByRole("button", { name: "Save" })).toBeEnabled();
+    // The lost command was never resent and no private value was restored.
+    expect(save).toHaveBeenCalledOnce();
+    expect(storedText()).not.toContain(sent.requestId);
+    expect(window.sessionStorage.getItem(unrelated)).toContain(
+      "unrelated-request-0001",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(here()).toBe(origin));
+  },
+);
+
+it("durable payment recovery is private to its actor: another actor after reload sees no receipt and the owner still can check it", async () => {
+  const owner = state.identityKey;
+  const { sent, view, origin } = await loseFirstResponse(
+    lostResponseEditors[1]!,
+  );
+  view.unmount();
+  state.queries.set(
+    getFunctionName(hrRefs.employeePayment),
+    lostResponseEditors[1]!.advanced(),
+  );
+  const recover = mutation(hrRefs.reconcileRequest);
+  recover.mockResolvedValue({
+    ok: true,
+    value: { resolved: true, status: "COMMITTED" },
+  });
+  state.identityKey = "org-a:someone-else";
+  const other = await reloadAt(origin);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Edit payment details" }),
+  );
+  const dialog = await screen.findByRole("dialog", { name: "Payment details" });
+  expect(
+    within(dialog).queryByRole("button", { name: "Check previous write" }),
+  ).toBeNull();
+  expect(within(dialog).queryByTestId("hr-write-uncertain")).toBeNull();
+  expect(within(dialog).getByRole("button", { name: "Save" })).toBeEnabled();
+  expect(recover).not.toHaveBeenCalled();
+  other.unmount();
+  state.identityKey = owner;
+  await reloadAt(origin);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Edit payment details" }),
+  );
+  const own = await screen.findByRole("dialog", { name: "Payment details" });
+  fireEvent.click(
+    within(own).getByRole("button", { name: "Check previous write" }),
+  );
+  await waitFor(() =>
+    expect(recover).toHaveBeenCalledWith({
+      operation: "hr.employee.payment.save",
+      requestId: sent.requestId,
+    }),
+  );
+});
+
+it("a lost payment response retried after query refresh resends its captured revision and request instead of a new command", async () => {
+  const { save, sent, view } = await loseFirstResponse(lostResponseEditors[1]!);
+  const tree = () => (
+    <DraftGuardProvider>
+      <main>
+        <HrEmployeesScreen />
+      </main>
+    </DraftGuardProvider>
+  );
+  // The live query advances while the same document is still open.
+  state.queries.set(
+    getFunctionName(hrRefs.employeePayment),
+    lostResponseEditors[1]!.advanced(),
+  );
+  view.rerender(tree());
+  save.mockReset();
+  save.mockResolvedValue(saved("e7"));
+  const dialog = screen.getByRole("dialog", { name: "Payment details" });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Try again safely" }),
+  );
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0]![0]).toMatchObject({
+    requestId: sent.requestId,
+    expectedVersion: 1,
+    accountName: "Private account holder",
+  });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(storedText()).not.toContain(sent.requestId);
 });
