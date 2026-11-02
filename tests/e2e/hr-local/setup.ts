@@ -14,7 +14,7 @@ export const fixturePath = "playwright/.auth/hr-local-fixture.json";
 export function localRun(name: string, args: Record<string, unknown>) {
   // Never permit arbitrary CLI functions, identity overrides, or remote targets.
   if (
-    !/^staging\/(annexDemo:bootstrapLocalDemo|hrDemo:(seed|setLocalTestRoles))$/.test(
+    !/^staging\/(annexDemo:bootstrapLocalDemo|hrDemo:(seed|setLocalTestRoles|createLocalTestSite))$/.test(
       name,
     )
   )

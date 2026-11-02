@@ -590,6 +590,48 @@ const localTestRoleKey = v.union(
   ...LOCAL_TEST_ROLE_KEYS.map((key) => v.literal(key)),
 );
 
+/** Isolate a roster run from accumulated LOCAL-DEMO employees; never deletes data. */
+export const createLocalTestSite = internalMutation({
+  args: {
+    sourceWarehouseId: v.id("warehouses"),
+    code: v.string(),
+    confirmation: v.string(),
+  },
+  returns: v.object({
+    warehouseId: v.id("warehouses"),
+    sourceEmployeeCountAtLeast: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    assertLocal(args.confirmation);
+    if (!/^TRAIN-E2E-[a-f0-9-]{8,40}$/.test(args.code))
+      throw new Error("Local test site code required");
+    const source = await ctx.db.get(args.sourceWarehouseId);
+    if (source?.code !== "LOCAL-DEMO")
+      throw new Error("Local bootstrap site required");
+    const sourceEmployees = await ctx.db
+      .query("hrEmployees")
+      .withIndex("by_orgId_warehouseId_code", (q) =>
+        q.eq("orgId", source.orgId).eq("warehouseId", source._id),
+      )
+      .take(51);
+    const existing = await ctx.db
+      .query("warehouses")
+      .withIndex("by_orgId_code", (q) =>
+        q.eq("orgId", source.orgId).eq("code", args.code),
+      )
+      .unique();
+    const warehouseId =
+      existing?._id ??
+      (await ctx.db.insert("warehouses", {
+        orgId: source.orgId,
+        code: args.code,
+        name: "TRAIN Roster Studio",
+        status: "ACTIVE",
+      }));
+    return { warehouseId, sourceEmployeeCountAtLeast: sourceEmployees.length };
+  },
+});
+
 /**
  * Replaces the managed HR/organization role grants of ONE membership created
  * by the local bootstrap (`local-membership-*`), so the browser suite can test

@@ -10,6 +10,7 @@ import {
   HR_DEMO_CONFIRMATION,
   seed,
   setLocalTestRoles,
+  createLocalTestSite,
 } from "../../convex/staging/hrDemo";
 import type { DataModel } from "../../convex/schema";
 import {
@@ -24,6 +25,41 @@ const run = (fn: unknown, ctx: unknown, args: unknown) =>
   (fn as Runtime)._handler(ctx as GenericMutationCtx<DataModel>, args);
 
 afterEach(() => vi.unstubAllEnvs());
+
+it("isolates local roster fixtures without clearing accumulated employees and refuses unsafe destinations", async () => {
+  const world = await createConvexTenantWorld();
+  const args = {
+    sourceWarehouseId: world.warehouses.alphaA,
+    code: "TRAIN-E2E-12345678",
+    confirmation: HR_DEMO_CONFIRMATION,
+  };
+  const create = (input = args) =>
+    world.t.run((ctx) => run(createLocalTestSite, ctx, input));
+  await expect(create()).rejects.toThrow("disabled");
+  vi.stubEnv("ALLOW_LOCAL_TEST_SEED", "true");
+  vi.stubEnv("CONVEX_CLOUD_URL", "https://shared.convex.cloud");
+  await expect(create()).rejects.toThrow("non-loopback");
+  vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3320");
+  await expect(create({ ...args, code: "CUSTOMER" })).rejects.toThrow(
+    "Local test site code",
+  );
+  await expect(create()).rejects.toThrow("Local bootstrap site");
+  await world.t.run((ctx) =>
+    ctx.db.patch(args.sourceWarehouseId, { code: "LOCAL-DEMO" }),
+  );
+  const before = await world.t.run((ctx) =>
+    ctx.db.query("hrEmployees").collect(),
+  );
+  const first = await create();
+  expect(await create()).toEqual(first);
+  expect(first.warehouseId).not.toBe(args.sourceWarehouseId);
+  expect(
+    await world.t.run((ctx) => ctx.db.query("hrEmployees").collect()),
+  ).toEqual(before);
+  expect(
+    await world.t.run((ctx) => ctx.db.get(first.warehouseId)),
+  ).toMatchObject({ orgId: world.orgA, code: args.code, status: "ACTIVE" });
+});
 
 it("refuses to seed without the local guard", async () => {
   const world = await createConvexTenantWorld();

@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { test, expect, convexAs } from "./fixtures";
-import { readHrFixture } from "./setup";
+import { localRun, readHrFixture } from "./setup";
 
-async function site(page: Page) {
+async function site(page: Page, warehouseId = readHrFixture().warehouseId) {
   const api = await convexAs(page);
-  const warehouseId = readHrFixture().warehouseId;
   const access = (await api.query("hr/access:display")).value;
   const chosen = access.sites.find(
     (row: { id: string }) => row.id === warehouseId,
@@ -66,9 +65,24 @@ test("roster fixed shift UI saves and reloads while pristine Cancel consumes its
 
 test("roster real batch SHIFT OFF Clear persists and selected newly recorded cell can be removed", async ({
   page,
-}) => {
+}, info) => {
+  // The real roster intentionally refuses sites above 50 employees before
+  // search. Repeated employee acceptance runs must not exhaust this fixture.
+  const isolated = localRun("staging/hrDemo:createLocalTestSite", {
+    sourceWarehouseId: readHrFixture().warehouseId,
+    code: `TRAIN-E2E-${randomUUID()}`,
+    confirmation: "LOCAL_HR_FIXTURES_V1",
+  }) as { warehouseId: string; sourceEmployeeCountAtLeast: number };
+  await info.attach("isolated-roster-fixture", {
+    body: JSON.stringify({
+      sourceEmployeeCountAtLeast: isolated.sourceEmployeeCountAtLeast,
+      rosterEmployeeLimit: 50,
+      deletes: 0,
+    }),
+    contentType: "application/json",
+  });
   await page.goto("/en/hr/roster?qa=baseline#grid");
-  const { api, warehouseId } = await site(page);
+  const { api, warehouseId } = await site(page, isolated.warehouseId);
   const code = `GRID-${randomUUID().slice(0, 8)}`;
   const assignments: Record<string, string> = {};
   for (const [endpoint, key] of [
