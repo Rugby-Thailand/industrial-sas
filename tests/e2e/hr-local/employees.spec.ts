@@ -314,8 +314,10 @@ test("employee committed ID-only real reload recovers without sensitive payload 
   expect(Object.keys(record).sort()).toEqual([
     "operation",
     "requestId",
+    "revision",
     "version",
   ]);
+  expect(record.revision).toBe(0);
   expect(JSON.stringify(stored)).not.toContain("3456789012");
   gate.abandon();
   await page.reload();
@@ -356,8 +358,10 @@ test("employee unsent ID-only real reload fences request without replaying priva
     expect(Object.keys(JSON.parse(stored[0]![1])).sort()).toEqual([
       "operation",
       "requestId",
+      "revision",
       "version",
     ]);
+    expect(JSON.parse(stored[0]![1]).revision).toBe(0);
     // Destroy the old document/Convex socket while it is offline. This is an
     // actual navigation, rather than clearing a live client queue by hand.
     await page.goto("about:blank");

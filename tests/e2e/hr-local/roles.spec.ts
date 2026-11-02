@@ -23,8 +23,8 @@ const setRoles = (roleKeys: RoleKey[]) =>
  */
 async function asLocalRoles(roleKeys: RoleKey[], body: () => Promise<void>) {
   const { previous } = setRoles(roleKeys);
-  expect([...previous].sort()).toEqual([...ADMIN_GRANTS].sort());
   try {
+    expect([...previous].sort()).toEqual([...ADMIN_GRANTS].sort());
     await body();
   } finally {
     const restored = setRoles(previous);

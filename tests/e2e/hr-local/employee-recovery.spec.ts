@@ -74,7 +74,7 @@ async function holdResponse(page: Page, endpoint: string) {
   };
 }
 
-async function retainedId(page: Page, privateValue: string) {
+async function retainedId(page: Page, privateValue: string, revision = 0) {
   const stored = await page.evaluate(() =>
     Object.entries(sessionStorage).filter(([key]) =>
       key.startsWith("hr-request:"),
@@ -85,8 +85,10 @@ async function retainedId(page: Page, privateValue: string) {
   expect(Object.keys(record).sort()).toEqual([
     "operation",
     "requestId",
+    "revision",
     "version",
   ]);
+  expect(record.revision).toBe(revision);
   expect(JSON.stringify(stored)).not.toContain(privateValue);
   return record.requestId as string;
 }
@@ -188,7 +190,7 @@ test("employee committed offboard response loss exposes recovery after its origi
     await expect
       .poll(async () => (await api.query(LIFE, { employeeId: id })).value.state)
       .toBe("RESIGNED");
-    const requestId = await retainedId(page, reason);
+    const requestId = await retainedId(page, reason, 1);
     gate.abandon();
     await page.reload();
     await expect(page.getByTestId("hr-employee-lifecycle")).toContainText(
@@ -225,3 +227,130 @@ test("employee committed offboard response loss exposes recovery after its origi
     gate.release();
   }
 });
+
+for (const kind of ["profile", "payment", "lifecycle"] as const) {
+  test(`employee ${kind} unsent reload finds FENCED recovery after an independent version advance`, async ({
+    page,
+    context,
+  }) => {
+    const { api, id } = await subject(page);
+    const life = kind === "lifecycle";
+    const payment = kind === "payment";
+    const query = life
+      ? LIFE
+      : payment
+        ? "hr/employeeProfile:employeePayment"
+        : PROFILE;
+    const mutation = life
+      ? EVENT
+      : payment
+        ? "hr/employeeProfile:saveEmployeePayment"
+        : SAVE_PROFILE;
+    const opened = (await api.query(query, { employeeId: id })).value.version;
+    const label = life
+      ? "Record resignation or termination"
+      : payment
+        ? "Edit payment details"
+        : "Edit personal details";
+    await page.getByRole("button", { name: label, exact: true }).click();
+    const dialog = page.getByRole("dialog", {
+      name: life ? label : payment ? "Payment details" : "Personal details",
+      exact: true,
+    });
+    if (life) {
+      await dialog
+        .getByLabel("Last working day", { exact: true })
+        .fill("2026-09-30");
+      await dialog.getByLabel(/^Reason/).fill("Private unsent exit");
+    } else if (payment) {
+      await dialog
+        .getByLabel("Bank", { exact: true })
+        .fill("Private unsent bank");
+      await dialog
+        .getByLabel("Account number", { exact: true })
+        .fill("4567890123");
+    } else
+      await dialog
+        .getByLabel("Nickname", { exact: true })
+        .fill("Private unsent nickname");
+    let requestId = "";
+    await context.setOffline(true);
+    try {
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(
+        dialog.getByRole("button", { name: "Submitting…", exact: true }),
+      ).toBeDisabled();
+      requestId = await retainedId(
+        page,
+        life
+          ? "Private unsent exit"
+          : payment
+            ? "4567890123"
+            : "Private unsent nickname",
+        opened,
+      );
+      // Destroy the genuine document's queue before restoring connectivity.
+      await page.goto("about:blank");
+    } finally {
+      await context.setOffline(false);
+    }
+    const independent = life
+      ? {
+          kind: "OFFBOARD",
+          separationType: "RESIGNATION",
+          effectiveDate: "2026-09-30",
+          reason: "Independent synthetic exit",
+        }
+      : payment
+        ? {
+            method: "BANK",
+            bankName: "Independent synthetic bank",
+            accountNumber: "5678901234",
+          }
+        : { nickname: "Independent synthetic nickname" };
+    const advanced = await api.mutation(mutation, {
+      employeeId: id,
+      expectedVersion: opened,
+      requestId: randomUUID(),
+      ...independent,
+    });
+    expect(advanced.value.written).toBe(true);
+    const beforeRecovery = (await api.query(query, { employeeId: id })).value;
+    expect(beforeRecovery.version).toBe(opened + 1);
+    await page.goBack();
+    await page.reload();
+    await page
+      .getByRole("button", { name: life ? "Reinstate" : label, exact: true })
+      .click();
+    const reopened = page.getByRole("dialog", {
+      name: life
+        ? "Reinstate"
+        : payment
+          ? "Payment details"
+          : "Personal details",
+      exact: true,
+    });
+    await expect(
+      reopened.getByRole("button", { name: "Save", exact: true }),
+    ).toBeDisabled();
+    await reopened
+      .getByRole("button", { name: "Check previous write", exact: true })
+      .click();
+    await expect(
+      reopened.getByText("The previous write did not apply", { exact: true }),
+    ).toBeVisible();
+    expect((await api.query(query, { employeeId: id })).value).toEqual(
+      beforeRecovery,
+    );
+    const late = await api.mutation(mutation, {
+      employeeId: id,
+      expectedVersion: opened,
+      requestId,
+      ...independent,
+    });
+    expect(late.value.written).toBe(false);
+    expect((await api.query(query, { employeeId: id })).value).toEqual(
+      beforeRecovery,
+    );
+  });
+}
