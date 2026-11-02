@@ -4349,7 +4349,7 @@
     {
       "policy": "workflow",
       "integration": "useUrlBackedState",
-      "expectation": "Editor selection follows the URL. Explicit Cancel consumes its owned editor entry, restores the original list query/hash, and next Back reaches the actual caller; direct selected links clean only owned parameters.",
+      "expectation": "Editor selection follows the URL. Opening locks employee selection immediately, but EmployeeForm or EmployeeEditor renders only after the matching NEW or employee-specific EDIT URL commits, so foreground dialogs cannot supersede a pending editor navigation. Explicit Cancel consumes its owned editor entry, restores the original list query/hash, and next Back reaches the actual caller; direct selected links clean only owned parameters.",
       "id": "src/features/hr/EmployeesScreen.tsx#HrEmployeesScreen:editing",
       "cases": [
         {
@@ -4363,9 +4363,16 @@
         {
           "file": "src/features/hr/EmployeesNavigation.test.tsx",
           "name": "locale replacement retains editor ownership so Cancel and the next native Back consume no duplicate list"
+        },
+        {
+          "file": "tests/e2e/hr-local/employees.spec.ts",
+          "name": "employee foreground opened while the editor URL commit is delayed keeps the editor and its URL"
         }
       ],
-      "tests": ["src/features/hr/EmployeesNavigation.test.tsx"]
+      "tests": [
+        "src/features/hr/EmployeesNavigation.test.tsx",
+        "tests/e2e/hr-local/employees.spec.ts"
+      ]
     },
     {
       "id": "src/features/hr/EmployeesScreen.tsx#EmployeesContent:receipt",

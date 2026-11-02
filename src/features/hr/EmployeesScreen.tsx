@@ -217,6 +217,7 @@ export function HrEmployeesScreen() {
       <HrGate code={HR_CODES.admin}>
         <EmployeesContent
           editing={editing}
+          editorCommitted={editorUrlCommitted(editing, url)}
           invalidLink={url.mode === "LIST" && url.invalid}
           linkFocus={
             url.mode === "EDIT" && url.focus !== undefined ? url.focus : null
@@ -244,6 +245,21 @@ const LIST_DEFAULTS = { q: "", site: "", status: "", dept: "" } as const;
 const LIST_KEYS = Object.keys(LIST_DEFAULTS);
 type ListCriteria = Readonly<Record<keyof typeof LIST_DEFAULTS, string>>;
 
+/**
+ * Whether the router has committed the open editor's URL. Opening sets the
+ * editor locally (locking the list) before its router push commits; the
+ * editor renders only once its URL exists, so a foreground opened from it
+ * builds on the editor entry instead of superseding the pending push.
+ */
+function editorUrlCommitted(
+  editing: Editing | undefined,
+  url: EmployeesUrlState,
+): boolean {
+  if (editing === undefined) return false;
+  if (editing.mode === "NEW") return url.mode === "NEW";
+  return url.mode === "EDIT" && url.employeeId === editing.employeeId;
+}
+
 /** The list URL with its criteria, without an open editor. */
 function listHref(criteria: ListCriteria): string {
   const query = new URLSearchParams();
@@ -265,6 +281,7 @@ function withCriteria(href: string, criteria: ListCriteria): string {
 
 function EmployeesContent({
   editing,
+  editorCommitted,
   invalidLink,
   linkFocus,
   linkToken,
@@ -272,6 +289,7 @@ function EmployeesContent({
   onClose,
 }: {
   readonly editing: Editing | undefined;
+  readonly editorCommitted: boolean;
   readonly invalidLink: boolean;
   readonly linkFocus: "schedule" | "details" | null;
   readonly linkToken: string;
@@ -340,7 +358,8 @@ function EmployeesContent({
           onDismiss={() => setReceipt(null)}
         />
       )}
-      {editing === undefined ? null : editing.mode === "NEW" ? (
+      {editing === undefined || !editorCommitted ? null : editing.mode ===
+        "NEW" ? (
         <EmployeeForm
           key="new"
           sites={access.sites}

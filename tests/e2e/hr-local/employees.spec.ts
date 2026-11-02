@@ -140,6 +140,36 @@ test("employee personal contact emergency and private payment create edit and re
   }
 });
 
+test("employee foreground opened while the editor URL commit is delayed keeps the editor and its URL", async ({
+  page,
+}) => {
+  // A slow editor RSC response (dev compile, slow network) once let the
+  // optimistic editor accept a foreground before its URL existed; the
+  // foreground's history entry then superseded the router push and closed it.
+  await page.route(
+    (url) =>
+      url.pathname.endsWith("/hr/employees") &&
+      url.searchParams.get("mode") === "edit",
+    async (route) => {
+      if (route.request().headers()["rsc"] === "1")
+        await new Promise((resolve) => setTimeout(resolve, 4_000));
+      await route.continue();
+    },
+  );
+  const { code } = await employee(page);
+  const d = await open(page, "personal");
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("mode") === "edit" &&
+      url.searchParams.has("employee") &&
+      url.searchParams.get("q") === code &&
+      url.hash === "#acceptance",
+  );
+  await d.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(d).toBeHidden();
+  await expect(page.getByTestId("hr-employee-profile")).toBeVisible();
+});
+
 test("employee dirty personal draft survives independent subscription refresh and stale save refuses without overwrite", async ({
   page,
 }) => {
