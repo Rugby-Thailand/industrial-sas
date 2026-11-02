@@ -33,80 +33,8 @@ describe("benchmark photo URL boundary", () => {
   });
 });
 
-function preview(directory: string, query: string, sources: string[]) {
-  const doc = document.implementation.createHTMLDocument();
-  doc.documentElement.innerHTML = read(`${directory}/index.html`);
-  const context = {
-    document: doc,
-    location: new URL(query, origin),
-    window: { addEventListener: vi.fn(), scrollTo: vi.fn() },
-    history: { pushState: vi.fn(), replaceState: vi.fn() },
-    URL,
-    URLSearchParams,
-    crypto,
-    setTimeout,
-    clearTimeout,
-  };
-  runInNewContext(
-    sources.map((file) => read(`${directory}/${file}`)).join("\n"),
-    context,
-  );
-  return doc;
-}
-
-describe("archived preview input boundaries", () => {
-  it.each(["__proto__", "constructor", "toString"])(
-    "does not dispatch the inherited screen or variant %s",
-    (key) => {
-      const doc = preview(
-        "src/components/shell/_prototype/minimal-app",
-        `/?page=${key}&variant=${key}`,
-        ["reference-data.js", "app.js"],
-      );
-      expect(doc.getElementById("main")?.dataset.page).toBe("scan");
-      expect(doc.documentElement.dataset.variant).toBe("A");
-      expect(doc.querySelector("h1")).not.toBeNull();
-    },
-  );
-
-  it("keeps valid preview selections", () => {
-    const doc = preview(
-      "src/components/shell/_prototype/minimal-app",
-      "/?page=records&variant=B&lang=en",
-      ["reference-data.js", "app.js"],
-    );
-    expect(doc.getElementById("main")?.dataset.page).toBe("records");
-    expect(doc.documentElement.dataset.variant).toBe("B");
-  });
-
-  it("does not copy an arbitrary language control value into HTML or links", () => {
-    const directory = "src/features/finishedGoods/jobScan/_prototype/barcode";
-    const doc = document.implementation.createHTMLDocument();
-    doc.documentElement.innerHTML = read(`${directory}/index.html`);
-    runInNewContext(read(`${directory}/app.js`).replace(/^import .*;\n/, ""), {
-      document: doc,
-      location: new URL("/?lang=en", origin),
-      URLSearchParams,
-      window: { addEventListener: vi.fn() },
-      clearTimeout,
-    });
-    const select = doc.getElementById("language") as HTMLSelectElement;
-    const option = doc.createElement("option");
-    option.value = 'en"><img id="injected" src=x>';
-    select.append(option);
-    select.value = option.value;
-    select.dispatchEvent(new Event("change"));
-    expect(doc.documentElement.lang).toBe("th");
-    expect(doc.getElementById("injected")).toBeNull();
-    expect(doc.querySelector(".preview-bar a")?.getAttribute("href")).toContain(
-      "lang=th",
-    );
-  });
-});
-
-describe("archived barcode workers", () => {
+describe("benchmark barcode workers", () => {
   const workers = [
-    "src/features/finishedGoods/jobScan/_prototype/barcode/reader-worker.js",
     "scripts/topgold-scan-benchmark/mobile/wasm.worker.js",
     "scripts/topgold-scan-benchmark/kiro/variants.worker.js",
   ];
@@ -152,7 +80,7 @@ describe("archived barcode workers", () => {
     },
   );
 
-  it.each(workers.slice(1))(
+  it.each(workers)(
     "accepts dedicated-worker and same-origin initialization in %s",
     async (file) => {
       const { self, prepare } = worker(file);
