@@ -1,0 +1,162 @@
+[
+  {
+    "t_ms_epoch": 1793635433436,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "before",
+    "label_en": "Review the synthetic training company.",
+    "take": 1,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/record-company-org/page@b317cbfa02cdb9bf739c6f48bae43abe.webm",
+    "offset_ms": 11961
+  },
+  {
+    "t_ms_epoch": 1793635438732,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "saved",
+    "label_en": "Save the company profile.",
+    "take": 1,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/record-company-org/page@b317cbfa02cdb9bf739c6f48bae43abe.webm",
+    "offset_ms": 17257
+  },
+  {
+    "t_ms_epoch": 1793635440886,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "logo",
+    "label_en": "The logo uploads separately from Save.",
+    "take": 1,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/record-company-org/page@b317cbfa02cdb9bf739c6f48bae43abe.webm",
+    "offset_ms": 19411
+  },
+  {
+    "t_ms_epoch": 1793635605785,
+    "side": "staff",
+    "flow": "shifts-roster",
+    "id": "before",
+    "label_en": "Create a fixed training shift.",
+    "take": 1,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/record-shifts-roster/page@128aa3c1419ec069b9d5d72332821f24.webm",
+    "offset_ms": 36866
+  },
+  {
+    "t_ms_epoch": 1793635827936,
+    "side": "staff",
+    "flow": "shifts-roster",
+    "id": "before",
+    "label_en": "Create a fixed training shift.",
+    "take": 2,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/record-shifts-roster/page@64e6bff32e9b4719258228bb5fb20464.webm",
+    "offset_ms": 16023
+  },
+  {
+    "t_ms_epoch": 1793635837528,
+    "side": "staff",
+    "flow": "shifts-roster",
+    "id": "shift",
+    "label_en": "Save 08:00\u201317:00 with a 60-minute unpaid break.",
+    "take": 2,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/record-shifts-roster/page@64e6bff32e9b4719258228bb5fb20464.webm",
+    "offset_ms": 25615
+  },
+  {
+    "t_ms_epoch": 1793636123079,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "before",
+    "label_en": "Review the synthetic training company.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 546
+  },
+  {
+    "t_ms_epoch": 1793636128458,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "saved",
+    "label_en": "Save the company profile.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 5925
+  },
+  {
+    "t_ms_epoch": 1793636130613,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "logo",
+    "label_en": "The logo uploads separately from Save.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 8080
+  },
+  {
+    "t_ms_epoch": 1793636142009,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "reload",
+    "label_en": "Reload to verify the saved company and logo.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 19476
+  },
+  {
+    "t_ms_epoch": 1793636154125,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "refused",
+    "label_en": "A stale editor cannot overwrite a newer save.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 31592
+  },
+  {
+    "t_ms_epoch": 1793636179466,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "department",
+    "label_en": "Save TRAIN Operations.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 56933
+  },
+  {
+    "t_ms_epoch": 1793636188079,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "position",
+    "label_en": "Save TRAIN Coordinator.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 65546
+  },
+  {
+    "t_ms_epoch": 1793636196950,
+    "side": "staff",
+    "flow": "company-org",
+    "id": "level",
+    "label_en": "Save TRAIN Level.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-company-org-take3/capture.webm",
+    "offset_ms": 74417
+  },
+  {
+    "t_ms_epoch": 1793636351418,
+    "side": "staff",
+    "flow": "shifts-roster",
+    "id": "before",
+    "label_en": "Create a fixed training shift.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-shifts-roster-take3/capture.webm",
+    "offset_ms": 6872
+  },
+  {
+    "t_ms_epoch": 1793636362543,
+    "side": "staff",
+    "flow": "shifts-roster",
+    "id": "shift",
+    "label_en": "Save 08:00\u201317:00 with a 60-minute unpaid break.",
+    "take": 3,
+    "video_file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-9c4080aa/.cache/hr-final/cdp-shifts-roster-take3/capture.webm",
+    "offset_ms": 17997
+  }
+]

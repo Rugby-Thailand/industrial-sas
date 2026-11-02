@@ -1,0 +1,33 @@
+# English HR raw recording report
+
+No complete tutorial flow passed recording acceptance. This is an actual-footage handoff, not a finished tutorial. Keep every take private and non-preferred. Source `8379396a17ec52fac51e5c9898adf39248fe1671`, clean; actual web URL `http://localhost:3110`. See `videos.json` for absolute original paths, measured durations, SHA-256 hashes and capture methods. `events.json` contains actual epoch timestamps and English event labels.
+
+| Company/org step      | Expected                                       | Actual                                                           | Status | Evidence                                                                |
+| --------------------- | ---------------------------------------------- | ---------------------------------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| Before/save           | TRAIN company is changed once                  | UI save and authenticated readback reached updated name          | PASS   | Latest company take; before screen; events before/saved                 |
+| Logo and reload       | Real PNG persists separately from profile save | Preview and reloaded saved name/logo visible                     | PASS   | `screens/company-org-reload.png`, logo/reload events                    |
+| Stale editor          | Newer UI editor cannot be overwritten          | Real second editor saved; stale editor refused and loaded latest | PASS   | `screens/company-org-refusal.png`, refused event                        |
+| Organization creation | TRAIN Operations/Coordinator/Level save        | Three real dialogs completed                                     | PASS   | department/position/level events                                        |
+| Organization reload   | Saved department reachable after reload        | Exact edit button absent after 30s                               | FAIL   | `.cache/hr-final/cdp-company-org-take3/capture.webm`, final error frame |
+
+| Employee step                                           | Expected                                      | Actual                                                                                                          | Status  | Evidence                                 |
+| ------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------- | ---------------------------------------- |
+| Open/read initial profile                               | Ready real profile before tutorial changes    | Actual backend `Function execution timed out (maximum duration: 1s)`; earlier take showed app read-error screen | BLOCKED | Latest employee take; private runner log |
+| Personal/contact/payment/offboard/reinstate walkthrough | Real saves, masked summary, reload, valid gap | Not completed in recorded flow; do not infer from separate passing acceptance tests                             | BLOCKED | No preferred take                        |
+
+| Fixed shifts/roster step       | Expected                                            | Actual                                                                           | Status  | Evidence                                     |
+| ------------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------- | ------- | -------------------------------------------- |
+| Fixed shift                    | TRAIN Morning 08:00–17:00, break60                  | Real dialog save completed                                                       | PASS    | before/shift events in latest roster take    |
+| Roster site/assignments/reload | Choose site; SHIFT/OFF/Clear; lock and reload proof | Site option did not become selectable within 30s; assignment actions not reached | BLOCKED | Latest roster take; private error screenshot |
+
+Actual active-leave acceptance is separate: both desktop and Pixel7 submitted in the UI, and claimed working dates locked/refused roster OFF. Approval remains BLOCKED by SELF_REVIEW. `evidence/active-leave-readback.json` is actual sanitized authenticated readback, not a mock: annual used0/reserved2, requests PENDING, attendance revision0/events empty/disposition null. Policy setup is illustrative local training data, not a legal entitlement claim.
+
+Capture history: T3 open/wait readiness each timed out at15s. Then headed Chrome recordVideo,1280×800,slowMo250,1.8s holds; auth occurred in an unrecorded context. An unrecorded cold-output setup failed. Initial recorder-only5s expect and ambiguous End locator were corrected to the suite's existing30s expectation and exact End. Later recordVideo context read failures were preserved. The final capture used real Chrome CDP frames in the same authenticated context, beginning only after verified pinned user/org and initial UI; actual frame timestamps were encoded to VFR WebM. No authentication was filmed and no video was edited. Cursor overlay marks real mouse movement on the initial document; it may disappear after reload. No synchronization claim is needed for this one staff view.
+
+Raw latest takes (all preferred:false): company121.00s, employee49.36s, shifts/roster45.60s. All eight original files remain at the paths in `videos.json`. Company partial review ranges:0.5–37s for save/logo/company reload/refusal;56.9–76s for master creation. Shift creation is around6.9–20s. Do not present these as complete verified workflows or use final read-error/loading ranges as a successful ending. No complete backend before/after bundle exists for these failed walkthroughs; do not manufacture one. Loading, blank setup and all failed endings are cut exclusions, not proof of success.
+
+Use accurate English captions. Bank account is stored primary; no payslip bank-display claim. Payment requires HR administration permission; the summary is masked, while the authorized editor shows the full synthetic number. No completed lifecycle capture exists. Do not claim unfilmed lock reasons, leave approval, payroll/tax generation or legal correctness. No voiceover or final edit was produced.
+
+Cleanup: local roles restored; owned sessions revoked/inactive; no active session created during this lane remains; older sessions untouched. Owned services and tabs closed; final port/process audit accompanies acceptance evidence. No full release approval.
+
+RESULT: company-org=FAIL employee=BLOCKED shifts-roster=BLOCKED

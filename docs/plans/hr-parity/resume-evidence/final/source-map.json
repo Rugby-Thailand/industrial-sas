@@ -452,5 +452,60 @@
       "source": "76b49800247bb334d9e2533f3042cef221be2869",
       "local": "55a4a9c90afd4f0e5464f214a7781f1a7d41b66f"
     }
+  ],
+  "testedHead": "8379396a17ec52fac51e5c9898adf39248fe1671",
+  "directLaneHistory": [
+    {
+      "sha": "d6dd33424bf75ee448b23d66dc41979af6442d6a",
+      "subject": "test(hr): preserve combined baseline mapping and extend independent acceptance probes"
+    },
+    {
+      "sha": "96b251919605877747c28328ff82d1815c58117c",
+      "subject": "test(hr): verify version-advancing recovery and define final recording protocol"
+    },
+    {
+      "sha": "37568897496eae305739d260638ff44459d954f2",
+      "subject": "test(hr): retain baseline failures and recovery-fix acceptance evidence"
+    },
+    {
+      "sha": "f71a4dcda8b47135e56367be5b8f9b2509a9e948",
+      "subject": "docs(hr): record exact recovery browser outcome before final focused checks"
+    },
+    {
+      "sha": "532e212cf4e2c164aaa166e7f407e56e314ba40f",
+      "subject": "test(hr): retain foundation acceptance and correct focused shift locator"
+    },
+    {
+      "sha": "41d8ec472e1d451a1aa4f4f96b5f1ef2d8fde265",
+      "subject": "docs(hr): complete bounded acceptance handoff and English recording plan"
+    },
+    {
+      "sha": "e0df521328335dd2c891abc54c89fd936210368d",
+      "subject": "test(hr): pin final acceptance source and resolve duplicated test type import"
+    },
+    {
+      "sha": "b6782dd0b3b8332220743c49cd5eeab470899899",
+      "subject": "test(hr): add guarded real active-leave submission and claim-lock acceptance"
+    },
+    {
+      "sha": "36b3ebf9a8aff3311d8826777de41d6723fc723d",
+      "subject": "fix(hr): describe company bank storage without claiming payslip display"
+    },
+    {
+      "sha": "55a4a9c90afd4f0e5464f214a7781f1a7d41b66f",
+      "subject": "docs(hr): audit all parity slices and correct tutorial claims"
+    },
+    {
+      "sha": "74fa48348ddcb521eccca120efd380534edde240",
+      "subject": "docs(hr): map final lane tests and copy-only audit followups"
+    },
+    {
+      "sha": "31b46fe1b7d9f6d24c1caaf3eeed2fd4f08a795b",
+      "subject": "test(hr): isolate final browser lane on assigned exact localhost port 3110"
+    },
+    {
+      "sha": "8379396a17ec52fac51e5c9898adf39248fe1671",
+      "subject": "test(hr): restore owned interrupted role grants before focused leave acceptance"
+    }
   ]
 }

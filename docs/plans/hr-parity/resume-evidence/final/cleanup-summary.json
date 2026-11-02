@@ -1,0 +1,22 @@
+{
+  "journalledGroups": 50,
+  "ownedGroupSurvivors": 0,
+  "portsFree": {
+    "3110": true,
+    "3320": true,
+    "3321": true
+  },
+  "runLockPresent": false,
+  "otherPort3100Untouched": true,
+  "sessions": {
+    "lastOwnedRecordingSessionStatus": "revoked",
+    "activeSessionsCreatedDuringLane": 0,
+    "olderSessionsLeftUntouched": true,
+    "checkedAt": 1793636735465
+  },
+  "roles": {
+    "previous": ["ORG_ADMIN", "HR_ADMIN", "HR_EMPLOYEE"],
+    "restoredTo": ["ORG_ADMIN", "HR_ADMIN", "HR_EMPLOYEE"],
+    "at": 1793636569766
+  }
+}
