@@ -222,11 +222,11 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-it("registered approval refuses a roster change after leave captured its plan without spending the reservation", async () => {
+it("registered pending leave and a later roster OFF cannot both succeed and consume the old-plan reservation", async () => {
   const { world, employeeId } = await fixture();
   await activate(world, employeeId);
   const request = written(await submit(world));
-  written(
+  const rosterChange = result(
     await call(world, "hr/roster:assignRoster", {
       requestId: rid(),
       warehouseId: world.warehouses.alphaA,
@@ -244,14 +244,24 @@ it("registered approval refuses a roster change after leave captured its plan wi
   );
   // Capture every invariant in a single failed run; the first bad result must
   // not hide the actual account/attendance consequences from the handoff.
-  expect.soft(decision).toMatchObject({
-    written: false,
-    error: { code: "LEAVE_PLAN_STALE" },
-  });
-  expect.soft(await account(world)).toMatchObject({ used: 0, reserved: 1 });
-  expect
-    .soft(
-      await world.t.run((ctx) => ctx.db.query("hrAttendanceDays").collect()),
-    )
-    .toEqual([]);
+  // The spec leaves OFF/leave precedence unresolved. Either refuse the
+  // conflicting roster change, or refuse approval after that change. Do not
+  // invent a public refusal code or silently spend leave for the old plan.
+  expect.soft(rosterChange.written && decision.written).toBe(false);
+  if (rosterChange.written) {
+    expect.soft(decision.written).toBe(false);
+    expect.soft(await account(world)).toMatchObject({ used: 0, reserved: 1 });
+    expect
+      .soft(
+        await world.t.run((ctx) => ctx.db.query("hrAttendanceDays").collect()),
+      )
+      .toEqual([]);
+  } else {
+    expect(rosterChange.error?.code).toEqual(expect.any(String));
+    expect(decision.written).toBe(true);
+    expect(await account(world)).toMatchObject({ used: 1, reserved: 0 });
+    expect(
+      await world.t.run((ctx) => ctx.db.query("hrRosterAssignments").collect()),
+    ).toEqual([]);
+  }
 });

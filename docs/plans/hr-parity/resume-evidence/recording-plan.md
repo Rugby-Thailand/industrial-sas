@@ -30,7 +30,11 @@ report; do not cut a successful-looking tutorial from a failed flow.
 
 ## Final acceptance order
 
-Use the corrected exact commit, not a moving implementation checkout. These are
+Use the corrected exact commit, not a moving implementation checkout. Preserve
+the earlier private DB/artifacts before any fresh final test database is created.
+This suite retains disposable employees, so repeated broad runs can exceed the
+50-employee roster bound; do not interpret an overfilled test fixture as a new
+product regression or delete prior evidence to manufacture a pass. These are
 focused suites, not permission to rerun the full repository until green.
 
 1. Run `pnpm check:navigation`, normal `pnpm lint`, `pnpm ci:test-discovery`,

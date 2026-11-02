@@ -471,5 +471,315 @@
         ]
       }
     ]
+  },
+  {
+    "label": "foundation-roster-roles",
+    "source": {
+      "sourceHead": "fad9e75e4095bed7deaea31ca664d27d6eafa257",
+      "sourceDirty": false,
+      "backend": "worktree-owned anonymous Convex on loopback:3320",
+      "actualWorkers": 1
+    },
+    "stats": {
+      "startTime": "2026-11-02T13:17:04.902Z",
+      "duration": 442424.593,
+      "expected": 22,
+      "skipped": 0,
+      "unexpected": 2,
+      "flaky": 0
+    },
+    "privateArchive": ".cache/hr-browser/resume-run4-foundation-roster-roles",
+    "tests": [
+      {
+        "title": "Phase1 company profile and bank accounts persist and dirty header Back protects origin",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 21106,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 logo uploads real PNG bytes and removal persists after reload",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11378,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 branch save persists and completion consumes modal history",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11700,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 branch Cancel then next Back and nested dirty dismissal preserve origin",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 14717,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 masters and employee employment assignments persist after reload",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 25645,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 legacy unassigned employee remains editable after masters exist",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 10088,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 company profile and bank accounts persist and dirty header Back protects origin",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 11973,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 logo uploads real PNG bytes and removal persists after reload",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 14680,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 branch save persists and completion consumes modal history",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12447,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 branch Cancel then next Back and nested dirty dismissal preserve origin",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 15861,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 masters and employee employment assignments persist after reload",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 19913,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "Phase1 legacy unassigned employee remains editable after masters exist",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 8887,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "protocol legacy employee save retains all six org fields through registered API and reload",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 10272,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "protocol two real logo editors fence stale file remove and ABA then persist explicit reapply",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16661,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "protocol legacy employee save retains all six org fields through registered API and reload",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 10561,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "protocol two real logo editors fence stale file remove and ABA then persist explicit reapply",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 17415,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roles HR employee keeps self-service while real backend denies admin reads, writes and pages",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 21933,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roles HR supervisor reviews team attendance but stays denied for HR administration",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16640,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roles HR employee keeps self-service while real backend denies admin reads, writes and pages",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 17475,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roles HR supervisor reviews team attendance but stays denied for HR administration",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 16763,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roster fixed shift UI saves and reloads while pristine Cancel consumes its entry",
+        "project": "hr-desktop",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 40120,
+            "annotations": [],
+            "error": "TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('dialog', { name: 'Add shift', exact: true }).getByLabel('Unpaid break (minutes)', { exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "roster real batch SHIFT OFF Clear persists and selected newly recorded cell can be removed",
+        "project": "hr-desktop",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 19731,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roster fixed shift UI saves and reloads while pristine Cancel consumes its entry",
+        "project": "hr-mobile",
+        "status": "unexpected",
+        "attempts": [
+          {
+            "status": "failed",
+            "durationMs": 38715,
+            "annotations": [],
+            "error": "TimeoutError: locator.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('dialog', { name: 'Add shift', exact: true }).getByLabel('Unpaid break (minutes)', { exact: true })\n"
+          }
+        ]
+      },
+      {
+        "title": "roster real batch SHIFT OFF Clear persists and selected newly recorded cell can be removed",
+        "project": "hr-mobile",
+        "status": "expected",
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 17085,
+            "annotations": []
+          }
+        ]
+      }
+    ]
   }
 ]

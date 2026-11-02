@@ -80,7 +80,9 @@ and after the supplied recovery fix: 68 Node fixtures, 60 route/error policies,
 309 exact state/overlay owners and 26 intents. Discovery passed: 396 Vitest
 files and 26 Playwright spec files. Pinned Bun 1.4.3 / embedded TS 7.0.2 installed
 from a cached public archive after the installer verified its pinned SHA-256.
-Next typegen/typechecks are serialized after browser teardown.
+After browser teardown, `pnpm typecheck:ts6` passed and then pinned
+`pnpm typecheck` passed (1,125 files). Their separate process journals confirm
+serialization; no browser/Next server overlapped either typegen/check.
 
 ## Actionable defects and reproducers
 
@@ -100,7 +102,7 @@ Run 1 reproduces payment on **both** projects. Run 2 independently reproduces
 personal, contact and offboard on desktop. All are retained as failed runs;
 they were not overwritten by the supplied fix's later acceptance.
 
-### Still open: leave approval consumes an old plan after roster OFF
+### Still open: leave/roster consistency after a pending request
 
 Permanent reproducer:
 `tests/integration/hr-parity/04-shifts-roster-leave.test.ts`.
@@ -111,12 +113,19 @@ discovery using this checkout's actual registered handlers.
    reserve one annual leave day for `2026-10-13` from its working plan.
 2. Assign roster OFF for that employee/date through `hr/roster:assignRoster`.
 3. Approve the retained request through `hr/leave:decide`.
-4. Expected: refuse `LEAVE_PLAN_STALE`; retain `used:0,reserved:1`; create no
-   attendance day. Actual: `written:true`, `used:1,reserved:0`, and a LEAVE
-   attendance day retaining the former 08:30–17:30 SCHEDULED plan.
+4. Expected consistency invariant: either refuse the conflicting roster change
+   or refuse approval after that change, without consuming the old-plan
+   reservation. Actual: both writes succeed; `used:1,reserved:0`, and a LEAVE
+   attendance day retains the former 08:30–17:30 SCHEDULED plan.
 
-This is a product defect reproduced in process, not a real active-leave browser
-pass. No local browser policy or shared/production policy was activated to make
+The original probe over-specified a proposed `LEAVE_PLAN_STALE` error. That
+error is not an existing API contract or an observed HRZoft rule: S04-22 leaves
+leave/OFF precedence unresolved. The final permanent test is policy-neutral and
+still fails on the observed dual-success/consumption sequence; a production fix
+can safely refuse either conflicting write. Earlier failed logs are retained.
+This is an observed consistency gap reproduced in process, not a real active-leave
+browser pass. The implementation lane must document its chosen precedence; this
+test lane does not implement or prescribe the production repair. No local browser policy or shared/production policy was activated to make
 this test pass. Production repair remains with the implementation lane.
 
 ### Corrected-head setup block: desktop dirty caller did not run

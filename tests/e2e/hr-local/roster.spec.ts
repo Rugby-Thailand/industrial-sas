@@ -38,7 +38,9 @@ test("roster fixed shift UI saves and reloads while pristine Cancel consumes its
     .fill("Synthetic morning shift");
   await dialog.getByLabel(/^Start(?: \*)?$/).fill("08:00");
   await dialog.getByLabel(/^End(?: \*)?$/).fill("17:00");
-  await dialog.getByLabel("Unpaid break (minutes)", { exact: true }).fill("60");
+  await dialog
+    .getByRole("spinbutton", { name: "Unpaid break (minutes)", exact: true })
+    .fill("60");
   await dialog.getByRole("button", { name: "Save shift", exact: true }).click();
   await expect(dialog).toBeHidden();
   await page.reload();
