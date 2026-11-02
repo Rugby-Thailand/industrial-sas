@@ -1,0 +1,9 @@
+# Final independent acceptance preflight
+
+Fresh isolated lane: t3-9c4080aa. Source c5d21eafbdb2f868de77ea8eb484c563ef476664 fast-forwarded with original history; exactly six requested test/evidence commits cherry-picked in order. Full mapping in source-map.json. No duplicate recovery/dependency commits, no production edits. Semantic integration removes the duplicate ConvexTestModule type-only import; the populated 1,550-row monthly read and deployed transaction-limit assertions remain intact.
+
+Read root resume, source combined/coordinator audits, previous Sol baseline/recording plan, AGENTS, installed Next navigation guide, Back contract and inventory. Independent inspection: roster reads bounded active claims per employee/month; validates every selected cell before domain writes; claimed dates are locked in query and refused in mutation. Claim release remains tied to withdrawal/return/cancellation. Approval validates each date with employmentOf/isEmployedOn before any attendance mutation, preserving pinned submission plans.
+
+Only nine explicit TEST fields privately transferred from previous Sol env. Fresh checkout-local anonymous Convex; no database copied. Harness verifies actual pinned Clerk user/org before seed or tickets. Services exclusively use guarded 3100/3320/3321, workers1 retries0, existing limits. Private logs/session diagnostics remain ignored. No push/deploy/PR, no shared demo writes or external identity policy changes.
+
+T3 preview_status returned available=false and no tabs. Initial about:blank open refused as invalid URL; this is not an unsupported-browser finding. Retry once with local app after service readiness before deciding recording fallback. qa-video methodology only, English, no Dr.Ease endpoints. Final recordings require actual passed flows, safe synthetic data, real backend readback and measured metadata.

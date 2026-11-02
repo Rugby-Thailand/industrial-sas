@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type * as ConvexTestModule from "convex-test";
 import { makeFunctionReference } from "convex/server";
 import type * as ConvexTestModule from "convex-test";
 import { MAX_PERIOD_EMPLOYEES } from "../../../convex/model/hr/period";

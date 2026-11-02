@@ -1,0 +1,436 @@
+{
+  "base": "a2e964e2045269231fc0df429d52cc51f53e2658",
+  "production": "c5d21eafbdb2f868de77ea8eb484c563ef476664",
+  "commits": [
+    {
+      "source": {
+        "sha": "08d6065b691f85ea5a6bab0a9b649c6668961198",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:14:15+07:00",
+        "subject": "feat(hr): Phase 1 organization and employment foundation"
+      },
+      "local": "08d6065b691f85ea5a6bab0a9b649c6668961198",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "75e0c371bcf7fe1bd3ab321136515f8a8ee8883f",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:23:12+07:00",
+        "subject": "fix(hr): object args for company logo command; keep slice-01 e2e out of discovery"
+      },
+      "local": "75e0c371bcf7fe1bd3ab321136515f8a8ee8883f",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "10da14271f319f9003a0b7d73ae9e462206e3641",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:40:25+07:00",
+        "subject": "fix(hr): reject partial logo uploads on removal"
+      },
+      "local": "10da14271f319f9003a0b7d73ae9e462206e3641",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "6fcd71317246997d37dda565bde58fb84590a924",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:58:31+07:00",
+        "subject": "fix(hr): preserve legacy employee fields and fence logo revisions"
+      },
+      "local": "6fcd71317246997d37dda565bde58fb84590a924",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "d28ab2645a622df61bd63056c4c152e2af02b2f8",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:00:28+07:00",
+        "subject": "docs(hr): record foundation protocol fix evidence and handoff"
+      },
+      "local": "d28ab2645a622df61bd63056c4c152e2af02b2f8",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "5cc53de69e6c4989d49868580c3ce45a5c9971d2",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:22:50+07:00",
+        "subject": "feat(hr): persist inactive work rule policy settings"
+      },
+      "local": "5cc53de69e6c4989d49868580c3ce45a5c9971d2",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "9cf1d1e3600fca60e9d395dd83dbe0780e539a38",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:25:47+07:00",
+        "subject": "docs(hr): record verified Kiro rules lane evidence"
+      },
+      "local": "9cf1d1e3600fca60e9d395dd83dbe0780e539a38",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "0a11827fa317826ee42914a80dc6df752b504e3f",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:40:08+07:00",
+        "subject": "feat(hr): employee profile, private payment details and lifecycle backend (S03)"
+      },
+      "local": "0a11827fa317826ee42914a80dc6df752b504e3f",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "22b474fd085e18c41e4b31ab1a0b4fdc46da4925",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:43:57+07:00",
+        "subject": "fix(hr): keep omitted profile/payment fields; clear only on explicit empty values (S03)"
+      },
+      "local": "22b474fd085e18c41e4b31ab1a0b4fdc46da4925",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "6f8a85e088917d3e894182c14de3ad7b7de3e0c1",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:55:01+07:00",
+        "subject": "feat(hr): employee profile, payment and lifecycle sections in the editor (S03)"
+      },
+      "local": "6f8a85e088917d3e894182c14de3ad7b7de3e0c1",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "7b9697f5e7f9b76ea971eaec54534e0e42958b9d",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:56:31+07:00",
+        "subject": "docs(hr): slice 03 spec and employee lifecycle evidence"
+      },
+      "local": "7b9697f5e7f9b76ea971eaec54534e0e42958b9d",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "fed39093366dcb207fbb738010dd27bde3662ee2",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:10:45+07:00",
+        "subject": "test(hr): combined integration snapshot and cross-lane lifecycle regression"
+      },
+      "local": "fed39093366dcb207fbb738010dd27bde3662ee2",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "88c2f1d5e1cc2918742a52d68409bbb7753d6f0d",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:15:21+07:00",
+        "subject": "docs(hr): record combined integration checkpoint evidence"
+      },
+      "local": "88c2f1d5e1cc2918742a52d68409bbb7753d6f0d",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "5e4fa0908139eab36e09763a827d595d0f1a95ec",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T22:25:35+07:00",
+        "subject": "test(hr): add guarded authenticated local browser harness"
+      },
+      "local": "5e4fa0908139eab36e09763a827d595d0f1a95ec",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "12bbe970ef8fa43194febbd85a96c333249b8b65",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:00:52+07:00",
+        "subject": "test(hr): verify organization and employment in real browsers"
+      },
+      "local": "12bbe970ef8fa43194febbd85a96c333249b8b65",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "1bd98f03cf4211a78feef38f1c4ddd7c4da15d81",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:07:34+07:00",
+        "subject": "test(hr): exercise legacy writes and two-editor logo fencing"
+      },
+      "local": "1bd98f03cf4211a78feef38f1c4ddd7c4da15d81",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "ed1bf4ee85da3553f689ee8d6b404dfdc333c0be",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:20:13+07:00",
+        "subject": "docs(hr): record real browser results and process cleanup"
+      },
+      "local": "ed1bf4ee85da3553f689ee8d6b404dfdc333c0be",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "a2c3ed32e93cfb92df52fad2118fc87373f612e0",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:26:09+07:00",
+        "subject": "fix(hr-e2e): refuse wildcard listeners, record dirty source, skip zero-write clock case"
+      },
+      "local": "a2c3ed32e93cfb92df52fad2118fc87373f612e0",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "03795a87bf953b86396075c9e31ed2d5570a68f2",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:38:42+07:00",
+        "subject": "test(hr-e2e): cover HR employee and supervisor roles with the genuine identity"
+      },
+      "local": "03795a87bf953b86396075c9e31ed2d5570a68f2",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "9f53077fc8f9b0d07dc5a315469a47e6b685dbb9",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:56:37+07:00",
+        "subject": "docs(hr): record combined browser validation, harness findings and cleanup"
+      },
+      "local": "9f53077fc8f9b0d07dc5a315469a47e6b685dbb9",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "bc314f886734f155b3e497a91b793021b3e938b9",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:35:30+07:00",
+        "subject": "fix(hr): retain employment intervals and validate lifecycle writes"
+      },
+      "local": "bc314f886734f155b3e497a91b793021b3e938b9",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "8bf821bcd30ea3ef95a33a94702a0799eba7fab7",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:47:25+07:00",
+        "subject": "fix(hr): pin employee editor sessions and restore safe recovery"
+      },
+      "local": "8bf821bcd30ea3ef95a33a94702a0799eba7fab7",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "6d4a498cfb8704c2a45a6995566f0a2c5dee4d87",
+        "author": "Rugby",
+        "authorDate": "2026-11-01T23:48:26+07:00",
+        "subject": "docs(hr): record employee hardening red-to-green evidence and cleanup"
+      },
+      "local": "6d4a498cfb8704c2a45a6995566f0a2c5dee4d87",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "4f776c1182c6c18c34dc50c26bb12af035fa0357",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T01:03:25+07:00",
+        "subject": "feat(hr): add fixed shifts and versioned date roster"
+      },
+      "local": "4f776c1182c6c18c34dc50c26bb12af035fa0357",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "fcc8ab26f83ca7bea068000672f73ca7a763d075",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T01:42:11+07:00",
+        "subject": "docs(hr): record verified S04 delivery and integration seam"
+      },
+      "local": "fcc8ab26f83ca7bea068000672f73ca7a763d075",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "e0fe30289da7e1236cc9cdaf48792d9a598b0ae0",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T02:28:22+07:00",
+        "subject": "test(hr): record reviewed internal staging/hrDemo:setLocalTestRoles contract"
+      },
+      "local": "e0fe30289da7e1236cc9cdaf48792d9a598b0ae0",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "7bf99fd7e6bf770e17be917971b7291a57a7d6a2",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T02:45:25+07:00",
+        "subject": "test(hr): roster refuses separation gaps and pre-employment dates atomically"
+      },
+      "local": "7bf99fd7e6bf770e17be917971b7291a57a7d6a2",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "288d187727ea6b0155a0e2f8923b969d6f6d9c7e",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T03:45:21+07:00",
+        "subject": "docs(hr): record S04 roster review and all-lane integration checkpoint"
+      },
+      "local": "288d187727ea6b0155a0e2f8923b969d6f6d9c7e",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "f673ece0482479436bedd930a255eaf753a15da2",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T07:12:29+07:00",
+        "subject": "fix(hr): batch monthly roster validation within production limits"
+      },
+      "local": "f673ece0482479436bedd930a255eaf753a15da2",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "1ff1e1d0a34a6c259a0d28982ade5f1965f09cb0",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T07:12:29+07:00",
+        "subject": "fix(hr): allow removal of newly locked roster selections"
+      },
+      "local": "1ff1e1d0a34a6c259a0d28982ade5f1965f09cb0",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "152049190bf1d3403f2a4200c4ed318451781ae4",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T07:12:29+07:00",
+        "subject": "fix(hr): state the supported 99-definition shift catalogue bound"
+      },
+      "local": "152049190bf1d3403f2a4200c4ed318451781ae4",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "322fda37ec1792d0bff19dcbea36317d881cac29",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T01:46:07+07:00",
+        "subject": "test(hr): independently review integrated employee hardening"
+      },
+      "local": "322fda37ec1792d0bff19dcbea36317d881cac29",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "63c5659728363b66068208ff2f6959fe218863b7",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T07:12:23+07:00",
+        "subject": "fix(hr): preserve employment drafts on section completion and exclude absent gap details"
+      },
+      "local": "63c5659728363b66068208ff2f6959fe218863b7",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "319f495b56b35652afff6c99a812124b1d81a142",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T01:44:47+07:00",
+        "subject": "test(hr): add independent employee browser acceptance and private auth diagnostics"
+      },
+      "local": "319f495b56b35652afff6c99a812124b1d81a142",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "9b6aaae807452b1d6335b1941fce549749f94bcc",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T02:58:02+07:00",
+        "subject": "test(hr): match required lifecycle reason accessible labels"
+      },
+      "local": "9b6aaae807452b1d6335b1941fce549749f94bcc",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "281c1e75ec288138b3b10a2d6351efe97c120b65",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T19:57:30+07:00",
+        "subject": "fix(hr): keep employee write recovery reachable after a version-advancing commit"
+      },
+      "local": "281c1e75ec288138b3b10a2d6351efe97c120b65",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "c5d21eafbdb2f868de77ea8eb484c563ef476664",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T20:30:21+07:00",
+        "subject": "fix(hr): protect leave captures from roster and employment changes"
+      },
+      "local": "c5d21eafbdb2f868de77ea8eb484c563ef476664",
+      "method": "fast-forward original commit"
+    },
+    {
+      "source": {
+        "sha": "43d026409daceadcb75c281b6ec6cfff568e186d",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T19:59:58+07:00",
+        "subject": "test(hr): preserve combined baseline mapping and extend independent acceptance probes"
+      },
+      "local": "d6dd33424bf75ee448b23d66dc41979af6442d6a",
+      "method": "cherry-pick test/evidence only"
+    },
+    {
+      "source": {
+        "sha": "9a826d53f7a08d5394272ea77ad06e8c012b4350",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T20:05:30+07:00",
+        "subject": "test(hr): verify version-advancing recovery and define final recording protocol"
+      },
+      "local": "96b251919605877747c28328ff82d1815c58117c",
+      "method": "cherry-pick test/evidence only"
+    },
+    {
+      "source": {
+        "sha": "3d2e6530bbe652b7eeec6b9fc3b2bc426ecbdfb2",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T20:13:58+07:00",
+        "subject": "test(hr): retain baseline failures and recovery-fix acceptance evidence"
+      },
+      "local": "37568897496eae305739d260638ff44459d954f2",
+      "method": "cherry-pick test/evidence only"
+    },
+    {
+      "source": {
+        "sha": "fad9e75e4095bed7deaea31ca664d27d6eafa257",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T20:17:02+07:00",
+        "subject": "docs(hr): record exact recovery browser outcome before final focused checks"
+      },
+      "local": "f71a4dcda8b47135e56367be5b8f9b2509a9e948",
+      "method": "cherry-pick test/evidence only"
+    },
+    {
+      "source": {
+        "sha": "0a07a193708b34fbb387b73c4f1feacadd265113",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T20:25:08+07:00",
+        "subject": "test(hr): retain foundation acceptance and correct focused shift locator"
+      },
+      "local": "532e212cf4e2c164aaa166e7f407e56e314ba40f",
+      "method": "cherry-pick test/evidence only"
+    },
+    {
+      "source": {
+        "sha": "b7e2afe357ee23ceb6538b65f9eeb8376d6c71d1",
+        "author": "Rugby",
+        "authorDate": "2026-11-02T20:35:06+07:00",
+        "subject": "docs(hr): complete bounded acceptance handoff and English recording plan"
+      },
+      "local": "41d8ec472e1d451a1aa4f4f96b5f1ef2d8fde265",
+      "method": "cherry-pick test/evidence only"
+    }
+  ]
+}
