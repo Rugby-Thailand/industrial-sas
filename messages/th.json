@@ -3237,7 +3237,7 @@
       "subDistrict": "ตำบล/แขวง",
       "postcode": "รหัสไปรษณีย์",
       "bankAccounts": "บัญชีธนาคาร",
-      "bankAccountsHint": "บัญชีแรกเป็นบัญชีหลักที่แสดงในสลิปเงินเดือน",
+      "bankAccountsHint": "บัญชีแรกจะถูกบันทึกเป็นบัญชีหลัก",
       "account": "บัญชี {number}",
       "bankName": "ธนาคาร",
       "accountNo": "เลขที่บัญชี",

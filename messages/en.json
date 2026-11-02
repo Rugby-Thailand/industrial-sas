@@ -3237,7 +3237,7 @@
       "subDistrict": "Sub-district",
       "postcode": "Postcode",
       "bankAccounts": "Bank accounts",
-      "bankAccountsHint": "The first account is the primary account on payslips.",
+      "bankAccountsHint": "The first account is stored as the primary account.",
       "account": "Account {number}",
       "bankName": "Bank",
       "accountNo": "Account number",
