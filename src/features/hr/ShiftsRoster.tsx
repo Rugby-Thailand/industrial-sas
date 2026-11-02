@@ -876,7 +876,7 @@ function RosterAssignment({
       const next = new Map(current);
       const key = `${employeeId}:${cell.date}`;
       if (next.has(key)) next.delete(key);
-      else
+      else if (cell.lock === null)
         next.set(key, {
           employeeId,
           date: cell.date,
@@ -1127,7 +1127,7 @@ function RosterGrid({
                             ? name
                             : `${name}. ${t(`locks.${cell.lock}`)}`
                         }
-                        disabled={cell.lock !== null}
+                        disabled={cell.lock !== null && !isSelected}
                         title={
                           cell.lock === null
                             ? undefined

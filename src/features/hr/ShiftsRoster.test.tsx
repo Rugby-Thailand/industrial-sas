@@ -518,3 +518,48 @@ it("header Back asks before discarding a roster selection, then the next Back re
     expect(here()).toBe("/en/hr/settings?section=organization#team"),
   );
 });
+it("a selected cell that becomes locked can be removed while retaining the other observed revisions", async () => {
+  const view = open(HrRosterScreen, "/en/hr/roster#grid");
+  fireEvent.click(screen.getByRole("button", { name: "Assign shifts" }));
+  const bar = await screen.findByRole("form", {
+    name: "Assign shifts to selected dates",
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-21/ }));
+  expect(within(bar).getByRole("status")).toHaveTextContent("1 date selected");
+  fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-22/ }));
+  // Attendance is captured for 2026-10-21 by another user: the server now
+  // refuses every action on that date (ROSTER_DAY_RECORDED).
+  const locked = rosterValue();
+  locked.employees[0]!.cells[2]!.revision = 7;
+  locked.employees[0]!.cells[1] = {
+    ...locked.employees[0]!.cells[1]!,
+    recorded: true,
+    lock: "RECORDED",
+  };
+  state.queries.set(getFunctionName(hrRefs.roster), query(locked));
+  view.rerender(
+    <DraftGuardProvider>
+      <main>
+        <HrRosterScreen />
+      </main>
+    </DraftGuardProvider>,
+  );
+  const cell = screen.getByRole("button", { name: /Somchai, 2026-10-21/ });
+  expect(cell).toHaveAttribute("aria-pressed", "true");
+  expect(cell).toBeEnabled();
+  fireEvent.click(cell);
+  expect(cell).toHaveAttribute("aria-pressed", "false");
+  expect(cell).toBeDisabled();
+  expect(within(bar).getByRole("status")).toHaveTextContent("1 date selected");
+  fireEvent.click(within(bar).getByRole("combobox"));
+  fireEvent.click(await screen.findByRole("option", { name: "OFF" }));
+  mutation(hrRefs.assignRoster).mockResolvedValue(saved("assignment"));
+  fireEvent.click(within(bar).getByRole("button", { name: "Save assignment" }));
+  await waitFor(() =>
+    expect(mutation(hrRefs.assignRoster)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cells: [{ employeeId: "e1", date: "2026-10-22", expectedRevision: 0 }],
+      }),
+    ),
+  );
+});

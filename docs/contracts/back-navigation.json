@@ -8593,6 +8593,10 @@
       "cases": [
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "a selected cell that becomes locked can be removed while retaining the other observed revisions"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
           "name": "roster assignment Cancel consumes its step before the next native Back restores the caller with locale, query and hash"
         },
         {
