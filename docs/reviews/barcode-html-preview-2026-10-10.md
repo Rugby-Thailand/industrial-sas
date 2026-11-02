@@ -1,8 +1,10 @@
 # Barcode HTML preview verification
 
+> Retired on 2026-11-03: the standalone demo has been removed. This document records its original plan or verification; production scanning and the maintained benchmark tools remain.
+
 Date: 2026-10-10. Result: interactive preview complete; production application unchanged by this work.
 
-The [preview source](../../src/features/finishedGoods/jobScan/_prototype/barcode/README.md) provides location selection and product/JOB scanning in the existing warehouse shell. Thai and English, dark and light, independent image/camera acquisition, seven manual optional fields, field scanner dialogs, explicit replacement confirmation, and an in-memory save receipt are included. The [plan](../plans/barcode-html-preview-2026-10-10.md) was saved before implementation.
+The [historical preview source](https://github.com/Rugby-Thailand/industrial-sas/blob/e37b600929a91cac0c5b3fa465098a902f7b50f4/src/features/finishedGoods/jobScan/_prototype/barcode/README.md) provides location selection and product/JOB scanning in the existing warehouse shell. Thai and English, dark and light, independent image/camera acquisition, seven manual optional fields, field scanner dialogs, explicit replacement confirmation, and an in-memory save receipt are included. The [plan](../plans/barcode-html-preview-2026-10-10.md) was saved before implementation.
 
 Verified in the T3 collaborative browser:
 

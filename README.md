@@ -37,6 +37,13 @@ Run `pnpm check`, `pnpm build`, and `pnpm audit:prod` before releasing.
 `pnpm format:check` checks formatting. Physical camera scanning still requires
 a device check.
 
+Put new throwaway previews, raw captures, recordings, and generated review
+reports under the ignored `output/` directory. Keep maintained source,
+selected design evidence, and concise decisions in the repository. When
+retiring a preview, update its documentation links and remove only its own
+tests; preserve coverage for shared or maintained tools. See the
+[cleanup audit](docs/reviews/repository-cleanup-2026-11-03.md) for the first pass.
+
 `pnpm typecheck` generates Next route types and then runs Bun's standalone
 TypeScript checker (`bun --check`, TypeScript 7.0.2 semantics). It needs the
 exact Bun in `.bun-version` (1.4.3) first on `PATH`; install it with
