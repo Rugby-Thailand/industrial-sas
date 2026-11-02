@@ -7,7 +7,7 @@ import { requireHrPortFree } from "../../scripts/lib/hr-e2e-ports.mjs";
 
 const local = {
   CONVEX_DEPLOYMENT: "anonymous:anonymous-agent",
-  NEXT_PUBLIC_APP_URL: "http://localhost:3100",
+  NEXT_PUBLIC_APP_URL: "http://localhost:3110",
   NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3320",
   NEXT_PUBLIC_CONVEX_SITE_URL: "http://127.0.0.1:3321",
   ALLOW_LOCAL_TEST_SEED: "true",
@@ -24,7 +24,8 @@ describe("real HR browser harness destination guards", () => {
     ["CONVEX_DEPLOYMENT", "prod:customer"],
     ["CONVEX_DEPLOYMENT", "dev:shared"],
     ["NEXT_PUBLIC_APP_URL", "https://production.example.com"],
-    ["NEXT_PUBLIC_APP_URL", "http://localhost:3100@evil.example"],
+    ["NEXT_PUBLIC_APP_URL", "http://localhost:3110@evil.example"],
+    ["NEXT_PUBLIC_APP_URL", "http://localhost:3100"],
     ["NEXT_PUBLIC_CONVEX_URL", "https://shared.convex.cloud"],
     ["NEXT_PUBLIC_CONVEX_URL", "http://127.0.0.1:3210"],
     ["NEXT_PUBLIC_CONVEX_SITE_URL", "https://shared.convex.site"],

@@ -175,7 +175,7 @@ export async function authCheckpoint(
       status: window.Clerk?.session?.status ?? null,
     }))
     .catch(() => null);
-  const cookies = await page.context().cookies("http://localhost:3100");
+  const cookies = await page.context().cookies("http://localhost:3110");
   const cookieMetadata = cookies
     .filter(
       (cookie) =>

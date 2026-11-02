@@ -115,7 +115,7 @@ try {
       "HR_E2E_RUN_LOCKED; another run or an unreviewed stale lock exists",
     );
   }
-  for (const port of [3100, 3320, 3321]) await requireHrPortFree(port);
+  for (const port of [3110, 3320, 3321]) await requireHrPortFree(port);
   const backendLog = `${directory}/backend.log`;
   const output = openSync(backendLog, "w", 0o600);
   const backend = start(

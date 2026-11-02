@@ -24,7 +24,7 @@ export function assertHrEnvironment(env) {
   if (!/^anonymous:anonymous-[a-z0-9-]+$/.test(env.CONVEX_DEPLOYMENT ?? ""))
     refuse("CONVEX_DEPLOYMENT");
   for (const [name, expected] of [
-    ["NEXT_PUBLIC_APP_URL", "http://localhost:3100"],
+    ["NEXT_PUBLIC_APP_URL", "http://localhost:3110"],
     ["NEXT_PUBLIC_CONVEX_URL", "http://127.0.0.1:3320"],
     ["NEXT_PUBLIC_CONVEX_SITE_URL", "http://127.0.0.1:3321"],
   ]) {

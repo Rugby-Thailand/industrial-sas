@@ -14,7 +14,7 @@ designated development Clerk instance's existing test keys privately:
 
 ```dotenv
 CONVEX_DEPLOYMENT=anonymous:anonymous-agent
-NEXT_PUBLIC_APP_URL=http://localhost:3100
+NEXT_PUBLIC_APP_URL=http://localhost:3110
 NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3320
 NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3321
 ALLOW_LOCAL_TEST_SEED=true
@@ -42,7 +42,7 @@ pnpm exec playwright test --config playwright.hr-local.config.ts --list
 
 The runner starts its own anonymous Convex instance on 3320/3321, configures its
 Clerk issuer and seed opt-in, waits for the real functions, and runs Playwright.
-Playwright owns a separate `.next-e2e` Next build on localhost:3100. Services and
+Playwright owns a separate `.next-e2e` Next build on localhost:3110. Services and
 their process groups are stopped on success, failure, SIGINT or SIGTERM. The
 runner refuses to reuse or stop existing services. Overall timeout is 20 minutes.
 Do not run multiple suites against the pinned test account/database concurrently.

@@ -8,7 +8,7 @@ import { loadHrEnvironment } from "./scripts/lib/hr-e2e-env.mjs";
 // CI discovery has no credentials and never executes setup or a server.
 // Every executable run still validates before any service/authentication.
 if (!process.argv.includes("--list")) loadHrEnvironment();
-const baseURL = "http://localhost:3100";
+const baseURL = "http://localhost:3110";
 mkdirSync("test-results/hr-local", { recursive: true, mode: 0o700 });
 chmodSync("test-results/hr-local", 0o700);
 
@@ -60,7 +60,7 @@ export default defineConfig({
     { name: "hr-mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: "pnpm exec next dev --webpack --hostname localhost --port 3100",
+    command: "pnpm exec next dev --webpack --hostname localhost --port 3110",
     url: `${baseURL}/en/sign-in`,
     reuseExistingServer: false,
     timeout: 120_000,
