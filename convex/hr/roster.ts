@@ -9,8 +9,10 @@
  *
  * Immutable recorded plan rule: a date that already has an attendance day
  * (its plan was captured) or lies in a closed period is refused for every
- * action, including clear, and the whole command writes nothing. There is
- * no retroactive recalculation here (S04-21 stays deferred).
+ * action, including clear, and the whole command writes nothing. A date
+ * claimed by an active leave request (whose submission captured the plan)
+ * is refused the same way until the request is withdrawn or returned. There
+ * is no retroactive recalculation here (S04-21 stays deferred).
  */
 import { v } from "convex/values";
 
@@ -263,6 +265,34 @@ const closedCovering = (
       compareDates(date, period.endDate) <= 0,
   );
 
+/**
+ * Dates of one employee in `[from, to]` claimed by an active leave request
+ * (pending, approved or awaiting cancellation). A pending request captured
+ * each date's plan at submission and approval writes that plan, so the
+ * roster must not change it underneath; one bounded range read per employee.
+ */
+async function leaveClaimedDates(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  from: IsoDate,
+  to: IsoDate,
+  bound: number,
+): Promise<ReadonlySet<string>> {
+  const claims = await ctx.tenantDb
+    .byIndex<Doc<"hrLeaveDayClaims">>(
+      "hrLeaveDayClaims",
+      "by_orgId_employeeId_businessDate",
+      [{ field: "employeeId", value: employeeId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(bound);
+  return new Set(claims.map((claim) => claim.businessDate));
+}
+
 const includes = (value: string, search: string) =>
   value.toLocaleLowerCase().includes(search.toLocaleLowerCase());
 
@@ -331,6 +361,13 @@ export const roster = queryWithOrg({
         first,
         last,
       );
+      const claimed = await leaveClaimedDates(
+        ctx,
+        employee._id,
+        first,
+        last,
+        dates.length * 2,
+      );
       const cells = await Promise.all(
         dates.map(async (date) => {
           const revisionRow = rows.get(date);
@@ -356,9 +393,11 @@ export const roster = queryWithOrg({
               ? "PERIOD_CLOSED"
               : (await hasFrozenPlan(ctx, employee._id, date))
                 ? "FROZEN"
-                : eligibility !== "OK"
-                  ? eligibility
-                  : null;
+                : claimed.has(date)
+                  ? "LEAVE_CLAIMED"
+                  : eligibility !== "OK"
+                    ? eligibility
+                    : null;
           return {
             date,
             revision: revisionRow?.revision ?? 0,
@@ -504,6 +543,7 @@ export const assignRoster = mutationWithOrg({
         const employees = new Map<string, Employee | null>();
         const rosterRows = new Map<string, ReadonlyMap<IsoDate, RosterRow>>();
         const recordedDates = new Map<string, ReadonlySet<string>>();
+        const claimedDates = new Map<string, ReadonlySet<string>>();
         const plans: { row: RosterRow | null; cell: (typeof args.cells)[0] }[] =
           [];
         // Validate everything first: a refusal must leave no partial write.
@@ -555,6 +595,16 @@ export const assignRoster = mutationWithOrg({
               employee._id,
               new Set(days.map((day) => day.businessDate)),
             );
+            claimedDates.set(
+              employee._id,
+              await leaveClaimedDates(
+                ctx,
+                employee._id,
+                dates[0]!,
+                dates[dates.length - 1]!,
+                dates.length * 2,
+              ),
+            );
           }
           if (recordedDates.get(employee._id)!.has(cell.date))
             return fail("ROSTER_DAY_RECORDED", "cells", reason);
@@ -562,6 +612,10 @@ export const assignRoster = mutationWithOrg({
             return fail("PERIOD_CLOSED", "cells", reason);
           if (await hasFrozenPlan(ctx, employee._id, cell.date))
             return fail("ROSTER_DAY_FROZEN", "cells", reason);
+          // A pending request's captured plan would otherwise be written
+          // back over this change on approval (and the day consumed).
+          if (claimedDates.get(employee._id)!.has(cell.date))
+            return fail("ROSTER_DAY_LEAVE_CLAIMED", "cells", reason);
           const row = rosterRows.get(employee._id)!.get(cell.date) ?? null;
           if ((row?.revision ?? 0) !== cell.expectedRevision)
             return fail("ROSTER_STALE", "cells", reason);

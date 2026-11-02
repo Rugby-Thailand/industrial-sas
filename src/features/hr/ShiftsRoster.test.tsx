@@ -563,3 +563,25 @@ it("a selected cell that becomes locked can be removed while retaining the other
     ),
   );
 });
+it("a date covered by a pending leave request is shown locked and cannot be selected", async () => {
+  const value = rosterValue();
+  value.employees[0]!.cells[1] = {
+    ...value.employees[0]!.cells[1]!,
+    lock: "LEAVE_CLAIMED",
+  };
+  state.queries.set(getFunctionName(hrRefs.roster), query(value));
+  open(HrRosterScreen, "/en/hr/roster");
+  fireEvent.click(screen.getByRole("button", { name: "Assign shifts" }));
+  const bar = await screen.findByRole("form", {
+    name: "Assign shifts to selected dates",
+  });
+  const cell = screen.getByRole("button", {
+    name: /Somchai, 2026-10-21.*A leave request covers this date; the plan is fixed/,
+  });
+  expect(cell).toBeDisabled();
+  fireEvent.click(cell);
+  expect(cell).toHaveAttribute("aria-pressed", "false");
+  expect(within(bar).getByRole("status")).toHaveTextContent(
+    "No dates selected",
+  );
+});

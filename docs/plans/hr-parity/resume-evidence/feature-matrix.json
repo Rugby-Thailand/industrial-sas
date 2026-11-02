@@ -1,0 +1,1818 @@
+[
+  {
+    "feature": "S01-01 Company profile screen with name, EN name and tax ID",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "convex/hr/org.ts saveCompanyProfile; HrCompanyProfile.tsx; tests/integration/hr-parity/01-org-positions.test.ts; tests/e2e/hr-local/foundation.spec.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance on corrected source"
+  },
+  {
+    "feature": "S01-02 Company address block: address + EN, province/district/sub-district/postcode",
+    "slice": "01-org-positions",
+    "implementationStatus": "partial",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "hrCompanyProfiles address block; tests/integration/hr-parity/01-org-positions.test.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Thai province/district/sub-district masters are plain text"
+  },
+  {
+    "feature": "S01-03 Company bank accounts, add and remove multiple",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "bankAccounts[] in company profile; tests/integration/hr-parity/01-org-positions.test.ts; tests/e2e/hr-local/foundation.spec.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance on corrected source"
+  },
+  {
+    "feature": "S01-04 Company contact and logo: phone, fax, logo upload",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "saveCompanyLogo; phone/fax fields; tests/e2e/hr-local/foundation.spec.ts logo case (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Real logo upload against deployed Convex not done"
+  },
+  {
+    "feature": "S01-05 Company selector and affiliated-company group entry",
+    "slice": "01-org-positions",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Deferred in 01-org-positions/IMPLEMENTATION.md (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Depends on unknown multi-company model (S01-24)"
+  },
+  {
+    "feature": "S01-06 Thai tax ID validated as 13 digits",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "taxId exactly 13 ASCII digits; tests/integration/hr-parity/01-org-positions.test.ts (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "No check-digit validation"
+  },
+  {
+    "feature": "S01-07 Company tax ID / address / bank feed payroll and tax documents",
+    "slice": "01-org-positions",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Payslip document carries company employer block (convex/hr/payslips.ts) (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "No payroll/tax documents exist to feed (slice 08 missing)"
+  },
+  {
+    "feature": "S01-08 Branch list with an add-branch action",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "HrBranches.tsx; tests/e2e/hr-local/foundation.spec.ts branch cases (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance"
+  },
+  {
+    "feature": "S01-09 Branch form: Revenue-Dept branch number and SSO employer account",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "revenueBranchNo + ssoEmployerAccount; tests/integration/hr-parity/01-org-positions.test.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance"
+  },
+  {
+    "feature": "S01-10 Branch form: address, EN name, type and active toggle",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "branch address/nameEn/type/status; tests/integration/hr-parity/01-org-positions.test.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Address masters plain text"
+  },
+  {
+    "feature": "S01-11 Branch Revenue and SSO codes are required and format-checked",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "revenueBranchNo 5 digits and SSO format checks; tests/integration/hr-parity/01-org-positions.test.ts (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "Formats are engineering guards, not agency-verified"
+  },
+  {
+    "feature": "S01-12 Inactive branch is hidden from new assignment but kept for history",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "*Options({currentId}) keep current inactive; tests/integration/hr-parity/01-org-positions.test.ts (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S01-13 Department (แผนก) is a selectable master on the employee employment tab",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "hrDepartments + EmployeeForm departmentOptions; tests/e2e/hr-local/foundation.spec.ts masters case (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance"
+  },
+  {
+    "feature": "S01-14 Position (ตำแหน่ง) is a selectable master on the employee employment tab",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "hrPositions + EmployeeForm; tests/e2e/hr-local/foundation.spec.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance"
+  },
+  {
+    "feature": "S01-15 Position level (ระดับ) selectable on the employee",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "hrPositionLevels + EmployeeForm levelOptions; tests/e2e/hr-local/foundation.spec.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Rerun browser acceptance"
+  },
+  {
+    "feature": "S01-16 Supervisor (หัวหน้างาน) assignable on the employee",
+    "slice": "01-org-positions",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "supervisorUserId on EmployeeForm (pre-existing) (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Not re-audited against HRZoft picker"
+  },
+  {
+    "feature": "S01-17 Branch and workplace selectable on the employee (สาขา, สถานที่ทำงาน)",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "branchId (legal branch) + existing warehouse workplace; tests/e2e/hr-local/foundation.spec.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S01-18 Employment status and type with probation (สถานะการจ้าง, ประเภทการจ้าง)",
+    "slice": "01-org-positions",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "employmentType PERMANENT|FIXED_TERM, probationEndDate; lifecycle states; tests/integration/hr-parity/01-org-positions.test.ts; tests/integration/hr-parity/03-employee-offboard.test.ts (research label seen; spec 01-org-positions/spec.md)",
+    "remaining": "Status remains ACTIVE/INACTIVE plus derived lifecycle states; no full HRZoft status set"
+  },
+  {
+    "feature": "S01-19 Department and position are required when saving an employee",
+    "slice": "01-org-positions",
+    "implementationStatus": "partial",
+    "verificationLevel": "prior real-browser pass on an older revision (combined run 2 @03795a87, 39 passed/1 failed/2 skipped overall); not rerun on this exact source",
+    "evidence": "requiresAssignment in convex/hr/org.ts; tests/e2e/hr-local/foundation.spec.ts legacy case (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "Legacy ACTIVE employees without assignment still save; stricter rule (P1-2) unconfirmed"
+  },
+  {
+    "feature": "S01-20 Position level drives approval routing / hierarchy",
+    "slice": "01-org-positions",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "DUP → S06-13 (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "Multi-step position-based approval routing not built"
+  },
+  {
+    "feature": "S01-21 Supervisor chosen from existing members and cannot be the employee's own account",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "saveEmployee refuses self as supervisor; tests/integration/hr-parity/01-org-positions.test.ts (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S01-22 A manager's responsible departments and subordinates are derivable",
+    "slice": "01-org-positions",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "convex/hr/org.ts managementView; tests/integration/hr-parity/01-org-positions.test.ts (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "API only; no UI consumer"
+  },
+  {
+    "feature": "S01-23 Employee code is a year-prefixed running number",
+    "slice": "01-org-positions",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "suggestEmployeeCode YY##### used by EmployeeForm; tests/integration/hr-parity/01-org-positions.test.ts (research label guess; spec 01-org-positions/spec.md)",
+    "remaining": "Configurable formats are S01-25"
+  },
+  {
+    "feature": "S01-24 Affiliated-company (บริษัทในเครือ) group structure and fields",
+    "slice": "01-org-positions",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 01-org-positions/spec.md)",
+    "remaining": "Affiliated-company model never observed"
+  },
+  {
+    "feature": "S01-25 Configurable document / running-number format (prefix, reset period)",
+    "slice": "01-org-positions",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 01-org-positions/spec.md)",
+    "remaining": "Running-number format rules never observed"
+  },
+  {
+    "feature": "S02-01 Show late, very-late and absent minute thresholds",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Stored workRules thresholds (inactive); convex/model/hr/workRules.ts; tests/integration/hr-work-rules-policy.integration.test.ts; docs/plans/hr-parity/02-rules-calendar-roles/work-rules-foundation.md (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Settings-only: backend storage, no admin UI, no classification"
+  },
+  {
+    "feature": "S02-02 Expose the lateness-grace checkbox",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Stored grace flag (inactive); convex/model/hr/workRules.ts; tests/integration/hr-work-rules-policy.integration.test.ts; docs/plans/hr-parity/02-rules-calendar-roles/work-rules-foundation.md (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Settings-only: no UI, no grace arithmetic"
+  },
+  {
+    "feature": "S02-03 Expose mobile-only attendance selection",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "— (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Mobile-only attendance not modelled"
+  },
+  {
+    "feature": "S02-04 Show repeat-scan guard with seconds as its unit",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing repeat-clock guard (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Seconds-unit configuration not exposed"
+  },
+  {
+    "feature": "S02-05 Separate probation days and three retirement ages",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing probation fields (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Retirement ages not modelled"
+  },
+  {
+    "feature": "S02-06 Expose four signed penalty-point fields",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "— (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Penalty points not modelled"
+  },
+  {
+    "feature": "S02-07 Classify minute thresholds with explicit boundaries",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "WORK_RULES_EXECUTION.attendanceClassification = INACTIVE (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "No attendance classification engine"
+  },
+  {
+    "feature": "S02-08 Enforce mobile-only attendance and repeat-scan guard",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing repeat-clock guard (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Mobile-only enforcement missing"
+  },
+  {
+    "feature": "S02-09 Compute points from the final attendance classification",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "— (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "No penalty-point computation"
+  },
+  {
+    "feature": "S02-10 Group automatic OT, minimum and maximum settings",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Stored OT timing/minimum/maximum (inactive; automatic OT true refused); convex/model/hr/workRules.ts; tests/integration/hr-work-rules-policy.integration.test.ts; docs/plans/hr-parity/02-rules-calendar-roles/work-rules-foundation.md (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Settings-only: no UI; OT engine missing"
+  },
+  {
+    "feature": "S02-11 Expose OT rounding direction and interval",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Stored DOWN rounding (inactive); convex/model/hr/workRules.ts; tests/integration/hr-work-rules-policy.integration.test.ts; docs/plans/hr-parity/02-rules-calendar-roles/work-rules-foundation.md (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Settings-only: no rounding applied"
+  },
+  {
+    "feature": "S02-12 Show OT eligibility criteria and excluded groups",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Stored eligibility preferences, opaque group keys; convex/model/hr/workRules.ts; tests/integration/hr-work-rules-policy.integration.test.ts; docs/plans/hr-parity/02-rules-calendar-roles/work-rules-foundation.md (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Settings-only: no eligibility enforcement"
+  },
+  {
+    "feature": "S02-13 Apply explicit OT eligibility, minimum, cap and round-down rules",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "WORK_RULES_EXECUTION.overtimeEligibility INACTIVE, overtimeCalculation UNSUPPORTED (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "OT calculation engine missing"
+  },
+  {
+    "feature": "S02-14 Distinguish 1x additional holiday pay, 1.5x OT, 2x holiday pay and 3x holiday OT",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "payroll UNSUPPORTED (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Holiday/OT pay multipliers need legal review; no engine"
+  },
+  {
+    "feature": "S02-15 Show year-filtered holiday table with bilingual names, type and status",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing site holidays (HolidaysScreen) (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "No bilingual name/type/status table"
+  },
+  {
+    "feature": "S02-16 Open holiday editor with date, names, type and two OT multipliers",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing holiday editor (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "No type or OT multipliers"
+  },
+  {
+    "feature": "S02-17 Open named calendar creation with English name and description",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "— (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Named holiday calendars not modelled"
+  },
+  {
+    "feature": "S02-18 Copy a holiday calendar into another year",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Copy-calendar behaviour unobserved"
+  },
+  {
+    "feature": "S02-19 Keep holiday effects isolated between branches/sites",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "delivered",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Holidays keyed by warehouse/site (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Not re-verified in this audit"
+  },
+  {
+    "feature": "S02-20 Show a per-menu view/edit/delete permission matrix",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing HR roles/access (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "No per-menu view/edit/delete matrix"
+  },
+  {
+    "feature": "S02-21 Select a role before inspecting its permissions",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing access screen (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S02-22 Display employee visibility scopes separately from approval-related capabilities",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing scope modes (research label seen; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S02-23 Enforce granular capabilities together with site and reporting scope",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Pre-existing permission + site scope checks (research label guess; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S02-24 Determine HRZoft effective rights and scope precedence per role",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "HRZoft precedence unobserved"
+  },
+  {
+    "feature": "S02-25 Determine automatic probation/retirement transitions and grace-minute arithmetic",
+    "slice": "02-rules-calendar-roles",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 02-rules-calendar-roles/spec.md)",
+    "remaining": "Automatic probation/retirement and grace arithmetic undecided"
+  },
+  {
+    "feature": "S03-01 Employee list shows the 12 HRZoft columns",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Existing employee list (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "12 HRZoft columns deferred"
+  },
+  {
+    "feature": "S03-02 Employment-status filter defaults to Active and is adjustable",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Default filter = current (active, probation, legacy inactive); tests/integration/hr-parity/03-employee-offboard.test.ts (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Not HRZoft's exact Active default"
+  },
+  {
+    "feature": "S03-03 Free-text search over employees",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Search preserved under new default; tests/integration/hr-parity/03-employee-offboard.test.ts (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S03-04 Employee module sub-tabs",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (employee-lifecycle.md) (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Module sub-tabs"
+  },
+  {
+    "feature": "S03-05 Column-display picker, hide-amounts toggle and card/table view switch",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "— (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Column picker, hide amounts, card/table switch deferred"
+  },
+  {
+    "feature": "S03-06 Pagination with page size and a total count",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Existing pagination (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Total count/page size parity deferred"
+  },
+  {
+    "feature": "S03-07 Row chrome: code, avatar and main-account crown",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "— (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Avatar/crown chrome deferred"
+  },
+  {
+    "feature": "S03-08 Bulk actions on selected employees",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 03-employee-offboard/spec.md)",
+    "remaining": "Bulk actions unobserved"
+  },
+  {
+    "feature": "S03-09 Profile opens as a tabbed page (15 tabs)",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "jsdom caller tests only",
+    "evidence": "Sections on the existing editor page; src/features/hr/EmployeeProfileSections.test.tsx (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Layout partial: not 15 tabs"
+  },
+  {
+    "feature": "S03-10 Personal-info tab fields",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "EmployeeProfileSections personal; tests/integration/hr-parity/employee-hardening*.test.ts; src/features/hr/EmployeeProfileSections.test.tsx (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Field subset only (see employee-lifecycle.md)"
+  },
+  {
+    "feature": "S03-11 Contact tab fields",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "contact section; tests/integration/hr-parity/employee-hardening*.test.ts; src/features/hr/EmployeeProfileSections.test.tsx (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "No LINE name, district/sub-district masters"
+  },
+  {
+    "feature": "S03-12 Emergency contact on the contact tab",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "emergency contact section; tests/integration/hr-parity/employee-hardening*.test.ts; src/features/hr/EmployeeProfileSections.test.tsx (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Mobile browser acceptance pending"
+  },
+  {
+    "feature": "S03-13 Bank account on the salary tab",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "payment section, admin-only masking; COMMITTED/FENCED reload recovery fixed in 281c1e75 (src/features/hr/EmployeeProfileSections.test.tsx) (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Browser rerun of committed-reload recovery on corrected source pending"
+  },
+  {
+    "feature": "S03-14 Salary tab is present (amount/effective/reason) — presence only",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Salary tab"
+  },
+  {
+    "feature": "S03-15 Documents tab is present",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Documents tab"
+  },
+  {
+    "feature": "S03-16 Open an edit form and Cancel without persisting",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Profile/payment/lifecycle dialogs Cancel without persisting; src/features/hr/EmployeeProfileSections.test.tsx (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S03-17 Probation confirmation transition (`วันที่บรรจุ`) reflected on the list status",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "recordEmploymentEvent CONFIRM_PROBATION; tests/integration/hr-parity/03-employee-offboard.test.ts (research label guess; spec 03-employee-offboard/spec.md)",
+    "remaining": "Lifecycle browser acceptance not achieved"
+  },
+  {
+    "feature": "S03-18 Employment-status transition with an effective change history",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "Append-only hrEmploymentEvents; tests/integration/hr-parity/03-employee-offboard.test.ts (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "Immediate effect only; no scheduled/as-of reads"
+  },
+  {
+    "feature": "S03-19 Offboarding sets a terminal status and a last day (`วันสิ้นสุดสัญญา`)",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "OFFBOARD lastWorkingDate < today; tests/integration/hr-parity/03-employee-offboard.test.ts (research label guess; spec 03-employee-offboard/spec.md)",
+    "remaining": "Lifecycle browser acceptance not achieved"
+  },
+  {
+    "feature": "S03-20 Offboarded employees drop from the default (Active) list",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Default list excludes offboarded; tests/integration/hr-parity/03-employee-offboard.test.ts (research label seen; spec 03-employee-offboard/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S03-21 Offboarding captures resignation/termination type and a reason",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "delivered",
+    "verificationLevel": "integration + caller; prior employee browser run acceptance-run2 had 2 expected/2 unexpected/1 skipped (desktop persistence passed; mobile/lifecycle not accepted)",
+    "evidence": "separationType + private reason; tests/integration/hr-parity/03-employee-offboard.test.ts (research label guess; spec 03-employee-offboard/spec.md)",
+    "remaining": "Lifecycle browser acceptance not achieved"
+  },
+  {
+    "feature": "S03-22 Offboarding settles final leave balances",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred; pending leave after separation is now refused at approval (LEAVE_EMPLOYMENT_CHANGED) but not settled (research label guess; spec 03-employee-offboard/spec.md)",
+    "remaining": "Final leave settlement"
+  },
+  {
+    "feature": "S03-23 Offboarding disables the employee's system login/access",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "blocked",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Offboarding leaves users/memberships/roles unchanged (asserted) (research label unknown; spec 03-employee-offboard/spec.md)",
+    "remaining": "HRZoft login behaviour unknown"
+  },
+  {
+    "feature": "S03-24 Employee Excel import/update + list export from the Add-employee menu",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label guess; spec 03-employee-offboard/spec.md)",
+    "remaining": "Excel import/export"
+  },
+  {
+    "feature": "S03-25 Linked self-service account (`ตั้งค่าบัญชี`, `ฉัน`/`ทีมงาน`)",
+    "slice": "03-employee-offboard",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Account link survives offboarding (asserted) (research label guess; spec 03-employee-offboard/spec.md)",
+    "remaining": "No HRZoft account-settings UI parity"
+  },
+  {
+    "feature": "S04-01 Browse reusable codes, colours, names, descriptions and active status",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "convex/hr/roster.ts saveShift/shifts; tests/integration/hr-parity/04-shifts-roster*.test.ts; src/features/hr/ShiftsRoster.test.tsx (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "FIXED definitions only; catalogue bound 99 per site"
+  },
+  {
+    "feature": "S04-02 Edit fixed shift start/end times",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "validateShiftDraft fixed times incl. overnight; tests/integration/hr-parity/04-shifts-roster*.test.ts (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S04-03 Offer fixed-time, hour-count and freelance work modes",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "FIXED mode only (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Hour-count and freelance modes missing"
+  },
+  {
+    "feature": "S04-04 Edit fixed break times and expose multiple break windows",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Aggregate breakMinutes only (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Multiple break windows missing"
+  },
+  {
+    "feature": "S04-05 Choose company versus shift auto-OT configuration",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Auto-OT configuration; OT engine missing"
+  },
+  {
+    "feature": "S04-06 Show active/day/week/work/break columns and conditional OT minutes in periods grid",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Multi-period grid"
+  },
+  {
+    "feature": "S04-07 Show employee identity rows, date/weekday columns and coloured shift blocks for a month",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Monthly employee × date grid (ShiftsRoster.tsx); tests/integration/hr-parity/04-shifts-roster*.test.ts; src/features/hr/ShiftsRoster.test.tsx (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "No avatars/count badges/leave overlays; no browser test"
+  },
+  {
+    "feature": "S04-08 Select one cell in assignment mode and cancel its draft",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "jsdom caller tests only",
+    "evidence": "src/features/hr/ShiftsRoster.test.tsx (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "No browser acceptance"
+  },
+  {
+    "feature": "S04-09 Select multiple cells with one shift selector and cancel the draft",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Atomic multi-cell save up to 1550 cells/50 employees within deployed limits (04-shifts-roster-limits.test.ts); locked selection deselect (src/features/hr/ShiftsRoster.test.tsx) (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "No browser acceptance"
+  },
+  {
+    "feature": "S04-10 Generate only valid dates of the selected calendar month",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "monthDates; tests/integration/hr-parity/04-shifts-roster*.test.ts (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S04-11 Resolve dated assignment before weekly fallback for an unrecorded working date",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "rosterPlanFor / livePlan; tests/integration/hr-parity/04-shifts-roster*.test.ts (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S04-12 Preserve already captured attendance plans after ordinary roster/definition edits",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Recorded/frozen/period-closed refusal; leave-claimed dates now refused (ROSTER_DAY_LEAVE_CLAIMED, tests/integration/hr-parity/04-roster-leave-consistency.test.ts) (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "No retroactive recalculation (S04-21)"
+  },
+  {
+    "feature": "S04-13 Keep explicit OFF distinct from missing assignment",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "OFF vs CLEARED fallback; tests/integration/hr-parity/04-shifts-roster*.test.ts (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S04-14 Resolve overnight plans on their start business date in the site timezone",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Overnight start-date resolution with captured provenance; tests/integration/hr-parity/04-shifts-roster*.test.ts (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S04-15 Validate ordered, contained, non-overlapping fixed break windows",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "Break-window validation"
+  },
+  {
+    "feature": "S04-16 Isolate persisted cell updates by employee and date",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Per employee/date revisions, atomic refusal, tenant/site guards; tests/integration/hr-parity/04-shifts-roster*.test.ts (research label guess; spec 04-shifts-roster/spec.md)",
+    "remaining": "—"
+  },
+  {
+    "feature": "S04-17 Determine repeat-pattern existence, anchoring and overwrite behavior",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 04-shifts-roster/spec.md)",
+    "remaining": "Repeat patterns/rotations undecided"
+  },
+  {
+    "feature": "S04-18 Determine hour-count/FREE1 duration and overnight calculation algorithms",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 04-shifts-roster/spec.md)",
+    "remaining": "Hour-count/FREE algorithms undecided"
+  },
+  {
+    "feature": "S04-19 Configure period day groups and week-of-month selectors",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Period day/week selectors"
+  },
+  {
+    "feature": "S04-20 Determine auto-OT thresholds and approval/pay connection",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "blocked",
+    "verificationLevel": "none",
+    "evidence": "Label unknown (research label unknown; spec 04-shifts-roster/spec.md)",
+    "remaining": "OT thresholds/approval/pay undecided"
+  },
+  {
+    "feature": "S04-21 Determine saved roster/retroactive update effects on existing attendance",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "blocked",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Conservative refusal rule is explicit (research label unknown; spec 04-shifts-roster/spec.md)",
+    "remaining": "HRZoft retro effects undecided"
+  },
+  {
+    "feature": "S04-22 Determine holiday/leave/OFF assignment precedence in plan calculation",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "Site holiday precedence; roster refused on leave-claimed dates; approval keeps captured plan (tests/integration/hr-parity/04-roster-leave-consistency.test.ts; hr-policy-leave pin test) (research label unknown; spec 04-shifts-roster/spec.md)",
+    "remaining": "A holiday or weekly-schedule edit after submission is not refused and approval still records the captured plan"
+  },
+  {
+    "feature": "S04-23 Filter roster by employee and organisation",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "Site + employee search; department filter API only (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Remaining organisation filters"
+  },
+  {
+    "feature": "S04-24 Display OFF and named holiday/leave overlays alongside shift blocks",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "OFF and named holiday; leave-claimed cells show a lock reason (src/features/hr/ShiftsRoster.test.tsx) (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "No leave overlay"
+  },
+  {
+    "feature": "S04-25 Open a date-range retroactive-update confirmation and cancel",
+    "slice": "04-shifts-roster",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "Deferred (research label seen; spec 04-shifts-roster/spec.md)",
+    "remaining": "Retroactive update control"
+  },
+  {
+    "feature": "S05-01 Settings exposes a \"Workplaces & check-in devices\" entry under the time-logging tab, routing to a workplaces list",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-02 Workplaces list columns: #, place/device name, details, check-in method, place type, status; with search + \"Add workplace\" + device-command-history tab",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-03 A GPS workplace defines a geofence radius (demo 100 m) and place type office/off-site",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-04 A QR-Code check-in place can be configured (scan QR)",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-05 A fingerprint device place carries a device id and connection status",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-06 Each workplace can be enabled/disabled",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-07 Employee self view offers clock-in, clock-out and scan actions over the shift card",
+    "slice": "05-clock-in",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S05-08 A GPS check-in requests device geolocation before recording",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-09 A check-in outside the workplace radius is rejected with an out-of-range error",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-10 A selfie / identity photo is captured and shown per punch",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-11 Successful check-in shows a confirmation receipt with the recorded time",
+    "slice": "05-clock-in",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S05-12 Repeat check-in while already clocked in is rejected",
+    "slice": "05-clock-in",
+    "implementationStatus": "delivered",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': have (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "have"
+  },
+  {
+    "feature": "S05-13 GPS/QR/selfie punches are device-bound (mobile), not a bare desktop click",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-14 A QR check-in only accepts the current workplace QR; stale/foreign QR rejected",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-15 Supervisor board lists one row per employee-day with code, name, work location, in/out, hours, OT, date",
+    "slice": "05-clock-in",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S05-16 Board shows per-day status chips (on-time/late/absent/leave/holiday/left-early/early/forgot-out/not-yet-in)",
+    "slice": "05-clock-in",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S05-17 Board shows the work location the punch came from",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-18 Each punch records which check-in method/source produced it (self/GPS/QR/fingerprint)",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-19 Board offers a period/date-range filter plus a status filter",
+    "slice": "05-clock-in",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label seen; spec 05-clock-in/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S05-20 Our attendance events only support source ONLINE_SELF",
+    "slice": "05-clock-in",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S05-21 A punch stores the originating workplace id alongside its method",
+    "slice": "05-clock-in",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-22 Whether the selfie is mandatory vs optional per punch, and its retention",
+    "slice": "05-clock-in",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S05-23 Fingerprint device enrollment flow and device-command-history contents",
+    "slice": "05-clock-in",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 05-clock-in/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-01 Show configurable request catalogue and open/cancel each of the 12 type editors",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — fixed leave enum, no configurable catalogue (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — fixed leave enum, no configurable catalogue"
+  },
+  {
+    "feature": "S06-02 Offer the five accessible leave variants with whole-day/hour fields and inline prerequisite notices",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — leave dates/reason, no matching hourly form (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — leave dates/reason, no matching hourly form"
+  },
+  {
+    "feature": "S06-03 Determine employee submission fields for maternity, unpaid maternity, military and ordination leave",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — some statutory leave types exist (label unknown; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — some statutory leave types exist"
+  },
+  {
+    "feature": "S06-04 WFH/offsite form with duration, date range, details and attachment",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-05 Holiday-change form with type, holiday date, working date, details and attachment",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-06 Shift-change form with date range, current shift and requested shift",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-07 Shift-swap form with colleague, swap date and before/after preview",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-08 Establish time-correction/change-time creation fields and validations",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — `hrCorrectionRequests` and day correction form (label unknown; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — `hrCorrectionRequests` and day correction form"
+  },
+  {
+    "feature": "S06-09 OT form with date, start/end, required details, attachments and Cancel",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-10 Add/remove multiple OT intervals before submission",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-11 Validate OT interval structure without applying rate rules",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-12 Workflow editor shows reporting-line fallback, direct-supervisor option and ordered position nodes",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — supervisor relationship only (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — supervisor relationship only"
+  },
+  {
+    "feature": "S06-13 Advance a request through manager then MD with current-step authorization",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-14 Request detail exposes ordered chain, timeline, reason and separate Return/Reject/Approve actions",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — history and single decision (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — history and single decision"
+  },
+  {
+    "feature": "S06-15 Distinguish editable return from terminal rejection, retaining audit history",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — RETURNED, no rejection status (label guess; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — RETURNED, no rejection status"
+  },
+  {
+    "feature": "S06-16 Withdraw a pending request and invalidate remaining approval actions",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — leave only (label guess; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — leave only"
+  },
+  {
+    "feature": "S06-17 Request cancellation after approval without erasing original decisions",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — future leave already has cancellation review (label guess; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — future leave already has cancellation review"
+  },
+  {
+    "feature": "S06-18 Establish delegation/substitute approver setup, dates and audit identity",
+    "slice": "06-requests-approval",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-19 Shared approval queue with category tabs, search, date range, sequential filter and document columns",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — separate leave queue and correction review (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — separate leave queue and correction review"
+  },
+  {
+    "feature": "S06-20 Supervisor dashboard has counted status filters, employee grid and ranking tabs",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — review/today pages, no matching overview (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — review/today pages, no matching overview"
+  },
+  {
+    "feature": "S06-21 External notification setup changes fields for Discord, Telegram, Webhook and LINE OA",
+    "slice": "06-requests-approval",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S06-22 In-app supervisor notification event switches for create/approve/cancel",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — durable inbox, no equivalent configuration (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — durable inbox, no equivalent configuration"
+  },
+  {
+    "feature": "S06-23 Dispatch request events to configured recipients/channels with retry deduplication",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — in-app LEAVE_DECIDED only for this flow (label guess; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — in-app LEAVE_DECIDED only for this flow"
+  },
+  {
+    "feature": "S06-24 Display request attachment controls and sick-leave medical-certificate variant",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — leave evidence string, no equivalent upload UX (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — leave evidence string, no equivalent upload UX"
+  },
+  {
+    "feature": "S06-25 Request list exposes document-status choices and explicit empty state",
+    "slice": "06-requests-approval",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — distinct leave/correction filters (label seen; spec 06-requests-approval/spec.md)",
+    "remaining": "partial — distinct leave/correction filters"
+  },
+  {
+    "feature": "S07-01 Open a monthly self-service calendar day list with date, in/out, duration and score",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — self time/day pages, no matching calendar overlay or score (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — self time/day pages, no matching calendar overlay or score"
+  },
+  {
+    "feature": "S07-02 Drill a self-service absence count into the contributing day list",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — self summary filters, no equivalent mixed-category drilldown (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — self summary filters, no equivalent mixed-category drilldown"
+  },
+  {
+    "feature": "S07-03 Expand a supervisor's employee summary into dated daily result rows",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — review/day detail, no expandable monthly board (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — review/day detail, no expandable monthly board"
+  },
+  {
+    "feature": "S07-04 Explain combined absence/very-late totals and show simultaneous missing-punch badges",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss — one primary readiness/disposition badge, no late-result facets (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss — one primary readiness/disposition badge, no late-result facets"
+  },
+  {
+    "feature": "S07-05 Apply final approved leave to affected open dates and refresh their result projection",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — application exists, richer result/report projection missing (label guess; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — application exists, richer result/report projection missing"
+  },
+  {
+    "feature": "S07-06 Recalculate from certified effective times without rewriting original punches",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — revision-aware certification exists, lateness/missing-punch projection missing (label guess; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — revision-aware certification exists, lateness/missing-punch projection missing"
+  },
+  {
+    "feature": "S07-07 Refresh self, supervisor and report aggregates once per effective result revision",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — reactive reads exist, new aggregate/report pipeline absent (label guess; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — reactive reads exist, new aggregate/report pipeline absent"
+  },
+  {
+    "feature": "S07-08 Show period range/status, dated history and explicit close affordance",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — attendance period/version metadata exists; payroll lifecycle is separate (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — attendance period/version metadata exists; payroll lifecycle is separate"
+  },
+  {
+    "feature": "S07-09 Establish HRZoft close cut-off, permitted post-close edits and reopen authority/flow",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "delivered",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': have — our CLOSED guards and startRevision; vendor mapping unknown (label unknown; spec 07-status-close-reports/spec.md)",
+    "remaining": "have — our CLOSED guards and startRevision; vendor mapping unknown"
+  },
+  {
+    "feature": "S07-10 Preserve authoritative close validation, closed-date write protection and frozen result exports",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "delivered",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': have — server recomputation/fingerprint, blockers, snapshots, site-scoped CSV (label guess; spec 07-status-close-reports/spec.md)",
+    "remaining": "have — server recomputation/fingerprint, blockers, snapshots, site-scoped CSV"
+  },
+  {
+    "feature": "S07-11 Reopen with a reason into the next draft version while retaining old reports unchanged",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "delivered",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': have — startRevision, immutable hrPeriodVersions/hrPeriodRows (label guess; spec 07-status-close-reports/spec.md)",
+    "remaining": "have — startRevision, immutable hrPeriodVersions/hrPeriodRows"
+  },
+  {
+    "feature": "S07-12 Switch OT report between work-date range and selected payroll-period filters",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss — attendance period selector is not payroll-period OT reporting (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss — attendance period selector is not payroll-period OT reporting"
+  },
+  {
+    "feature": "S07-13 Time report has employee identity plus day/weekday columns, punches, H and OT markers",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss — self list/frozen rows only (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss — self list/frozen rows only"
+  },
+  {
+    "feature": "S07-14 Toggle time report to employee attendance-problem and OT summaries with totals",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — closed totals have worked/leave/absent/nonworking only (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — closed totals have worked/leave/absent/nonworking only"
+  },
+  {
+    "feature": "S07-15 Expose report-specific date, employee and organisation/employment filters",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — employee/site/date selectors, no report filter set (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — employee/site/date selectors, no report filter set"
+  },
+  {
+    "feature": "S07-16 Time export menu offers department table, table+summary, problem report and history",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss — version CSV only (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss — version CSV only"
+  },
+  {
+    "feature": "S07-17 OT report shows category hours, requested/actual/automatic summaries and mismatch status",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss — outsideShiftMinutes is informational, not approved OT (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss — outsideShiftMinutes is informational, not approved OT"
+  },
+  {
+    "feature": "S07-18 OT Excel export has language, split-by-department and daily-detail choices",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S07-19 Leave report shows used/entitled by type, inapplicable/unlimited and total days",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — self balance and ledger, no team cross-type report (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — self balance and ledger, no team cross-type report"
+  },
+  {
+    "feature": "S07-20 Leave download offers optional absence/department/request detail and Excel/PDF",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S07-21 Problem report export exposes readable/processable layout and units/numeric output",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S07-22 Problem workbook groups/ranks employees by issue with appropriate columns and totals",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S07-23 Reconcile filtered report totals and downloads across all pages within tenant/site scope",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — scoped paged period export exists, new reports absent (label guess; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — scoped paged period export exists, new reports absent"
+  },
+  {
+    "feature": "S07-24 Determine PDF availability/layout for time, OT and problem reports",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 07-status-close-reports/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S07-25 Determine exact HRZoft automatic/manual recalculation trigger, delay and retroactive precedence",
+    "slice": "07-status-close-reports",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — live day evaluation and request application; vendor parity undecided (label unknown; spec 07-status-close-reports/spec.md)",
+    "remaining": "partial — live day evaluation and request application; vendor parity undecided"
+  },
+  {
+    "feature": "S08-01 Payroll period list with pending/all tabs, year/status filter, dates and totals",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — attendance period list only (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-02 Open/cancel payroll-period setup with pay type, frequency, start period and payment date",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-03 Draft item grid and calculate → approve → pay stage indicator",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-04 Approved run review with receiving bank/account, earnings, deductions, net and per-employee payment status",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-05 Employee salary/payment editor with effective-date and adjustment history",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-06 Searchable earning/deduction catalogues with rounding, frequency, tax treatment and enabled state",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-07 Item editor supports all/custom employees and nested searchable eligibility picker",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-08 Payslip distribution settings expose visibility, minimum release state and email option",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — publication policy and in-app notifications, no state selector/email (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-09 Self-service payslip list opens itemised detail with calculation notes and preview/download controls",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — published aggregate amounts/private original PDF, no calculated lines (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-10 Assemble salary + approved OT + eligible allowances, then deduct each category exactly once in satang",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-11 Apply authorised unpaid-time reductions without double-counting overlaps or treating paid leave as unpaid",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — attendance/leave inputs, no wage arithmetic (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-12 Snapshot effective salary, eligible items and frozen attendance version for each run",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — frozen attendance exists, no payroll snapshot (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-13 Guard DRAFT → CONFIRMED → PAID using calculated version, actor rights and idempotent payment recording",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss — import publication is different (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-14 Calculate employee/employer Section 33 SSO with effective-dated 5% rate and current wage ceiling",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-15 Withhold salary tax from annual projection with year-to-date reconciliation",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-16 Reconcile monthly PND1 and annual PND1Kor (ภ.ง.ด.1ก) output datasets by employee/payment year",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-17 Produce 50 Tawi certificate totals and issue-by dates from reconciled paid income/withholding",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-18 Employee provident-fund membership, independent contribution overrides and opening/YTD balances",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-19 Calculate separate employee savings and employer PVD contribution only for active members",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-20 Generate bank-specific transfer dataset from confirmed net pay, preserving account zeros and reconciling totals",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-21 Release calculated payslips at configured threshold and queue private recipient-specific email once",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial — own published statements and in-app delivery (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-22 Keep external CSV/PDF import as a separate non-calculating STAGED → PUBLISHED path",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "delivered",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': have — preserve and distinguish from payroll payment (label guess; spec 08-payroll-tax/spec.md)",
+    "remaining": "have — preserve and distinguish from payroll payment"
+  },
+  {
+    "feature": "S08-23 Employee tax-mode/SSO opt-in profile controls without asserting calculation effects",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-24 Establish exact bank/SSO/tax file bytes, encoding, format version and agency/bank acceptance",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S08-25 Establish partial-payment, failed-payment reversal and reopen-after-confirmation semantics",
+    "slice": "08-payroll-tax",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 08-payroll-tax/spec.md)",
+    "remaining": "Payroll calculation engine missing"
+  },
+  {
+    "feature": "S09-01 Warning-letter list: number/name search, year filter and create entry",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-02 Warning-letter create form fields and cancel",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-03 Warning level/penalty select offers the five escalation options",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-04 Warning create requires employee, offence date, level and details and persists atomically",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-05 Link warning letters to attendance penalty points (คะแนนสาย/ขาด/กลับก่อน)",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-06 Warning-letter report tab with filter and download",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-07 Employee acknowledgement / sign-off of a warning letter",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-08 Expense list: me/team tabs, document columns, filter and running total",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-09 Expense claim create form (เบิกค่าใช้จ่าย) with add-item and cancel",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-10 Expense line item exposes category, amount and receipt upload",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-11 Expense request integrity: at least one line item, positive amount, atomic create",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-12 Pay-with-salary binds an expense to a payroll period for later settlement",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-13 Expense approval shows a document status and sequential-approval view inside the module",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-14 Expense report tab with filter and download",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-15 Expense installment tab (ผ่อนชำระ) with its own create",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-16 Project / cost-centre attribution on an expense",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-17 Bulk-create one expense for multiple employees (หลายคน)",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-18 Salary-advance create form (เบิกเงินเดือน) with receipt upload and cancel",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-19 Salary-advance limits configuration (max amount, advance months, working-day gate, approval doc)",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-20 Salary advance feeds payroll as a deduction in the chosen period",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-21 Salary-advance amount is checked against the configured limit at submission",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label guess; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-22 Salary-advance report tab with filter and download",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "missing",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "S09-23 Employee self-service: own expense claims, self-submit expense claim and payslip under the \"me\" tab",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "partial",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': partial (label seen; spec 09-discipline-expense/spec.md)",
+    "remaining": "partial"
+  },
+  {
+    "feature": "S09-24 Employee self-service salary-advance request and own warning-letter view",
+    "slice": "09-discipline-expense",
+    "implementationStatus": "blocked",
+    "verificationLevel": "research baseline only (spec 'We have today' column); not re-verified in this audit",
+    "evidence": "Research 'We have today': miss (label unknown; spec 09-discipline-expense/spec.md)",
+    "remaining": "miss"
+  },
+  {
+    "feature": "X-01 Work-rule settings take effect on attendance/OT",
+    "slice": "cross-cutting",
+    "implementationStatus": "partial",
+    "verificationLevel": "registered-handler integration (convex-test)",
+    "evidence": "convex/model/hr/workRules.ts; tests/integration/hr-work-rules-policy.integration.test.ts; docs/plans/hr-parity/02-rules-calendar-roles/work-rules-foundation.md",
+    "remaining": "Settings-only: stored and validated through the LEAVE policy API with no admin UI; every execution flag is INACTIVE or UNSUPPORTED"
+  },
+  {
+    "feature": "X-02 Payroll and OT calculation engine",
+    "slice": "cross-cutting",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "No payroll run/OT calculation code; payslips are imported (S08-22)",
+    "remaining": "Entire payroll/tax/SSO/OT computation (slices 02, 06, 07, 08)"
+  },
+  {
+    "feature": "X-03 Pending leave versus later roster change consistency",
+    "slice": "cross-cutting",
+    "implementationStatus": "delivered",
+    "verificationLevel": "registered-handler integration + jsdom caller tests",
+    "evidence": "tests/integration/hr-parity/04-roster-leave-consistency.test.ts (red before, green after; runs/roster-leave-*.log); convex/hr/roster.ts leaveClaimedDates; convex/hr/leave.ts decide",
+    "remaining": "No browser acceptance; holiday/schedule edits after submission still follow pin semantics"
+  },
+  {
+    "feature": "X-04 Leave approval in a real browser",
+    "slice": "cross-cutting",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "No hr-local Playwright case approves leave",
+    "remaining": "Browser approval acceptance (desktop and mobile)"
+  },
+  {
+    "feature": "X-05 Roster in a real browser",
+    "slice": "cross-cutting",
+    "implementationStatus": "missing",
+    "verificationLevel": "none",
+    "evidence": "tests/e2e/hr-local has no shifts/roster spec",
+    "remaining": "Browser acceptance of shift catalogue and roster assignment"
+  }
+]

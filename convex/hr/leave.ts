@@ -1024,6 +1024,13 @@ export const decide = mutationWithOrg({
                 day?.pendingCorrectionId
               )
                 return fail("LEAVE_ATTENDANCE_CONFLICT");
+              // Approval records attendance and consumes the day. The plan
+              // stays pinned to the submission capture (roster changes to
+              // claimed dates are refused at the roster), but a later
+              // separation/reinstatement can leave a date outside employment;
+              // that is refused rather than recorded and charged.
+              if (!isEmployedOn(employmentOf(employee), date))
+                return fail("LEAVE_EMPLOYMENT_CHANGED");
             } else {
               const applied = row.attendanceRevisions?.find(
                 (item) => item.date === date,

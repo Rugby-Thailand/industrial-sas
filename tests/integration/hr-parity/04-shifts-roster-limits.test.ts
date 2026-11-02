@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type * as ConvexTestModule from "convex-test";
 import { makeFunctionReference } from "convex/server";
 import { MAX_PERIOD_EMPLOYEES } from "../../../convex/model/hr/period";
 import { MAX_ROSTER_CELLS } from "../../../convex/model/hr/roster";
@@ -11,7 +12,7 @@ import {
 // Permanent registered regression: run the declared roster bounds with convex-test's deployed
 // transaction limits enabled (4096 database queries, 32k documents read).
 vi.mock("convex-test", async (original) => {
-  const actual = await original<typeof import("convex-test")>();
+  const actual = await original<typeof ConvexTestModule>();
   return {
     ...actual,
     convexTest: (schema: never, modules: never) =>

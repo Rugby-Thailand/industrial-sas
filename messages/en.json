@@ -2645,7 +2645,9 @@
       "MONTH_INVALID": "Choose a valid month",
       "SHIFT_LIMIT_EXCEEDED": "This site has reached the limit of 99 shift definitions. Edit an existing definition.",
       "PERIOD_CLOSED": "A selected date is in a closed period; its roster cannot change.",
-      "ROSTER_DAY_FROZEN": "A selected date has a frozen attendance plan. Roster recalculation is not supported."
+      "ROSTER_DAY_FROZEN": "A selected date has a frozen attendance plan. Roster recalculation is not supported.",
+      "LEAVE_EMPLOYMENT_CHANGED": "Employment no longer covers a requested date, so this request cannot be approved.",
+      "ROSTER_DAY_LEAVE_CLAIMED": "A selected date has an active leave request; its plan cannot change until the request is withdrawn or returned."
     },
     "selfService": {
       "title": "Your tasks",
@@ -3543,7 +3545,8 @@
         "EMPLOYEE_SITE_MISMATCH": "Employee belongs to another site",
         "EMPLOYEE_INACTIVE": "Employee is inactive",
         "NOT_EMPLOYED": "Not employed on this date",
-        "FROZEN": "The attendance plan was frozen; roster changes are not supported"
+        "FROZEN": "The attendance plan was frozen; roster changes are not supported",
+        "LEAVE_CLAIMED": "A leave request covers this date; the plan is fixed"
       }
     }
   },
