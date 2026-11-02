@@ -115,6 +115,16 @@ it("a full declared roster selection (50 employees x 31 days) saves within deplo
   expect(
     unchanged.every((row) => row.revision === 1 && row.kind === "OFF"),
   ).toBe(true);
+  // The actual registered monthly read must also fit deployed limits after
+  // every cell has a retained revision; an empty initial month is insufficient.
+  const full = await call(world, "query", "hr/roster:roster", {
+    warehouseId: world.warehouses.alphaA,
+    month: "2026-10",
+  });
+  expect(full.employees).toHaveLength(MAX_PERIOD_EMPLOYEES);
+  expect(
+    full.employees.flatMap((row: { cells: unknown[] }) => row.cells),
+  ).toHaveLength(MAX_ROSTER_CELLS);
   const updated = await call(world, "mutation", "hr/roster:assignRoster", {
     ...args,
     requestId: requestId(),

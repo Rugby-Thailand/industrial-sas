@@ -94,8 +94,9 @@ test("employee offboard reinstate preserves separation gap and refuses reversed 
       businessDate: "2026-10-15",
     })
   ).value;
-  expect(gap.ok).toBe(true);
-  expect(gap.detail).toBeDefined();
+  // The carried e9d06c77 fix deliberately suppresses fabricated attendance
+  // obligations in a separation gap, including direct deep links.
+  expect(gap).toEqual({ ok: false, code: "HR_OUTSIDE_EMPLOYMENT" });
   const queue = await api.query("hr/review:queue", {
     from: "2026-10-15",
     to: "2026-10-15",

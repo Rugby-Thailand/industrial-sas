@@ -1,0 +1,251 @@
+{
+  "base": "a2e964e2045269231fc0df429d52cc51f53e2658",
+  "baselineHead": "9be5ad826c3b7ab34bb8b6aa4ceae878605577a7",
+  "mapping": [
+    {
+      "source": "08d6065b691f85ea5a6bab0a9b649c6668961198",
+      "local": "93c0331e270ebcc6effd18650a451d3ee968118e",
+      "subject": "feat(hr): Phase 1 organization and employment foundation",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:14:15+07:00"
+    },
+    {
+      "source": "75e0c371bcf7fe1bd3ab321136515f8a8ee8883f",
+      "local": "0017ed2b5e0c680b1a633b8e6bde10fe2e46d7ff",
+      "subject": "fix(hr): object args for company logo command; keep slice-01 e2e out of discovery",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:23:12+07:00"
+    },
+    {
+      "source": "10da14271f319f9003a0b7d73ae9e462206e3641",
+      "local": "b8756e5d2e268f343da8c289c07e390638020fb1",
+      "subject": "fix(hr): reject partial logo uploads on removal",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:40:25+07:00"
+    },
+    {
+      "source": "6fcd71317246997d37dda565bde58fb84590a924",
+      "local": "c8a8bdc0e24e01bf2c8665baef93b2cc768e7e0f",
+      "subject": "fix(hr): preserve legacy employee fields and fence logo revisions",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:58:31+07:00"
+    },
+    {
+      "source": "d28ab2645a622df61bd63056c4c152e2af02b2f8",
+      "local": "a817813ed2c383d2e8ebfa55f5bddb6130ec8c95",
+      "subject": "docs(hr): record foundation protocol fix evidence and handoff",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:00:28+07:00"
+    },
+    {
+      "source": "5cc53de69e6c4989d49868580c3ce45a5c9971d2",
+      "local": "3b63d41cb347be623dcd735c880d0863f817d7f1",
+      "subject": "feat(hr): persist inactive work rule policy settings",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:22:50+07:00"
+    },
+    {
+      "source": "9cf1d1e3600fca60e9d395dd83dbe0780e539a38",
+      "local": "378c4f92f8e229e79eaee0eab28e307883b04e19",
+      "subject": "docs(hr): record verified Kiro rules lane evidence",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:25:47+07:00"
+    },
+    {
+      "source": "0a11827fa317826ee42914a80dc6df752b504e3f",
+      "local": "ef22c8b03c61015402abe06c7ecc07ead2cc577b",
+      "subject": "feat(hr): employee profile, private payment details and lifecycle backend (S03)",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:40:08+07:00"
+    },
+    {
+      "source": "22b474fd085e18c41e4b31ab1a0b4fdc46da4925",
+      "local": "5969152a25efdb980253c9b0068089dc137be8dc",
+      "subject": "fix(hr): keep omitted profile/payment fields; clear only on explicit empty values (S03)",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:43:57+07:00"
+    },
+    {
+      "source": "6f8a85e088917d3e894182c14de3ad7b7de3e0c1",
+      "local": "1b4e3dd755caf1225efd292d1007ec2dee8ba35b",
+      "subject": "feat(hr): employee profile, payment and lifecycle sections in the editor (S03)",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:55:01+07:00"
+    },
+    {
+      "source": "7b9697f5e7f9b76ea971eaec54534e0e42958b9d",
+      "local": "eeca237aee3956c862e0388feff90724754f13d2",
+      "subject": "docs(hr): slice 03 spec and employee lifecycle evidence",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:56:31+07:00"
+    },
+    {
+      "source": "fed39093366dcb207fbb738010dd27bde3662ee2",
+      "local": "52f45664c47b918a4f53dc9ffd35e9933cc35c56",
+      "subject": "test(hr): combined integration snapshot and cross-lane lifecycle regression",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:10:45+07:00"
+    },
+    {
+      "source": "88c2f1d5e1cc2918742a52d68409bbb7753d6f0d",
+      "local": "c00b79f0f5d0c507c8485e1ebdc9b7b83d58166c",
+      "subject": "docs(hr): record combined integration checkpoint evidence",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:15:21+07:00"
+    },
+    {
+      "source": "5e4fa0908139eab36e09763a827d595d0f1a95ec",
+      "local": "a41cbeaaa49a0a3d13063f1865498161c1f7c72c",
+      "subject": "test(hr): add guarded authenticated local browser harness",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T22:25:35+07:00"
+    },
+    {
+      "source": "12bbe970ef8fa43194febbd85a96c333249b8b65",
+      "local": "a12c328c15adef2c2711f7d40a2cbc3038c236d0",
+      "subject": "test(hr): verify organization and employment in real browsers",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:00:52+07:00"
+    },
+    {
+      "source": "1bd98f03cf4211a78feef38f1c4ddd7c4da15d81",
+      "local": "e138e07be6c29c029fb32e94e23708ba2039bf8c",
+      "subject": "test(hr): exercise legacy writes and two-editor logo fencing",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:07:34+07:00"
+    },
+    {
+      "source": "ed1bf4ee85da3553f689ee8d6b404dfdc333c0be",
+      "local": "b1d2fba665e55e37d6c09d30013d409392eeeaf6",
+      "subject": "docs(hr): record real browser results and process cleanup",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:20:13+07:00"
+    },
+    {
+      "source": "a2c3ed32e93cfb92df52fad2118fc87373f612e0",
+      "local": "981c7dfc6b90818f35462123ba9b22a6497c7c92",
+      "subject": "fix(hr-e2e): refuse wildcard listeners, record dirty source, skip zero-write clock case",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:26:09+07:00"
+    },
+    {
+      "source": "03795a87bf953b86396075c9e31ed2d5570a68f2",
+      "local": "ca9a767495a4da0e5bc5ab42d09fb2188d99b24f",
+      "subject": "test(hr-e2e): cover HR employee and supervisor roles with the genuine identity",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:38:42+07:00"
+    },
+    {
+      "source": "9f53077fc8f9b0d07dc5a315469a47e6b685dbb9",
+      "local": "98bc54e3df0250eea14f0bf651a3c181ff471abc",
+      "subject": "docs(hr): record combined browser validation, harness findings and cleanup",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:56:37+07:00"
+    },
+    {
+      "source": "bc314f886734f155b3e497a91b793021b3e938b9",
+      "local": "331b173e89dc186e05798142e4a9f2dc535eaf83",
+      "subject": "fix(hr): retain employment intervals and validate lifecycle writes",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:35:30+07:00"
+    },
+    {
+      "source": "8bf821bcd30ea3ef95a33a94702a0799eba7fab7",
+      "local": "ef9c3f147c284a7fb8099673fd51fd71726a4b08",
+      "subject": "fix(hr): pin employee editor sessions and restore safe recovery",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:47:25+07:00"
+    },
+    {
+      "source": "6d4a498cfb8704c2a45a6995566f0a2c5dee4d87",
+      "local": "09fb5ea88b2de5e87ee873920e7d9bd8bdf9e18e",
+      "subject": "docs(hr): record employee hardening red-to-green evidence and cleanup",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-01T23:48:26+07:00"
+    },
+    {
+      "source": "4f776c1182c6c18c34dc50c26bb12af035fa0357",
+      "local": "bc205bbacd9ea57d8ce1ed469a6f6f3ed63dba7f",
+      "subject": "feat(hr): add fixed shifts and versioned date roster",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T01:03:25+07:00"
+    },
+    {
+      "source": "fcc8ab26f83ca7bea068000672f73ca7a763d075",
+      "local": "a481efdc189631e84ea081addd7fc78327a01c46",
+      "subject": "docs(hr): record verified S04 delivery and integration seam",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T01:42:11+07:00"
+    },
+    {
+      "source": "e0fe30289da7e1236cc9cdaf48792d9a598b0ae0",
+      "local": "74bba2f556aefb2862416462e04efe11d3591b10",
+      "subject": "test(hr): record reviewed internal staging/hrDemo:setLocalTestRoles contract",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T02:28:22+07:00"
+    },
+    {
+      "source": "7bf99fd7e6bf770e17be917971b7291a57a7d6a2",
+      "local": "112f485f2169d635ee8cdf3fa1093e92d3a2c349",
+      "subject": "test(hr): roster refuses separation gaps and pre-employment dates atomically",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T02:45:25+07:00"
+    },
+    {
+      "source": "288d187727ea6b0155a0e2f8923b969d6f6d9c7e",
+      "local": "f4350100f7b2fcb15e39586d258a3547fc6167bd",
+      "subject": "docs(hr): record S04 roster review and all-lane integration checkpoint",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T03:45:21+07:00"
+    },
+    {
+      "source": "f673ece0482479436bedd930a255eaf753a15da2",
+      "local": "cf4347b113e43da5e8c530e289f1cc56c26de206",
+      "subject": "fix(hr): batch monthly roster validation within production limits",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T07:12:29+07:00"
+    },
+    {
+      "source": "1ff1e1d0a34a6c259a0d28982ade5f1965f09cb0",
+      "local": "1ddf46e7f0958ffd2027a2e079ee9409539adb26",
+      "subject": "fix(hr): allow removal of newly locked roster selections",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T07:12:29+07:00"
+    },
+    {
+      "source": "152049190bf1d3403f2a4200c4ed318451781ae4",
+      "local": "ecdf883dbcf4664451cde79201bb853c88696ca2",
+      "subject": "fix(hr): state the supported 99-definition shift catalogue bound",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T07:12:29+07:00"
+    },
+    {
+      "source": "b3babeb0492d1f0c5fb9d17ae81fe7fc2918cdb3",
+      "local": "00c08a1334a7d9eeff1ed13a157a0559e62349bb",
+      "subject": "test(hr): independently review integrated employee hardening",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T01:46:07+07:00"
+    },
+    {
+      "source": "e9d06c7706aa3074a7e2489b84df69b054b42de0",
+      "local": "c8ba323c767defeeef952b465656c4dcbb2be9d3",
+      "subject": "fix(hr): preserve employment drafts on section completion and exclude absent gap details",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T07:12:23+07:00"
+    },
+    {
+      "source": "88fd2e6c6447431e2e57f61c383c2daf91281f55",
+      "local": "8ee47952b2f7ce8880996f62738f0b36fe172630",
+      "subject": "test(hr): add independent employee browser acceptance and private auth diagnostics",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T01:44:47+07:00"
+    },
+    {
+      "source": "2b693d42dbd553f16d083c3eb21db3063ea86e2c",
+      "local": "9be5ad826c3b7ab34bb8b6aa4ceae878605577a7",
+      "subject": "test(hr): match required lifecycle reason accessible labels",
+      "author": "Rugby <rugbykritsakorn@gmail.com>",
+      "authorDate": "2026-11-02T02:58:02+07:00"
+    }
+  ]
+}
