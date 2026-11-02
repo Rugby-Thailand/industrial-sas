@@ -79,16 +79,16 @@ focused suites, not permission to rerun the full repository until green.
 ## Three-flow tutorial outline
 
 Use one staff view, with the local backend readback saved as evidence; no invented
-second-party page. Record the real app only. Prefer the verified Thai UI if that
-exact flow passed in Thai; otherwise use the tested English UI and label it.
+second-party page. Record the real app only. The user confirmed an **English
+tutorial**: use the English UI and English captions/event labels.
 Do not add a voiceover unless requested. Avoid claiming deferred payroll,
 calculation, flexible shifts or rotation functionality.
 
-| Flow                                   | Before and action                                                                                                                                                                                     | Negative case                                                                                                                                       | Verified ending                                                                                                     |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Company and organization               | Show `บริษัท ทดสอบ HR / HR Training Company`, create `Training Operations`, `Training Coordinator`, and `Training Level`; save company/bank and a small synthetic PNG logo, then employee assignments | Two local editors demonstrate a stale logo revision refusal, with no silent overwrite                                                               | Reload company/org/employee assignment and compare saved values; show explicit reapply only after reviewing refusal |
-| Employee lifecycle and private payment | Use an unlinked disposable `TRAIN-<unique>` employee, safe personal/contact/emergency data and synthetic bank details; save and reload masked summary, offboard and reinstate on valid past dates     | Dirty Back keeps the draft; invalid lifecycle chronology refuses without a new event; demonstrate recovery only if its final real acceptance passed | Backend versions/events match UI once; separation gap remains excluded, payment summary shows last four digits only |
-| Fixed shifts and roster                | Create `TRAIN-AM-<unique>` 08:00–17:00 with a 60-minute break; assign two eligible dates, then OFF and Clear                                                                                          | A selected cell recorded independently becomes locked; remove it while keeping the other selection, and show atomic refusal where appropriate       | Reload confirms stored revisions and weekly fallback; captured attendance plan stays unchanged                      |
+| Flow                                   | Before and action                                                                                                                                                                                 | Negative case                                                                                                                                       | Verified ending                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Company and organization               | Show `HR Training Company`, create `Training Operations`, `Training Coordinator`, and `Training Level`; save company/bank and a small synthetic PNG logo, then employee assignments               | Two local editors demonstrate a stale logo revision refusal, with no silent overwrite                                                               | Reload company/org/employee assignment and compare saved values; show explicit reapply only after reviewing refusal |
+| Employee lifecycle and private payment | Use an unlinked disposable `TRAIN-<unique>` employee, safe personal/contact/emergency data and synthetic bank details; save and reload masked summary, offboard and reinstate on valid past dates | Dirty Back keeps the draft; invalid lifecycle chronology refuses without a new event; demonstrate recovery only if its final real acceptance passed | Backend versions/events match UI once; separation gap remains excluded, payment summary shows last four digits only |
+| Fixed shifts and roster                | Create `TRAIN-AM-<unique>` 08:00–17:00 with a 60-minute break; assign two eligible dates, then OFF and Clear                                                                                      | A selected cell recorded independently becomes locked; remove it while keeping the other selection, and show atomic refusal where appropriate       | Reload confirms stored revisions and weekly fallback; captured attendance plan stays unchanged                      |
 
 Use reserved synthetic email `training@example.invalid`, fictional address
 `123 Training Road`, and clearly synthetic identifiers/accounts. Never display
@@ -96,6 +96,11 @@ Clerk identifiers, JWTs, cookies, environment values, source logs or a real
 person's account. Preview the intended frames privately before publication.
 
 ## Capture and timestamp procedure
+
+Coordinator handoff: production `c5d21eaf` was reported after this bounded test
+stage. Final acceptance/recording must use its corrected combined source (or a
+later reviewed correction), record the exact full head, and run fresh verification.
+It was not applied or reviewed in this stage.
 
 Read and adapt only the recording methodology in
 `/Users/macbook/.codex/skills/qa-video/references/record.md`; Dr.Ease endpoints,
@@ -115,7 +120,7 @@ SSH hosts, databases and authentication are outside this task.
    `slowMo:250`, one context. Hold verified states 1.5–2 seconds, move the pointer
    before clicks. This remains real app footage, not an automatic polished cut.
 4. Store `events.json` entries
-   `{t_ms_epoch, side:"staff", id, label_th}` at actual visible before/action/
+   `{t_ms_epoch, side:"staff", id, label_en}` at actual visible before/action/
    refusal/saved/reload states. Capture process UTC/Bangkok time and browser
    `Date.now()` offset at start/end; retain discontinuities without guessing a
    cause. Do not fabricate timestamps from expected durations.

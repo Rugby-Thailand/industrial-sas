@@ -29,6 +29,10 @@ the generated API and real review/self callers; focused preservation tests pass.
   alongside request ID/operation), add real FENCED-with-version-advance cases,
   put the role precondition assertion inside its restoration `try/finally`,
   fix an inherited test-only lint violation, and commit the recording protocol.
+- `3d2e6530`, `fad9e75e`: preserve baseline and corrected-head evidence.
+- `0a07a193708b34fbb387b73c4f1feacadd265113`: policy-neutral leave invariant,
+  proven break-spinbutton locator correction, foundation results and recording
+  protocol safeguards. The later English confirmation is finalized in this report.
 
 The recovery-fix acceptance source is
 `9a826d53f7a08d5394272ea77ad06e8c012b4350`. Later changes
@@ -64,14 +68,36 @@ test titles/statuses and bounded non-secret assertion excerpts.
 
 ## Actual runs
 
-| Run                   | Exact source                                               | Command / environment                                                                                                                                        | Actual result                                                                                                                                                                                                                             |
-| --------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1                     | `9be5ad826c3b7ab34bb8b6aa4ceae878605577a7`, clean at start | `node scripts/hr-e2e.mjs employees.spec.ts --grep 'committed ID-only\|unsent ID-only\|response-gated\|personal contact emergency payment'`; desktop + mobile | **4 passed, 2 failed**, 175.184 s, exit 1. The final grep alternative matched no persistence title; no persistence credit from this run.                                                                                                  |
-| 2                     | `43d026409daceadcb75c281b6ec6cfff568e186d`, clean at start | `node scripts/hr-e2e.mjs employee-recovery.spec.ts --project hr-desktop`; original three COMMITTED probes                                                    | **0 passed, 3 failed**, 161.815 s, exit 1. First three executed test bodies are retained from this commit; additional FENCED tests were appended during the run and were not selected/executed in it. Production source stayed unchanged. |
-| In-process baseline   | baseline plus independent probes                           | Six focused Vitest files, 2 workers                                                                                                                          | **78 passed, 1 failed**; leave/roster defect. Includes jsdom callers and convex-test registered handlers, not browser tests.                                                                                                              |
-| Corrected callers     | `9a826d53` production/test source                          | Eight focused Vitest files, 2 workers                                                                                                                        | **117 passed**. Includes EmployeeProfileSections, EmployeesNavigation, EmployeeGapDetails, ShiftsRoster, HrOrgSettings, environment/seed guards and 1,550-cell transaction-limit probe.                                                   |
-| Combined preservation | `9a826d53` production source                               | Eight focused registered-handler integration files, 2 workers                                                                                                | **104 passed**; org/legacy preservation, work rules, roster, intervals, gaps and overnight open-shift behavior. Uses in-process Convex and simulated time; not real browser overnight coverage.                                           |
-| Leave consequences    | recovery-fix source plus expanded assertions               | Single focused in-process registered-handler case                                                                                                            | **1 failed**, three retained invariant failures: approval, leave ledger and captured attendance.                                                                                                                                          |
+| Run | Exact source (clean at start)              | Scope                                                                   | Actual result                                                                                                                                                                                                |
+| --- | ------------------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `9be5ad826c3b7ab34bb8b6aa4ceae878605577a7` | Focused employee pending/payment COMMITTED/unsent FENCED; both projects | **4 passed, 2 failed**, 175.184 s, exit 1. Payment COMMITTED fails on both. The extra persistence grep alternative matched no title; no persistence credit.                                                  |
+| 2   | `43d026409daceadcb75c281b6ec6cfff568e186d` | Personal/contact/offboard COMMITTED, desktop                            | **0 passed, 3 failed**, 161.815 s, exit 1. Original three bodies retained from this commit. Additional FENCED cases appended during this run were not selected/executed; production source stayed unchanged. |
+| 3   | `9a826d53f7a08d5394272ea77ad06e8c012b4350` | Employee lifecycle, profile/payment and recovery; both projects         | **27 passed, 1 failed, 0 skipped**, 478.562 s, exit 1. All 16 recovery checks pass. Desktop dirty/stale blocked before actions by page readiness.                                                            |
+| 4   | `fad9e75e4095bed7deaea31ca664d27d6eafa257` | Foundation, protocols, roles, roster; both projects                     | **22 passed, 2 failed**, 442.425 s, exit 1. Two fixed-shift cases fail on this lane's break-field locator; all other cases pass.                                                                             |
+| 5   | `0a07a193708b34fbb387b73c4f1feacadd265113` | Only corrected fixed-shift case and clock case; both projects           | **3 passed, 0 failed, 1 skipped**, 66.951 s, exit 0. Shift UI passes both; desktop clock performs 2 new actions; mobile performs 0 and skips.                                                                |
+
+Exact executable commands, in order (each used the same guarded real harness):
+
+```sh
+node scripts/hr-e2e.mjs employees.spec.ts --grep 'committed ID-only|unsent ID-only|response-gated|personal contact emergency payment'
+node scripts/hr-e2e.mjs employee-recovery.spec.ts --project hr-desktop
+node scripts/hr-e2e.mjs employees.spec.ts employee-recovery.spec.ts employee-lifecycle.spec.ts
+node scripts/hr-e2e.mjs foundation.spec.ts protocols.spec.ts roster.spec.ts roles.spec.ts
+node scripts/hr-e2e.mjs roster.spec.ts workflows.spec.ts --grep 'fixed shift UI|clock events'
+```
+
+The suite has zero retries. Run 5 follows a proven test-locator correction; it
+reruns only that affected case and adds genuine clock actions. Run 3's unexplained
+setup block was not rerun to manufacture a green result. Earlier failures remain
+in separate private archives and in the committed summary.
+
+| In-process check                 | Scope                                                                      | Actual result                                                                                                                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Initial six files                | Baseline plus independent probes; 2 workers                                | **78 passed, 1 failed**; original over-specific leave/roster probe. Includes jsdom callers and convex-test registered handlers, never browser tests.                                     |
+| Corrected callers                | Eight files, `9a826d53` source; 2 workers                                  | **117 passed**: EmployeeProfileSections, EmployeesNavigation, EmployeeGapDetails, ShiftsRoster, HrOrgSettings, environment/seed guards and populated 1,550-cell transaction-limit probe. |
+| Combined preservation            | Eight registered-handler integration files, recovery-fix source; 2 workers | **104 passed**: org/legacy preservation, work rules, roster, intervals, gaps and overnight open-shift behavior. In-process Convex/simulated time.                                        |
+| Leave consequences               | One case with expanded assertions                                          | **1 failed**, three retained invariant failures: approval, ledger and captured attendance.                                                                                               |
+| Final policy-neutral leave probe | One case permitting either conflicting write to refuse                     | **1 failed**, four assertions; no invented exact refusal code required. Both actual writes still succeed and consume the old reservation.                                                |
 
 Do not sum overlapping Vitest totals. The initial full normal lint failed on
 an inherited `typeof import()` test annotation; the test-only type import fix
@@ -102,7 +128,7 @@ Run 1 reproduces payment on **both** projects. Run 2 independently reproduces
 personal, contact and offboard on desktop. All are retained as failed runs;
 they were not overwritten by the supplied fix's later acceptance.
 
-### Still open: leave/roster consistency after a pending request
+### Unresolved on tested source: leave/roster consistency after a pending request
 
 Permanent reproducer:
 `tests/integration/hr-parity/04-shifts-roster-leave.test.ts`.
@@ -125,8 +151,11 @@ still fails on the observed dual-success/consumption sequence; a production fix
 can safely refuse either conflicting write. Earlier failed logs are retained.
 This is an observed consistency gap reproduced in process, not a real active-leave
 browser pass. The implementation lane must document its chosen precedence; this
-test lane does not implement or prescribe the production repair. No local browser policy or shared/production policy was activated to make
-this test pass. Production repair remains with the implementation lane.
+test lane does not implement or prescribe the production repair. No local browser
+policy or shared/production policy was activated to make this test pass.
+The coordinator subsequently reported `c5d21eaf` adds active-claim locks and
+gap-aware leave validation. That newer source was not applied, tested or reviewed
+here; the coordinator will launch fresh final acceptance.
 
 ### Corrected-head setup block: desktop dirty caller did not run
 
@@ -147,8 +176,10 @@ or workflow was used. T3 preview status/open were checked; the owned preparation
 tab was closed. Recording start/stop tools are available. No tutorial recording
 or editing was performed on this failing first-stage source.
 
-No clock case has run in this stage so far; no clock-write credit is claimed.
-The carried harness explicitly skips zero-action same-day cases. Overnight
+Run 5 performed **two new desktop clock actions** (clock in/out) and verified
+the retained server times through reload. The mobile case performed **zero**
+actions on that same-day state and is **skipped**, not counted as clock coverage.
+The DB was not reset between runs to make clock actions available. Overnight
 last-day/open-shift behavior currently has in-process fake-clock coverage only.
 Thai UI, physical mobile devices, production build and complete HR parity remain
 untested here. Existing old version-suffixed recovery records across a software
@@ -158,5 +189,32 @@ separate acceptance result.
 
 ## Final handback
 
-Final browser totals, serialized typechecks, exact handback head and process
-cleanup are appended after the bounded runs finish. Keep all initial failures.
+Bounded first stage complete. Last browser-tested code/test checkpoint:
+**`0a07a193708b34fbb387b73c4f1feacadd265113`**. The final documentation commit
+containing this report is supplied by full SHA in the handback message.
+`git diff cfbab8b7 HEAD -- src convex docs/contracts` is empty: after the supplied
+recovery cherry-pick, this lane changed tests/evidence only.
+
+Final normal ESLint and navigation checks passed after the locator/invariant
+changes. Final `pnpm typecheck:ts6` passed after browser teardown; then pinned
+`pnpm typecheck` passed (1,126 files). No production build/full repository suite
+claim is made. The intentionally failing leave regression remains red on this
+source and must be evaluated against the coordinator's corrected source.
+
+At 2026-11-02 13:35:05 UTC (20:35:05 Bangkok), all **42 journalled owned process
+groups** had cleanup records and no PID/group survivors; 3100/3320/3321 had no
+listeners, the run lock was absent, and no external command deadline fired.
+Private audit: `.cache/hr-browser/handback-process-audit.json`. A separate cwd
+scan found only existing Paper/CUA/REA support connectors and the short-lived
+audit command, not test/browser/server workloads; these connectors were left
+alone. The owned T3 preparation tab is closed. Real role tests restored the exact
+previous local grants in `finally`; the harness revoked only sessions it created.
+Private DB, failed reports/screens and session diagnostics are retained locally.
+
+The recording plan now specifies the user-confirmed **English** tutorial. No
+recording/editing was taken over. No `c5d21eaf` work or final re-review was started.
+The coordinator can now launch fresh final acceptance and recording on that
+corrected exact source. Do not replay the common 35 dependencies or recovery fix
+again: incremental test/evidence commits are `43d02640`, `9a826d53`, `3d2e6530`,
+`fad9e75e`, `0a07a193` and the final documentation commit; `cfbab8b7` is only the
+already-supplied production recovery cherry-pick.

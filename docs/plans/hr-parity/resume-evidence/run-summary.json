@@ -781,5 +781,115 @@
         ]
       }
     ]
+  },
+  {
+    "label": "shift-clock-corrected",
+    "source": {
+      "sourceHead": "0a07a193708b34fbb387b73c4f1feacadd265113",
+      "sourceDirty": false,
+      "backend": "worktree-owned anonymous Convex on loopback:3320",
+      "actualWorkers": 1
+    },
+    "stats": {
+      "startTime": "2026-11-02T13:25:13.003Z",
+      "duration": 66951.27,
+      "expected": 3,
+      "skipped": 1,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "privateArchive": ".cache/hr-browser/resume-run5-shift-clock",
+    "tests": [
+      {
+        "title": "roster fixed shift UI saves and reloads while pristine Cancel consumes its entry",
+        "project": "hr-desktop",
+        "status": "expected",
+        "annotations": [],
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 17742,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "roster fixed shift UI saves and reloads while pristine Cancel consumes its entry",
+        "project": "hr-mobile",
+        "status": "expected",
+        "annotations": [],
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 9747,
+            "annotations": []
+          }
+        ]
+      },
+      {
+        "title": "clock events and server times survive reload",
+        "project": "hr-desktop",
+        "status": "expected",
+        "annotations": [
+          {
+            "type": "real-clock-writes",
+            "description": "2"
+          }
+        ],
+        "attempts": [
+          {
+            "status": "passed",
+            "durationMs": 12355,
+            "annotations": [
+              {
+                "type": "real-clock-writes",
+                "description": "2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "clock events and server times survive reload",
+        "project": "hr-mobile",
+        "status": "skipped",
+        "annotations": [
+          {
+            "type": "real-clock-writes",
+            "description": "0"
+          },
+          {
+            "type": "skip",
+            "description": "No clock action available today; only retained records were verified",
+            "location": {
+              "file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-ad7b5fc0/tests/e2e/hr-local/workflows.spec.ts",
+              "line": 48,
+              "column": 8
+            }
+          }
+        ],
+        "attempts": [
+          {
+            "status": "skipped",
+            "durationMs": 8706,
+            "annotations": [
+              {
+                "type": "real-clock-writes",
+                "description": "0"
+              },
+              {
+                "type": "skip",
+                "description": "No clock action available today; only retained records were verified",
+                "location": {
+                  "file": "/Users/macbook/.t3/worktrees/industrial-sas/t3-ad7b5fc0/tests/e2e/hr-local/workflows.spec.ts",
+                  "line": 48,
+                  "column": 8
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]
