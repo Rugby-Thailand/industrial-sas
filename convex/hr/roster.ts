@@ -454,8 +454,18 @@ export const assignRoster = mutationWithOrg({
         if (args.cells.length < 1 || args.cells.length > MAX_ROSTER_CELLS)
           return fail("ROSTER_SELECTION_INVALID", "cells");
         const seen = new Set<string>();
+        const employeeIds = new Set<string>();
+        const month = args.cells[0]!.date.slice(0, 7);
+        const dates = monthDates(month);
+        if (dates === null) return fail("DATE_INVALID", "cells");
         for (const cell of args.cells) {
           if (!isIsoDate(cell.date)) return fail("DATE_INVALID", "cells");
+          employeeIds.add(cell.employeeId);
+          if (
+            cell.date.slice(0, 7) !== month ||
+            employeeIds.size > MAX_PERIOD_EMPLOYEES
+          )
+            return fail("ROSTER_SELECTION_INVALID", "cells");
           if (!Number.isSafeInteger(cell.expectedRevision))
             return fail("ROSTER_SELECTION_INVALID", "cells");
           const key = `${cell.employeeId}:${cell.date}`;
@@ -492,6 +502,8 @@ export const assignRoster = mutationWithOrg({
 
         const periods = await sitePeriods(ctx, site._id);
         const employees = new Map<string, Employee | null>();
+        const rosterRows = new Map<string, ReadonlyMap<IsoDate, RosterRow>>();
+        const recordedDates = new Map<string, ReadonlySet<string>>();
         const plans: { row: RosterRow | null; cell: (typeof args.cells)[0] }[] =
           [];
         // Validate everything first: a refusal must leave no partial write.
@@ -514,31 +526,43 @@ export const assignRoster = mutationWithOrg({
               "employeeId",
               reason,
             );
-          const day = await ctx.tenantDb
-            .byIndex<Doc<"hrAttendanceDays">>(
-              "hrAttendanceDays",
-              "by_orgId_employeeId_businessDate",
-              [
-                { field: "employeeId", value: employee._id },
-                { field: "businessDate", value: cell.date },
-              ],
-            )
-            .first();
-          if (day !== null) return fail("ROSTER_DAY_RECORDED", "cells", reason);
+          // At most 50 bounded monthly reads per table, rather than one
+          // indexed read per cell. Employee/date revisions remain global
+          // across site moves; recorded attendance also follows the employee.
+          if (!rosterRows.has(employee._id)) {
+            rosterRows.set(
+              employee._id,
+              await employeeRosterRowsInRange(
+                ctx,
+                employee._id,
+                dates[0]!,
+                dates[dates.length - 1]!,
+              ),
+            );
+            const days = await ctx.tenantDb
+              .byIndex<Doc<"hrAttendanceDays">>(
+                "hrAttendanceDays",
+                "by_orgId_employeeId_businessDate",
+                [{ field: "employeeId", value: employee._id }],
+                {
+                  field: "businessDate",
+                  lower: { value: dates[0]!, inclusive: true },
+                  upper: { value: dates[dates.length - 1]!, inclusive: true },
+                },
+              )
+              .all(dates.length * 2);
+            recordedDates.set(
+              employee._id,
+              new Set(days.map((day) => day.businessDate)),
+            );
+          }
+          if (recordedDates.get(employee._id)!.has(cell.date))
+            return fail("ROSTER_DAY_RECORDED", "cells", reason);
           if (closedCovering(periods, cell.date))
             return fail("PERIOD_CLOSED", "cells", reason);
           if (await hasFrozenPlan(ctx, employee._id, cell.date))
             return fail("ROSTER_DAY_FROZEN", "cells", reason);
-          const row = await ctx.tenantDb
-            .byIndex<RosterRow>(
-              "hrRosterAssignments",
-              "by_orgId_employeeId_businessDate",
-              [
-                { field: "employeeId", value: employee._id },
-                { field: "businessDate", value: cell.date },
-              ],
-            )
-            .unique();
+          const row = rosterRows.get(employee._id)!.get(cell.date) ?? null;
           if ((row?.revision ?? 0) !== cell.expectedRevision)
             return fail("ROSTER_STALE", "cells", reason);
           plans.push({ row, cell });

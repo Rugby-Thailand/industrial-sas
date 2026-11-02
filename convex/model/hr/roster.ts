@@ -49,7 +49,7 @@ export const MAX_SHIFT_NAME_LENGTH = 120;
 export const MAX_SHIFT_DESCRIPTION_LENGTH = 500;
 /** One bounded page: the catalogue read is `take(MAX_SITE_SHIFTS + 1)`. */
 export const MAX_SITE_SHIFTS = 99;
-/** Cells one assignment command may change (50 employees × 31 days fits). */
+/** One site/month, up to 50 employees × 31 days, in one atomic command. */
 export const MAX_ROSTER_CELLS = 1550;
 
 const SHIFT_CODE = /^[A-Z0-9][A-Z0-9_-]*$/;
