@@ -31,7 +31,7 @@ the generated API and real review/self callers; focused preservation tests pass.
   fix an inherited test-only lint violation, and commit the recording protocol.
 
 The recovery-fix acceptance source is
-`9a826d53` (full revision is recorded by each retained report). Later changes
+`9a826d53f7a08d5394272ea77ad06e8c012b4350`. Later changes
 are test/evidence only; see final handback below for exact head and remaining
 limitations. This is not final acceptance of a later Kiro production revision.
 
