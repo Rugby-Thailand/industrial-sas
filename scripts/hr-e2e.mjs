@@ -14,14 +14,18 @@ import { once } from "node:events";
 
 import { loadHrEnvironment } from "./lib/hr-e2e-env.mjs";
 import { requireHrPortFree } from "./lib/hr-e2e-ports.mjs";
+import { createHrRunArchive, openHrRunLog } from "./lib/hr-e2e-archive.mjs";
 
 process.umask(0o077);
 const env = loadHrEnvironment();
 const directory = ".cache/hr-browser";
+const runDirectory = createHrRunArchive();
+env.HR_E2E_RUN_DIRECTORY = runDirectory;
+process.env.HR_E2E_RUN_DIRECTORY = runDirectory;
 mkdirSync(directory, { recursive: true, mode: 0o700 });
 chmodSync(directory, 0o700);
 const owned = new Set();
-const journal = `${directory}/processes.jsonl`;
+const journal = `${runDirectory}/processes.jsonl`;
 const lockPath = `${directory}/run.lock`;
 let ownsLock = false;
 const log = (event) =>
@@ -42,7 +46,7 @@ function start(label, entry, args, output) {
     stdio: ["ignore", output, output],
   });
   owned.add(child);
-  log({ event: "start", label, pid: child.pid });
+  log({ event: "start", label, pid: child.pid, pgid: child.pid, runDirectory });
   child.once("close", (code, signal) => {
     log({ event: "exit", label, pid: child.pid, code, signal });
   });
@@ -92,7 +96,7 @@ const deadline = setTimeout(() => {
 }, 20 * 60_000);
 
 async function command(args) {
-  const output = openSync(`${directory}/commands.log`, "a", 0o600);
+  const output = openSync(`${runDirectory}/commands.log`, "a", 0o600);
   const child = start(
     "convex-command",
     "node_modules/convex/bin/main.js",
@@ -116,8 +120,8 @@ try {
     );
   }
   for (const port of [3110, 3320, 3321]) await requireHrPortFree(port);
-  const backendLog = `${directory}/backend.log`;
-  const output = openSync(backendLog, "w", 0o600);
+  const backendLog = `${runDirectory}/backend.log`;
+  const output = openHrRunLog(runDirectory, "backend.log");
   const backend = start(
     "convex",
     "node_modules/convex/bin/main.js",
@@ -134,7 +138,7 @@ try {
       "--codegen",
       "disable",
       "--tail-logs",
-      "disable",
+      "always",
     ],
     output,
   );

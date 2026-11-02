@@ -1,9 +1,43 @@
 import { describe, expect, it } from "vitest";
 import net from "node:net";
 import { once } from "node:events";
+import {
+  closeSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { assertHrEnvironment } from "../../scripts/lib/hr-e2e-env.mjs";
 import { requireHrPortFree } from "../../scripts/lib/hr-e2e-ports.mjs";
+import {
+  createHrRunArchive,
+  openHrRunLog,
+} from "../../scripts/lib/hr-e2e-archive.mjs";
+
+it("isolates run logs and refuses to overwrite diagnostic evidence", () => {
+  const root = mkdtempSync(join(tmpdir(), "hr-archives-"));
+  try {
+    const first = createHrRunArchive(root);
+    const second = createHrRunArchive(root);
+    expect(first).not.toBe(second);
+    for (const name of ["backend.log", "web.log"]) {
+      closeSync(openHrRunLog(first, name));
+      writeFileSync(join(first, name), "retained failure");
+      expect(() => openHrRunLog(first, name)).toThrow();
+      closeSync(openHrRunLog(second, name));
+      expect(readFileSync(join(first, name), "utf8")).toBe("retained failure");
+    }
+    expect(() => openHrRunLog(first, "../old.log")).toThrow(
+      "HR_E2E_LOG_NAME_REFUSED",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 const local = {
   CONVEX_DEPLOYMENT: "anonymous:anonymous-agent",

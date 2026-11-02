@@ -60,7 +60,7 @@ export default defineConfig({
     { name: "hr-mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: "pnpm exec next dev --webpack --hostname localhost --port 3110",
+    command: "node scripts/hr-e2e-web.mjs",
     url: `${baseURL}/en/sign-in`,
     reuseExistingServer: false,
     timeout: 120_000,
