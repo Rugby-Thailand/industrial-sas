@@ -9,6 +9,7 @@ import {
 } from "../../fixtures/convex-tenant-world";
 
 it("a full shift catalogue refuses another definition while allowing a versioned edit", async () => {
+  expect(MAX_SITE_SHIFTS).toBe(99);
   const world = await createConvexTenantWorld({
     "../convex/hr/roster.ts": () => import("../../../convex/hr/roster"),
   });

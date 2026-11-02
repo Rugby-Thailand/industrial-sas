@@ -2640,10 +2640,10 @@
       "ROSTER_STALE": "Someone else changed a selected date. Reload and select again",
       "ROSTER_DAY_RECORDED": "A selected date already has recorded attendance; its plan cannot change",
       "ROSTER_NOT_EMPLOYED": "A selected employee is not employed on that date",
-      "ROSTER_SELECTION_INVALID": "The selection is invalid",
+      "ROSTER_SELECTION_INVALID": "Select up to 1,550 dates for at most 50 employees in one site and month. Each date must appear once.",
       "EMPLOYEE_INACTIVE": "A selected employee is inactive",
       "MONTH_INVALID": "Choose a valid month",
-      "SHIFT_LIMIT_EXCEEDED": "This site has reached the limit of 100 shift definitions. Edit an existing definition.",
+      "SHIFT_LIMIT_EXCEEDED": "This site has reached the limit of 99 shift definitions. Edit an existing definition.",
       "PERIOD_CLOSED": "A selected date is in a closed period; its roster cannot change.",
       "ROSTER_DAY_FROZEN": "A selected date has a frozen attendance plan. Roster recalculation is not supported."
     },
