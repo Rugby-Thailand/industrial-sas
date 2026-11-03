@@ -5,8 +5,8 @@
 export const OCTOBER_WORK_DAYS = new Set([
   1, 2, 5, 6, 7, 8, 9, 12, 14, 15, 16, 19, 20, 21, 22, 23, 26, 27, 28, 29, 30,
 ]);
-export const CORRECTION_REASON = 'แก้เวลา "อนุมัติ",\nตรวจแล้ว';
-export const CSV_CORRECTION_REASON = '"แก้เวลา ""อนุมัติ"",\nตรวจแล้ว"';
+export const CORRECTION_REASON = 'แก้เวลา "อนุมัติ",\r\nตรวจแล้ว';
+export const CSV_CORRECTION_REASON = '"แก้เวลา ""อนุมัติ"",\r\nตรวจแล้ว"';
 export const CSV_HEADER =
   "period_id,period_version,site_code,employee_code,employee_name,business_date,timezone,planned_start,planned_end,actual_start,actual_end,worked_minutes,outside_shift_minutes,disposition,correction_reason";
 

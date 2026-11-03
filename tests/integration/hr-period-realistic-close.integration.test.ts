@@ -1,3 +1,4 @@
+import { parse } from "csv-parse/sync";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../convex/_generated/api";
@@ -20,6 +21,8 @@ import {
 const ADMIN = { subject: "user_fixture_a", org_id: "org_fixture_a" };
 let sequence = 0;
 const rid = () => `realistic-close-${++sequence}`;
+const csvRecords = (content: string): string[][] =>
+  parse(content, { bom: true });
 // Public functions return the common authorization envelope around their answer.
 function answer(result: any) {
   expect(result.ok, JSON.stringify(result).slice(0, 400)).toBe(true);
@@ -222,6 +225,7 @@ describe("realistic attendance period close", () => {
     let cursor: string | undefined;
     let content = "";
     const partSizes: number[] = [];
+    const exportedEmployees = new Set<string>();
     for (let partIndex = 0; partIndex < 4; partIndex += 1) {
       const part = written(
         await client.mutation(api.hr.periods.exportCsv, {
@@ -231,6 +235,15 @@ describe("realistic attendance period close", () => {
         }),
       );
       partSizes.push(part.rowCount);
+      const partRecords = csvRecords(part.content).slice(
+        partIndex === 0 ? 1 : 0,
+      );
+      expect(partRecords).toHaveLength(part.rowCount);
+      const employeesInPart = new Set(partRecords.map((row) => row[3]!));
+      for (const employee of employeesInPart) {
+        expect(exportedEmployees.has(employee)).toBe(false);
+        exportedEmployees.add(employee);
+      }
       content += part.content;
       if (part.isDone) break;
       cursor = part.continueCursor;
@@ -244,14 +257,19 @@ describe("realistic attendance period close", () => {
       expect(count).toBeLessThanOrEqual(2000);
       expect(count % 31).toBe(0);
     }
-    const expectedRecords = expectedCsv(periodId, 120).split("\r\n");
-    const records = content.split("\r\n");
+    const expectedRecords = csvRecords(expectedCsv(periodId, 120));
+    const records = csvRecords(content);
     expect(records).toHaveLength(expectedRecords.length);
-    // Embedded LF in the quoted reason remains inside its record. Comparing
-    // records individually gives a useful failure without dumping the month.
+    expect(content.match(/\uFEFF/g)).toHaveLength(1);
+    expect(records.filter((row) => row[0] === "period_id")).toHaveLength(1);
+    expect(
+      new Set(records.slice(1).map((row) => `${row[3]}:${row[5]}`)).size,
+    ).toBe(3720);
+    // A real CSV parser preserves quoted CRLF; compare each cell and the bytes.
     records.forEach((record, index) =>
-      expect(record).toBe(expectedRecords[index]),
+      expect(record).toEqual(expectedRecords[index]),
     );
+    expect(content === expectedCsv(periodId, 120)).toBe(true);
     const own = answer(
       await client.query(api.hr.selfPeriods.detail, { versionId }),
     );
@@ -306,10 +324,12 @@ describe("realistic attendance period close", () => {
       );
       expect(csv.isDone).toBe(true);
       expect(csv.rowCount).toBe(employees * 31);
-      const expected = expectedCsv(periodId, employees).split("\r\n");
-      const actual = csv.content.split("\r\n") as string[];
+      const expected = csvRecords(expectedCsv(periodId, employees));
+      const actual = csvRecords(csv.content);
       expect(actual).toHaveLength(expected.length);
-      actual.forEach((record, index) => expect(record).toBe(expected[index]));
+      actual.forEach((record, index) =>
+        expect(record).toEqual(expected[index]),
+      );
     },
   );
 
@@ -357,13 +377,14 @@ describe("realistic attendance period close", () => {
         versionId: second,
       }),
     );
-    const expected = expectedCsv(periodId, 51)
-      .replaceAll(",1,ALPHA,", ",2,ALPHA,")
-      .replaceAll(",E0003,Corrected,", ",E0003,Corrected revised,")
-      .split("\r\n");
-    const records = revised.content.split("\r\n") as string[];
+    const expected = csvRecords(
+      expectedCsv(periodId, 51)
+        .replaceAll(",1,ALPHA,", ",2,ALPHA,")
+        .replaceAll(",E0003,Corrected,", ",E0003,Corrected revised,"),
+    );
+    const records = csvRecords(revised.content);
     expect(records).toHaveLength(expected.length);
-    records.forEach((record, index) => expect(record).toBe(expected[index]));
+    records.forEach((record, index) => expect(record).toEqual(expected[index]));
     const firstAgain = written(
       await client.mutation(api.hr.periods.exportCsv, {
         requestId: rid(),
@@ -418,16 +439,12 @@ describe("realistic attendance period close", () => {
     );
     expect(csv.isDone).toBe(true);
     expect(csv.rowCount).toBe(1556); // 50 full months plus six employed dates.
-    const expected = expectedCsv(periodId, 51)
-      .split("\r\n")
-      .filter((record) => {
-        if (!record.includes(",E0000,")) return true;
-        return [15, 16, 17, 18, 19, 20].some((day) =>
-          record.includes(`,${dateOf(day)},`),
-        );
-      });
-    const records = csv.content.split("\r\n") as string[];
+    const expected = csvRecords(expectedCsv(periodId, 51)).filter((record) => {
+      if (record[3] !== "E0000") return true;
+      return [15, 16, 17, 18, 19, 20].some((day) => record[5] === dateOf(day));
+    });
+    const records = csvRecords(csv.content);
     expect(records).toHaveLength(expected.length);
-    records.forEach((record, index) => expect(record).toBe(expected[index]));
+    records.forEach((record, index) => expect(record).toEqual(expected[index]));
   });
 });
