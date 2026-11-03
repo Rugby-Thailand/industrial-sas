@@ -1068,14 +1068,10 @@ function qualityProblems(workflow, { allowedGhsas }) {
   }
 
   const validationLanes = {
-    static: [
-      "pnpm format:check",
+    static: ["pnpm format:check", "pnpm lint", "pnpm check:navigation"],
+    contracts: [
       "pnpm typecheck",
       "pnpm typecheck:ts6",
-      "pnpm lint",
-      "pnpm check:navigation",
-    ],
-    contracts: [
       "node scripts/ci/validate-workflows.mjs --verify-pins",
       "pnpm audit:prod",
       "node scripts/ci/audit-dependencies.mjs --scope=app",
@@ -1083,6 +1079,7 @@ function qualityProblems(workflow, { allowedGhsas }) {
       "pnpm -C tools/release install --frozen-lockfile\nnode tools/release/check-compatibility.mjs\n",
       "pnpm ci:test-discovery",
       "pnpm ci:codegen",
+      "node scripts/ci/workspace-impact.mjs",
     ],
   };
   if (
@@ -1117,6 +1114,42 @@ function qualityProblems(workflow, { allowedGhsas }) {
         );
     }
   }
+  const generatorRuns = validationSteps.map((step) => step.run);
+  if (!(
+    generatorRuns.indexOf("pnpm typecheck") <
+      generatorRuns.indexOf("pnpm typecheck:ts6") &&
+    generatorRuns.indexOf("pnpm typecheck:ts6") <
+      generatorRuns.indexOf("pnpm ci:codegen")
+  ))
+    problems.push(
+      "quality.yml:validate: typechecks must precede codegen sequentially",
+    );
+  const reportUpload = validationSteps.find(
+    (step) => step.name === "Upload workspace impact report",
+  );
+  if (
+    !same(reportUpload, {
+      name: "Upload workspace impact report",
+      if: "${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}",
+      uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      with: {
+        name: "workspace-impact-report",
+        overwrite: "true",
+        path: "test-results/workspace-impact-report.json",
+        "retention-days": "7",
+        "if-no-files-found": "error",
+      },
+    }) ||
+    jobs.validate?.outputs !== undefined ||
+    JSON.stringify(jobs).includes("needs.validate.outputs") ||
+    JSON.stringify(jobs).includes("ALLOWED_SKIPS") ||
+    stepsOf(jobs.check).find((step) =>
+      String(step.run).includes("aggregate.mjs"),
+    )?.if !== undefined
+  )
+    problems.push(
+      "quality.yml: workspace impact must remain report-only with its required artifact",
+    );
   const clean = validationSteps.filter(
     (step) => step.run === "pnpm ci:clean-tree",
   );

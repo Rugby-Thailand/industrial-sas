@@ -45,10 +45,10 @@ jobs:
       # install). `bun --check`, never bare `bun check`, which would run the aggregate
       # `check` script. The same lane also owns the exact TypeScript 6 gate.
       - name: Typecheck (cold next typegen + Bun checker)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm typecheck
       - name: TypeScript 6 gate (cold generated route types)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm typecheck:ts6
       - name: Lint
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
@@ -80,6 +80,19 @@ jobs:
       - name: Convex codegen freshness
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm ci:codegen
+      # Advisory evidence only: no outputs or scheduling conditions consume it.
+      - name: Workspace impact report (always run suites)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
+        run: node scripts/ci/workspace-impact.mjs
+      - name: Upload workspace impact report
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: workspace-impact-report
+          overwrite: true
+          path: test-results/workspace-impact-report.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Clean tree after generators
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm ci:clean-tree
