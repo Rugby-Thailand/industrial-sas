@@ -748,7 +748,7 @@ function RosterView() {
               value={month}
               disabled={assigning}
               onChange={(event) => setMonth(event.target.value)}
-              className="w-40"
+              className="w-48"
             />
             <Button
               type="button"

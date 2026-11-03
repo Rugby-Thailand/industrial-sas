@@ -1,7 +1,12 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { createClerkClient } from "@clerk/backend";
-import { test as base, expect, type Page } from "@playwright/test";
+import {
+  test as base,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 
@@ -116,9 +121,31 @@ export async function expectEmployeeList(page: Page, code: string) {
   );
 }
 
+/** Retained roster fixtures can add workplaces; never rely on a single-site default. */
+export async function chooseWorkplace(
+  page: Page,
+  scope: Page | Locator = page,
+) {
+  const access = await (await convexAs(page)).query("hr/access:display");
+  expect(access.ok).toBe(true);
+  const chosen = access.value.sites.find(
+    (site: { id: string }) => site.id === readHrFixture().warehouseId,
+  );
+  expect(chosen).toBeDefined();
+  const label = `${chosen.code} · ${chosen.name}`;
+  const control = scope.getByRole("combobox", {
+    name: "Workplace",
+    exact: true,
+  });
+  await control.click();
+  await page.getByRole("option", { name: label, exact: true }).click();
+  await expect(control).toHaveText(label);
+}
+
 /** New active employees must choose masters once the organization has them. */
 export async function chooseRequiredEmployment(page: Page) {
   const form = page.getByTestId("hr-employee-form");
+  await chooseWorkplace(page, form);
   for (const [label, endpoint] of [
     [/^Department( \*)?$/, "hr/org:listDepartments"],
     [/^Position( \*)?$/, "hr/org:listPositions"],

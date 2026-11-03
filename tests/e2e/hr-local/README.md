@@ -42,9 +42,11 @@ pnpm exec playwright test --config playwright.hr-local.config.ts --list
 
 The runner starts its own anonymous Convex instance on 3320/3321, configures its
 Clerk issuer and seed opt-in, waits for the real functions, and runs Playwright.
-Playwright owns a separate `.next-e2e` Next build on localhost:3110. Services and
-their process groups are stopped on success, failure, SIGINT or SIGTERM. The
-runner refuses to reuse or stop existing services. Overall timeout is 20 minutes.
+Playwright owns a separate `.next-e2e` Next build on localhost:3110. Services are stopped on normal completion. After an abrupt interruption, inspect
+the run-specific process journal and revoke only that run's recorded sessions;
+Playwright teardown can be interrupted before its separately grouped web server
+or session fixture finishes. Stop only those recorded process groups. The runner
+refuses to reuse or stop existing services. Overall timeout is 20 minutes.
 Do not run multiple suites against the pinned test account/database concurrently.
 
 ## Data and coverage
@@ -59,7 +61,7 @@ Desktop and mobile Chromium cover identity/read persistence, employee
 create/edit/reload, native/header Back, explicit Cancel followed by next Back,
 origin locale/query/hash, dirty Keep/Discard, Forward/refresh, clock persistence,
 correction submission with original events retained, holiday persistence,
-inactive leave policy, foreign-site filtering and anonymous denial. Pending-save
+leave readiness for the retained policy state, foreign-site filtering and anonymous denial. Pending-save
 coverage disconnects the browser's network, checks the real queued Convex write
 blocks departure, reconnects and verifies the actual committed record.
 

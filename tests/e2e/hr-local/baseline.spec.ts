@@ -119,23 +119,42 @@ test("dirty employee Back offers Keep and Discard without losing retained values
   await expect(name).not.toHaveValue("Unsaved local browser draft");
 });
 
-test("leave stays gated without an activated policy after reload", async ({
+test("leave readiness matches the active policy and survives reload", async ({
   page,
-}) => {
+}, info) => {
   await page.goto("/en/hr/leave");
-  await expect(
-    page.getByText("Leave is not ready yet", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Submit request", exact: true }),
-  ).toHaveCount(0);
-  const result = await (await convexAs(page)).query("hr/leave:self");
-  expect(result.ok).toBe(true);
-  expect(result.value.gate).toBe("POLICY_NOT_ACTIVE");
-  await page.reload();
-  await expect(
-    page.getByText("Leave is not ready yet", { exact: true }),
-  ).toBeVisible();
+  const api = await convexAs(page);
+  const policy = await api.query("hr/policies:current", {
+    capability: "LEAVE",
+  });
+  const result = await api.query("hr/leave:self");
+  expect(policy.ok && result.ok).toBe(true);
+  if (!policy.value.active) expect(result.value.gate).toBe("POLICY_NOT_ACTIVE");
+  else expect(result.value.gate).not.toBe("POLICY_NOT_ACTIVE");
+  info.annotations.push({
+    type: "observed-leave-gate",
+    description: result.value.gate ?? "READY",
+  });
+  // A retained local database may already have the illustrative policy activated.
+  // Verify its actual readiness; never deactivate it or claim inactive coverage.
+  for (const reload of [false, true]) {
+    if (reload) await page.reload();
+    const latest = await (await convexAs(page)).query("hr/leave:self");
+    expect(latest.ok).toBe(true);
+    expect(latest.value.gate).toBe(result.value.gate);
+    if (result.value.gate === null) {
+      await expect(page.getByTestId("hr-leave-gate")).toHaveCount(0);
+      await expect(page.getByLabel(/^Start date/)).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Submit request", exact: true }),
+      ).toBeVisible();
+    } else {
+      await expect(page.getByTestId("hr-leave-gate")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Submit request", exact: true }),
+      ).toHaveCount(0);
+    }
+  }
 });
 
 test("real backend isolates foreign tenant site and denies anonymous HR access", async ({

@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import type { Locator, Page } from "@playwright/test";
 
-import { test, expect, convexAs, expectEmployeeList } from "./fixtures";
+import {
+  test,
+  expect,
+  convexAs,
+  expectEmployeeList,
+  chooseWorkplace,
+} from "./fixtures";
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOQi5r2HwADtgIOas69kQAAAABJRU5ErkJggg==",
@@ -319,6 +325,7 @@ test("Phase1 masters and employee employment assignments persist after reload", 
     name: "Employment",
     exact: true,
   });
+  await chooseWorkplace(page, employment);
   await choose(page, employment, /^Department/, department);
   await choose(page, employment, /^Position/, position);
   await choose(page, employment, /^Level$/, level);
