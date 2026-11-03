@@ -78,7 +78,12 @@ GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH=/absolute/path/event.json node 
 The event JSON needs `{"pull_request":{"base":{"sha":"<40-character base SHA>"}}}`.
 The CLI writes `test-results/workspace-impact-report.json`. Tests use a local Git
 fixture for invalid history, unusual filenames, rename/delete and additions;
-resolver tests exercise the real harness configs without network. Saved local
+resolver tests exercise the real harness configs without network, check resolved
+optimizer options and temporary-cache cleanup, and probe aliases directly rather
+than depending on production callers. Parser/hash and negative-prediction tests
+use fixed fixtures: unknown live imports remain advisory and predict full.
+Resolver exceptions (including non-Error throws) retain valid Git evidence and
+produce a full prediction. Saved local
 evidence is in `docs/reviews/workspace-impact-2026-11-03.json`; it is not a
 historical eligibility estimate. No 7/80 or other skip-rate claim is made.
 
@@ -103,6 +108,14 @@ workflow/policy/tests if serial lanes worsen the critical path. No speedup or
 queue reduction is guaranteed.
 
 ## Local validation and timing
+
+The table and saved JSON below are historical measurements from before the Kiro
+review fixes. That version did not clear Vite's merged optimizer includes and
+could rewrite harness caches. They are not timings of the final implementation.
+The corrected analyzer clears merged includes, isolates each resolver's cache in
+a temporary directory, and removes it after closing all servers. A subsequent
+local graph-only run took 5.93 s (203 dependencies, zero unknowns) while focused
+tests ran concurrently; this is not a controlled performance comparison.
 
 Measured on macOS arm64, Node 24, pnpm 10.33.2 and Bun 1.4.3, with warm
 installed dependencies and incremental typecheck outputs. Each lane ran its full
@@ -146,7 +159,7 @@ and 28.62 s contracts, with different local load/cache state. Moving both
 typechecks balances ownership structurally; differences between these local
 runs do not establish a speedup.
 
-Focused validation covers 115 workflow, aggregate, release-policy,
+Initial focused validation covered 115 workflow, aggregate, release-policy,
 codegen-isolation and workspace-impact cases. Normal ESLint, full formatting,
 68 navigation architecture fixtures and inventory check, workflow lint/remote
 pin verification, both typechecks, all audits, release-tool compatibility,

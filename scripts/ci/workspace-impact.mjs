@@ -9,7 +9,10 @@ import {
   mkdirSync,
   writeFileSync,
   appendFileSync,
+  mkdtempSync,
+  rmSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
@@ -62,7 +65,11 @@ function files(root, directory) {
     );
 }
 
-export function imports(source, file) {
+export function imports(
+  source,
+  file,
+  audit = { file: runtimeCaller, hash: runtimeCallerHash },
+) {
   const result = { literals: [], unknown: [] };
   const ast = ts.createSourceFile(
     file,
@@ -94,11 +101,10 @@ export function imports(source, file) {
         const mapping =
           key && `${key}: \`/@fs\${resolve("${runtimeModules[key]}")}\``;
         if (
-          file === runtimeCaller &&
+          file === audit.file &&
           mapping &&
           source.includes(mapping) &&
-          createHash("sha256").update(source).digest("hex") ===
-            runtimeCallerHash
+          createHash("sha256").update(source).digest("hex") === audit.hash
         )
           result.literals.push(`/${runtimeModules[key]}`);
         else
@@ -120,18 +126,34 @@ export function imports(source, file) {
   return result;
 }
 
-export async function dependencyEvidence(root) {
+export async function dependencyEvidence(root, createResolver = createServer) {
   const dependencies = new Set(["playwright.workspace.config.ts"]);
   const unknown = [];
   const resolutions = [];
   const servers = [];
+  const cacheRoot = mkdtempSync(resolve(tmpdir(), "workspace-impact-vite-"));
   try {
     for (const name of harnesses) {
       // Real dev-mode resolver, including each harness's ordered aliases.
-      const server = await createServer({
+      const server = await createResolver({
         configFile: resolve(root, `scripts/${name}/vite.config.mjs`),
+        cacheDir: resolve(cacheRoot, name),
         server: { middlewareMode: true, watch: null, hmr: false, ws: false },
-        optimizeDeps: { noDiscovery: true, include: [] },
+        plugins: [
+          {
+            name: "workspace-impact-disable-optimization",
+            enforce: "post",
+            config(config) {
+              // Inline arrays merge with the harness config. Mutate the merged
+              // options so explicit includes cannot start background prebundling.
+              config.optimizeDeps = {
+                ...config.optimizeDeps,
+                noDiscovery: true,
+                include: [],
+              };
+            },
+          },
+        ],
       });
       servers.push(server);
       const seeds = [
@@ -183,7 +205,15 @@ export async function dependencyEvidence(root) {
       }
     }
   } finally {
-    await Promise.all(servers.map((server) => server.close()));
+    try {
+      const closed = await Promise.allSettled(
+        servers.map((server) => server.close()),
+      );
+      const failure = closed.find((result) => result.status === "rejected");
+      if (failure) throw failure.reason;
+    } finally {
+      rmSync(cacheRoot, { recursive: true, force: true });
+    }
   }
   return {
     dependencies: [...dependencies].sort(),
@@ -250,7 +280,11 @@ export function diffEvidence(root, base, head) {
 /** @param {string} root
  * @param {Record<string, string | undefined>} env
  */
-export async function report(root, env = process.env) {
+export async function report(
+  root,
+  env = process.env,
+  analyze = dependencyEvidence,
+) {
   const start = performance.now();
   const event = env.GITHUB_EVENT_NAME ?? "unknown";
   let base = null,
@@ -271,11 +305,11 @@ export async function report(root, env = process.env) {
         git(root, ["fetch", "--no-tags", "--depth=1", "origin", base]);
       }
       changes = diffEvidence(root, base, head);
-      evidence = await dependencyEvidence(root);
       valid = true;
+      evidence = await analyze(root);
     }
   } catch (caught) {
-    error = caught.message.split("\n")[0];
+    error = String(caught?.message ?? caught).split("\n")[0];
   }
   return {
     version: 1,

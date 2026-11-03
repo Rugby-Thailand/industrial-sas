@@ -1,14 +1,16 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   mkdtempSync,
   writeFileSync,
   renameSync,
   rmSync,
-  readFileSync,
+  existsSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { createServer } from "vite";
 import {
   classify,
   dependencyEvidence,
@@ -20,8 +22,32 @@ import {
 } from "../../scripts/ci/workspace-impact.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
-const evidence = await dependencyEvidence(root);
-const prediction = (path: string, status = "M", graph = evidence) =>
+const resolverConfigs: Array<{
+  cacheDir: string;
+  include: string[];
+  noDiscovery: boolean | undefined;
+  alias: string | undefined;
+}> = [];
+const evidence = await dependencyEvidence(root, async (config) => {
+  const server = await createServer(config);
+  resolverConfigs.push({
+    cacheDir: server.config.cacheDir,
+    include: server.config.optimizeDeps.include ?? [],
+    noDiscovery: server.config.optimizeDeps.noDiscovery,
+    alias: (
+      await server.pluginContainer.resolveId(
+        "next/image",
+        join(root, "src/fixture.tsx"),
+      )
+    )?.id,
+  });
+  return server;
+});
+const prediction = (
+  path: string,
+  status = "M",
+  graph: { dependencies: string[]; unknown: string[] } = evidence,
+) =>
   classify({
     event: "pull_request",
     valid: true,
@@ -45,17 +71,7 @@ describe("advisory workspace impact", () => {
           .predictedWorkspaceAffected,
       ).toBe(true);
     }
-    expect(
-      evidence.resolutions.some(
-        (row: { specifier: string; path: string }) =>
-          row.specifier === "next/image" &&
-          row.path === "scripts/barcode-preview/adapters.tsx",
-      ),
-    ).toBe(true);
-    for (const path of [
-      "convex/model/hr/calendar.ts",
-      ...Object.values(runtimeModules),
-    ]) {
+    for (const path of Object.values(runtimeModules)) {
       expect(evidence.dependencies).toContain(path);
       expect(prediction(path).predictedWorkspaceAffected).toBe(true);
     }
@@ -71,17 +87,45 @@ describe("advisory workspace impact", () => {
     ])
       expect(prediction(path).predictedWorkspaceAffected).toBe(true);
   });
+  it("disables merged optimizer includes and removes isolated resolver caches", () => {
+    expect(resolverConfigs).toHaveLength(3);
+    for (const config of resolverConfigs) {
+      expect(config.include).toEqual([]);
+      expect(config.noDiscovery).toBe(true);
+      expect(config.cacheDir).toContain("workspace-impact-vite-");
+      expect(existsSync(config.cacheDir)).toBe(false);
+    }
+    expect(resolverConfigs[1]?.alias).toBe(
+      join(root, "scripts/barcode-preview/adapters.tsx"),
+    );
+    expect(resolverConfigs[2]?.alias).toBe(
+      join(root, "scripts/barcode-preview/adapters.tsx"),
+    );
+  });
   it("audits known computed runtime imports and rejects unknown expressions or changed mappings", () => {
-    const file = "tests/e2e/workspace/job-ticket-image-compression.spec.ts";
-    const source = readFileSync(join(root, file), "utf8");
-    expect(imports(source, file).unknown).toEqual([]);
-    expect(imports(source, file).literals).toContain(
+    const file = "fixture.ts";
+    const source =
+      'const modules = { prepare: `/@fs${resolve("src/features/finishedGoods/jobScan/prepareJobTicketPhoto.ts")}` }; import(modules.prepare);';
+    const audit = {
+      file,
+      hash: createHash("sha256").update(source).digest("hex"),
+    };
+    expect(imports(source, file, audit).unknown).toEqual([]);
+    expect(imports(source, file, audit).literals).toContain(
       `/${runtimeModules.prepare}`,
     );
     expect(
-      imports(source.replace(runtimeModules.prepare, "src/unknown.ts"), file)
-        .unknown.length,
+      imports(
+        source.replace(runtimeModules.prepare, "src/unknown.ts"),
+        file,
+        audit,
+      ).unknown.length,
     ).toBeGreaterThan(0);
+    expect(
+      imports(`${source}\n// routine edit`, file, audit).unknown,
+    ).toHaveLength(1);
+    expect(imports(source, "another.ts", audit).unknown).toHaveLength(1);
+    expect(imports(source, file).unknown).toHaveLength(1);
     expect(imports("import(modules.unknown)", file).unknown).toHaveLength(1);
     expect(imports("import(variable)", "src/unknown.ts").unknown).toHaveLength(
       1,
@@ -94,8 +138,7 @@ describe("advisory workspace impact", () => {
     ).toBe(true);
   });
   it("allows only a narrow observed negative, always executing workspace", () => {
-    expect(evidence.unknown).toEqual([]);
-    const complete = evidence;
+    const complete = { dependencies: ["src/shared.ts"], unknown: [] };
     const result = prediction(
       "tests/integration/ci-guards.integration.test.ts",
       "M",
@@ -134,7 +177,8 @@ describe("advisory workspace impact", () => {
     ).toBe(true);
   });
   it("reports full for absent/invalid history without interpolating shell strings", async () => {
-    const eventPath = join(tmpdir(), `workspace-event-${process.pid}.json`);
+    const eventDirectory = mkdtempSync(join(tmpdir(), "workspace-event-"));
+    const eventPath = join(eventDirectory, "event.json");
     try {
       writeFileSync(
         eventPath,
@@ -149,9 +193,48 @@ describe("advisory workspace impact", () => {
       expect(result.error).toBe("invalid PR base");
       expect((await report(root, {})).predictedWorkspaceAffected).toBe(true);
     } finally {
-      rmSync(eventPath, { force: true });
+      rmSync(eventDirectory, { recursive: true, force: true });
     }
   });
+  it.each([
+    new Error("resolver failed\nmore detail"),
+    "resolver failed",
+    undefined,
+  ])(
+    "reports resolver failures independently of valid Git evidence: %s",
+    async (failure) => {
+      const eventDirectory = mkdtempSync(
+        join(tmpdir(), "workspace-resolver-event-"),
+      );
+      const eventPath = join(eventDirectory, "event.json");
+      try {
+        const head = execFileSync("git", ["rev-parse", "HEAD"], {
+          cwd: root,
+          encoding: "utf8",
+        }).trim();
+        writeFileSync(
+          eventPath,
+          JSON.stringify({ pull_request: { base: { sha: head } } }),
+        );
+        const result = await report(
+          root,
+          { GITHUB_EVENT_NAME: "pull_request", GITHUB_EVENT_PATH: eventPath },
+          async () => {
+            throw failure;
+          },
+        );
+        expect(result.predictedWorkspaceAffected).toBe(true);
+        expect(result.effectiveWorkspaceRun).toBe(true);
+        expect(result.reasons).toEqual(["incomplete dependency evidence"]);
+        expect(result.error).toBe(
+          failure === undefined ? "undefined" : "resolver failed",
+        );
+        expect(() => JSON.stringify(result)).not.toThrow();
+      } finally {
+        rmSync(eventDirectory, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 const fixture = mkdtempSync(join(tmpdir(), "workspace-impact-git-"));
