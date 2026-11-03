@@ -211,7 +211,12 @@ describe("workflow policy rejects regressions", () => {
       "path: test-results/vitest-junit/shard-${{ matrix.shard }}-2.xml",
     ],
   ])("rejects %s in native test shards", (_reason, from, to) => {
-    expectJobFailure("quality.yml", "test", [[from, to]]);
+    if (
+      ["missing-report warning", "rerun artifact collision"].includes(_reason)
+    ) {
+      const step = namedStep("quality.yml", "Upload shard JUnit");
+      expectJobFailure("quality.yml", "test", [[step, step.replace(from, to)]]);
+    } else expectJobFailure("quality.yml", "test", [[from, to]]);
   });
 
   it("requires exactly one test run and one shard report upload", () => {
@@ -360,8 +365,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "[validate, codegen, test, browser, dependency-review]",
-          "[validate, codegen, test, browser]",
+          "[validate, test, browser, dependency-review]",
+          "[validate, test, browser]",
         ],
       ]),
     ).toEqual(
@@ -613,7 +618,15 @@ describe("workflow policy rejects regressions", () => {
       "quality.yml:release: uploads only release-output/backup-metadata.json, release-output/manifest.json, release-output/smoke-candidate.json, release-output/smoke-live.json",
     );
     expect(
-      problemsWith("quality.yml", [["          retention-days: 7\n", ""]]),
+      problemsWith("quality.yml", [
+        [
+          namedStep("quality.yml", "Upload shard JUnit"),
+          namedStep("quality.yml", "Upload shard JUnit").replace(
+            "          retention-days: 7\n",
+            "",
+          ),
+        ],
+      ]),
     ).toContain(
       "quality.yml:test: upload vitest-junit-${{ matrix.shard }} needs retention-days 1–30",
     );
@@ -850,11 +863,11 @@ describe("workflow policy rejects regressions", () => {
     for (const replacement of [
       "",
       `${ts6}\n${ts6}`,
-      ts6.replace("matrix.lane == 'types'", "matrix.lane == 'style'"),
+      ts6.replace("matrix.lane == 'contracts'", "matrix.lane == 'static'"),
       ts6.replace("!cancelled()", "false"),
     ])
       expect(problemsWith("quality.yml", [[ts6, replacement]])).toContain(
-        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in contracts",
       );
     for (const override of [
       "        shell: echo {0}\n",
@@ -864,7 +877,7 @@ describe("workflow policy rejects regressions", () => {
       expect(
         problemsWith("quality.yml", [[ts6, `${ts6}\n${override.trimEnd()}`]]),
       ).toContain(
-        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in contracts",
       );
     for (const [from, to] of [
       [
@@ -928,10 +941,10 @@ describe("workflow policy rejects regressions", () => {
   });
 
   it("fails closed when validation lanes are missing, duplicated or skipped", () => {
-    for (const lanes of ["[style, types, lint]", "[style, types, lint, lint]"])
+    for (const lanes of ["[static]", "[static, static]"])
       expect(
         problemsWith("quality.yml", [
-          ["lane: [style, types, lint, audit]", `lane: ${lanes}`],
+          ["lane: [static, contracts]", `lane: ${lanes}`],
         ]),
       ).toContain(
         "quality.yml:validate: exact complete validation lanes required",
@@ -940,10 +953,10 @@ describe("workflow policy rejects regressions", () => {
     for (const replacement of [
       "",
       `${lint}\n${lint}`,
-      lint.replace("matrix.lane == 'lint'", "matrix.lane == 'style'"),
+      lint.replace("matrix.lane == 'static'", "matrix.lane == 'contracts'"),
     ])
       expect(problemsWith("quality.yml", [[lint, replacement]])).toContain(
-        "quality.yml:validate: pnpm lint must run exactly once in lint",
+        "quality.yml:validate: pnpm lint must run exactly once in static",
       );
     const clean = namedStep("quality.yml", "Clean tree after generators");
     expect(
@@ -952,6 +965,116 @@ describe("workflow policy rejects regressions", () => {
       ]),
     ).toContain(
       "quality.yml:validate: clean tree must join each lane after all checks",
+    );
+  });
+
+  it("preserves independent contract checks and codegen before final cleanup", () => {
+    for (const name of [
+      "Workflow lint and action pins",
+      "Formatting",
+      "Typecheck (cold next typegen + Bun checker)",
+      "TypeScript 6 gate (cold generated route types)",
+      "Lint",
+      "Back navigation contract and architecture fixtures",
+      "Runtime dependency audit",
+      "Application dependency audit (exact-chain exceptions)",
+      "Release-tool dependency audit (exact-chain exceptions)",
+      "Release-tool schema compatibility",
+      "Test discovery",
+      "Convex codegen freshness",
+    ]) {
+      const step = namedStep("quality.yml", name);
+      for (const replacement of [
+        "",
+        step.replace("!cancelled()", "success()"),
+        `${step}\n        continue-on-error: true`,
+      ])
+        expect(
+          problemsWith("quality.yml", [[step, replacement]]).some((problem) =>
+            problem.includes("must run exactly once"),
+          ),
+        ).toBe(true);
+    }
+    const codegen = namedStep("quality.yml", "Convex codegen freshness");
+    const clean = namedStep("quality.yml", "Clean tree after generators");
+    expect(
+      problemsWith("quality.yml", [
+        [codegen, ""],
+        [clean, `${clean}\n${codegen}`],
+      ]),
+    ).toContain(
+      "quality.yml:validate: clean tree must join each lane after all checks",
+    );
+  });
+
+  it("does not allow final cleanup failures or execution to be overridden", () => {
+    const clean = namedStep("quality.yml", "Clean tree after generators");
+    for (const override of [
+      "continue-on-error: true",
+      "shell: echo {0}",
+      "working-directory: /tmp",
+      "env:\n          NODE_OPTIONS: --version",
+    ])
+      expect(
+        problemsWith("quality.yml", [[clean, `${clean}\n        ${override}`]]),
+      ).toContain(
+        "quality.yml:validate: clean tree must join each lane after all checks",
+      );
+  });
+
+  it("keeps workspace impact advisory and cannot use its prediction to skip suites", () => {
+    const step = namedStep(
+      "quality.yml",
+      "Workspace impact report (always run suites)",
+    );
+    for (const replacement of [
+      "",
+      step.replace("!cancelled()", "success()"),
+      `${step}\n        continue-on-error: true`,
+    ])
+      expect(problemsWith("quality.yml", [[step, replacement]])).toContain(
+        "quality.yml:validate: node scripts/ci/workspace-impact.mjs must run exactly once in contracts",
+      );
+    const browser = namedStep("quality.yml", "Storage workspace (PR subset)");
+    expectJobFailure("quality.yml", "browser", [
+      [
+        browser,
+        browser.replace(
+          "!cancelled()",
+          "!cancelled() && needs.validate.outputs.workspace == 'true'",
+        ),
+      ],
+    ]);
+    for (const [from, to] of [
+      [
+        "  browser:\n",
+        "  browser:\n    if: ${{ needs.validate.outputs.workspace == 'true' }}\n",
+      ],
+      ["  validate:\n", "  validate:\n    outputs:\n      workspace: false\n"],
+      [
+        "          REQUIRED_JOBS: validate,test,browser,dependency-review",
+        "          REQUIRED_JOBS: validate,test,browser,dependency-review\n          ALLOWED_SKIPS: browser",
+      ],
+      [
+        "          path: test-results/workspace-impact-report.json",
+        "          path: missing.json",
+      ],
+    ])
+      expect(
+        problemsWith("quality.yml", [[from!, to!]]).length,
+      ).toBeGreaterThan(0);
+    const codegen = namedStep("quality.yml", "Convex codegen freshness");
+    const ts6 = namedStep(
+      "quality.yml",
+      "TypeScript 6 gate (cold generated route types)",
+    );
+    expect(
+      problemsWith("quality.yml", [
+        [codegen, ""],
+        [ts6, `${codegen}\n${ts6}`],
+      ]),
+    ).toContain(
+      "quality.yml:validate: typechecks must precede codegen sequentially",
     );
   });
 

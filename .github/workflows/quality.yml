@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lane: [style, types, lint, audit]
+        lane: [static, contracts]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -36,63 +36,64 @@ jobs:
       # Later steps run even if an earlier check failed, so one run reports
       # every independent defect; any failed step still fails the job.
       - name: Workflow lint and action pins
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: node scripts/ci/validate-workflows.mjs --verify-pins
       - name: Formatting
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'style' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
         run: pnpm format:check
       # The pinned Bun comes from the shared setup action (after the frozen
       # install). `bun --check`, never bare `bun check`, which would run the aggregate
       # `check` script. The same lane also owns the exact TypeScript 6 gate.
       - name: Typecheck (cold next typegen + Bun checker)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm typecheck
       - name: TypeScript 6 gate (cold generated route types)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'types' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm typecheck:ts6
       - name: Lint
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'lint' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
         run: pnpm lint
       - name: Back navigation contract and architecture fixtures
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'lint' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'static' }}
         run: pnpm check:navigation
       - name: Runtime dependency audit
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm audit:prod
       # High/critical across all app and release-tool dependencies; only the
       # exact-chain, expiring entries in scripts/ci/dependency-exceptions.json
       # are accepted. Registry errors fail.
       - name: Application dependency audit (exact-chain exceptions)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: node scripts/ci/audit-dependencies.mjs --scope=app
       - name: Release-tool dependency audit (exact-chain exceptions)
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: node scripts/ci/audit-dependencies.mjs --scope=release
       - name: Release-tool schema compatibility
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: |
           pnpm -C tools/release install --frozen-lockfile
           node tools/release/check-compatibility.mjs
       - name: Test discovery
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'audit' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
         run: pnpm ci:test-discovery
-      - name: Clean tree after generators
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm ci:clean-tree
-
-  codegen:
-    name: Convex codegen freshness
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Runs after contract checks even when an independent check failed.
+      - name: Convex codegen freshness
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
+        run: pnpm ci:codegen
+      # Advisory evidence only: no outputs or scheduling conditions consume it.
+      - name: Workspace impact report (always run suites)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
+        run: node scripts/ci/workspace-impact.mjs
+      - name: Upload workspace impact report
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          persist-credentials: false
-      - id: setup
-        uses: ./.github/actions/setup-node-pnpm
-      # Credential-free anonymous local backend; refuses any CONVEX_* variable.
-      - run: pnpm ci:codegen
-      - name: Clean tree after codegen
+          name: workspace-impact-report
+          overwrite: true
+          path: test-results/workspace-impact-report.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Clean tree after generators
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm ci:clean-tree
 
@@ -239,7 +240,7 @@ jobs:
   # cancelled, missing or unexpectedly skipped jobs never produce a green check.
   check:
     if: ${{ always() }}
-    needs: [validate, codegen, test, browser, dependency-review]
+    needs: [validate, test, browser, dependency-review]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     outputs:
@@ -257,7 +258,7 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           EVENT_NAME: ${{ github.event_name }}
-          REQUIRED_JOBS: validate,codegen,test,browser,dependency-review
+          REQUIRED_JOBS: validate,test,browser,dependency-review
           PULL_REQUEST_ONLY: dependency-review
         run: node scripts/ci/aggregate.mjs
       - name: Capture staging policy
