@@ -477,7 +477,7 @@ it("names the incomplete tickets in the save blocker and jumps to the first one"
   fireEvent.click(screen.getByRole("button", { name: "Go to ticket #2" }));
   const second = screen.getAllByRole("listitem")[1]!;
   expect(second).toHaveFocus();
-  expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+  expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
 
   // Completing ticket 2 moves the blocker to ticket 3.
   fireEvent.change(

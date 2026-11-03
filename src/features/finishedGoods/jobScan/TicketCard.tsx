@@ -114,7 +114,7 @@ export function TicketCard({
     <li
       data-ticket-key={ticket.key}
       tabIndex={-1}
-      className="space-y-3 border-b border-border py-3 focus-ring"
+      className="scroll-mt-3 space-y-3 border-b border-border py-3 focus-ring"
     >
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-muted">#{index + 1}</span>

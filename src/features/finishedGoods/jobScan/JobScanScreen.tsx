@@ -561,7 +561,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       const first = tickets.indexOf(rows[0]!);
       return {
         text: t(message, { count: rows.length, numbers: ticketNumbers(rows) }),
-        jump: () => jumpTo(`[data-ticket-key="${rows[0]!.key}"]`),
+        // A ticket can be taller than the space above the save bar, so
+        // align its top (number and required fields) rather than its centre.
+        jump: () => jumpTo(`[data-ticket-key="${rows[0]!.key}"]`, "start"),
         jumpLabel: t("goToTicket", { number: first + 1 }),
       };
     };
@@ -582,7 +584,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             tickets.filter((ticket) => duplicateKeys.includes(ticket.key)),
           ),
         }),
-        jump: () => jumpTo("[data-duplicate-review]"),
+        jump: () => jumpTo("[data-duplicate-review]", "center"),
         jumpLabel: t("goToDuplicateReview"),
       };
     return null;
@@ -593,9 +595,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       ? `${numbers.slice(0, 5).join(", ")} +${numbers.length - 5}`
       : numbers.join(", ");
   }
-  function jumpTo(selector: string) {
+  function jumpTo(selector: string, block: ScrollLogicalPosition) {
     const target = document.querySelector<HTMLElement>(selector);
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.scrollIntoView({ behavior: "smooth", block });
     target?.focus({ preventScroll: true });
   }
 
