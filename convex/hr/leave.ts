@@ -28,7 +28,7 @@ import { activePolicy, leaveAccount } from "./policies";
 import { deliverNotification } from "./notifications";
 import { hrListInput, hrPageArgs, hrScanPage } from "./pagination";
 import {
-  periodLockCode,
+  periodLockReader,
   dayOf,
   employmentOf,
   ensureDay,
@@ -480,10 +480,11 @@ async function planLeaveRequest(
   const allDates = datesInRange(args.from, args.to);
   const snapshots = [];
   const dates: string[] = [];
+  const lockForDate = periodLockReader(ctx, employee.warehouseId, allDates);
   for (const date of allDates) {
     if (!isEmployedOn(employmentOf(employee), date))
       return fail("HR_OUTSIDE_EMPLOYMENT");
-    const periodLock = await periodLockCode(ctx, employee.warehouseId, date);
+    const periodLock = await lockForDate(date);
     if (periodLock !== null) return fail(periodLock);
     const day = await dayOf(ctx, employee._id, date);
     const plan = day
@@ -1008,12 +1009,13 @@ export const decide = mutationWithOrg({
         } else {
           if (args.decision === "CONFIRM_CANCEL" && row.from <= clock.today)
             return fail("LEAVE_STARTED_HR_ADJUSTMENT_REQUIRED");
+          const lockForDate = periodLockReader(
+            ctx,
+            employee.warehouseId,
+            row.dates,
+          );
           for (const date of row.dates) {
-            const periodLock = await periodLockCode(
-              ctx,
-              employee.warehouseId,
-              date,
-            );
+            const periodLock = await lockForDate(date);
             if (periodLock !== null) return fail(periodLock);
             const day = await dayOf(ctx, employee._id, date);
             const snapshot = row.daySnapshots.find(
@@ -1355,12 +1357,13 @@ export const adjust = mutationWithOrg({
           return fail("LEAVE_ADJUST_DATES_INVALID");
         const clock = orgClock(ctx);
         if (!clock) return fail("TIMEZONE_UNSUPPORTED");
+        const lockForDate = periodLockReader(
+          ctx,
+          employee.warehouseId,
+          restore,
+        );
         for (const date of restore) {
-          const periodLock = await periodLockCode(
-            ctx,
-            employee.warehouseId,
-            date,
-          );
+          const periodLock = await lockForDate(date);
           if (periodLock !== null) return fail(periodLock);
           const day = await dayOf(ctx, employee._id, date);
           if (

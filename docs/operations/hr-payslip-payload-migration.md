@@ -14,6 +14,16 @@ Now:
 - The ticketed document command reads one payload and verifies org, import, employee, length and hash before returning it.
 - A row without `payloadId` (written before this change) is refused with `PAYSLIP_SOURCE_MIGRATION_PENDING` for download and publication. It is not read inline any more.
 
+Until all legacy inline rows have migrated, import browsing is capped at three
+batches per page. The integration test stages and publishes six imports of eight
+384 KiB PDFs each, converts them to the legacy shape, then traverses the list and
+runs both migration and verification with transaction limits enabled. It also
+covers a maximum-length source CSV containing three-byte UTF-8 whitespace.
+Native byte limits may yield fewer batches or an empty terminal page; callers
+must follow `continueCursor` until `isDone`. This bound assumes the existing
+4 MiB per-import source limit; it does not certify manually imported oversized
+legacy records. Complete the migration before considering a larger page size.
+
 Payloads are ordinary Convex documents, so table snapshot exports and restores cover them like the rows. There is no new external file store.
 
 ## Rollout (expand → migrate → contract)

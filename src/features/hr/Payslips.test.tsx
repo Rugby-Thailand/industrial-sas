@@ -682,3 +682,30 @@ it("refuses a selection that excludes every original row", async () => {
     ]),
   ).rejects.toThrow("CSV_EXCLUSIONS_INVALID");
 });
+
+it("keeps employee pagination usable through an empty unpublished page and restores it with Previous", () => {
+  state.query.mockImplementation((name, args: { cursor?: string }) => {
+    if (name !== "hr/payslips:list") return envelope(list());
+    return envelope(
+      args.cursor === "after-unpublished"
+        ? list()
+        : {
+            ...list(),
+            items: [],
+            isDone: false,
+            continueCursor: "after-unpublished",
+          },
+    );
+  });
+  render(<HrPayslipsScreen />);
+  const next = screen.getByRole("button", { name: "Next page" });
+  expect(next).toBeEnabled();
+  expect(screen.queryByText("Amounts hidden")).not.toBeInTheDocument();
+  fireEvent.click(next);
+  expect(screen.getByText("Amounts hidden")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(screen.queryByText("Amounts hidden")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+});

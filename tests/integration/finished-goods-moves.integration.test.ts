@@ -214,6 +214,17 @@ async function storedWorld() {
 async function preparedWorld() {
   const world = await storedWorld();
   const moveId = id(await call(world, workflow.reserveMove, world.prepare));
+  const indexed = await world.t.run(async (ctx) => {
+    const move = (await ctx.db.get(moveId as Id<"finishedGoodsMoves">))!;
+    const source = (await ctx.db.get(move.sourcePlacementId))!;
+    const target = (await ctx.db.get(move.targetPlacementId))!;
+    return { move, source, target };
+  });
+  expect(indexed.move).toMatchObject({
+    sourceBuildingId: indexed.source.buildingId,
+    targetBuildingId: indexed.target.buildingId,
+    buildingIndexVersion: 1,
+  });
   const args = { ...world.base, moveId };
   return { ...world, moveId, args };
 }
@@ -735,6 +746,13 @@ describe("stored pallet moves", () => {
       original.move?.targetPlacementId,
     );
     expect(changed.source?.status).toBe("STORED");
+    expect(changed.move).toMatchObject({
+      sourceBuildingId: changed.source!.buildingId,
+      targetBuildingId: (await w.t.run((ctx) =>
+        ctx.db.get(changed.move!.targetPlacementId),
+      ))!.buildingId,
+      buildingIndexVersion: 1,
+    });
     expect(
       (await w.t.run((ctx) => ctx.db.get(original.move!.targetPlacementId)))
         ?.status,

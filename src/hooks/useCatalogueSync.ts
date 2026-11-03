@@ -40,41 +40,67 @@ export function useCatalogueSync({
   paging,
   resetKey,
   hasRows = defaultHasRows,
+  maxAutomaticResets = 1,
 }: {
   outcome: CatalogueOutcome | undefined;
   continuation: Continuation;
-  paging: Controller;
+  paging?: Controller;
   resetKey?: string;
   hasRows?: (value: ReadyResult) => boolean;
+  maxAutomaticResets?: number;
 }) {
-  const resetAttempt = useRef<string | null>(null);
+  const recovery = useRef({
+    key: resetKey,
+    attempts: 0,
+    awaitingProgress: false,
+  });
+  const retry = () => {
+    recovery.current = { key: resetKey, attempts: 0, awaitingProgress: true };
+    continuation.advance();
+    paging?.reset();
+  };
   useEffect(() => {
+    if (recovery.current.key !== resetKey) {
+      recovery.current = {
+        key: resetKey,
+        attempts: 0,
+        awaitingProgress: false,
+      };
+    }
     if (!outcome?.ok) return;
     const value = outcome.value;
     if (value.status === "scanning") {
+      // Progress permits another reset, but only a completed scan replenishes
+      // the budget. Otherwise continuous writes can cause an endless retry loop.
+      recovery.current.awaitingProgress = false;
       continuation.advance(value.scanCursor);
       return;
     }
     if (value.status === "reset") {
-      const key = resetKey ?? "default";
       if (
-        resetAttempt.current !== key &&
-        (paging.cursor || continuation.cursor)
+        !recovery.current.awaitingProgress &&
+        recovery.current.attempts < maxAutomaticResets &&
+        (paging?.cursor || continuation.cursor)
       ) {
-        resetAttempt.current = key;
+        recovery.current.attempts += 1;
+        recovery.current.awaitingProgress = true;
         continuation.advance();
-        paging.reset();
+        paging?.reset();
       }
       return;
     }
-    if (value.status === "ready") resetAttempt.current = null;
+    if (value.status === "ready") {
+      recovery.current.attempts = 0;
+      recovery.current.awaitingProgress = false;
+    }
     if (
       value.status === "ready" &&
       value.isDone &&
       !hasRows(value) &&
-      paging.canPrevious
+      paging?.canPrevious
     ) {
       paging.previous();
     }
-  }, [outcome, continuation, paging, resetKey, hasRows]);
+  }, [outcome, continuation, paging, resetKey, hasRows, maxAutomaticResets]);
+  return { retry };
 }

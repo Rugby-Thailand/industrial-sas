@@ -50,8 +50,11 @@ function id(result: Record<string, unknown>): string {
 function error(result: Record<string, unknown>, code: string) {
   expect(value(result)).toMatchObject({ written: false, error: { code } });
 }
-async function setup(roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN") {
-  const world = await createConvexTenantWorld();
+async function setup(
+  roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN",
+  transactionLimits = false,
+) {
+  const world = await createConvexTenantWorld({}, { transactionLimits });
   await seedConvexAuthorization(world, { roleA });
   const warehouseId = world.warehouses.alphaA;
   const location = await world.t.run(async (ctx) => {
@@ -334,23 +337,25 @@ describe("finished goods workflow", () => {
       ]);
   });
   it("changes requirements with more than 10000 unrelated warehouse pallets", async () => {
-    const world = await setup();
+    const world = await setup("ORG_ADMIN", true);
     const { productId, palletId } = await measuredPallet(world);
     const other = await measuredPallet(world, "unrelated");
-    await world.t.run(async (ctx) => {
-      const template = await ctx.db.get(
-        ctx.db.normalizeId("finishedGoodsPallets", other.palletId)!,
-      );
-      const { _id, _creationTime, ...row } = template!;
-      void _id;
-      void _creationTime;
-      for (let i = 0; i < 10001; i++) {
-        await ctx.db.insert("finishedGoodsPallets", {
-          ...row,
-          code: `UNRELATED-${i}`,
-        });
-      }
-    });
+    for (let start = 0; start < 10001; start += 200) {
+      await world.t.run(async (ctx) => {
+        const template = await ctx.db.get(
+          ctx.db.normalizeId("finishedGoodsPallets", other.palletId)!,
+        );
+        const { _id, _creationTime, ...row } = template!;
+        void _id;
+        void _creationTime;
+        for (let i = start; i < Math.min(start + 200, 10001); i++) {
+          await ctx.db.insert("finishedGoodsPallets", {
+            ...row,
+            code: `UNRELATED-${i}`,
+          });
+        }
+      });
+    }
     const product = await world.t.run((ctx) =>
       ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
     );
@@ -879,6 +884,50 @@ describe("finished goods workflow", () => {
         warehouseId: world.warehouses.bravoA,
         productId,
         requestId: "wrong-warehouse",
+      }),
+      "NOT_FOUND",
+    );
+    const edit = {
+      ...fields,
+      productId,
+      requestId: "wrong-warehouse-condition",
+      storageCondition: "COLD",
+      expectedUpdatedAt: (await world.t.run((ctx) =>
+        ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+      ))!.updatedAt,
+    };
+    error(
+      await call(world, workflow.saveProduct, {
+        ...edit,
+        warehouseId: world.warehouses.bravoA,
+      }),
+      "NOT_FOUND",
+    );
+    await expect(
+      call(world, workflow.saveProduct, {
+        ...edit,
+        warehouseId: world.warehouses.alphaB,
+      }),
+    ).rejects.toThrow("WAREHOUSE_UNKNOWN");
+    const foreignProductId = await world.t.run(async (ctx) => {
+      const source = await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsProducts", productId)!,
+      );
+      const { _id, _creationTime, ...product } = source!;
+      void _id;
+      void _creationTime;
+      return ctx.db.insert("finishedGoodsProducts", {
+        ...product,
+        orgId: world.orgB,
+        warehouseId: world.warehouses.alphaB,
+      });
+    });
+    error(
+      await call(world, workflow.saveProduct, {
+        ...edit,
+        warehouseId: world.warehouseId,
+        productId: foreignProductId,
+        requestId: "foreign-product-condition",
       }),
       "NOT_FOUND",
     );

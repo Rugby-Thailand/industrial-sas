@@ -1101,6 +1101,11 @@ const schema = defineSchema({
       palletId: v.id("finishedGoodsPallets"),
       sourcePlacementId: v.id("finishedGoodsPlacements"),
       targetPlacementId: v.id("finishedGoodsPlacements"),
+      // Optional for rolling deployment; version is set only with both trusted
+      // placement building identities. See moveBuildingMigration.
+      sourceBuildingId: v.optional(v.id("storageBuildings")),
+      targetBuildingId: v.optional(v.id("storageBuildings")),
+      buildingIndexVersion: v.optional(v.literal(1)),
       sourceUpdatedAt: v.number(),
       palletUpdatedAt: v.number(),
       targetUpdatedAt: v.number(),
@@ -1144,7 +1149,19 @@ const schema = defineSchema({
   )
     .index("by_orgId_palletId", byOrg("palletId"))
     .index("by_orgId_warehouseId_status", byOrg("warehouseId", "status"))
-    .index("by_orgId_palletId_status", byOrg("palletId", "status")),
+    .index("by_orgId_palletId_status", byOrg("palletId", "status"))
+    .index(
+      "by_orgId_sourceBuildingId_status",
+      byOrg("sourceBuildingId", "status"),
+    )
+    .index(
+      "by_orgId_targetBuildingId_status",
+      byOrg("targetBuildingId", "status"),
+    )
+    .index(
+      "by_orgId_warehouseId_buildingIndexVersion_status",
+      byOrg("warehouseId", "buildingIndexVersion", "status"),
+    ),
   finishedGoodsCounters: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

@@ -999,7 +999,13 @@ export async function closedPeriodCovering(
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
-  const periods = await sitePeriodsEndingFrom(ctx, warehouseId, date);
+  return periodCovering(
+    await sitePeriodsEndingFrom(ctx, warehouseId, date),
+    date,
+  );
+}
+
+function periodCovering(periods: readonly Doc<"hrPeriods">[], date: IsoDate) {
   return (
     periods.find(
       (period) =>
@@ -1019,6 +1025,50 @@ export async function periodLockCode(
   const period = await closedPeriodCovering(ctx, warehouseId, date);
   if (period === null) return null;
   return period.status === "CLOSING" ? "HR_PERIOD_CLOSING" : "HR_PERIOD_CLOSED";
+}
+
+/**
+ * Reuse one end-date-bounded read while checking a command's dates in their
+ * original order. Load lazily so an earlier employment/attendance refusal still
+ * wins. If an unsorted request's combined range exceeds the existing cap,
+ * fall back to per-date reads so a later first date can still refuse before
+ * reaching the oversized earlier history. Keep this reader local to an
+ * execution that does not change periods.
+ */
+export function periodLockReader(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  dates: readonly IsoDate[],
+) {
+  const from = dates.reduce<IsoDate | undefined>(
+    (earliest, date) =>
+      earliest === undefined || date < earliest ? date : earliest,
+    undefined,
+  );
+  let periods: Promise<readonly Doc<"hrPeriods">[] | null> | undefined;
+  return async (
+    date: IsoDate,
+  ): Promise<"HR_PERIOD_CLOSED" | "HR_PERIOD_CLOSING" | null> => {
+    periods ??= sitePeriodsEndingFrom(ctx, warehouseId, from ?? date).catch(
+      (error: unknown) => {
+        if (
+          from !== undefined &&
+          from < date &&
+          error instanceof TenantDbError &&
+          error.code === "CAPACITY_DATA_LIMIT"
+        )
+          return null;
+        throw error;
+      },
+    );
+    const loaded = await periods;
+    if (loaded === null) return periodLockCode(ctx, warehouseId, date);
+    const period = periodCovering(loaded, date);
+    if (period === null) return null;
+    return period.status === "CLOSING"
+      ? "HR_PERIOD_CLOSING"
+      : "HR_PERIOD_CLOSED";
+  };
 }
 
 /** A site period whose staged close is in progress, if any. */

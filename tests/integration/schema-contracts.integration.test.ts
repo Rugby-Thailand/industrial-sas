@@ -447,3 +447,32 @@ describe("request, actor, and device context", () => {
     expect(fields).not.toContain("registrationSecret");
   });
 });
+
+describe("building-scoped move projection rollout", () => {
+  it("keeps derived building metadata optional for existing rows", () => {
+    const fields = tables.finishedGoodsMoves.validator.fields;
+    expect(fields.sourceBuildingId.isOptional).toBe("optional");
+    expect(fields.targetBuildingId.isOptional).toBe("optional");
+    expect(fields.buildingIndexVersion.isOptional).toBe("optional");
+  });
+  it("indexes both active hold roles and the unindexed legacy range within the tenant", () => {
+    const moves = facts.find((entry) => entry.name === "finishedGoodsMoves")!;
+    for (const [name, fields] of [
+      [
+        "by_orgId_sourceBuildingId_status",
+        ["orgId", "sourceBuildingId", "status"],
+      ],
+      [
+        "by_orgId_targetBuildingId_status",
+        ["orgId", "targetBuildingId", "status"],
+      ],
+      [
+        "by_orgId_warehouseId_buildingIndexVersion_status",
+        ["orgId", "warehouseId", "buildingIndexVersion", "status"],
+      ],
+    ] as const)
+      expect(
+        moves.indexes.find((index) => index.name === name)?.fields,
+      ).toEqual(fields);
+  });
+});
