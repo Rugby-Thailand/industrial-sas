@@ -1,7 +1,7 @@
 import { thailandDefaults, POLICY_PRESET } from "../../convex/model/hr/policy";
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "../../convex/schema";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { sweep } from "../../convex/operations/temporaryRetention";
 import { createConvexTenantWorld } from "../fixtures/convex-tenant-world";
 import {
@@ -11,6 +11,10 @@ import {
 } from "../../convex/lib/idempotency";
 import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
 import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("temporary retention", () => {
   it("bounds resumable tenant sweeps, supports dry runs and preserves permanent fences", async () => {
@@ -283,19 +287,19 @@ it("deletes only expired access tickets and retains payroll source rows", async 
 });
 
 it("treats the exact replay expiry as fresh while future and permanent keys stay protected", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-03T00:00:00.000Z"));
   const world = await createConvexTenantWorld();
   await world.t.run(async (ctx) => {
     const tenantDb = createTenantDocumentAccess(
       { orgId: world.orgA, requestId: "expiry-boundary" },
       createMutationTenantStorage(ctx, "expiry-boundary"),
     );
-    // Convex fixes Date.now for the whole transaction; use an ample future
-    // margin as convex-test's wall clock may advance during setup.
     const now = Date.now();
     for (const [requestId, expiresAt] of [
       ["past", now - 1],
       ["boundary", now],
-      ["future", now + 10000],
+      ["future", now + 1],
       ["permanent", Number.MAX_SAFE_INTEGER],
     ] as const) {
       await ctx.db.insert("idempotencyRecords", {
