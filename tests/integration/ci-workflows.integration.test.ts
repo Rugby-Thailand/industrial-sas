@@ -211,7 +211,9 @@ describe("workflow policy rejects regressions", () => {
       "path: test-results/vitest-junit/shard-${{ matrix.shard }}-2.xml",
     ],
   ])("rejects %s in native test shards", (_reason, from, to) => {
-    if (_reason === "missing-report warning") {
+    if (
+      ["missing-report warning", "rerun artifact collision"].includes(_reason)
+    ) {
       const step = namedStep("quality.yml", "Upload shard JUnit");
       expectJobFailure("quality.yml", "test", [[step, step.replace(from, to)]]);
     } else expectJobFailure("quality.yml", "test", [[from, to]]);
@@ -1003,6 +1005,21 @@ describe("workflow policy rejects regressions", () => {
     ).toContain(
       "quality.yml:validate: clean tree must join each lane after all checks",
     );
+  });
+
+  it("does not allow final cleanup failures or execution to be overridden", () => {
+    const clean = namedStep("quality.yml", "Clean tree after generators");
+    for (const override of [
+      "continue-on-error: true",
+      "shell: echo {0}",
+      "working-directory: /tmp",
+      "env:\n          NODE_OPTIONS: --version",
+    ])
+      expect(
+        problemsWith("quality.yml", [[clean, `${clean}\n        ${override}`]]),
+      ).toContain(
+        "quality.yml:validate: clean tree must join each lane after all checks",
+      );
   });
 
   it("keeps workspace impact advisory and cannot use its prediction to skip suites", () => {

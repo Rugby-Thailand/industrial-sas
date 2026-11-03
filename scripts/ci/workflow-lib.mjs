@@ -1155,8 +1155,11 @@ function qualityProblems(workflow, { allowedGhsas }) {
   );
   if (
     clean.length !== 1 ||
-    clean[0]?.if !==
-      "${{ !cancelled() && steps.setup.outcome == 'success' }}" ||
+    !same(clean[0], {
+      name: "Clean tree after generators",
+      if: "${{ !cancelled() && steps.setup.outcome == 'success' }}",
+      run: "pnpm ci:clean-tree",
+    }) ||
     validationSteps.at(-1) !== clean[0]
   )
     problems.push(

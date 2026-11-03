@@ -104,5 +104,52 @@ queue reduction is guaranteed.
 
 ## Local validation and timing
 
-Final lane timing and validation evidence will be inserted after the clean
-committed lane runs. Hosted checkout/setup/upload costs require hosted evidence.
+Measured on macOS arm64, Node 24, pnpm 10.33.2 and Bun 1.4.3, with warm
+installed dependencies and incremental typecheck outputs. Each lane ran its full
+command sequence; static ran before contracts. All commands exited zero,
+including both final clean-tree checks. Contracts verified typecheck → TS6 →
+audits/discovery → codegen → PR report → cleanup sequentially. No hosted
+checkout/setup/upload costs are included. The report used a local base object;
+network fetch cost remains unmeasured.
+
+| Lane      | Command                                                                                       |   Seconds |
+| --------- | --------------------------------------------------------------------------------------------- | --------: |
+| static    | `pnpm format:check`                                                                           |     24.27 |
+| static    | `pnpm lint`                                                                                   |     34.21 |
+| static    | `pnpm check:navigation`                                                                       |      4.58 |
+| static    | `pnpm ci:clean-tree`                                                                          |      0.69 |
+| static    | **Total**                                                                                     | **63.75** |
+| contracts | `pnpm typecheck`                                                                              |      2.81 |
+| contracts | `pnpm typecheck:ts6`                                                                          |      5.07 |
+| contracts | `node scripts/ci/validate-workflows.mjs --verify-pins`                                        |      5.43 |
+| contracts | `pnpm audit:prod`                                                                             |      1.20 |
+| contracts | `node scripts/ci/audit-dependencies.mjs --scope=app`                                          |      1.17 |
+| contracts | `node scripts/ci/audit-dependencies.mjs --scope=release`                                      |      0.96 |
+| contracts | `pnpm -C tools/release install --frozen-lockfile; node tools/release/check-compatibility.mjs` |      0.96 |
+| contracts | `pnpm ci:test-discovery`                                                                      |      5.07 |
+| contracts | `pnpm ci:codegen`                                                                             |     11.65 |
+| contracts | `node scripts/ci/workspace-impact.mjs (PR event)`                                             |      1.15 |
+| contracts | `pnpm ci:clean-tree`                                                                          |      0.67 |
+| contracts | **Total**                                                                                     | **36.14** |
+
+The report's internal analysis duration was 825 ms; whole-process time was 1.15 s.
+It observed 203 dependencies and zero unknown imports in this snapshot. The saved
+synthetic negative uses that same real graph and still has effective run=true.
+Resolver tests run dev resolution without builds; this is supplemental evidence,
+not a certificate for future skipping. Their standalone test invocation took
+1.61 s (including imports; 258 ms in test bodies in the first local run).
+
+Earlier initial application and release-tool installs took 10.6 s and 6.5 s.
+Earlier cold typechecks took 12.60 s and 43.87 s; the warm table must not be used
+as a cold hosted prediction. The prior lane placement measured 109.03 s static
+and 28.62 s contracts, with different local load/cache state. Moving both
+typechecks balances ownership structurally; differences between these local
+runs do not establish a speedup.
+
+Focused validation covers 115 workflow, aggregate, release-policy,
+codegen-isolation and workspace-impact cases. Normal ESLint, full formatting,
+68 navigation architecture fixtures and inventory check, workflow lint/remote
+pin verification, both typechecks, all audits, release-tool compatibility,
+discovery, anonymous codegen freshness and final clean-tree checks passed.
+Browser and full application suites remain required in hosted CI and were not
+rerun locally for this CI-only change.
