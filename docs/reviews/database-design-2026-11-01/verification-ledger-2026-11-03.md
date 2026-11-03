@@ -1,0 +1,36 @@
+# Database verification ledger — 2026-11-03
+
+Implementation baseline: main `79c4de7bb12faaf713adbe23a8dfbd934d2e268a` (through PR #122). The original gap report describes an earlier baseline; this ledger records subsequent evidence without treating source inspection or simulated transactions as cloud acceptance.
+
+| Item   | Category                     | Current evidence                                                                                                   | Remaining pass condition                                                                                                                                         |
+| ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1      | Payslip migration            | PR #121 adds bounded legacy traversal and maximum-size PDF/CSV cases.                                              | Each relevant deployment has a complete dry-run receipt with zero inline, missing and corrupt payloads; measured empty is valid.                                 |
+| 2      | Business retries             | Exact expiry boundary now freezes Date; actual-caller matrix in progress.                                          | Retried committed commands have the declared business effect before/equal/after expiry, with and without sweep; current authorization and permanent fences hold. |
+| 3      | CLOSING guards               | Existing staged-close and PR #121 leave tests cover several callers. Additional guard matrix in progress.          | Reachable BUILDING/READY/CANCELLING writes, source changes, scope revocation and unrelated work satisfy the contract.                                            |
+| 4      | Attendance and exports       | Seven new registered-public-function integration cases pass with transaction limits enabled; details below.        | Run the same realistic data against a real backend and browser, including the leave approval workflow.                                                           |
+| 5      | Multiple drivers and readers | Existing staged tests cover repeated/stale steps; prior single-browser acceptance exists.                          | Real simultaneous drivers, committed lost-response recovery, export interruption and reader convergence.                                                         |
+| 6      | Clerk and private downloads  | Prior stale-session denial and supplied-identity positive backend checks.                                          | Actual provider challenge produces a fresh session that downloads the owned original bytes; invalid ownership/session cases deny.                                |
+| 7      | Retention operations         | Existing bounded worker tests and local manual sweep evidence.                                                     | Observe deployed cron chain; exercise dispatcher and per-table budgets, restarts and backlog beyond 2,000 rows.                                                  |
+| 8      | Inventory contention         | PR #121 records 24 real requirement/reservation races and scale fixtures; the initial report predates this.        | Declared mixed workload, quiet-site/tenant controls, resource/latency observations and invariant checks. No throughput claim yet.                                |
+| 9      | Resource bounds              | PR #121 opts selected tests into convex-test transaction limits; new realistic attendance suite also enables them. | Real-backend resource and subscription measurements at a declared dataset/workload. Simulation is partial evidence.                                              |
+| 10     | Backup recovery              | Prior disposable local backup/restore rehearsal.                                                                   | Restore an actual cloud backup into isolation and verify relationships, hashes, application reads and unfinished-close recovery.                                 |
+| Native | Computer use                 | Previous post-integration native attempt failed with `cgWindowNotFound`.                                           | Native Back/Close/refresh/download acceptance on the integrated revision, when the service is usable.                                                            |
+
+## Realistic attendance reference cases
+
+Files: `tests/fixtures/hr-period-expected.ts` and `tests/integration/hr-period-realistic-close.integration.test.ts`.
+
+The fixture seeds historical attendance, certifications and a holiday. It exercises registered public create, preview, begin, advance, publish, export, employee-history, revision and employee-save functions. It does **not** claim to test the creation/approval of leave or a real browser/provider session.
+
+- 120 employees × 31 dates, six repeated profiles: ordinary day shift, early/late punches, overnight shift, corrected worked day, certified absence and certified leave. Weekends and the October 13 holiday remain nonworking.
+- Independent worked examples: 21 scheduled dates per employee, 793,800 worked minutes, 12,600 outside-shift minutes, 420 absence days, 420 leave days and 1,200 nonworking days. Expected values import no production calendar, attendance, totals or CSV builder.
+- Every exported record is compared in order to an independently assembled full CSV, including BOM/header, Thai names, escaped quotes, embedded LF, formula protection, UTC timestamps and all employee/date pairs. Comparison uses record separators for this controlled fixture; it is not a general-purpose CSV parser.
+- Export crosses 2,000 rows in two bounded parts containing complete employees. Assertions permit conservative packing rather than depending on an internal read slice size.
+- Corrected self-history preserves original 08:30–17:30 punches and effective 09:00–17:30 certification, including reason, 9,450 worked minutes and ten nonworking days.
+- 25/26 and 50/51 scheduled-employee boundaries preserve all exported rows through complete-preview and staged paths.
+- Revision v2 reflects an employee-name correction; v1 export remains byte-identical and each employee-history version retains its own name and unchanged attendance.
+- An employee hired October 15 and ending October 20 contributes exactly six dates. A further 120 former employees interleaved in roster order do not truncate traversal. All 1,556 expected export rows are compared.
+
+Local validation: seven cases passed with `transactionLimits: true`; changed-file ESLint passed. No production defect was reproduced by these cases, so no production behavior was changed. Initial failures corrected test assumptions about conservative export part packing, timestamp formatting, omitted optional fields and the existing one-command publication path; they are not presented as red-to-green product fixes.
+
+Implementation, review and cloud acceptance remain separate gates. Kiro was unavailable through the configured orchestration provider catalog; no Kiro execution is claimed. The pending independent audit is not final approval of these additions.

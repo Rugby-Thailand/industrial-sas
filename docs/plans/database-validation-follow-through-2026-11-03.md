@@ -1,6 +1,6 @@
 # Database validation follow-through — 2026-11-03
 
-Status: planned; implementation has not started. This closes the evidence gaps from [the research report](../reviews/database-design-2026-11-01/test-gaps-2026-11-03.md), following merged PR #119. Existing CI and local acceptance remain valid. The latest focused verification passed 31 tests across five integration suites.
+Status: implementation in progress on `codex/database-validation-2026-11-03`, based on main `79c4de7b`. This closes the evidence gaps from [the research report](../reviews/database-design-2026-11-01/test-gaps-2026-11-03.md), following merged PR #119. See the [case ledger](../reviews/database-design-2026-11-01/verification-ledger-2026-11-03.md) for current evidence, including coverage added by PR #121 after the initial research. Existing CI and local acceptance remain valid.
 
 The deliverable is reproducible coverage, fixes for any defects it exposes, and recorded operational evidence. A passing mock test, real-backend test, browser journey and cloud observation are distinct evidence levels.
 
