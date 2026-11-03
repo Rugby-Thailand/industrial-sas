@@ -18,6 +18,7 @@ import {
   pdfHash,
 } from "../model/hr/payslip";
 import { deliverNotification } from "./notifications";
+import { companyProfile } from "./org";
 import { activePolicy, policyVersions } from "./policies";
 import {
   fail,
@@ -685,8 +686,23 @@ async function privateDocument(ctx: TenantFunctionContext, ticketId: string) {
   const payload = await verifiedPayload(ctx, row);
   if (payload === "PENDING") return fail("PAYSLIP_SOURCE_MIGRATION_PENDING");
   if (payload === null) return fail("PAYSLIP_SOURCE_INTEGRITY_FAILED");
+  const company = await companyProfile(ctx);
   return {
     base64: payload.sourceBase64,
+    employer:
+      company === null
+        ? null
+        : {
+            name: company.name,
+            taxId: company.taxId,
+            address: company.address,
+            addressEn: company.addressEn,
+            subDistrict: company.subDistrict,
+            district: company.district,
+            province: company.province,
+            postcode: company.postcode,
+            primaryBankAccount: company.bankAccounts[0] ?? null,
+          },
     policyVersionId: policy._id,
     sha256: row.sourceHash,
     expiresAt: ticket.expiresAt,

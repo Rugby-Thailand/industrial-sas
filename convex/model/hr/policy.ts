@@ -1,5 +1,10 @@
 import { v } from "convex/values";
 import { addDays, isIsoDate } from "./calendar";
+import {
+  validateWorkRules,
+  workRulesValidator,
+  type WorkRules,
+} from "./workRules";
 
 export const POLICY_PRESET = "TH_LPA_MINIMUM_2026_10_11";
 export const capabilityValidator = v.union(
@@ -25,6 +30,8 @@ export const policyConfigValidator = v.object({
   downloadSeconds: v.number(),
   requireFileHash: v.boolean(),
   hashAlgorithm: v.literal("SHA256"),
+  /** Inert slice-02 settings; LEAVE capability only. See ./workRules. */
+  workRules: v.optional(workRulesValidator),
 });
 export type PolicyConfig = {
   annualDays: number;
@@ -43,8 +50,11 @@ export type PolicyConfig = {
   downloadSeconds: number;
   requireFileHash: boolean;
   hashAlgorithm: "SHA256";
+  workRules?: WorkRules;
 };
-export const thailandDefaults = (): PolicyConfig => ({
+/** Statutory leave floors only; work rules never receive defaults. */
+export type LegacyPolicyConfig = Omit<PolicyConfig, "workRules">;
+export const thailandDefaults = (): LegacyPolicyConfig => ({
   annualDays: 6,
   firstYearAnnualDays: 0,
   sickPaidDays: 30,
@@ -121,7 +131,16 @@ export function validatePolicy(
     config.downloadSeconds > 60
   )
     return "downloadSeconds";
-  return null;
+  return validateWorkRules(config.workRules);
+}
+/** Work rules belong to the attendance/leave policy record only. */
+export function validatePolicyCapability(
+  capability: PolicyCapability,
+  config: PolicyConfig,
+): string | null {
+  return config.workRules !== undefined && capability !== "LEAVE"
+    ? "workRules:CAPABILITY"
+    : null;
 }
 /** Leap-day anniversaries mature on the last day of February in non-leap years. */
 export function anniversary(startDate: string, year: number): string {

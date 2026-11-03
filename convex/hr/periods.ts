@@ -38,6 +38,7 @@ import {
   draftFingerprint,
   liveRows,
   periodEmployee,
+  periodRosterOf,
   published,
   scopedPeriod,
 } from "./periodData";
@@ -58,6 +59,7 @@ import {
   planFromStored,
   planView,
   recordedDay,
+  rosterAssignment,
   siteOf,
   siteAllowed,
   sitePeriods,
@@ -571,14 +573,18 @@ export const draftEmployeesPage = queryWithOrg({
           period.startDate,
           period.endDate,
         );
-        const days = await employeeDaysInRange(
-          ctx,
-          employee._id,
-          period.startDate,
-          period.endDate,
-        );
+        const [days, roster] = await Promise.all([
+          employeeDaysInRange(
+            ctx,
+            employee._id,
+            period.startDate,
+            period.endDate,
+          ),
+          periodRosterOf(ctx, employee._id, period),
+        ]);
         const known = holidays;
         const rows = buildPeriodRows({
+          assignment: (_id, date) => rosterAssignment(roster.get(date)),
           startDate: period.startDate,
           endDate: period.endDate,
           employees: [periodEmployee(employee)],

@@ -34,6 +34,7 @@ import {
   periodLockCode,
   dayOf,
   employeeDaysInRange,
+  employeeRosterInRange,
   employmentOf,
   ensureDay,
   fail,
@@ -667,9 +668,12 @@ export const history = queryWithOrg({
     const to = compareDates(args.to, clock.today) > 0 ? clock.today : args.to;
     // One date-range read each for the days and the site's holidays; the
     // holidays matter only for dates without a recorded day.
-    const [recorded, siteHolidays] = await Promise.all([
+    const [recorded, siteHolidays, roster] = await Promise.all([
       employeeDaysInRange(ctx, employee._id, args.from, to),
       holidaysInRange(ctx, employee.warehouseId, args.from, to),
+      compareDates(args.from, to) > 0
+        ? new Map()
+        : employeeRosterInRange(ctx, employee, args.from, to),
     ]);
     const holidays = new Map<IsoDate, string>();
     for (const [date, name] of siteHolidays)
@@ -701,6 +705,7 @@ export const history = queryWithOrg({
             offsetMinutes: clock.offset,
             now: clock.now,
             holidayName: (date) => holidays.get(date),
+            assignment: (_id, date) => roster.get(date),
             recorded: (_id, date) => {
               const day = recorded.get(date);
               return day ? recordedDay(day) : undefined;
@@ -744,11 +749,19 @@ export const dayDetail = queryWithOrg({
       return { ok: false as const, code: "DATE_INVALID" };
     const employee = await linkedEmployee(ctx);
     if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
+    const detail = await buildDayDetail(
+      ctx,
+      employee,
+      args.businessDate,
+      clock,
+    );
+    if (detail === null)
+      return { ok: false as const, code: "HR_OUTSIDE_EMPLOYMENT" };
     return {
       ok: true as const,
       timezone: clock.timezone,
       today: clock.today,
-      detail: await buildDayDetail(ctx, employee, args.businessDate, clock),
+      detail,
     };
   },
 });

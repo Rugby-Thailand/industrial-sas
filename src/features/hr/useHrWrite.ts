@@ -42,6 +42,8 @@ interface RequestRecord {
   readonly requestId: string;
   readonly payload?: unknown;
   readonly operation?: string;
+  /** Server revision the command was built against (expectedVersion). */
+  readonly revision?: number;
 }
 interface Owner {
   state: HrWriteState<unknown>;
@@ -67,7 +69,10 @@ function readRecord(key: string): RequestRecord | null | undefined {
         value.version === 1 &&
         "requestId" in value &&
         typeof value.requestId === "string" &&
-        ID_PATTERN.test(value.requestId)
+        ID_PATTERN.test(value.requestId) &&
+        (!("revision" in value) ||
+          (Number.isSafeInteger(value.revision) &&
+            (value.revision as number) >= 0))
       )
         return value as RequestRecord;
       // Malformed recovery data is never interpreted as a fresh command.
@@ -118,6 +123,7 @@ function beginCommand(
   key: string,
   payload: unknown,
   operation: string | undefined,
+  revision: number | undefined,
 ): boolean | null {
   const saved = readRecord(key);
   if (saved === undefined) return false;
@@ -134,6 +140,7 @@ function beginCommand(
     requestId: crypto.randomUUID(),
     ...(payload === undefined ? {} : { payload: structuredClone(payload) }),
     ...(operation === undefined ? {} : { operation }),
+    ...(revision === undefined ? {} : { revision }),
   };
   return sessionPreferences.write(key, owner.record);
 }
@@ -179,8 +186,13 @@ function operationFor(intent: string): string | undefined {
     ["clock:CLOCK_OUT:", "hr.attendance.clockOut"],
     ["shortcut-preferences", "hr.preferences.save"],
     ["employee:", "hr.employee.save"],
+    ["employee-profile:", "hr.employee.profile.save"],
+    ["employee-payment:", "hr.employee.payment.save"],
+    ["employee-lifecycle:", "hr.employee.lifecycle"],
     ["holiday:delete:", "hr.holiday.delete"],
     ["holiday:", "hr.holiday.save"],
+    ["shift:", "hr.shift.save"],
+    ["roster:", "hr.roster.assign"],
     ["access:", "hr.access.set"],
     ["decision:", "hr.correction.decide"],
     ["dispose:", "hr.attendance.dispose"],
@@ -204,6 +216,12 @@ function operationFor(intent: string): string | undefined {
     ["notification-read:", "hr.notifications.markOne"],
     ["payslip-import-stage", "hr.payslip.stage"],
     ["payslip-publish:", "hr.payslip.publish"],
+    ["org-company", "hr.org.company.save"],
+    ["org-logo", "hr.org.logo.save"],
+    ["org-branch:", "hr.org.branch.save"],
+    ["org-department:", "hr.org.hrDepartments.save"],
+    ["org-position:", "hr.org.hrPositions.save"],
+    ["org-level:", "hr.org.hrPositionLevels.save"],
   ];
   return operations.find(([prefix]) => intent.startsWith(prefix))?.[1];
 }
@@ -213,10 +231,19 @@ export interface HrCommandRecovery<Payload> {
   readonly send: (payload: Payload, requestId: string) => Promise<unknown>;
 }
 
-/** New submission and explicit retry are separate actions. Recovery owns its ID and payload. */
+/**
+ * New submission and explicit retry are separate actions. Recovery owns its ID and payload.
+ *
+ * `intent` is the durable lookup key beneath the actor/tenant identity. It
+ * must name the target and operation only: never a server version that the
+ * command itself advances, or a reload after COMMITTED loses its record.
+ * Versioned commands pass the captured `revision` instead; it is stored with
+ * the request ID and pinned callback, never used to derive the key.
+ */
 export function useHrWrite<Value = Record<string, unknown>, Payload = never>(
   intent: string,
   recovery?: HrCommandRecovery<Payload>,
+  revision?: number,
 ) {
   const identity = useHrAccess().identityKey ?? "anonymous";
   const key = `${STORAGE_PREFIX}${identity}|${intent}`;
@@ -313,6 +340,7 @@ export function useHrWrite<Value = Record<string, unknown>, Payload = never>(
         key,
         payload,
         operation ?? operationFor(intent),
+        revision,
       );
       if (persisted === null)
         return liveResult(owner.state as HrWriteState<Value>);
@@ -329,7 +357,7 @@ export function useHrWrite<Value = Record<string, unknown>, Payload = never>(
       }
       return await runCommand(send);
     },
-    [capture, clear, intent, key, liveResult, owner, runCommand],
+    [capture, clear, intent, key, liveResult, owner, revision, runCommand],
   );
   const submitCommand = useCallback(
     async (payload: Payload) => {

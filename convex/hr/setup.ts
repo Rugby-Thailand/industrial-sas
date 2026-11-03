@@ -17,6 +17,16 @@ import {
 } from "../lib/tenantFunctions";
 import { isIsoDate } from "../model/hr/calendar";
 import { MAX_NAME_LENGTH, validateEmployeeDraft } from "../model/hr/employee";
+import { employeeOrgFields } from "../model/hr/orgSchema";
+import {
+  employmentState,
+  separationPreserved,
+  replaceEmploymentBounds,
+  validateEmploymentChronology,
+  type EmploymentState,
+} from "../model/hr/lifecycle";
+import { validateEmployeeOrgReferences } from "./org";
+import { employmentDateBounds } from "./shared";
 import { validateSchedule } from "../model/hr/schedule";
 import {
   HR_MAX_CHUNK,
@@ -36,6 +46,7 @@ import {
   type Employee,
   employeeReviewIdentities,
   fail,
+  diff,
   hrCommand,
   inScope,
   MAX_SITE_EMPLOYEES,
@@ -145,6 +156,26 @@ async function employeeItem(
     HR_PERMISSION.teamReview,
     access,
   );
+  const [branch, department, position, level] = await Promise.all([
+    employee.branchId
+      ? ctx.tenantDb.get<Doc<"hrBranches">>("hrBranches", employee.branchId)
+      : null,
+    employee.departmentId
+      ? ctx.tenantDb.get<Doc<"hrDepartments">>(
+          "hrDepartments",
+          employee.departmentId,
+        )
+      : null,
+    employee.positionId
+      ? ctx.tenantDb.get<Doc<"hrPositions">>("hrPositions", employee.positionId)
+      : null,
+    employee.levelId
+      ? ctx.tenantDb.get<Doc<"hrPositionLevels">>(
+          "hrPositionLevels",
+          employee.levelId,
+        )
+      : null,
+  ]);
   return {
     id: employee._id,
     code: employee.code,
@@ -161,13 +192,39 @@ async function employeeItem(
     ...(supervisorReviewAccess === undefined ? {} : { supervisorReviewAccess }),
     employmentStartDate: employee.employmentStartDate,
     employmentEndDate: employee.employmentEndDate,
+    branchId: employee.branchId,
+    branchName: branch?.name,
+    branchRevenueBranchNo: branch?.revenueBranchNo,
+    branchSsoEmployerAccount: branch?.ssoEmployerAccount,
+    departmentId: employee.departmentId,
+    departmentName: department?.name,
+    positionId: employee.positionId,
+    positionName: position?.name,
+    levelId: employee.levelId,
+    levelName: level?.name,
+    employmentType: employee.employmentType,
+    probationEndDate: employee.probationEndDate,
+    probationConfirmedDate: employee.probationConfirmedDate,
+    employmentState: employmentState(employee),
+    // The reason stays in the lifecycle history, outside the registry.
+    ...(employee.separation === undefined
+      ? {}
+      : {
+          separation: {
+            type: employee.separation.type,
+            lastWorkingDate: employee.separation.lastWorkingDate,
+          },
+        }),
     schedule: employee.schedule,
     version: employee.version,
   };
 }
 
 export const listEmployees = queryWithOrg({
-  args: { warehouseId: v.optional(v.id("warehouses")) },
+  args: {
+    warehouseId: v.optional(v.id("warehouses")),
+    departmentId: v.optional(v.id("hrDepartments")),
+  },
   returns: v.any(),
   permissionCode: ADMIN,
   target: { table: "hrEmployees" },
@@ -189,7 +246,11 @@ export const listEmployees = queryWithOrg({
         .take(MAX_SITE_EMPLOYEES + 1);
       if (rows.length > MAX_SITE_EMPLOYEES) complete = false;
       for (const employee of rows.slice(0, MAX_SITE_EMPLOYEES))
-        items.push(await employeeItem(ctx, employee, site, names, access));
+        if (
+          args.departmentId === undefined ||
+          employee.departmentId === args.departmentId
+        )
+          items.push(await employeeItem(ctx, employee, site, names, access));
     }
     return {
       items,
@@ -216,7 +277,21 @@ export const employeesPage = queryWithOrg({
     search: v.optional(v.string()),
     // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
     warehouseId: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("ACTIVE"), v.literal("INACTIVE"))),
+    /**
+     * Omitted: current employees (everyone not offboarded). ACTIVE and
+     * INACTIVE keep their stored-status meaning; PROBATION and FORMER
+     * (resigned or terminated) follow the lifecycle; ALL includes everyone.
+     */
+    status: v.optional(
+      v.union(
+        v.literal("ACTIVE"),
+        v.literal("INACTIVE"),
+        v.literal("PROBATION"),
+        v.literal("FORMER"),
+        v.literal("ALL"),
+      ),
+    ),
+    departmentId: v.optional(v.id("hrDepartments")),
   },
   returns: v.any(),
   permissionCode: ADMIN,
@@ -249,7 +324,12 @@ export const employeesPage = queryWithOrg({
     }
     const names = new Map<string, string | null>();
     const access: HrAccessCache = new Map();
-    const filtered = input.search !== "" || args.status !== undefined;
+    // The default (current employees) excludes only offboarded records, which
+    // are rare, so it keeps the unfiltered read size; matching still applies.
+    const filtered =
+      input.search !== "" ||
+      args.status !== undefined ||
+      args.departmentId !== undefined;
     const page = await hrScanPage<
       Employee,
       Awaited<ReturnType<typeof employeeItem>>
@@ -259,6 +339,7 @@ export const employeesPage = queryWithOrg({
         search: input.search,
         site: args.warehouseId ?? null,
         status: args.status ?? null,
+        departmentId: args.departmentId ?? null,
         order,
       },
       pageSize: input.pageSize,
@@ -270,7 +351,9 @@ export const employeesPage = queryWithOrg({
       match: async (employee) =>
         (args.warehouseId === undefined ||
           employee.warehouseId === args.warehouseId) &&
-        (args.status === undefined || employee.status === args.status) &&
+        statusMatches(args.status, employee) &&
+        (args.departmentId === undefined ||
+          employee.departmentId === args.departmentId) &&
         containsSearch(input.search, employee.code, employee.displayName) &&
         (await siteFor(employee.warehouseId)) !== null,
       hydrate: async (employee) => {
@@ -284,6 +367,27 @@ export const employeesPage = queryWithOrg({
     return { ok: true as const, ...page, sitesComplete: true };
   },
 });
+
+/** Whether an employee belongs to a registry status filter. */
+function statusMatches(
+  filter: "ACTIVE" | "INACTIVE" | "PROBATION" | "FORMER" | "ALL" | undefined,
+  employee: Employee,
+): boolean {
+  const state: EmploymentState = employmentState(employee);
+  const former = state === "RESIGNED" || state === "TERMINATED";
+  switch (filter) {
+    case undefined:
+      return !former;
+    case "ALL":
+      return true;
+    case "FORMER":
+      return former;
+    case "PROBATION":
+      return state === "PROBATION";
+    default:
+      return employee.status === filter;
+  }
+}
 
 /**
  * One employee for the editor by ID, independent of the bounded registry
@@ -310,9 +414,15 @@ export const employee = queryWithOrg({
     // The registry lists active sites only; the editor follows the same rule.
     if (site === null || site.status !== "ACTIVE")
       return { ok: false as const, code: "NOT_FOUND" };
+    const bounds = await employmentDateBounds(ctx, record);
     return {
       ok: true as const,
-      employee: await employeeItem(ctx, record, site, new Map()),
+      employee: {
+        ...(await employeeItem(ctx, record, site, new Map())),
+        employmentIntervals: record.employmentIntervals,
+        firstEffectiveDate: bounds.first,
+        latestEffectiveDate: bounds.last,
+      },
     };
   },
 });
@@ -568,24 +678,12 @@ export const memberOptions = queryWithOrg({
   },
 });
 
-const diff = (
-  before: Record<string, unknown> | null,
-  after: Record<string, unknown>,
-) =>
-  Object.keys(after)
-    .filter(
-      (key) => JSON.stringify(before?.[key]) !== JSON.stringify(after[key]),
-    )
-    .map((key) => ({
-      field: key,
-      ...(before?.[key] === undefined
-        ? {}
-        : { from: JSON.stringify(before[key]) }),
-      ...(after[key] === undefined ? {} : { to: JSON.stringify(after[key]) }),
-    }));
-
 export const saveEmployee = mutationWithOrg({
   args: {
+    ...employeeOrgFields,
+    // Modern callers replace this complete six-field group; legacy omission
+    // preserves each saved value while still accepting supplied updates.
+    replaceOrgFields: v.optional(v.literal(true)),
     requestId: v.string(),
     employeeId: v.optional(v.id("hrEmployees")),
     expectedVersion: v.optional(v.number()),
@@ -657,6 +755,14 @@ export const saveEmployee = mutationWithOrg({
           }
         }
 
+        // An offboarded record stays INACTIVE with its last working day
+        // until it is reinstated through the lifecycle.
+        if (before !== null && !separationPreserved(before, args))
+          return fail(
+            "EMPLOYEE_SEPARATED",
+            args.status === "INACTIVE" ? "employmentEndDate" : "status",
+          );
+
         // A staged close reads the roster in code order from one snapshot:
         // no employee of its site may change until it publishes or cancels.
         for (const warehouseId of new Set([
@@ -673,6 +779,46 @@ export const saveEmployee = mutationWithOrg({
           .unique();
         if (sameCode !== null && sameCode._id !== before?._id)
           return fail("EMPLOYEE_CODE_TAKEN", "code");
+
+        const orgFields = {
+          branchId:
+            args.branchId ??
+            (args.replaceOrgFields ? undefined : before?.branchId),
+          departmentId:
+            args.departmentId ??
+            (args.replaceOrgFields ? undefined : before?.departmentId),
+          positionId:
+            args.positionId ??
+            (args.replaceOrgFields ? undefined : before?.positionId),
+          levelId:
+            args.levelId ??
+            (args.replaceOrgFields ? undefined : before?.levelId),
+          employmentType:
+            args.employmentType ??
+            (args.replaceOrgFields ? undefined : before?.employmentType),
+          probationEndDate:
+            args.probationEndDate ??
+            (args.replaceOrgFields ? undefined : before?.probationEndDate),
+        };
+        // Validate the same effective values we persist, including retained
+        // probation dates and tenant/current-inactive reference constraints.
+        const effectiveDraft = validateEmployeeDraft({ ...args, ...orgFields });
+        if (!effectiveDraft.ok)
+          return fail(effectiveDraft.error.code, effectiveDraft.error.field);
+        if (before !== null) {
+          const invalidDates = validateEmploymentChronology(
+            before,
+            { ...args, ...orgFields },
+            await employmentDateBounds(ctx, before),
+          );
+          if (invalidDates) return fail(invalidDates.code, invalidDates.field);
+        }
+        const invalidOrg = await validateEmployeeOrgReferences(
+          ctx,
+          { ...args, ...orgFields },
+          before,
+        );
+        if (invalidOrg) return invalidOrg;
 
         if (args.userId !== undefined) {
           const member = await ctx.members.get(args.userId);
@@ -717,6 +863,16 @@ export const saveEmployee = mutationWithOrg({
           supervisorUserId: args.supervisorUserId,
           employmentStartDate: args.employmentStartDate,
           employmentEndDate: args.employmentEndDate,
+          ...(before?.employmentIntervals === undefined
+            ? {}
+            : {
+                employmentIntervals: replaceEmploymentBounds(
+                  before,
+                  args.employmentStartDate,
+                  args.employmentEndDate,
+                ),
+              }),
+          ...orgFields,
           status: args.status,
           schedule,
         };

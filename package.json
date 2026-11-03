@@ -34,6 +34,7 @@
     "test:e2e:workspace": "playwright test --config playwright.workspace.config.ts",
     "test:e2e:staging": "playwright test --config playwright.staging.config.ts",
     "test:e2e:production": "playwright test --config playwright.production.config.ts",
+    "test:e2e:hr:local": "node scripts/hr-e2e.mjs",
     "check": "pnpm check:navigation && pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     "audit:prod": "pnpm audit --prod --audit-level high",
     "audit:full": "pnpm audit --audit-level high",

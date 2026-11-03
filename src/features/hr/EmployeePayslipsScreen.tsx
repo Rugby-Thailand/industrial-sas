@@ -4,7 +4,7 @@ import { useAuth, useReverification } from "@clerk/nextjs";
 import { ConvexHttpClient } from "convex/browser";
 import { useQuery } from "convex/react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { useAppEnvironment } from "@/components/providers/EnvironmentProvider";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
@@ -206,6 +206,41 @@ function SensitiveStatement({
     <SensitiveStatementBody key={scope} row={row} scope={scope} auth={auth} />
   );
 }
+/** The company profile's employer identity returned with a statement document. */
+interface PayslipEmployer {
+  readonly name: string;
+  readonly taxId: string;
+  /** Address line, sub-district, district, province and postcode, in order. */
+  readonly address: string;
+  readonly addressEn?: string | undefined;
+}
+function payslipEmployer(value: unknown): PayslipEmployer | null {
+  const employer = value as Record<string, unknown> | null | undefined;
+  const parts = [
+    "address",
+    "subDistrict",
+    "district",
+    "province",
+    "postcode",
+  ].map((key) => employer?.[key]);
+  return typeof employer?.name === "string" &&
+    typeof employer.taxId === "string" &&
+    parts.every((part) => typeof part === "string")
+    ? {
+        name: employer.name,
+        taxId: employer.taxId,
+        address: (parts as string[])
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join(" "),
+        ...(typeof employer.addressEn === "string" &&
+        employer.addressEn.trim() !== ""
+          ? { addressEn: employer.addressEn.trim() }
+          : {}),
+      }
+    : null;
+}
+
 function SensitiveStatementBody({
   row,
   scope,
@@ -234,6 +269,12 @@ function SensitiveStatementBody({
     error?: string;
   }>({ scope, pending: false });
   const [clock, setClock] = useState(() => Date.now());
+  const employerHeading = useId();
+  // The employer issuing the last downloaded statement (not sensitive).
+  const [employer, setEmployer] = useState<{
+    scope: string;
+    value: PayslipEmployer;
+  } | null>(null);
   const pending = action.scope === scope && action.pending;
   const exposed =
     entry?.scope === scope && entry.until > clock && isSignedIn ? entry : null;
@@ -390,6 +431,7 @@ function SensitiveStatementBody({
             expiresAt: document.expiresAt,
             fileName: document.fileName,
           },
+          employer: payslipEmployer(document.employer),
           metadata,
         };
       } finally {
@@ -429,6 +471,8 @@ function SensitiveStatementBody({
       } else {
         await downloadPrivatePayslip(result.document, isCurrent);
         ticketIntent.current = null;
+        if (isCurrent() && result.employer !== null)
+          setEmployer({ scope: capturedScope, value: result.employer });
       }
       if (isCurrent()) setAction({ scope: capturedScope, pending: false });
     } catch (error) {
@@ -471,6 +515,32 @@ function SensitiveStatementBody({
           {t("masked")}
         </p>
       )}
+      {employer?.scope === scope ? (
+        <section aria-labelledby={employerHeading} className="space-y-2">
+          <h3 id={employerHeading} className="text-sm font-semibold text-text">
+            {t("employer")}
+          </h3>
+          <Facts
+            dense
+            items={[
+              { label: t("employerName"), value: employer.value.name },
+              { label: t("employerTaxId"), value: employer.value.taxId },
+              {
+                label: t("employerAddress"),
+                value:
+                  employer.value.addressEn === undefined ? (
+                    employer.value.address
+                  ) : (
+                    <>
+                      <span className="block">{employer.value.address}</span>
+                      <span className="block">{employer.value.addressEn}</span>
+                    </>
+                  ),
+              },
+            ]}
+          />
+        </section>
+      ) : null}
       {error ? (
         <Notice
           tone="warning"

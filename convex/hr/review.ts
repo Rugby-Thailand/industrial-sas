@@ -51,6 +51,7 @@ import {
   periodLockCode,
   dayOf,
   employeeDaysInRange,
+  employeeRosterInRange,
   employmentOf,
   ensureDay,
   fail,
@@ -58,6 +59,8 @@ import {
   hrCommand,
   livePlan,
   loadSiteDays,
+  rosterAssignment,
+  siteRosterInRange,
   localTimeValidator,
   orgClock,
   planFromStored,
@@ -179,8 +182,12 @@ export const queue = queryWithOrg({
         "warehouses",
         warehouseId,
       );
-      const { days, holidays } = await loadSiteDays(ctx, warehouseId, dates);
+      const [{ days, holidays }, roster] = await Promise.all([
+        loadSiteDays(ctx, warehouseId, dates),
+        siteRosterInRange(ctx, warehouseId, args.from, to),
+      ]);
       const rows = buildPeriodRows({
+        assignment: (id, date) => rosterAssignment(roster.get(`${id}:${date}`)),
         startDate: args.from,
         endDate: to,
         employees: siteEmployees.map((employee) => ({
@@ -433,9 +440,10 @@ async function evaluateEmployee(
   const employed = input.dates.filter((date) => isEmployedOn(employment, date));
   if (employed.length === 0) return [];
   // One date-range read of the employee's days instead of one per date.
-  const [{ holidays }, recorded] = await Promise.all([
+  const [{ holidays }, recorded, roster] = await Promise.all([
     input.site,
     employeeDaysInRange(ctx, employee._id, input.from, input.to),
+    employeeRosterInRange(ctx, employee, input.from, input.to),
   ]);
   const days = new Map(
     employed.map((date) => [date, recorded.get(date) ?? null] as const),
@@ -455,6 +463,7 @@ async function evaluateEmployee(
     offsetMinutes: input.clock.offset,
     now: input.clock.now,
     holidayName: (date) => holidays.get(date),
+    assignment: (_id, date) => roster.get(date),
     recorded: (_id, date) => {
       const day = days.get(date);
       return day ? recordedDay(day) : undefined;
@@ -514,6 +523,14 @@ export const dayDetail = queryWithOrg({
       "warehouses",
       employee.warehouseId,
     );
+    const detail = await buildDayDetail(
+      ctx,
+      employee,
+      args.businessDate,
+      clock,
+    );
+    if (detail === null)
+      return { ok: false as const, code: "HR_OUTSIDE_EMPLOYMENT" };
     return {
       ok: true as const,
       timezone: clock.timezone,
@@ -526,7 +543,7 @@ export const dayDetail = queryWithOrg({
         siteCode: site?.code ?? "",
         siteName: site?.name ?? "",
       },
-      detail: await buildDayDetail(ctx, employee, args.businessDate, clock),
+      detail,
     };
   },
 });

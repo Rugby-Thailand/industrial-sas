@@ -30,6 +30,7 @@ export interface EmployeeDraft {
   readonly employmentEndDate?: string | undefined;
   readonly userId?: string | undefined;
   readonly supervisorUserId?: string | undefined;
+  readonly probationEndDate?: string | undefined;
 }
 
 export const normalizeEmployeeCode = (code: string): string =>
@@ -65,6 +66,11 @@ export function validateEmployeeDraft(
       code: "EMPLOYMENT_RANGE_INVALID",
       field: "employmentEndDate",
     });
+  if (
+    draft.probationEndDate !== undefined &&
+    !isIsoDate(draft.probationEndDate)
+  )
+    return fail({ code: "EMPLOYMENT_DATE_INVALID", field: "probationEndDate" });
   if (
     draft.userId !== undefined &&
     draft.supervisorUserId !== undefined &&

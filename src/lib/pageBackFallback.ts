@@ -70,6 +70,8 @@ export function moduleBackFallback(currentHref: string): string | null {
     [ROUTES.hrLeaveReview, ROUTES.hrLeave],
     [ROUTES.hrPayslipImport, ROUTES.hrPayslips],
     [ROUTES.hrFrozenPeriods, ROUTES.hrTime],
+    [ROUTES.hrShifts, ROUTES.hrSettings],
+    [ROUTES.hrRoster, ROUTES.hrSettings],
   ])
     if (path === child) return parent!;
   for (const parent of [

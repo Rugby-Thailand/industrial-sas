@@ -41,6 +41,7 @@ import {
   fingerprintStep,
   liveRows,
   periodEmployee,
+  periodRosterOf,
   scopedPeriod,
 } from "./periodData";
 import {
@@ -50,6 +51,7 @@ import {
   hrCommand,
   orgClock,
   recordedDay,
+  rosterAssignment,
   storedPlan,
   type Employee,
 } from "./shared";
@@ -200,7 +202,16 @@ async function buildStep(
           employeeId: employee._id,
           businessDate: day.businessDate,
         });
+    const roster = await periodRosterOf(ctx, employee._id, period);
+    for (const row of roster.values())
+      if (row.updatedAt > build.snapshotAt)
+        return await discard(ctx, version, {
+          code: "PERIOD_STALE",
+          employeeId: employee._id,
+          businessDate: row.businessDate,
+        });
     const rows = buildPeriodRows({
+      assignment: (_id, date) => rosterAssignment(roster.get(date)),
       startDate: period.startDate,
       endDate: period.endDate,
       employees: [periodEmployee(employee)],

@@ -42,6 +42,15 @@ export const TENANT_TABLES = [
   "finishedGoodsCounters",
   "finishedGoodsMoves",
   "hrEmployees",
+  "hrCompanyProfiles",
+  "hrCompanyLogos",
+  "hrBranches",
+  "hrDepartments",
+  "hrPositions",
+  "hrPositionLevels",
+  "hrEmployeeProfiles",
+  "hrEmployeePayments",
+  "hrEmploymentEvents",
   "hrShortcutPreferences",
   "hrPolicyDrafts",
   "hrPolicyVersions",
@@ -59,6 +68,8 @@ export const TENANT_TABLES = [
   "hrPayslipPayloads",
   "hrPayslipTickets",
   "hrHolidays",
+  "hrShifts",
+  "hrRosterAssignments",
   "hrAttendanceDays",
   "hrAttendanceEvents",
   "hrCorrectionRequests",
@@ -151,6 +162,22 @@ export function uniquenessIndexName(key: readonly string[]): string {
 }
 
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
+  { table: "hrCompanyProfiles", key: ["orgId"], condition: ALWAYS },
+  { table: "hrCompanyLogos", key: ["orgId"], condition: ALWAYS },
+  { table: "hrBranches", key: ["orgId", "revenueBranchNo"], condition: ALWAYS },
+  { table: "hrDepartments", key: ["orgId", "nameKey"], condition: ALWAYS },
+  { table: "hrPositions", key: ["orgId", "nameKey"], condition: ALWAYS },
+  { table: "hrPositionLevels", key: ["orgId", "nameKey"], condition: ALWAYS },
+  {
+    table: "hrEmployeeProfiles",
+    key: ["orgId", "employeeId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrEmployeePayments",
+    key: ["orgId", "employeeId"],
+    condition: ALWAYS,
+  },
   {
     table: "hrLeaveRequestRevisions",
     key: ["orgId", "leaveRequestId", "version"],
@@ -180,6 +207,16 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   {
     table: "hrNotifications",
     key: ["orgId", "employeeId", "eventKey"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrShifts",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrRosterAssignments",
+    key: ["orgId", "employeeId", "businessDate"],
     condition: ALWAYS,
   },
 
@@ -346,6 +383,7 @@ export type LookupContract = {
 };
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
+  { table: "hrDepartments", key: ["orgId", "managerEmployeeId"] },
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "storagePositions", key: ["orgId", "zoneId", "status"] },
   { table: "hrEmployees", key: ["orgId", "warehouseId"] },

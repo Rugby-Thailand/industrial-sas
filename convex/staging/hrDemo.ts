@@ -578,3 +578,133 @@ export const seed = internalMutation({
     };
   },
 });
+
+/** Roles the browser fixture may toggle on its own local bootstrap member. */
+const LOCAL_TEST_ROLE_KEYS = [
+  "ORG_ADMIN",
+  "HR_ADMIN",
+  "HR_SUPERVISOR",
+  "HR_EMPLOYEE",
+] as const;
+const localTestRoleKey = v.union(
+  ...LOCAL_TEST_ROLE_KEYS.map((key) => v.literal(key)),
+);
+
+/** Isolate a roster run from accumulated LOCAL-DEMO employees; never deletes data. */
+export const createLocalTestSite = internalMutation({
+  args: {
+    sourceWarehouseId: v.id("warehouses"),
+    code: v.string(),
+    confirmation: v.string(),
+  },
+  returns: v.object({
+    warehouseId: v.id("warehouses"),
+    sourceEmployeeCountAtLeast: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    assertLocal(args.confirmation);
+    if (!/^TRAIN-E2E-[a-f0-9-]{8,40}$/.test(args.code))
+      throw new Error("Local test site code required");
+    const source = await ctx.db.get(args.sourceWarehouseId);
+    if (source?.code !== "LOCAL-DEMO")
+      throw new Error("Local bootstrap site required");
+    const sourceEmployees = await ctx.db
+      .query("hrEmployees")
+      .withIndex("by_orgId_warehouseId_code", (q) =>
+        q.eq("orgId", source.orgId).eq("warehouseId", source._id),
+      )
+      .take(51);
+    const existing = await ctx.db
+      .query("warehouses")
+      .withIndex("by_orgId_code", (q) =>
+        q.eq("orgId", source.orgId).eq("code", args.code),
+      )
+      .unique();
+    const warehouseId =
+      existing?._id ??
+      (await ctx.db.insert("warehouses", {
+        orgId: source.orgId,
+        code: args.code,
+        name: "TRAIN Roster Studio",
+        status: "ACTIVE",
+      }));
+    return { warehouseId, sourceEmployeeCountAtLeast: sourceEmployees.length };
+  },
+});
+
+/**
+ * Replaces the managed HR/organization role grants of ONE membership created
+ * by the local bootstrap (`local-membership-*`), so the browser suite can test
+ * a lower role with the same genuine Clerk identity and then restore it.
+ * Webhook-synchronized memberships and unmanaged roles are never touched.
+ */
+export const setLocalTestRoles = internalMutation({
+  args: {
+    clerkUserId: v.string(),
+    clerkOrganizationId: v.string(),
+    roleKeys: v.array(localTestRoleKey),
+    confirmation: v.string(),
+  },
+  returns: v.object({ previous: v.array(localTestRoleKey) }),
+  handler: async (ctx, args) => {
+    assertLocal(args.confirmation);
+    const [user, organization] = await Promise.all([
+      ctx.db
+        .query("users")
+        .withIndex("by_clerkUserId", (q) =>
+          q.eq("clerkUserId", args.clerkUserId),
+        )
+        .unique(),
+      ctx.db
+        .query("organizations")
+        .withIndex("by_clerkOrganizationId", (q) =>
+          q.eq("clerkOrganizationId", args.clerkOrganizationId),
+        )
+        .unique(),
+    ]);
+    if (user === null || organization === null)
+      throw new Error("Local test member not found");
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_orgId_userId", (q) =>
+        q.eq("orgId", organization._id).eq("userId", user._id),
+      )
+      .unique();
+    if (
+      membership === null ||
+      membership.clerkMembershipId !== `local-membership-${args.clerkUserId}`
+    )
+      throw new Error("Refusing to change a non-local membership");
+    const previous: (typeof LOCAL_TEST_ROLE_KEYS)[number][] = [];
+    for (const key of LOCAL_TEST_ROLE_KEYS) {
+      const role = await ctx.db
+        .query("roles")
+        .withIndex("by_orgId_key", (q) =>
+          q.eq("orgId", organization._id).eq("key", key),
+        )
+        .unique();
+      if (role === null) throw new Error(`Role ${key} is missing`);
+      const existing = await ctx.db
+        .query("membershipRoles")
+        .withIndex("by_orgId_membershipId_roleId", (q) =>
+          q
+            .eq("orgId", organization._id)
+            .eq("membershipId", membership._id)
+            .eq("roleId", role._id),
+        )
+        .unique();
+      if (existing !== null) previous.push(key);
+      const wanted = args.roleKeys.includes(key);
+      if (existing !== null && !wanted) await ctx.db.delete(existing._id);
+      if (existing === null && wanted)
+        await ctx.db.insert("membershipRoles", {
+          orgId: organization._id,
+          membershipId: membership._id,
+          roleId: role._id,
+          grantedAt: Date.now(),
+          grantedByUserId: user._id,
+        });
+    }
+    return { previous };
+  },
+});

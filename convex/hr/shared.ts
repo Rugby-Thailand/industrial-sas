@@ -33,7 +33,13 @@ import {
   type IsoDate,
 } from "../model/hr/calendar";
 import { type RecordedDay } from "../model/hr/period";
-import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
+import { rosterPlanFor, type RosterAssignment } from "../model/hr/roster";
+import {
+  isEmployedInRange,
+  type DayPlan,
+  type RosterProvenance,
+  type Schedule,
+} from "../model/hr/schedule";
 import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
 export type Employee = Doc<"hrEmployees">;
@@ -625,6 +631,7 @@ export const scheduleOf = (employee: Employee): Schedule | undefined =>
 export const employmentOf = (employee: Employee) => ({
   startDate: employee.employmentStartDate,
   endDate: employee.employmentEndDate,
+  intervals: employee.employmentIntervals,
 });
 
 export async function holidayName(
@@ -671,6 +678,23 @@ export async function openDays(
   return [...days].sort((a, b) => compareDates(b.businessDate, a.businessDate));
 }
 
+const storedRoster = (roster: RosterProvenance | undefined) =>
+  roster === undefined
+    ? {}
+    : {
+        roster: {
+          kind: roster.kind,
+          revision: roster.revision,
+          ...(roster.shiftId === undefined ? {} : { shiftId: roster.shiftId }),
+          ...(roster.shiftCode === undefined
+            ? {}
+            : { shiftCode: roster.shiftCode }),
+          ...(roster.shiftVersion === undefined
+            ? {}
+            : { shiftVersion: roster.shiftVersion }),
+        },
+      };
+
 export function storedPlan(plan: DayPlan): StoredPlan {
   return plan.kind === "SCHEDULED"
     ? {
@@ -681,6 +705,7 @@ export function storedPlan(plan: DayPlan): StoredPlan {
         endTime: plan.endTime,
         endsNextDay: plan.endsNextDay,
         breakMinutes: plan.breakMinutes,
+        ...storedRoster(plan.roster),
       }
     : {
         kind: "NONWORKING",
@@ -689,6 +714,7 @@ export function storedPlan(plan: DayPlan): StoredPlan {
         ...(plan.holidayName === undefined
           ? {}
           : { holidayName: plan.holidayName }),
+        ...storedRoster(plan.roster),
       };
 }
 
@@ -706,6 +732,7 @@ export function planFromStored(plan: StoredPlan): DayPlan {
       endTime: plan.endTime ?? "",
       endsNextDay: plan.endsNextDay ?? false,
       breakMinutes: plan.breakMinutes,
+      ...storedRoster(plan.roster),
     };
   return {
     kind: "NONWORKING",
@@ -714,20 +741,187 @@ export function planFromStored(plan: StoredPlan): DayPlan {
       ? {}
       : { holidayName: plan.holidayName }),
     breakMinutes: 0,
+    ...storedRoster(plan.roster),
   };
 }
 
-/** The current plan for a date that has no recorded day yet. */
+export type RosterRow = Doc<"hrRosterAssignments">;
+
+/** Once frozen, an employee/date cannot use ordinary roster recalculation. */
+export async function hasFrozenPlan(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  date: IsoDate,
+): Promise<boolean> {
+  return (
+    (await ctx.tenantDb
+      .byIndex<Doc<"hrPeriodRows">>(
+        "hrPeriodRows",
+        "by_orgId_employeeId_businessDate",
+        [
+          { field: "employeeId", value: employeeId },
+          { field: "businessDate", value: date },
+        ],
+      )
+      .first()) !== null
+  );
+}
+
+/** The plan input of a stored assignment row; a CLEARED tombstone is none. */
+export function rosterAssignment(
+  row: RosterRow | null | undefined,
+): RosterAssignment | undefined {
+  if (row === null || row === undefined || row.kind === "CLEARED")
+    return undefined;
+  if (row.kind === "OFF") return { kind: "OFF", revision: row.revision };
+  if (row.shift === undefined) return undefined;
+  return {
+    kind: "SHIFT",
+    revision: row.revision,
+    shiftId: row.shift.shiftId,
+    shiftCode: row.shift.code,
+    shiftVersion: row.shift.version,
+    times: {
+      startTime: row.shift.startTime,
+      endTime: row.shift.endTime,
+      endsNextDay: row.shift.endsNextDay,
+      breakMinutes: row.shift.breakMinutes,
+    },
+  };
+}
+
+export async function rosterRowOf(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  date: IsoDate,
+): Promise<RosterRow | null> {
+  return await ctx.tenantDb
+    .byIndex<RosterRow>(
+      "hrRosterAssignments",
+      "by_orgId_employeeId_businessDate",
+      [
+        { field: "employeeId", value: employeeId },
+        { field: "businessDate", value: date },
+      ],
+    )
+    .unique();
+}
+
+/**
+ * A site's roster rows in `[from, to]`, keyed `employeeId:date`, in one
+ * checked range read; fails rather than truncates beyond the bound.
+ */
+export async function siteRosterInRange(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<string, RosterRow>> {
+  const rows = new Map<string, RosterRow>();
+  if (inclusiveDayCount(from, to) < 1) return rows;
+  const found = await ctx.tenantDb
+    .byIndex<RosterRow>(
+      "hrRosterAssignments",
+      "by_orgId_warehouseId_businessDate",
+      [{ field: "warehouseId", value: warehouseId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(TENANT_INDEX_MAX_BATCH_SIZE);
+  for (const row of found) {
+    const key = `${row.employeeId}:${row.businessDate}`;
+    if (rows.has(key))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    rows.set(key, row);
+  }
+  return rows;
+}
+
+/** Raw revisions follow the employee/date key even after a site transfer. */
+export async function employeeRosterRowsInRange(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, RosterRow>> {
+  const assignments = new Map<IsoDate, RosterRow>();
+  const count = inclusiveDayCount(from, to);
+  if (count < 1) return assignments;
+  const rows = await ctx.tenantDb
+    .byIndex<RosterRow>(
+      "hrRosterAssignments",
+      "by_orgId_employeeId_businessDate",
+      [{ field: "employeeId", value: employeeId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(Math.min(count * 2, TENANT_INDEX_MAX_BATCH_SIZE));
+  for (const row of rows) {
+    if (assignments.has(row.businessDate))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    assignments.set(row.businessDate, row);
+  }
+  return assignments;
+}
+
+/** One employee's live roster assignments in `[from, to]` by date (own site only). */
+export async function employeeRosterInRange(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, RosterAssignment>> {
+  const assignments = new Map<IsoDate, RosterAssignment>();
+  const rows = await employeeRosterRowsInRange(ctx, employee._id, from, to);
+  for (const row of rows.values()) {
+    const assignment =
+      row.warehouseId === employee.warehouseId
+        ? rosterAssignment(row)
+        : undefined;
+    if (assignment !== undefined) assignments.set(row.businessDate, assignment);
+  }
+  return assignments;
+}
+
+/**
+ * The current plan for a date that has no recorded day yet: site holiday,
+ * then the dated roster assignment (FIXED shift snapshot or explicit OFF),
+ * then the weekly schedule fallback.
+ *
+ * Employee-eligibility seam: this resolves a plan for whichever employee
+ * the caller already selected. It deliberately does not decide whether the
+ * employee is employed/eligible on `date`; callers keep their existing
+ * eligibility checks (employment window, lifecycle/offboarding). The
+ * employee-lifecycle lane's chronology/eligibility helper should be applied
+ * by those callers, not here, so plan resolution and eligibility stay
+ * separately testable. A roster row only exists for dates the roster
+ * command accepted under `rosterCellEligible` (convex/hr/roster.ts).
+ */
 export async function livePlan(
   ctx: TenantFunctionContext,
   employee: Employee,
   date: IsoDate,
   offset: number,
 ): Promise<DayPlan> {
-  return planFor({
+  const [holiday, row] = await Promise.all([
+    holidayName(ctx, employee.warehouseId, date),
+    rosterRowOf(ctx, employee._id, date),
+  ]);
+  return rosterPlanFor({
     date,
     schedule: scheduleOf(employee),
-    holidayName: await holidayName(ctx, employee.warehouseId, date),
+    // A row from another site (moved employee) never applies here.
+    assignment:
+      row !== null && row.warehouseId === employee.warehouseId
+        ? rosterAssignment(row)
+        : undefined,
+    holidayName: holiday,
     offsetMinutes: offset,
   });
 }
@@ -905,10 +1099,7 @@ export const employedInRange = (
   employee: Employee,
   startDate: IsoDate,
   endDate: IsoDate,
-) =>
-  compareDates(employee.employmentStartDate, endDate) <= 0 &&
-  (employee.employmentEndDate === undefined ||
-    compareDates(startDate, employee.employmentEndDate) <= 0);
+) => isEmployedInRange(employmentOf(employee), startDate, endDate);
 
 export interface EmployeeScanBudget {
   remaining: number;
@@ -1111,6 +1302,22 @@ export interface AuditChange {
   readonly to?: string | undefined;
 }
 
+export const diff = (
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+) =>
+  Object.keys(after)
+    .filter(
+      (key) => JSON.stringify(before?.[key]) !== JSON.stringify(after[key]),
+    )
+    .map((key) => ({
+      field: key,
+      ...(before?.[key] === undefined
+        ? {}
+        : { from: JSON.stringify(before[key]) }),
+      ...(after[key] === undefined ? {} : { to: JSON.stringify(after[key]) }),
+    }));
+
 export interface CommandSuccess<Extra> {
   readonly documentId: string;
   readonly extra?: Extra;
@@ -1273,6 +1480,10 @@ export async function hrCommand<Extra extends Record<string, unknown>>(
 /* Presentation ------------------------------------------------------------- */
 
 export function planView(plan: DayPlan) {
+  const shiftCode =
+    plan.roster?.shiftCode === undefined
+      ? {}
+      : { shiftCode: plan.roster.shiftCode };
   return plan.kind === "SCHEDULED"
     ? {
         kind: plan.kind,
@@ -1282,6 +1493,7 @@ export function planView(plan: DayPlan) {
         endTime: plan.endTime,
         endsNextDay: plan.endsNextDay,
         breakMinutes: plan.breakMinutes,
+        ...shiftCode,
       }
     : {
         kind: plan.kind,
@@ -1303,4 +1515,30 @@ export async function memberName(
   const name = await ctx.members.displayName(userId);
   cache.set(userId, name);
   return name;
+}
+
+/** Authoritative event bounds, read in the same transaction as employee writes. */
+export async function employmentDateBounds(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+) {
+  const events = () =>
+    ctx.tenantDb.byIndex<Doc<"hrEmploymentEvents">>(
+      "hrEmploymentEvents",
+      "by_orgId_employeeId_effectiveDate",
+      [{ field: "employeeId", value: employee._id }],
+    );
+  const [first, last] = await Promise.all([
+    events().take(1, "asc"),
+    events().take(1, "desc"),
+  ]);
+  const dates = [
+    first[0]?.effectiveDate,
+    last[0]?.effectiveDate,
+    employee.probationConfirmedDate,
+    employee.separation?.lastWorkingDate,
+  ]
+    .filter((value): value is string => value !== undefined)
+    .sort();
+  return { first: dates[0], last: dates.at(-1) };
 }

@@ -1,7 +1,13 @@
 import { aiUsageTables } from "./aiUsage/schema";
 import { hrPolicyTables } from "./model/hr/policySchema";
+import { employeeOrgFields, hrOrgTables } from "./model/hr/orgSchema";
+import {
+  employeeLifecycleFields,
+  hrEmployeeProfileTables,
+} from "./model/hr/employeeProfileSchema";
 import { hrPayslipTables } from "./model/hr/payslipSchema";
 import { hrAnnouncementTables } from "./model/hr/announcementsSchema";
+import { hrRosterTables, rosterProvenance } from "./model/hr/rosterSchema";
 import { defineSchema, defineTable } from "convex/server";
 import type { DataModelFromSchemaDefinition } from "convex/server";
 import { v } from "convex/values";
@@ -114,9 +120,12 @@ const hrPlan = v.object({
       v.literal("HOLIDAY"),
       v.literal("UNSCHEDULED"),
       v.literal("NO_SCHEDULE"),
+      v.literal("OFF"),
     ),
   ),
   holidayName: v.optional(v.string()),
+  /** The dated roster assignment this plan was captured from, if any. */
+  roster: v.optional(rosterProvenance),
 });
 const hrDisposition = v.union(
   v.literal("WORKED"),
@@ -127,11 +136,16 @@ const hrDisposition = v.union(
 
 const schema = defineSchema({
   ...hrPolicyTables,
+  ...hrOrgTables,
+  ...hrEmployeeProfileTables,
   ...hrPayslipTables,
   ...hrAnnouncementTables,
+  ...hrRosterTables,
   ...aiUsageTables,
   hrEmployees: defineTable(
     tenantFields({
+      ...employeeOrgFields,
+      ...employeeLifecycleFields,
       warehouseId: v.id("warehouses"),
       code: v.string(),
       displayName: v.string(),
@@ -421,6 +435,10 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_versionId", byOrg("versionId"))
+    .index(
+      "by_orgId_employeeId_businessDate",
+      byOrg("employeeId", "businessDate"),
+    )
     .index("by_orgId_versionId_employeeId", byOrg("versionId", "employeeId"))
     .index(
       "by_orgId_versionId_employeeId_businessDate",

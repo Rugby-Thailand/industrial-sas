@@ -14,12 +14,16 @@ import {
   type PeriodEmployee,
   type PeriodRow,
 } from "../model/hr/period";
+import type { IsoDate } from "../model/hr/calendar";
 import {
+  employeeRosterRowsInRange,
   employmentOf,
   loadSiteDays,
   recordedDay,
+  rosterAssignment,
   siteAllowed,
   siteEmployeesInRange,
+  siteRosterInRange,
   siteScope,
   type Employee,
   type OrgClock,
@@ -27,6 +31,28 @@ import {
 
 type Period = Doc<"hrPeriods">;
 type Version = Doc<"hrPeriodVersions">;
+type RosterRow = Doc<"hrRosterAssignments">;
+
+/**
+ * One employee's dated roster rows on the period's site, by date. Rows the
+ * employee holds at another site never plan this site's period, matching
+ * `siteRosterInRange` for a whole-site read.
+ */
+export async function periodRosterOf(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  period: Pick<Period, "warehouseId" | "startDate" | "endDate">,
+): Promise<ReadonlyMap<IsoDate, RosterRow>> {
+  const rows = await employeeRosterRowsInRange(
+    ctx,
+    employeeId,
+    period.startDate,
+    period.endDate,
+  );
+  return new Map(
+    [...rows].filter(([, row]) => row.warehouseId === period.warehouseId),
+  );
+}
 
 /** A published version; an unpublished staged build is never history. */
 export const published = (version: Version | null): version is Version =>
@@ -70,12 +96,22 @@ export async function liveRows(
     MAX_PREVIEW_EMPLOYEES,
   );
   if (employees === null) return null;
-  const { days, holidays } = await loadSiteDays(
-    ctx,
-    period.warehouseId,
-    datesInRange(period.startDate, period.endDate),
-  );
+  const [{ days, holidays }, roster] = await Promise.all([
+    loadSiteDays(
+      ctx,
+      period.warehouseId,
+      datesInRange(period.startDate, period.endDate),
+    ),
+    siteRosterInRange(
+      ctx,
+      period.warehouseId,
+      period.startDate,
+      period.endDate,
+    ),
+  ]);
+  // The roster plans only dates the employment window already includes.
   const rows = buildPeriodRows({
+    assignment: (id, date) => rosterAssignment(roster.get(`${id}:${date}`)),
     startDate: period.startDate,
     endDate: period.endDate,
     employees: employees.map(periodEmployee),
