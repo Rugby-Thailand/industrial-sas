@@ -360,8 +360,8 @@ describe("workflow policy rejects regressions", () => {
     expect(
       problemsWith("quality.yml", [
         [
-          "[validate, codegen, test, browser, dependency-review]",
-          "[validate, codegen, test, browser]",
+          "[validate, test, browser, dependency-review]",
+          "[validate, test, browser]",
         ],
       ]),
     ).toEqual(
@@ -850,11 +850,11 @@ describe("workflow policy rejects regressions", () => {
     for (const replacement of [
       "",
       `${ts6}\n${ts6}`,
-      ts6.replace("matrix.lane == 'types'", "matrix.lane == 'style'"),
+      ts6.replace("matrix.lane == 'static'", "matrix.lane == 'contracts'"),
       ts6.replace("!cancelled()", "false"),
     ])
       expect(problemsWith("quality.yml", [[ts6, replacement]])).toContain(
-        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in static",
       );
     for (const override of [
       "        shell: echo {0}\n",
@@ -864,7 +864,7 @@ describe("workflow policy rejects regressions", () => {
       expect(
         problemsWith("quality.yml", [[ts6, `${ts6}\n${override.trimEnd()}`]]),
       ).toContain(
-        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in types",
+        "quality.yml:validate: pnpm typecheck:ts6 must run exactly once in static",
       );
     for (const [from, to] of [
       [
@@ -928,10 +928,10 @@ describe("workflow policy rejects regressions", () => {
   });
 
   it("fails closed when validation lanes are missing, duplicated or skipped", () => {
-    for (const lanes of ["[style, types, lint]", "[style, types, lint, lint]"])
+    for (const lanes of ["[static]", "[static, static]"])
       expect(
         problemsWith("quality.yml", [
-          ["lane: [style, types, lint, audit]", `lane: ${lanes}`],
+          ["lane: [static, contracts]", `lane: ${lanes}`],
         ]),
       ).toContain(
         "quality.yml:validate: exact complete validation lanes required",
@@ -940,15 +940,54 @@ describe("workflow policy rejects regressions", () => {
     for (const replacement of [
       "",
       `${lint}\n${lint}`,
-      lint.replace("matrix.lane == 'lint'", "matrix.lane == 'style'"),
+      lint.replace("matrix.lane == 'static'", "matrix.lane == 'contracts'"),
     ])
       expect(problemsWith("quality.yml", [[lint, replacement]])).toContain(
-        "quality.yml:validate: pnpm lint must run exactly once in lint",
+        "quality.yml:validate: pnpm lint must run exactly once in static",
       );
     const clean = namedStep("quality.yml", "Clean tree after generators");
     expect(
       problemsWith("quality.yml", [
         [clean, clean.replace("steps.setup.outcome == 'success'", "false")],
+      ]),
+    ).toContain(
+      "quality.yml:validate: clean tree must join each lane after all checks",
+    );
+  });
+
+  it("preserves independent contract checks and codegen before final cleanup", () => {
+    for (const name of [
+      "Workflow lint and action pins",
+      "Formatting",
+      "Typecheck (cold next typegen + Bun checker)",
+      "TypeScript 6 gate (cold generated route types)",
+      "Lint",
+      "Back navigation contract and architecture fixtures",
+      "Runtime dependency audit",
+      "Application dependency audit (exact-chain exceptions)",
+      "Release-tool dependency audit (exact-chain exceptions)",
+      "Release-tool schema compatibility",
+      "Test discovery",
+      "Convex codegen freshness",
+    ]) {
+      const step = namedStep("quality.yml", name);
+      for (const replacement of [
+        "",
+        step.replace("!cancelled()", "success()"),
+        `${step}\n        continue-on-error: true`,
+      ])
+        expect(
+          problemsWith("quality.yml", [[step, replacement]]).some((problem) =>
+            problem.includes("must run exactly once"),
+          ),
+        ).toBe(true);
+    }
+    const codegen = namedStep("quality.yml", "Convex codegen freshness");
+    const clean = namedStep("quality.yml", "Clean tree after generators");
+    expect(
+      problemsWith("quality.yml", [
+        [codegen, ""],
+        [clean, `${clean}\n${codegen}`],
       ]),
     ).toContain(
       "quality.yml:validate: clean tree must join each lane after all checks",

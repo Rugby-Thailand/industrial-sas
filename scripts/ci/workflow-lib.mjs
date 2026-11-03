@@ -981,6 +981,18 @@ function qualityProblems(workflow, { allowedGhsas }) {
       "quality.yml: concurrency must group PRs by number (cancelling) and every other run by run_id",
     );
 
+  if (
+    !sameSet(Object.keys(jobs), [
+      "validate",
+      "test",
+      "browser",
+      "dependency-review",
+      "check",
+      "staging",
+      "release",
+    ])
+  )
+    problems.push("quality.yml: exact quality and release job set required");
   const check = jobs.check;
   const gated = Object.keys(jobs).filter(
     (id) => !["check", "staging", "release"].includes(id),
@@ -1056,21 +1068,27 @@ function qualityProblems(workflow, { allowedGhsas }) {
   }
 
   const validationLanes = {
-    style: ["pnpm format:check"],
-    types: ["pnpm typecheck", "pnpm typecheck:ts6"],
-    lint: ["pnpm lint"],
-    audit: [
+    static: [
+      "pnpm format:check",
+      "pnpm typecheck",
+      "pnpm typecheck:ts6",
+      "pnpm lint",
+      "pnpm check:navigation",
+    ],
+    contracts: [
       "node scripts/ci/validate-workflows.mjs --verify-pins",
       "pnpm audit:prod",
       "node scripts/ci/audit-dependencies.mjs --scope=app",
       "node scripts/ci/audit-dependencies.mjs --scope=release",
+      "pnpm -C tools/release install --frozen-lockfile\nnode tools/release/check-compatibility.mjs\n",
       "pnpm ci:test-discovery",
+      "pnpm ci:codegen",
     ],
   };
   if (
     !same(jobs.validate?.strategy, {
       "fail-fast": "false",
-      matrix: { lane: ["style", "types", "lint", "audit"] },
+      matrix: { lane: ["static", "contracts"] },
     })
   )
     problems.push(
@@ -1090,7 +1108,9 @@ function qualityProblems(workflow, { allowedGhsas }) {
         matches[0]?.if !== expected ||
         matches[0]?.shell !== undefined ||
         matches[0]?.["working-directory"] !== undefined ||
-        matches[0]?.env !== undefined
+        matches[0]?.env !== undefined ||
+        matches[0]?.["continue-on-error"] !== undefined ||
+        jobs.validate?.["continue-on-error"] !== undefined
       )
         problems.push(
           `quality.yml:validate: ${command} must run exactly once in ${lane}`,
