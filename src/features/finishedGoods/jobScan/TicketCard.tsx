@@ -110,7 +110,12 @@ export function TicketCard({
   ).length;
   const image = ticket.imageUrl ?? ticket.previewUrl;
   return (
-    <li className="space-y-3 border-b border-border py-3">
+    // The save blocker scrolls to and focuses this row by its key.
+    <li
+      data-ticket-key={ticket.key}
+      tabIndex={-1}
+      className="space-y-3 border-b border-border py-3 focus-ring"
+    >
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-muted">#{index + 1}</span>
         <StatusBadge tone="muted" label={t(`source.${ticket.source}`)} />

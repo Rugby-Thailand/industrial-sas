@@ -55,6 +55,7 @@ import {
   applyBarcode,
   applyImageBarcodes,
   classifyTicketBarcode,
+  describeIntake,
   isComplete,
   hasInvalidQuantity,
   duplicateTicketKeys,
@@ -65,8 +66,9 @@ import {
   type PickedLocation,
   type TicketDraft,
   type TicketCodeField,
-  type TicketWrite,
+  type TicketIntake,
   ticketBarcodeError,
+  undoIntake,
 } from "./ticketDraft";
 
 type FieldScanTarget = {
@@ -145,7 +147,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const fieldScanRef = useRef<FieldScanTarget | null>(null);
   const [feedback, setFeedback] = useState<string>();
   // The ticket the last barcode-panel intake wrote, shown above the camera.
-  const [lastWrite, setLastWrite] = useState<TicketWrite>();
+  // It is also the one-step undo; any other ticket change clears it.
+  const [lastWrite, setLastWrite] = useState<TicketIntake>();
+  // Codes just undone stay ignored until a different code is written, so the
+  // still-visible label is not re-added by the continuous camera.
+  const undoneCodes = useRef(new Set<string>());
   const [saved, setSaved] = useState<{
     count: number;
     location: PickedLocation;
@@ -191,6 +197,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     closeFieldScan();
     setFeedback(undefined);
     setLastWrite(undefined);
+    undoneCodes.current.clear();
     panelRef.current = next;
     if (next) lastPanel.current = next;
     setPanel(next);
@@ -351,15 +358,37 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       setFeedback(t(problem));
       return;
     }
+    if (undoneCodes.current.has(value)) {
+      setFeedback(t("scanUndoneIgnored"));
+      return;
+    }
     const current = ticketsRef.current;
     const next = applyBarcode(current, value);
     if (!next.written) {
       setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
       return;
     }
+    undoneCodes.current.clear();
     setTickets(next.tickets);
-    setLastWrite(next.written);
+    setLastWrite(describeIntake(current, next.tickets, next.written));
     setFeedback(t("barcodeAdded", { field: t(field), code: value }));
+  }
+
+  function undoLastScan() {
+    const intake = lastWrite;
+    if (!intake || acquisitionBlocked.current || panelRef.current !== "BARCODE")
+      return;
+    const current = ticketsRef.current;
+    const number = current.findIndex((ticket) => ticket.key === intake.key) + 1;
+    const next = undoIntake(current, intake);
+    setLastWrite(undefined);
+    if (!next) {
+      setFeedback(t("scanUndoUnavailable"));
+      return;
+    }
+    setTickets(next);
+    undoneCodes.current = new Set(Object.values(intake.codes));
+    setFeedback(t("scanUndone", { number }));
   }
 
   function onImageCodes(codes: string[]) {
@@ -375,13 +404,18 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     }
     // Compute the whole acquisition before enforcing capacity. Applying a cap
     // per code would silently retain only part of an oversized image group.
-    const next = applyImageBarcodes(ticketsRef.current, values, Infinity);
+    const current = ticketsRef.current;
+    const next = applyImageBarcodes(current, values, Infinity);
     if (next.tickets.length > MAX_JOB_SCAN_ITEMS) {
       setFeedback(t("groupLimit", { max: MAX_JOB_SCAN_ITEMS }));
       return;
     }
+    // A chosen image is explicit, so it may re-add a just-undone code.
+    if (next.written) undoneCodes.current.clear();
     setTickets(next.tickets);
-    setLastWrite(next.written);
+    setLastWrite(
+      next.written && describeIntake(current, next.tickets, next.written),
+    );
     setFeedback(t("barcodeImageRead"));
   }
 
@@ -510,19 +544,60 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     );
 
   const reading = tickets.some((ticket) => ticket.status === "reading");
-  const incomplete = tickets.some((ticket) => !isComplete(ticket));
-  const invalidQuantity = tickets.some(hasInvalidQuantity);
-  const blocker = photos.photos.length
-    ? t("sendPhotosFirst")
-    : reading
-      ? t("waitReading")
-      : incomplete
-        ? t("saveBlocked")
-        : invalidQuantity
-          ? t("invalidQuantity")
-          : duplicateKeys.length > 0 && !duplicatesReviewed
-            ? t("duplicateTickets")
-            : null;
+  const blocker = saveBlocker();
+  /** What stops saving, naming the tickets to fix and where to go. */
+  function saveBlocker(): {
+    text: string;
+    jump?: () => void;
+    jumpLabel?: string;
+  } | null {
+    if (photos.photos.length) return { text: t("sendPhotosFirst") };
+    if (reading) return { text: t("waitReading") };
+    const named = (
+      message: "saveBlockedTickets" | "invalidQuantityTickets",
+      rows: TicketDraft[],
+    ) => {
+      if (!rows.length) return null;
+      const first = tickets.indexOf(rows[0]!);
+      return {
+        text: t(message, { count: rows.length, numbers: ticketNumbers(rows) }),
+        jump: () => jumpTo(`[data-ticket-key="${rows[0]!.key}"]`),
+        jumpLabel: t("goToTicket", { number: first + 1 }),
+      };
+    };
+    const incomplete = named(
+      "saveBlockedTickets",
+      tickets.filter((ticket) => !isComplete(ticket)),
+    );
+    if (incomplete) return incomplete;
+    const invalid = named(
+      "invalidQuantityTickets",
+      tickets.filter(hasInvalidQuantity),
+    );
+    if (invalid) return invalid;
+    if (duplicateKeys.length > 0 && !duplicatesReviewed)
+      return {
+        text: t("duplicateTicketsNamed", {
+          numbers: ticketNumbers(
+            tickets.filter((ticket) => duplicateKeys.includes(ticket.key)),
+          ),
+        }),
+        jump: () => jumpTo("[data-duplicate-review]"),
+        jumpLabel: t("goToDuplicateReview"),
+      };
+    return null;
+  }
+  function ticketNumbers(rows: readonly TicketDraft[]) {
+    const numbers = rows.map((row) => tickets.indexOf(row) + 1);
+    return numbers.length > 5
+      ? `${numbers.slice(0, 5).join(", ")} +${numbers.length - 5}`
+      : numbers.join(", ");
+  }
+  function jumpTo(selector: string) {
+    const target = document.querySelector<HTMLElement>(selector);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus({ preventScroll: true });
+  }
 
   const mapped = Boolean(location.locationId || location.zoneId);
   const locationCode = location.code ?? location.text;
@@ -653,7 +728,11 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           />
         )}
         {panel === "BARCODE" && !saving && (
-          <ScanProgress tickets={tickets} written={lastWrite} />
+          <ScanProgress
+            tickets={tickets}
+            written={lastWrite}
+            onUndo={undoLastScan}
+          />
         )}
         {panel === "BARCODE" && !saving && (
           <BarcodeCameraBox
@@ -689,15 +768,17 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                     aiFields: row.aiFields.filter((name) => name !== field),
                   }));
                 }}
-                onFormatChange={(storageFormat) =>
+                onFormatChange={(storageFormat) => {
+                  // Undo must not discard a change made after the scan.
+                  if (lastWrite?.key === ticket.key) setLastWrite(undefined);
                   setTickets((previous) =>
                     previous.map((item) =>
                       item.key === ticket.key
                         ? { ...item, storageFormat }
                         : item,
                     ),
-                  )
-                }
+                  );
+                }}
                 onRemove={() => {
                   if (panelRef.current === "BARCODE") changePanel(null);
                   if (fieldScanRef.current?.key === ticket.key)
@@ -731,6 +812,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         {duplicateKeys.length > 0 && (
           <label className="flex min-h-11 items-start gap-3 rounded-md border border-warning p-3 text-sm">
             <CheckboxControl
+              data-duplicate-review=""
               className="mt-1 shrink-0"
               checked={duplicatesReviewed}
               onChange={(event) =>
@@ -755,9 +837,16 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             >
               {saving ? t("saving") : t("save", { count: tickets.length })}
             </Button>
-            <p role="status" className="mt-2 text-sm text-muted">
-              {blocker ?? t("locationNotStock")}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 text-sm">
+              <p role="status" className="min-w-0 text-muted">
+                {blocker?.text ?? t("locationNotStock")}
+              </p>
+              {blocker?.jump && (
+                <Button variant="link" className="px-0" onClick={blocker.jump}>
+                  {blocker.jumpLabel}
+                </Button>
+              )}
+            </div>
           </div>
         </StickyActionBar>
       )}

@@ -423,7 +423,7 @@ it("applies an image JOB/product pair together and saves the decoded identities"
     },
   ]);
 });
-it("requires duplicate review before saving repeated photographed physical units", async () => {
+it("requires duplicate review before saving repeated photographed physical units, naming them with a jump to the review", async () => {
   start();
   fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
   act(() => mocks.imageCodes!(["FO12345678", "DEMO-PRODUCT"]));
@@ -432,8 +432,19 @@ it("requires duplicate review before saving repeated photographed physical units
   const save = screen.getByRole("button", { name: /Save 2/ });
   expect(save).toBeDisabled();
   expect(mocks.save).not.toHaveBeenCalled();
+  expect(
+    screen.getByText(
+      "Tickets 1, 2 repeat the same Job No. and product barcode. Review before saving.",
+    ),
+  ).toBeVisible();
+  Element.prototype.scrollIntoView = vi.fn();
+  fireEvent.click(screen.getByRole("button", { name: "Go to review" }));
+  expect(screen.getByRole("checkbox")).toHaveFocus();
   fireEvent.click(screen.getByRole("checkbox"));
   expect(save).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: "Go to review" }),
+  ).not.toBeInTheDocument();
   fireEvent.click(save);
   await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
   expect(mocks.save.mock.calls[0]![0].items).toHaveLength(2);
