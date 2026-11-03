@@ -1858,7 +1858,8 @@
       "recoveryHint": "The earlier command needs to be checked before you can save new changes.",
       "checkPrevious": "Check previous write",
       "recoveredSaved": "The previous write was saved",
-      "recoveredUnsent": "The previous write did not apply",
+      "recoveredUnknown": "Unable to confirm whether the previous write was saved",
+      "recoveredFencedHint": "This request is now blocked from running again. Check the latest record before making a new change.",
       "recoveredHint": "Check the latest record before saving a new change.",
       "recoveryUnavailable": "The saved request reference could not be read. Contact HR to check the record before starting another write."
     },

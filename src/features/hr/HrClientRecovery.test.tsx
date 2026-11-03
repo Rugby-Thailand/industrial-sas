@@ -300,6 +300,63 @@ it("legacy committed preferences reconcile before a fresh save without replaying
   });
 });
 
+it.each([false, true])(
+  "an expired committed preference receipt reports unknown after cleanup=%s without undoing the saved preference",
+  async (cleaned) => {
+    const backend = await fixture();
+    const current = await backend.query(hrRefs.shortcutPreferences, {});
+    if (!current.ok || !current.value.ok) throw new Error("Fixture not linked");
+    const oldPayload = {
+      requestId: "expired_committed_preferences",
+      expectedVersion: current.value.version,
+      shortcuts: current.value.shortcuts.map((item) => ({
+        ...item,
+        visible: item.key !== "hr.profile",
+      })),
+    };
+    expect(
+      await backend.mutation(hrRefs.saveShortcutPreferences, oldPayload),
+    ).toMatchObject({ ok: true, value: { written: true } });
+    vi.setSystemTime(new Date("2026-11-12T02:00:00Z"));
+    if (cleaned)
+      await backend.run(async (ctx) => {
+        for (const receipt of await ctx.db
+          .query("idempotencyRecords")
+          .collect())
+          if (receipt.expiresAt <= Date.now()) await ctx.db.delete(receipt._id);
+      });
+    const saved = await backend.query(hrRefs.shortcutPreferences, {});
+    sessionStorage.setItem(
+      "hr-request:org-fixture:user-fixture|shortcut-preferences",
+      JSON.stringify(oldPayload.requestId),
+    );
+    state.queries[getFunctionName(hrRefs.shortcutPreferences)] = saved;
+    state.reconcile.mockImplementation((args) =>
+      backend.mutation(hrRefs.reconcileRequest, args),
+    );
+    customize();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Check previous write" }),
+    );
+    await screen.findByText(
+      "Unable to confirm whether the previous write was saved",
+    );
+    expect(
+      screen.queryByText("The previous write did not apply"),
+    ).not.toBeInTheDocument();
+    const after = await backend.query(hrRefs.shortcutPreferences, {});
+    if (!saved.ok || !after.ok) throw new Error("Preference read denied");
+    expect(after.value).toEqual(saved.value);
+    expect(
+      await backend.mutation(hrRefs.saveShortcutPreferences, oldPayload),
+    ).toMatchObject({
+      ok: true,
+      value: { written: false, error: { code: "REQUEST_RETIRED" } },
+    });
+    expect(state.savePreferences).not.toHaveBeenCalled();
+  },
+);
+
 it("legacy absent preferences are fenced before a fresh command so a late original cannot apply", async () => {
   const backend = await fixture();
   const current = await backend.query(hrRefs.shortcutPreferences, {});
@@ -325,7 +382,9 @@ it("legacy absent preferences are fenced before a fresh command so a late origin
   );
   customize();
   fireEvent.click(screen.getByRole("button", { name: "Check previous write" }));
-  await screen.findByText("The previous write did not apply");
+  await screen.findByText(
+    "Unable to confirm whether the previous write was saved",
+  );
   fireEvent.click(screen.getByRole("checkbox", { name: "Show Holidays" }));
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await screen.findByText("Shortcut preferences saved.");
