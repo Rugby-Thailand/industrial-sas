@@ -1016,6 +1016,25 @@ function periodCovering(periods: readonly Doc<"hrPeriods">[], date: IsoDate) {
   );
 }
 
+/** Holiday edits may change closed history's source calendar, but never a
+ * live staged close. Legacy overlapping CLOSED rows must not hide its lock.
+ */
+export async function closingPeriodCovering(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<Doc<"hrPeriods"> | null> {
+  const periods = await sitePeriodsEndingFrom(ctx, warehouseId, date);
+  return (
+    periods.find(
+      (period) =>
+        period.status === "CLOSING" &&
+        compareDates(period.startDate, date) <= 0 &&
+        compareDates(date, period.endDate) <= 0,
+    ) ?? null
+  );
+}
+
 /** The refusal code for a write on a frozen site date, or null when open. */
 export async function periodLockCode(
   ctx: TenantFunctionContext,

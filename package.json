@@ -99,6 +99,7 @@
     "axe-core": "4.12.1",
     "babel-plugin-react-compiler": "1.0.0",
     "convex-test": "0.0.54",
+    "csv-parse": "7.0.3",
     "date-fns": "4.1.0",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.1",

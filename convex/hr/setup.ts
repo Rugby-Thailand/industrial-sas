@@ -31,7 +31,7 @@ import {
 import { MAX_HOLIDAY_YEAR, MIN_HOLIDAY_YEAR } from "./self";
 import {
   authorizedSiteLanes,
-  closedPeriodCovering,
+  closingPeriodCovering,
   closingPeriodAt,
   type Employee,
   employeeReviewIdentities,
@@ -863,10 +863,7 @@ export const saveHoliday = mutationWithOrg({
         const name = args.name.trim();
         if (name.length < 1 || name.length > MAX_NAME_LENGTH)
           return fail("HOLIDAY_NAME_INVALID", "name");
-        if (
-          (await closedPeriodCovering(ctx, site._id, args.date))?.status ===
-          "CLOSING"
-        )
+        if ((await closingPeriodCovering(ctx, site._id, args.date)) !== null)
           return fail("HR_PERIOD_CLOSING", "date");
         const existing = await ctx.tenantDb
           .byIndex<Doc<"hrHolidays">>(
@@ -925,8 +922,11 @@ export const deleteHoliday = mutationWithOrg({
         )
           return fail("NOT_FOUND", "holidayId");
         if (
-          (await closedPeriodCovering(ctx, holiday.warehouseId, holiday.date))
-            ?.status === "CLOSING"
+          (await closingPeriodCovering(
+            ctx,
+            holiday.warehouseId,
+            holiday.date,
+          )) !== null
         )
           return fail("HR_PERIOD_CLOSING", "holidayId");
         await ctx.tenantDb.delete("hrHolidays", holiday._id);
