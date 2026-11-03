@@ -63,12 +63,30 @@ test("employee create and edit persist through real backend and reload", async (
     page.getByRole("button", { name: `Edit Updated ${code}`, exact: true }),
   ).toBeVisible();
   const api = await convexAs(page);
-  const saved = await api.query("hr/setup:employeesPage", {
-    search: code,
-    pageSize: 20,
+  const criteria = { search: code, pageSize: 20 };
+  let saved = await api.query("hr/setup:employeesPage", criteria);
+  // A bounded search can return a scan continuation before its first ready page.
+  // Follow the actual cursor protocol rather than treating that step as empty.
+  for (
+    let step = 0;
+    saved.ok && saved.value.status === "scanning" && step < 20;
+    step++
+  ) {
+    const scanCursor = saved.value.scanCursor;
+    expect(scanCursor).toBeTruthy();
+    const next = await api.query("hr/setup:employeesPage", {
+      ...criteria,
+      scanCursor,
+    });
+    if (next.ok && next.value.status === "scanning")
+      expect(next.value.scanCursor).not.toBe(scanCursor);
+    saved = next;
+  }
+  expect(saved).toMatchObject({
+    ok: true,
+    value: { ok: true, status: "ready" },
   });
-  expect(saved.ok).toBe(true);
-  expect(JSON.stringify(saved.value)).toContain(`Updated ${code}`);
+  expect(JSON.stringify(saved.value.page)).toContain(`Updated ${code}`);
   const screenshot = info.outputPath("employee-persisted.png");
   await page.screenshot({ path: screenshot, fullPage: true });
   await info.attach("persisted employee", {
