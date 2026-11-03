@@ -2,28 +2,6 @@ import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { loadHrEnvironment } from "../../../scripts/lib/hr-e2e-env.mjs";
 import { test, expect, convexAs } from "./fixtures";
-import { localRun } from "./setup";
-import { HR_TEST_IDENTITY } from "../../../scripts/lib/hr-e2e-env.mjs";
-
-// Undo this lane's interrupted role case before any new browser authentication.
-// The preceding role test asserted this exact baseline before lowering grants.
-test.beforeAll(() => {
-  const restored = localRun("staging/hrDemo:setLocalTestRoles", {
-    clerkUserId: HR_TEST_IDENTITY.userId,
-    clerkOrganizationId: HR_TEST_IDENTITY.organizationId,
-    roleKeys: ["ORG_ADMIN", "HR_ADMIN", "HR_EMPLOYEE"],
-    confirmation: "LOCAL_HR_FIXTURES_V1",
-  });
-  writeFileSync(
-    ".cache/hr-final/role-restoration.json",
-    JSON.stringify({
-      ...restored,
-      restoredTo: ["ORG_ADMIN", "HR_ADMIN", "HR_EMPLOYEE"],
-      reason: "Outer bound interrupted owned mobile role case",
-      at: Date.now(),
-    }),
-  );
-});
 
 // Illustrative local policy only. All setup writes use shipping authenticated
 // public handlers; no fake actor, auth, response, or shared policy is used.
@@ -268,7 +246,7 @@ test("active illustrative leave submits in UI and claimed dates lock the real ro
     granted: a.granted,
   });
   writeFileSync(
-    `.cache/hr-final/active-leave-${info.project.name}.json`,
+    info.outputPath("active-leave.json"),
     JSON.stringify(
       {
         illustrative: true,

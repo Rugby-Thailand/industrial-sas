@@ -31,7 +31,14 @@ for (const locale of ["en", "th"] as const) {
     if (mobile)
       await page.getByRole("button", { name: closeMenu, exact: true }).click();
     const shot = info.outputPath(`workplace-${locale}.png`);
-    await page.screenshot({ path: shot, fullPage: true });
+    await expect(
+      page.getByRole("button", { name: closeMenu, exact: true }),
+    ).toBeHidden();
+    await page.screenshot({
+      path: shot,
+      fullPage: true,
+      animations: "disabled",
+    });
     await info.attach("workplace context", {
       path: shot,
       contentType: "image/png",

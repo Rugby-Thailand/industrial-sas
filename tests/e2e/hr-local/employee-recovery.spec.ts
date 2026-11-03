@@ -337,7 +337,10 @@ for (const kind of ["profile", "payment", "lifecycle"] as const) {
       .getByRole("button", { name: "Check previous write", exact: true })
       .click();
     await expect(
-      reopened.getByText("The previous write did not apply", { exact: true }),
+      reopened.getByText(
+        "Unable to confirm whether the previous write was saved",
+        { exact: true },
+      ),
     ).toBeVisible();
     expect((await api.query(query, { employeeId: id })).value).toEqual(
       beforeRecovery,
