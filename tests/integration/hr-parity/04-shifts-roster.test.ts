@@ -38,6 +38,8 @@ async function fixture() {
     "../convex/hr/setup.ts": () => import("../../../convex/hr/setup"),
     "../convex/hr/self.ts": () => import("../../../convex/hr/self"),
     "../convex/hr/periods.ts": () => import("../../../convex/hr/periods"),
+    "../convex/hr/periodClose.ts": () =>
+      import("../../../convex/hr/periodClose"),
   });
   await seedConvexAuthorization(world, {
     roleA: "HR_ADMIN",
@@ -756,10 +758,95 @@ describe("S04 dated roster", () => {
     });
     expect(await storedAssignments(world)).toHaveLength(1);
     expect(await storedDays(world)).toEqual([captured]);
+
+    // A staged close in progress reads one snapshot: its dates freeze too.
+    await world.t.run(async (ctx) => {
+      await ctx.db.insert("hrPeriods", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.alphaA,
+        startDate: "2026-10-16",
+        endDate: "2026-10-18",
+        status: "CLOSING",
+        draftVersion: 1,
+        latestClosedVersion: 0,
+        createdAt: NOW,
+        createdByUserId: world.userA,
+        updatedAt: NOW,
+        updatedByUserId: world.userA,
+      });
+    });
+    for (const action of [shiftAction, { kind: "OFF" }, { kind: "CLEAR" }])
+      await refused(
+        world,
+        "hr/roster:assignRoster",
+        assign(world, action, [
+          { employeeId: b, date: "2026-10-19", expectedRevision: 0 },
+          { employeeId: b, date: "2026-10-17", expectedRevision: 0 },
+        ]),
+        "HR_PERIOD_CLOSING",
+      );
+    expect(await cell(world, b, "2026-10-17")).toMatchObject({
+      lock: "PERIOD_CLOSED",
+    });
+    expect(await storedAssignments(world)).toHaveLength(1);
   });
 });
 
 describe("S04 live plan wiring", () => {
+  it("staged close publishes a dated OFF instead of inventing a weekly absence", async () => {
+    const world = await fixture();
+    const id = await employee(world, "E001");
+    await written(
+      world,
+      "hr/roster:assignRoster",
+      assign(world, { kind: "OFF" }, [
+        { employeeId: id, date: "2026-10-19", expectedRevision: 0 },
+      ]),
+    );
+    const { documentId: periodId } = await written(world, "hr/periods:create", {
+      warehouseId: world.warehouses.alphaA,
+      startDate: "2026-10-19",
+      endDate: "2026-10-19",
+    });
+    await written(world, "hr/periodClose:begin", { periodId });
+    let published = false;
+    for (let step = 0; step < 12; step += 1) {
+      const { view } = await query(world, "hr/periods:preview", {
+        periodId,
+        clockFree: true,
+      });
+      expect(view.kind).toBe("CLOSING");
+      if (view.state === "READY") {
+        await written(world, "hr/periodClose:publish", {
+          periodId,
+          versionId: view.versionId,
+          expectedFingerprint: view.fingerprint,
+        });
+        published = true;
+        break;
+      }
+      await written(world, "hr/periodClose:advance", {
+        periodId,
+        versionId: view.versionId,
+        step: view.step,
+      });
+    }
+    expect(published).toBe(true);
+    const closed = await query(world, "hr/periods:preview", {
+      periodId,
+      clockFree: true,
+    });
+    expect(closed.view).toMatchObject({
+      kind: "CLOSED",
+      totals: { absentDays: 0 },
+    });
+    expect(closed.view.rows).toHaveLength(1);
+    expect(closed.view.rows[0]).toMatchObject({
+      businessDate: "2026-10-19",
+      plan: { kind: "NONWORKING", reason: "OFF" },
+    });
+  });
+
   it("Today and the draft period use FIXED/OFF assignments, the weekly fallback and site holiday precedence", async () => {
     const world = await fixture();
     const a = await employee(world, "E001", { userId: world.userA });
@@ -846,6 +933,29 @@ describe("S04 live plan wiring", () => {
       assignment: { kind: "SHIFT" },
       plan: { kind: "NONWORKING", reason: "HOLIDAY" },
     });
+    // The paged draft view (used for periods too large to preview whole)
+    // plans each date exactly as the complete preview does.
+    let scanCursor: string | undefined;
+    let paged: { status?: string; page: { rows: typeof preview.view.rows }[] };
+    for (let guard = 0; ; guard += 1) {
+      expect(guard).toBeLessThan(20);
+      paged = await query(world, "hr/periods:draftEmployeesPage", {
+        periodId: period.documentId,
+        ...(scanCursor === undefined ? {} : { scanCursor }),
+      });
+      if (paged.status !== "scanning") break;
+      scanCursor = (paged as { scanCursor?: string }).scanCursor;
+    }
+    expect(
+      Object.fromEntries(
+        paged.page
+          .flatMap((employee) => employee.rows)
+          .map((row: { businessDate: string; plan: unknown }) => [
+            row.businessDate,
+            row.plan,
+          ]),
+      ),
+    ).toEqual(plans);
 
     // Explicit OFF on Today's date is a nonworking day.
     vi.setSystemTime(Date.UTC(2026, 9, 21, 3));

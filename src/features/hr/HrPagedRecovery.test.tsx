@@ -630,13 +630,13 @@ describe("site choices beyond the preloaded list", () => {
     renderWithIntl(<HrEmployeesScreen />, { locale: "en" });
     fireEvent.click(
       within(
-        screen.getByRole("navigation", { name: "Site choices" }),
+        screen.getByRole("navigation", { name: "Workplace choices" }),
       ).getByRole("button", { name: "Next page" }),
     );
     expect(callsOf("hr/access:sitesPage").at(-1)).toMatchObject({
       cursor: "more",
     });
-    chooseOption("Site", "ZZ-51 · Late site");
+    chooseOption("Workplace", "ZZ-51 · Late site");
     expect(window.location.search).toBe("?site=w51");
     expect(callsOf(EMPLOYEES).at(-1)).toEqual({
       pageSize: 20,

@@ -39,6 +39,7 @@ import {
 import { validateEmployeeOrgReferences } from "./org";
 import { isEmployedOn, openDayDeadline } from "../model/hr/schedule";
 import {
+  closingPeriodAt,
   employmentDateBounds,
   employmentOf,
   openDays,
@@ -445,6 +446,10 @@ export const recordEmploymentEvent = mutationWithOrg({
           )
             return fail("LIFECYCLE_OPEN_SHIFT", "effectiveDate");
         }
+        // A staged close reads its site's employees from one snapshot; no
+        // lifecycle change may land until it publishes or cancels.
+        if ((await closingPeriodAt(ctx, employee.warehouseId)) !== null)
+          return fail("HR_PERIOD_CLOSING", "effectiveDate");
         const { patch, event } = plan.value;
         const now = Date.now();
         const actor = ctx.tenant.actor._id;

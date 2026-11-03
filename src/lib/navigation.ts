@@ -32,6 +32,14 @@ export interface NavigationSection {
   readonly items: readonly NavigationItem[];
 }
 
+/** The HR module root; every HR page lives under it. */
+export const HR_ROOT = "/hr";
+
+/** A locale-free pathname at or below the HR module root. */
+export function isHrPath(pathname: string): boolean {
+  return pathname === HR_ROOT || pathname.startsWith(`${HR_ROOT}/`);
+}
+
 export const ROUTES = Object.freeze({
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",

@@ -4,7 +4,7 @@
  * Before this regression, a later roster OFF/SHIFT/Clear on a claimed date
  * was accepted and then silently overwritten by approval, and a later
  * separation/reinstatement gap was recorded and charged anyway. Adapted
- * from the retained overnight probe (overnight-evidence/repro/hr-roster-leave...).
+ * from the original roster/leave consistency probe.
  */
 import { makeFunctionReference } from "convex/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

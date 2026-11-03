@@ -70,7 +70,6 @@ async function call(
   fn: Handler,
   args: object,
   identity = ADMIN,
-   
 ): Promise<any> {
   const out = await raw(world, fn, args, identity);
   expect(out.ok, JSON.stringify(out)).toBe(true);
@@ -691,6 +690,44 @@ it("concurrent lifecycle and employee saves refuse the stale write and persist n
     }),
   ).toMatchObject({ error: { code: "EMPLOYEE_STALE" } });
   expect(await snapshot(world)).toEqual(before);
+});
+
+it("a lifecycle change waits while the employee's site has a staged period close in progress", async () => {
+  const world = await fixture();
+  const id = await hire(world, { probationEndDate: "2026-05-04" });
+  const periodId = await world.t.run(async (ctx) =>
+    ctx.db.insert("hrPeriods", {
+      orgId: world.orgA,
+      warehouseId: world.warehouses.alphaA,
+      startDate: "2026-10-01",
+      endDate: "2026-10-15",
+      status: "CLOSING",
+      draftVersion: 1,
+      latestClosedVersion: 0,
+      createdAt: NOW,
+      createdByUserId: world.userA,
+      updatedAt: NOW,
+      updatedByUserId: world.userA,
+    }),
+  );
+  const before = await snapshot(world);
+  expect(
+    await lifecycle(world, id, {
+      kind: "OFFBOARD",
+      separationType: "RESIGNATION",
+      effectiveDate: YESTERDAY,
+      reason: "Resigned",
+    }),
+  ).toMatchObject({ error: { code: "HR_PERIOD_CLOSING" } });
+  expect(await snapshot(world)).toEqual(before);
+  // Once the close is published the same change is accepted.
+  await world.t.run((ctx) => ctx.db.patch(periodId, { status: "CLOSED" }));
+  expect(
+    await lifecycle(world, id, {
+      kind: "CONFIRM_PROBATION",
+      effectiveDate: TODAY,
+    }),
+  ).toMatchObject({ written: true });
 });
 
 it("personal, contact and emergency details validate, persist and never leak into the registry or audit", async () => {

@@ -463,7 +463,7 @@ describe("review decisions (HR-031, HR-032, A9)", () => {
 
 describe("own profile (HR-012)", () => {
   it.each([
-    ["en", "Employee code", "Site"],
+    ["en", "Employee code", "Workplace"],
     ["th", "รหัสพนักงาน", "สถานที่ทำงาน"],
   ] as const)(
     "shows the employee code and full site once in the %s profile card",

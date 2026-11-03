@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { ROUTES } from "@/lib/navigation";
+import { ROUTES, isHrPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const MAIN_ID = "main-content";
@@ -179,6 +179,9 @@ function AppSidebar({
   const organizationName = useOrganizationName();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
+  // The storage warehouse selection does not scope HR: each HR page picks
+  // its own workplace. Keep the sidebar from implying otherwise there.
+  const storageContext = !isHrPath(usePathname());
   const drawer = useRef<SheetCompletionHandle>(null);
   const searchHandoff = useDrawerSearchHandoff(menuOpener, drawer);
   // This router outlives the drawer's links, which unmount as it closes.
@@ -212,7 +215,10 @@ function AppSidebar({
         className={cn("gap-6 px-4 pt-5 pb-2", collapsed && "gap-3 p-2")}
       >
         <div className="flex items-center gap-1">
-          {/* Compact identity: app name over the warehouse, beside the toggle. */}
+          {/*
+           * Compact identity: app name over the storage warehouse (outside
+           * HR), beside the toggle.
+           */}
           <div
             className={cn(
               "flex min-h-touch min-w-0 flex-1 items-center gap-3 dense:min-h-control",
@@ -221,12 +227,12 @@ function AppSidebar({
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{app("name")}</p>
-              {collapsed ? null : <WorkspaceContextBar />}
+              {collapsed || !storageContext ? null : <WorkspaceContextBar />}
             </div>
           </div>
           <NavigationDisclosure />
         </div>
-        {collapsed ? <WorkspaceContextBar collapsed /> : null}
+        {collapsed && storageContext ? <WorkspaceContextBar collapsed /> : null}
         <SidebarSearchTriggers
           collapsed={collapsed}
           {...(isMobile ? { onOpen: searchHandoff.request } : {})}

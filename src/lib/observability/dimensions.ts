@@ -64,6 +64,8 @@ export const STATIC_ROUTE_SEGMENTS: ReadonlySet<string> = new Set([
   "payslips",
   "manage",
   "import",
+  "shifts",
+  "roster",
 ]);
 
 type DimensionRule = (value: unknown) => DimensionValue | undefined;

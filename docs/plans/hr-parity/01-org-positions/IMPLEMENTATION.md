@@ -2,7 +2,7 @@
 
 Source of truth for scope: `spec.md` in this folder, plus the acceptance tests
 `tests/integration/hr-parity/01-org-positions.test.ts` (integration) and
-`tests/e2e/hr-parity/01-org-positions.spec.ts` (e2e). This brief records the
+`tests/e2e/hr-local/foundation.spec.ts` and `protocols.spec.ts` (e2e). This brief records the
 design decisions taken on top of the spec. Where they conflict, this brief wins.
 
 ## In scope
@@ -12,8 +12,8 @@ S01-01..04, S01-06..19, S01-21..23 (22 tasks).
 ## Deferred (do not build)
 
 - S01-05 company selector / affiliated companies: depends on unknown S01-24
-  (multi-company model never observed). Leave its e2e test as `test.fixme`
-  with a comment pointing to S01-24.
+  (multi-company model never observed). No runnable acceptance case claims
+  coverage of this deferred feature.
 - S01-20 is DUP → S06-13. S01-24, S01-25 are unknown.
 - Thai province/district/sub-district master data: plain text fields for now.
 

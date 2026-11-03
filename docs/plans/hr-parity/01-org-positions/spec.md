@@ -1,5 +1,7 @@
 # S01 — Company, org structure, positions and reporting line
 
+> Historical research baseline: “What we have today” and task IDs below describe the pre-implementation investigation, not current coverage. Current behavior and limitations are maintained in `docs/operations/hr-foundation.md`.
+
 ## Summary
 
 HRZoft models a multi-company tenant with a 7-step company profile (name/EN, 13-digit tax ID, Thai address, bank accounts, contact, logo), branches that carry a Revenue-Department branch number and a Social-Security employer account, and per-employee **department (แผนก)**, **position (ตำแหน่ง)**, **level (ระดับ, e.g. CEO)** and **supervisor (หัวหน้างาน)** on an "Employment info" tab.
@@ -33,7 +35,7 @@ Read boundaries: `convex/schema.ts` (`hrEmployees`, `warehouses`), `convex/hr/se
 
 ## Task table
 
-Test refs: **E** = `tests/e2e/hr-parity/01-org-positions.spec.ts`; **I** = `tests/integration/hr-parity/01-org-positions.test.ts`. Each ref points to the test title carrying that row's ID. All E tests are `test.fixme`; all I tests are `it.todo`.
+Test refs below are original planned acceptance IDs, not claims of executed tests. Runnable integration cases are in `tests/integration/hr-parity/`; actual browser cases are in `tests/e2e/hr-local/`. The originally proposed `tests/e2e/hr-parity/` specs are not shipped.
 
 | ID     | Task                                                                             | Kind (UX/FN) | Label   | Evidence or reason                                                                                                                                                             | We have today | Test ref  |
 | ------ | -------------------------------------------------------------------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | --------- |

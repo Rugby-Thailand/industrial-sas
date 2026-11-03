@@ -1,5 +1,7 @@
 # S03 — Employee list, profile and offboarding
 
+> Historical research baseline: “What we have today” and task IDs below describe the pre-implementation investigation, not current coverage. Current behavior and limitations are maintained in `docs/operations/hr-foundation.md`.
+
 ## Summary
 
 HRZoft's employee module opens on a `พนักงาน` list (sub-tabs `พนักงาน` / `ตารางการทำงาน` / `หนังสือเตือน` / `ขอเข้าร่วมบริษัท`) with a 12-column MUI DataGrid, a search box, a `การแสดงผล` column picker, a `กรอง` filter whose default is employment-status `ทำงานอยู่`, a `ซ่อนจำนวนเงิน` toggle, a card/table view switch and pagination. Each row opens a profile at `/core/employee/<id>` with **15 tabs**; this slice owns the list UX, the tab structure and the personal / contact (incl. emergency contact) / salary-bank / documents tabs, plus probation and employment-status transitions and offboarding.
@@ -29,7 +31,7 @@ Read boundaries: `convex/schema.ts` (`hrEmployees`, line 133), `convex/hr/setup.
 
 ## Task table
 
-Test refs: **E** = `tests/e2e/hr-parity/03-employee-offboard.spec.ts`; **I** = `tests/integration/hr-parity/03-employee-offboard.test.ts`. Each ref points to the test title carrying that row's ID. All E tests are `test.fixme`; all I tests are `it.todo`.
+Test refs below are original planned acceptance IDs, not claims of executed tests. Runnable integration cases are in `tests/integration/hr-parity/`; actual browser cases are in `tests/e2e/hr-local/`. The originally proposed `tests/e2e/hr-parity/` specs are not shipped.
 
 | ID     | Task                                                                           | Kind (UX/FN) | Label   | Evidence or reason                                                                                                                                                                                                                                                                                     | We have today | Test ref  |
 | ------ | ------------------------------------------------------------------------------ | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- | --------- |

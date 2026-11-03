@@ -26192,6 +26192,52 @@
       }
     }
   },
+  "staging/hrDemo:createLocalTestSite": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "sourceWarehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "code": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "confirmation": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "sourceEmployeeCountAtLeast": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "staging/hrDemo:seed": {
     "kind": "mutation",
     "visibility": "internal",

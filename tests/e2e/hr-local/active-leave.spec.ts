@@ -210,7 +210,7 @@ test("active illustrative leave submits in UI and claimed dates lock the real ro
   ).employee;
   const warehouseId = employee.siteId;
   await page.goto("/en/hr/roster");
-  await page.getByRole("combobox", { name: "Site", exact: true }).click();
+  await page.getByRole("combobox", { name: "Workplace", exact: true }).click();
   const site = access.sites.find((s: { id: string }) => s.id === warehouseId);
   await page
     .getByRole("option", { name: `${site.code} · ${site.name}`, exact: true })

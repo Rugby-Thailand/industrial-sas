@@ -254,13 +254,14 @@ export function rosterCellEligible(
   return "OK";
 }
 
-const closedCovering = (
+/** A closed or closing (staged-close snapshot) period covering this date. */
+const frozenCovering = (
   periods: readonly Doc<"hrPeriods">[],
   date: IsoDate,
-): boolean =>
-  periods.some(
+): Doc<"hrPeriods"> | undefined =>
+  periods.find(
     (period) =>
-      period.status === "CLOSED" &&
+      period.status !== "DRAFT" &&
       compareDates(period.startDate, date) <= 0 &&
       compareDates(date, period.endDate) <= 0,
   );
@@ -389,7 +390,7 @@ export const roster = queryWithOrg({
               });
           const lock = day
             ? "RECORDED"
-            : closedCovering(periods, date)
+            : frozenCovering(periods, date) !== undefined
               ? "PERIOD_CLOSED"
               : (await hasFrozenPlan(ctx, employee._id, date))
                 ? "FROZEN"
@@ -608,8 +609,15 @@ export const assignRoster = mutationWithOrg({
           }
           if (recordedDates.get(employee._id)!.has(cell.date))
             return fail("ROSTER_DAY_RECORDED", "cells", reason);
-          if (closedCovering(periods, cell.date))
-            return fail("PERIOD_CLOSED", "cells", reason);
+          const frozen = frozenCovering(periods, cell.date);
+          if (frozen !== undefined)
+            return fail(
+              frozen.status === "CLOSING"
+                ? "HR_PERIOD_CLOSING"
+                : "PERIOD_CLOSED",
+              "cells",
+              reason,
+            );
           if (await hasFrozenPlan(ctx, employee._id, cell.date))
             return fail("ROSTER_DAY_FROZEN", "cells", reason);
           // A pending request's captured plan would otherwise be written

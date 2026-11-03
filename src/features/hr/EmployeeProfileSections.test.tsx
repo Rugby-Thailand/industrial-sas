@@ -855,7 +855,7 @@ for (const status of ["COMMITTED", "FENCED"] as const) {
         await within(dialog).findByText(
           status === "COMMITTED"
             ? "The previous write was saved"
-            : "The previous write did not apply",
+            : "Unable to confirm whether the previous write was saved",
         ),
       ).toBeVisible();
       expect(
@@ -1241,7 +1241,7 @@ it.each(
       await within(dialog).findByText(
         status === "COMMITTED"
           ? "The previous write was saved"
-          : "The previous write did not apply",
+          : "Unable to confirm whether the previous write was saved",
       ),
     ).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Save" })).toBeEnabled();

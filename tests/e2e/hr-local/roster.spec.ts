@@ -10,7 +10,10 @@ async function site(page: Page, warehouseId = readHrFixture().warehouseId) {
     (row: { id: string }) => row.id === warehouseId,
   );
   expect(chosen).toBeDefined();
-  const selector = page.getByRole("combobox", { name: "Site", exact: true });
+  const selector = page.getByRole("combobox", {
+    name: "Workplace",
+    exact: true,
+  });
   await selector.click();
   await page
     .getByRole("option", {

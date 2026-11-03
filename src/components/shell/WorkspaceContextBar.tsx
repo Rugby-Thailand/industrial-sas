@@ -33,8 +33,9 @@ function focusExpandedWarehouse() {
 
 /**
  * The selected warehouse, as the second line of the sidebar's compact
- * identity. Every page offers the warehouse selector when storage access
- * is available. The collapsed rail shows one warehouse icon that expands
+ * identity. Every non-HR page offers the warehouse selector when storage
+ * access is available; HR pages choose their workplace in-page, so the shell
+ * omits it there (`DesktopShell`). The collapsed rail shows one warehouse icon that expands
  * the sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({
