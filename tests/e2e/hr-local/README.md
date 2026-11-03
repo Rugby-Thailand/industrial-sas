@@ -89,7 +89,12 @@ for each run. Correction tests choose an unused date and fail explicitly when
 their finite pool is exhausted. Holidays use test-only future dates and can be
 overwritten by later runs. No policy is automatically activated to enable leave.
 Active-leave submission/claim locking and authenticated employee/supervisor role
-checks have dedicated specs. Workplace-context checks cover English and Thai,
+checks have dedicated specs. The active-leave scenario needs a workplace within
+the roster's 50-employee bound and available illustrative leave entitlement.
+Repeated runs retain data and can exhaust those conditions. Use a separate fresh
+local database for that scenario, preserving and restoring existing local data;
+never delete records or change production limits to make a test pass. Baseline
+readiness checks report the policy state actually exercised. Workplace-context checks cover English and Thai,
 including storage selection preservation. Real leave approval with a separate
 reviewer, full Thai workflow coverage and native device browsers remain outside
 this suite. Mobile is Chromium emulation.

@@ -1,7 +1,6 @@
 # HR foundation: organization, employees, shifts and roster
 
-This page describes the HR foundation work merged on
-`feat/hr-foundation-workplaces`: what it implements, what it defers, how it
+This page describes the HR foundation: what it implements, what it defers, how it
 stays compatible with existing data, how to test it, and its known limits.
 The research specs remain in `docs/plans/hr-parity/0{1,2,3}-*/`.
 
@@ -27,7 +26,9 @@ The research specs remain in `docs/plans/hr-parity/0{1,2,3}-*/`.
   31 days (1,550 cells) in one atomic, revision-checked save. Assigned dates
   snapshot the shift version. Live plans (Today, period preview, paged draft
   view, staged close) use: recorded day, then site holiday, then dated
-  assignment, then the weekly schedule.
+  assignment, then the weekly schedule. The 50-employee bound applies to all
+  eligible employees at the workplace before search or department filtering;
+  larger workplaces are refused rather than shown partially.
 
 ## Locks and integrity rules
 
@@ -87,12 +88,21 @@ Clerk test session and Convex; see `tests/e2e/hr-local/README.md` for setup.
 
 - Integration and component suites above pass on the merged tree (see the PR
   description for counts).
-- Browser evidence is historical, from `7d7b82a4` before the merge with main:
-  all 30 employee browser cases passed; the mobile HR-employee role case
-  still redirected to sign-in at its final restored-admin check (cause
-  unknown); leave approval was blocked by `SELF_REVIEW` because the harness
-  has only one identity. Full browser acceptance was not granted, and the
-  browser suite has not been rerun after the merge.
+- The 2026-11-04 local preview audit for PR #124 completed 82 distinct
+  desktop/mobile Chromium cases: the latest relevant executions have 81
+  passes and one no-action mobile clock skip. These are bounded groups, not
+  one uninterrupted suite; the earlier failed attempts remain in private
+  evidence. All 30 employee/lifecycle/recovery and four authenticated role
+  cases passed. The roster month field was also visually checked in Thai on
+  desktop and mobile after widening it to show the full year.
+- Leave readiness was checked both with the retained active policy and in a
+  fresh inactive database. Real submission, reservation and roster claim
+  locking passed on a small fresh site. Approval by a separate reviewer is
+  still untested: the single authorized test identity correctly receives
+  `SELF_REVIEW`. Original local data was restored byte-for-byte afterward.
+- The audit used real local Next/Convex and Clerk TEST authentication, not a
+  remote PR deployment. Physical devices and full Thai workflow coverage are
+  outside this evidence. See the PR for current CI and exact source commits.
 - A pending leave request whose dates fall outside employment after
   offboarding cannot be approved; it stays reserved until withdrawn.
 - Write recovery is fenced by actor, tenant and operation, not by employee.
