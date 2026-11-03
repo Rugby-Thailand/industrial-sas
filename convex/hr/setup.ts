@@ -40,22 +40,24 @@ import {
 } from "./pagination";
 import { MAX_HOLIDAY_YEAR, MIN_HOLIDAY_YEAR } from "./self";
 import {
-  MAX_SITE_EMPLOYEES,
+  authorizedSiteLanes,
+  closingPeriodCovering,
+  closingPeriodAt,
+  type Employee,
+  employeeReviewIdentities,
   fail,
   diff,
   hrCommand,
-  employeeReviewIdentities,
-  reviewedByActor,
   inScope,
+  MAX_SITE_EMPLOYEES,
   memberName,
-  authorizedSiteLanes,
+  reviewedByActor,
   scopedSites,
   siteAllowed,
   siteOf,
+  type SiteOrder,
   siteResolver,
   siteScope,
-  type Employee,
-  type SiteOrder,
   type SiteScope,
 } from "./shared";
 
@@ -761,6 +763,15 @@ export const saveEmployee = mutationWithOrg({
             args.status === "INACTIVE" ? "employmentEndDate" : "status",
           );
 
+        // A staged close reads the roster in code order from one snapshot:
+        // no employee of its site may change until it publishes or cancels.
+        for (const warehouseId of new Set([
+          site._id,
+          ...(before === null ? [] : [before.warehouseId]),
+        ]))
+          if ((await closingPeriodAt(ctx, warehouseId)) !== null)
+            return fail("HR_PERIOD_CLOSING", "warehouseId");
+
         const sameCode = await ctx.tenantDb
           .byIndex<Employee>("hrEmployees", "by_orgId_code", [
             { field: "code", value: draft.value.code },
@@ -1008,6 +1019,8 @@ export const saveHoliday = mutationWithOrg({
         const name = args.name.trim();
         if (name.length < 1 || name.length > MAX_NAME_LENGTH)
           return fail("HOLIDAY_NAME_INVALID", "name");
+        if ((await closingPeriodCovering(ctx, site._id, args.date)) !== null)
+          return fail("HR_PERIOD_CLOSING", "date");
         const existing = await ctx.tenantDb
           .byIndex<Doc<"hrHolidays">>(
             "hrHolidays",
@@ -1064,6 +1077,14 @@ export const deleteHoliday = mutationWithOrg({
           !(await siteAllowed(ctx, await siteScope(ctx), holiday.warehouseId))
         )
           return fail("NOT_FOUND", "holidayId");
+        if (
+          (await closingPeriodCovering(
+            ctx,
+            holiday.warehouseId,
+            holiday.date,
+          )) !== null
+        )
+          return fail("HR_PERIOD_CLOSING", "holidayId");
         await ctx.tenantDb.delete("hrHolidays", holiday._id);
         return {
           documentId: holiday._id,

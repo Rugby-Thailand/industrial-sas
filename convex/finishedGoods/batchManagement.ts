@@ -1,3 +1,4 @@
+import { currentBatchUnits as activeUnits } from "./batches";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -19,7 +20,6 @@ import {
   firstActiveMove,
   nextCode,
   productOf,
-  rows,
   stamp,
 } from "./workflow";
 
@@ -27,19 +27,6 @@ const scope = {
   warehouseId: v.id("warehouses"),
   batchId: v.id("finishedGoodsBatches"),
 };
-async function activeUnits(
-  ctx: TenantFunctionContext,
-  batchId: Id<"finishedGoodsBatches">,
-) {
-  return (
-    await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
-      "finishedGoodsPallets",
-      "by_orgId_preparationBatchId",
-      [{ field: "preparationBatchId", value: batchId }],
-    )
-  ).filter((p) => !p.retiredAt);
-}
 /** A physical hold takes precedence over the convenience unit status. */
 async function unitState(
   ctx: TenantFunctionContext,

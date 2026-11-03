@@ -18,10 +18,14 @@ import {
 } from "../fixtures/convex-tenant-world";
 import { meteredCall } from "../fixtures/hr-read-meter";
 
-/** Period safety uses the exact site scan, including inconsistent legacy imports. */
+/**
+ * Period safety reads every site period ending on or after the date (an
+ * index range), which is exact for inconsistent legacy imports and reads
+ * only recent periods for recent dates.
+ */
 
 const ACTOR = { subject: "user_fixture_a", org_id: "org_fixture_a" };
-type Status = "DRAFT" | "CLOSED";
+type Status = "DRAFT" | "CLOSING" | "CLOSED";
 type Seed = readonly [start: string, end: string, status: Status];
 
 const lock = queryWithOrg({
@@ -40,7 +44,7 @@ const exact = queryWithOrg({
   handler: async (ctx, args) =>
     (await sitePeriods(ctx, args.warehouseId)).find(
       (period) =>
-        period.status === "CLOSED" &&
+        period.status !== "DRAFT" &&
         compareDates(period.startDate, args.date) <= 0 &&
         compareDates(args.date, period.endDate) <= 0,
     )?._id ?? null,
@@ -140,6 +144,9 @@ describe("exact period lock", () => {
       ["2026-10-05", "2026-10-11", "DRAFT"],
     ]);
     const first = addDays("2026-09-28", -7 * 260);
+    const endingFrom = (date: string) =>
+      weekly(260, "2026-09-28").filter(([, end]) => end >= date).length +
+      ("2026-10-11" >= date ? 1 : 0);
     for (const date of [
       "2026-10-13", // after the draft: not locked
       "2026-10-08", // in the draft
@@ -152,8 +159,12 @@ describe("exact period lock", () => {
       "2024-02-29", // backdated, deep in history
     ]) {
       const { read } = await check(world, date);
-      expect(read, date).toBe(261);
+      // Only periods that could cover the date are read, never more.
+      expect(read, date).toBe(endingFrom(date));
     }
+    // A recent date no longer reads five years of history (was 261).
+    expect((await check(world, "2026-09-27")).read).toBe(2);
+    expect((await check(world, "2026-10-13")).read).toBe(0);
     expect((await check(world, "2026-09-27")).locked).toBe(true);
     expect((await check(world, "2026-09-30")).locked).toBe(false);
     expect((await check(world, "2026-10-08")).locked).toBe(false);
@@ -188,7 +199,17 @@ describe("exact period lock", () => {
       ["2026-08-01", "2026-10-31", "CLOSED"],
       ["2026-09-01", "2026-09-02", "DRAFT"],
     ]);
-    expect(await check(world, "2026-10-13")).toEqual({ locked: true, read: 2 });
+    expect(await check(world, "2026-10-13")).toEqual({ locked: true, read: 1 });
+  });
+
+  it("locks dates of a period whose staged close is in progress", async () => {
+    const world = await fixture();
+    await seed(world, [["2026-10-01", "2026-10-07", "CLOSING"]]);
+    expect(await check(world, "2026-10-03")).toEqual({ locked: true, read: 1 });
+    expect(await check(world, "2026-10-08")).toEqual({
+      locked: false,
+      read: 0,
+    });
   });
 
   it("ignores other sites and tenants", async () => {
@@ -245,6 +266,8 @@ describe("period creation overlap check", () => {
       ["2026-11-20", "2026-12-01", "PERIOD_OVERLAP"], // touches a future one
       ["2024-03-01", "2024-03-01", "PERIOD_OVERLAP"], // backdated inside history
     ] as const;
+    const endingFrom = (date: string) =>
+      weekly(260, "2026-09-28").filter(([, last]) => last >= date).length + 1;
     for (const [index, [start, end, code]] of cases.entries()) {
       const { outcome, meter } = await create(
         world,
@@ -256,7 +279,7 @@ describe("period creation overlap check", () => {
         written: false,
         error: { code },
       });
-      expect(meter.docs.hrPeriods ?? 0).toBe(261);
+      expect(meter.docs.hrPeriods ?? 0).toBe(endingFrom(start));
     }
     const free = await create(
       world,
@@ -265,7 +288,7 @@ describe("period creation overlap check", () => {
       "free-gap-req1",
     );
     expect(free.outcome.value).toMatchObject({ written: true });
-    expect(free.meter.docs.hrPeriods ?? 0).toBe(261);
+    expect(free.meter.docs.hrPeriods ?? 0).toBe(endingFrom("2026-09-28"));
   });
 
   it("refuses an overlong overlap hidden behind a later draft", async () => {

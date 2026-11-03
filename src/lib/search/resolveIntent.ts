@@ -47,7 +47,8 @@ export interface PeriodHit {
   readonly siteName: string;
   readonly startDate: string;
   readonly endDate: string;
-  readonly status: "DRAFT" | "CLOSED";
+  /** A CLOSING period is still presented as its draft until published. */
+  readonly status: "DRAFT" | "CLOSING" | "CLOSED";
   readonly latestClosedVersion: number;
 }
 export interface PeriodLookup {

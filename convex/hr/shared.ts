@@ -1159,22 +1159,139 @@ export async function sitePeriods(
     .all(MAX_SITE_PERIODS);
 }
 
-/** A closed period covering this site date, which no normal write may change. */
+/**
+ * Site periods that end on or after `date`, one checked index range. Legacy
+ * imports may violate period length and non-overlap invariants, so callers
+ * filter starts themselves; reading every period ending later is exact for
+ * any data, and fails (never truncates) beyond `MAX_SITE_PERIODS`.
+ */
+export async function sitePeriodsEndingFrom(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<readonly Doc<"hrPeriods">[]> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrPeriods">>(
+      "hrPeriods",
+      "by_orgId_warehouseId_endDate",
+      [{ field: "warehouseId", value: warehouseId }],
+      { field: "endDate", lower: { value: date, inclusive: true } },
+    )
+    .all(MAX_SITE_PERIODS);
+}
+
+/**
+ * A closed or closing period covering this site date, which no normal write
+ * may change. A CLOSING period is frozen too: its staged close reads a
+ * consistent snapshot. Writers refuse with `periodLockCode`.
+ */
 export async function closedPeriodCovering(
   ctx: TenantFunctionContext,
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
-  // Legacy imports may violate both range length and non-overlap invariants.
-  const periods = await sitePeriods(ctx, warehouseId);
+  return periodCovering(
+    await sitePeriodsEndingFrom(ctx, warehouseId, date),
+    date,
+  );
+}
+
+function periodCovering(periods: readonly Doc<"hrPeriods">[], date: IsoDate) {
   return (
     periods.find(
       (period) =>
-        period.status === "CLOSED" &&
+        period.status !== "DRAFT" &&
         compareDates(period.startDate, date) <= 0 &&
         compareDates(date, period.endDate) <= 0,
     ) ?? null
   );
+}
+
+/** Holiday edits may change closed history's source calendar, but never a
+ * live staged close. Legacy overlapping CLOSED rows must not hide its lock.
+ */
+export async function closingPeriodCovering(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<Doc<"hrPeriods"> | null> {
+  const periods = await sitePeriodsEndingFrom(ctx, warehouseId, date);
+  return (
+    periods.find(
+      (period) =>
+        period.status === "CLOSING" &&
+        compareDates(period.startDate, date) <= 0 &&
+        compareDates(date, period.endDate) <= 0,
+    ) ?? null
+  );
+}
+
+/** The refusal code for a write on a frozen site date, or null when open. */
+export async function periodLockCode(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<"HR_PERIOD_CLOSED" | "HR_PERIOD_CLOSING" | null> {
+  const period = await closedPeriodCovering(ctx, warehouseId, date);
+  if (period === null) return null;
+  return period.status === "CLOSING" ? "HR_PERIOD_CLOSING" : "HR_PERIOD_CLOSED";
+}
+
+/**
+ * Reuse one end-date-bounded read while checking a command's dates in their
+ * original order. Load lazily so an earlier employment/attendance refusal still
+ * wins. If an unsorted request's combined range exceeds the existing cap,
+ * fall back to per-date reads so a later first date can still refuse before
+ * reaching the oversized earlier history. Keep this reader local to an
+ * execution that does not change periods.
+ */
+export function periodLockReader(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  dates: readonly IsoDate[],
+) {
+  const from = dates.reduce<IsoDate | undefined>(
+    (earliest, date) =>
+      earliest === undefined || date < earliest ? date : earliest,
+    undefined,
+  );
+  let periods: Promise<readonly Doc<"hrPeriods">[] | null> | undefined;
+  return async (
+    date: IsoDate,
+  ): Promise<"HR_PERIOD_CLOSED" | "HR_PERIOD_CLOSING" | null> => {
+    periods ??= sitePeriodsEndingFrom(ctx, warehouseId, from ?? date).catch(
+      (error: unknown) => {
+        if (
+          from !== undefined &&
+          from < date &&
+          error instanceof TenantDbError &&
+          error.code === "CAPACITY_DATA_LIMIT"
+        )
+          return null;
+        throw error;
+      },
+    );
+    const loaded = await periods;
+    if (loaded === null) return periodLockCode(ctx, warehouseId, date);
+    const period = periodCovering(loaded, date);
+    if (period === null) return null;
+    return period.status === "CLOSING"
+      ? "HR_PERIOD_CLOSING"
+      : "HR_PERIOD_CLOSED";
+  };
+}
+
+/** A site period whose staged close is in progress, if any. */
+export async function closingPeriodAt(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+): Promise<Doc<"hrPeriods"> | null> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrPeriods">>("hrPeriods", "by_orgId_warehouseId_status", [
+      { field: "warehouseId", value: warehouseId },
+      { field: "status", value: "CLOSING" },
+    ])
+    .first();
 }
 
 /* Command envelope --------------------------------------------------------- */

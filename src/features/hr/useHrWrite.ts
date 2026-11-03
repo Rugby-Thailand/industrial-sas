@@ -32,7 +32,7 @@ export type HrWriteState<Value> =
       readonly recovery?: Recovery;
       readonly recoveryUnavailable?: boolean;
     }
-  | { readonly kind: "RECONCILED"; readonly applied: boolean };
+  | { readonly kind: "RECONCILED"; readonly status: "COMMITTED" | "FENCED" };
 
 const IDLE = Object.freeze({ kind: "IDLE" } as const);
 const STORAGE_PREFIX = "hr-request:";
@@ -400,7 +400,7 @@ export function useHrWrite<Value = Record<string, unknown>, Payload = never>(
           clear();
           next = {
             kind: "RECONCILED",
-            applied: outcome.value.status === "COMMITTED",
+            status: outcome.value.status,
           };
         }
       } catch {

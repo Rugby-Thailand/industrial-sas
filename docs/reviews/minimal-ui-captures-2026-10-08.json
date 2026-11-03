@@ -562,8 +562,8 @@
     "name": "70-draft-continued",
     "caption": "Continue editing preserves the entered QA product values.",
     "images": {
-      "desktop": "assets/minimal-ui-2026-10-08/70-draft-continued-desktop.png",
-      "mobile": "assets/minimal-ui-2026-10-08/70-draft-continued-mobile.png"
+      "desktop": "assets/minimal-ui-2026-10-08/06-product-entered-desktop.png",
+      "mobile": "assets/minimal-ui-2026-10-08/06-product-entered-mobile.png"
     },
     "browser": "T3 preview"
   },
@@ -590,7 +590,7 @@
     "caption": "Cancel deletion: both QA tickets remain visible.",
     "images": {
       "desktop": "assets/minimal-ui-2026-10-08/74-record-delete-cancelled-desktop.png",
-      "mobile": "assets/minimal-ui-2026-10-08/74-record-delete-cancelled-mobile.png"
+      "mobile": "assets/minimal-ui-2026-10-08/52-records-assigned-mobile.png"
     },
     "browser": "T3 preview"
   },
@@ -634,7 +634,7 @@
     "name": "79-map-fit",
     "caption": "Fit resets the camera to the floor proportions.",
     "images": {
-      "desktop": "assets/minimal-ui-2026-10-08/79-map-fit-desktop.png",
+      "desktop": "assets/minimal-ui-2026-10-08/77-map-3d-desktop.png",
       "mobile": "assets/minimal-ui-2026-10-08/79-map-fit-mobile.png"
     },
     "browser": "T3 preview"

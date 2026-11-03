@@ -7,13 +7,19 @@ settings:
 overrides:
   tar@<7.5.21: 7.5.22
   smol-toml@<1.7.1: 1.9.1
-  '@vercel/node>undici': 6.29.0
-  vercel>undici: 6.29.0
+  '@vercel/node>undici': 6.29.1
+  vercel>undici: 6.29.1
   js-yaml@>=4.0.0 <4.3.2: 4.3.2
   minimatch@>=10.0.0 <10.2.3: 10.2.6
   path-to-regexp@>=6.0.0 <6.3.0: 6.3.0
   path-to-regexp@>=8.0.0 <8.4.0: 8.4.2
   '@fastify/busboy@>=1.0.0 <3.2.1': 3.2.2
+  undici@>=7.0.0 <7.30.1: 7.30.1
+  zod@>=4.0.0 <4.6.6: 4.6.6
+  '@vercel/backends>zod': 4.6.6
+  '@vercel/express>zod': 4.6.6
+  '@vercel/hono>zod': 4.6.6
+  '@vercel/python-analysis>zod': 4.6.6
 
 importers:
 
@@ -1591,12 +1597,12 @@ packages:
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
 
-  undici@6.29.0:
-    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
+  undici@6.29.1:
+    resolution: {integrity: sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA==}
     engines: {node: '>=18.17'}
 
-  undici@7.30.0:
-    resolution: {integrity: sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==}
+  undici@7.30.1:
+    resolution: {integrity: sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==}
     engines: {node: '>=20.18.1'}
 
   universalify@2.0.1:
@@ -1678,11 +1684,8 @@ packages:
   yauzl@2.10.0:
     resolution: {integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==}
 
-  zod@3.22.4:
-    resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
-
-  zod@4.1.11:
-    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
+  zod@4.6.6:
+    resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
 
 snapshots:
 
@@ -2108,7 +2111,7 @@ snapshots:
       srvx: 0.11.16
       ts-morph: 12.0.0
       tsx: 4.21.0
-      zod: 3.22.4
+      zod: 4.6.6
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -2123,7 +2126,7 @@ snapshots:
       is-buffer: 2.0.5
       is-node-process: 1.2.0
       throttleit: 2.1.0
-      undici: 6.29.0
+      undici: 6.29.1
 
   '@vercel/build-utils@14.20.0':
     dependencies:
@@ -2147,12 +2150,12 @@ snapshots:
       '@vercel/cli-config': 0.3.1
       async-listen: 3.0.0
       open: 8.4.0
-      zod: 4.1.11
+      zod: 4.6.6
 
   '@vercel/cli-config@0.3.1':
     dependencies:
       xdg-app-paths: 5.5.1
-      zod: 4.1.11
+      zod: 4.6.6
 
   '@vercel/cli-exec@1.0.1':
     dependencies:
@@ -2190,7 +2193,7 @@ snapshots:
       fs-extra: 11.1.0
       path-to-regexp: 8.4.2
       ts-morph: 12.0.0
-      zod: 3.22.4
+      zod: 4.6.6
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -2269,7 +2272,7 @@ snapshots:
       fs-extra: 11.1.0
       path-to-regexp: 8.4.2
       ts-morph: 12.0.0
-      zod: 3.22.4
+      zod: 4.6.6
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -2361,7 +2364,7 @@ snapshots:
       ts-morph: 12.0.0
       tsx: 4.21.0
       typescript: 5.9.3
-      undici: 6.29.0
+      undici: 6.29.1
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -2387,7 +2390,7 @@ snapshots:
       js-yaml: 4.3.2
       minimatch: 10.2.6
       smol-toml: 1.9.1
-      zod: 3.22.4
+      zod: 4.6.6
 
   '@vercel/python@24.0.0(@vercel/build-utils@14.20.0)':
     dependencies:
@@ -2446,9 +2449,9 @@ snapshots:
       ms: 2.1.3
       picocolors: 1.1.1
       tar-stream: 3.1.7
-      undici: 7.30.0
+      undici: 7.30.1
       xdg-app-paths: 5.1.0
-      zod: 4.1.11
+      zod: 4.6.6
     transitivePeerDependencies:
       - bare-abort-controller
       - react-native-b4a
@@ -3063,7 +3066,7 @@ snapshots:
       async-retry: 1.3.3
       debug: 4.4.3
       ws: 8.22.0
-      zod: 4.1.11
+      zod: 4.6.6
     transitivePeerDependencies:
       - bare-abort-controller
       - bufferutil
@@ -3174,9 +3177,9 @@ snapshots:
 
   undici-types@5.26.5: {}
 
-  undici@6.29.0: {}
+  undici@6.29.1: {}
 
-  undici@7.30.0: {}
+  undici@7.30.1: {}
 
   universalify@2.0.1: {}
 
@@ -3224,9 +3227,9 @@ snapshots:
       luxon: 3.7.2
       sandbox: 4.4.0
       smol-toml: 1.9.1
-      undici: 6.29.0
+      undici: 6.29.1
       uuid: 14.0.1
-      zod: 4.1.11
+      zod: 4.6.6
     optionalDependencies:
       '@vercel/vc-native-darwin-arm64': 63.1.0
       '@vercel/vc-native-darwin-x64': 63.1.0
@@ -3293,6 +3296,4 @@ snapshots:
       buffer-crc32: 0.2.13
       fd-slicer: 1.1.0
 
-  zod@3.22.4: {}
-
-  zod@4.1.11: {}
+  zod@4.6.6: {}

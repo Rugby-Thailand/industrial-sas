@@ -2,6 +2,7 @@ import type { GenericMutationCtx } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as policies from "../../convex/hr/policies";
 import * as leave from "../../convex/hr/leave";
+import { meteredCall } from "../fixtures/hr-read-meter";
 import * as self from "../../convex/hr/self";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { DataModel } from "../../convex/schema";
@@ -58,8 +59,8 @@ function refused(outcome: Outcome, code: string) {
   expect(result(outcome)).toMatchObject({ written: false, error: { code } });
 }
 const today = "2026-10-12";
-async function fixture() {
-  const world = await createConvexTenantWorld();
+async function fixture(transactionLimits = false) {
+  const world = await createConvexTenantWorld({}, { transactionLimits });
   const auth = await seedConvexAuthorization(world, {
     roleA: "HR_ADMIN",
     roleB: "HR_ADMIN",
@@ -286,6 +287,75 @@ describe("policy gate, legal floors and real opening migration", () => {
     expect(
       await world.t.run((ctx) => ctx.db.query("hrPolicyVersions").collect()),
     ).toHaveLength(1);
+  });
+  const reopen = (
+    world: ConvexTenantWorld,
+    employeeId: Id<"hrEmployees">,
+    asOf: string,
+    expectedVersion: number,
+    granted = 6,
+  ) =>
+    call(world, policies.reconcileOpening, {
+      requestId: rid(),
+      employeeId,
+      type: "ANNUAL",
+      asOf,
+      granted,
+      used: 0,
+      reserved: 0,
+      paidUsed: 0,
+      paidReserved: 0,
+      sourceReference: "Historical opening register before activation",
+      expectedVersion,
+    });
+  it("refuses replacing a charged account even after several pre-activation opening corrections", async () => {
+    const { world, employeeId } = await fixture();
+    written(await save(world));
+    written(await opening(world, employeeId, "ANNUAL", 6));
+    written(await reopen(world, employeeId, today, 1));
+    for (const [type, grant] of [
+      ["SICK", 30],
+      ["PERSONAL", 3],
+      ["MILITARY", 60],
+    ] as const)
+      written(await opening(world, employeeId, type, grant));
+    written(
+      await call(world, policies.activate, {
+        requestId: rid(),
+        capability: "LEAVE",
+        expectedVersion: 1,
+        coverageConfirmed: true,
+        existingBenefitsReviewed: true,
+      }),
+    );
+    const request = written(
+      await submit(world, "ANNUAL", "2026-10-13", "2026-10-14"),
+    );
+    written(
+      await call(world, leave.decide, {
+        requestId: rid(),
+        leaveRequestId: request.documentId,
+        expectedVersion: 1,
+        decision: "APPROVE",
+      }),
+    );
+    const before = (await account(world))!;
+    expect(before).toMatchObject({ used: 2, paidUsed: 2 });
+    refused(
+      await reopen(world, employeeId, "2026-10-11", before.version),
+      "OPENING_ALREADY_IN_USE",
+    );
+    expect(await account(world)).toEqual(before);
+  });
+  it("locks an active uncharged opening even when asOf predates activation", async () => {
+    const { world, employeeId } = await fixture();
+    await activate(world, employeeId);
+    const before = (await account(world))!;
+    refused(
+      await reopen(world, employeeId, "2026-10-11", before.version, 30),
+      "OPENING_ACTIVE_POLICY_LOCKED",
+    );
+    expect(await account(world)).toEqual(before);
   });
   it("cannot edit another organization's employee or expose policies to an employee", async () => {
     const { world, employeeId } = await fixture();
@@ -1410,5 +1480,354 @@ describe("paged leave review queue", () => {
         }),
       ),
     ).toEqual({ ok: false, code: "NOT_FOUND" });
+  });
+});
+
+describe("leave period reads within one command", () => {
+  async function period(
+    world: ConvexTenantWorld,
+    startDate: string,
+    endDate: string,
+    status: "DRAFT" | "CLOSED" | "CLOSING",
+  ) {
+    return world.t.run((ctx) =>
+      ctx.db.insert("hrPeriods", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.alphaA,
+        startDate,
+        endDate,
+        status,
+        draftVersion: 1,
+        latestClosedVersion: status === "CLOSED" ? 1 : 0,
+        createdAt: 1,
+        createdByUserId: world.userA,
+        updatedAt: 1,
+        updatedByUserId: world.userA,
+      }),
+    );
+  }
+
+  it.each(["cancellation", "restoration"] as const)(
+    "reads relevant periods once per multi-day submission, approval and %s despite expired history",
+    async (action) => {
+      const { world, employeeId } = await fixture(true);
+      await activate(world, employeeId);
+      // More history than the site's collection guard, seeded in legal write batches.
+      for (let batch = 0; batch < 6; batch++) {
+        await world.t.run(async (ctx) => {
+          for (let i = 0; i < 180; i++)
+            await ctx.db.insert("hrPeriods", {
+              orgId: world.orgA,
+              warehouseId: world.warehouses.alphaA,
+              startDate: "2025-01-01",
+              endDate: "2025-01-07",
+              status: "CLOSED",
+              draftVersion: 1,
+              latestClosedVersion: 1,
+              createdAt: 1,
+              createdByUserId: world.userA,
+              updatedAt: 1,
+              updatedByUserId: world.userA,
+            });
+        });
+      }
+      await period(world, "2026-10-01", "2026-10-31", "DRAFT");
+      await period(world, "2027-01-01", "2027-01-31", "CLOSED");
+      async function bounded(fn: unknown, args: unknown, identity = ADMIN) {
+        const { outcome, meter } = await meteredCall<Outcome>(
+          world,
+          fn,
+          args,
+          identity,
+        );
+        expect(meter.ranges.hrPeriods).toBe(1);
+        expect(meter.docs.hrPeriods).toBe(2);
+        return outcome;
+      }
+      const fields = {
+        type: "ANNUAL",
+        from: "2026-10-13",
+        to: "2026-10-15",
+        reason: "Three days off",
+      };
+      const prepared = result(await bounded(leave.preview, fields, EMPLOYEE));
+      const created = written(
+        await bounded(
+          leave.submit,
+          {
+            ...fields,
+            requestId: rid(),
+            expectedPreviewHash: prepared.previewHash,
+          },
+          EMPLOYEE,
+        ),
+      );
+      written(
+        await bounded(leave.decide, {
+          requestId: rid(),
+          leaveRequestId: created.documentId,
+          expectedVersion: 1,
+          decision: "APPROVE",
+        }),
+      );
+      expect(await account(world)).toMatchObject({ used: 3, reserved: 0 });
+      if (action === "cancellation") {
+        written(
+          await call(
+            world,
+            leave.cancel,
+            {
+              requestId: rid(),
+              leaveRequestId: created.documentId,
+              expectedVersion: 2,
+            },
+            EMPLOYEE,
+          ),
+        );
+        written(
+          await bounded(leave.decide, {
+            requestId: rid(),
+            leaveRequestId: created.documentId,
+            expectedVersion: 3,
+            decision: "CONFIRM_CANCEL",
+          }),
+        );
+      } else {
+        written(
+          await bounded(leave.adjust, {
+            requestId: rid(),
+            leaveRequestId: created.documentId,
+            expectedVersion: 2,
+            restoreDates: ["2026-10-15", "2026-10-13", "2026-10-14"],
+            reason: "HR verified all three days worked",
+          }),
+        );
+      }
+      expect(await account(world)).toMatchObject({ used: 0, reserved: 0 });
+    },
+  );
+
+  it("keeps restore input order and finds older overlapping locks from its earliest date", async () => {
+    const { world, employeeId } = await fixture(true);
+    await activate(world, employeeId);
+    const created = written(
+      await submit(world, "ANNUAL", "2026-10-13", "2026-10-14"),
+    );
+    written(
+      await call(world, leave.decide, {
+        requestId: rid(),
+        leaveRequestId: created.documentId,
+        expectedVersion: 1,
+        decision: "APPROVE",
+      }),
+    );
+    // Legacy, overlong overlapping periods; a recent draft must not hide either.
+    await period(world, "2020-01-01", "2026-10-13", "CLOSED");
+    const closing = await period(world, "2020-01-01", "2026-10-14", "CLOSING");
+    await period(world, "2026-10-01", "2026-10-31", "DRAFT");
+    const adjustment = {
+      requestId: rid(),
+      leaveRequestId: created.documentId,
+      expectedVersion: 2,
+      restoreDates: ["2026-10-14", "2026-10-13"],
+      reason: "HR verified return",
+    };
+    const first = await meteredCall<Outcome>(
+      world,
+      leave.adjust,
+      adjustment,
+      ADMIN,
+    );
+    refused(first.outcome, "HR_PERIOD_CLOSING");
+    expect(first.meter.ranges.hrPeriods).toBe(1);
+    await world.t.run((ctx) =>
+      ctx.db.patch("hrPeriods", closing, { status: "DRAFT" }),
+    );
+    const second = await meteredCall<Outcome>(
+      world,
+      leave.adjust,
+      adjustment,
+      ADMIN,
+    );
+    refused(second.outcome, "HR_PERIOD_CLOSED");
+    expect(second.meter.ranges.hrPeriods).toBe(1);
+    expect(second.meter.docs.hrPeriods).toBe(3);
+    expect(await account(world)).toMatchObject({ used: 2, reserved: 0 });
+  });
+
+  it.each(["CLOSED", "CLOSING"] as const)(
+    "retains first-date %s refusal when unsorted restore spans over-capacity earlier history",
+    async (status) => {
+      const { world, employeeId } = await fixture(true);
+      await activate(world, employeeId);
+      const created = written(
+        await submit(world, "ANNUAL", "2026-10-13", "2026-10-14"),
+      );
+      written(
+        await call(world, leave.decide, {
+          requestId: rid(),
+          leaveRequestId: created.documentId,
+          expectedVersion: 1,
+          decision: "APPROVE",
+        }),
+      );
+      for (let start = 0; start < 1001; start += 200) {
+        await world.t.run(async (ctx) => {
+          for (let i = start; i < Math.min(start + 200, 1001); i++)
+            await ctx.db.insert("hrPeriods", {
+              orgId: world.orgA,
+              warehouseId: world.warehouses.alphaA,
+              startDate: "2020-01-01",
+              endDate: "2026-10-13",
+              status: "DRAFT",
+              draftVersion: 1,
+              latestClosedVersion: 0,
+              createdAt: 1,
+              createdByUserId: world.userA,
+              updatedAt: 1,
+              updatedByUserId: world.userA,
+            });
+        });
+      }
+      const lock = await period(world, "2026-10-14", "2026-10-14", status);
+      const request = {
+        requestId: rid(),
+        leaveRequestId: created.documentId,
+        expectedVersion: 2,
+        restoreDates: ["2026-10-14", "2026-10-13"],
+        reason: "HR verified return",
+      };
+      const { outcome, meter } = await meteredCall<Outcome>(
+        world,
+        leave.adjust,
+        request,
+        ADMIN,
+      );
+      refused(outcome, `HR_PERIOD_${status}`);
+      expect(meter.ranges.hrPeriods).toBe(2);
+      expect(meter.docs.hrPeriods).toBe(1002);
+      expect(await account(world)).toMatchObject({ used: 2 });
+      // If the first date is open, the earlier date must still enforce its cap.
+      await world.t.run((ctx) =>
+        ctx.db.patch("hrPeriods", lock, { status: "DRAFT" }),
+      );
+      await expect(call(world, leave.adjust, request)).rejects.toThrow(
+        /CAPACITY_DATA_LIMIT/,
+      );
+      expect(await account(world)).toMatchObject({ used: 2 });
+    },
+  );
+
+  it.each(["SUBMIT", "APPROVE", "CONFIRM_CANCEL", "RESTORE"] as const)(
+    "preserves overlapping CLOSING refusal on the final date of %s without partial writes",
+    async (action) => {
+      const { world, employeeId } = await fixture(true);
+      await activate(world, employeeId);
+      const fields = {
+        type: "ANNUAL",
+        from: "2026-10-13",
+        to: "2026-10-14",
+        reason: "Two days off",
+      };
+      const prepared = await preview(world, fields);
+      let request: Record<string, unknown> = {
+        ...fields,
+        requestId: rid(),
+        expectedPreviewHash: prepared.previewHash,
+      };
+      let fn: unknown = leave.submit;
+      if (action !== "SUBMIT") {
+        const created = written(
+          await call(world, leave.submit, request, EMPLOYEE),
+        );
+        request = {
+          requestId: rid(),
+          leaveRequestId: created.documentId,
+          expectedVersion: 1,
+          decision: "APPROVE",
+        };
+        fn = leave.decide;
+        if (action !== "APPROVE") {
+          written(await call(world, fn, request));
+          if (action === "CONFIRM_CANCEL") {
+            written(
+              await call(
+                world,
+                leave.cancel,
+                {
+                  requestId: rid(),
+                  leaveRequestId: created.documentId,
+                  expectedVersion: 2,
+                },
+                EMPLOYEE,
+              ),
+            );
+            request = {
+              requestId: rid(),
+              leaveRequestId: created.documentId,
+              expectedVersion: 3,
+              decision: "CONFIRM_CANCEL",
+            };
+          } else {
+            fn = leave.adjust;
+            request = {
+              requestId: rid(),
+              leaveRequestId: created.documentId,
+              expectedVersion: 2,
+              restoreDates: ["2026-10-13", "2026-10-14"],
+              reason: "HR verified return",
+            };
+          }
+        }
+      }
+      // Both cover the final date: retain the first lock in end-date index order.
+      await period(world, "2026-10-14", "2026-10-14", "CLOSING");
+      await period(world, "2026-10-14", "2026-10-31", "CLOSED");
+      const before = await account(world);
+      const { outcome, meter } = await meteredCall<Outcome>(
+        world,
+        fn,
+        request,
+        action === "SUBMIT" ? EMPLOYEE : ADMIN,
+      );
+      refused(outcome, "HR_PERIOD_CLOSING");
+      expect(meter.ranges.hrPeriods).toBe(1);
+      expect(meter.docs.hrPeriods).toBe(2);
+      expect(await account(world)).toEqual(before);
+      const days = await world.t.run((ctx) =>
+        ctx.db.query("hrAttendanceDays").collect(),
+      );
+      expect(days).toHaveLength(
+        action === "SUBMIT" || action === "APPROVE" ? 0 : 2,
+      );
+      for (const day of days)
+        expect(day.certification?.disposition).toBe("LEAVE");
+    },
+  );
+
+  it("keeps employment refusal ahead of period loading", async () => {
+    const { world, employeeId } = await fixture(true);
+    await activate(world, employeeId);
+    await world.t.run((ctx) =>
+      ctx.db.patch("hrEmployees", employeeId, {
+        employmentStartDate: "2026-10-14",
+      }),
+    );
+    await period(world, "2020-01-01", "2026-10-31", "CLOSING");
+    const { outcome, meter } = await meteredCall<Outcome>(
+      world,
+      leave.submit,
+      {
+        requestId: rid(),
+        type: "ANNUAL",
+        from: "2026-10-13",
+        to: "2026-10-15",
+        reason: "Three days off",
+        expectedPreviewHash: "",
+      },
+      EMPLOYEE,
+    );
+    refused(outcome, "HR_OUTSIDE_EMPLOYMENT");
+    expect(meter.ranges.hrPeriods ?? 0).toBe(0);
   });
 });

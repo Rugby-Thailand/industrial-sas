@@ -462,6 +462,15 @@ export const activate = mutationWithOrg({
       },
     }),
 });
+// Exhaustive, so a new ledger kind cannot silently bypass the opening guard.
+const LEDGER_ACTIVITY_KINDS = Object.keys({
+  RESERVE: true,
+  RELEASE: true,
+  CONSUME: true,
+  RESTORE: true,
+  CARRYOVER: true,
+  POLICY_GRANT: true,
+} satisfies Record<Exclude<Doc<"hrLeaveLedger">["kind"], "OPENING">, true>);
 export const reconcileOpening = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -566,19 +575,22 @@ export const reconcileOpening = mutationWithOrg({
         const stored = await leaveAccount(ctx, employee, args.type, args.asOf);
         if ((stored?.version ?? 0) !== args.expectedVersion)
           return fail("OPENING_STALE");
-        // Once requests have charged an account, a migration cannot replace it.
-        if (stored) {
-          const entries = await ctx.tenantDb
-            .byIndex<Doc<"hrLeaveLedger">>(
-              "hrLeaveLedger",
-              "by_orgId_accountId",
-              [{ field: "accountId", value: stored._id }],
+        // Once anything but an opening has touched an account, however many
+        // openings precede it, a migration cannot replace it.
+        if (stored)
+          for (const kind of LEDGER_ACTIVITY_KINDS)
+            if (
+              await ctx.tenantDb
+                .byIndex("hrLeaveLedger", "by_orgId_accountId_kind", [
+                  { field: "accountId", value: stored._id },
+                  { field: "kind", value: kind },
+                ])
+                .first()
             )
-            .take(2);
-          if (entries.some((entry) => entry.kind !== "OPENING"))
-            return fail("OPENING_ALREADY_IN_USE");
-        }
-        if (stored && (await activePolicy(ctx, "LEAVE", args.asOf)))
+              return fail("OPENING_ALREADY_IN_USE");
+        // Lock by the account's period, not the caller's asOf, so a backdated
+        // asOf cannot reopen an account an active policy already governs.
+        if (stored && (await activePolicy(ctx, "LEAVE", period.end)))
           return fail("OPENING_ACTIVE_POLICY_LOCKED");
         const fields = {
           employeeId: employee._id,

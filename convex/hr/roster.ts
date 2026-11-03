@@ -29,9 +29,9 @@ import {
   isoWeekday,
   type IsoDate,
 } from "../model/hr/calendar";
-import { MAX_PERIOD_EMPLOYEES } from "../model/hr/period";
 import {
   MAX_ROSTER_CELLS,
+  MAX_ROSTER_EMPLOYEES,
   MAX_SITE_SHIFTS,
   monthDates,
   rosterPlanFor,
@@ -322,7 +322,7 @@ export const roster = queryWithOrg({
       site._id,
       first,
       last,
-      MAX_PERIOD_EMPLOYEES,
+      MAX_ROSTER_EMPLOYEES,
     );
     if (employees === null)
       return { ok: false as const, code: "LIMIT_EXCEEDED" };
@@ -502,7 +502,7 @@ export const assignRoster = mutationWithOrg({
           employeeIds.add(cell.employeeId);
           if (
             cell.date.slice(0, 7) !== month ||
-            employeeIds.size > MAX_PERIOD_EMPLOYEES
+            employeeIds.size > MAX_ROSTER_EMPLOYEES
           )
             return fail("ROSTER_SELECTION_INVALID", "cells");
           if (!Number.isSafeInteger(cell.expectedRevision))

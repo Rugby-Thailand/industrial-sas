@@ -14,8 +14,22 @@ const CONVEX_MODULE_ROOT: Record<string, () => Promise<unknown>> = {
 
 export type ConvexTestModuleMap = Record<string, () => Promise<unknown>>;
 
-function harness(extraModules: ConvexTestModuleMap = {}) {
-  return convexTest(schema, { ...CONVEX_MODULE_ROOT, ...extraModules });
+export interface ConvexTenantOptions {
+  readonly transactionLimits?: Exclude<
+    Parameters<typeof convexTest>[0]["transactionLimits"],
+    undefined
+  >;
+}
+
+function harness(
+  extraModules: ConvexTestModuleMap = {},
+  options: ConvexTenantOptions = {},
+) {
+  return convexTest({
+    schema,
+    modules: { ...CONVEX_MODULE_ROOT, ...extraModules },
+    ...options,
+  });
 }
 
 export type ConvexTenantHarness = ReturnType<typeof harness>;
@@ -41,8 +55,9 @@ export interface ConvexTenantWorld {
 
 export async function createConvexTenantWorld(
   modules: ConvexTestModuleMap = {},
+  options: ConvexTenantOptions = {},
 ): Promise<ConvexTenantWorld> {
-  const t = harness(modules);
+  const t = harness(modules, options);
 
   const seeded = await t.run(async (ctx) => {
     const orgA = await ctx.db.insert("organizations", {

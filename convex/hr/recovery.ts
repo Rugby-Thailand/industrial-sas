@@ -81,7 +81,7 @@ export const reconcileRequest = mutationWithOrg({
       .unique();
     // This is deliberately status-only. It cannot rebuild another actor's
     // receipt, bypass site/report access, or report a generic write success.
-    if (existing !== null) {
+    if (existing !== null && existing.expiresAt > Date.now()) {
       if (
         existing.actorUserId !== actorUserId ||
         existing.status !== "SUCCEEDED"
@@ -117,6 +117,8 @@ export const reconcileRequest = mutationWithOrg({
     // Both this mutation and hrCommand read the command/fence indexes in one
     // transaction. Convex OCC serializes either commit-before-fence (above)
     // or fence-before-command; the latter can never apply the old command.
+    // FENCED guarantees no future execution, not that no earlier execution
+    // occurred: an expired receipt may already have been removed by retention.
     return { resolved: true as const, status: "FENCED" as const };
   },
 });

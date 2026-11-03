@@ -48,7 +48,7 @@ import {
   employedInRange,
   siteEmployeesInRange,
   retainReviewer,
-  closedPeriodCovering,
+  periodLockCode,
   dayOf,
   employeeDaysInRange,
   employeeRosterInRange,
@@ -691,14 +691,12 @@ export const decideCorrection = mutationWithOrg({
           return fail("DECISION_STALE");
         if (day.approvedLeaveRequestId !== undefined)
           return fail("HR_DAY_ON_APPROVED_LEAVE");
-        if (
-          await closedPeriodCovering(
-            ctx,
-            employee.warehouseId,
-            day.businessDate,
-          )
-        )
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          day.businessDate,
+        );
+        if (periodLock !== null) return fail(periodLock);
         const reason =
           args.reason === undefined || args.reason.trim() === ""
             ? undefined
@@ -869,8 +867,12 @@ export const disposeDay = mutationWithOrg({
           return fail("HR_OUTSIDE_EMPLOYMENT", "businessDate");
         const reason = normalizeReason(args.reason);
         if (reason === null) return fail("REASON_REQUIRED", "reason");
-        if (await closedPeriodCovering(ctx, employee.warehouseId, date))
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          date,
+        );
+        if (periodLock !== null) return fail(periodLock);
         const existing = await dayOf(ctx, employee._id, date);
         if (existing?.approvedLeaveRequestId !== undefined)
           return fail("HR_DAY_ON_APPROVED_LEAVE");

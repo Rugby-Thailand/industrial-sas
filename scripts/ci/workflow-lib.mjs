@@ -981,6 +981,18 @@ function qualityProblems(workflow, { allowedGhsas }) {
       "quality.yml: concurrency must group PRs by number (cancelling) and every other run by run_id",
     );
 
+  if (
+    !sameSet(Object.keys(jobs), [
+      "validate",
+      "test",
+      "browser",
+      "dependency-review",
+      "check",
+      "staging",
+      "release",
+    ])
+  )
+    problems.push("quality.yml: exact quality and release job set required");
   const check = jobs.check;
   const gated = Object.keys(jobs).filter(
     (id) => !["check", "staging", "release"].includes(id),
@@ -1056,21 +1068,24 @@ function qualityProblems(workflow, { allowedGhsas }) {
   }
 
   const validationLanes = {
-    style: ["pnpm format:check"],
-    types: ["pnpm typecheck", "pnpm typecheck:ts6"],
-    lint: ["pnpm lint"],
-    audit: [
+    static: ["pnpm format:check", "pnpm lint", "pnpm check:navigation"],
+    contracts: [
+      "pnpm typecheck",
+      "pnpm typecheck:ts6",
       "node scripts/ci/validate-workflows.mjs --verify-pins",
       "pnpm audit:prod",
       "node scripts/ci/audit-dependencies.mjs --scope=app",
       "node scripts/ci/audit-dependencies.mjs --scope=release",
+      "pnpm -C tools/release install --frozen-lockfile\nnode tools/release/check-compatibility.mjs\n",
       "pnpm ci:test-discovery",
+      "pnpm ci:codegen",
+      "node scripts/ci/workspace-impact.mjs",
     ],
   };
   if (
     !same(jobs.validate?.strategy, {
       "fail-fast": "false",
-      matrix: { lane: ["style", "types", "lint", "audit"] },
+      matrix: { lane: ["static", "contracts"] },
     })
   )
     problems.push(
@@ -1090,20 +1105,61 @@ function qualityProblems(workflow, { allowedGhsas }) {
         matches[0]?.if !== expected ||
         matches[0]?.shell !== undefined ||
         matches[0]?.["working-directory"] !== undefined ||
-        matches[0]?.env !== undefined
+        matches[0]?.env !== undefined ||
+        matches[0]?.["continue-on-error"] !== undefined ||
+        jobs.validate?.["continue-on-error"] !== undefined
       )
         problems.push(
           `quality.yml:validate: ${command} must run exactly once in ${lane}`,
         );
     }
   }
+  const generatorRuns = validationSteps.map((step) => step.run);
+  if (!(
+    generatorRuns.indexOf("pnpm typecheck") <
+      generatorRuns.indexOf("pnpm typecheck:ts6") &&
+    generatorRuns.indexOf("pnpm typecheck:ts6") <
+      generatorRuns.indexOf("pnpm ci:codegen")
+  ))
+    problems.push(
+      "quality.yml:validate: typechecks must precede codegen sequentially",
+    );
+  const reportUpload = validationSteps.find(
+    (step) => step.name === "Upload workspace impact report",
+  );
+  if (
+    !same(reportUpload, {
+      name: "Upload workspace impact report",
+      if: "${{ !cancelled() && steps.setup.outcome == 'success' && matrix.lane == 'contracts' }}",
+      uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      with: {
+        name: "workspace-impact-report",
+        overwrite: "true",
+        path: "test-results/workspace-impact-report.json",
+        "retention-days": "7",
+        "if-no-files-found": "error",
+      },
+    }) ||
+    jobs.validate?.outputs !== undefined ||
+    JSON.stringify(jobs).includes("needs.validate.outputs") ||
+    JSON.stringify(jobs).includes("ALLOWED_SKIPS") ||
+    stepsOf(jobs.check).find((step) =>
+      String(step.run).includes("aggregate.mjs"),
+    )?.if !== undefined
+  )
+    problems.push(
+      "quality.yml: workspace impact must remain report-only with its required artifact",
+    );
   const clean = validationSteps.filter(
     (step) => step.run === "pnpm ci:clean-tree",
   );
   if (
     clean.length !== 1 ||
-    clean[0]?.if !==
-      "${{ !cancelled() && steps.setup.outcome == 'success' }}" ||
+    !same(clean[0], {
+      name: "Clean tree after generators",
+      if: "${{ !cancelled() && steps.setup.outcome == 'success' }}",
+      run: "pnpm ci:clean-tree",
+    }) ||
     validationSteps.at(-1) !== clean[0]
   )
     problems.push(

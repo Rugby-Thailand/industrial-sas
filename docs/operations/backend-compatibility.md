@@ -14,6 +14,12 @@ This release adds optional version arguments to existing write validators so old
 
 A mutation's successful request identity is checked before live-version and occupancy checks. Retrying the same successful command returns its recorded result; reusing its identity with a different payload is refused. Failed requests retain their editable draft and can be reviewed or retried.
 
+## HR staged period close and payslip payloads
+
+- `hr/periodClose:begin|advance|publish|cancel`, `hr/periods:draftEmployeesPage` and `hr/periods:versionRowsPage` are new. `hr/periods:exportCsv` gains an optional `cursor`; an old tab that ignores `continueCursor` downloads only the first part of a version above 2,000 rows, so reload before exporting large versions. `hr/periods:close` is retained as a deprecated shim over the staged begin (see [hr-period-staged-close.md](hr-period-staged-close.md)); remove it in a later contract release.
+- The preview's `LIMIT` view is gone; large drafts answer `PAGED` and in-progress closes answer `CLOSING`. Old tabs render neither and must reload.
+- Payslip bytes move to `hrPayslipPayloads`; legacy rows answer `PAYSLIP_SOURCE_MIGRATION_PENDING` until the [payload migration](hr-payslip-payload-migration.md) has run.
+
 ## User-visible migration and rollback
 
 An already open old tab can read existing data and create products, but its unversioned product or layout edit is refused. The user needs to load the new frontend, restore or retain their draft, inspect the current saved values, and retry with a current token. The new product editor explicitly handles persisted drafts that predate version tokens and offers a comparison before merging changed fields or loading the saved product. Do not imply that refreshing an in-memory-only legacy layout draft preserves it; keep a copy of those entered values before reloading.

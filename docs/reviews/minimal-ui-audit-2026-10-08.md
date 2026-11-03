@@ -1,6 +1,6 @@
 # Minimal UI — implementation and audit
 
-All seven phases in the [implementation plan](../plans/minimal-ui-2026-10-08.md) are implemented. The [real UI walkthrough](minimal-ui-walkthrough-2026-10-08.md) contains 78 action/state pairs, with 156 desktop/mobile screenshots. The [interactive gallery](minimal-ui-gallery-2026-10-08.html) supports searching and viewing either size.
+All seven phases in the [implementation plan](../plans/minimal-ui-2026-10-08.md) are implemented. The [real UI walkthrough](minimal-ui-walkthrough-2026-10-08.md) contains 78 action/state pairs, with 156 desktop/mobile screenshots. The duplicate standalone gallery was removed during repository cleanup; the walkthrough retains the desktop/mobile evidence.
 
 ## Result
 

@@ -44,7 +44,7 @@ export const fgRefs = Object.freeze({
   saveBatchDraft: clientRef(api.finishedGoods.batches.saveBatchDraft),
   commitBatch: clientRef(api.finishedGoods.batches.commitBatch),
   getBatch: clientRef(api.finishedGoods.batches.getBatch),
-  listProductBatches: clientRef(api.finishedGoods.batches.listProductBatches),
+  pageBatchRevisions: clientRef(api.finishedGoods.batches.pageBatchRevisions),
   cancelLegacyUnit: clientRef(api.finishedGoods.batches.cancelLegacyUnit),
   stackOptions: clientRef(api.finishedGoods.workflow.stackOptions),
   stackPreview: clientRef(api.finishedGoods.workflow.stackPreview),

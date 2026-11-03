@@ -1,0 +1,88 @@
+{
+  "recordedAt": "2026-11-03",
+  "scope": "Local committed snapshot; all suites still run. Not historical eligibility evidence.",
+  "base": "b8137128ae52fe6da178cb1eca6a5f0dd921e4ec",
+  "head": "efa239379573ae01eb69bd5945016694a42d3a49",
+  "analysisDurationMs": 825,
+  "error": null,
+  "mode": "report-only",
+  "predictedWorkspaceAffected": true,
+  "effectiveWorkspaceRun": true,
+  "changedPaths": [
+    {
+      "status": "M",
+      "path": ".github/workflows/quality.yml",
+      "reason": "unreviewed path requires full prediction"
+    },
+    {
+      "status": "A",
+      "path": "docs/operations/ci-validation-lanes.md",
+      "reason": "new/deleted/renamed or unknown status"
+    },
+    {
+      "status": "M",
+      "path": "scripts/ci/workflow-lib.mjs",
+      "reason": "unreviewed path requires full prediction"
+    },
+    {
+      "status": "A",
+      "path": "scripts/ci/workspace-impact.mjs",
+      "reason": "new/deleted/renamed or unknown status"
+    },
+    {
+      "status": "M",
+      "path": "tests/integration/ci-guards.integration.test.ts",
+      "reason": "integration test outside observed workspace closure"
+    },
+    {
+      "status": "M",
+      "path": "tests/integration/ci-workflows.integration.test.ts",
+      "reason": "integration test outside observed workspace closure"
+    },
+    {
+      "status": "A",
+      "path": "tests/integration/workspace-impact.integration.test.ts",
+      "reason": "new/deleted/renamed or unknown status"
+    }
+  ],
+  "harnesses": [
+    "storage-workspace-preview",
+    "barcode-preview",
+    "barcode-scanning-preview"
+  ],
+  "runtimeModules": {
+    "prepare": "src/features/finishedGoods/jobScan/prepareJobTicketPhoto.ts",
+    "baseline": "tests/fixtures/job-ticket-jpeg-baseline.ts",
+    "decoder": "src/features/finishedGoods/barcodeDecoder.ts"
+  },
+  "dependencyCount": 203,
+  "unknown": [],
+  "sharedCalendarObserved": true,
+  "aliasExamples": [
+    {
+      "harness": "barcode-preview",
+      "importer": "src/features/finishedGoods/BarcodeImagePicker.tsx",
+      "specifier": "next/image",
+      "path": "scripts/barcode-preview/adapters.tsx"
+    },
+    {
+      "harness": "barcode-scanning-preview",
+      "importer": "src/features/finishedGoods/BarcodeImagePicker.tsx",
+      "specifier": "next/image",
+      "path": "scripts/barcode-preview/adapters.tsx"
+    }
+  ],
+  "syntheticNegativeUsingObservedGraph": {
+    "mode": "report-only",
+    "effectiveWorkspaceRun": true,
+    "predictedWorkspaceAffected": false,
+    "reasons": [],
+    "changedPaths": [
+      {
+        "status": "M",
+        "path": "tests/integration/ci-guards.integration.test.ts",
+        "reason": "integration test outside observed workspace closure"
+      }
+    ]
+  }
+}

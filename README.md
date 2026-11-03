@@ -37,6 +37,13 @@ Run `pnpm check`, `pnpm build`, and `pnpm audit:prod` before releasing.
 `pnpm format:check` checks formatting. Physical camera scanning still requires
 a device check.
 
+Put new throwaway previews, raw captures, recordings, and generated review
+reports under the ignored `output/` directory. Keep maintained source,
+selected design evidence, and concise decisions in the repository. When
+retiring a preview, update its documentation links and remove only its own
+tests; preserve coverage for shared or maintained tools. See the
+[cleanup audit](docs/reviews/repository-cleanup-2026-11-03.md) for the first pass.
+
 `pnpm typecheck` generates Next route types and then runs Bun's standalone
 TypeScript checker (`bun --check`, TypeScript 7.0.2 semantics). It needs the
 exact Bun in `.bun-version` (1.4.3) first on `PATH`; install it with
@@ -45,10 +52,10 @@ release archive into the ignored `.cache/bun-checker/` and prints the `PATH`
 entry. CI runs the same installer. Never use bare `bun check` here: it runs the
 aggregate `check` script. `pnpm typecheck:ts6` generates the same Next route
 types and runs TypeScript 6.0.3 with `tsc --noEmit`. Both checkers are required
-in the CI types lane. TypeScript 6 remains installed for the editor,
+in the CI contracts lane. TypeScript 6 remains installed for the editor,
 typescript-eslint and ordinary local builds. Anonymous CI smoke delegates
-type validation to the required parallel TS6 lane through the guarded
-`CI_EXTERNAL_TYPECHECK` contract; the aggregate gate waits for both lanes.
+type validation to the required contracts lane through the guarded
+`CI_EXTERNAL_TYPECHECK` contract; the aggregate gate waits for both checkers.
 Production builds use that contract only after the aggregate quality gate
 passes. The navigation harness keeps its own build typecheck.
 `node scripts/benchmark-typecheck.mjs` compares the two checkers serially.
@@ -96,8 +103,11 @@ record the local result and its limits.
 
 `Planner quality` runs once per pull request update and on pushes to `main`.
 Use its manual GitHub Actions trigger to check a branch before opening a PR.
-Four validation lanes run formatting, both typecheckers, lint, and workflow,
-dependency and discovery checks independently. They run alongside three test
+Two validation lanes preserve independent failure reporting: static runs
+formatting, lint and navigation; contracts runs both typecheckers, workflow,
+dependency, release compatibility and discovery checks, codegen, and an advisory
+workspace impact report. See [validation lanes](docs/operations/ci-validation-lanes.md).
+They run alongside three test
 shards and the required production-mode browser build. The shared setup action installs the pinned
 Bun from its checksum-verified release archive (no third-party action) right
 after the frozen install, so `pnpm typecheck`, the Bun-run production build and

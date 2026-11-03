@@ -1,7 +1,7 @@
 /** Private, immutable imported statements. Never serialize amounts while masked. */
 import { v } from "convex/values";
 
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { sha256Hex } from "../lib/idempotency";
 import { HR_PERMISSION } from "../lib/permissions";
 import {
@@ -31,6 +31,7 @@ import {
 } from "./shared";
 
 type Statement = Doc<"hrPayslipRows">;
+type Payload = Doc<"hrPayslipPayloads">;
 const ADMIN = HR_PERMISSION.adminManage;
 const SELF = HR_PERMISSION.selfAccess;
 const capabilities = () =>
@@ -69,6 +70,35 @@ const rowMetadata = (row: Statement) => ({
   publishedAt: row.publishedAt,
   superseded: row.supersededById !== undefined,
 });
+/**
+ * The statement's private original, re-hashed: null when bytes, hash or
+ * ownership disagree; "PENDING" for a legacy row whose inline bytes have not
+ * been moved yet by `payslipMigration:migrateInlinePayloads`.
+ */
+async function verifiedPayload(
+  ctx: TenantFunctionContext,
+  row: Statement,
+): Promise<Payload | null | "PENDING"> {
+  if (row.payloadId === undefined) return "PENDING";
+  const payload = await ctx.tenantDb.get<Payload>(
+    "hrPayslipPayloads",
+    row.payloadId,
+  );
+  if (
+    payload === null ||
+    payload.employeeId !== row.employeeId ||
+    payload.importId !== row.importId ||
+    payload.sourceHash !== row.sourceHash
+  )
+    return null;
+  const bytes = pdfBytes(payload.sourceBase64);
+  return bytes !== null &&
+    bytes.length === payload.byteLength &&
+    (await pdfHash(bytes)) === row.sourceHash
+    ? payload
+    : null;
+}
+/** Version metadata only: rows carry no PDF bytes after the payload split. */
 async function versions(
   ctx: TenantFunctionContext,
   employeeId: string,
@@ -165,7 +195,10 @@ export const imports = queryWithOrg({
         "hrPayslipImports",
         "by_orgId_createdAt",
       )
-      .page({ limit: 20, cursor: args.cursor, order: "desc" });
+      // Legacy imports can still carry 4 MiB of inline PDF bytes until the
+      // payload migration finishes. Three batches leave room for metadata and
+      // authorization reads within Convex's 16 MiB transaction budget.
+      .page({ limit: 3, cursor: args.cursor, order: "desc" });
     const items = [];
     for (const batch of page.page) {
       const rows = await ctx.tenantDb
@@ -317,6 +350,7 @@ export const stage = mutationWithOrg({
             employee,
             file,
             hash,
+            byteLength: bytes.length,
             predecessorId: latest?._id,
           });
         }
@@ -343,7 +377,16 @@ export const stage = mutationWithOrg({
           createdAt: Date.now(),
           createdByUserId: ctx.tenant.actor._id,
         });
-        for (const row of validated)
+        for (const row of validated) {
+          // Bytes go to a private payload; the row keeps metadata and a hash.
+          const payloadId = (await ctx.tenantDb.insert("hrPayslipPayloads", {
+            importId: id,
+            employeeId: row.employee._id,
+            sourceBase64: row.file.base64,
+            sourceHash: row.hash,
+            byteLength: row.byteLength,
+            createdAt: Date.now(),
+          })) as Id<"hrPayslipPayloads">;
           await ctx.tenantDb.insert("hrPayslipRows", {
             importId: id,
             employeeId: row.employee._id,
@@ -356,11 +399,12 @@ export const stage = mutationWithOrg({
             gross: row.source.gross,
             deductions: row.source.deductions,
             net: row.source.net,
-            sourceBase64: row.file.base64,
+            payloadId,
             sourceHash: row.hash,
             version: 0,
             ...(row.predecessorId ? { predecessorId: row.predecessorId } : {}),
           });
+        }
         return {
           documentId: id,
           extra: { rowCount: validated.length },
@@ -448,7 +492,11 @@ export const publish = mutationWithOrg({
           const canonical = source.rows.find(
             (sourceRow) => sourceRow.code === row.employeeCode,
           );
-          const bytes = pdfBytes(row.sourceBase64);
+          // Only this batch's own payloads are read (bounded by the stage
+          // size limit); predecessor versions are compared by metadata alone.
+          const payload = await verifiedPayload(ctx, row);
+          if (payload === "PENDING")
+            return fail("PAYSLIP_SOURCE_MIGRATION_PENDING", row.employeeCode);
           if (
             !canonical ||
             canonical.from !== row.from ||
@@ -457,8 +505,8 @@ export const publish = mutationWithOrg({
             canonical.gross !== row.gross ||
             canonical.deductions !== row.deductions ||
             canonical.net !== row.net ||
-            !bytes ||
-            (await pdfHash(bytes)) !== row.sourceHash
+            payload === null ||
+            payload.importId !== batch._id
           )
             return fail("PAYSLIP_SOURCE_INTEGRITY_FAILED");
           const employee = await ctx.tenantDb.get<Employee>(
@@ -635,12 +683,12 @@ async function privateDocument(ctx: TenantFunctionContext, ticketId: string) {
     return fail("PAYSLIP_TICKET_EXPIRED");
   if (!verifiedExpiry(ctx, policy.config.verificationMinutes))
     return fail("REVERIFICATION_REQUIRED");
-  const bytes = pdfBytes(row.sourceBase64);
-  if (!bytes || (await pdfHash(bytes)) !== row.sourceHash)
-    return fail("PAYSLIP_SOURCE_INTEGRITY_FAILED");
+  const payload = await verifiedPayload(ctx, row);
+  if (payload === "PENDING") return fail("PAYSLIP_SOURCE_MIGRATION_PENDING");
+  if (payload === null) return fail("PAYSLIP_SOURCE_INTEGRITY_FAILED");
   const company = await companyProfile(ctx);
   return {
-    base64: row.sourceBase64,
+    base64: payload.sourceBase64,
     employer:
       company === null
         ? null

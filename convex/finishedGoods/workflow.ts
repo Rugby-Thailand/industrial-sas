@@ -317,19 +317,23 @@ export const saveProduct = mutationWithOrg({
           normalizedCondition(before.storageCondition) !==
             normalizedCondition(storageCondition)
         ) {
-          const pallets = await rows<Doc<"finishedGoodsPallets">>(
-            ctx,
-            "finishedGoodsPallets",
-            "by_orgId_warehouseId_code",
-            [{ field: "warehouseId", value: args.warehouseId }],
+          // Both exact index ranges participate in Convex OCC: a concurrent
+          // reservation or storage transition conflicts with this requirement edit.
+          const occupied = await Promise.all(
+            (["RESERVED", "STORED"] as const).map((status) =>
+              ctx.tenantDb
+                .byIndex<Doc<"finishedGoodsPallets">>(
+                  "finishedGoodsPallets",
+                  "by_orgId_productId_status",
+                  [
+                    { field: "productId", value: before._id },
+                    { field: "status", value: status },
+                  ],
+                )
+                .first(),
+            ),
           );
-          if (
-            pallets.some(
-              (pallet) =>
-                pallet.productId === before._id &&
-                (pallet.status === "RESERVED" || pallet.status === "STORED"),
-            )
-          ) {
+          if (occupied.some(Boolean)) {
             return failure("LOCATION_OCCUPIED", "storageCondition");
           }
         }
@@ -616,6 +620,7 @@ async function locationContext(
   zoneId: string,
   scope = createLocationReadScope(ctx),
   knownZone?: Doc<"storageZones">,
+  recommendationProduct?: Doc<"finishedGoodsProducts">,
 ) {
   const zone = knownZone ?? (await scope.zone(zoneId));
   if (!zone || zone.warehouseId !== warehouseId || zone.status !== "ACTIVE")
@@ -636,17 +641,25 @@ async function locationContext(
     location.warehouseId !== warehouseId
   )
     return null;
+  // Geometry-unknown takes precedence over condition mismatch. Read both
+  // occupancy statuses even for a mismatch, but avoid supports/blocks/pallets
+  // that cannot affect that zone's result. Preserve input order in the caller.
+  const mismatch =
+    recommendationProduct !== undefined &&
+    conditionCheck({ zone }, recommendationProduct) === "MISMATCH";
   const [positions, allBlocks, held, stored] = await Promise.all([
-    rows<Doc<"storagePositions">>(
-      ctx,
-      "storagePositions",
-      "by_orgId_zoneId_status_code",
-      [
-        { field: "zoneId", value: zone._id },
-        { field: "status", value: "ACTIVE" },
-      ],
-    ),
-    scope.blocks(zone.floorId),
+    mismatch
+      ? Promise.resolve([])
+      : rows<Doc<"storagePositions">>(
+          ctx,
+          "storagePositions",
+          "by_orgId_zoneId_status_code",
+          [
+            { field: "zoneId", value: zone._id },
+            { field: "status", value: "ACTIVE" },
+          ],
+        ),
+    mismatch ? Promise.resolve([]) : scope.blocks(zone.floorId),
     rows<Doc<"finishedGoodsPlacements">>(
       ctx,
       "finishedGoodsPlacements",
@@ -666,6 +679,19 @@ async function locationContext(
       ],
     ),
   ]);
+  if (mismatch)
+    return {
+      zone,
+      building,
+      floor,
+      positions,
+      supports: [],
+      unavailable: [],
+      occupancy: [],
+      unmeasuredPalletCount: [...held, ...stored].filter(
+        (p) => !isGeometricPlacement(p),
+      ).length,
+    };
   const unavailable = allBlocks
     .filter((block) => overlaps(zone, block))
     .map((block) => ({
@@ -888,7 +914,7 @@ export interface Destination {
 }
 export type Candidate = Destination;
 function conditionCheck(
-  context: LocationContext,
+  context: { zone: Doc<"storageZones"> },
   product: Doc<"finishedGoodsProducts">,
 ): "UNKNOWN" | "MATCH" | "MISMATCH" {
   const locationCondition = context.zone.storageCondition?.trim().toUpperCase();
@@ -1017,7 +1043,7 @@ async function recommendations(
   let active = 0;
   const scope = createLocationReadScope(ctx);
   const contexts = await mapBounded(zones, (zone) =>
-    locationContext(ctx, args.warehouseId, zone._id, scope, zone),
+    locationContext(ctx, args.warehouseId, zone._id, scope, zone, product),
   );
   for (const context of contexts) {
     if (!context) continue;
@@ -1989,6 +2015,9 @@ export const reserveMove = mutationWithOrg({
           );
           await ctx.tenantDb.patch("finishedGoodsMoves", replacing.move._id, {
             targetPlacementId: targetId,
+            sourceBuildingId: source.buildingId,
+            targetBuildingId: context.building._id,
+            buildingIndexVersion: 1,
             targetUpdatedAt: targetStamp.updatedAt,
             reason: args.reason?.trim(),
             verifiedAt: undefined,
@@ -2004,6 +2033,9 @@ export const reserveMove = mutationWithOrg({
           palletId: pallet._id,
           sourcePlacementId: source._id,
           targetPlacementId: targetId,
+          sourceBuildingId: source.buildingId,
+          targetBuildingId: context.building._id,
+          buildingIndexVersion: 1,
           sourceUpdatedAt: source.updatedAt,
           palletUpdatedAt: pallet.updatedAt,
           targetUpdatedAt: targetStamp.updatedAt,

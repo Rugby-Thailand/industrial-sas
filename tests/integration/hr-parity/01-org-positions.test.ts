@@ -246,11 +246,22 @@ it("[guess] S01-07 company tax ID, address and bank flow into payroll/tax docume
       createdAt: NOW,
       createdByUserId: world.userA,
     });
+    const sourceBytes = new TextEncoder().encode(atob(base64));
+    const payloadId = await ctx.db.insert("hrPayslipPayloads", {
+      orgId: world.orgA,
+      importId,
+      employeeId,
+      sourceBase64: base64,
+      sourceHash: hash,
+      byteLength: sourceBytes.length,
+      createdAt: NOW,
+    });
     return await ctx.db.insert("hrPayslipRows", {
       orgId: world.orgA,
       employeeId,
       employeeCode: "E001",
       importId,
+      payloadId,
       from: "2026-10-01",
       to: "2026-10-31",
       paymentDate: "2026-10-30",
@@ -259,7 +270,6 @@ it("[guess] S01-07 company tax ID, address and bank flow into payroll/tax docume
       net: 100,
       version: 1,
       publishedAt: NOW,
-      sourceBase64: base64,
       sourceHash: hash,
       warehouseId: world.warehouses.alphaA,
       employeeName: "E001",

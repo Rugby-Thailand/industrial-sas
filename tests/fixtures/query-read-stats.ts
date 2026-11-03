@@ -18,18 +18,21 @@ export interface ReadStats {
   rangeDocs: Record<string, number>;
   /** Point reads through db.get. */
   gets: Record<string, number>;
+  /** Approximate UTF-8 JSON document bytes, not Convex wire encoding. */
+  bytes: Record<string, number>;
 }
 
 export const emptyStats = (): ReadStats => ({
   ranges: {},
   rangeDocs: {},
   gets: {},
+  bytes: {},
 });
 const bump = (map: Record<string, number>, key: string, by = 1) => {
   map[key] = (map[key] ?? 0) + by;
 };
 export function addStats(into: ReadStats, from: ReadStats) {
-  for (const field of ["ranges", "rangeDocs", "gets"] as const)
+  for (const field of ["ranges", "rangeDocs", "gets", "bytes"] as const)
     for (const [key, value] of Object.entries(from[field]))
       bump(into[field], key, value);
 }
@@ -54,6 +57,16 @@ function wrapQuery(query: object, table: string, stats: ReadStats): object {
                   ? 1
                   : 0;
             bump(stats.rangeDocs, table, docs);
+            const returned =
+              value && typeof value === "object" && "page" in value
+                ? (value as { page: unknown[] }).page
+                : value;
+            if (returned !== null && returned !== undefined)
+              bump(
+                stats.bytes,
+                table,
+                new TextEncoder().encode(JSON.stringify(returned)).length,
+              );
             return value;
           });
         }
@@ -92,7 +105,17 @@ export async function measured<T>(
               const table =
                 input.length > 1 ? String(input[0]) : "(unknown table)";
               bump(stats.gets, table);
-              return Reflect.apply(member, target, input);
+              return Promise.resolve(Reflect.apply(member, target, input)).then(
+                (value) => {
+                  if (value !== null && value !== undefined)
+                    bump(
+                      stats.bytes,
+                      table,
+                      new TextEncoder().encode(JSON.stringify(value)).length,
+                    );
+                  return value;
+                },
+              );
             };
           return typeof member === "function" ? member.bind(target) : member;
         },

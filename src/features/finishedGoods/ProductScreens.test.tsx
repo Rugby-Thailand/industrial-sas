@@ -2024,3 +2024,146 @@ it("retries a committed product edit with its original request after a lost resp
   await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
   expect(mocks.save.mock.calls[1]![0].requestId).toBe(firstRequest);
 });
+
+it.each(["summary", "page"] as const)(
+  "recovers the catalogue %s after a second invalidation during scanning",
+  async (surface) => {
+    const resets = new Set<string>();
+    mocks.query.mockImplementation((name, rawArgs) => {
+      if (!name.endsWith(`:${surface}`)) return querySuccess(finishedGoodsList);
+      const args = rawArgs as { scanCursor?: string };
+      if (args.scanCursor && resets.size < 2) resets.add(args.scanCursor);
+      if (args.scanCursor && resets.has(args.scanCursor))
+        return querySuccess({ status: "reset" });
+      if (resets.size === 2)
+        return surface === "page"
+          ? querySuccess(finishedGoodsList)
+          : querySuccess({
+              status: "ready",
+              totals: {
+                products: 105,
+                awaitingMeasurement: 0,
+                awaitingStorage: 0,
+                stored: 0,
+                moving: 0,
+                units: [],
+              },
+            });
+      return querySuccess({
+        status: "scanning",
+        scanCursor: `generation-${resets.size}`,
+      });
+    });
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    await waitFor(() => {
+      expect(resets.size).toBe(2);
+      expect(
+        screen.getByText(
+          surface === "summary" ? "105" : finishedGoodsList.products[0]!.name,
+        ),
+      ).toBeVisible();
+    });
+    expect(
+      screen.queryByText(
+        surface === "summary"
+          ? "Warehouse totals could not be loaded. Refresh to try again."
+          : "Records could not be loaded. Please try again.",
+      ),
+    ).not.toBeInTheDocument();
+  },
+);
+
+it.each(["summary", "page"] as const)(
+  "bounds catalogue %s recovery despite partial progress and allows explicit retry",
+  async (surface) => {
+    const invalidated = new Set<string>();
+    let settled = false;
+    mocks.query.mockImplementation((name, rawArgs) => {
+      if (!name.endsWith(`:${surface}`)) return querySuccess(finishedGoodsList);
+      const { scanCursor } = rawArgs as { scanCursor?: string };
+      if (settled && !scanCursor) return querySuccess(finishedGoodsList);
+      if (scanCursor?.endsWith("-end")) {
+        invalidated.add(scanCursor);
+        return querySuccess({ status: "reset" });
+      }
+      return querySuccess({
+        status: "scanning",
+        scanCursor: scanCursor
+          ? `${scanCursor}-end`
+          : `generation-${invalidated.size}`,
+      });
+    });
+    renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    const retry = await screen.findByRole("button", { name: "Try again" });
+    expect(invalidated.size).toBe(4);
+    expect(mocks.query.mock.calls.length).toBeLessThan(60);
+    expect(screen.queryByText("No matching records")).not.toBeInTheDocument();
+    settled = true;
+    fireEvent.click(retry);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: "Try again" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          surface === "summary"
+            ? "Warehouse totals could not be loaded. Refresh to try again."
+            : "Records could not be loaded. Please try again.",
+        ),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByText(finishedGoodsList.products[0]!.name)).toBeVisible();
+  },
+);
+
+it.each(["warehouse", "actor"] as const)(
+  "isolates exhausted catalogue recovery and totals when the %s changes",
+  async (scope) => {
+    const invalidated = new Set<string>();
+    let nextScope = false;
+    mocks.query.mockImplementation((name, rawArgs) => {
+      if (!name.endsWith(":summary")) return querySuccess(finishedGoodsList);
+      const { scanCursor } = rawArgs as { scanCursor?: string };
+      if (nextScope && !scanCursor) return querySuccess(finishedGoodsList);
+      if (scanCursor) {
+        invalidated.add(scanCursor);
+        return querySuccess({ status: "reset" });
+      }
+      return querySuccess({
+        status: "scanning",
+        scanCursor: `old-${invalidated.size}`,
+      });
+    });
+    const view = renderWithIntl(<FinishedGoodsCatalogue />, {
+      locale: "en",
+      workspace: false,
+    });
+    await screen.findByRole("button", { name: "Try again" });
+    expect(invalidated.size).toBe(4);
+    const previousCalls = mocks.query.mock.calls.length;
+    nextScope = true;
+    if (scope === "warehouse") mocks.warehouseId = "warehouse-b";
+    else mocks.actorId = "user-b";
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+        <FinishedGoodsCatalogue />
+      </NextIntlClientProvider>,
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Try again" }),
+      ).not.toBeInTheDocument(),
+    );
+    for (const [name, args] of mocks.query.mock.calls.slice(previousCalls)) {
+      if (name.endsWith(":summary"))
+        expect(args).not.toHaveProperty("scanCursor");
+    }
+    expect(screen.getByText(finishedGoodsList.products[0]!.name)).toBeVisible();
+  },
+);

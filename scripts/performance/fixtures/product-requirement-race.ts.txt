@@ -1,0 +1,132 @@
+import { internalMutation, internalQuery } from "./_generated/server";
+import { v } from "convex/values";
+import { seedAuthorizationForOrganization } from "./lib/authorizationSeedConvex";
+import { DEFAULT_ORGANIZATION_SETTINGS } from "./lib/organizationDefaults";
+
+export const initialize = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const orgId = await ctx.db.insert("organizations", {
+      clerkOrganizationId: "query_race_org",
+      name: "Synthetic race organization",
+      status: "ACTIVE",
+      settings: DEFAULT_ORGANIZATION_SETTINGS,
+    });
+    const userId = await ctx.db.insert("users", {
+      clerkUserId: "query_race_user",
+      displayName: "Synthetic race actor",
+      status: "ACTIVE",
+    });
+    const membershipId = await ctx.db.insert("memberships", {
+      orgId,
+      userId,
+      clerkMembershipId: "query_race_member",
+      status: "ACTIVE",
+      scopeMode: "ORG_WIDE",
+      effectiveFrom: 0,
+    });
+    await seedAuthorizationForOrganization(ctx, orgId);
+    const role = await ctx.db
+      .query("roles")
+      .withIndex("by_orgId_key", (q) =>
+        q.eq("orgId", orgId).eq("key", "ORG_ADMIN"),
+      )
+      .unique();
+    if (!role) throw new Error("RACE_ROLE_MISSING");
+    await ctx.db.insert("membershipRoles", {
+      orgId,
+      membershipId,
+      roleId: role._id,
+      grantedAt: 0,
+    });
+    return { orgId, userId };
+  },
+});
+export const seedRound = internalMutation({
+  args: {
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    round: v.number(),
+  },
+  handler: async (ctx, { orgId, userId, round }) => {
+    const warehouseId = await ctx.db.insert("warehouses", {
+      orgId,
+      code: `RACE-${round}`,
+      name: "Race warehouse",
+      status: "ACTIVE",
+    });
+    const stamps = {
+      createdAt: Date.now(),
+      createdByUserId: userId,
+      updatedAt: Date.now(),
+      updatedByUserId: userId,
+    };
+    const area = {
+      widthMm: 10000,
+      depthMm: 10000,
+      grossAreaSqMm: 100000000,
+      reservedAreaSqMm: 0,
+      usableAreaSqMm: 100000000,
+    };
+    const buildingId = await ctx.db.insert("storageBuildings", {
+      orgId,
+      warehouseId,
+      code: "BUILDING",
+      name: "Building",
+      ...area,
+      defaultFloorHeightMm: 3000,
+      floorCount: 1,
+      totalHeightMm: 3000,
+      status: "ACTIVE",
+      version: 1,
+      ...stamps,
+    });
+    const floorId = await ctx.db.insert("storageFloors", {
+      orgId,
+      warehouseId,
+      buildingId,
+      floorNumber: 1,
+      ...area,
+      heightMm: 3000,
+      version: 1,
+      updatedAt: stamps.updatedAt,
+      updatedByUserId: userId,
+    });
+    const locationId = await ctx.db.insert("locations", {
+      orgId,
+      warehouseId,
+      code: "LOCATION",
+      locationType: "FLOOR_BLOCK",
+      status: "ACTIVE",
+    });
+    const zoneId = await ctx.db.insert("storageZones", {
+      orgId,
+      warehouseId,
+      buildingId,
+      floorId,
+      locationId,
+      code: "ZONE",
+      label: "Dry zone",
+      qrValue: `ISAS:LOCATION:1:${locationId}`,
+      xMm: 0,
+      yMm: 0,
+      widthMm: 2000,
+      depthMm: 2000,
+      maxStackHeightMm: 3000,
+      storageCondition: "DRY",
+      status: "ACTIVE",
+      ...stamps,
+    });
+    return { warehouseId, zoneId };
+  },
+});
+export const inspect = internalQuery({
+  args: {
+    productId: v.id("finishedGoodsProducts"),
+    palletId: v.id("finishedGoodsPallets"),
+  },
+  handler: async (ctx, { productId, palletId }) => ({
+    product: await ctx.db.get("finishedGoodsProducts", productId),
+    pallet: await ctx.db.get("finishedGoodsPallets", palletId),
+  }),
+});

@@ -178,7 +178,7 @@ describe("HR write recovery contract", () => {
     });
     expect(hook.result.current.state).toEqual({
       kind: "RECONCILED",
-      applied: true,
+      status: "COMMITTED",
     });
     expect(hook.result.current.locked).toBe(false);
     await act(async () => {

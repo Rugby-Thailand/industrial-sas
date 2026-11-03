@@ -148,16 +148,9 @@ describe("aggregate quality gate", () => {
     }
   });
 
-  const required = [
-    "validate",
-    "codegen",
-    "test",
-    "browser",
-    "dependency-review",
-  ];
+  const required = ["validate", "test", "browser", "dependency-review"];
   const all = (overrides: Record<string, string> = {}) => ({
     validate: "success",
-    codegen: "success",
     test: "success",
     browser: "success",
     "dependency-review": "success",

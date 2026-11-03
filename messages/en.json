@@ -1858,7 +1858,8 @@
       "recoveryHint": "The earlier command needs to be checked before you can save new changes.",
       "checkPrevious": "Check previous write",
       "recoveredSaved": "The previous write was saved",
-      "recoveredUnsent": "The previous write did not apply",
+      "recoveredUnknown": "Unable to confirm whether the previous write was saved",
+      "recoveredFencedHint": "This request is now blocked from running again. Check the latest record before making a new change.",
       "recoveredHint": "Check the latest record before saving a new change.",
       "recoveryUnavailable": "The saved request reference could not be read. Contact HR to check the record before starting another write."
     },
@@ -2306,7 +2307,8 @@
       "sitesIncomplete": "Your site access includes more sites than can be listed; periods of the unlisted sites are not shown",
       "noMatches": "No matching periods",
       "noMatchesHint": "Change or clear the filters.",
-      "pagination": "Period list pages"
+      "pagination": "Period list pages",
+      "closing": "Closing"
     },
     "period": {
       "title": "Attendance period",
@@ -2316,8 +2318,6 @@
       "versionLabel": "Version shown",
       "currentDraft": "Current draft (v{version})",
       "closedOption": "v{version} closed {at}",
-      "limit": "This period exceeds the employee limit",
-      "limitHint": "The pilot supports up to 50 employees per period; no partial data is shown.",
       "totals": "Period totals",
       "employees": "Employees",
       "days": "Days",
@@ -2369,7 +2369,19 @@
       "openPagination": "Open day pages",
       "employeePagination": "Employee breakdown pages",
       "allVersions": "All versions",
-      "allVersionsPagination": "Version pages"
+      "allVersionsPagination": "Version pages",
+      "pagedReadyHint": "Closing checks every employee in steps and freezes the period's attendance meanwhile. You review the totals before publishing.",
+      "pagedHint": "This period is reviewed a page at a time. Totals and readiness are confirmed while closing.",
+      "closeFailed": "The last close attempt was stopped and nothing was published",
+      "closingProgress": "Closing v{version}: {employees} employees and {days} days checked so far. Attendance for this period is frozen meanwhile.",
+      "closingDiscard": "Discarding the prepared close and returning to the draft…",
+      "closingContinue": "Continue",
+      "closingReady": "v{version} is prepared from frozen data. Check the totals, then publish it or return to the draft.",
+      "publishVersion": "Publish v{version}",
+      "cancelClose": "Return to draft",
+      "frozenRows": "Frozen rows",
+      "frozenRowsPagination": "Frozen row pages",
+      "date": "Date"
     },
     "settings": {
       "title": "HR settings",
@@ -2482,7 +2494,7 @@
       "ROLE_LIMIT_REACHED": "This member has the maximum number of roles",
       "PERIOD_DATE_INVALID": "The period dates are not valid",
       "PERIOD_RANGE_INVALID": "The end date cannot be before the start date",
-      "PERIOD_TOO_LARGE": "The period exceeds 31 days or 50 employees",
+      "PERIOD_TOO_LARGE": "The period exceeds 31 days",
       "PERIOD_OVERLAP": "The dates overlap another period for this site",
       "PERIOD_ALREADY_CLOSED": "This period is already closed",
       "PERIOD_INCLUDES_FUTURE": "Cannot close yet: the period has not ended",
@@ -2549,6 +2561,7 @@
       "PAYSLIP_EMPLOYEE_CHANGED": "Employee mapping changed after validation. Validate a new import.",
       "PAYSLIP_HASH_MISMATCH": "The PDF fingerprint does not match. Check the original file.",
       "PAYSLIP_SOURCE_INTEGRITY_FAILED": "Stored source data or files no longer match the validated import. Contact the administrator.",
+      "PAYSLIP_SOURCE_MIGRATION_PENDING": "Some original payslip files are still being moved to private storage. Try again after the administrator completes the migration.",
       "PAYSLIP_PDF_INVALID": "Use an original PDF within the supported file size.",
       "PAYSLIP_PERIOD_INVALID": "Choose a valid statement period.",
       "PAYSLIP_PERIOD_MISMATCH": "The source period does not match the selected period.",
@@ -2647,7 +2660,16 @@
       "PERIOD_CLOSED": "A selected date is in a closed period; its roster cannot change.",
       "ROSTER_DAY_FROZEN": "A selected date has a frozen attendance plan. Roster recalculation is not supported.",
       "LEAVE_EMPLOYMENT_CHANGED": "Employment no longer covers a requested date, so this request cannot be approved.",
-      "ROSTER_DAY_LEAVE_CLAIMED": "A selected date has an active leave request; its plan cannot change until the request is withdrawn or returned."
+      "ROSTER_DAY_LEAVE_CLAIMED": "A selected date has an active leave request; its plan cannot change until the request is withdrawn or returned.",
+      "HR_PERIOD_CLOSING": "This attendance period is being closed. Try again after HR publishes or cancels the close",
+      "PERIOD_CLOSE_IN_PROGRESS": "A close of this period is already in progress",
+      "PERIOD_CLOSE_STEP_STALE": "That close step was already applied; the latest progress is shown",
+      "PERIOD_CLOSE_READY": "The close is prepared and waiting to be published",
+      "PERIOD_CLOSE_NOT_READY": "The close is not prepared for publishing",
+      "PERIOD_CLOSE_NOT_IN_PROGRESS": "No close is in progress for this period",
+      "PERIOD_CLOSE_UNAVAILABLE": "The close in progress cannot be read. Contact the administrator",
+      "PERIOD_PREVIEW_INCOMPLETE": "This period is too large for a single review. Close it from the paged view",
+      "PERIOD_NOT_DRAFT": "This period is no longer a draft"
     },
     "selfService": {
       "title": "Your tasks",
@@ -3165,7 +3187,7 @@
       "employee": "Employee",
       "fingerprint": "Source fingerprint (SHA-256)",
       "imports": "Import batches",
-      "noImports": "No imported batches",
+      "noImports": "No imported batches on this page",
       "STAGED": "Staged — not published",
       "PUBLISHED": "Published",
       "replacementConfirmed": "I reviewed replacements for this period; previous versions will remain retained.",

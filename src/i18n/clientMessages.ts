@@ -17,6 +17,7 @@ export const ROUTE_NAMESPACES = {
   "(auth)/sign-in": ["App", "Setup"],
   "(desktop)/master-data": [
     "App",
+    "Workspace",
     "StorageLayouts",
     "JobScan",
     "Pagination",
@@ -27,6 +28,7 @@ export const ROUTE_NAMESPACES = {
   ],
   "(desktop)/finished-goods": [
     "App",
+    "Workspace",
     "FinishedGoods",
     "JobScan",
     "Pagination",

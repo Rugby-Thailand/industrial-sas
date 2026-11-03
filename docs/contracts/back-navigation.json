@@ -3526,7 +3526,7 @@
       "id": "src/features/finishedGoods/ProductBatches.tsx#BatchHistory:open",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "This named inline disclosure/popover expands supporting content; it does not replace the active page or foreground workflow.",
+      "expectation": "Inline revision disclosure now includes bounded page controls; it expands supporting history without replacing the page or creating a workflow predecessor.",
       "render": [
         {
           "shape": "and",
@@ -3534,6 +3534,7 @@
             "li",
             "p",
             "span",
+            "src/components/system/CursorPagination#CursorPagination",
             "src/features/finishedGoods/shared#ErrorNotice",
             "src/features/finishedGoods/shared#Loading",
             "ul"
@@ -3542,13 +3543,24 @@
         },
         {
           "shape": "conditional",
-          "truthy": ["li", "span", "ul"],
+          "truthy": [
+            "li",
+            "span",
+            "src/components/system/CursorPagination#CursorPagination",
+            "ul"
+          ],
           "falsy": ["p"]
         },
         {
           "shape": "conditional",
           "truthy": ["src/features/finishedGoods/shared#ErrorNotice"],
-          "falsy": ["li", "p", "span", "ul"]
+          "falsy": [
+            "li",
+            "p",
+            "span",
+            "src/components/system/CursorPagination#CursorPagination",
+            "ul"
+          ]
         },
         {
           "shape": "conditional",
@@ -3557,9 +3569,19 @@
             "li",
             "p",
             "span",
+            "src/components/system/CursorPagination#CursorPagination",
             "src/features/finishedGoods/shared#ErrorNotice",
             "ul"
           ]
+        }
+      ],
+      "tests": [
+        "src/features/finishedGoods/ProductBatches.navigation.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/ProductBatches.navigation.test.tsx",
+          "name": "loads revision history only when expanded and pages without changing locale query or hash"
         }
       ]
     },
@@ -4442,6 +4464,10 @@
         {
           "file": "src/features/hr/HrBackNavigation.test.tsx",
           "name": "%s Back collapses Period close confirmation before page departure"
+        },
+        {
+          "file": "src/features/hr/HrBackNavigation.test.tsx",
+          "name": "%s Back collapses a large-period close confirmation before page departure"
         }
       ]
     },
@@ -9183,7 +9209,7 @@
     {
       "id": "src/features/hr/ShortcutCustomizeScreen.tsx#ShortcutEditor:$task:returnFromTask:$dynamic",
       "intent": "return",
-      "expectation": "Back to Today abandons customization through guarded returnFromTask, consumes its owned entry and preserves the actual originating locale/query/hash; direct entry replaces with Today’s safe shortcut anchor. Dirty drafts require consent and pending writes cannot depart.",
+      "expectation": "Back to Today abandons customization through guarded returnFromTask, consumes its owned entry and preserves the actual originating locale/query/hash; direct entry replaces with Today\u2019s safe shortcut anchor. Dirty drafts require consent and pending writes cannot depart.",
       "tests": ["src/features/hr/ShortcutNavigation.test.tsx"],
       "cases": [
         {

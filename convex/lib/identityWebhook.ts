@@ -310,12 +310,13 @@ async function provisionEmbeddedIdentity(
   );
   // An embedded organization/user is not the membership object whose clock we
   // just validated. Only provision absent parents; their own lifecycle events
-  // update existing metadata, status and watermarks.
+  // update existing metadata, status and watermarks. Removing a membership is
+  // not a parent deletion, and CLOSED/DEACTIVATED would read as a tombstone.
   if (organization === null) {
     await port.putOrganization({
       clerkOrganizationId: event.data.clerkOrganizationId,
       name: event.data.name,
-      status: event.type === "membership.upsert" ? "ACTIVE" : "CLOSED",
+      status: "ACTIVE",
     });
   }
 
@@ -324,7 +325,7 @@ async function provisionEmbeddedIdentity(
     await port.putUser({
       clerkUserId: event.data.clerkUserId,
       displayName: event.data.displayName,
-      status: event.type === "membership.upsert" ? "ACTIVE" : "DEACTIVATED",
+      status: "ACTIVE",
       ...(event.data.preferredLocale === undefined
         ? {}
         : { preferredLocale: event.data.preferredLocale }),

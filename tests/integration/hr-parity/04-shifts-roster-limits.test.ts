@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { makeFunctionReference } from "convex/server";
-import type * as ConvexTestModule from "convex-test";
-import { MAX_PERIOD_EMPLOYEES } from "../../../convex/model/hr/period";
-import { MAX_ROSTER_CELLS } from "../../../convex/model/hr/roster";
+import {
+  MAX_ROSTER_CELLS,
+  MAX_ROSTER_EMPLOYEES,
+} from "../../../convex/model/hr/roster";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -11,14 +12,7 @@ import {
 
 // Permanent registered regression: run the declared roster bounds with convex-test's deployed
 // transaction limits enabled (4096 database queries, 32k documents read).
-vi.mock("convex-test", async (original) => {
-  const actual = await original<typeof ConvexTestModule>();
-  return {
-    ...actual,
-    convexTest: (schema: never, modules: never) =>
-      actual.convexTest({ schema, modules, transactionLimits: true } as never),
-  };
-});
+const LIMITS = { transactionLimits: true } as const;
 
 const ADMIN = { subject: "user_fixture_a", org_id: "org_fixture_a" };
 let sequence = 0;
@@ -47,15 +41,18 @@ async function call(
 }
 
 it("a full declared roster selection (50 employees x 31 days) saves within deployed transaction limits", async () => {
-  const world = await createConvexTenantWorld({
-    "../convex/hr/roster.ts": () => import("../../../convex/hr/roster"),
-    "../convex/hr/setup.ts": () => import("../../../convex/hr/setup"),
-  });
+  const world = await createConvexTenantWorld(
+    {
+      "../convex/hr/roster.ts": () => import("../../../convex/hr/roster"),
+      "../convex/hr/setup.ts": () => import("../../../convex/hr/setup"),
+    },
+    LIMITS,
+  );
   await seedConvexAuthorization(world, {
     roleA: "HR_ADMIN",
     roleB: "HR_ADMIN",
   });
-  for (let index = 0; index < MAX_PERIOD_EMPLOYEES; index += 1) {
+  for (let index = 0; index < MAX_ROSTER_EMPLOYEES; index += 1) {
     await call(world, "mutation", "hr/setup:saveEmployee", {
       requestId: requestId(),
       warehouseId: world.warehouses.alphaA,
@@ -69,7 +66,7 @@ it("a full declared roster selection (50 employees x 31 days) saves within deplo
     warehouseId: world.warehouses.alphaA,
     month: "2026-10",
   });
-  expect(roster.employees).toHaveLength(MAX_PERIOD_EMPLOYEES);
+  expect(roster.employees).toHaveLength(MAX_ROSTER_EMPLOYEES);
   const cells = roster.employees.flatMap(
     (row: { id: string; cells: { date: string; revision: number }[] }) =>
       row.cells.map((cell) => ({
@@ -121,7 +118,7 @@ it("a full declared roster selection (50 employees x 31 days) saves within deplo
     warehouseId: world.warehouses.alphaA,
     month: "2026-10",
   });
-  expect(full.employees).toHaveLength(MAX_PERIOD_EMPLOYEES);
+  expect(full.employees).toHaveLength(MAX_ROSTER_EMPLOYEES);
   expect(
     full.employees.flatMap((row: { cells: unknown[] }) => row.cells),
   ).toHaveLength(MAX_ROSTER_CELLS);
