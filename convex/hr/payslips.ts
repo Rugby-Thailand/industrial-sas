@@ -194,7 +194,10 @@ export const imports = queryWithOrg({
         "hrPayslipImports",
         "by_orgId_createdAt",
       )
-      .page({ limit: 20, cursor: args.cursor, order: "desc" });
+      // Legacy imports can still carry 4 MiB of inline PDF bytes until the
+      // payload migration finishes. Three batches leave room for metadata and
+      // authorization reads within Convex's 16 MiB transaction budget.
+      .page({ limit: 3, cursor: args.cursor, order: "desc" });
     const items = [];
     for (const batch of page.page) {
       const rows = await ctx.tenantDb

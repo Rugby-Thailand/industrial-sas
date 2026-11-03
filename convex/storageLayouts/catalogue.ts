@@ -21,7 +21,11 @@ import {
   storageRecordRevision,
 } from "../model/storageLayout/storageZone";
 import { occupiedFootprintAreaSqMm } from "../model/storageLayout/occupancy";
-import { readMoveOccupancy, type MoveOccupancy } from "./moveOccupancy";
+import {
+  readBuildingMoveOccupancy,
+  readMoveOccupancy,
+  type MoveOccupancy,
+} from "./moveOccupancy";
 
 type BuildingDocument = Doc<"storageBuildings">;
 type FloorDocument = Doc<"storageFloors">;
@@ -550,28 +554,39 @@ export const getStorageBuildingInventory = queryWithOrg({
         ),
       )
     ).flat();
-    const moves = await readMoveOccupancy(
+    const moves = await readBuildingMoveOccupancy(
       ctx,
       args.warehouseId,
+      args.buildingId,
       rows.map((row) => row.palletId),
     );
     const readPlacement = createPlacementReader(ctx, moves);
-    const zones = new Map<string, PlacementDocument[]>();
-    for (const row of rows) {
+    // Bound independent hydration to avoid thousands of concurrent database
+    // requests. Keep placement and zone insertion order identical to the reads.
+    const hydrated = new Array<Awaited<ReturnType<PlacementReader>>>(
+      rows.length,
+    );
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(8, rows.length) }, async () => {
+        while (next < rows.length) {
+          const index = next++;
+          hydrated[index] = await readPlacement(rows[index]!);
+        }
+      }),
+    );
+    const zones = new Map<string, typeof hydrated>();
+    rows.forEach((row, index) => {
       const group = zones.get(row.zoneId) ?? [];
-      group.push(row);
+      group.push(hydrated[index]!);
       zones.set(row.zoneId, group);
-    }
+    });
     return {
       found: true as const,
-      zones: await Promise.all(
-        [...zones].map(async ([zoneId, placements]) => ({
-          zoneId,
-          ...summarizePlacements(
-            await Promise.all(placements.map(readPlacement)),
-          ),
-        })),
-      ),
+      zones: [...zones].map(([zoneId, placements]) => ({
+        zoneId,
+        ...summarizePlacements(placements),
+      })),
     };
   },
 });

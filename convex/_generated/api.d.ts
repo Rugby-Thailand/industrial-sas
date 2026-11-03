@@ -26,6 +26,7 @@ import type * as finishedGoods_history from "../finishedGoods/history.js";
 import type * as finishedGoods_jobScanLocations from "../finishedGoods/jobScanLocations.js";
 import type * as finishedGoods_jobScans from "../finishedGoods/jobScans.js";
 import type * as finishedGoods_locationImage from "../finishedGoods/locationImage.js";
+import type * as finishedGoods_moveBuildingMigration from "../finishedGoods/moveBuildingMigration.js";
 import type * as finishedGoods_scanning from "../finishedGoods/scanning.js";
 import type * as finishedGoods_summaryMaintenance from "../finishedGoods/summaryMaintenance.js";
 import type * as finishedGoods_workflow from "../finishedGoods/workflow.js";
@@ -171,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/jobScanLocations": typeof finishedGoods_jobScanLocations;
   "finishedGoods/jobScans": typeof finishedGoods_jobScans;
   "finishedGoods/locationImage": typeof finishedGoods_locationImage;
+  "finishedGoods/moveBuildingMigration": typeof finishedGoods_moveBuildingMigration;
   "finishedGoods/scanning": typeof finishedGoods_scanning;
   "finishedGoods/summaryMaintenance": typeof finishedGoods_summaryMaintenance;
   "finishedGoods/workflow": typeof finishedGoods_workflow;

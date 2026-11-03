@@ -53,8 +53,11 @@ const row = {
   heightMm: 1400,
   dimensionsChecked: true,
 };
-async function setup(roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN") {
-  const world = await createConvexTenantWorld();
+async function setup(
+  roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN",
+  transactionLimits = false,
+) {
+  const world = await createConvexTenantWorld({}, { transactionLimits });
   await seedConvexAuthorization(world, { roleA });
   const warehouseId = world.warehouses.alphaA;
   // Set up the product directly so authorization tests also exercise readers.
@@ -172,6 +175,8 @@ describe("preparation batches", () => {
     expect(detail.value).not.toHaveProperty("history");
     expect(detail.stats.ranges.finishedGoodsBatchRevisions ?? 0).toBe(0);
     expect(detail.stats.rangeDocs.finishedGoodsPallets).toBe(2);
+    expect(detail.stats.ranges.finishedGoodsMoves).toBe(4);
+    expect(detail.stats.ranges.finishedGoodsPlacements).toBe(8);
     const manager = await measured<{ units: unknown[] }>(
       world,
       management.get,
@@ -567,6 +572,116 @@ async function seedLocation(world: ConvexTenantWorld) {
 }
 
 describe("preparation integrity", () => {
+  it("keeps a maximum batch detail bounded as move and placement history grows", async () => {
+    const { world, args } = await setup("ORG_ADMIN", true);
+    expect(
+      await call(world, batches.commitBatch, {
+        ...args,
+        totalQuantity: 2500,
+        packages: Array.from({ length: 50 }, () => ({ ...row, quantity: 50 })),
+      }),
+    ).toMatchObject({ ok: true, value: { written: true } });
+    const [batch] = await batchRows(world);
+    const units = await active(world);
+    const input = { warehouseId: args.warehouseId, batchId: batch!._id };
+    type Detail = {
+      editable: boolean;
+      units: Array<{
+        _id: string;
+        editable: boolean;
+        activeMoveId?: string;
+        moveStatus?: string;
+      }>;
+    };
+    const before = await measured<Detail>(world, batches.getBatch, input);
+    expect(before.value.units).toHaveLength(50);
+    expect(before.value.editable).toBe(true);
+    expect(before.stats.ranges.finishedGoodsMoves).toBe(100);
+    const location = await seedLocation(world);
+    const expectedMoves = new Map<string, string>();
+    for (const [index, unit] of units.entries()) {
+      await world.t.run(async (ctx) => {
+        const placementFields = {
+          orgId: world.orgA,
+          warehouseId: args.warehouseId,
+          palletId: unit._id,
+          ...location,
+          positionCode: `POS-${index}`,
+          qrValue: `history-${index}`,
+          xMm: 0,
+          yMm: 0,
+          zMm: 0,
+          widthMm: 1000,
+          depthMm: 1200,
+          heightMm: 1400,
+          rotation: 0 as const,
+          createdAt: 1,
+          updatedAt: 1,
+          createdByUserId: world.userA,
+          updatedByUserId: world.userA,
+        };
+        // 1,000 historical placements and moves across the maximum 50 units.
+        for (let history = 0; history < 20; history++) {
+          const placementId = await ctx.db.insert("finishedGoodsPlacements", {
+            ...placementFields,
+            status: "RELEASED",
+          });
+          const moveFields = {
+            orgId: world.orgA,
+            warehouseId: args.warehouseId,
+            palletId: unit._id,
+            sourcePlacementId: placementId,
+            targetPlacementId: placementId,
+            sourceUpdatedAt: 1,
+            targetUpdatedAt: 1,
+            palletUpdatedAt: unit.updatedAt,
+            ownerUserId: world.userA,
+            createdAt: 1,
+            updatedAt: 1,
+            createdByUserId: world.userA,
+            updatedByUserId: world.userA,
+          };
+          await ctx.db.insert("finishedGoodsMoves", {
+            ...moveFields,
+            status: "COMPLETED",
+          });
+          if (history === 0 && index >= 47 && index <= 48) {
+            const reserved = await ctx.db.insert("finishedGoodsMoves", {
+              ...moveFields,
+              status: "RESERVED",
+            });
+            await ctx.db.insert("finishedGoodsMoves", {
+              ...moveFields,
+              status: "IN_TRANSIT",
+            });
+            expectedMoves.set(unit._id, reserved);
+          }
+        }
+        if (index === 49)
+          await ctx.db.insert("finishedGoodsPlacements", {
+            ...placementFields,
+            status: "RESERVED",
+          });
+      });
+    }
+    const after = await measured<Detail>(world, batches.getBatch, input);
+    expect(after.value.units).toHaveLength(50);
+    expect(after.value.editable).toBe(false);
+    expect(after.stats.ranges.finishedGoodsMoves).toBe(100);
+    expect(after.stats.rangeDocs.finishedGoodsMoves).toBe(4);
+    expect(after.stats.rangeDocs.finishedGoodsPlacements).toBe(1);
+    expect(after.stats.ranges.finishedGoodsPlacements).toBeLessThanOrEqual(200);
+    for (const [index, unit] of units.entries()) {
+      const actual = after.value.units.find((item) => item._id === unit._id);
+      expect(actual?.editable).toBe(index < 47);
+      if (expectedMoves.has(unit._id))
+        expect(actual).toMatchObject({
+          activeMoveId: expectedMoves.get(unit._id),
+          moveStatus: "RESERVED",
+        });
+      else expect(actual).not.toHaveProperty("activeMoveId");
+    }
+  });
   it("blocks orphan physical holds and moving units independently of cached unit status", async () => {
     const { world, args } = await setup();
     await call(world, batches.commitBatch, args);

@@ -93,51 +93,51 @@ export async function currentBatchUnits(
     )
     .all(MAX_FG_PACKAGES);
 }
-async function withMove(
+/** Every physical hold is inspected independently of the convenience pallet status. */
+async function editableUnit(
   ctx: TenantFunctionContext,
   unit: Doc<"finishedGoodsPallets">,
+  activeMove?: Doc<"finishedGoodsMoves"> | null,
 ) {
-  const move = await firstActiveMove(ctx, unit._id);
-  return {
-    ...unit,
-    ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
-  };
+  if (unit.status === "RESERVED" || unit.status === "STORED") return false;
+  for (const status of ["RESERVED", "STORED"] as const) {
+    for (const field of ["supportPalletId", "palletId"] as const) {
+      const placement = await ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsPlacements">>(
+          "finishedGoodsPlacements",
+          `by_orgId_${field}_status`,
+          [
+            { field, value: unit._id },
+            { field: "status", value: status },
+          ],
+        )
+        .first();
+      if (placement) return false;
+    }
+  }
+  // Detail already selects a move for display. Mutations keep their early exits.
+  if (activeMove !== undefined) return activeMove === null;
+  for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
+    const move = await ctx.tenantDb
+      .byIndex<Doc<"finishedGoodsMoves">>(
+        "finishedGoodsMoves",
+        "by_orgId_palletId_status",
+        [
+          { field: "palletId", value: unit._id },
+          { field: "status", value: status },
+        ],
+      )
+      .first();
+    if (move) return false;
+  }
+  return true;
 }
-/** Every physical hold is inspected independently of the convenience pallet status. */
 async function editableUnits(
   ctx: TenantFunctionContext,
   units: readonly Doc<"finishedGoodsPallets">[],
 ) {
   for (const unit of units) {
-    if (unit.status === "RESERVED" || unit.status === "STORED") return false;
-    for (const status of ["RESERVED", "STORED"] as const) {
-      for (const field of ["supportPalletId", "palletId"] as const) {
-        const placement = await ctx.tenantDb
-          .byIndex<Doc<"finishedGoodsPlacements">>(
-            "finishedGoodsPlacements",
-            `by_orgId_${field}_status`,
-            [
-              { field, value: unit._id },
-              { field: "status", value: status },
-            ],
-          )
-          .first();
-        if (placement) return false;
-      }
-    }
-    for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
-      const move = await ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsMoves">>(
-          "finishedGoodsMoves",
-          "by_orgId_palletId_status",
-          [
-            { field: "palletId", value: unit._id },
-            { field: "status", value: status },
-          ],
-        )
-        .first();
-      if (move) return false;
-    }
+    if (!(await editableUnit(ctx, unit))) return false;
   }
   return true;
 }
@@ -147,10 +147,14 @@ async function detail(
 ) {
   const units = await currentBatchUnits(ctx, batch._id);
   const managedUnits = await Promise.all(
-    units.map(async (unit) => ({
-      ...(await withMove(ctx, unit)),
-      editable: await editableUnits(ctx, [unit]),
-    })),
+    units.map(async (unit) => {
+      const move = await firstActiveMove(ctx, unit._id);
+      return {
+        ...unit,
+        ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
+        editable: await editableUnit(ctx, unit, move ?? null),
+      };
+    }),
   );
   const editable = managedUnits.every((unit) => unit.editable);
   return {

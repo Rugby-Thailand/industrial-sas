@@ -8,6 +8,7 @@ import type { GenericMutationCtx } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Doc, Id } from "../../convex/_generated/dataModel";
+import { api, internal } from "../../convex/_generated/api";
 import * as migration from "../../convex/hr/payslipMigration";
 import * as payslips from "../../convex/hr/payslips";
 import {
@@ -112,8 +113,15 @@ function pdf(label: string, size = MAX_PDF_BYTES) {
   return { text, base64: btoa(text) };
 }
 
-async function fixture() {
-  const world = await createConvexTenantWorld();
+async function fixture(transactionLimits = false) {
+  const world = await createConvexTenantWorld(
+    {
+      "../convex/hr/payslips.ts": () => import("../../convex/hr/payslips"),
+      "../convex/hr/payslipMigration.ts": () =>
+        import("../../convex/hr/payslipMigration"),
+    },
+    { transactionLimits },
+  );
   const auth = await seedConvexAuthorization(world, {
     roleA: "HR_ADMIN",
     roleB: "HR_ADMIN",
@@ -388,6 +396,112 @@ describe("payslip metadata never carries original bytes", () => {
 });
 
 describe("legacy inline payload migration", () => {
+  it.each([false, true])(
+    "pages and migrates maximum-size legacy PDFs within transaction limits (maximum CSV: %s)",
+    async (maximumCsv) => {
+      const { world } = await fixture(true);
+      const codes = Array.from({ length: 8 }, (_, i) => `E${i + 1}`);
+      await world.t.run(async (ctx) => {
+        for (const code of codes.slice(2))
+          await ctx.db.insert("hrEmployees", {
+            orgId: world.orgA,
+            warehouseId: world.warehouses.alphaA,
+            code,
+            displayName: code,
+            employmentStartDate: "2020-01-01",
+            status: "ACTIVE",
+            version: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            createdByUserId: world.userA,
+            updatedByUserId: world.userA,
+          });
+      });
+      const actor = world.t.withIdentity(ADMIN);
+      const importIds: Id<"hrPayslipImports">[] = [];
+      for (let i = 0; i < 6; i++) {
+        const args = await stageArgs(codes, `large-${i}`);
+        // Three-byte whitespace exercises the maximum retained CSV length while
+        // remaining a valid source after the parser's normal trim operation.
+        if (maximumCsv) args.csv += "\u3000".repeat(100_000 - args.csv.length);
+        const staged = await actor.mutation(api.hr.payslips.stage, args);
+        expect(staged.ok && staged.value.written).toBe(true);
+        if (!staged.ok || !staged.value.written)
+          throw new Error("Staging refused");
+        const importId = staged.value.documentId as Id<"hrPayslipImports">;
+        const published = await actor.mutation(api.hr.payslips.publish, {
+          requestId: rid(),
+          importId,
+          replacementConfirmed: true,
+        });
+        expect(published.ok && published.value.written).toBe(true);
+        importIds.push(importId);
+      }
+
+      // Exercise real staging/publication above, then model pre-migration rows.
+      // Convert one import per transaction so fixture writes obey the same limits.
+      for (const importId of importIds)
+        await world.t.run(async (ctx) => {
+          const rows = await ctx.db
+            .query("hrPayslipRows")
+            .withIndex("by_orgId_importId", (q) =>
+              q.eq("orgId", world.orgA).eq("importId", importId),
+            )
+            .collect();
+          for (const row of rows) {
+            const payload = (await ctx.db.get(row.payloadId!))!;
+            await ctx.db.patch(row._id, {
+              sourceBase64: payload.sourceBase64,
+              payloadId: undefined,
+            });
+            await ctx.db.delete(payload._id);
+          }
+        });
+
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
+        const outcome = await actor.query(
+          api.hr.payslips.imports,
+          cursor ? { cursor } : {},
+        );
+        expect(outcome.ok).toBe(true);
+        if (!outcome.ok || !outcome.value.ok)
+          throw new Error("Imports refused");
+        seen.push(...outcome.value.items.map((batch) => batch.id));
+        if (outcome.value.isDone) break;
+        expect(outcome.value.continueCursor).not.toBe(cursor);
+        cursor = outcome.value.continueCursor;
+      }
+      expect(new Set(seen)).toEqual(new Set(importIds));
+      expect(seen).toHaveLength(importIds.length);
+
+      // The already-shipped backfill must also fit its budget for these genuine
+      // maximum-size sources, and a verification pass must be idempotent.
+      for (const dryRun of [false, true]) {
+        let migrationCursor: string | null = null;
+        let migrated = 0;
+        let scanned = 0;
+        for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
+          const report: Report = await world.t.mutation(
+            internal.hr.payslipMigration.migrateInlinePayloads,
+            { cursor: migrationCursor, dryRun },
+          );
+          expect(report.integrityFailures).toEqual([]);
+          expect(report.inline).toBe(0);
+          expect(report.missingPayload).toBe(0);
+          migrated += report.migrated;
+          scanned += report.scanned;
+          if (report.isDone) break;
+          migrationCursor = report.continueCursor;
+        }
+        expect(scanned).toBe(48);
+        expect(migrated).toBe(dryRun ? 0 : 48);
+      }
+    },
+    60_000,
+  );
+
   /** Rows written before the split: bytes inline, no payload record. */
   async function legacy(world: ConvexTenantWorld) {
     return await world.t.run(async (ctx) => {

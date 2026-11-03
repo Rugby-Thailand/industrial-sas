@@ -5494,6 +5494,106 @@
       ]
     }
   },
+  "finishedGoods/moveBuildingMigration:backfillBuildingIndexes": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "batchSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "dryRun": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "scanned": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "updated": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "pending": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "invalidMoveIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "finishedGoodsMoves"
+            }
+          },
+          "optional": false
+        },
+        "hasLegacyActiveMoves": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "finishedGoods/scanning:confirmScanAssignment": {
     "kind": "mutation",
     "visibility": "public",

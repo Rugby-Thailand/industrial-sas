@@ -3064,7 +3064,7 @@
       "employee": "Employee",
       "fingerprint": "Source fingerprint (SHA-256)",
       "imports": "Import batches",
-      "noImports": "No imported batches",
+      "noImports": "No imported batches on this page",
       "STAGED": "Staged — not published",
       "PUBLISHED": "Published",
       "replacementConfirmed": "I reviewed replacements for this period; previous versions will remain retained.",

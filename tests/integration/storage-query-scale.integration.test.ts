@@ -1,0 +1,548 @@
+import { describe, expect, it } from "vitest";
+import type { GenericMutationCtx } from "convex/server";
+import type { DataModel } from "../../convex/schema";
+import {
+  createConvexTenantWorld,
+  seedConvexAuthorization,
+  type ConvexTenantWorld,
+} from "../fixtures/convex-tenant-world";
+import { measured } from "../fixtures/query-read-stats";
+import { getStorageBuildingInventory } from "../../convex/storageLayouts/catalogue";
+import {
+  createStorageBuilding,
+  activateStorageBuilding,
+} from "../../convex/storageLayouts/writes";
+import { createStorageZone } from "../../convex/storageLayouts/zones";
+import { backfillBuildingIndexes } from "../../convex/finishedGoods/moveBuildingMigration";
+import { recommend } from "../../convex/finishedGoods/workflow";
+
+async function call(world: ConvexTenantWorld, fn: unknown, args: unknown) {
+  return world.t
+    .withIdentity({ subject: "user_fixture_a", org_id: "org_fixture_a" })
+    .run(async (ctx) => {
+      const result = await (
+        fn as {
+          _handler(
+            ctx: GenericMutationCtx<DataModel>,
+            args: unknown,
+          ): Promise<{ ok: boolean; value: unknown }>;
+        }
+      )._handler(ctx, args);
+      expect(result.ok, JSON.stringify(result)).toBe(true);
+      return result.value;
+    });
+}
+function fields<T extends { _id: unknown; _creationTime: number }>(
+  doc: T,
+): Omit<T, "_id" | "_creationTime"> {
+  const { _id, _creationTime, ...rest } = doc;
+  void _id;
+  void _creationTime;
+  return rest;
+}
+async function scaleWorld(limits = true) {
+  const world = await createConvexTenantWorld(
+    {},
+    { transactionLimits: limits },
+  );
+  await seedConvexAuthorization(world, {
+    roleA: "ORG_ADMIN",
+    roleB: "ORG_ADMIN",
+  });
+  const warehouseId = world.warehouses.alphaA;
+  await call(world, createStorageBuilding, {
+    warehouseId,
+    requestId: "building",
+    code: "SCALE",
+    name: "Scale",
+    widthMm: 10000,
+    depthMm: 10000,
+    defaultFloorHeightMm: 4000,
+    floorCount: 1,
+  });
+  const building = await world.t.run(
+    async (ctx) => (await ctx.db.query("storageBuildings").collect())[0]!,
+  );
+  await call(world, createStorageZone, {
+    warehouseId,
+    buildingId: building._id,
+    floorNumber: 1,
+    requestId: "zone",
+    label: "ZONE",
+    storageCondition: "DRY",
+    mode: "SIMPLE",
+    xMm: 0,
+    yMm: 0,
+    widthMm: 6000,
+    depthMm: 6000,
+    maxStackHeightMm: 4000,
+  });
+  await call(world, activateStorageBuilding, {
+    warehouseId,
+    buildingId: building._id,
+    requestId: "activate",
+    expectedVersion: 1,
+  });
+  const data = await world.t.run(async (ctx) => {
+    const zone = (await ctx.db.query("storageZones").collect())[0]!;
+    const location = (await ctx.db.get(zone.locationId))!;
+    const audit = {
+      orgId: world.orgA,
+      warehouseId,
+      createdAt: 1,
+      updatedAt: 1,
+      createdByUserId: world.userA,
+      updatedByUserId: world.userA,
+    };
+    const productId = await ctx.db.insert("finishedGoodsProducts", {
+      ...audit,
+      sku: "SKU",
+      name: "Boxes",
+      unit: "pieces",
+      storageFormat: "PALLET",
+      storageCondition: "DRY",
+      status: "ACTIVE",
+    });
+    const palletId = await ctx.db.insert("finishedGoodsPallets", {
+      ...audit,
+      productId,
+      code: "PAL-0",
+      quantity: 1,
+      lengthMm: 1000,
+      widthMm: 1000,
+      heightMm: 1000,
+      status: "STORED",
+    });
+    return { zone, location, audit, productId, palletId };
+  });
+  return { world, warehouseId, building, ...data };
+}
+async function addPallets(
+  seed: Awaited<ReturnType<typeof scaleWorld>>,
+  count: number,
+  distinctProducts = false,
+) {
+  for (let start = 0; start < count; start += 250)
+    await seed.world.t.run(async (ctx) => {
+      for (let i = start; i < Math.min(start + 250, count); i++) {
+        const productId =
+          distinctProducts && i !== 0
+            ? await ctx.db.insert("finishedGoodsProducts", {
+                ...seed.audit,
+                sku: `SKU-${i}`,
+                name: `Product ${i}`,
+                unit: "pieces",
+                storageFormat: "PALLET",
+                storageCondition: "DRY",
+                status: "ACTIVE",
+              })
+            : seed.productId;
+        const palletId =
+          i === 0
+            ? seed.palletId
+            : await ctx.db.insert("finishedGoodsPallets", {
+                ...seed.audit,
+                productId,
+                code: `PAL-${i}`,
+                quantity: 1,
+                lengthMm: 1000,
+                widthMm: 1000,
+                heightMm: 1000,
+                status: "STORED",
+              });
+        await ctx.db.insert("finishedGoodsPlacements", {
+          ...seed.audit,
+          palletId,
+          buildingId: seed.building._id,
+          floorId: seed.zone.floorId,
+          zoneId: seed.zone._id,
+          locationId: seed.zone.locationId,
+          positionCode: `POS-${i}`,
+          qrValue: `QR-${i}`,
+          xMm: i,
+          yMm: 0,
+          zMm: 0,
+          widthMm: 1000,
+          depthMm: 1000,
+          heightMm: 1000,
+          rotation: 0,
+          status: "STORED",
+        });
+      }
+    });
+}
+async function addZones(
+  seed: Awaited<ReturnType<typeof scaleWorld>>,
+  count: number,
+) {
+  for (let start = 1; start < count; start += 250)
+    await seed.world.t.run(async (ctx) => {
+      for (let i = start; i < Math.min(start + 250, count); i++) {
+        const locationId = await ctx.db.insert("locations", {
+          ...fields(seed.location),
+          code: `L-${i}`,
+        });
+        await ctx.db.insert("storageZones", {
+          ...fields(seed.zone),
+          locationId,
+          code: `Z-${String(i).padStart(4, "0")}`,
+          storageCondition: i < 1100 ? "COLD" : "DRY",
+        });
+      }
+    });
+}
+describe("storage query scale envelope", () => {
+  it.each([false, true])(
+    "returns all 1500 held pallets within transaction limits (distinct products=%s)",
+    async (distinctProducts) => {
+      const seed = await scaleWorld();
+      await addPallets(seed, 1500, distinctProducts);
+      const result = await measured<{
+        found: boolean;
+        zones: { placements: unknown[] }[];
+      }>(seed.world, getStorageBuildingInventory, {
+        warehouseId: seed.warehouseId,
+        buildingId: seed.building._id,
+      });
+      expect(result.value.found).toBe(true);
+      expect(
+        result.value.zones.flatMap((zone) => zone.placements),
+      ).toHaveLength(1500);
+      expect(result.stats.ranges["finishedGoodsMoves"]).toBe(6);
+      expect(result.stats.gets["finishedGoodsProducts"]).toBe(
+        distinctProducts ? 1500 : 1,
+      );
+    },
+    30000,
+  );
+  it("ranks every compatible candidate among 1200 zones within transaction limits", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 1200);
+    const result = await measured<{ candidates: unknown[]; reasons: string[] }>(
+      seed.world,
+      recommend,
+      { warehouseId: seed.warehouseId, palletId: seed.palletId },
+    );
+    expect(result.value.candidates).toHaveLength(101);
+    expect(result.value.reasons).toEqual([]);
+  }, 30000);
+});
+
+type Inventory = {
+  found: boolean;
+  zones: {
+    placements: {
+      placementId: string;
+      moveRole?: string;
+      moveState?: string;
+    }[];
+    locationOnlyPlacements: unknown[];
+    palletCount: number;
+  }[];
+};
+const inventory = (
+  seed: Awaited<ReturnType<typeof scaleWorld>>,
+  buildingId = seed.building._id,
+) =>
+  measured<Inventory>(seed.world, getStorageBuildingInventory, {
+    warehouseId: seed.warehouseId,
+    buildingId,
+  });
+async function migrate(
+  seed: Awaited<ReturnType<typeof scaleWorld>>,
+  args: { cursor?: string; dryRun?: boolean; batchSize?: number } = {},
+) {
+  return seed.world.t.run((ctx) =>
+    (
+      backfillBuildingIndexes as unknown as {
+        _handler(
+          ctx: GenericMutationCtx<DataModel>,
+          args: unknown,
+        ): Promise<{
+          updated: number;
+          pending: number;
+          invalidMoveIds: string[];
+          isDone: boolean;
+          continueCursor: string;
+          hasLegacyActiveMoves: boolean;
+        }>;
+      }
+    )._handler(ctx, {
+      orgId: seed.world.orgA,
+      warehouseId: seed.warehouseId,
+      ...args,
+    }),
+  );
+}
+async function crossBuildingMove(seed: Awaited<ReturnType<typeof scaleWorld>>) {
+  await addPallets(seed, 1);
+  return seed.world.t.run(async (ctx) => {
+    const source = (
+      await ctx.db.query("finishedGoodsPlacements").collect()
+    )[0]!;
+    if (source.mode === "LOCATION_ONLY")
+      throw new Error("Expected geometric source");
+    const buildingId = await ctx.db.insert("storageBuildings", {
+      ...fields(seed.building),
+      code: "OTHER",
+      status: "ACTIVE",
+    });
+    const floor = (await ctx.db.get(seed.zone.floorId))!;
+    const floorId = await ctx.db.insert("storageFloors", {
+      ...fields(floor),
+      buildingId,
+    });
+    const locationId = await ctx.db.insert("locations", {
+      ...fields(seed.location),
+      code: "OTHER-ZONE",
+    });
+    const zoneId = await ctx.db.insert("storageZones", {
+      ...fields(seed.zone),
+      buildingId,
+      floorId,
+      locationId,
+      code: "OTHER-ZONE",
+    });
+    const targetId = await ctx.db.insert("finishedGoodsPlacements", {
+      ...fields(source),
+      buildingId,
+      floorId,
+      zoneId,
+      locationId,
+      status: "RESERVED",
+      positionCode: "TARGET",
+    });
+    const moveId = await ctx.db.insert("finishedGoodsMoves", {
+      ...seed.audit,
+      palletId: seed.palletId,
+      sourcePlacementId: source._id,
+      targetPlacementId: targetId,
+      sourceUpdatedAt: 1,
+      targetUpdatedAt: 1,
+      palletUpdatedAt: 1,
+      ownerUserId: seed.world.userA,
+      status: "IN_TRANSIT",
+    });
+    return { buildingId, moveId, source, targetId };
+  });
+}
+describe("building move index rollout", () => {
+  it("preserves cross-building source and target holds before, during and after resumable backfill", async () => {
+    const seed = await scaleWorld();
+    const move = await crossBuildingMove(seed);
+    // Indexed and legacy rows coexist, including a same-building source/target.
+    await seed.world.t.run(async (ctx) => {
+      const palletId = await ctx.db.insert("finishedGoodsPallets", {
+        ...fields((await ctx.db.get(seed.palletId))!),
+        code: "SECOND",
+      });
+      const sourceId = await ctx.db.insert("finishedGoodsPlacements", {
+        ...fields(move.source),
+        palletId,
+        positionCode: "SECOND-SOURCE",
+      });
+      const targetId = await ctx.db.insert("finishedGoodsPlacements", {
+        ...fields(move.source),
+        palletId,
+        status: "RESERVED",
+        positionCode: "SECOND-TARGET",
+      });
+      await ctx.db.insert("finishedGoodsMoves", {
+        ...seed.audit,
+        palletId,
+        sourcePlacementId: sourceId,
+        targetPlacementId: targetId,
+        sourceUpdatedAt: 1,
+        targetUpdatedAt: 1,
+        palletUpdatedAt: 1,
+        ownerUserId: seed.world.userA,
+        status: "RESERVED",
+        sourceBuildingId: seed.building._id,
+        targetBuildingId: seed.building._id,
+        buildingIndexVersion: 1,
+      });
+    });
+    const before = await inventory(seed);
+    const targetBefore = await inventory(seed, move.buildingId);
+    expect(
+      before.value.zones.flatMap((z) => z.placements).map((p) => p.moveRole),
+    ).toEqual(["TARGET", "SOURCE", "SOURCE"]);
+    expect(targetBefore.value.zones.flatMap((z) => z.placements)).toMatchObject(
+      [{ moveRole: "TARGET", moveState: "IN_TRANSIT" }],
+    );
+    const dry = await migrate(seed, { dryRun: true, batchSize: 1 });
+    expect(dry.updated).toBe(0);
+    expect(dry.hasLegacyActiveMoves).toBe(true);
+    let page = await migrate(seed, { batchSize: 1 });
+    expect((await inventory(seed)).value).toEqual(before.value);
+    while (!page.isDone)
+      page = await migrate(seed, { batchSize: 1, cursor: page.continueCursor });
+    expect(page.hasLegacyActiveMoves).toBe(false);
+    expect((await inventory(seed)).value).toEqual(before.value);
+    expect((await inventory(seed, move.buildingId)).value).toEqual(
+      targetBefore.value,
+    );
+    const verified = await migrate(seed, { dryRun: true });
+    expect(verified).toMatchObject({
+      updated: 0,
+      pending: 0,
+      invalidMoveIds: [],
+      hasLegacyActiveMoves: false,
+      isDone: true,
+    });
+    expect(
+      (await inventory(seed, move.buildingId)).stats.rangeDocs[
+        "finishedGoodsMoves"
+      ],
+    ).toBe(1);
+  });
+  it("repairs stale building metadata and refuses to certify malformed or foreign placement links", async () => {
+    const seed = await scaleWorld();
+    const move = await crossBuildingMove(seed);
+    await seed.world.t.run((ctx) =>
+      ctx.db.patch(move.moveId, {
+        sourceBuildingId: move.buildingId,
+        targetBuildingId: seed.building._id,
+        buildingIndexVersion: 1,
+      }),
+    );
+    expect(await migrate(seed, { dryRun: true })).toMatchObject({
+      pending: 1,
+      updated: 0,
+    });
+    expect(await migrate(seed)).toMatchObject({ pending: 1, updated: 1 });
+    expect((await inventory(seed)).value.zones[0]!.placements[0]).toMatchObject(
+      { moveRole: "SOURCE" },
+    );
+    await seed.world.t.run((ctx) =>
+      ctx.db.patch(move.targetId, { orgId: seed.world.orgB }),
+    );
+    expect(await migrate(seed)).toMatchObject({
+      invalidMoveIds: [move.moveId],
+      hasLegacyActiveMoves: true,
+    });
+    expect(
+      await seed.world.t.run((ctx) => ctx.db.get(move.moveId)),
+    ).toMatchObject({
+      sourceBuildingId: seed.building._id,
+      targetBuildingId: move.buildingId,
+    });
+    expect(
+      (await seed.world.t.run((ctx) => ctx.db.get(move.moveId)))!
+        .buildingIndexVersion,
+    ).toBeUndefined();
+  });
+});
+
+async function addLocationOnly(
+  seed: Awaited<ReturnType<typeof scaleWorld>>,
+  zone: typeof seed.zone,
+) {
+  await seed.world.t.run(async (ctx) => {
+    const assignmentId = await ctx.db.insert("finishedGoodsScanAssignments", {
+      orgId: seed.world.orgA,
+      warehouseId: seed.warehouseId,
+      requestId: "unknown",
+      orderedUnitIds: [seed.palletId],
+      placementIds: [],
+      sameSize: true,
+      fillPercents: [100],
+      zoneId: zone._id,
+      locationId: zone.locationId,
+      buildingId: zone.buildingId,
+      floorId: zone.floorId,
+      locationCode: zone.code,
+      locationName: zone.label,
+      locationVersion: "1",
+      verificationMethod: "MANUAL",
+      verifiedCode: zone.code,
+      createdAt: 1,
+      createdByUserId: seed.world.userA,
+    });
+    const placementId = await ctx.db.insert("finishedGoodsPlacements", {
+      ...seed.audit,
+      palletId: seed.palletId,
+      zoneId: zone._id,
+      locationId: zone.locationId,
+      buildingId: zone.buildingId,
+      floorId: zone.floorId,
+      positionCode: "UNKNOWN",
+      qrValue: "UNKNOWN",
+      status: "STORED",
+      mode: "LOCATION_ONLY",
+      assignmentId,
+      sequence: 0,
+    });
+    await ctx.db.patch(assignmentId, { placementIds: [placementId] });
+  });
+}
+describe("recommendation reason and ranking parity", () => {
+  it.each([false, true])(
+    "preserves ordered reasons and geometry-unknown precedence (unknown first=%s)",
+    async (unknownFirst) => {
+      const seed = await scaleWorld();
+      await addZones(seed, 2);
+      const zones = await seed.world.t.run(async (ctx) => {
+        await ctx.db.patch(seed.zone._id, { storageCondition: "COLD" });
+        return ctx.db.query("storageZones").collect();
+      });
+      await addLocationOnly(seed, zones[unknownFirst ? 0 : 1]!);
+      const result = await measured<{
+        candidates: unknown[];
+        reasons: string[];
+      }>(seed.world, recommend, {
+        warehouseId: seed.warehouseId,
+        palletId: seed.palletId,
+      });
+      expect(result.value).toMatchObject({
+        candidates: [],
+        reasons: unknownFirst
+          ? ["LOCATION_GEOMETRY_UNKNOWN", "STORAGE_CONDITION_MISMATCH"]
+          : ["STORAGE_CONDITION_MISMATCH", "LOCATION_GEOMETRY_UNKNOWN"],
+      });
+      expect(result.stats.ranges["storagePositions"] ?? 0).toBe(0);
+      const contents = await inventory(seed);
+      expect(
+        contents.value.zones.flatMap((z) => z.locationOnlyPlacements),
+      ).toHaveLength(1);
+      expect(contents.value.zones[0]!.placements).toEqual([]);
+    },
+  );
+  it("ranks exact matches before ANY and unknown conditions and ignores inactive parents", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 4);
+    const zones = await seed.world.t.run(async (ctx) => {
+      const zones = await ctx.db.query("storageZones").collect();
+      await ctx.db.patch(zones[0]!._id, { storageCondition: "ANY" });
+      await ctx.db.patch(zones[1]!._id, { storageCondition: " DRY " });
+      await ctx.db.patch(zones[2]!._id, { storageCondition: "" });
+      await ctx.db.patch(zones[3]!.locationId, { status: "INACTIVE" });
+      return zones;
+    });
+    const result = await measured<{
+      candidates: { zoneId: string; storageConditionCheck: string }[];
+      reasons: string[];
+    }>(seed.world, recommend, {
+      warehouseId: seed.warehouseId,
+      palletId: seed.palletId,
+    });
+    expect(result.value.candidates.map((c) => c.zoneId)).toEqual([
+      zones[1]!._id,
+      zones[0]!._id,
+      zones[2]!._id,
+    ]);
+    expect(result.value.reasons).toEqual([]);
+    // Archived parents do not contribute a mismatch reason.
+    await seed.world.t.run(async (ctx) => {
+      await ctx.db.patch(seed.building._id, { status: "ARCHIVED" });
+    });
+    expect(
+      (
+        await measured(seed.world, recommend, {
+          warehouseId: seed.warehouseId,
+          palletId: seed.palletId,
+        })
+      ).value,
+    ).toMatchObject({ candidates: [], reasons: ["NO_ACTIVE_LOCATIONS"] });
+  });
+});
