@@ -43,6 +43,7 @@ async function fixture(employees: number) {
       "../convex/hr/selfPeriods.ts": () =>
         import("../../convex/hr/selfPeriods"),
       "../convex/hr/setup.ts": () => import("../../convex/hr/setup"),
+      "../convex/hr/self.ts": () => import("../../convex/hr/self"),
     },
     { transactionLimits: true },
   );
@@ -162,6 +163,7 @@ async function publish(
   world: ConvexTenantWorld,
   periodId: Id<"hrPeriods">,
   fingerprint?: string,
+  duringClose?: () => Promise<void>,
 ) {
   const client = world.t.withIdentity(ADMIN);
   const begun = written(
@@ -173,6 +175,7 @@ async function publish(
         : { expectedFingerprint: fingerprint }),
     }),
   );
+  await duringClose?.();
   for (let step = 0; step < 12; step += 1) {
     const { view } = answer(
       await client.query(api.hr.periods.preview, { periodId, clockFree: true }),
@@ -324,6 +327,7 @@ describe("realistic attendance period close", () => {
       );
       expect(csv.isDone).toBe(true);
       expect(csv.rowCount).toBe(employees * 31);
+      expect(csv.content === expectedCsv(periodId, employees)).toBe(true);
       const expected = csvRecords(expectedCsv(periodId, employees));
       const actual = csvRecords(csv.content);
       expect(actual).toHaveLength(expected.length);
@@ -369,7 +373,36 @@ describe("realistic attendance period close", () => {
         },
       }),
     );
-    const second = await publish(world, periodId);
+    const correction = () =>
+      client.mutation(api.hr.self.submitCorrection, {
+        requestId: rid(),
+        businessDate: "2026-10-08",
+        end: { minute: 1080, nextDay: false },
+        reason: "Left later after review",
+      });
+    const second = await publish(world, periodId, undefined, async () => {
+      const preview = answer(
+        await client.query(api.hr.periods.preview, {
+          periodId,
+          clockFree: true,
+        }),
+      );
+      expect(preview.period.status).toBe("CLOSING");
+      expect(await correction()).toMatchObject({
+        ok: true,
+        value: {
+          written: false,
+          error: { code: "HR_PERIOD_CLOSING" },
+        },
+      });
+    });
+    expect(await correction()).toMatchObject({
+      ok: true,
+      value: {
+        written: false,
+        error: { code: "HR_PERIOD_CLOSED" },
+      },
+    });
     expect(second).not.toBe(first);
     const revised = written(
       await client.mutation(api.hr.periods.exportCsv, {
@@ -377,11 +410,11 @@ describe("realistic attendance period close", () => {
         versionId: second,
       }),
     );
-    const expected = csvRecords(
-      expectedCsv(periodId, 51)
-        .replaceAll(",1,ALPHA,", ",2,ALPHA,")
-        .replaceAll(",E0003,Corrected,", ",E0003,Corrected revised,"),
-    );
+    const expectedContent = expectedCsv(periodId, 51)
+      .replaceAll(",1,ALPHA,", ",2,ALPHA,")
+      .replaceAll(",E0003,Corrected,", ",E0003,Corrected revised,");
+    expect(revised.content === expectedContent).toBe(true);
+    const expected = csvRecords(expectedContent);
     const records = csvRecords(revised.content);
     expect(records).toHaveLength(expected.length);
     records.forEach((record, index) => expect(record).toEqual(expected[index]));
@@ -439,6 +472,10 @@ describe("realistic attendance period close", () => {
     );
     expect(csv.isDone).toBe(true);
     expect(csv.rowCount).toBe(1556); // 50 full months plus six employed dates.
+    expect(
+      csv.content ===
+        expectedCsv(periodId, 51, { employee: 0, startDay: 15, endDay: 20 }),
+    ).toBe(true);
     const expected = csvRecords(expectedCsv(periodId, 51)).filter((record) => {
       if (record[3] !== "E0000") return true;
       return [15, 16, 17, 18, 19, 20].some((day) => record[5] === dateOf(day));

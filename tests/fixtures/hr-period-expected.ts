@@ -112,7 +112,11 @@ export function expectedDay(profile: number, day: number) {
   };
 }
 
-export function expectedCsv(periodId: string, employees: number) {
+export function expectedCsv(
+  periodId: string,
+  employees: number,
+  employment?: { employee: number; startDay: number; endDay: number },
+) {
   const lines = [CSV_HEADER];
   const iso = (value: number | undefined) =>
     value === undefined
@@ -121,6 +125,11 @@ export function expectedCsv(periodId: string, employees: number) {
   for (let employee = 0; employee < employees; employee += 1) {
     const profile = employee % 6;
     for (let day = 1; day <= 31; day += 1) {
+      if (
+        employment?.employee === employee &&
+        (day < employment.startDay || day > employment.endDay)
+      )
+        continue;
       const row = expectedDay(profile, day);
       lines.push(
         [

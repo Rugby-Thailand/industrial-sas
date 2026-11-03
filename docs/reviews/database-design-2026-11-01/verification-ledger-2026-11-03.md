@@ -28,7 +28,7 @@ The fixture seeds historical attendance, certifications and a holiday. It exerci
 - Export crosses 2,000 rows in two bounded parts containing complete employees. Assertions permit conservative packing rather than depending on an internal read slice size.
 - Corrected self-history preserves original 08:30–17:30 punches and effective 09:00–17:30 certification, including reason, 9,450 worked minutes and ten nonworking days.
 - 25/26 and 50/51 scheduled-employee boundaries preserve all exported rows through complete-preview and staged paths.
-- Revision v2 reflects an employee-name correction; v1 export remains byte-identical and each employee-history version retains its own name and unchanged attendance.
+- Revision v2 reflects an employee-name correction; v1 export remains byte-identical and each employee-history version retains its own name and unchanged attendance. The public correction command refuses with HR_PERIOD_CLOSING during the revision build and HR_PERIOD_CLOSED after publication.
 - An employee hired October 15 and ending October 20 contributes exactly six dates. A further 120 former employees interleaved in roster order do not truncate traversal. All 1,556 expected export rows are compared.
 
 Local validation: seven cases passed with `transactionLimits: true`; changed-file ESLint passed. No production defect was reproduced by these cases, so no production behavior was changed. Initial failures corrected test assumptions about conservative export part packing, timestamp formatting, omitted optional fields and the existing one-command publication path; they are not presented as red-to-green product fixes.
@@ -48,3 +48,9 @@ Tested code head: `85201d35`, local macOS checkout with Node 24, pinned Bun 1.4.
 The 65-case retry matrix covers pallet/product/building, batch, zone/location and rack creation; completed movement; attendance recovery; preferences/notifications; leave submission; period/payslip/announcement publication; certification; actor/tenant authorization and overlapping live deliveries. Outcomes and source-state assertions live next to each case. It does not claim permanent deduplication of ordinary expired keys or real-backend contention.
 
 Implementation, independent final code review and cloud acceptance remain separate gates. Operational rows above remain pending rather than silently counted as passed by local tests. No cloud migration, production cleanup, deployment or native acceptance occurred in this slice.
+
+## Final source review follow-through
+
+Independent read-only review at `a18454fb` found no blocking defects and recommended proceeding to PR, CI and browser acceptance. Two non-blocking notes were addressed locally: every CSV case now checks the expected byte stream as well as parsed cells, and the revised-period case checks CLOSING and post-publication CLOSED refusals. The seven strengthened attendance cases and changed-file ESLint passed. Existing `hr-period-staged-close.integration.test.ts` case “freezes attendance, correction, holiday and roster writes while closing” also checks CLOSED behavior after publishing the first version.
+
+The review did not execute tests or verify browser/cloud behavior. This correctness PR remains separate from the pending operational and real-user acceptance work.
