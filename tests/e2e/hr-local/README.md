@@ -81,13 +81,16 @@ metadata changes, legacy no-token refusal, delete/recreate ABA, and reload readb
 Authentication, Convex transport and backend are never mocked. Reports record the
 exact checkout HEAD in metadata.
 
-Clock writes run when a next action is available; later same-day runs verify the
-retained timestamps instead. The `real-clock-writes` annotation reports the count
+Clock writes run when a next action is available; cases with no new action are
+reported as skipped. The `real-clock-writes` annotation reports the count
 for each run. Correction tests choose an unused date and fail explicitly when
 their finite pool is exhausted. Holidays use test-only future dates and can be
 overwritten by later runs. No policy is automatically activated to enable leave.
-Leave submission/approval, non-admin authenticated actors, Thai-language UI and
-native device browsers remain outside this suite. Mobile is Chromium emulation.
+Active-leave submission/claim locking and authenticated employee/supervisor role
+checks have dedicated specs. Workplace-context checks cover English and Thai,
+including storage selection preservation. Real leave approval with a separate
+reviewer, full Thai workflow coverage and native device browsers remain outside
+this suite. Mobile is Chromium emulation.
 
 Private artifacts stay under ignored `test-results/hr-local/`,
 `playwright/.auth/` and `.cache/hr-browser/`. They can include authenticated test

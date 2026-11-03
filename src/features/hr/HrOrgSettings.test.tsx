@@ -190,8 +190,8 @@ beforeEach(() => {
 afterEach(() => stopTracking());
 
 /** A field label, with or without its required marker. */
-const field = (text: string) =>
-  new RegExp(`^${text.replace(/[()]/g, "\\$&")}( \\*)?$`);
+const field = (text: string) => (label: string) =>
+  label === text || label === `${text} *`;
 const here = () =>
   window.location.pathname + window.location.search + window.location.hash;
 function openSettings(url = "/en/hr/settings?section=branches#org") {
@@ -362,7 +362,7 @@ it("the branch editor checks codes and maps a taken branch number to its field",
   openSettings();
   fireEvent.click(screen.getByRole("button", { name: "Add branch" }));
   const editor = await branchDialog();
-  const fill = (label: RegExp, value: string) =>
+  const fill = (label: ReturnType<typeof field>, value: string) =>
     fireEvent.change(within(editor).getByLabelText(label), {
       target: { value },
     });
