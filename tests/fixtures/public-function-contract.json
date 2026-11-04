@@ -20972,6 +20972,30 @@
             "type": "string"
           },
           "optional": true
+        },
+        "pageSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "scanCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "attempt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
         }
       }
     },

@@ -1,0 +1,5945 @@
+{
+  "site": {
+    "dates": [
+      { "date": "2026-10-01", "weekday": 4 },
+      { "date": "2026-10-02", "weekday": 5 },
+      { "date": "2026-10-03", "weekday": 6 },
+      { "date": "2026-10-04", "weekday": 7 },
+      { "date": "2026-10-05", "weekday": 1 },
+      { "date": "2026-10-06", "weekday": 2 },
+      { "date": "2026-10-07", "weekday": 3 },
+      { "date": "2026-10-08", "weekday": 4 },
+      { "date": "2026-10-09", "weekday": 5 },
+      { "date": "2026-10-10", "weekday": 6 },
+      { "date": "2026-10-11", "weekday": 7 },
+      { "date": "2026-10-12", "weekday": 1 },
+      { "date": "2026-10-13", "weekday": 2 },
+      { "date": "2026-10-14", "weekday": 3 },
+      { "date": "2026-10-15", "holidayName": "Festival", "weekday": 4 },
+      { "date": "2026-10-16", "weekday": 5 },
+      { "date": "2026-10-17", "weekday": 6 },
+      { "date": "2026-10-18", "weekday": 7 },
+      { "date": "2026-10-19", "weekday": 1 },
+      { "date": "2026-10-20", "weekday": 2 },
+      { "date": "2026-10-21", "weekday": 3 },
+      { "date": "2026-10-22", "weekday": 4 },
+      { "date": "2026-10-23", "weekday": 5 },
+      { "date": "2026-10-24", "weekday": 6 },
+      { "date": "2026-10-25", "weekday": 7 },
+      { "date": "2026-10-26", "weekday": 1 },
+      { "date": "2026-10-27", "weekday": 2 },
+      { "date": "2026-10-28", "weekday": 3 },
+      { "date": "2026-10-29", "weekday": 4 },
+      { "date": "2026-10-30", "weekday": 5 },
+      { "date": "2026-10-31", "weekday": 6 }
+    ],
+    "month": "2026-10",
+    "ok": true,
+    "shifts": [
+      {
+        "breakMinutes": 60,
+        "code": "DAY",
+        "color": "sky",
+        "endTime": "17:00",
+        "endsNextDay": false,
+        "id": "shift:DAY",
+        "name": "Day shift",
+        "startTime": "08:00",
+        "status": "ACTIVE",
+        "version": 2
+      }
+    ],
+    "shiftsComplete": true,
+    "site": { "code": "ALPHA", "id": "site:alphaA", "name": "Warehouse ALPHA" },
+    "today": "2026-10-20"
+  },
+  "filtered": {
+    "1": ["A01"],
+    "2": ["B00", "B01", "B02", "B03"],
+    "3": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A10",
+      "A11",
+      "A12",
+      "B00",
+      "B01",
+      "B02",
+      "B03"
+    ],
+    "4": [],
+    "5": ["A01", "A04", "B00", "B02"]
+  },
+  "employees": [
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": {
+            "code": "DAY",
+            "color": "sky",
+            "endTime": "17:00",
+            "endsNextDay": false,
+            "kind": "SHIFT",
+            "name": "Day shift",
+            "shiftId": "shift:DAY",
+            "startTime": "08:00",
+            "version": 1
+          },
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791194400000,
+            "endTime": "17:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "shiftCode": "DAY",
+            "startAt": 1791162000000,
+            "startTime": "08:00"
+          },
+          "recorded": false,
+          "revision": 2
+        },
+        {
+          "assignment": { "kind": "OFF" },
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "OFF" },
+          "recorded": false,
+          "revision": 1
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 3
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": {
+            "code": "DAY",
+            "color": "sky",
+            "endTime": "17:00",
+            "endsNextDay": false,
+            "kind": "SHIFT",
+            "name": "Day shift",
+            "shiftId": "shift:DAY",
+            "startTime": "08:00",
+            "version": 1
+          },
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 1
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": "RECORDED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": true,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A01",
+      "departmentId": "department:Sales",
+      "departmentName": "Sales",
+      "displayName": "Somchai Shift",
+      "id": "employee:A01",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": "RECORDED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791018000000,
+            "endTime": "16:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790985600000,
+            "startTime": "07:00"
+          },
+          "recorded": true,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": "RECORDED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792573200000,
+            "endTime": "16:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792540800000,
+            "startTime": "07:00"
+          },
+          "recorded": true,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A02",
+      "departmentId": "department:Operations",
+      "departmentName": "Operations",
+      "displayName": "Recorded Here",
+      "id": "employee:A02",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 4
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A03",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Moved In",
+      "id": "employee:A03",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A04",
+      "departmentId": "department:Sales",
+      "departmentName": "Sales",
+      "displayName": "Employee A04",
+      "id": "employee:A04",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": "EMPLOYEE_INACTIVE",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A05",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Employee A05",
+      "id": "employee:A05",
+      "status": "INACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": "LEAVE_CLAIMED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": "LEAVE_CLAIMED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A06",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Leave Claim",
+      "id": "employee:A06",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": "FROZEN",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A07",
+      "departmentId": "0000000000000010090hrDepartments",
+      "departmentName": null,
+      "displayName": "Frozen Plan",
+      "id": "employee:A07",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": { "kind": "OFF" },
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "OFF" },
+          "recorded": false,
+          "revision": 1
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A10",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Employee A10",
+      "id": "employee:A10",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "NO_SCHEDULE" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A11",
+      "departmentId": "department:Operations",
+      "departmentName": "Operations",
+      "displayName": "Employee A11",
+      "id": "employee:A11",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": "NOT_EMPLOYED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": "NOT_EMPLOYED",
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "A12",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Employee A12",
+      "id": "employee:A12",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "B00",
+      "departmentId": "department:Sales",
+      "departmentName": "Sales",
+      "displayName": "Employee B00",
+      "id": "employee:B00",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "B01",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Employee B01",
+      "id": "employee:B01",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "B02",
+      "departmentId": "department:Sales",
+      "departmentName": "Sales",
+      "displayName": "Employee B02",
+      "id": "employee:B02",
+      "status": "ACTIVE"
+    },
+    {
+      "cells": [
+        {
+          "assignment": null,
+          "date": "2026-10-01",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790852400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790820000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-02",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1790938800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1790906400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-03",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-04",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-05",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791198000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791165600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-06",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791284400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791252000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-07",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791370800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791338400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-08",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791457200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791424800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-09",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791543600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791511200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-10",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-11",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-12",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791802800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791770400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-13",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791889200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791856800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-14",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1791975600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1791943200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-15",
+          "lock": null,
+          "plan": {
+            "holidayName": "Festival",
+            "kind": "NONWORKING",
+            "reason": "HOLIDAY"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-16",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792148400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792116000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-17",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-18",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-19",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792407600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792375200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-20",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792494000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792461600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-21",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792580400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792548000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-22",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792666800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792634400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-23",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1792753200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792720800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-24",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-25",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-26",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793012400000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1792980000000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-27",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793098800000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793066400000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-28",
+          "lock": "PERIOD_CLOSED",
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793185200000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793152800000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-29",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793271600000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793239200000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-30",
+          "lock": null,
+          "plan": {
+            "breakMinutes": 60,
+            "endAt": 1793358000000,
+            "endTime": "18:00",
+            "endsNextDay": false,
+            "kind": "SCHEDULED",
+            "startAt": 1793325600000,
+            "startTime": "09:00"
+          },
+          "recorded": false,
+          "revision": 0
+        },
+        {
+          "assignment": null,
+          "date": "2026-10-31",
+          "lock": null,
+          "plan": { "kind": "NONWORKING", "reason": "UNSCHEDULED" },
+          "recorded": false,
+          "revision": 0
+        }
+      ],
+      "code": "B03",
+      "departmentId": null,
+      "departmentName": null,
+      "displayName": "Employee B03",
+      "id": "employee:B03",
+      "status": "ACTIVE"
+    }
+  ]
+}

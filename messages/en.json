@@ -3559,6 +3559,7 @@
       "noEmployees": "No employees match",
       "noEmployeesHint": "Change the workplace, month or search.",
       "rosterTable": "Roster by employee and date",
+      "rosterPagination": "Roster employee pages",
       "employee": "Employee",
       "cellLabel": "{employee}, {date}: {value}",
       "locks": {

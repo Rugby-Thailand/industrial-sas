@@ -3559,6 +3559,7 @@
       "noEmployees": "ไม่พบพนักงาน",
       "noEmployeesHint": "เปลี่ยนสถานที่ทำงาน เดือน หรือคำค้นหา",
       "rosterTable": "ตารางกะตามพนักงานและวันที่",
+      "rosterPagination": "หน้าพนักงานในตารางกะ",
       "employee": "พนักงาน",
       "cellLabel": "{employee} วันที่ {date}: {value}",
       "locks": {
