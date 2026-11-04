@@ -1,0 +1,82 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["screens", "notes"],
+  "properties": {
+    "screens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "dimensions",
+          "findings",
+          "bestReference",
+          "reachesNineIf"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "dimensions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "taskFocus",
+              "hierarchy",
+              "feedback",
+              "ergonomics",
+              "language",
+              "accessibility",
+              "consistency"
+            ],
+            "properties": {
+              "taskFocus": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "hierarchy": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "feedback": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "ergonomics": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "language": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "accessibility": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "consistency": { "type": "integer", "minimum": 1, "maximum": 10 }
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "severity",
+                "type",
+                "title",
+                "evidence",
+                "fix",
+                "benchmark"
+              ],
+              "properties": {
+                "severity": {
+                  "type": "string",
+                  "enum": ["P0", "P1", "P2", "P3"]
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["ui", "behaviour", "coverage"]
+                },
+                "title": { "type": "string" },
+                "evidence": { "type": "string" },
+                "fix": { "type": "string" },
+                "benchmark": { "type": "string" }
+              }
+            }
+          },
+          "bestReference": { "type": "string" },
+          "reachesNineIf": { "type": "string" }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

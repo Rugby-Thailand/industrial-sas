@@ -1,0 +1,209 @@
+{
+  "stage": 1,
+  "title": "Shell, navigation, AI Search",
+  "module": "Cross-cutting (shell, navigation, search)",
+  "screens": [
+    {
+      "id": "shell-page",
+      "title": "Shell around a populated page (Finished goods)",
+      "state": "populated",
+      "path": "/finished-goods",
+      "ready": "main h1"
+    },
+    {
+      "id": "shell-drawer",
+      "title": "Phone navigation drawer open",
+      "state": "populated",
+      "path": "/finished-goods",
+      "viewports": ["mobile"],
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": "header [data-slot=sidebar-trigger]"
+        },
+        {
+          "waitFor": "[data-testid=sidebar-search]"
+        },
+        {
+          "wait": 500
+        }
+      ]
+    },
+    {
+      "id": "shell-rail",
+      "title": "Desktop sidebar collapsed to the icon rail",
+      "state": "populated",
+      "path": "/finished-goods",
+      "viewports": ["desktop"],
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": "[data-sidebar=sidebar] [data-slot=sidebar-trigger]"
+        },
+        {
+          "wait": 600
+        }
+      ]
+    },
+    {
+      "id": "locale-switch",
+      "title": "Header language button, then the same page after switching language",
+      "state": "populated",
+      "path": "/finished-goods",
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": "[data-testid=locale-select]"
+        },
+        {
+          "wait": 2500
+        },
+        {
+          "waitFor": "main h1"
+        }
+      ]
+    },
+    {
+      "id": "search-empty",
+      "title": "Search dialog, nothing typed",
+      "state": "empty",
+      "path": "/finished-goods",
+      "ready": "main h1",
+      "steps": [
+        {
+          "press": "ControlOrMeta+k"
+        },
+        {
+          "waitFor": "[data-testid=global-search-input]"
+        },
+        {
+          "wait": 400
+        }
+      ]
+    },
+    {
+      "id": "search-results",
+      "title": "Search dialog with page and record results",
+      "state": "populated",
+      "path": "/finished-goods",
+      "ready": "main h1",
+      "steps": [
+        {
+          "press": "ControlOrMeta+k"
+        },
+        {
+          "waitFor": "[data-testid=global-search-input]"
+        },
+        {
+          "type": [
+            "[data-testid=global-search-input]",
+            {
+              "th": "สมชาย",
+              "en": "สมชาย"
+            }
+          ]
+        },
+        {
+          "wait": 2500
+        }
+      ]
+    },
+    {
+      "id": "search-no-match",
+      "title": "Search dialog, no match",
+      "state": "empty",
+      "path": "/finished-goods",
+      "ready": "main h1",
+      "steps": [
+        {
+          "press": "ControlOrMeta+k"
+        },
+        {
+          "waitFor": "[data-testid=global-search-input]"
+        },
+        {
+          "type": [
+            "[data-testid=global-search-input]",
+            {
+              "th": "ไม่มีสิ่งนี้แน่นอน",
+              "en": "nothing like this"
+            }
+          ]
+        },
+        {
+          "wait": 2500
+        }
+      ]
+    },
+    {
+      "id": "search-ai-running",
+      "title": "Search dialog after Ask AI: request running",
+      "state": "loading",
+      "path": "/finished-goods",
+      "ready": "main h1",
+      "steps": [
+        {
+          "press": "ControlOrMeta+k"
+        },
+        {
+          "waitFor": "[data-testid=global-search-input]"
+        },
+        {
+          "type": [
+            "[data-testid=global-search-input]",
+            {
+              "th": "พาเลทของสินค้า DEMO-DRINK",
+              "en": "pallets of DEMO-DRINK"
+            }
+          ]
+        },
+        {
+          "click": "[data-testid=global-search-ai]"
+        },
+        {
+          "wait": 700
+        }
+      ]
+    },
+    {
+      "id": "shell-loading",
+      "title": "Shell while the backend is unreachable (connections refused, 10 s)",
+      "state": "loading",
+      "path": "/finished-goods",
+      "block": "convex",
+      "steps": [
+        {
+          "wait": 10000
+        }
+      ]
+    },
+    {
+      "id": "not-found",
+      "title": "Page not found",
+      "state": "error",
+      "path": "/this-page-does-not-exist",
+      "ready": "[data-testid=not-found]"
+    },
+    {
+      "id": "route-error",
+      "title": "Route error boundary",
+      "state": "error",
+      "path": "/finished-goods/products/not-a-real-id",
+      "steps": [
+        {
+          "wait": 5000
+        }
+      ]
+    }
+  ],
+  "sources": [
+    "src/components/shell/",
+    "src/components/shell/search/",
+    "src/components/ui/sidebar.tsx",
+    "src/components/ui/theme-toggle.tsx",
+    "src/app/[locale]/not-found.tsx",
+    "src/app/[locale]/error.tsx",
+    "src/app/[locale]/(desktop)/loading.tsx",
+    "messages/th.json (Navigation, Search, NotFound, Error)"
+  ]
+}
