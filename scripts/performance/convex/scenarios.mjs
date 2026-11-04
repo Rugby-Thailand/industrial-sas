@@ -82,11 +82,55 @@ export function discover(fixture) {
     awaitingPalletId: awaitingPallet?._id,
     storedPalletCode: storedPallet?.code,
     // A second awaiting pallet: measurement edits leave fan-out's reserve target alone.
+    zoneHeld: Object.fromEntries(
+      countBy(
+        cliData("finishedGoodsPlacements", 8000).filter(
+          (row) => row.status === "STORED" || row.status === "RESERVED",
+        ),
+        "zoneId",
+      ),
+    ),
+    busyZonePalletId: pallets.filter(
+      (row) =>
+        row.status === "AWAITING_PLACEMENT" &&
+        !row.packingBatchId &&
+        !row.preparationBatchId,
+    )[2]?._id,
+    // Distinct awaiting pallets for concurrent, conflict-free measurement edits.
+    contentionPallets: pallets
+      .filter(
+        (row) =>
+          row.status === "AWAITING_PLACEMENT" &&
+          row._id !== awaitingPallet?._id &&
+          // Batch units refuse measurement edits (BATCH_MEASUREMENT_LOCKED).
+          !row.packingBatchId &&
+          !row.preparationBatchId &&
+          row.lengthMm &&
+          row.widthMm &&
+          row.heightMm,
+      )
+      // One pallet per product: writes share no product summary row.
+      .filter(
+        (row, index, all) =>
+          all.findIndex((other) => other.productId === row.productId) === index,
+      )
+      // Flows edit the first non-batch pallets earlier in the run; skip them.
+      .slice(3, 11)
+      .map(({ _id, quantity, lengthMm, widthMm, heightMm, updatedAt }) => ({
+        _id,
+        // Whole units are valid for every unit label.
+        quantity: Math.max(1, Math.round(quantity)),
+        lengthMm,
+        widthMm,
+        heightMm,
+        updatedAt,
+      })),
     measurablePalletId: pallets.find(
       (row) =>
         row.status === "AWAITING_PLACEMENT" &&
         row._id !== awaitingPallet?._id &&
-        Number.isInteger(row.quantity),
+        !row.packingBatchId &&
+        !row.preparationBatchId,
     )?._id,
     buildingId: activeBuilding._id,
     zoneId: zone?._id,
@@ -431,6 +475,51 @@ export function mutationFlows(ids) {
       },
     },
     {
+      // Worst case for derived occupancy: the zone holding the most placements.
+      name: "reserve → cancel in the fullest open zone",
+      async run(call, ctx) {
+        const pallet = (
+          await ctx.query("finishedGoods/workflow:getPallet", {
+            ...w,
+            palletId: ids.busyZonePalletId,
+          })
+        ).value;
+        const recommended = (
+          await ctx.query("finishedGoods/workflow:recommend", {
+            ...w,
+            palletId: ids.busyZonePalletId,
+          })
+        ).value;
+        // The recommended zone that already holds the most placements.
+        const target = [...(recommended?.candidates ?? [])].sort(
+          (a, b) =>
+            (ids.zoneHeld[b.zoneId] ?? 0) - (ids.zoneHeld[a.zoneId] ?? 0),
+        )[0];
+        if (!target) return { note: "no recommended destination" };
+        await call("finishedGoods/workflow:reserve", {
+          ...w,
+          palletId: ids.busyZonePalletId,
+          requestId: requestId("busy-reserve"),
+          zoneId: target.zoneId,
+          ...(target.supportPositionId
+            ? { supportPositionId: target.supportPositionId }
+            : {}),
+          ...(target.supportPalletId
+            ? { supportPalletId: target.supportPalletId }
+            : {}),
+          xMm: target.xMm,
+          yMm: target.yMm,
+          rotation: target.rotation,
+          expectedMeasurementUpdatedAt: (pallet?.pallet ?? pallet)?.updatedAt,
+        });
+        await call("finishedGoods/workflow:cancelReservation", {
+          ...w,
+          palletId: ids.busyZonePalletId,
+          requestId: requestId("busy-cancel"),
+        });
+      },
+    },
+    {
       name: "pallet measurement save",
       async run(call, ctx) {
         const pallet = await ctx.query("finishedGoods/workflow:getPallet", {
@@ -445,7 +534,8 @@ export function mutationFlows(ids) {
           ...(value?.updatedAt === undefined
             ? {}
             : { expectedMeasurementUpdatedAt: value.updatedAt }),
-          quantity: value?.quantity ?? 24,
+          // Whole units are valid for every unit label (fixtures hold decimals).
+          quantity: Math.max(1, Math.round(value?.quantity ?? 24)),
           dimensionsChecked: true,
           lengthMm: value?.lengthMm ?? 1000,
           widthMm: value?.widthMm ?? 1000,

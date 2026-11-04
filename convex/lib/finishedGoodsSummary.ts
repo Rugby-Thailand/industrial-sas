@@ -146,6 +146,33 @@ export async function summaryReadiness(
     )
     .unique();
 }
+export async function recordFinishedGoodsChange(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+) {
+  await db.insert("finishedGoodsChanges", { warehouseId });
+}
+
+/**
+ * Catalogue continuation token: moves whenever a finished-goods write commits
+ * (newest change row) or a backfill restart bumps the legacy generation. Both
+ * only increase, so their sum changes exactly when either does.
+ */
+export async function finishedGoodsGeneration(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+  legacyGeneration = 0,
+) {
+  const [latest] = await db
+    .byIndex<Doc<"finishedGoodsChanges">>(
+      "finishedGoodsChanges",
+      "by_orgId_warehouseId",
+      [{ field: "warehouseId", value: warehouseId }],
+    )
+    .take(1, "desc");
+  return legacyGeneration + (latest?._creationTime ?? 0);
+}
+
 /** Layout cursor invalidation is independent of inventory/backfill readiness. */
 export async function storageCatalogueGeneration(
   db: TenantDocumentAccess,
@@ -343,12 +370,9 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
           });
       }
       for (const warehouseId of warehouses) {
-        const state = await summaryReadiness(db, warehouseId);
-        if (state)
-          await db.patch("finishedGoodsSummaryReadiness", state._id, {
-            generation: (state.generation ?? 0) + 1,
-          });
-        else
+        // Insert-only change marker: concurrent writers no longer conflict on
+        // one warehouse document. Readers derive the continuation token from it.
+        if (!(await summaryReadiness(db, warehouseId)))
           await db.insert("finishedGoodsSummaryReadiness", {
             warehouseId,
             version: VERSION,
@@ -356,6 +380,7 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
             continuationKey: crypto.randomUUID(),
             generation: 1,
           });
+        await recordFinishedGoodsChange(db, warehouseId);
       }
     },
   };

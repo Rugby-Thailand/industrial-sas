@@ -8,4 +8,10 @@ crons.daily(
   internal.operations.temporaryRetention.dispatch,
   {},
 );
+crons.interval(
+  "prune finished goods change log",
+  { minutes: 30 },
+  internal.finishedGoods.changeLog.prune,
+  {},
+);
 export default crons;

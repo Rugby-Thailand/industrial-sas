@@ -3431,6 +3431,38 @@
       ]
     }
   },
+  "finishedGoods/changeLog:prune": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "fromWarehouseIndex": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "deleted": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "more": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "finishedGoods/history:palletMoveHistory": {
     "kind": "query",
     "visibility": "public",

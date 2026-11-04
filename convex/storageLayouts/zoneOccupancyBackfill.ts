@@ -35,7 +35,9 @@ export async function invalidateZoneOccupancy(
   const warehouse = await ctx.db.get(warehouseId);
   if (!warehouse) return;
   const row = await readiness(ctx, warehouse.orgId, warehouseId);
-  if (row?.ready) await ctx.db.patch(row._id, { ready: false });
+  // Also poisons an unfinished backfill: it must restart to become ready.
+  if (row && (row.ready || !row.stale))
+    await ctx.db.patch(row._id, { ready: false, stale: true });
 }
 
 export const run = internalMutation({
@@ -69,6 +71,7 @@ export const run = internalMutation({
         await ctx.db.patch(state._id, {
           ready: false,
           blocked: false,
+          stale: false,
           version: ZONE_OCCUPANCY_VERSION,
         });
       else
@@ -93,7 +96,7 @@ export const run = internalMutation({
     if (page.isDone) {
       // A rebuilt zone with a cross-building placement blocks readiness.
       const done = await readiness(ctx, orgId, args.warehouseId);
-      ready = done !== null && done.blocked !== true;
+      ready = done !== null && done.blocked !== true && done.stale !== true;
       if (done && ready)
         await ctx.db.patch(done._id, {
           ready: true,

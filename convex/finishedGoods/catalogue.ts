@@ -50,15 +50,26 @@ export const pageArgs = {
   scanCursor: v.optional(v.string()),
 };
 async function readiness(ctx: TenantFunctionContext, warehouseId: string) {
-  return ctx.tenantDb
+  const state = await ctx.tenantDb
     .byIndex<Doc<"finishedGoodsSummaryReadiness">>(
       "finishedGoodsSummaryReadiness",
       "by_orgId_warehouseId",
       [{ field: "warehouseId", value: warehouseId }],
     )
     .unique();
+  return state
+    ? {
+        ...state,
+        generation: await finishedGoodsGeneration(
+          ctx.tenantDb,
+          warehouseId,
+          state.generation ?? 0,
+        ),
+      }
+    : null;
 }
 export { readProductSummary as readSummary } from "../lib/finishedGoodsSummary";
+import { finishedGoodsGeneration } from "../lib/finishedGoodsSummary";
 export async function activeMove(ctx: TenantFunctionContext, palletId: string) {
   for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
     const move = await ctx.tenantDb

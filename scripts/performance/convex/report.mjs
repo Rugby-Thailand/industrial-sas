@@ -52,12 +52,12 @@ for (const [name, data] of Object.entries(report.perTarget ?? {})) {
     "",
     `**${name}: reactive fan-out** (${data.fanout[0]?.subscriptions ?? 0} subscriptions open on one session)`,
     "",
-    "| Write | Queries re-run | Docs re-read | KB re-read | Re-run exec ms | Client follow-up requests (docs) | Re-run functions |",
-    "|---|---:|---:|---:|---:|---:|---|",
+    "| Write | Write cost (docs read / docs written / KB written) | Queries re-run | Docs re-read | KB re-read | Re-run exec ms | Client follow-up requests (docs) | Re-run functions |",
+    "|---|---|---:|---:|---:|---:|---:|---|",
   );
   for (const row of data.fanout)
     lines.push(
-      `| ${row.write}${row.error ? ` (error: ${row.error})` : ""} | ${row.reruns} | ${row.readDocs} | ${kb(row.readBytes)} | ${row.execMs} | ${row.followUpRequests ?? 0} (${row.followUpReadDocs ?? 0}) | ${Object.entries(
+      `| ${row.write}${row.error ? ` (error: ${row.error})` : ""} | ${row.writeCost ? `${row.writeCost.readDocs} / ${row.writeCost.writeDocs} / ${kb(row.writeCost.writeBytes)}` : "–"} | ${row.reruns} | ${row.readDocs} | ${kb(row.readBytes)} | ${row.execMs} | ${row.followUpRequests ?? 0} (${row.followUpReadDocs ?? 0}) | ${Object.entries(
         row.byFunction,
       )
         .map(([fn, r]) => `${fn}×${r.reruns} (${r.readDocs} docs)`)

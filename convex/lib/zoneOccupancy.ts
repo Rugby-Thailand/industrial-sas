@@ -166,6 +166,8 @@ async function factsFor(
   known: ReadonlyMap<string, OccupancyPallet> = new Map(),
 ) {
   const facts = new Map(known);
+  // Overflowed zones keep no entries, so their pallet facts would be discarded.
+  if (placements.length > MAX_ZONE_OCCUPANCY_ENTRIES) return facts;
   await Promise.all(
     [...new Set(placements.map((p) => p.palletId as string))]
       .filter((id) => !facts.has(id))
@@ -316,6 +318,7 @@ export async function zoneOccupancyReady(
   return (
     row?.ready === true &&
     row.blocked !== true &&
+    row.stale !== true &&
     row.version === ZONE_OCCUPANCY_VERSION
   );
 }

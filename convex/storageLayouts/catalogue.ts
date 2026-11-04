@@ -581,18 +581,40 @@ async function derivedBuildingPlacements(
       [{ field: "buildingId", value: building._id }],
     )
     .all(10_000);
-  if (zones.some((zone) => !zone.complete)) return null;
+  // Overflowed zones are read directly; every other zone from its entries.
   const entries = await Promise.all(
     zones
       .filter((zone) => zone.held > 0)
-      .map((zone) => zoneOccupancyEntries(ctx.tenantDb, zone.zoneId)),
+      .map(async (zone) => {
+        const derived = zone.complete
+          ? await zoneOccupancyEntries(ctx.tenantDb, zone.zoneId)
+          : null;
+        if (derived) return derived;
+        const held = await Promise.all(
+          (["RESERVED", "STORED"] as const).map((status) =>
+            ctx.tenantDb
+              .byIndex<PlacementDocument>(
+                "finishedGoodsPlacements",
+                "by_orgId_zoneId_status",
+                [
+                  { field: "zoneId", value: zone.zoneId },
+                  { field: "status", value: status },
+                ],
+              )
+              .all(10_000),
+          ),
+        );
+        return {
+          placements: held.flat(),
+          pallets: new Map<string, OccupancyPallet>(),
+        };
+      }),
   );
-  if (entries.some((entry) => entry === null)) return null;
   const pallets = new Map<string, OccupancyPallet>();
   for (const entry of entries)
-    for (const [id, pallet] of entry!.pallets) pallets.set(id, pallet);
+    for (const [id, pallet] of entry.pallets) pallets.set(id, pallet);
   const rows = entries
-    .flatMap((entry) => entry!.placements)
+    .flatMap((entry) => entry.placements)
     .sort(
       (a, b) =>
         (a.status === b.status ? 0 : a.status === "RESERVED" ? -1 : 1) ||

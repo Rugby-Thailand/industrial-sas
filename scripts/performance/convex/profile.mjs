@@ -442,6 +442,8 @@ async function profileFanout(target, scenarios) {
     const started = Date.now();
     const before = new Map(latest);
     const outcome = await invoke(target, "mutation", write.fn, writeArgs);
+    // The write's own cost, including derived-row maintenance (amplification).
+    const [own] = await completionsFor(target, write.fn, [outcome]);
     await quiesce();
     // A re-run that falls back to scanning/reset makes the client restart its
     // chain: replay that chain and count it as follow-up work.
@@ -454,6 +456,7 @@ async function profileFanout(target, scenarios) {
       followFns.add(scenario.fn);
       await settledArgs(scenario);
     }
+    if (followFns.size) await sleep(1_500); // let the log stream catch up
     const followUps = followFns.size
       ? logs.entries.filter(
           (entry) =>
@@ -502,6 +505,14 @@ async function profileFanout(target, scenarios) {
           .reduce((sum, entry) => sum + entry.executionTime * 1000, 0)
           .toFixed(1),
       ),
+      writeCost: own
+        ? {
+            readDocs: own.usageStats.databaseReadDocuments,
+            writeDocs: own.usageStats.databaseWriteDocuments,
+            writeBytes: own.usageStats.databaseWriteBytes,
+            execMs: Number((own.executionTime * 1000).toFixed(1)),
+          }
+        : null,
       followUpRequests: followUps.length,
       followUpReadDocs: followUps.reduce(
         (sum, entry) => sum + entry.usageStats.databaseReadDocuments,
@@ -602,7 +613,29 @@ async function profileContention(target, workers = 8) {
     }),
     workers,
   );
-  return [scans, pallets];
+  // Distinct pallets, unchanged quantities: no shared product summary or
+  // counter row, so any retry comes from warehouse-wide shared documents.
+  const measurements = await contend(
+    target,
+    "saveMeasurement (distinct pallets)",
+    "finishedGoods/workflow:saveMeasurement",
+    (index) => {
+      const pallet = ids.contentionPallets[index];
+      return {
+        warehouseId: ids.warehouseId,
+        palletId: pallet._id,
+        requestId: requestId(`occ-measure-${index}`),
+        expectedMeasurementUpdatedAt: pallet.updatedAt,
+        quantity: pallet.quantity,
+        dimensionsChecked: true,
+        lengthMm: pallet.lengthMm,
+        widthMm: pallet.widthMm,
+        heightMm: pallet.heightMm + 1,
+      };
+    },
+    Math.min(workers, ids.contentionPallets.length),
+  );
+  return [scans, pallets, measurements];
 }
 
 const scenarios = queryScenarios(ids).filter(

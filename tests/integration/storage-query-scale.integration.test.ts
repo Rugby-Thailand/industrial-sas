@@ -11,7 +11,10 @@ import {
   buildingOccupancy,
   getStorageBuildingInventory,
 } from "../../convex/storageLayouts/catalogue";
-import { run as backfillZoneOccupancy } from "../../convex/storageLayouts/zoneOccupancyBackfill";
+import {
+  invalidate as invalidateZoneOccupancyMutation,
+  run as backfillZoneOccupancy,
+} from "../../convex/storageLayouts/zoneOccupancyBackfill";
 import { MAX_ZONE_OCCUPANCY_ENTRIES } from "../../convex/lib/zoneOccupancy";
 import {
   createStorageBuilding,
@@ -957,6 +960,24 @@ describe("derived zone occupancy", () => {
     ).toContain(target._id);
   }, 60000);
 
+  it("keeps a full entries row far below the 1 MiB document limit", async () => {
+    const seed = await scaleWorld();
+    await addPallets(seed, MAX_ZONE_OCCUPANCY_ENTRIES);
+    await linkPlacements(seed);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const bytes = await seed.world.t.run(async (ctx) => {
+      const row = (
+        await ctx.db.query("storageZoneOccupancyEntries").collect()
+      )[0]!;
+      expect(row).toMatchObject({ complete: true });
+      expect(row.placements).toHaveLength(MAX_ZONE_OCCUPANCY_ENTRIES);
+      return new TextEncoder().encode(JSON.stringify(row)).length;
+    });
+    // Measured ~0.8 KB per held placement including pallet facts.
+    expect(bytes).toBeLessThan(600 * 1024);
+    console.info(`entries row at cap: ${bytes} bytes`);
+  }, 60000);
+
   it("reads overflowed zones directly and stays exact", async () => {
     const seed = await scaleWorld();
     await addPallets(seed, MAX_ZONE_OCCUPANCY_ENTRIES + 1);
@@ -974,6 +995,48 @@ describe("derived zone occupancy", () => {
     // Only the small summary helps; entries fall back to the placements.
     expect(derived.docs.occupancy).toBeLessThan(raw.docs.occupancy);
   }, 60000);
+
+  it("does not let a backfill that was invalidated mid-run re-enable stale rows", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 4);
+    await addPallets(seed, 3);
+    await linkPlacements(seed);
+    const step = (args: Record<string, unknown>) =>
+      seed.world.t.run((ctx) =>
+        (
+          backfillZoneOccupancy as unknown as {
+            _handler(
+              ctx: GenericMutationCtx<DataModel>,
+              args: unknown,
+            ): Promise<{
+              isDone: boolean;
+              ready: boolean;
+              continueCursor: string;
+            }>;
+          }
+        )._handler(ctx, {
+          warehouseId: seed.warehouseId,
+          batchSize: 1,
+          ...args,
+        }),
+      );
+    let result = await step({ restart: true });
+    // A raw writer invalidates while the backfill is still paging.
+    await seed.world.t.run((ctx) =>
+      (
+        invalidateZoneOccupancyMutation as unknown as {
+          _handler(
+            ctx: GenericMutationCtx<DataModel>,
+            args: unknown,
+          ): Promise<unknown>;
+        }
+      )._handler(ctx, { warehouseId: seed.warehouseId }),
+    );
+    while (!result.isDone)
+      result = await step({ cursor: result.continueCursor });
+    expect(result.ready).toBe(false);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+  });
 
   it("refuses readiness while a placement names another building than its zone", async () => {
     const seed = await scaleWorld();

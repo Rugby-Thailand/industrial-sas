@@ -516,6 +516,14 @@ const schema = defineSchema({
       continuationKey: v.optional(v.string()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /**
+   * Insert-only log of committed finished-goods writes. Its newest row is the
+   * catalogue continuation token, so writers never read-modify-write a shared
+   * warehouse document. Old rows are pruned by a cron.
+   */
+  finishedGoodsChanges: defineTable(
+    tenantFields({ warehouseId: v.id("warehouses") }),
+  ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsProductSummaries: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -1032,7 +1040,8 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_zoneId", byOrg("zoneId"))
-    .index("by_orgId_buildingId", byOrg("buildingId")),
+    .index("by_orgId_buildingId", byOrg("buildingId"))
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   /** Held placements of one zone in by_orgId_zoneId_status order, plus pallet facts. */
   storageZoneOccupancyEntries: defineTable(
     tenantFields({
@@ -1063,7 +1072,9 @@ const schema = defineSchema({
         }),
       ),
     }),
-  ).index("by_orgId_zoneId", byOrg("zoneId")),
+  )
+    .index("by_orgId_zoneId", byOrg("zoneId"))
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   /** Ready once every zone of the warehouse has been backfilled. */
   storageZoneOccupancyReadiness: defineTable(
     tenantFields({
@@ -1076,6 +1087,11 @@ const schema = defineSchema({
        * until a restarted backfill finds no such placement.
        */
       blocked: v.optional(v.boolean()),
+      /**
+       * Raw writers invalidated rows while a backfill was running; only a
+       * restarted backfill may make the warehouse ready again.
+       */
+      stale: v.optional(v.boolean()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsScanAssignments: defineTable(
