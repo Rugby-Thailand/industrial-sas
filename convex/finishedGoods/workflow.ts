@@ -569,14 +569,28 @@ export const saveMeasurement = mutationWithOrg({
 });
 
 /** Created only for a recommendation query; mutations retain fresh per-call reads. */
-function createLocationReadScope(ctx: TenantFunctionContext) {
+function createLocationReadScope(
+  ctx: TenantFunctionContext,
+  /** Buildings this snapshot already read; served without a second read. */
+  knownBuildings: readonly Doc<"storageBuildings">[] = [],
+) {
   const blocks = new Map<
     string,
     Promise<readonly Doc<"storageFloorReservedBlocks">[]>
   >();
+  const readBuilding = createQueryDocumentReader(
+    ctx.tenantDb,
+    "storageBuildings",
+  );
+  const known = new Map(
+    knownBuildings.map((building) => [
+      building._id as string,
+      Promise.resolve<Doc<"storageBuildings"> | null>(building),
+    ]),
+  );
   return {
     zone: createQueryDocumentReader(ctx.tenantDb, "storageZones"),
-    building: createQueryDocumentReader(ctx.tenantDb, "storageBuildings"),
+    building: (id: string) => known.get(id) ?? readBuilding(id),
     floor: createQueryDocumentReader(ctx.tenantDb, "storageFloors"),
     location: createQueryDocumentReader(ctx.tenantDb, "locations"),
     pallet: createQueryDocumentReader(ctx.tenantDb, "finishedGoodsPallets"),
@@ -594,6 +608,17 @@ function createLocationReadScope(ctx: TenantFunctionContext) {
       return pending;
     },
   };
+}
+
+/** Unicode code-point order (index key order), not UTF-16 code-unit order. */
+function compareCodePoints(a: string, b: string) {
+  const left = [...a];
+  const right = [...b];
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    const delta = left[i]!.codePointAt(0)! - right[i]!.codePointAt(0)!;
+    if (delta) return delta;
+  }
+  return left.length - right.length;
 }
 
 async function mapBounded<Input, Output>(
@@ -1031,17 +1056,41 @@ async function recommendations(
     productId: pallet.productId,
   });
   if (!product) return { candidates: [], reasons: ["NOT_FOUND"] };
-  const zones = await rows<Doc<"storageZones">>(
+  // Zones of draft/archived buildings can never be candidates (locationContext
+  // rejects them), so read only ACTIVE buildings' zones. Keep the warehouse
+  // code-index order: previewCandidates and reasons follow iteration order.
+  const activeBuildings = await rows<Doc<"storageBuildings">>(
     ctx,
-    "storageZones",
-    "by_orgId_warehouseId_code",
-    [{ field: "warehouseId", value: args.warehouseId }],
+    "storageBuildings",
+    "by_orgId_warehouseId_status_code",
+    [
+      { field: "warehouseId", value: args.warehouseId },
+      { field: "status", value: "ACTIVE" },
+    ],
   );
+  const zones = (
+    await Promise.all(
+      activeBuildings.map((building) =>
+        rows<Doc<"storageZones">>(
+          ctx,
+          "storageZones",
+          "by_orgId_buildingId_code",
+          [{ field: "buildingId", value: building._id }],
+        ),
+      ),
+    )
+  )
+    .flat()
+    .sort(
+      (a, b) =>
+        compareCodePoints(a.code, b.code) || a._creationTime - b._creationTime,
+    );
   const candidates: Candidate[] = [];
   const previewCandidates: Candidate[] = [];
   const reasons = new Set<string>();
   let active = 0;
-  const scope = createLocationReadScope(ctx);
+  const scope = createLocationReadScope(ctx, activeBuildings);
+  const stackScope = createStackReadScope(ctx, pallet, scope);
   const contexts = await mapBounded(zones, (zone) =>
     locationContext(ctx, args.warehouseId, zone._id, scope, zone, product),
   );
@@ -1064,7 +1113,7 @@ async function recommendations(
     for (const support of context.supports) {
       if (support.supportPalletId === pallet._id) continue;
       const blockedReason = support.supportPalletId
-        ? await validateStack(ctx, pallet, support.supportPalletId)
+        ? await validateStack(ctx, pallet, support.supportPalletId, stackScope)
         : null;
       previewSupports.push({
         ...support,
@@ -2430,15 +2479,108 @@ export async function heldPlacements(
   );
   return held.flat().sort((a, b) => a._creationTime - b._creationTime);
 }
+/** Reads stack validation needs; mutations use fresh reads for every call. */
+interface StackReads {
+  pallet(id: string): Promise<Doc<"finishedGoodsPallets"> | null>;
+  product(id: string): Promise<Doc<"finishedGoodsProducts"> | null>;
+  placement(id: string): Promise<Doc<"finishedGoodsPlacements"> | null>;
+  hasActiveMove(id: Id<"finishedGoodsPallets">): Promise<boolean>;
+  stackChildren(
+    id: Id<"finishedGoodsPallets">,
+  ): Promise<Doc<"finishedGoodsPlacements">[]>;
+}
+interface StackScope {
+  readonly reads: StackReads;
+  /** The upper pallet's own checks, which do not depend on the support. */
+  readonly upperBlock: () => Promise<string | null>;
+}
+function freshStackReads(ctx: TenantFunctionContext): StackReads {
+  return {
+    pallet: (id) =>
+      ctx.tenantDb.get<Doc<"finishedGoodsPallets">>("finishedGoodsPallets", id),
+    product: (id) =>
+      ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
+        "finishedGoodsProducts",
+        id,
+      ),
+    placement: (id) =>
+      ctx.tenantDb.get<Doc<"finishedGoodsPlacements">>(
+        "finishedGoodsPlacements",
+        id,
+      ),
+    hasActiveMove: (id) => hasActiveMove(ctx, id),
+    stackChildren: (id) => stackChildren(ctx, id),
+  };
+}
+const memoById = <Key extends string, Value>(
+  read: (id: Key) => Promise<Value>,
+) => {
+  const pending = new Map<string, Promise<Value>>();
+  return (id: Key) => {
+    let value = pending.get(id);
+    if (!value) pending.set(id, (value = read(id)));
+    return value;
+  };
+};
+/**
+ * Query-only: one recommendation snapshot validates hundreds of supports for
+ * the same upper pallet, so share its checks and every repeated read.
+ */
+function createStackReadScope(
+  ctx: TenantFunctionContext,
+  upper: Doc<"finishedGoodsPallets">,
+  scope: ReturnType<typeof createLocationReadScope>,
+): StackScope {
+  const fresh = freshStackReads(ctx);
+  const reads: StackReads = {
+    pallet: scope.pallet,
+    product: createQueryDocumentReader(ctx.tenantDb, "finishedGoodsProducts"),
+    placement: createQueryDocumentReader(
+      ctx.tenantDb,
+      "finishedGoodsPlacements",
+    ),
+    hasActiveMove: memoById(fresh.hasActiveMove),
+    stackChildren: memoById(fresh.stackChildren),
+  };
+  let upperBlock: Promise<string | null> | undefined;
+  return {
+    reads,
+    upperBlock: () => (upperBlock ??= upperStackBlock(upper, reads)),
+  };
+}
+async function stackingFormat(
+  pallet: Doc<"finishedGoodsPallets">,
+  reads: StackReads,
+) {
+  if (pallet.retiredAt) return false;
+  if (pallet.storageFormat) return pallet.storageFormat === "PALLET";
+  const product = await reads.product(pallet.productId);
+  return (
+    (product?.warehouseId === pallet.warehouseId ? product : null)
+      ?.storageFormat === "PALLET"
+  );
+}
+async function upperStackBlock(
+  upper: Doc<"finishedGoodsPallets">,
+  reads: StackReads,
+): Promise<string | null> {
+  if (!(await stackingFormat(upper, reads))) return "STACK_PALLET_ONLY";
+  if ((await reads.stackChildren(upper._id)).length)
+    return "PALLET_SUPPORTING_STACK";
+  return null;
+}
 async function validateStack(
   ctx: TenantFunctionContext,
   upper: Doc<"finishedGoodsPallets">,
   supportPalletId?: Id<"finishedGoodsPallets">,
+  scope?: StackScope,
 ): Promise<string | null> {
   if (!supportPalletId) return null;
-  if (!(await isStackingPallet(ctx, upper))) return "STACK_PALLET_ONLY";
-  if ((await stackChildren(ctx, upper._id)).length)
-    return "PALLET_SUPPORTING_STACK";
+  const reads = scope?.reads ?? freshStackReads(ctx);
+  const blocked = await (scope
+    ? scope.upperBlock()
+    : upperStackBlock(upper, reads));
+  if (blocked) return blocked;
   let parentId: Id<"finishedGoodsPallets"> | undefined = supportPalletId;
   let childId = upper._id,
     levels = 2;
@@ -2446,14 +2588,13 @@ async function validateStack(
   while (parentId) {
     if (seen.has(parentId) || levels > 10) return "STACK_CYCLE";
     seen.add(parentId);
-    const parent = await palletOf(ctx, {
-      warehouseId: upper.warehouseId,
-      palletId: parentId,
-    });
+    const read = await reads.pallet(parentId);
+    const parent =
+      read?.warehouseId === upper.warehouseId && !read.retiredAt ? read : null;
     if (!parent || parent.status !== "STORED")
       return "STACK_SUPPORT_UNAVAILABLE";
-    if (!(await isStackingPallet(ctx, parent))) return "STACK_PALLET_ONLY";
-    if (await hasActiveMove(ctx, parent._id)) return "STACK_SUPPORT_MOVING";
+    if (!(await stackingFormat(parent, reads))) return "STACK_PALLET_ONLY";
+    if (await reads.hasActiveMove(parent._id)) return "STACK_SUPPORT_MOVING";
     if (
       !parent.stackable ||
       !Number.isSafeInteger(parent.maxStackLevels) ||
@@ -2462,12 +2603,20 @@ async function validateStack(
       return "STACK_LIMITS_REQUIRED";
     if (levels > parent.maxStackLevels!) return "STACK_LEVELS_EXCEEDED";
     if (
-      (await stackChildren(ctx, parent._id)).some(
+      (await reads.stackChildren(parent._id)).some(
         (p) => p.palletId !== childId && p.palletId !== upper._id,
       )
     )
       return "STACK_SUPPORT_OCCUPIED";
-    const placement = await currentPlacement(ctx, parent);
+    const row = parent.placementId
+      ? await reads.placement(parent.placementId)
+      : null;
+    const placement =
+      row?.palletId === parent._id &&
+      row.warehouseId === parent.warehouseId &&
+      row.status !== "RELEASED"
+        ? row
+        : null;
     if (
       !placement ||
       !isGeometricPlacement(placement) ||

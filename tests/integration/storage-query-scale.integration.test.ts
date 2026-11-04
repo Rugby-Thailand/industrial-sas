@@ -546,3 +546,95 @@ describe("recommendation reason and ranking parity", () => {
     ).toMatchObject({ candidates: [], reasons: ["NO_ACTIVE_LOCATIONS"] });
   });
 });
+
+describe("recommendation read budget", () => {
+  it("never reads zones of draft buildings and keeps the active result identical", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 3);
+    const before = await measured<{ candidates: unknown[]; reasons: string[] }>(
+      seed.world,
+      recommend,
+      { warehouseId: seed.warehouseId, palletId: seed.palletId },
+    );
+    // 60 zones in a draft building in the same warehouse: none can be a candidate.
+    await seed.world.t.run(async (ctx) => {
+      const buildingId = await ctx.db.insert("storageBuildings", {
+        ...fields(seed.building),
+        code: "DRAFT",
+        status: "DRAFT",
+      });
+      for (let i = 0; i < 60; i++) {
+        const locationId = await ctx.db.insert("locations", {
+          ...fields(seed.location),
+          code: `DRAFT-L-${i}`,
+        });
+        await ctx.db.insert("storageZones", {
+          ...fields(seed.zone),
+          buildingId,
+          locationId,
+          code: `A-DRAFT-${String(i).padStart(2, "0")}`,
+        });
+      }
+    });
+    const after = await measured<{ candidates: unknown[]; reasons: string[] }>(
+      seed.world,
+      recommend,
+      { warehouseId: seed.warehouseId, palletId: seed.palletId },
+    );
+    expect(after.value).toEqual(before.value);
+    expect(after.stats.rangeDocs["storageZones"]).toBe(
+      before.stats.rangeDocs["storageZones"],
+    );
+    expect(after.stats.gets["locations"] ?? 0).toBe(
+      before.stats.gets["locations"] ?? 0,
+    );
+  });
+
+  it("checks the placed pallet once, not once per pallet support", async () => {
+    const seed = await scaleWorld();
+    await addPallets(seed, 200);
+    // Link pallets to their placements, as real STORED pallets are.
+    await seed.world.t.run(async (ctx) => {
+      for (const placement of await ctx.db
+        .query("finishedGoodsPlacements")
+        .collect())
+        await ctx.db.patch(placement.palletId, { placementId: placement._id });
+    });
+    const upperId = await seed.world.t.run((ctx) =>
+      ctx.db.insert("finishedGoodsPallets", {
+        ...seed.audit,
+        productId: seed.productId,
+        code: "PAL-UPPER",
+        quantity: 1,
+        lengthMm: 1000,
+        widthMm: 1000,
+        heightMm: 1000,
+        status: "AWAITING_PLACEMENT",
+      }),
+    );
+    const result = await measured<{
+      candidates: unknown[];
+      previewCandidates: { previewSupports: { blockedReason?: string }[] }[];
+      reasons: string[];
+    }>(seed.world, recommend, {
+      warehouseId: seed.warehouseId,
+      palletId: upperId,
+    });
+    // Every stored pallet is offered as a (blocked) support surface.
+    const supports = [
+      ...result.value.candidates,
+      ...result.value.previewCandidates,
+    ].flatMap(
+      (candidate) =>
+        (candidate as { previewSupports: { blockedReason?: string }[] })
+          .previewSupports,
+    );
+    expect(supports.filter((s) => s.blockedReason).length).toBeGreaterThan(0);
+    // One product read for the request plus one shared stack-format read,
+    // and each lower pallet read once, however many supports exist.
+    expect(result.stats.gets["finishedGoodsProducts"]).toBeLessThanOrEqual(2);
+    expect(result.stats.gets["finishedGoodsPallets"]).toBeLessThanOrEqual(
+      200 + 1,
+    );
+  }, 30000);
+});

@@ -1,0 +1,3194 @@
+{
+  "label": "iter1",
+  "generatedAt": "2026-11-04T14:33:54.808Z",
+  "samples": 7,
+  "restoredFrom": "output/perf/dataset-L.zip",
+  "loadAverage": {
+    "before": [4.111328125, 9.87890625, 19.3662109375],
+    "after": [2.6376953125, 7.55908203125, 17.2509765625]
+  },
+  "dataset": {
+    "pallets": 1305,
+    "products": 126,
+    "zones": 421,
+    "buildings": 127,
+    "jobScans": 2182,
+    "employees": 153
+  },
+  "targets": [
+    {
+      "name": "candidate",
+      "revision": "80dc0a937022ebebcd36a113e4401d3acaaa52f1",
+      "dirty": true,
+      "backend": "unknown"
+    },
+    {
+      "name": "base",
+      "revision": "80dc0a937022ebebcd36a113e4401d3acaaa52f1",
+      "dirty": false,
+      "backend": "unknown"
+    }
+  ],
+  "queries": [
+    {
+      "screen": "shell",
+      "fn": "workspace/current:readCurrent",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.41,
+          "execMsP95": 13,
+          "userExecMsP50": 8.09,
+          "rttMsP50": 12.92,
+          "readDocs": 16,
+          "readBytes": 5075,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 468,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.41,
+          "execMsP95": 11.69,
+          "userExecMsP50": 7.39,
+          "rttMsP50": 11.18,
+          "readDocs": 16,
+          "readBytes": 5075,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 468,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "shell",
+      "fn": "hr/access:display",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.91,
+          "execMsP95": 11.66,
+          "userExecMsP50": 7.77,
+          "rttMsP50": 12.26,
+          "readDocs": 16,
+          "readBytes": 5419,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 674,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.17,
+          "execMsP95": 10.77,
+          "userExecMsP50": 8.02,
+          "rttMsP50": 11.91,
+          "readDocs": 16,
+          "readBytes": 5419,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 674,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "shell",
+      "fn": "aiUsage/reports:access",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.96,
+          "execMsP95": 10.26,
+          "userExecMsP50": 7.41,
+          "rttMsP50": 11.72,
+          "readDocs": 11,
+          "readBytes": 3466,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 196,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.02,
+          "execMsP95": 10,
+          "userExecMsP50": 7,
+          "rttMsP50": 10.98,
+          "readDocs": 11,
+          "readBytes": 3466,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 196,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-catalogue",
+      "fn": "finishedGoods/catalogue:summary",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 37.33,
+          "execMsP95": 39.61,
+          "userExecMsP50": 22.22,
+          "rttMsP50": 41.98,
+          "readDocs": 272,
+          "readBytes": 140166,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1616,
+          "memoryMb": 64,
+          "requests": 2
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 37.78,
+          "execMsP95": 41.91,
+          "userExecMsP50": 22.9,
+          "rttMsP50": 40.52,
+          "readDocs": 272,
+          "readBytes": 140166,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1616,
+          "memoryMb": 64,
+          "requests": 2
+        }
+      }
+    },
+    {
+      "screen": "fg-catalogue",
+      "fn": "finishedGoods/catalogue:page",
+      "label": "products tab",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 19.55,
+          "execMsP95": 23.59,
+          "userExecMsP50": 12.44,
+          "rttMsP50": 22.76,
+          "readDocs": 110,
+          "readBytes": 56425,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 75767,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 19.28,
+          "execMsP95": 23.15,
+          "userExecMsP50": 12.22,
+          "rttMsP50": 22.07,
+          "readDocs": 110,
+          "readBytes": 56425,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 75767,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-catalogue",
+      "fn": "finishedGoods/catalogue:page",
+      "label": "pallets tab",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 31.28,
+          "execMsP95": 38.95,
+          "userExecMsP50": 13.86,
+          "rttMsP50": 34.46,
+          "readDocs": 65,
+          "readBytes": 40122,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 77134,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 31.18,
+          "execMsP95": 36.46,
+          "userExecMsP50": 14.53,
+          "rttMsP50": 33.67,
+          "readDocs": 65,
+          "readBytes": 40122,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 77134,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-catalogue",
+      "fn": "finishedGoods/catalogue:page",
+      "label": "pallets search",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 31.39,
+          "execMsP95": 36.53,
+          "userExecMsP50": 13.98,
+          "rttMsP50": 34.4,
+          "readDocs": 65,
+          "readBytes": 40122,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 77138,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 31.29,
+          "execMsP95": 36.86,
+          "userExecMsP50": 14.14,
+          "rttMsP50": 33.58,
+          "readDocs": 65,
+          "readBytes": 40122,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 77138,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-product",
+      "fn": "finishedGoods/workflow:getProduct",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.76,
+          "execMsP95": 15.2,
+          "userExecMsP50": 8.01,
+          "rttMsP50": 12.41,
+          "readDocs": 10,
+          "readBytes": 3502,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 706,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.41,
+          "execMsP95": 13.62,
+          "userExecMsP50": 7.95,
+          "rttMsP50": 10.83,
+          "readDocs": 10,
+          "readBytes": 3502,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 706,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-product",
+      "fn": "finishedGoods/catalogue:productSummary",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.82,
+          "execMsP95": 22.41,
+          "userExecMsP50": 7.11,
+          "rttMsP50": 11.07,
+          "readDocs": 12,
+          "readBytes": 4383,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 309,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.49,
+          "execMsP95": 15.17,
+          "userExecMsP50": 8.47,
+          "rttMsP50": 11.95,
+          "readDocs": 12,
+          "readBytes": 4383,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 309,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-product",
+      "fn": "finishedGoods/batches:pageProductBatches",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.25,
+          "execMsP95": 20.87,
+          "userExecMsP50": 8.49,
+          "rttMsP50": 12.81,
+          "readDocs": 10,
+          "readBytes": 3288,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 147,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.07,
+          "execMsP95": 19.23,
+          "userExecMsP50": 8.22,
+          "rttMsP50": 11.22,
+          "readDocs": 10,
+          "readBytes": 3288,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 147,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-product",
+      "fn": "finishedGoods/batches:pageLegacyUnits",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 16.8,
+          "execMsP95": 29.1,
+          "userExecMsP50": 10.69,
+          "rttMsP50": 18.99,
+          "readDocs": 31,
+          "readBytes": 18132,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 16198,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 15.23,
+          "execMsP95": 22.65,
+          "userExecMsP50": 10.03,
+          "rttMsP50": 17.44,
+          "readDocs": 31,
+          "readBytes": 18132,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 16198,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-product",
+      "fn": "finishedGoods/batches:getBatch",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.84,
+          "execMsP95": 19.58,
+          "userExecMsP50": 7.2,
+          "rttMsP50": 11.02,
+          "readDocs": 11,
+          "readBytes": 3749,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1054,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.3,
+          "execMsP95": 21.12,
+          "userExecMsP50": 7.63,
+          "rttMsP50": 10.76,
+          "readDocs": 11,
+          "readBytes": 3749,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1054,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-pallet",
+      "fn": "finishedGoods/workflow:getPallet",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 15.75,
+          "execMsP95": 27.02,
+          "userExecMsP50": 9.65,
+          "rttMsP50": 18.24,
+          "readDocs": 75,
+          "readBytes": 52141,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 2327,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 17.37,
+          "execMsP95": 25.73,
+          "userExecMsP50": 10.93,
+          "rttMsP50": 18.84,
+          "readDocs": 75,
+          "readBytes": 52141,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 2327,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-pallet",
+      "fn": "finishedGoods/history:palletMoveHistory",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.42,
+          "execMsP95": 12.93,
+          "userExecMsP50": 7.53,
+          "rttMsP50": 11.57,
+          "readDocs": 10,
+          "readBytes": 3489,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 148,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.93,
+          "execMsP95": 15.51,
+          "userExecMsP50": 7.27,
+          "rttMsP50": 10.8,
+          "readDocs": 10,
+          "readBytes": 3489,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 148,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-pallet",
+      "fn": "finishedGoods/workflow:recommend",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 247.16,
+          "execMsP95": 275.9,
+          "userExecMsP50": 73.33,
+          "rttMsP50": 252.25,
+          "readDocs": 2454,
+          "readBytes": 1660533,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 244011,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 290.35,
+          "execMsP95": 294.35,
+          "userExecMsP50": 80.3,
+          "rttMsP50": 294.74,
+          "readDocs": 2886,
+          "readBytes": 1861485,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 244011,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-pallet",
+      "fn": "finishedGoods/workflow:recommendMove",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 243.6,
+          "execMsP95": 261.36,
+          "userExecMsP50": 73.17,
+          "rttMsP50": 248.27,
+          "readDocs": 2455,
+          "readBytes": 1661305,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 244251,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 273.27,
+          "execMsP95": 284.89,
+          "userExecMsP50": 76.28,
+          "rttMsP50": 277.5,
+          "readDocs": 2887,
+          "readBytes": 1862257,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 244251,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-pallet",
+      "fn": "finishedGoods/workflow:stackChoices",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.71,
+          "execMsP95": 13.64,
+          "userExecMsP50": 8.08,
+          "rttMsP50": 11.93,
+          "readDocs": 10,
+          "readBytes": 3438,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 75,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.21,
+          "execMsP95": 11.4,
+          "userExecMsP50": 6.66,
+          "rttMsP50": 9.56,
+          "readDocs": 10,
+          "readBytes": 3438,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 75,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "fg-pallet",
+      "fn": "finishedGoods/workflow:list",
+      "label": "",
+      "legacy": true,
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 136.8,
+          "execMsP95": 142.51,
+          "userExecMsP50": 41.21,
+          "rttMsP50": 145.21,
+          "readDocs": 1440,
+          "readBytes": 936712,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 947613,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 136.32,
+          "execMsP95": 139.85,
+          "userExecMsP50": 41.72,
+          "rttMsP50": 144.34,
+          "readDocs": 1440,
+          "readBytes": 936712,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 947613,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScans:listJobScans",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 26.32,
+          "execMsP95": 36.85,
+          "userExecMsP50": 9.36,
+          "rttMsP50": 28.91,
+          "readDocs": 60,
+          "readBytes": 37793,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 21811,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 26.34,
+          "execMsP95": 33.12,
+          "userExecMsP50": 9.63,
+          "rttMsP50": 28.2,
+          "readDocs": 60,
+          "readBytes": 37793,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 21811,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScans:listJobScans",
+      "label": "unmapped",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 25.47,
+          "execMsP95": 30.24,
+          "userExecMsP50": 9.31,
+          "rttMsP50": 27.89,
+          "readDocs": 60,
+          "readBytes": 37844,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 21818,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 26.64,
+          "execMsP95": 32.47,
+          "userExecMsP50": 9.86,
+          "rttMsP50": 28.44,
+          "readDocs": 60,
+          "readBytes": 37844,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 21818,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScans:listJobScans",
+      "label": "search",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 428.58,
+          "execMsP95": 472.41,
+          "userExecMsP50": 205.41,
+          "rttMsP50": 472.21,
+          "readDocs": 2389,
+          "readBytes": 1578096,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 21981,
+          "memoryMb": 64,
+          "requests": 22
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 385.56,
+          "execMsP95": 413.28,
+          "userExecMsP50": 164.97,
+          "rttMsP50": 416.11,
+          "readDocs": 2389,
+          "readBytes": 1578096,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 21981,
+          "memoryMb": 64,
+          "requests": 22
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScanLocations:options",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 22.05,
+          "execMsP95": 23.61,
+          "userExecMsP50": 12.03,
+          "rttMsP50": 24.6,
+          "readDocs": 218,
+          "readBytes": 137998,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 13528,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 22.69,
+          "execMsP95": 24.77,
+          "userExecMsP50": 11.77,
+          "rttMsP50": 24.28,
+          "readDocs": 218,
+          "readBytes": 137998,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 13528,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScanLocations:buildingOptions",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.8,
+          "execMsP95": 13.17,
+          "userExecMsP50": 7.71,
+          "rttMsP50": 13.24,
+          "readDocs": 61,
+          "readBytes": 38678,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 7871,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.44,
+          "execMsP95": 12.14,
+          "userExecMsP50": 8.37,
+          "rttMsP50": 12.52,
+          "readDocs": 61,
+          "readBytes": 38678,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 7871,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScanLocations:page",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.4,
+          "execMsP95": 11.29,
+          "userExecMsP50": 6.65,
+          "rttMsP50": 10.61,
+          "readDocs": 9,
+          "readBytes": 2930,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 176,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.87,
+          "execMsP95": 15.17,
+          "userExecMsP50": 7.94,
+          "rttMsP50": 11.3,
+          "readDocs": 9,
+          "readBytes": 2930,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 176,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScanLocations:searchPage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 111.98,
+          "execMsP95": 116.99,
+          "userExecMsP50": 48.58,
+          "rttMsP50": 116.38,
+          "readDocs": 896,
+          "readBytes": 485676,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 843,
+          "memoryMb": 64,
+          "requests": 2
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 113.46,
+          "execMsP95": 121.65,
+          "userExecMsP50": 50.33,
+          "rttMsP50": 116.22,
+          "readDocs": 896,
+          "readBytes": 485676,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 843,
+          "memoryMb": 64,
+          "requests": 2
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/jobScanLocations:resolve",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.45,
+          "execMsP95": 20.03,
+          "userExecMsP50": 8.74,
+          "rttMsP50": 13.1,
+          "readDocs": 15,
+          "readBytes": 6322,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 653,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.63,
+          "execMsP95": 22.21,
+          "userExecMsP50": 9.14,
+          "rttMsP50": 13.27,
+          "readDocs": 15,
+          "readBytes": 6322,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 653,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/scanning:resolveLocationCode",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.92,
+          "execMsP95": 17.95,
+          "userExecMsP50": 7.03,
+          "rttMsP50": 11.11,
+          "readDocs": 13,
+          "readBytes": 5111,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 526,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.58,
+          "execMsP95": 22.34,
+          "userExecMsP50": 8.14,
+          "rttMsP50": 12.21,
+          "readDocs": 13,
+          "readBytes": 5111,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 526,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "job-scan",
+      "fn": "finishedGoods/scanning:resolvePackageCode",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.62,
+          "execMsP95": 17.9,
+          "userExecMsP50": 7.03,
+          "rttMsP50": 10.89,
+          "readDocs": 10,
+          "readBytes": 3621,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 119,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "NOT_OK"
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.85,
+          "execMsP95": 15.38,
+          "userExecMsP50": 7.46,
+          "rttMsP50": 10.12,
+          "readDocs": 10,
+          "readBytes": 3621,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 119,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "NOT_OK"
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:listStorageBuildingsPage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.4,
+          "execMsP95": 20.4,
+          "userExecMsP50": 8.2,
+          "rttMsP50": 13.75,
+          "readDocs": 29,
+          "readBytes": 16585,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 14031,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.92,
+          "execMsP95": 24.73,
+          "userExecMsP50": 8.68,
+          "rttMsP50": 13.42,
+          "readDocs": 29,
+          "readBytes": 16585,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 14031,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:getStorageBuilding",
+      "label": "",
+      "legacy": true,
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 147.45,
+          "execMsP95": 151.39,
+          "userExecMsP50": 44.1,
+          "rttMsP50": 153.12,
+          "readDocs": 1844,
+          "readBytes": 1360049,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 464295,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 151.28,
+          "execMsP95": 155.98,
+          "userExecMsP50": 50.93,
+          "rttMsP50": 158.25,
+          "readDocs": 1844,
+          "readBytes": 1360049,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 464295,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:getStorageBuildingLayout",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.65,
+          "execMsP95": 23.86,
+          "userExecMsP50": 7.44,
+          "rttMsP50": 12.84,
+          "readDocs": 25,
+          "readBytes": 14642,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 7560,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.07,
+          "execMsP95": 14.14,
+          "userExecMsP50": 8.4,
+          "rttMsP50": 12.5,
+          "readDocs": 25,
+          "readBytes": 14642,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 7560,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:getStorageBuildingInventory",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 169.38,
+          "execMsP95": 186.8,
+          "userExecMsP50": 41.49,
+          "rttMsP50": 174.75,
+          "readDocs": 1829,
+          "readBytes": 1348974,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 458594,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 167.57,
+          "execMsP95": 183.93,
+          "userExecMsP50": 43.91,
+          "rttMsP50": 172.15,
+          "readDocs": 1829,
+          "readBytes": 1348974,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 458594,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:buildingOccupancy",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 76.69,
+          "execMsP95": 109.65,
+          "userExecMsP50": 21.1,
+          "rttMsP50": 79.12,
+          "readDocs": 917,
+          "readBytes": 839110,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 978,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 81.99,
+          "execMsP95": 89.07,
+          "userExecMsP50": 23.43,
+          "rttMsP50": 83.43,
+          "readDocs": 917,
+          "readBytes": 839110,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 978,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:buildingStatusControl",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.76,
+          "execMsP95": 10.76,
+          "userExecMsP50": 6.49,
+          "rttMsP50": 11.19,
+          "readDocs": 11,
+          "readBytes": 4492,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 119,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.93,
+          "execMsP95": 14.73,
+          "userExecMsP50": 7.74,
+          "rttMsP50": 11.57,
+          "readDocs": 11,
+          "readBytes": 4492,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 119,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/catalogue:getStorageLocationMap",
+      "label": "",
+      "legacy": true,
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 97.88,
+          "execMsP95": 130.02,
+          "userExecMsP50": 32.61,
+          "rttMsP50": 103.02,
+          "readDocs": 936,
+          "readBytes": 687758,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 385207,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 108.22,
+          "execMsP95": 258.38,
+          "userExecMsP50": 35.14,
+          "rttMsP50": 115.39,
+          "readDocs": 936,
+          "readBytes": 687758,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 385207,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/locationCatalogue:page",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 15.96,
+          "execMsP95": 22.07,
+          "userExecMsP50": 8.45,
+          "rttMsP50": 18.14,
+          "readDocs": 83,
+          "readBytes": 54039,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 26386,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 17.81,
+          "execMsP95": 29.49,
+          "userExecMsP50": 9.87,
+          "rttMsP50": 19.54,
+          "readDocs": 83,
+          "readBytes": 54039,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 26386,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/locationCatalogue:options",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.56,
+          "execMsP95": 18.84,
+          "userExecMsP50": 7,
+          "rttMsP50": 12.96,
+          "readDocs": 109,
+          "readBytes": 70798,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 14855,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.97,
+          "execMsP95": 19.66,
+          "userExecMsP50": 8.35,
+          "rttMsP50": 13.75,
+          "readDocs": 109,
+          "readBytes": 70798,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 14855,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/locationCatalogue:detail",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 75.34,
+          "execMsP95": 80.07,
+          "userExecMsP50": 35.11,
+          "rttMsP50": 78.68,
+          "readDocs": 312,
+          "readBytes": 281065,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 64132,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 82.96,
+          "execMsP95": 87.19,
+          "userExecMsP50": 40.02,
+          "rttMsP50": 85.57,
+          "readDocs": 312,
+          "readBytes": 281065,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 64132,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "storage",
+      "fn": "storageLayouts/writes:layoutReadiness",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.34,
+          "execMsP95": 22.6,
+          "userExecMsP50": 7.84,
+          "rttMsP50": 13.55,
+          "readDocs": 25,
+          "readBytes": 14642,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1915,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.62,
+          "execMsP95": 12.96,
+          "userExecMsP50": 8.53,
+          "rttMsP50": 13.02,
+          "readDocs": 25,
+          "readBytes": 14642,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1915,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/self:today",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11,
+          "execMsP95": 21.12,
+          "userExecMsP50": 8.36,
+          "rttMsP50": 13.26,
+          "readDocs": 14,
+          "readBytes": 6487,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 781,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.22,
+          "execMsP95": 11.15,
+          "userExecMsP50": 8.09,
+          "rttMsP50": 11.57,
+          "readDocs": 14,
+          "readBytes": 6487,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 781,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/self:profile",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.84,
+          "execMsP95": 21.33,
+          "userExecMsP50": 6.8,
+          "rttMsP50": 11.16,
+          "readDocs": 12,
+          "readBytes": 4207,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 626,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.48,
+          "execMsP95": 10.45,
+          "userExecMsP50": 7.45,
+          "rttMsP50": 11.16,
+          "readDocs": 12,
+          "readBytes": 4207,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 626,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/self:history",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.81,
+          "execMsP95": 21.29,
+          "userExecMsP50": 7.54,
+          "rttMsP50": 12.25,
+          "readDocs": 12,
+          "readBytes": 5742,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1656,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.26,
+          "execMsP95": 10.86,
+          "userExecMsP50": 8.17,
+          "rttMsP50": 11.9,
+          "readDocs": 12,
+          "readBytes": 5742,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1656,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/self:requests",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.48,
+          "execMsP95": 22.36,
+          "userExecMsP50": 6.65,
+          "rttMsP50": 10.91,
+          "readDocs": 10,
+          "readBytes": 4413,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 612,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.62,
+          "execMsP95": 9.75,
+          "userExecMsP50": 7.04,
+          "rttMsP50": 10.41,
+          "readDocs": 10,
+          "readBytes": 4413,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 612,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/announcements:self",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.25,
+          "execMsP95": 17.04,
+          "userExecMsP50": 7.11,
+          "rttMsP50": 11.49,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 138,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.53,
+          "execMsP95": 10.32,
+          "userExecMsP50": 7.7,
+          "rttMsP50": 11.2,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 138,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/notifications:list",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.07,
+          "execMsP95": 18.56,
+          "userExecMsP50": 6.4,
+          "rttMsP50": 10.14,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 156,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.4,
+          "execMsP95": 9.5,
+          "userExecMsP50": 6.8,
+          "rttMsP50": 9.65,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 156,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-self",
+      "fn": "hr/leave:self",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.71,
+          "execMsP95": 22.62,
+          "userExecMsP50": 6.59,
+          "rttMsP50": 10.84,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 355,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.28,
+          "execMsP95": 10.72,
+          "userExecMsP50": 7.53,
+          "rttMsP50": 10.6,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 355,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/setup:employeesPage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 17.15,
+          "execMsP95": 25.98,
+          "userExecMsP50": 10.76,
+          "rttMsP50": 19.71,
+          "readDocs": 141,
+          "readBytes": 85563,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 15341,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 17.42,
+          "execMsP95": 18.49,
+          "userExecMsP50": 11.54,
+          "rttMsP50": 18.8,
+          "readDocs": 141,
+          "readBytes": 85563,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 15341,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/review:queuePage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 51.31,
+          "execMsP95": 66.27,
+          "userExecMsP50": 26.83,
+          "rttMsP50": 56.11,
+          "readDocs": 251,
+          "readBytes": 142749,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 10112,
+          "memoryMb": 64,
+          "requests": 2
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 57.56,
+          "execMsP95": 93.65,
+          "userExecMsP50": 32.59,
+          "rttMsP50": 60.82,
+          "readDocs": 251,
+          "readBytes": 142749,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 10112,
+          "memoryMb": 64,
+          "requests": 2
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/periods:listPage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.24,
+          "execMsP95": 9.52,
+          "userExecMsP50": 6.37,
+          "rttMsP50": 10.74,
+          "readDocs": 10,
+          "readBytes": 3493,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 467,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.04,
+          "execMsP95": 9.92,
+          "userExecMsP50": 7.3,
+          "rttMsP50": 10.41,
+          "readDocs": 10,
+          "readBytes": 3493,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 467,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/periods:preview",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 14.9,
+          "execMsP95": 15.43,
+          "userExecMsP50": 8.67,
+          "rttMsP50": 17.4,
+          "readDocs": 164,
+          "readBytes": 116782,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 804,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 15.86,
+          "execMsP95": 16.97,
+          "userExecMsP50": 9.89,
+          "rttMsP50": 17.52,
+          "readDocs": 164,
+          "readBytes": 116782,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 804,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/periods:versionRowsPage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.5,
+          "execMsP95": 10.06,
+          "userExecMsP50": 6.53,
+          "rttMsP50": 10.71,
+          "readDocs": 29,
+          "readBytes": 16675,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 9635,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.82,
+          "execMsP95": 10.79,
+          "userExecMsP50": 7.79,
+          "rttMsP50": 11.23,
+          "readDocs": 29,
+          "readBytes": 16675,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 9635,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/roster:roster",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 13.95,
+          "execMsP95": 15.41,
+          "userExecMsP50": 8.11,
+          "rttMsP50": 16.31,
+          "readDocs": 162,
+          "readBytes": 115514,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 107,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "LIMIT_EXCEEDED"
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 14.82,
+          "execMsP95": 36.4,
+          "userExecMsP50": 9.26,
+          "rttMsP50": 16.28,
+          "readDocs": 162,
+          "readBytes": 115514,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 107,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "LIMIT_EXCEEDED"
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/roster:shifts",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 7.8,
+          "execMsP95": 9.71,
+          "userExecMsP50": 6.09,
+          "rttMsP50": 10.19,
+          "readDocs": 9,
+          "readBytes": 2902,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 226,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.82,
+          "execMsP95": 9.88,
+          "userExecMsP50": 7.01,
+          "rttMsP50": 10.5,
+          "readDocs": 9,
+          "readBytes": 2902,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 226,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/payslips:list",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.41,
+          "execMsP95": 8.9,
+          "userExecMsP50": 6.82,
+          "rttMsP50": 10.59,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 110,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "POLICY_NOT_ACTIVE"
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.57,
+          "execMsP95": 9.71,
+          "userExecMsP50": 7.19,
+          "rttMsP50": 9.81,
+          "readDocs": 9,
+          "readBytes": 3484,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 110,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "POLICY_NOT_ACTIVE"
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/payslips:imports",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 7.83,
+          "execMsP95": 9.46,
+          "userExecMsP50": 6.25,
+          "rttMsP50": 10.09,
+          "readDocs": 8,
+          "readBytes": 2722,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 110,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "POLICY_NOT_ACTIVE"
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.98,
+          "execMsP95": 9.98,
+          "userExecMsP50": 7.68,
+          "rttMsP50": 10.36,
+          "readDocs": 8,
+          "readBytes": 2722,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 110,
+          "memoryMb": 64,
+          "requests": 1,
+          "resultCode": "POLICY_NOT_ACTIVE"
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/leave:queuePage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.99,
+          "execMsP95": 9.69,
+          "userExecMsP50": 7.06,
+          "rttMsP50": 11.08,
+          "readDocs": 11,
+          "readBytes": 3466,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 157,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.62,
+          "execMsP95": 10.34,
+          "userExecMsP50": 7.83,
+          "rttMsP50": 10.98,
+          "readDocs": 11,
+          "readBytes": 3466,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 157,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/setup:accessMembersPage",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.94,
+          "execMsP95": 12.08,
+          "userExecMsP50": 8.03,
+          "rttMsP50": 13.16,
+          "readDocs": 26,
+          "readBytes": 8584,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 584,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.72,
+          "execMsP95": 13.51,
+          "userExecMsP50": 8.8,
+          "rttMsP50": 13.43,
+          "readDocs": 26,
+          "readBytes": 8584,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 584,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/org:listDepartments",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 7.96,
+          "execMsP95": 9.11,
+          "userExecMsP50": 6.4,
+          "rttMsP50": 10.29,
+          "readDocs": 8,
+          "readBytes": 2722,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 83,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.81,
+          "execMsP95": 10.02,
+          "userExecMsP50": 7.36,
+          "rttMsP50": 10.08,
+          "readDocs": 8,
+          "readBytes": 2722,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 83,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/search:adminEmployees",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 11.76,
+          "execMsP95": 15.5,
+          "userExecMsP50": 7.62,
+          "rttMsP50": 14.02,
+          "readDocs": 111,
+          "readBytes": 76965,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1504,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 14.4,
+          "execMsP95": 14.88,
+          "userExecMsP50": 9.53,
+          "rttMsP50": 15.89,
+          "readDocs": 111,
+          "readBytes": 76965,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1504,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "hr-admin",
+      "fn": "hr/setup:employee",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 9.16,
+          "execMsP95": 10.29,
+          "userExecMsP50": 7.03,
+          "rttMsP50": 11.42,
+          "readDocs": 19,
+          "readBytes": 6314,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 650,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 10.01,
+          "execMsP95": 11.6,
+          "userExecMsP50": 8.39,
+          "rttMsP50": 11.23,
+          "readDocs": 19,
+          "readBytes": 6314,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 650,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "ai-usage",
+      "fn": "aiUsage/reports:summary",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.12,
+          "execMsP95": 10.03,
+          "userExecMsP50": 6.39,
+          "rttMsP50": 10.29,
+          "readDocs": 8,
+          "readBytes": 2716,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1221,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.81,
+          "execMsP95": 10.99,
+          "userExecMsP50": 7.18,
+          "rttMsP50": 10.01,
+          "readDocs": 8,
+          "readBytes": 2716,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 1221,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "ai-usage",
+      "fn": "aiUsage/reports:recent",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 7.55,
+          "execMsP95": 9.2,
+          "userExecMsP50": 5.95,
+          "rttMsP50": 9.73,
+          "readDocs": 8,
+          "readBytes": 2716,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 131,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.64,
+          "execMsP95": 11.18,
+          "userExecMsP50": 7.07,
+          "rttMsP50": 10.08,
+          "readDocs": 8,
+          "readBytes": 2716,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 131,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    },
+    {
+      "screen": "ai-usage",
+      "fn": "aiUsage/dimensions:actorOptions",
+      "label": "",
+      "targets": {
+        "candidate": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 7.62,
+          "execMsP95": 9.28,
+          "userExecMsP50": 5.7,
+          "rttMsP50": 9.95,
+          "readDocs": 17,
+          "readBytes": 5464,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 426,
+          "memoryMb": 64,
+          "requests": 1
+        },
+        "base": {
+          "n": 7,
+          "errors": 0,
+          "occRetries": 0,
+          "execMsP50": 8.99,
+          "execMsP95": 10.3,
+          "userExecMsP50": 6.69,
+          "rttMsP50": 10.08,
+          "readDocs": 17,
+          "readBytes": 5464,
+          "writeDocs": 0,
+          "writeBytes": 0,
+          "writeIndexRows": 0,
+          "returnBytes": 426,
+          "memoryMb": 64,
+          "requests": 1
+        }
+      }
+    }
+  ],
+  "perTarget": {
+    "candidate": {
+      "flows": [
+        {
+          "flow": "job-scan save 1 → correct → delete",
+          "steps": [
+            {
+              "fn": "finishedGoods/jobScans:saveJobScans",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 9.32,
+              "execMsP95": 11.06,
+              "userExecMsP50": 7.78,
+              "rttMsP50": 13.81,
+              "readDocs": 10,
+              "readBytes": 3324,
+              "writeDocs": 4,
+              "writeBytes": 3822,
+              "writeIndexRows": 22,
+              "returnBytes": 152,
+              "memoryMb": 64
+            },
+            {
+              "fn": "finishedGoods/jobScans:updateJobScan",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 9.54,
+              "execMsP95": 15.24,
+              "userExecMsP50": 7.52,
+              "rttMsP50": 14.63,
+              "readDocs": 13,
+              "readBytes": 4689,
+              "writeDocs": 4,
+              "writeBytes": 4085,
+              "writeIndexRows": 22,
+              "returnBytes": 152,
+              "memoryMb": 64
+            },
+            {
+              "fn": "finishedGoods/jobScans:deleteJobScans",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 9.62,
+              "execMsP95": 10.94,
+              "userExecMsP50": 7.74,
+              "rttMsP50": 13.7,
+              "readDocs": 13,
+              "readBytes": 4947,
+              "writeDocs": 4,
+              "writeBytes": 3062,
+              "writeIndexRows": 22,
+              "returnBytes": 152,
+              "memoryMb": 64
+            }
+          ]
+        },
+        {
+          "flow": "job-scan save batch of 50 (max)",
+          "steps": [
+            {
+              "fn": "finishedGoods/jobScans:saveJobScans",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 12.59,
+              "execMsP95": 12.89,
+              "userExecMsP50": 8.73,
+              "rttMsP50": 22.12,
+              "readDocs": 10,
+              "readBytes": 3324,
+              "writeDocs": 53,
+              "writeBytes": 41168,
+              "writeIndexRows": 218,
+              "returnBytes": 152,
+              "memoryMb": 64
+            }
+          ]
+        },
+        {
+          "flow": "pallet measurement save",
+          "steps": [
+            {
+              "fn": "finishedGoods/workflow:saveMeasurement",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 7.47,
+              "execMsP95": 7.85,
+              "userExecMsP50": 5.94,
+              "rttMsP50": 11.39,
+              "readDocs": 11,
+              "readBytes": 3883,
+              "writeDocs": 2,
+              "writeBytes": 2236,
+              "writeIndexRows": 14,
+              "returnBytes": 124,
+              "memoryMb": 64
+            }
+          ]
+        }
+      ],
+      "fanout": [
+        {
+          "write": "saveJobScans (1 item)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 3,
+          "readDocs": 232,
+          "readBytes": 126564,
+          "execMs": 50.5,
+          "byFunction": {
+            "finishedGoods/jobScans:listJobScans": {
+              "reruns": 3,
+              "readDocs": 232,
+              "readBytes": 126564
+            }
+          }
+        },
+        {
+          "write": "reserve (awaiting pallet)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 10,
+          "readDocs": 5428,
+          "readBytes": 3601079,
+          "execMs": 1120.4,
+          "byFunction": {
+            "finishedGoods/workflow:stackChoices": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3474
+            },
+            "finishedGoods/batches:pageProductBatches": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3288
+            },
+            "finishedGoods/catalogue:productSummary": {
+              "reruns": 1,
+              "readDocs": 12,
+              "readBytes": 4383
+            },
+            "finishedGoods/batches:pageLegacyUnits": {
+              "reruns": 1,
+              "readDocs": 31,
+              "readBytes": 18132
+            },
+            "finishedGoods/catalogue:page": {
+              "reruns": 3,
+              "readDocs": 244,
+              "readBytes": 138801
+            },
+            "finishedGoods/catalogue:summary": {
+              "reruns": 1,
+              "readDocs": 210,
+              "readBytes": 109433
+            },
+            "finishedGoods/workflow:recommend": {
+              "reruns": 1,
+              "readDocs": 2455,
+              "readBytes": 1661416
+            },
+            "finishedGoods/workflow:recommendMove": {
+              "reruns": 1,
+              "readDocs": 2456,
+              "readBytes": 1662152
+            }
+          }
+        },
+        {
+          "write": "cancelReservation (same pallet)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 10,
+          "readDocs": 5426,
+          "readBytes": 3599241,
+          "execMs": 1300,
+          "byFunction": {
+            "finishedGoods/catalogue:productSummary": {
+              "reruns": 1,
+              "readDocs": 12,
+              "readBytes": 4383
+            },
+            "finishedGoods/workflow:stackChoices": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3438
+            },
+            "finishedGoods/batches:pageProductBatches": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3288
+            },
+            "finishedGoods/batches:pageLegacyUnits": {
+              "reruns": 1,
+              "readDocs": 31,
+              "readBytes": 18132
+            },
+            "finishedGoods/catalogue:page": {
+              "reruns": 3,
+              "readDocs": 244,
+              "readBytes": 138729
+            },
+            "finishedGoods/catalogue:summary": {
+              "reruns": 1,
+              "readDocs": 210,
+              "readBytes": 109433
+            },
+            "finishedGoods/workflow:recommend": {
+              "reruns": 1,
+              "readDocs": 2454,
+              "readBytes": 1660533
+            },
+            "finishedGoods/workflow:recommendMove": {
+              "reruns": 1,
+              "readDocs": 2455,
+              "readBytes": 1661305
+            }
+          }
+        },
+        {
+          "write": "createPallet (busiest product)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 7,
+          "readDocs": 510,
+          "readBytes": 275538,
+          "execMs": 215.3,
+          "byFunction": {
+            "finishedGoods/catalogue:productSummary": {
+              "reruns": 1,
+              "readDocs": 12,
+              "readBytes": 4383
+            },
+            "finishedGoods/batches:pageProductBatches": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3288
+            },
+            "finishedGoods/batches:pageLegacyUnits": {
+              "reruns": 1,
+              "readDocs": 32,
+              "readBytes": 18679
+            },
+            "finishedGoods/catalogue:page": {
+              "reruns": 3,
+              "readDocs": 246,
+              "readBytes": 139755
+            },
+            "finishedGoods/catalogue:summary": {
+              "reruns": 1,
+              "readDocs": 210,
+              "readBytes": 109433
+            }
+          }
+        }
+      ],
+      "contention": [
+        {
+          "name": "saveJobScans",
+          "workers": 8,
+          "failed": 0,
+          "executions": 8,
+          "occRetries": 0,
+          "occInfo": [],
+          "rttMsMax": 144.3,
+          "rttMsP50": 98.7
+        },
+        {
+          "name": "createPallet (same product)",
+          "workers": 8,
+          "failed": 0,
+          "executions": 8,
+          "occRetries": 0,
+          "occInfo": [],
+          "rttMsMax": 178.7,
+          "rttMsP50": 115.9
+        }
+      ]
+    },
+    "base": {
+      "flows": [
+        {
+          "flow": "job-scan save 1 → correct → delete",
+          "steps": [
+            {
+              "fn": "finishedGoods/jobScans:saveJobScans",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 10.77,
+              "execMsP95": 29.07,
+              "userExecMsP50": 8.85,
+              "rttMsP50": 14.76,
+              "readDocs": 10,
+              "readBytes": 3324,
+              "writeDocs": 4,
+              "writeBytes": 3825,
+              "writeIndexRows": 22,
+              "returnBytes": 152,
+              "memoryMb": 64
+            },
+            {
+              "fn": "finishedGoods/jobScans:updateJobScan",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 12.11,
+              "execMsP95": 15.87,
+              "userExecMsP50": 10.1,
+              "rttMsP50": 16.34,
+              "readDocs": 13,
+              "readBytes": 4686,
+              "writeDocs": 4,
+              "writeBytes": 4088,
+              "writeIndexRows": 22,
+              "returnBytes": 152,
+              "memoryMb": 64
+            },
+            {
+              "fn": "finishedGoods/jobScans:deleteJobScans",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 12.65,
+              "execMsP95": 13.09,
+              "userExecMsP50": 10.6,
+              "rttMsP50": 16.68,
+              "readDocs": 13,
+              "readBytes": 4947,
+              "writeDocs": 4,
+              "writeBytes": 3066,
+              "writeIndexRows": 22,
+              "returnBytes": 152,
+              "memoryMb": 64
+            }
+          ]
+        },
+        {
+          "flow": "job-scan save batch of 50 (max)",
+          "steps": [
+            {
+              "fn": "finishedGoods/jobScans:saveJobScans",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 16.1,
+              "execMsP95": 16.87,
+              "userExecMsP50": 11.65,
+              "rttMsP50": 24.58,
+              "readDocs": 10,
+              "readBytes": 3324,
+              "writeDocs": 53,
+              "writeBytes": 41118,
+              "writeIndexRows": 218,
+              "returnBytes": 152,
+              "memoryMb": 64
+            }
+          ]
+        },
+        {
+          "flow": "pallet measurement save",
+          "steps": [
+            {
+              "fn": "finishedGoods/workflow:saveMeasurement",
+              "n": 4,
+              "errors": 0,
+              "occRetries": 0,
+              "execMsP50": 9.46,
+              "execMsP95": 10.4,
+              "userExecMsP50": 7.78,
+              "rttMsP50": 13.24,
+              "readDocs": 11,
+              "readBytes": 3883,
+              "writeDocs": 2,
+              "writeBytes": 2236,
+              "writeIndexRows": 14,
+              "returnBytes": 124,
+              "memoryMb": 64
+            }
+          ]
+        }
+      ],
+      "fanout": [
+        {
+          "write": "saveJobScans (1 item)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 3,
+          "readDocs": 232,
+          "readBytes": 126362,
+          "execMs": 47.6,
+          "byFunction": {
+            "finishedGoods/jobScans:listJobScans": {
+              "reruns": 3,
+              "readDocs": 232,
+              "readBytes": 126362
+            }
+          }
+        },
+        {
+          "write": "reserve (awaiting pallet)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 10,
+          "readDocs": 6292,
+          "readBytes": 4002983,
+          "execMs": 1261.1,
+          "byFunction": {
+            "finishedGoods/workflow:stackChoices": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3474
+            },
+            "finishedGoods/catalogue:productSummary": {
+              "reruns": 1,
+              "readDocs": 12,
+              "readBytes": 4383
+            },
+            "finishedGoods/batches:pageProductBatches": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3288
+            },
+            "finishedGoods/batches:pageLegacyUnits": {
+              "reruns": 1,
+              "readDocs": 31,
+              "readBytes": 18132
+            },
+            "finishedGoods/catalogue:page": {
+              "reruns": 3,
+              "readDocs": 244,
+              "readBytes": 138801
+            },
+            "finishedGoods/catalogue:summary": {
+              "reruns": 1,
+              "readDocs": 210,
+              "readBytes": 109433
+            },
+            "finishedGoods/workflow:recommend": {
+              "reruns": 1,
+              "readDocs": 2887,
+              "readBytes": 1862368
+            },
+            "finishedGoods/workflow:recommendMove": {
+              "reruns": 1,
+              "readDocs": 2888,
+              "readBytes": 1863104
+            }
+          }
+        },
+        {
+          "write": "cancelReservation (same pallet)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 10,
+          "readDocs": 6290,
+          "readBytes": 4001145,
+          "execMs": 1323,
+          "byFunction": {
+            "finishedGoods/workflow:stackChoices": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3438
+            },
+            "finishedGoods/batches:pageProductBatches": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3288
+            },
+            "finishedGoods/batches:pageLegacyUnits": {
+              "reruns": 1,
+              "readDocs": 31,
+              "readBytes": 18132
+            },
+            "finishedGoods/catalogue:productSummary": {
+              "reruns": 1,
+              "readDocs": 12,
+              "readBytes": 4383
+            },
+            "finishedGoods/catalogue:page": {
+              "reruns": 3,
+              "readDocs": 244,
+              "readBytes": 138729
+            },
+            "finishedGoods/catalogue:summary": {
+              "reruns": 1,
+              "readDocs": 210,
+              "readBytes": 109433
+            },
+            "finishedGoods/workflow:recommendMove": {
+              "reruns": 1,
+              "readDocs": 2887,
+              "readBytes": 1862257
+            },
+            "finishedGoods/workflow:recommend": {
+              "reruns": 1,
+              "readDocs": 2886,
+              "readBytes": 1861485
+            }
+          }
+        },
+        {
+          "write": "createPallet (busiest product)",
+          "writeOk": true,
+          "subscriptions": 60,
+          "reruns": 7,
+          "readDocs": 510,
+          "readBytes": 275538,
+          "execMs": 227,
+          "byFunction": {
+            "finishedGoods/catalogue:productSummary": {
+              "reruns": 1,
+              "readDocs": 12,
+              "readBytes": 4383
+            },
+            "finishedGoods/batches:pageProductBatches": {
+              "reruns": 1,
+              "readDocs": 10,
+              "readBytes": 3288
+            },
+            "finishedGoods/batches:pageLegacyUnits": {
+              "reruns": 1,
+              "readDocs": 32,
+              "readBytes": 18679
+            },
+            "finishedGoods/catalogue:page": {
+              "reruns": 3,
+              "readDocs": 246,
+              "readBytes": 139755
+            },
+            "finishedGoods/catalogue:summary": {
+              "reruns": 1,
+              "readDocs": 210,
+              "readBytes": 109433
+            }
+          }
+        }
+      ],
+      "contention": [
+        {
+          "name": "saveJobScans",
+          "workers": 8,
+          "failed": 0,
+          "executions": 8,
+          "occRetries": 0,
+          "occInfo": [],
+          "rttMsMax": 124.7,
+          "rttMsP50": 80.1
+        },
+        {
+          "name": "createPallet (same product)",
+          "workers": 8,
+          "failed": 0,
+          "executions": 8,
+          "occRetries": 0,
+          "occInfo": [],
+          "rttMsMax": 171.9,
+          "rttMsP50": 109.3
+        }
+      ]
+    }
+  }
+}
