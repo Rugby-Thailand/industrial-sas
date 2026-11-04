@@ -77,6 +77,8 @@ function applied(
   };
   next.products += delta.products ?? 0;
   for (const field of TOTAL_FIELDS) next[field] += delta[field] ?? 0;
+  // Object.fromEntries/entries define and list own properties only, so labels
+  // such as "__proto__" stay ordinary keys.
   for (const [unit, change] of Object.entries(delta.units ?? {})) {
     const row = next.units.find((u) => u.unit === unit);
     if (row) row.count += change;

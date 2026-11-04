@@ -421,9 +421,14 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
           "finishedGoodsProducts",
           id,
         );
-        const units: Record<string, number> = {};
-        if (before?.unit) units[before.unit] = (units[before.unit] ?? 0) - 1;
-        if (after?.unit) units[after.unit] = (units[after.unit] ?? 0) + 1;
+        // Unit labels are user input ("__proto__", "constructor"…): count them
+        // in a Map, never as properties of an ordinary object.
+        const changes = new Map<string, number>();
+        if (before?.unit)
+          changes.set(before.unit, (changes.get(before.unit) ?? 0) - 1);
+        if (after?.unit)
+          changes.set(after.unit, (changes.get(after.unit) ?? 0) + 1);
+        const units = Object.fromEntries(changes);
         const products = (after ? 1 : 0) - (before ? 1 : 0);
         const warehouseId = after?.warehouseId ?? before?.warehouseId;
         if (warehouseId && (products || Object.values(units).some(Boolean)))

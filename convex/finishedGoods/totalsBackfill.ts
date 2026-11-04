@@ -140,3 +140,25 @@ export const sweep = internalMutation({
     return { started, isDone: page.isDone };
   },
 });
+
+/**
+ * Operators: stop trusting maintained totals (for example after running code
+ * that does not maintain them); the summary scans until the next build.
+ */
+export const invalidate = internalMutation({
+  args: { warehouseId: v.id("warehouses") },
+  returns: v.object({ invalidated: v.boolean() }),
+  handler: async (ctx, args) => {
+    const warehouse = await ctx.db.get(args.warehouseId);
+    if (!warehouse) throw new Error("Warehouse not found");
+    const readiness = await ctx.db
+      .query("finishedGoodsSummaryReadiness")
+      .withIndex("by_orgId_warehouseId", (q) =>
+        q.eq("orgId", warehouse.orgId).eq("warehouseId", args.warehouseId),
+      )
+      .unique();
+    if (!readiness?.totalsVersion) return { invalidated: false };
+    await ctx.db.patch(readiness._id, { totalsVersion: undefined });
+    return { invalidated: true };
+  },
+});

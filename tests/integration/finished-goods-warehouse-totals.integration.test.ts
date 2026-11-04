@@ -193,6 +193,51 @@ describe("maintained warehouse totals", () => {
     });
   });
 
+  it("keep unit labels that are object property names exact", async () => {
+    const seed = await catalogueWorld();
+    await seed.build();
+    const insert = (
+      db: Parameters<Parameters<typeof seed.run>[0]>[0],
+      sku: string,
+      unit: string,
+    ) => {
+      const writes = trackFinishedGoodsWrites(db);
+      return writes.db
+        .insert("finishedGoodsProducts", {
+          warehouseId: seed.world.warehouses.alphaA,
+          sku,
+          name: `Product ${sku}`,
+          unit,
+          storageFormat: "PALLET",
+          storageCondition: "ANY",
+          status: "ACTIVE",
+          createdAt: 2,
+          updatedAt: 2,
+          createdByUserId: seed.world.userA,
+          updatedByUserId: seed.world.userA,
+        })
+        .then(async (id) => {
+          await writes.flush();
+          return id;
+        });
+    };
+    await seed.run((db) => insert(db, "PROTO", "__proto__"));
+    const ctor = await seed.run((db) => insert(db, "CTOR", "constructor"));
+    await seed.run(async (db) => {
+      const writes = trackFinishedGoodsWrites(db);
+      await writes.db.patch("finishedGoodsProducts", ctor, {
+        unit: "toString",
+      });
+      await writes.flush();
+    });
+    const { maintained } = await seed.expectParity();
+    expect(maintained.result.totals.units).toEqual(
+      expect.arrayContaining(["__proto__", "toString"]),
+    );
+    expect(maintained.result.totals.units).not.toContain("constructor");
+    expect(maintained.result.totals.products).toBe(125);
+  });
+
   it("fall back to the scan after writes by code that does not maintain them", async () => {
     const seed = await catalogueWorld();
     await seed.build();

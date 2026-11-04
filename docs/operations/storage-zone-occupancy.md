@@ -62,3 +62,23 @@ Measured on the local large-tenant fixture (`docs/reviews/convex-performance-202
 `recommend` 2,886 → 686 docs, `getStorageBuildingInventory` 1,829 → 34,
 `buildingOccupancy` 917 → 20; one placement write re-reads 6,092 → 1,692 docs
 across open subscriptions.
+
+## Maintained catalogue totals
+
+`finishedGoodsWarehouseTotals` (`convex/lib/warehouseTotals.ts`) holds exact
+catalogue totals in 8 product-sharded rows, maintained by the same tracked
+writes. `finishedGoods/totalsBackfill:run` builds them in one transaction
+(warehouses up to 2,000 products; larger ones keep the paged summary scan),
+and the hourly `finishedGoods/totalsBackfill:sweep` rebuilds them where they
+are missing or suspect.
+
+## Release constraint: squash-merge
+
+Both derived stores detect writes by `main`-era code through the legacy
+`finishedGoodsSummaryReadiness.generation`, which only that code still bumps.
+Intermediate commits of the performance branch also skip that bump but do not
+maintain every derived store, so they are **not supported deploy or rollback
+targets**. Squash-merge the branch. If code that does not maintain these
+stores runs anyway, call `finishedGoods/totalsBackfill:invalidate` and
+`storageLayouts/zoneOccupancyBackfill:invalidate` per warehouse; the hourly
+sweeps rebuild them.

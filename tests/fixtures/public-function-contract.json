@@ -6201,6 +6201,33 @@
       ]
     }
   },
+  "finishedGoods/totalsBackfill:invalidate": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "invalidated": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "finishedGoods/totalsBackfill:run": {
     "kind": "mutation",
     "visibility": "internal",
