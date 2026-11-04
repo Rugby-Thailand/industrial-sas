@@ -393,7 +393,20 @@ export function queryScenarios(ids) {
       { versionId: ids.versionId, pageSize: 20 },
       { settle: true },
     ),
-    q("hr-admin", "hr/roster:roster", { warehouseId: ids.warehouseId, month }),
+    // Older clients (and main) send no page size.
+    q(
+      "hr-admin",
+      "hr/roster:roster",
+      { warehouseId: ids.warehouseId, month },
+      { label: "no page size" },
+    ),
+    // The current client pages employees (20 per page) and settles scans.
+    q(
+      "hr-admin",
+      "hr/roster:roster",
+      { warehouseId: ids.warehouseId, month, pageSize: 20 },
+      { settle: true },
+    ),
     q("hr-admin", "hr/roster:shifts", { warehouseId: ids.warehouseId }),
     q("hr-admin", "hr/payslips:list", {}),
     q("hr-admin", "hr/payslips:imports", {}),
