@@ -15,6 +15,7 @@ import {
   type SidebarEntry,
 } from "@/components/shell/sidebarEntries";
 import { sidebarRowClassName } from "@/components/shell/sidebarRow";
+import { useContentBelow } from "@/components/shell/useContentBelow";
 import {
   SidebarContent,
   SidebarGroup,
@@ -83,12 +84,13 @@ export function SidebarNavigation({
     isMobile && openMobile,
     workspaceSettled && hrSettled && usageSettled && activeHref !== undefined,
   );
+  const contentBelow = useContentBelow(contentRef);
 
   return (
     <nav
       id={id}
       aria-label={t("primary")}
-      className="flex min-h-0 flex-1 flex-col"
+      className="relative flex min-h-0 flex-1 flex-col"
     >
       <SidebarContent
         ref={contentRef}
@@ -152,6 +154,19 @@ export function SidebarNavigation({
           );
         })}
       </SidebarContent>
+      {collapsed ? null : (
+        // More destinations below: the last rows fade into the sidebar. It
+        // never takes pointer input, so the faded rows stay tappable.
+        <div
+          aria-hidden="true"
+          data-testid="sidebar-overflow-cue"
+          data-visible={contentBelow}
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-sidebar to-transparent transition-opacity duration-200 motion-reduce:transition-none",
+            contentBelow ? "opacity-100" : "opacity-0",
+          )}
+        />
+      )}
     </nav>
   );
 }

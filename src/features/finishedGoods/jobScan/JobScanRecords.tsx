@@ -52,19 +52,34 @@ import { useJobScanRecordState } from "./useJobScanRecordState";
 const hasRecordRows = (value: object) =>
   "items" in value && Array.isArray(value.items) && value.items.length > 0;
 
+/** The header stays in place while the session and warehouse load. */
 export function JobScanRecordsScreen() {
+  const t = useTranslations("JobScan");
   const viewScope = useDraftKey("job-scan-records");
-  if (!viewScope) return <Loading />;
+  const loadingLabel = t("recordList.loading");
   return (
-    <QueryGate scope="WAREHOUSE">
-      {(warehouseId) => (
-        <Records
-          key={`${viewScope}:${warehouseId}`}
-          warehouseId={warehouseId}
-          viewKey={`${viewScope}:${warehouseId}`}
-        />
+    <PageContainer size="wide" actionInset="responsive">
+      <Heading
+        backFallbackHref="/finished-goods/scan"
+        title={t("records")}
+        helpText={t("recordsSubtitle")}
+        description={t("locationNotStock")}
+      />
+      {viewScope ? (
+        <QueryGate scope="WAREHOUSE" loadingLabel={loadingLabel}>
+          {(warehouseId) => (
+            <Records
+              key={`${viewScope}:${warehouseId}`}
+              warehouseId={warehouseId}
+              viewKey={`${viewScope}:${warehouseId}`}
+              loadingLabel={loadingLabel}
+            />
+          )}
+        </QueryGate>
+      ) : (
+        <Loading label={loadingLabel} />
       )}
-    </QueryGate>
+    </PageContainer>
   );
 }
 
@@ -73,9 +88,11 @@ type RecordPage = RefValue<typeof fgRefs.listJobScans>;
 function Records({
   warehouseId,
   viewKey,
+  loadingLabel,
 }: {
   warehouseId: string;
   viewKey: string;
+  loadingLabel: string;
 }) {
   const t = useTranslations("JobScan");
   const canManage = useCanManage();
@@ -317,13 +334,7 @@ function Records({
   }
 
   return (
-    <PageContainer size="wide" actionInset="responsive">
-      <Heading
-        backFallbackHref="/finished-goods/scan"
-        title={t("records")}
-        helpText={t("recordsSubtitle")}
-        description={t("locationNotStock")}
-      />
+    <>
       <div className="space-y-3">
         <div
           role="group"
@@ -482,7 +493,7 @@ function Records({
               {t("recordList.searching")}
             </p>
           ) : (
-            <Loading />
+            <Loading label={loadingLabel} />
           )
         ) : !records.length && !scanning ? (
           typedSearch ? (
@@ -787,6 +798,6 @@ function Records({
           </div>
         </StickyActionBar>
       )}
-    </PageContainer>
+    </>
   );
 }

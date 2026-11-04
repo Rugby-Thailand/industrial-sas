@@ -132,8 +132,13 @@ export function usePalletTrail(
   ];
 }
 /** Compatibility alias for existing feature imports. */
-export function Loading() {
-  return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
+export function Loading({ label }: { readonly label?: string }) {
+  return (
+    <LedgerPanelStatus
+      state={{ kind: "LOADING" }}
+      {...(label === undefined ? {} : { label })}
+    />
+  );
 }
 export function Missing() {
   const { t } = useFGText();

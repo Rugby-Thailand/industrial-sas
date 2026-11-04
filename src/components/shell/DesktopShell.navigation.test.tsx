@@ -779,6 +779,49 @@ it("mobile Search cannot discard a pending scan write or leave its page", async 
   ).toBeInTheDocument();
 });
 
+it("mobile header Search closes on Back, returns focus to its button, and the next Back leaves the page", async () => {
+  const previous = "/en/hr/profile?tab=personal#details";
+  const origin = "/en/finished-goods/scan?location=wh-1#scanner";
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 0 },
+    "",
+    previous,
+  );
+  window.history.pushState({ __NA: true, appNavigationIndex: 1 }, "", origin);
+  renderWithIntl(
+    <DesktopShell>
+      <Destination />
+    </DesktopShell>,
+    { locale: "en" },
+  );
+  const search = within(screen.getByRole("banner")).getByRole("button", {
+    name: "Search pages and records",
+  });
+  fireEvent.click(search);
+  const input = await screen.findByRole("combobox", { name: "Search" });
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(
+    [...new URLSearchParams(window.location.search).keys()].some((key) =>
+      key.startsWith("overlay"),
+    ),
+  ).toBe(true);
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(
+    window.location.pathname + window.location.search + window.location.hash,
+  ).toBe(origin);
+  await waitFor(() => expect(search).toHaveFocus());
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(previous),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
 it("mobile drawer Search waits for its native Back before opening the search dialog", async () => {
   renderWithIntl(
     <DesktopShell>

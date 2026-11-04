@@ -71,8 +71,8 @@
       "reason": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available."
     },
     {
-      "id": "src/features/finishedGoods/FinishedGoodsCatalogue.tsx#Catalogue",
-      "reason": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available."
+      "id": "src/features/finishedGoods/FinishedGoodsCatalogue.tsx#FinishedGoodsCatalogue",
+      "reason": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available. The header renders outside the warehouse gate so it stays while the catalogue loads."
     },
     {
       "id": "src/components/auth/OrganizationRequired.tsx#OrganizationRequired",
@@ -366,11 +366,18 @@
         "src/features/finishedGoods/FinishedGoodsCatalogue#FinishedGoodsCatalogue"
       ],
       "expectation": "A module hub preserves actual-origin and foreground Back; direct entry has no synthetic parent or self-navigation.",
-      "tests": ["src/lib/FinishedGoodsBackPolicy.test.tsx"],
+      "tests": [
+        "src/lib/FinishedGoodsBackPolicy.test.tsx",
+        "src/features/finishedGoods/HubLoadingHeader.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/lib/FinishedGoodsBackPolicy.test.tsx",
           "name": "actual finished-goods catalogue is a direct-entry hub while its projections load"
+        },
+        {
+          "file": "src/features/finishedGoods/HubLoadingHeader.test.tsx",
+          "name": "the finished-goods hub keeps its header without Back while %s loads"
         }
       ]
     },
@@ -543,11 +550,18 @@
         "src/features/finishedGoods/jobScan/JobScanRecords#JobScanRecordsScreen"
       ],
       "expectation": "Assignment Back restores retained records before page departure; direct records links use the job scanning parent, and actual origins retain locale/query/hash.",
-      "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+        "src/features/finishedGoods/HubLoadingHeader.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "native Back closes Location assignment and retains the selected records"
+        },
+        {
+          "file": "src/features/finishedGoods/HubLoadingHeader.test.tsx",
+          "name": "scanned records keep their header and parent Back while %s loads"
         }
       ]
     },
@@ -1248,6 +1262,10 @@
         {
           "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search cannot discard a pending scan write or leave its page"
+        },
+        {
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
+          "name": "mobile header Search closes on Back, returns focus to its button, and the next Back leaves the page"
         }
       ]
     },

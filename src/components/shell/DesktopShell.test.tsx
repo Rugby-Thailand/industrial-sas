@@ -282,6 +282,10 @@ describe("sidebar hierarchy", () => {
     expect(
       within(header).getByRole("button", { name: "Switch language to ไทย" }),
     ).toBeInTheDocument();
+    // Desktop search lives in the sidebar only.
+    expect(
+      within(header).queryByRole("button", { name: /search/i }),
+    ).toBeNull();
     expect(sidebar).toContainElement(
       screen.getByRole("button", { name: "Collapse sidebar" }),
     );
@@ -457,19 +461,40 @@ describe("phone drawer search", () => {
     state.mobile = true;
   });
 
-  it("keeps search and warehouse context inside the drawer, with only the language button in the header", async () => {
+  it("keeps warehouse context inside the drawer and offers search in both the header and the drawer", async () => {
     const header = renderShell();
-    expect(
-      within(header).queryByRole("button", { name: /search/i }),
-    ).toBeNull();
-    expect(
-      within(header).getByRole("button", { name: "Switch language to ไทย" }),
-    ).toBeInTheDocument();
+    const search = within(header).getByRole("button", {
+      name: "Search pages and records",
+    });
+    const language = within(header).getByRole("button", {
+      name: "Switch language to ไทย",
+    });
+    // Search comes first in the header's right-hand controls.
+    expect(search.compareDocumentPosition(language)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     const { sheet } = await openDrawer(header);
     expect(sheet).toContainElement(screen.getByTestId("warehouse-select"));
     expect(
       within(sheet).getAllByRole("button", { name: SEARCH_ROW }),
     ).toHaveLength(1);
+  });
+
+  it("opens normal search from the header and returns focus to it on Escape", async () => {
+    const header = renderShell();
+    const search = within(header).getByTestId("header-search");
+    fireEvent.click(search);
+    const dialog = await screen.findByTestId("global-search");
+    expect(
+      within(dialog).getByRole("heading", { name: "Search" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("combobox", { name: "Search" }),
+    ).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(searchDialog()).toBeNull());
+    await settle();
+    expect(search).toHaveFocus();
   });
 
   it("closes the drawer before opening search and restores focus to the mobile menu", async () => {

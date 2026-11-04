@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 
 import { sidebarRowClassName } from "@/components/shell/sidebarRow";
+import { Button } from "@/components/ui/button";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -25,6 +26,37 @@ function useShortcutLabel(): string {
         ? "⌘K"
         : "Ctrl K",
     () => "Ctrl K",
+  );
+}
+
+/**
+ * Search one tap away in the phone header; desktop keeps the sidebar entry.
+ * The button takes focus before the dialog opens (iOS does not focus a
+ * tapped button), so closing the dialog returns focus here.
+ */
+export function HeaderSearchTrigger() {
+  const t = useTranslations("Search");
+  const controls = useSearchControls();
+  const { isMobile } = useSidebar();
+  if (!isMobile || controls === null) return null;
+  const label = t("triggerLabelTouch");
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label={label}
+      aria-haspopup="dialog"
+      title={label}
+      onClick={(event) => {
+        event.currentTarget.focus();
+        controls.open("SEARCH");
+      }}
+      className="shrink-0 text-muted hover:text-text"
+      data-testid="header-search"
+    >
+      <Search aria-hidden="true" className="size-[1.125rem]" />
+    </Button>
   );
 }
 

@@ -15,10 +15,13 @@ export type LedgerFailureState = Exclude<
 export function LedgerPanelStatus({
   state,
   action,
+  label,
 }: {
   readonly state: LedgerFailureState;
 
   readonly action?: ReactNode;
+  /** Names what is loading, e.g. "กำลังโหลดสินค้าสำเร็จรูป…". */
+  readonly label?: string;
 }) {
   const t = useTranslations("Panel");
 
@@ -31,7 +34,7 @@ export function LedgerPanelStatus({
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-muted">
           <Spinner aria-hidden="true" />
-          {t("loading")}
+          {label ?? t("loading")}
         </span>
         <span className="sr-only">{t("loadingHint")}</span>
         <div aria-hidden="true" className="flex flex-col gap-2">

@@ -170,6 +170,7 @@ function SearchBody({
   const pathname = usePathname();
   const id = useId();
   const listId = `${id}-results`;
+  const scopeId = `${id}-ai-scope`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
@@ -450,6 +451,7 @@ function SearchBody({
             variant={mode === "AI" ? "default" : "outline"}
             onClick={ask}
             disabled={!canAsk}
+            aria-describedby={scopeId}
             data-testid="global-search-ai"
           >
             <Sparkles aria-hidden="true" />
@@ -457,6 +459,18 @@ function SearchBody({
           </Button>
         ) : null}
       </div>
+      {/* What the AI is for, wherever the user decides to ask: it finds a
+          page or form, it does not answer questions. */}
+      {aiAvailable ? (
+        <p
+          id={scopeId}
+          className="-mt-1 flex items-start gap-1.5 text-xs text-muted"
+          data-testid="global-search-ai-scope"
+        >
+          <Sparkles aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
+          {t("aiScope")}
+        </p>
+      ) : null}
 
       {aiAvailable && mode === "AI" ? (
         <AiPanel

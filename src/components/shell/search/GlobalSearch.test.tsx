@@ -331,6 +331,7 @@ describe("global search dialog", () => {
     expect(
       screen.queryByTestId("global-search-ai-disclosure"),
     ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("global-search-ai-scope")).toBeNull();
     await type("scan");
     expect(
       screen.getByRole("option", { name: /Scan job tickets/ }),
@@ -351,6 +352,16 @@ describe("AI Search", () => {
     expect(screen.queryByTestId("global-search-ai-disclosure")).toBeNull();
     expect(screen.queryByText(/No records are sent/)).toBeNull();
     expect(screen.getByRole("button", { name: "Ask AI" })).toBeDisabled();
+    // What the AI is for is visible before asking: it finds pages and
+    // forms, it is not a general chatbot.
+    const scope =
+      "AI takes you to pages and forms for time, leave, requests and employees.";
+    expect(screen.getByTestId("global-search-ai-scope")).toHaveTextContent(
+      scope,
+    );
+    expect(
+      screen.getByRole("button", { name: "Ask AI" }),
+    ).toHaveAccessibleDescription(scope);
     expect(
       screen.queryByTestId("global-search-ai-panel"),
     ).not.toBeInTheDocument();
@@ -374,7 +385,7 @@ describe("AI Search", () => {
     ]);
     expect(input()).toHaveAttribute("aria-activedescendant", places[0]!.id);
     const examples = within(
-      screen.getByRole("group", { name: "Try asking AI" }),
+      screen.getByRole("group", { name: "Ask AI where to go" }),
     ).getAllByRole("option");
     // "This record" needs a page context; there is none here.
     expect(examples.map((option) => option.textContent)).toEqual([
@@ -412,7 +423,9 @@ describe("AI Search", () => {
     ]);
     fireEvent.change(input(), { target: { value: "s" } });
     expect(screen.queryByRole("group", { name: "Go to" })).toBeNull();
-    expect(screen.queryByRole("group", { name: "Try asking AI" })).toBeNull();
+    expect(
+      screen.queryByRole("group", { name: "Ask AI where to go" }),
+    ).toBeNull();
   });
 
   it("asks an example at once when it is chosen, keeping focus in the box", async () => {
@@ -436,12 +449,14 @@ describe("AI Search", () => {
     expect(
       await screen.findByText("What would you like to do? Try one of these."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Try asking AI" })).toBeNull();
+    expect(
+      screen.queryByRole("group", { name: "Ask AI where to go" }),
+    ).toBeNull();
 
     // Cleared in AI mode: the examples lead, reachable with the arrows.
     fireEvent.change(input(), { target: { value: "" } });
     const first = within(
-      screen.getByRole("group", { name: "Try asking AI" }),
+      screen.getByRole("group", { name: "Ask AI where to go" }),
     ).getAllByRole("option")[0]!;
     expect(input()).not.toHaveAttribute("aria-activedescendant");
     fireEvent.keyDown(input(), { key: "ArrowDown" });
@@ -461,7 +476,7 @@ describe("AI Search", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
     await screen.findByRole("dialog");
     expect(
-      within(screen.getByRole("group", { name: "Try asking AI" }))
+      within(screen.getByRole("group", { name: "Ask AI where to go" }))
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual([
@@ -1197,7 +1212,9 @@ describe("search guidance", () => {
     expect(
       screen.getByText("No matching pages or records."),
     ).toBeInTheDocument();
-    const fallback = screen.getByRole("option", { name: "Ask AI: “ซซซซซ”" });
+    const fallback = screen.getByRole("option", {
+      name: "Ask AI where to go for “ซซซซซ”",
+    });
     expect(input()).toHaveAttribute("aria-activedescendant", fallback.id);
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
       "↑ ↓ to choose · Enter to ask AI · Esc to close",
@@ -1209,7 +1226,7 @@ describe("search guidance", () => {
     // Asked: the same text is not offered again.
     await screen.findByTestId("global-search-ai-outcome");
     expect(
-      screen.queryByRole("option", { name: /Ask AI: “ซซซซซ”/ }),
+      screen.queryByRole("option", { name: /Ask AI where to go for “ซซซซซ”/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -1286,6 +1303,8 @@ describe("search guidance", () => {
     );
     expect(button).toBeDisabled();
     expect(input()).toHaveFocus();
+    // The scope stays in view while the AI works.
+    expect(screen.getByTestId("global-search-ai-scope")).toBeVisible();
 
     // The ordinary results are labelled as such and keep their place.
     expect(

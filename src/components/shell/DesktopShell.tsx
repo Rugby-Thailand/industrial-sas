@@ -25,7 +25,10 @@ import { ConnectionNotice } from "@/components/shell/ConnectionNotice";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
-import { SidebarSearchTriggers } from "@/components/shell/search/SearchTriggers";
+import {
+  HeaderSearchTrigger,
+  SidebarSearchTriggers,
+} from "@/components/shell/search/SearchTriggers";
 import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
 import { useDrawerSearchHandoff } from "@/components/shell/useDrawerSearchHandoff";
 import { useOrganizationName } from "@/components/shell/useOrganizationName";
@@ -81,6 +84,7 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
                     <MobileNavigationDisclosure menuOpener={menuOpener} />
                     <HeaderBrand />
                     <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                      <HeaderSearchTrigger />
                       <LocaleSwitcher />
                       <ThemeToggle />
                     </div>

@@ -677,6 +677,7 @@
     "statusSaving": "Saving status…",
     "statusOccupied": "Move or release all stock and reservations before returning to Draft.",
     "statusLoading": "Checking status…",
+    "loadingBuildings": "Loading buildings…",
     "statusUnavailable": "Status unavailable. Refresh to try again.",
     "statusNetworkError": "Could not save. Check your connection and try again.",
     "statusChangeFailed": "Status could not be changed. Refresh the page and try again.",
@@ -1547,6 +1548,7 @@
       "stored": "Stored",
       "you-can-view-products-and-storage-units-creating-or-changing-records-req": "You can view products and storage units. Creating or changing records requires warehouse management access.",
       "loading": "Loading…",
+      "loading-finished-goods": "Loading finished goods…",
       "this-record-is-unavailable": "This record is unavailable",
       "it-may-belong-to-a-different-warehouse-or-you-may-not-have-access": "It may belong to a different warehouse, or you may not have access.",
       "creation-steps": "Creation steps",
@@ -1793,6 +1795,7 @@
     "barcodeImageDECODER": "Could not load the barcode reader. Try again.",
     "barcodeImageUNAVAILABLE": "Image scanning is unavailable in this browser. Use the camera or type the code.",
     "recordList": {
+      "loading": "Loading scanned records…",
       "status": "Record status",
       "searching": "Searching saved records…",
       "searchProgress": "Searching… {count, plural, one {# record} other {# records}} checked so far",
@@ -3135,7 +3138,7 @@
       "RECORDS": "Records",
       "TASKS": "Tasks",
       "GOTO": "Go to",
-      "ASK": "Try asking AI"
+      "ASK": "Ask AI where to go"
     },
     "empty": "Type to search.",
     "noMatch": "No matching pages or records.",
@@ -3175,7 +3178,8 @@
     },
     "navigating": "Opening {trail}",
     "aiAsk": "Ask AI",
-    "askQuery": "Ask AI: “{query}”",
+    "aiScope": "AI takes you to pages and forms for time, leave, requests and employees.",
+    "askQuery": "Ask AI where to go for “{query}”",
     "aiPrivacy": "Ask AI sends your typed text (including any names) and the current page type to the AI provider. No records are sent.",
     "exampleSelf": "ลืมลงเวลาเมื่อวาน",
     "exampleReview": "ตรวจคำขอที่ต้องแก้ของรายการนี้",

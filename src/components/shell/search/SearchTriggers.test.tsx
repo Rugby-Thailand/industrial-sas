@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +15,7 @@ vi.mock("./GlobalSearchProvider", () => ({
   }),
 }));
 
-import { SidebarSearchTriggers } from "./SearchTriggers";
+import { HeaderSearchTrigger, SidebarSearchTriggers } from "./SearchTriggers";
 
 function Harness({
   collapsed = false,
@@ -116,5 +116,47 @@ describe("sidebar search trigger on phones and touch screens", () => {
     const search = screen.getByTestId("sidebar-search");
     expect(search.querySelector("kbd")).toHaveTextContent(/⌘K|Ctrl K/);
     expect(search).toHaveAccessibleName(/Search pages and records \(.+\)/);
+  });
+});
+
+describe("header search trigger", () => {
+  const original = window.matchMedia;
+  let mobile = true;
+  beforeEach(() => {
+    mobile = true;
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: mobile && query.includes("width"),
+    })) as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+  const renderHeader = () =>
+    renderWithIntl(
+      <SidebarProvider>
+        <HeaderSearchTrigger />
+      </SidebarProvider>,
+      { locale: "th" },
+    );
+
+  it("puts a named 48 px search button in the phone header that opens normal search", () => {
+    renderHeader();
+    const search = screen.getByTestId("header-search");
+    // No keyboard shortcut on a phone; the Thai name says what it finds.
+    expect(search).toHaveAccessibleName("ค้นหาหน้าและรายการ");
+    expect(search).toHaveAttribute("aria-haspopup", "dialog");
+    expect(search).toHaveClass("min-h-touch", "min-w-touch");
+    expect(search.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    fireEvent.click(search);
+    // Focused first, so the dialog hands focus back here when it closes.
+    expect(search).toHaveFocus();
+    expect(state.open.mock.calls).toEqual([["SEARCH"]]);
+  });
+
+  it("leaves desktop search to the sidebar", () => {
+    mobile = false;
+    renderHeader();
+    expect(screen.queryByTestId("header-search")).toBeNull();
   });
 });
