@@ -3431,38 +3431,6 @@
       ]
     }
   },
-  "finishedGoods/changeLog:prune": {
-    "kind": "mutation",
-    "visibility": "internal",
-    "args": {
-      "type": "object",
-      "value": {
-        "fromWarehouseIndex": {
-          "fieldType": {
-            "type": "number"
-          },
-          "optional": true
-        }
-      }
-    },
-    "returns": {
-      "type": "object",
-      "value": {
-        "deleted": {
-          "fieldType": {
-            "type": "number"
-          },
-          "optional": false
-        },
-        "more": {
-          "fieldType": {
-            "type": "boolean"
-          },
-          "optional": false
-        }
-      }
-    }
-  },
   "finishedGoods/history:palletMoveHistory": {
     "kind": "query",
     "visibility": "public",
@@ -30857,12 +30825,30 @@
             "type": "boolean"
           },
           "optional": true
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
         }
       }
     },
     "returns": {
       "type": "object",
       "value": {
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "superseded": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
         "rebuilt": {
           "fieldType": {
             "type": "number"
@@ -30901,7 +30887,22 @@
     "visibility": "internal",
     "args": {
       "type": "object",
-      "value": {}
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
     },
     "returns": {
       "type": "object",
@@ -30909,6 +30910,12 @@
         "started": {
           "fieldType": {
             "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
           },
           "optional": false
         }

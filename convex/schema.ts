@@ -517,13 +517,17 @@ const schema = defineSchema({
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   /**
-   * Insert-only log of committed finished-goods writes. Its newest row is the
-   * catalogue continuation token, so writers never read-modify-write a shared
-   * warehouse document. Old rows are pruned by a cron.
+   * Sharded change counter for finished-goods writes: each write increments
+   * one random shard, readers sum them. Any committed write changes the sum
+   * (a late commit included), while concurrent writers rarely share a shard.
    */
-  finishedGoodsChanges: defineTable(
-    tenantFields({ warehouseId: v.id("warehouses") }),
-  ).index("by_orgId_warehouseId", byOrg("warehouseId")),
+  finishedGoodsChangeShards: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      shard: v.number(),
+      count: v.number(),
+    }),
+  ).index("by_orgId_warehouseId_shard", byOrg("warehouseId", "shard")),
   finishedGoodsProductSummaries: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -1100,6 +1104,8 @@ const schema = defineSchema({
        * means writes were not maintained (e.g. rollback then roll-forward).
        */
       summaryGeneration: v.optional(v.number()),
+      /** The current backfill run; continuations of any other run are refused. */
+      runId: v.optional(v.string()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsScanAssignments: defineTable(

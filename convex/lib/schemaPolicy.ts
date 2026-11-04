@@ -32,7 +32,7 @@ export const TENANT_TABLES = [
   "finishedGoodsProductSummaries",
   "finishedGoodsUnitContributions",
   "finishedGoodsSummaryReadiness",
-  "finishedGoodsChanges",
+  "finishedGoodsChangeShards",
   "storageCatalogueSignals",
   "finishedGoodsBatches",
   "finishedGoodsBatchRevisions",

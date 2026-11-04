@@ -163,16 +163,40 @@ export async function ensureSummaryReadiness(
   return summaryReadiness(db, warehouseId);
 }
 
+/** Shards spread concurrent writers; readers sum this many tiny rows. */
+export const FINISHED_GOODS_CHANGE_SHARDS = 8;
+
+/** Read-modify-write one random shard: only writers on that shard conflict. */
 export async function recordFinishedGoodsChange(
   db: TenantDocumentAccess,
   warehouseId: string,
 ) {
-  await db.insert("finishedGoodsChanges", { warehouseId });
+  const shard = Math.floor(Math.random() * FINISHED_GOODS_CHANGE_SHARDS);
+  const row = await db
+    .byIndex<Doc<"finishedGoodsChangeShards">>(
+      "finishedGoodsChangeShards",
+      "by_orgId_warehouseId_shard",
+      [
+        { field: "warehouseId", value: warehouseId },
+        { field: "shard", value: shard },
+      ],
+    )
+    .unique();
+  if (row)
+    await db.patch("finishedGoodsChangeShards", row._id, {
+      count: row.count + 1,
+    });
+  else
+    await db.insert("finishedGoodsChangeShards", {
+      warehouseId,
+      shard,
+      count: 1,
+    });
 }
 
 /**
- * Catalogue continuation token: moves whenever a finished-goods write commits
- * (newest change row) or a backfill restart bumps the legacy generation. Both
+ * Catalogue continuation token: changes whenever a finished-goods write
+ * commits (shard sum) or a backfill restart bumps the legacy generation. Both
  * only increase, so their sum changes exactly when either does.
  */
 export async function finishedGoodsGeneration(
@@ -180,14 +204,14 @@ export async function finishedGoodsGeneration(
   warehouseId: string,
   legacyGeneration = 0,
 ) {
-  const [latest] = await db
-    .byIndex<Doc<"finishedGoodsChanges">>(
-      "finishedGoodsChanges",
-      "by_orgId_warehouseId",
+  const shards = await db
+    .byIndex<Doc<"finishedGoodsChangeShards">>(
+      "finishedGoodsChangeShards",
+      "by_orgId_warehouseId_shard",
       [{ field: "warehouseId", value: warehouseId }],
     )
-    .take(1, "desc");
-  return legacyGeneration + (latest?._creationTime ?? 0);
+    .all(FINISHED_GOODS_CHANGE_SHARDS);
+  return shards.reduce((sum, row) => sum + row.count, legacyGeneration);
 }
 
 /** Layout cursor invalidation is independent of inventory/backfill readiness. */
@@ -386,8 +410,8 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
           });
       }
       for (const warehouseId of warehouses) {
-        // Insert-only change marker: concurrent writers no longer conflict on
-        // one warehouse document. Readers derive the continuation token from it.
+        // A sharded change counter: concurrent writers rarely share a shard,
+        // and readers derive the continuation token from the shard sum.
         await ensureSummaryReadiness(db, warehouseId);
         await recordFinishedGoodsChange(db, warehouseId);
       }

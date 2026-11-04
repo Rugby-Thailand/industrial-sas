@@ -47,6 +47,10 @@ reading every held placement and its pallet on every execution and re-run:
    npx convex run storageLayouts/zoneOccupancyBackfill:run '{"warehouseId":"<id>","restart":true,"chain":true}'
    ```
 
+   Continue a manual run by passing back both `continueCursor` and `runId`; a
+   restart issues a new `runId`, and pages of any older run are refused
+   (`superseded: true`) so they cannot declare readiness.
+
    `ready: true, buildingReady: false` means a cross-building placement or an
    overflowed zone keeps building readers on the original path; recommendations
    still use the rows.

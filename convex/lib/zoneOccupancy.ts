@@ -126,11 +126,27 @@ async function rowsOf(db: TenantDocumentAccess, zoneId: string) {
 }
 
 /** Compare field values only, so an unchanged row is not rewritten. */
+/** Key-order-independent serialization: stored documents reorder fields. */
+const canonical = (value: unknown): string =>
+  Array.isArray(value)
+    ? `[${value.map(canonical).join(",")}]`
+    : value !== null && typeof value === "object"
+      ? `{${Object.keys(value)
+          .filter(
+            (key) => (value as Record<string, unknown>)[key] !== undefined,
+          )
+          .sort()
+          .map(
+            (key) =>
+              `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`,
+          )
+          .join(",")}}`
+      : JSON.stringify(value);
 const sameFields = (existing: object, next: Record<string, unknown>) =>
   Object.keys(next).every(
     (key) =>
-      JSON.stringify((existing as Record<string, unknown>)[key]) ===
-      JSON.stringify(next[key]),
+      canonical((existing as Record<string, unknown>)[key]) ===
+      canonical(next[key]),
   );
 
 function summaryFields(

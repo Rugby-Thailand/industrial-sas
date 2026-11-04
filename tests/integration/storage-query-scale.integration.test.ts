@@ -662,31 +662,34 @@ describe("recommendation read budget", () => {
 });
 
 type ScaleSeed = Awaited<ReturnType<typeof scaleWorld>>;
+type BackfillResult = {
+  runId: string;
+  superseded: boolean;
+  isDone: boolean;
+  ready: boolean;
+  buildingReady: boolean;
+  continueCursor: string;
+};
+const backfillStep = (seed: ScaleSeed, args: Record<string, unknown>) =>
+  seed.world.t.run((ctx) =>
+    (
+      backfillZoneOccupancy as unknown as {
+        _handler(
+          ctx: GenericMutationCtx<DataModel>,
+          args: unknown,
+        ): Promise<BackfillResult>;
+      }
+    )._handler(ctx, { warehouseId: seed.warehouseId, batchSize: 2, ...args }),
+  );
 async function backfillOccupancy(seed: ScaleSeed) {
-  let cursor: string | undefined;
-  for (let batch = 0; batch < 100; batch++) {
-    const result = await seed.world.t.run((ctx) =>
-      (
-        backfillZoneOccupancy as unknown as {
-          _handler(
-            ctx: GenericMutationCtx<DataModel>,
-            args: unknown,
-          ): Promise<{
-            isDone: boolean;
-            ready: boolean;
-            continueCursor: string;
-          }>;
-        }
-      )._handler(ctx, {
-        warehouseId: seed.warehouseId,
-        ...(cursor ? { cursor } : { restart: true }),
-        batchSize: 2,
-      }),
-    );
-    if (result.isDone) return result;
-    cursor = result.continueCursor;
-  }
-  throw new Error("backfill did not finish");
+  let result = await backfillStep(seed, { restart: true });
+  for (let batch = 0; batch < 100 && !result.isDone; batch++)
+    result = await backfillStep(seed, {
+      cursor: result.continueCursor,
+      runId: result.runId,
+    });
+  if (!result.isDone) throw new Error("backfill did not finish");
+  return result;
 }
 async function setOccupancyReady(seed: ScaleSeed, ready: boolean) {
   await seed.world.t.run(async (ctx) => {
@@ -1007,26 +1010,7 @@ describe("derived zone occupancy", () => {
     await addZones(seed, 4);
     await addPallets(seed, 3);
     await linkPlacements(seed);
-    const step = (args: Record<string, unknown>) =>
-      seed.world.t.run((ctx) =>
-        (
-          backfillZoneOccupancy as unknown as {
-            _handler(
-              ctx: GenericMutationCtx<DataModel>,
-              args: unknown,
-            ): Promise<{
-              isDone: boolean;
-              ready: boolean;
-              continueCursor: string;
-            }>;
-          }
-        )._handler(ctx, {
-          warehouseId: seed.warehouseId,
-          batchSize: 1,
-          ...args,
-        }),
-      );
-    let result = await step({ restart: true });
+    let result = await backfillStep(seed, { restart: true, batchSize: 1 });
     // A raw writer invalidates while the backfill is still paging.
     await seed.world.t.run((ctx) =>
       (
@@ -1039,9 +1023,39 @@ describe("derived zone occupancy", () => {
       )._handler(ctx, { warehouseId: seed.warehouseId }),
     );
     while (!result.isDone)
-      result = await step({ cursor: result.continueCursor });
+      result = await backfillStep(seed, {
+        cursor: result.continueCursor,
+        runId: result.runId,
+        batchSize: 1,
+      });
     expect(result.ready).toBe(false);
     expect((await backfillOccupancy(seed)).ready).toBe(true);
+  });
+
+  it("refuses an older run's continuation once a newer run has started", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 4);
+    await addPallets(seed, 3);
+    await linkPlacements(seed);
+    const a = await backfillStep(seed, { restart: true, batchSize: 1 });
+    const b = await backfillStep(seed, { restart: true, batchSize: 1 });
+    expect(b.runId).not.toBe(a.runId);
+    // Run A's next page must neither rebuild nor declare readiness.
+    expect(
+      await backfillStep(seed, {
+        cursor: a.continueCursor,
+        runId: a.runId,
+        batchSize: 50,
+      }),
+    ).toMatchObject({ superseded: true, ready: false, rebuilt: 0 });
+    let result = b;
+    while (!result.isDone)
+      result = await backfillStep(seed, {
+        cursor: result.continueCursor,
+        runId: result.runId,
+        batchSize: 1,
+      });
+    expect(result).toMatchObject({ superseded: false, ready: true });
   });
 
   it("keeps building readers on placements while a placement names another building", async () => {

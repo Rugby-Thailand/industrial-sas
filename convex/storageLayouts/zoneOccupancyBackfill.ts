@@ -50,8 +50,13 @@ export const run = internalMutation({
     batchSize: v.optional(v.number()),
     /** Schedule the next page until done (used by the sweep cron). */
     chain: v.optional(v.boolean()),
+    /** The run a continuation belongs to (returned by its first page). */
+    runId: v.optional(v.string()),
   },
   returns: v.object({
+    runId: v.string(),
+    /** A newer run started: this continuation did nothing. */
+    superseded: v.boolean(),
     rebuilt: v.number(),
     isDone: v.boolean(),
     /** Zone-scoped readers (recommendations) may use the rows. */
@@ -73,7 +78,20 @@ export const run = internalMutation({
       createMutationTenantStorage(ctx, requestId),
     );
     const state = await readiness(ctx, orgId, args.warehouseId);
-    if (args.restart || !args.cursor) {
+    const starting = args.restart === true || !args.cursor;
+    // Only the newest run may rebuild pages or declare readiness.
+    if (!starting && (!state?.runId || state.runId !== args.runId))
+      return {
+        runId: args.runId ?? "",
+        superseded: true,
+        rebuilt: 0,
+        isDone: true,
+        ready: false,
+        buildingReady: false,
+        continueCursor: "",
+      };
+    const runId = starting ? crypto.randomUUID() : args.runId!;
+    if (starting) {
       if (state)
         await ctx.db.patch(state._id, {
           ready: false,
@@ -81,6 +99,7 @@ export const run = internalMutation({
           stale: false,
           overflow: false,
           version: ZONE_OCCUPANCY_VERSION,
+          runId,
         });
       else
         await ctx.db.insert("storageZoneOccupancyReadiness", {
@@ -88,6 +107,7 @@ export const run = internalMutation({
           warehouseId: args.warehouseId,
           version: ZONE_OCCUPANCY_VERSION,
           ready: false,
+          runId,
         });
     }
     const page = await ctx.db
@@ -96,7 +116,7 @@ export const run = internalMutation({
         q.eq("orgId", orgId).eq("warehouseId", args.warehouseId),
       )
       .paginate({
-        cursor: args.restart ? null : (args.cursor ?? null),
+        cursor: starting ? null : (args.cursor ?? null),
         numItems: batchSize,
       });
     for (const zone of page.page) await rebuildZoneOccupancy(db, zone);
@@ -126,9 +146,12 @@ export const run = internalMutation({
           cursor: page.continueCursor,
           batchSize,
           chain: true,
+          runId,
         },
       );
     return {
+      runId,
+      superseded: false,
       rebuilt: page.page.length,
       isDone: page.isDone,
       ready,
@@ -152,11 +175,21 @@ export const invalidate = internalMutation({
  * ready without an operator. Blocked/overflowed warehouses stay zone-ready only.
  */
 export const sweep = internalMutation({
-  args: {},
-  returns: v.object({ started: v.number() }),
-  handler: async (ctx) => {
+  args: { cursor: v.optional(v.union(v.string(), v.null())) },
+  returns: v.object({ started: v.number(), isDone: v.boolean() }),
+  handler: async (ctx, args) => {
     let started = 0;
-    for (const warehouse of await ctx.db.query("warehouses").collect()) {
+    // Bounded per transaction: 50 warehouses, then continue in a new one.
+    const page = await ctx.db
+      .query("warehouses")
+      .paginate({ cursor: args.cursor ?? null, numItems: 50 });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storageLayouts.zoneOccupancyBackfill.sweep,
+        { cursor: page.continueCursor },
+      );
+    for (const warehouse of page.page) {
       const row = await readiness(ctx, warehouse.orgId, warehouse._id);
       const legacy = await ctx.db
         .query("finishedGoodsSummaryReadiness")
@@ -178,6 +211,6 @@ export const sweep = internalMutation({
       );
       started++;
     }
-    return { started };
+    return { started, isDone: page.isDone };
   },
 });

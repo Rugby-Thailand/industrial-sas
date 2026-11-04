@@ -146,6 +146,7 @@ for (let batches = 1; !occupancy.isDone; batches++) {
   occupancy = run("storageLayouts/zoneOccupancyBackfill:run", {
     warehouseId: bootstrap.warehouseId,
     cursor: occupancy.continueCursor,
+    runId: occupancy.runId,
   });
 }
 

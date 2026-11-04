@@ -74,7 +74,12 @@ function rebuildDerived(root, warehouseId) {
   };
   let result = run({ warehouseId, restart: true, batchSize: 25 });
   while (result && !result.isDone)
-    result = run({ warehouseId, cursor: result.continueCursor, batchSize: 25 });
+    result = run({
+      warehouseId,
+      cursor: result.continueCursor,
+      runId: result.runId,
+      batchSize: 25,
+    });
   if (result && !result.ready)
     throw Error(`${root}: zone occupancy backfill finished without readiness`);
 }
