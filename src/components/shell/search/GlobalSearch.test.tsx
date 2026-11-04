@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   access: {} as Record<string, unknown>,
   workspace: {} as Record<string, unknown>,
+  pathname: "/hr/today",
 }));
 
 vi.mock("convex/react", async () => {
@@ -46,6 +47,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
 }));
 vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: state.push, replace: vi.fn() }),
+  usePathname: () => state.pathname,
 }));
 
 import { hrRefs } from "@/lib/convex/hrApi";
@@ -119,6 +121,7 @@ beforeEach(() => {
   state.auth = { userId: "user-a", orgId: "org-a" };
   state.oneShot.mockReset();
   state.push.mockReset();
+  state.pathname = "/hr/today";
   state.access = {
     status: "READY",
     permissions: ["hr.self.access", "hr.team.review", "hr.admin.manage"],
@@ -354,21 +357,118 @@ describe("AI Search", () => {
     expect(state.action).not.toHaveBeenCalled();
   });
 
-  it("offers examples only while the AI query is empty", async () => {
-    renderSearch(<Opener mode="AI" />);
-    fireEvent.click(screen.getByRole("button", { name: "Open AI" }));
+  it("offers places to go and AI examples before anything is typed", async () => {
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
     await screen.findByRole("dialog");
-    const examples = screen.getByRole("group", { name: "Examples" });
-    expect(examples).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "ตั้งวันหยุด" }));
+    const goTo = screen.getByRole("group", { name: "Go to" });
+    const places = within(goTo).getAllByRole("option");
+    // The member's own module first, without the page already open.
+    expect(places.map((option) => option.textContent)).toEqual([
+      "Attendance historyPeople",
+      "My requestsPeople",
+      "Company holidaysPeople",
+      "LeavePeople",
+      "Review leavePeople",
+      "AnnouncementsPeople",
+    ]);
+    expect(input()).toHaveAttribute("aria-activedescendant", places[0]!.id);
+    const examples = within(
+      screen.getByRole("group", { name: "Try asking AI" }),
+    ).getAllByRole("option");
+    // "This record" needs a page context; there is none here.
+    expect(examples.map((option) => option.textContent)).toEqual([
+      "ลืมลงเวลาเมื่อวาน",
+      "ตั้งวันหยุด",
+    ]);
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      "↑ ↓ to choose · Enter to open · Esc to close",
+    );
+    // Nothing is queried for the suggestions.
+    expect(state.queryCalls).toEqual([]);
+    fireEvent.keyDown(input(), { key: "Enter" });
+    await waitFor(() => expect(state.push).toHaveBeenCalledWith("/hr/time"));
+  });
+
+  it("puts the current module's places first and hides suggestions once typing starts", async () => {
+    state.pathname = "/finished-goods/scan";
+    state.workspace = {
+      permissionsReady: true,
+      navigationPermissions: ["masterData.storageLayout.read"],
+    };
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    const places = within(
+      screen.getByRole("group", { name: "Go to" }),
+    ).getAllByRole("option");
+    expect(places.map((option) => option.textContent)).toEqual([
+      "Finished goodsWarehouse",
+      "Scanned recordsWarehouse",
+      "Buildings & spotsWarehouse",
+      "TodayPeople",
+      "Attendance historyPeople",
+      "My requestsPeople",
+    ]);
+    fireEvent.change(input(), { target: { value: "s" } });
+    expect(screen.queryByRole("group", { name: "Go to" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Try asking AI" })).toBeNull();
+  });
+
+  it("asks an example at once when it is chosen, keeping focus in the box", async () => {
+    state.action.mockResolvedValue({
+      ok: true,
+      value: {
+        ok: true,
+        today: "2026-10-09",
+        intent: grounded({ kind: "CLARIFY", clarify: "TASK" }),
+      },
+    });
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("option", { name: "ตั้งวันหยุด" }));
     expect(input()).toHaveValue("ตั้งวันหยุด");
     expect(input()).toHaveFocus();
+    expect(screen.getByRole("heading", { name: "AI Search" })).toBeVisible();
+    await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
+    expect(state.action.mock.calls[0]![0].query).toBe("ตั้งวันหยุด");
     expect(
-      screen.queryByRole("group", { name: "Examples" }),
-    ).not.toBeInTheDocument();
-    // An example only fills the box: nothing is sent until Ask AI.
-    expect(state.action).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Ask AI" })).toBeEnabled();
+      await screen.findByText("What would you like to do? Try one of these."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Try asking AI" })).toBeNull();
+
+    // Cleared in AI mode: the examples lead, reachable with the arrows.
+    fireEvent.change(input(), { target: { value: "" } });
+    const first = within(
+      screen.getByRole("group", { name: "Try asking AI" }),
+    ).getAllByRole("option")[0]!;
+    expect(input()).not.toHaveAttribute("aria-activedescendant");
+    fireEvent.keyDown(input(), { key: "ArrowDown" });
+    expect(input()).toHaveAttribute("aria-activedescendant", first.id);
+    fireEvent.keyDown(input(), { key: "Enter" });
+    await waitFor(() => expect(state.action).toHaveBeenCalledTimes(2));
+    expect(state.action.mock.calls[1]![0].query).toBe("ลืมลงเวลาเมื่อวาน");
+  });
+
+  it("offers the review example only while a page names the record", async () => {
+    renderSearch(
+      <>
+        <Opener />
+        <ReviewContext />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    expect(
+      within(screen.getByRole("group", { name: "Try asking AI" }))
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual([
+      "ลืมลงเวลาเมื่อวาน",
+      "ตรวจคำขอที่ต้องแก้ของรายการนี้",
+      "ตั้งวันหยุด",
+    ]);
   });
 
   it("lists AI page suggestions without a generic Open page line", async () => {
@@ -1075,5 +1175,151 @@ describe("AI Search lifecycle", () => {
     fireEvent.compositionEnd(input(), { target: { value: "ตั้งวันหยุด" } });
     fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
     await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe("search guidance", () => {
+  it("offers the typed text to the AI when nothing matches", async () => {
+    state.queries.set(ref(hrRefs.searchReviewEmployees), () => found());
+    state.queries.set(ref(hrRefs.searchAdminEmployees), () => found());
+    state.action.mockResolvedValue({
+      ok: true,
+      value: {
+        ok: true,
+        today: "2026-10-09",
+        intent: grounded({ kind: "CLARIFY", clarify: "TASK" }),
+      },
+    });
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    await type("ซซซซซ");
+    expect(
+      screen.getByText("No matching pages or records."),
+    ).toBeInTheDocument();
+    const fallback = screen.getByRole("option", { name: "Ask AI: “ซซซซซ”" });
+    expect(input()).toHaveAttribute("aria-activedescendant", fallback.id);
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      "↑ ↓ to choose · Enter to ask AI · Esc to close",
+    );
+    fireEvent.keyDown(input(), { key: "Enter" });
+    await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
+    expect(state.action.mock.calls[0]![0].query).toBe("ซซซซซ");
+    expect(input()).toHaveFocus();
+    // Asked: the same text is not offered again.
+    await screen.findByTestId("global-search-ai-outcome");
+    expect(
+      screen.queryByRole("option", { name: /Ask AI: “ซซซซซ”/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says what can be searched when nothing matches and AI is not available", async () => {
+    state.access = { status: "NONE", permissions: [], sites: [] };
+    state.workspace = {
+      permissionsReady: true,
+      navigationPermissions: ["masterData.storageLayout.read"],
+    };
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    expect(input()).toHaveAttribute("placeholder", "Search pages and sections");
+    await type("zzzzz");
+    expect(screen.queryAllByRole("option")).toEqual([]);
+    expect(screen.getByTestId("global-search-no-match-hint")).toHaveTextContent(
+      "Only page and section names can be searched. Try a shorter word.",
+    );
+    // Enter does nothing here, so the hint does not offer it.
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      /^Esc to close$/,
+    );
+  });
+
+  it("marks the typed text in result titles and keeps the full title as the name", async () => {
+    state.queries.set(ref(hrRefs.searchReviewEmployees), () => found());
+    state.queries.set(ref(hrRefs.searchAdminEmployees), () =>
+      found(hit("e3", "EMP-DEMO-003", "สมชาย ใจดี", "PARTIAL")),
+    );
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    expect(input()).toHaveAttribute("placeholder", "Search pages or employees");
+    await type("สมชาย");
+    const option = screen.getByRole("option", { name: /สมชาย ใจดี/ });
+    const marks = option.querySelectorAll("mark");
+    expect([...marks].map((mark) => mark.textContent)).toEqual(["สมชาย"]);
+    expect(marks[0]!.parentElement).toHaveTextContent(/^สมชาย ใจดี$/);
+
+    await type("holi");
+    expect(
+      [
+        ...screen
+          .getByRole("option", { name: /Company holidays/ })
+          .querySelectorAll("mark"),
+      ].map((mark) => mark.textContent),
+    ).toEqual(["holi"]);
+  });
+
+  it("shows AI progress apart from the ordinary results and keeps the box focused", async () => {
+    let resolve: (value: unknown) => void = () => {};
+    state.action.mockReturnValue(new Promise((done) => (resolve = done)));
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    await type("holidays");
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      "↑ ↓ to choose · Enter to open · Esc to close",
+    );
+    const button = screen.getByRole("button", { name: "Ask AI" });
+    button.focus();
+    fireEvent.click(button);
+
+    const words = await screen.findByText("AI is reading your request…");
+    expect(words).toHaveAttribute("role", "status");
+    const running = screen.getByTestId("global-search-ai-running");
+    expect(running.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    // Cancel is beside the words, not inside what is announced.
+    expect(
+      within(running).getByRole("button", { name: "Cancel" }),
+    ).toBeInTheDocument();
+    expect(words).not.toContainElement(
+      within(running).getByRole("button", { name: "Cancel" }),
+    );
+    expect(button).toBeDisabled();
+    expect(input()).toHaveFocus();
+
+    // The ordinary results are labelled as such and keep their place.
+    expect(
+      screen.getByTestId("global-search-ordinary-heading"),
+    ).toHaveTextContent(/^\d+ normal search results?$/);
+    expect(
+      screen.getByRole("group", {
+        name: /normal search results? Pages and sections/,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("global-search-ai-pending")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    // Enter can neither ask (running) nor open (nothing chosen) yet.
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      /^↑ ↓ to choose · Esc to close$/,
+    );
+    fireEvent.keyDown(input(), { key: "ArrowDown" });
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      "↑ ↓ to choose · Enter to open · Esc to close",
+    );
+    await act(async () =>
+      resolve({
+        ok: true,
+        value: {
+          ok: true,
+          today: "2026-10-09",
+          intent: grounded({ kind: "CLARIFY", clarify: "TASK" }),
+        },
+      }),
+    );
+    expect(
+      screen.queryByTestId("global-search-ai-pending"),
+    ).not.toBeInTheDocument();
   });
 });

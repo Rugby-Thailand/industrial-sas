@@ -9,7 +9,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 import { useSearchControls, type SearchMode } from "./GlobalSearchProvider";
 
@@ -37,9 +39,15 @@ export function SidebarSearchTriggers({
   const t = useTranslations("Search");
   const controls = useSearchControls();
   const shortcut = useShortcutLabel();
+  // The phone drawer and touch screens have no keyboard to press it with.
+  const { isMobile } = useSidebar();
+  const coarse = useMediaQuery("(pointer: coarse)");
+  const showShortcut = !isMobile && !coarse;
   if (controls === null) return null;
   const open = onOpen ?? controls.open;
-  const searchLabel = t("triggerLabel", { shortcut });
+  const searchLabel = showShortcut
+    ? t("triggerLabel", { shortcut })
+    : t("triggerLabelTouch");
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -59,7 +67,7 @@ export function SidebarSearchTriggers({
           <span className={collapsed ? "sr-only" : "flex-1 truncate"}>
             {t("trigger")}
           </span>
-          {collapsed ? null : (
+          {collapsed || !showShortcut ? null : (
             <kbd className="rounded border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 text-xs text-sidebar-accent-foreground">
               {shortcut}
             </kbd>

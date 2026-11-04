@@ -1,82 +1,54 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useTransition } from "react";
+import { useTransition } from "react";
 
-// eslint-disable-next-line no-restricted-imports -- SelectControl cannot render the flag-only current value; this reuses the shared Select primitives unchanged
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { LOCALES, type AppLocale } from "@/i18n/routing";
 import { guardedNavigate } from "@/lib/navigationGuard";
 
-const LANGUAGE_FLAGS: Record<AppLocale, string> = { th: "🇹🇭", en: "🇬🇧" };
+/** Each language by its own name, so a reader finds theirs in any locale. */
+const LANGUAGE_NAMES: Readonly<Record<AppLocale, string>> = {
+  th: "ไทย",
+  en: "English",
+};
 
-/** Flag-only language control; the menu pairs each flag with its language name. */
+/**
+ * There are two languages, so one button switches to the other. It shows
+ * that language's own name (marked with its `lang`) after a hidden
+ * "switch language to" in the current one.
+ */
 export function LocaleSwitcher() {
   const t = useTranslations("Locale");
   const locale = useLocale() as AppLocale;
+  const next = LOCALES.find((candidate) => candidate !== locale) ?? locale;
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const controlId = useId();
-  const labelId = `${controlId}-label`;
-  const currentId = `${controlId}-current`;
 
-  const choose = (next: string) => {
-    if (next === locale) return;
+  const choose = () => {
     // The URL the user chose from; a guard prompt or its history buffer must
     // not change which query or hash the new language opens.
     const href = `${pathname}${window.location.search}${window.location.hash}`;
     guardedNavigate(() => {
       startTransition(() => {
-        router.replace(href, { locale: next as AppLocale });
+        router.replace(href, { locale: next });
       });
     });
   };
 
   return (
-    <span className="inline-flex items-center gap-2 text-sm">
-      <label id={labelId} htmlFor={controlId} className="sr-only">
-        {t("label")}
-      </label>
-      <Select value={locale} onValueChange={choose} disabled={isPending}>
-        <SelectTrigger
-          id={controlId}
-          aria-busy={isPending ? true : undefined}
-          data-testid="locale-select"
-          aria-labelledby={`${labelId} ${currentId}`}
-          className="w-touch justify-center border-transparent bg-transparent p-0 text-xl hover:bg-raised dense:w-control dense:p-0 [&>svg]:hidden"
-        >
-          <SelectValue>
-            <span aria-hidden="true">{LANGUAGE_FLAGS[locale]}</span>
-            <span id={currentId} className="sr-only">
-              {t(locale)}
-            </span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {LOCALES.map((candidate) => (
-            <SelectItem
-              key={candidate}
-              value={candidate}
-              data-value={candidate}
-              // Typeahead and the option's name use the language alone.
-              textValue={t(candidate)}
-            >
-              <span aria-hidden="true" className="text-base leading-none">
-                {LANGUAGE_FLAGS[candidate]}
-              </span>
-              <span>{t(candidate)}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </span>
+    <Button
+      type="button"
+      variant="ghost"
+      pending={isPending}
+      onClick={choose}
+      data-testid="locale-select"
+      className="shrink-0 px-3 font-medium text-muted hover:text-text"
+    >
+      <span className="sr-only">{t("switchTo")}</span>{" "}
+      <span lang={next}>{LANGUAGE_NAMES[next]}</span>
+    </Button>
   );
 }

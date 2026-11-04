@@ -21,6 +21,7 @@ import {
 } from "@/components/system/NavigationProgress";
 import { SkipToContentLink } from "@/components/shell/SkipToContentLink";
 import { AccountButton } from "@/components/shell/AccountButton";
+import { ConnectionNotice } from "@/components/shell/ConnectionNotice";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
@@ -31,6 +32,7 @@ import { useOrganizationName } from "@/components/shell/useOrganizationName";
 import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
 import { Button } from "@/components/ui/button";
 import type { SheetCompletionHandle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
@@ -83,6 +85,7 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
                       <ThemeToggle />
                     </div>
                   </div>
+                  <ConnectionNotice />
                 </header>
                 <main
                   id={MAIN_ID}
@@ -154,18 +157,29 @@ function NavigationDisclosure({
 
 /**
  * The organization this session works in, as the header's brand. Warehouse
- * context lives in the sidebar, so a phone header never carries it.
+ * context lives in the sidebar, so a phone header never carries it. Until
+ * the organization resolves, a placeholder holds its place rather than
+ * repeating the product name the sidebar already shows.
  */
 function HeaderBrand() {
   const name = useOrganizationName();
   return (
-    <p
-      className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-text sm:text-base"
-      title={name}
-      data-testid="header-brand"
-    >
-      {name}
-    </p>
+    <div className="min-w-0 flex-1 px-1" data-testid="header-brand">
+      {name === undefined ? (
+        <Skeleton
+          aria-hidden="true"
+          className="h-5 w-40 max-w-full"
+          data-testid="header-brand-loading"
+        />
+      ) : (
+        <p
+          className="truncate text-sm font-semibold text-text sm:text-base"
+          title={name}
+        >
+          {name}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -211,7 +225,12 @@ function AppSidebar({
       <SidebarHeader
         className={cn("gap-6 px-4 pt-5 pb-2", collapsed && "gap-3 p-2")}
       >
-        <div className="flex items-center gap-1">
+        <div
+          className={cn(
+            "flex items-center gap-1",
+            collapsed && "justify-center",
+          )}
+        >
           {/* Compact identity: app name over the warehouse, beside the toggle. */}
           <div
             className={cn(
@@ -243,17 +262,34 @@ function AppSidebar({
           collapsed && "mx-2 p-0 py-2",
         )}
       >
-        <div className="flex min-h-12 items-center gap-3">
-          <div className="shrink-0">
+        <div
+          className={cn(
+            "flex min-h-12 items-center gap-3",
+            collapsed && "justify-center",
+          )}
+        >
+          <div className="shrink-0" data-testid="sidebar-account">
             <AccountButton />
           </div>
-          <span
-            className={
-              collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
-            }
-          >
-            {organizationName}
-          </span>
+          {organizationName === undefined ? (
+            collapsed ? null : (
+              <Skeleton
+                aria-hidden="true"
+                // The default skeleton fill matches the sidebar surface.
+                className="h-4 w-32 bg-sidebar-border"
+                data-testid="sidebar-organization-loading"
+              />
+            )
+          ) : (
+            <span
+              className={
+                collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
+              }
+              data-testid="sidebar-organization"
+            >
+              {organizationName}
+            </span>
+          )}
         </div>
       </SidebarFooter>
     </Sidebar>

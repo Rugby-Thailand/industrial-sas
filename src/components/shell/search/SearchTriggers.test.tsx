@@ -88,3 +88,33 @@ describe("sidebar search triggers", () => {
     expect(state.open).toHaveBeenCalledWith("SEARCH");
   });
 });
+
+describe("sidebar search trigger on phones and touch screens", () => {
+  it.each(["(pointer: coarse)", "(max-width: 1023px)"])(
+    "drops the keyboard shortcut when %s matches",
+    (matching) => {
+      const original = window.matchMedia;
+      window.matchMedia = ((query: string) => ({
+        ...original(query),
+        matches: query === matching,
+      })) as typeof window.matchMedia;
+      try {
+        renderWithIntl(<Harness collapsed={false} />, { locale: "en" });
+        const search = screen.getByTestId("sidebar-search");
+        expect(search.querySelector("kbd")).toBeNull();
+        expect(search).toHaveAccessibleName("Search pages and records");
+        fireEvent.click(search);
+        expect(state.open).toHaveBeenCalledWith("SEARCH");
+      } finally {
+        window.matchMedia = original;
+      }
+    },
+  );
+
+  it("keeps the shortcut on a desktop with a precise pointer", () => {
+    renderWithIntl(<Harness collapsed={false} />, { locale: "en" });
+    const search = screen.getByTestId("sidebar-search");
+    expect(search.querySelector("kbd")).toHaveTextContent(/⌘K|Ctrl K/);
+    expect(search).toHaveAccessibleName(/Search pages and records \(.+\)/);
+  });
+});

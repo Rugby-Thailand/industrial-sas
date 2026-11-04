@@ -18,6 +18,8 @@ import { formatBusinessDate } from "@/features/hr/format";
 import { hrRefs } from "@/lib/convex/hrApi";
 import {
   HR_CODES,
+  STATIC_DESTINATIONS,
+  activeNavigationHref,
   destinationTrail,
   hasNavigationPermission,
   type DestinationTarget,
@@ -35,7 +37,11 @@ import {
 
 import { normalizeSearchText } from "../../../../convex/model/search/text";
 
-export type ResultGroup = "AI" | "PAGES" | "RECORDS" | "TASKS";
+/**
+ * GOTO and ASK fill the list before anything is typed (and ASK offers the
+ * typed text to the AI when nothing matches); the rest answer a query.
+ */
+export type ResultGroup = "AI" | "PAGES" | "RECORDS" | "TASKS" | "GOTO" | "ASK";
 
 export interface SearchResult {
   readonly id: string;
@@ -53,6 +59,8 @@ export interface SearchResult {
   /** Null: shown for orientation, needs more input (`hint`) to open. */
   readonly target: DestinationTarget | null;
   readonly hint?: string;
+  /** Choosing it asks the AI this text instead of opening a target. */
+  readonly ask?: string;
 }
 
 /** Label helpers shared by normal results and AI choices. */
@@ -61,8 +69,9 @@ export function useResultLabels() {
   const t = useTranslations("Search");
   const locale = useLocale();
   return useMemo(() => {
-    const trailOf = (key: StaticDestinationKey) =>
+    const trailOf = (key: StaticDestinationKey, depth?: number) =>
       destinationTrail(key)
+        .slice(0, depth)
         .map((labelKey) => nav(labelKey))
         .join(" › ");
     const date = (value: string) =>
@@ -190,6 +199,50 @@ export function useResultLabels() {
 }
 
 const SCHEDULE_WORDS = ["ตารางงาน", "กะ", "schedule", "shift"];
+const SHORTCUT_LIMIT = 6;
+
+/**
+ * Menu pages the member may open, offered before anything is typed: the
+ * current module's first, in menu order, without the page already shown.
+ */
+export function useShortcutResults(
+  granted: readonly string[],
+  pathname: string,
+): readonly SearchResult[] {
+  const labels = useResultLabels();
+  return useMemo(() => {
+    const menu = STATIC_DESTINATIONS.filter(
+      (destination) =>
+        destination.menu === true &&
+        hasNavigationPermission(
+          destination.permissionCodes,
+          granted,
+          destination.permissionMode ?? "ALL",
+        ),
+    );
+    const activeHref = activeNavigationHref(
+      pathname,
+      menu.map((destination) => destination.href),
+    );
+    const current = menu.find(
+      (destination) => destination.href === activeHref,
+    )?.module;
+    return [
+      ...menu.filter((destination) => destination.module === current),
+      ...menu.filter((destination) => destination.module !== current),
+    ]
+      .filter((destination) => destination.href !== pathname)
+      .slice(0, SHORTCUT_LIMIT)
+      .map((destination) => ({
+        id: `goto-${destination.key}`,
+        group: "GOTO" as const,
+        title: labels.label(destination),
+        // Where it sits: the module (and parent page), without itself.
+        trail: labels.trailOf(destination.key, -1),
+        target: { key: destination.key },
+      }));
+  }, [granted, labels, pathname]);
+}
 
 /** Pages, sections and tasks from the registry, plus date-only self tasks. */
 export function useStaticResults(

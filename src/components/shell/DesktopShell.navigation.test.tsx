@@ -89,7 +89,15 @@ vi.mock("@/i18n/navigation", () => ({
 vi.mock("convex/react", () => ({
   useQuery: () => undefined,
   useAction: () => vi.fn(),
-  useConvex: () => ({ query: vi.fn() }),
+  useConvex: () => ({
+    query: vi.fn(),
+    connectionState: () => ({
+      isWebSocketConnected: true,
+      hasEverConnected: true,
+      connectionCount: 1,
+    }),
+    subscribeToConnectionState: () => () => undefined,
+  }),
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({

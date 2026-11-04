@@ -3,6 +3,7 @@
 import { Search, Sparkles, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  Fragment,
   useEffect,
   useId,
   useMemo,
@@ -23,7 +24,10 @@ import {
   DialogTitle,
   type DialogCompletionHandle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { formatBusinessDate } from "@/features/hr/format";
+import { usePathname } from "@/i18n/navigation";
 import {
   HR_CODES,
   hasNavigationPermission,
@@ -36,17 +40,27 @@ import type {
 import { cn } from "@/lib/utils";
 
 import type { SearchMode } from "./GlobalSearchProvider";
+import { highlightParts } from "./highlight";
 import {
   useRecordResults,
   useResultLabels,
+  useShortcutResults,
   useStaticResults,
   type ResultGroup,
   type SearchResult,
 } from "./results";
 import { useAiSearch, type AiState } from "./useAiSearch";
 
-const GROUP_ORDER: readonly ResultGroup[] = ["AI", "PAGES", "RECORDS", "TASKS"];
+/** Ordinary (non-AI) results of a typed query, in display order. */
+const ORDINARY_GROUPS: readonly ResultGroup[] = ["PAGES", "RECORDS", "TASKS"];
 const DEBOUNCE_MS = 250;
+
+interface Section {
+  readonly group: ResultGroup;
+  readonly items: readonly SearchResult[];
+  /** False: the group is named for assistive technology only. */
+  readonly labelled: boolean;
+}
 
 /** The typed text after a short pause, held while an IME is composing. */
 function useSettledText(text: string, composing: boolean): string {
@@ -153,6 +167,7 @@ function SearchBody({
   const t = useTranslations("Search");
   const hr = useHrAccess();
   const labels = useResultLabels();
+  const pathname = usePathname();
   const id = useId();
   const listId = `${id}-results`;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -160,6 +175,13 @@ function SearchBody({
   const [composing, setComposing] = useState(false);
   const settled = useSettledText(query, composing);
   const today = hr.today ?? null;
+  // Nothing typed: the list offers places to go and things to ask.
+  const browsing = query.trim() === "";
+  const canSearchPeople = hasNavigationPermission(
+    [HR_CODES.review, HR_CODES.admin],
+    granted,
+    "ANY",
+  );
 
   // The page context is shown and can be cleared; a new record re-offers it.
   const contextKey = pageContext === null ? "" : JSON.stringify(pageContext);
@@ -169,10 +191,8 @@ function SearchBody({
 
   const staticResults = useStaticResults(settled, granted);
   const records = useRecordResults(settled, granted, today, settled !== "");
-  const go = (result: SearchResult) =>
-    !stale &&
-    result.target !== null &&
-    onNavigate(result.target, `${result.trail} › ${result.title}`);
+  const shortcuts = useShortcutResults(granted, pathname);
+  const examples = useExampleResults(granted, context);
   const ai = useAiSearch({
     query,
     granted,
@@ -183,20 +203,76 @@ function SearchBody({
     () => aiResults(ai.state, labels.choiceResult),
     [ai.state, labels],
   );
+  // While the AI works on (or has answered) this text, the ordinary results
+  // below its answer are labelled as such, so neither is taken for the other.
+  const aiActive = mode === "AI" && ai.state.status !== "IDLE";
 
-  const results = useMemo(() => {
-    const all = [...aiChoices, ...staticResults, ...records.state.results];
-    return GROUP_ORDER.flatMap((group) =>
-      all.filter((result) => result.group === group),
-    );
-  }, [aiChoices, records.state.results, staticResults]);
   // Results belong to the settled text. While the input differs (typing,
   // before the pause) or an IME is composing, they are shown but cannot be
   // opened: Enter or a click must never open the previous query's record.
-  const stale = composing || settled !== (query.trim() === "" ? "" : query);
+  const stale = composing || settled !== (browsing ? "" : query);
+  const ordinary = useMemo(
+    () =>
+      ORDINARY_GROUPS.flatMap((group) =>
+        [...staticResults, ...records.state.results].filter(
+          (result) => result.group === group,
+        ),
+      ),
+    [records.state.results, staticResults],
+  );
+  const canAsk =
+    aiAvailable &&
+    !composing &&
+    query.trim().length >= 2 &&
+    ai.state.status !== "RUNNING";
+  const noMatch =
+    !browsing &&
+    !stale &&
+    !records.state.loading &&
+    ordinary.length === 0 &&
+    aiChoices.length === 0;
+  // Nothing matched: the typed text itself is offered to the AI.
+  const fallback: readonly SearchResult[] =
+    noMatch && canAsk && ai.state.status === "IDLE"
+      ? [
+          {
+            id: "ask-query",
+            group: "ASK",
+            title: t("askQuery", { query: query.trim() }),
+            trail: "",
+            target: null,
+            ask: query,
+          },
+        ]
+      : [];
+
+  const goTo: Section = { group: "GOTO", items: shortcuts, labelled: true };
+  const tryAsking: Section = {
+    group: "ASK",
+    items: aiAvailable ? examples : [],
+    labelled: true,
+  };
+  const sections: readonly Section[] = browsing
+    ? // Asked the AI and cleared the box: its examples come first.
+      mode === "AI"
+      ? [tryAsking, goTo]
+      : [goTo, tryAsking]
+    : [
+        { group: "ASK", items: fallback, labelled: false },
+        { group: "AI", items: aiChoices, labelled: true },
+        ...ORDINARY_GROUPS.map((group) => ({
+          group,
+          items: ordinary.filter((result) => result.group === group),
+          labelled: true,
+        })),
+      ];
+  const shown = sections.filter((section) => section.items.length > 0);
+  const results = shown.flatMap((section) => section.items);
   const enabled = stale
     ? []
-    : results.filter((result) => result.target !== null);
+    : results.filter(
+        (result) => result.target !== null || result.ask !== undefined,
+      );
   // The first openable result is active in normal search; in AI mode Enter
   // asks the AI until the user moves into the results.
   const [active, setActive] = useState<{ query: string; id: string | null }>({
@@ -210,6 +286,7 @@ function SearchBody({
       : mode === "AI"
         ? null
         : (enabled[0]?.id ?? null);
+  const activeResult = enabled.find((result) => result.id === activeId);
 
   useEffect(() => {
     if (activeId === null) return;
@@ -229,15 +306,32 @@ function SearchBody({
         : (index + delta + enabled.length) % enabled.length;
     setActive({ query: settled, id: enabled[next]!.id });
   };
-  const canAsk =
-    aiAvailable &&
-    !composing &&
-    query.trim().length >= 2 &&
-    ai.state.status !== "RUNNING";
-  const ask = () => {
-    if (!canAsk) return;
+  const askAbout = (text: string) => {
+    if (
+      !aiAvailable ||
+      composing ||
+      text.trim().length < 2 ||
+      ai.state.status === "RUNNING"
+    )
+      return;
+    setQuery(text);
     onModeChange("AI");
-    void ai.run();
+    void ai.run(text);
+    // The pressed control is disabled while the AI runs; typing, arrows and
+    // Escape stay with the box.
+    inputRef.current?.focus();
+  };
+  const ask = () => {
+    if (canAsk) askAbout(query);
+  };
+  const choose = (result: SearchResult) => {
+    if (stale) return;
+    if (result.ask !== undefined) askAbout(result.ask);
+    else if (result.target !== null)
+      onNavigate(
+        result.target,
+        [result.trail, result.title].filter(Boolean).join(" › "),
+      );
   };
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     // Thai and other IMEs confirm a candidate with Enter: never submit then.
@@ -251,8 +345,7 @@ function SearchBody({
       move(-1);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const result = enabled.find((entry) => entry.id === activeId);
-      if (result !== undefined) go(result);
+      if (activeResult !== undefined) choose(activeResult);
       else if (mode === "AI") ask();
     }
   };
@@ -261,10 +354,30 @@ function SearchBody({
   const status = statusText({
     t,
     settled,
-    count: results.length,
-    typing: stale && query.trim() !== "",
+    count: ordinary.length + aiChoices.length,
+    typing: stale && !browsing,
     records: records.state,
+    ordinaryOnly: aiActive,
   });
+  // Only what Enter does now: open the active row, ask the AI, or nothing.
+  const enter =
+    activeResult !== undefined
+      ? activeResult.ask === undefined
+        ? "open"
+        : "ask"
+      : mode === "AI" && canAsk
+        ? "ask"
+        : null;
+  const keys = [
+    enabled.length > 0 ? t("keys.move") : null,
+    enter === null ? null : t(`keys.${enter}`),
+    t("keys.close"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const firstOrdinary = shown.find((section) =>
+    ORDINARY_GROUPS.includes(section.group),
+  )?.group;
 
   return (
     <div className="grid min-h-0 gap-3">
@@ -312,7 +425,13 @@ function SearchBody({
             spellCheck={false}
             enterKeyHint={mode === "AI" ? "send" : "go"}
             maxLength={300}
-            placeholder={t(mode === "AI" ? "aiPlaceholder" : "placeholder")}
+            placeholder={t(
+              mode === "AI"
+                ? "aiPlaceholder"
+                : canSearchPeople
+                  ? "placeholderPeople"
+                  : "placeholder",
+            )}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onCompositionStart={() => setComposing(true)}
@@ -343,18 +462,22 @@ function SearchBody({
         <AiPanel
           state={ai.state}
           context={context}
-          granted={granted}
           onClearContext={() => setClearedContext(contextKey)}
           onCancel={ai.cancel}
-          onExample={(text) => {
-            setQuery(text);
-            inputRef.current?.focus();
-          }}
-          showExamples={query.trim() === ""}
         />
       ) : null}
 
-      <p role="status" aria-live="polite" className="text-xs text-muted">
+      <p
+        role="status"
+        aria-live="polite"
+        className={cn(
+          "text-xs text-muted",
+          // The list's own labels say it: places to go, or the ordinary
+          // results under the AI's answer.
+          ((browsing && results.length > 0) || aiActive) && "sr-only",
+        )}
+        data-testid="global-search-status"
+      >
         {status}
       </p>
       {records.node}
@@ -365,42 +488,72 @@ function SearchBody({
         aria-label={t("resultsLabel")}
         className="min-h-0 overflow-y-auto overscroll-contain sm:max-h-[min(28rem,55dvh)]"
       >
-        {GROUP_ORDER.map((group) => {
-          const items = results.filter((result) => result.group === group);
-          if (items.length === 0) return null;
+        {aiActive && ai.state.status === "RUNNING" ? <AiPending /> : null}
+        {shown.map((section) => {
+          const labelId = `${id}-group-${section.group}`;
+          const ordinaryHeading = aiActive && section.group === firstOrdinary;
           return (
             <div
-              key={group}
+              key={section.group}
               role="group"
-              aria-labelledby={`${id}-group-${group}`}
+              {...(section.labelled
+                ? {
+                    "aria-labelledby":
+                      aiActive && ORDINARY_GROUPS.includes(section.group)
+                        ? `${id}-ordinary ${labelId}`
+                        : labelId,
+                  }
+                : { "aria-label": t("aiAsk") })}
               className="pb-2"
+              data-testid={`global-search-group-${section.group.toLowerCase()}`}
             >
-              <div
-                id={`${id}-group-${group}`}
-                role="presentation"
-                className="px-2 pt-2 pb-1 text-xs font-semibold text-muted"
-              >
-                {t(`group.${group}`)}
-              </div>
-              {items.map((result) => (
+              {ordinaryHeading ? (
+                <div
+                  id={`${id}-ordinary`}
+                  role="presentation"
+                  className="mx-2 mt-1 mb-1 border-t border-border pt-3 text-xs font-semibold text-text"
+                  data-testid="global-search-ordinary-heading"
+                >
+                  {t("ordinaryResults", { count: ordinary.length })}
+                </div>
+              ) : null}
+              {section.labelled ? (
+                <div
+                  id={labelId}
+                  role="presentation"
+                  className="px-2 pt-2 pb-1 text-xs font-semibold text-muted"
+                >
+                  {t(`group.${section.group}`)}
+                </div>
+              ) : null}
+              {section.items.map((result) => (
                 <ResultOption
                   key={result.id}
                   id={`${id}-${result.id}`}
                   result={result}
+                  query={settled}
                   stale={stale}
                   active={result.id === activeId}
                   onHover={() =>
                     !stale &&
-                    result.target !== null &&
+                    (result.target !== null || result.ask !== undefined) &&
                     setActive({ query: settled, id: result.id })
                   }
-                  onChoose={() => go(result)}
+                  onChoose={() => choose(result)}
                 />
               ))}
             </div>
           );
         })}
       </div>
+      {noMatch && !aiAvailable ? (
+        <p
+          className="text-sm text-muted"
+          data-testid="global-search-no-match-hint"
+        >
+          {t(canSearchPeople ? "noMatchHintPeople" : "noMatchHintPages")}
+        </p>
+      ) : null}
       {showRecordsStatus && records.state.incomplete ? (
         <p
           className="text-xs text-warning"
@@ -417,11 +570,51 @@ function SearchBody({
           {t("recordsUnavailable")}
         </p>
       ) : null}
-      <p className="hidden text-xs text-muted sm:block" aria-hidden="true">
-        {t("keyboardHint")}
+      <p
+        className="hidden text-xs text-muted sm:block"
+        aria-hidden="true"
+        data-testid="global-search-keys"
+      >
+        {keys}
       </p>
     </div>
   );
+}
+
+/**
+ * Example requests for the member's HR grants, offered before anything is
+ * typed. Choosing one asks the AI at once, so an example that refers to
+ * "this record" appears only while a page has published one.
+ */
+function useExampleResults(
+  granted: readonly string[],
+  context: PageSearchContext | null,
+): readonly SearchResult[] {
+  const t = useTranslations("Search");
+  return useMemo(() => {
+    const self = hasNavigationPermission([HR_CODES.self], granted);
+    return [
+      ...(self ? [t("exampleSelf")] : []),
+      ...(context !== null &&
+      hasNavigationPermission([HR_CODES.review], granted)
+        ? [t("exampleReview")]
+        : []),
+      ...(hasNavigationPermission([HR_CODES.admin], granted)
+        ? [t("exampleHoliday")]
+        : self
+          ? [t("exampleProfile")]
+          : []),
+    ]
+      .slice(0, 3)
+      .map((text, index) => ({
+        id: `ask-example-${index}`,
+        group: "ASK" as const,
+        title: text,
+        trail: "",
+        target: null,
+        ask: text,
+      }));
+  }, [context, granted, t]);
 }
 
 type Translate = ReturnType<typeof useTranslations>;
@@ -430,6 +623,7 @@ type Translate = ReturnType<typeof useTranslations>;
  * The live status. "No match" is said only when every record search
  * answered completely: a failed, refused or bounded read says so instead,
  * in words that reveal nothing about records outside the member's scope.
+ * Beside an AI answer it counts only the ordinary results.
  */
 function statusText(input: {
   readonly t: Translate;
@@ -441,22 +635,48 @@ function statusText(input: {
     readonly failed: boolean;
     readonly incomplete: boolean;
   };
+  readonly ordinaryOnly: boolean;
 }): string {
   const { t, records } = input;
-  if (input.settled === "") return t("empty");
-  if (input.typing || records.loading)
+  if (input.typing || (input.settled !== "" && records.loading))
     return input.count > 0
       ? t("resultsLoading", { count: input.count })
       : t("recordsLoading");
-  if (input.count > 0) return t("results", { count: input.count });
+  if (input.settled === "") return t("empty");
+  if (input.count > 0)
+    return t(input.ordinaryOnly ? "ordinaryResults" : "results", {
+      count: input.count,
+    });
+  if (input.ordinaryOnly) return t("ordinaryNone");
   if (records.failed) return t("noMatchUnavailable");
   if (records.incomplete) return t("noMatchIncomplete");
   return t("noMatch");
 }
 
+/** The title with the typed text marked; read out as the plain title. */
+function Highlighted({
+  text,
+  query,
+}: {
+  readonly text: string;
+  readonly query: string;
+}) {
+  const parts = useMemo(() => highlightParts(text, query), [query, text]);
+  return parts.map((part, index) =>
+    part.match ? (
+      <mark key={index} className="bg-transparent font-bold text-link">
+        {part.text}
+      </mark>
+    ) : (
+      <Fragment key={index}>{part.text}</Fragment>
+    ),
+  );
+}
+
 function ResultOption({
   id,
   result,
+  query,
   stale,
   active,
   onHover,
@@ -464,13 +684,18 @@ function ResultOption({
 }: {
   readonly id: string;
   readonly result: SearchResult;
+  /** The text the results answer; its match is marked in the title. */
+  readonly query: string;
   /** Shown for the previous text; not openable until results settle. */
   readonly stale: boolean;
   readonly active: boolean;
   readonly onHover: () => void;
   readonly onChoose: () => void;
 }) {
-  const disabled = stale || result.target === null;
+  const disabled =
+    stale || (result.target === null && result.ask === undefined);
+  // Places to go and things to ask are one line each.
+  const compact = result.group === "GOTO" || result.group === "ASK";
   return (
     // Options are activated from the combobox (Enter) or by pointer.
     <div
@@ -482,26 +707,70 @@ function ResultOption({
       onMouseDown={(event) => event.preventDefault()}
       onClick={disabled ? undefined : onChoose}
       className={cn(
-        "grid min-h-touch cursor-pointer gap-0.5 rounded-lg px-3 py-2 text-left",
+        "min-h-touch cursor-pointer rounded-lg px-3 py-2 text-left",
+        compact
+          ? "flex items-center gap-3 dense:min-h-control dense:py-1.5"
+          : "grid gap-0.5",
         active
           ? "bg-accent-surface shadow-[inset_3px_0_0_var(--color-link)]"
           : "hover:bg-raised",
         disabled && "cursor-default opacity-80 hover:bg-transparent",
       )}
+      {...(result.id === "ask-query"
+        ? { "data-testid": "global-search-ask-query" }
+        : {})}
     >
-      <span className="text-xs break-words text-muted">{result.trail}</span>
-      <span className="font-semibold break-words text-text">
-        {result.title}
-      </span>
-      {result.detail ? (
-        <span className="text-xs break-words text-muted">{result.detail}</span>
-      ) : null}
-      {result.action ? (
-        <span className="text-xs text-link">{result.action}</span>
-      ) : null}
-      {result.hint ? (
-        <span className="text-xs text-warning">{result.hint}</span>
-      ) : null}
+      {result.group === "ASK" ? (
+        <>
+          <Sparkles aria-hidden="true" className="size-4 shrink-0 text-link" />
+          <span className="min-w-0 flex-1 break-words text-text">
+            {result.title}
+          </span>
+        </>
+      ) : result.group === "GOTO" ? (
+        <>
+          <span className="min-w-0 flex-1 font-medium break-words text-text">
+            {result.title}
+          </span>
+          <span className="shrink-0 text-xs text-muted">{result.trail}</span>
+        </>
+      ) : (
+        <>
+          <span className="text-xs break-words text-muted">{result.trail}</span>
+          <span className="font-semibold break-words text-text">
+            <Highlighted text={result.title} query={query} />
+          </span>
+          {result.detail ? (
+            <span className="text-xs break-words text-muted">
+              {result.detail}
+            </span>
+          ) : null}
+          {result.action ? (
+            <span className="text-xs text-link">{result.action}</span>
+          ) : null}
+          {result.hint ? (
+            <span className="text-xs text-warning">{result.hint}</span>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Holds the place of the AI's choices while it works, so the ordinary
+ * results below do not jump when a typical answer (two choices) arrives.
+ */
+function AiPending() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid gap-1 px-2 pt-2 pb-3"
+      data-testid="global-search-ai-pending"
+    >
+      <Skeleton className="mb-1 h-3 w-24" />
+      <Skeleton className="h-16 w-full rounded-lg" />
+      <Skeleton className="h-16 w-full rounded-lg" />
     </div>
   );
 }
@@ -526,36 +795,17 @@ function aiResults(
 function AiPanel({
   state,
   context,
-  granted,
   onClearContext,
   onCancel,
-  onExample,
-  showExamples,
 }: {
   readonly state: AiState;
   readonly context: PageSearchContext | null;
-  readonly granted: readonly string[];
   readonly onClearContext: () => void;
   readonly onCancel: () => void;
-  readonly onExample: (text: string) => void;
-  readonly showExamples: boolean;
 }) {
   const t = useTranslations("Search");
   const nav = useTranslations("Navigation");
   const locale = useLocale();
-  const examples = [
-    ...(hasNavigationPermission([HR_CODES.self], granted)
-      ? [t("exampleSelf")]
-      : []),
-    ...(hasNavigationPermission([HR_CODES.review], granted)
-      ? [t("exampleReview")]
-      : []),
-    ...(hasNavigationPermission([HR_CODES.admin], granted)
-      ? [t("exampleHoliday")]
-      : hasNavigationPermission([HR_CODES.self], granted)
-        ? [t("exampleProfile")]
-        : []),
-  ].slice(0, 3);
   const contextTrail =
     context === null
       ? null
@@ -580,37 +830,14 @@ function AiPanel({
         ]
           .filter(Boolean)
           .join(" › ");
-  // Examples (with a one-line prompt) only before anything is typed; after
-  // that the panel holds just the context in use and the current outcome.
-  const offerExamples = showExamples && examples.length > 0;
-  if (!offerExamples && contextTrail === null && state.status === "IDLE")
-    return null;
+  // The panel holds the context in use and the current request's state.
+  if (contextTrail === null && state.status === "IDLE") return null;
   return (
     <section
       aria-label={t("aiTitle")}
       className="grid gap-2 rounded-lg border border-border bg-raised p-3 text-sm"
       data-testid="global-search-ai-panel"
     >
-      {offerExamples ? (
-        <div
-          className="flex flex-wrap items-center gap-2"
-          aria-label={t("examples")}
-          role="group"
-        >
-          <span className="text-muted">{t("aiIntro")}</span>
-          {examples.map((example) => (
-            <Button
-              key={example}
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onExample(example)}
-            >
-              {example}
-            </Button>
-          ))}
-        </div>
-      ) : null}
       {contextTrail === null ? null : (
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -635,6 +862,10 @@ function AiPanel({
   );
 }
 
+/**
+ * The request's state, one row tall whether running or answered, so the
+ * answer replaces the progress line without moving what is below.
+ */
 function AiStatus({
   state,
   onCancel,
@@ -646,9 +877,18 @@ function AiStatus({
   if (state.status === "IDLE") return null;
   if (state.status === "RUNNING")
     return (
-      <div className="flex flex-wrap items-center gap-2" role="status">
-        <span className="text-text">{t("aiRunning")}</span>
-        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+      <div
+        className="flex min-h-touch items-center justify-between gap-3 dense:min-h-control"
+        data-testid="global-search-ai-running"
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <Spinner aria-hidden="true" className="text-link" />
+          {/* Only the words are announced; Cancel stays out of the region. */}
+          <p role="status" className="min-w-0 text-text">
+            {t("aiRunning")}
+          </p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={onCancel}>
           {t("aiCancel")}
         </Button>
       </div>
@@ -657,7 +897,7 @@ function AiStatus({
     return (
       <p
         role="alert"
-        className="text-warning"
+        className="flex min-h-touch items-center text-warning dense:min-h-control"
         data-testid="global-search-ai-error"
       >
         {t(`aiError.${state.code}`, {
@@ -666,7 +906,10 @@ function AiStatus({
       </p>
     );
   return (
-    <div className="grid gap-1" data-testid="global-search-ai-outcome">
+    <div
+      className="grid min-h-touch content-center gap-1 dense:min-h-control"
+      data-testid="global-search-ai-outcome"
+    >
       <p role="status" className="font-semibold text-text">
         {outcomeText(t, state.outcome)}
       </p>

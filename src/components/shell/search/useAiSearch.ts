@@ -70,14 +70,16 @@ export function useAiSearch(input: {
   const hr = useHrAccess();
   const { getToken, userId, orgId } = useAuth();
   const convex = useConvex();
-  const key = JSON.stringify([
-    input.query.trim(),
-    hr.identityKey ?? "",
-    userId,
-    orgId,
-    input.granted,
-    input.context,
-  ]);
+  const keyOf = (query: string) =>
+    JSON.stringify([
+      query.trim(),
+      hr.identityKey ?? "",
+      userId,
+      orgId,
+      input.granted,
+      input.context,
+    ]);
+  const key = keyOf(input.query);
   const [entry, setEntry] = useState<{ key: string; state: AiState }>({
     key,
     state: IDLE,
@@ -126,8 +128,13 @@ export function useAiSearch(input: {
     },
   };
 
-  const run = async () => {
-    const requestKey = key;
+  /**
+   * Asks about `text` (the current query by default). A caller that also
+   * puts `text` in the box, such as a chosen example, keeps the answer: it
+   * is bound to that text, which the next render makes current.
+   */
+  const run = async (text: string = input.query) => {
+    const requestKey = keyOf(text);
     const id = (sequence.current += 1);
     const live = () =>
       mounted.current &&
@@ -149,7 +156,7 @@ export function useAiSearch(input: {
       const context = input.context;
       const outcome = await interpretAiSearch(
         {
-          query: input.query.trim(),
+          query: text.trim(),
           context: {
             page: context?.page ?? null,
             employee: context?.employee !== undefined,

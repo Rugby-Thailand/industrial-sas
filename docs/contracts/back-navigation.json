@@ -109,6 +109,10 @@
     {
       "id": "src/app/[locale]/not-found.tsx#LocaleNotFound",
       "reason": "Unknown-route recovery uses an explicit Home link; the missing page has no meaningful synthetic Back parent."
+    },
+    {
+      "id": "src/components/shell/PageFailure.tsx#PageFailure",
+      "reason": "A page that failed to render has no meaningful synthetic Back parent; actual-origin Back remains available and an explicit link names the validated module hub or start page."
     }
   ],
   "infrastructure": [
@@ -928,17 +932,47 @@
     {
       "file": "src/app/[locale]/error.tsx",
       "policy": "error",
-      "targets": [
-        "src/components/ui/Notice#Notice",
-        "src/components/ui/button#Button"
-      ],
-      "expectation": "Error recovery retries the failed boundary; native browser history remains available without inventing an unsafe parent."
+      "targets": ["src/components/shell/PageFailure#PageFailure"],
+      "expectation": "Error recovery links to the validated start page, unless that page is the one that failed, and retries the failed boundary; native browser history remains available without inventing an unsafe parent.",
+      "tests": ["src/app/[locale]/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/error.test.tsx",
+          "name": "renders Thai recovery copy, retries, and reports no error text"
+        },
+        {
+          "file": "src/app/[locale]/error.test.tsx",
+          "name": "offers retry alone when the start page itself failed"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/error.tsx",
+      "policy": "error",
+      "targets": ["src/components/shell/PageFailure#PageFailure"],
+      "expectation": "A page that fails inside the app shell keeps the sidebar, header and search. Recovery links to the nearest validated menu destination above the failed path, or the start page, never the failed page itself, and retries the failed boundary; native browser history remains available without inventing an unsafe parent.",
+      "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "names the failed page, offers its module hub first and retries second"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "sends a failure at %s to %s, never to the failed page itself"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "offers retry as the only action when the start page itself failed"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/not-found.tsx",
       "policy": "not-found",
       "targets": [
         "src/components/ui/PageHeader#PageHeader",
+        "src/components/ui/button#Button",
         "src/i18n/navigation#Link"
       ],
       "expectation": "Unknown routes render the locale not-found boundary, with an explicit safe Home/parent action."
@@ -1220,9 +1254,19 @@
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:clearedContext",
       "policy": "presentation",
-      "expectation": "Clearing optional search context changes inline suggestions and guidance in the retained search dialog; the search loader owns foreground Back.",
+      "expectation": "Clearing optional search context changes inline suggestions, AI progress and guidance in the retained search dialog; the search loader owns foreground Back.",
       "uses": ["branch", "return"],
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["AiPending"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["p"],
@@ -1241,9 +1285,10 @@
         {
           "shape": "early-return",
           "truthy": [
-            "div[role=status]",
-            "span",
-            "src/components/ui/button#Button"
+            "div",
+            "p[role=status]",
+            "src/components/ui/button#Button",
+            "src/components/ui/spinner#Spinner"
           ],
           "falsy": []
         },
@@ -1258,8 +1303,13 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:composing",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "IME composition hides premature results inside search; it does not open a new workflow.",
+      "expectation": "IME composition hides premature results and no-match guidance inside search; it does not open a new workflow.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["p"],
@@ -1271,15 +1321,16 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; Back dismisses the containing dialog.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted places and AI examples as options there, and an AI request shows inline progress and an aria-hidden placeholder for its choices. Back dismisses the containing dialog.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": [
-            "div[role=group]",
-            "span",
-            "src/components/ui/button#Button"
-          ],
+          "truthy": ["AiPending"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div[role=presentation]"],
           "falsy": []
         },
         {
@@ -1290,9 +1341,10 @@
         {
           "shape": "early-return",
           "truthy": [
-            "div[role=status]",
-            "span",
-            "src/components/ui/button#Button"
+            "div",
+            "p[role=status]",
+            "src/components/ui/button#Button",
+            "src/components/ui/spinner#Spinner"
           ],
           "falsy": []
         },
@@ -1307,8 +1359,13 @@
       "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Debounced search text changes results in the same dialog; it never creates a foreground predecessor.",
+      "expectation": "Debounced search text changes results, the ordinary-results heading and no-match guidance in the same dialog; it never creates a foreground predecessor.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["p"],
@@ -8196,6 +8253,10 @@
         {
           "file": "src/components/shell/LocaleSwitcher.test.tsx",
           "name": "preserves the pallet resume URL when switching $locale to $next"
+        },
+        {
+          "file": "src/components/shell/LocaleSwitcher.test.tsx",
+          "name": "asks before a language switch discards unsaved work"
         }
       ]
     },

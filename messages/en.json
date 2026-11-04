@@ -8,12 +8,13 @@
     "close": "Close",
     "breadcrumb": "Breadcrumb",
     "back": "Back",
-    "navigationGuard": {}
+    "navigationGuard": {},
+    "connectionLost": "Can't reach the server",
+    "connectionLostHint": "The app will keep trying to reconnect. Until then, data on this page may be out of date.",
+    "reloadPage": "Reload page"
   },
   "Locale": {
-    "label": "Language",
-    "th": "Thai",
-    "en": "English"
+    "switchTo": "Switch language to"
   },
   "Navigation": {
     "skipToContent": "Skip to main content",
@@ -111,7 +112,9 @@
     "hrNotifications": "Notifications",
     "hrPayslips": "Payslips",
     "hrPayslipImport": "Import payslips",
-    "hrFrozenPeriods": "Closed periods"
+    "hrFrozenPeriods": "Closed periods",
+    "openAccountMenu": "Open account menu",
+    "closeAccountMenu": "Close account menu"
   },
   "Access": {
     "organizationRequiredTitle": "Organization access required",
@@ -188,13 +191,18 @@
   },
   "NotFound": {
     "title": "Page not found",
-    "body": "This application has no such page.",
-    "backHome": "Back to the dashboard"
+    "body": "The link may be mistyped, or the page may have moved or been removed. Check the address, or start again from {destination}.",
+    "action": "Go to {destination}"
   },
   "Error": {
-    "title": "Unexpected error",
+    "title": "Something went wrong",
     "body": "This screen could not continue.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "hint": "The app hit a problem while showing this page. Try again, or start over from another page.",
+    "pageTitle": "This page could not be opened",
+    "pageCause": "The data for this page could not be read.",
+    "pageHint": "The link may be wrong, the record may have been removed, or the service may be briefly unavailable.",
+    "goTo": "Go to {destination}"
   },
   "Write": {
     "required": "This field is required.",
@@ -3111,24 +3119,32 @@
   "Search": {
     "trigger": "Search…",
     "triggerLabel": "Search pages and records ({shortcut})",
+    "triggerLabelTouch": "Search pages and records",
     "title": "Search",
     "aiTitle": "AI Search",
     "description": "Find the pages, sections and records you can open.",
     "close": "Close search",
     "inputLabel": "Search",
-    "placeholder": "Search menus, pages or record codes",
+    "placeholder": "Search pages and sections",
+    "placeholderPeople": "Search pages or employees",
     "aiPlaceholder": "For example: forgot to clock out yesterday",
     "resultsLabel": "Search results",
     "group": {
       "AI": "AI suggestions",
       "PAGES": "Pages and sections",
       "RECORDS": "Records",
-      "TASKS": "Tasks"
+      "TASKS": "Tasks",
+      "GOTO": "Go to",
+      "ASK": "Try asking AI"
     },
-    "empty": "Type to search pages, sections and records.",
+    "empty": "Type to search.",
     "noMatch": "No matching pages or records.",
+    "noMatchHintPeople": "Try a page name, an employee's name or an employee code.",
+    "noMatchHintPages": "Only page and section names can be searched. Try a shorter word.",
     "results": "{count, plural, one {# result} other {# results}}",
     "resultsLoading": "{count, plural, one {# result so far, still searching records…} other {# results so far, still searching records…}}",
+    "ordinaryResults": "{count, plural, one {# normal search result} other {# normal search results}}",
+    "ordinaryNone": "No normal search results.",
     "recordsLoading": "Searching records…",
     "recordsUnavailable": "Records could not be searched right now. Page results still work.",
     "recordsIncomplete": "Some records may not be shown. Type a full employee code or narrow the search.",
@@ -3151,12 +3167,16 @@
     "actionOpenPeriod": "Open the period",
     "actionExport": "Go to export",
     "actionCorrectDay": "Correct my time on {date}",
-    "keyboardHint": "↑ ↓ to choose · Enter to open · Esc to close",
+    "keys": {
+      "move": "↑ ↓ to choose",
+      "open": "Enter to open",
+      "ask": "Enter to ask AI",
+      "close": "Esc to close"
+    },
     "navigating": "Opening {trail}",
     "aiAsk": "Ask AI",
-    "aiIntro": "Describe what you need, for example:",
+    "askQuery": "Ask AI: “{query}”",
     "aiPrivacy": "Ask AI sends your typed text (including any names) and the current page type to the AI provider. No records are sent.",
-    "examples": "Examples",
     "exampleSelf": "ลืมลงเวลาเมื่อวาน",
     "exampleReview": "ตรวจคำขอที่ต้องแก้ของรายการนี้",
     "exampleHoliday": "ตั้งวันหยุด",

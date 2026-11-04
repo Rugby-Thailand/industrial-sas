@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@clerk/backend": "3.16.4",
+    "@clerk/localizations": "4.15.1",
     "@clerk/nextjs": "7.7.4",
     "@clerk/shared": "4.28.1",
     "@elysiajs/eden": "1.4.9",

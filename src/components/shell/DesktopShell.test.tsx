@@ -34,13 +34,26 @@ const state = vi.hoisted(() => ({
     "hr.admin.manage",
     "hr.period.close",
   ],
+  connection: {
+    isWebSocketConnected: true,
+    hasEverConnected: true,
+    connectionCount: 1,
+  },
+  connectionListeners: new Set<() => void>(),
 }));
 
 // Search queries nothing until text is typed; static page results need none.
 vi.mock("convex/react", () => ({
   useQuery: () => undefined,
   useAction: () => state.action,
-  useConvex: () => ({ query: state.oneShot }),
+  useConvex: () => ({
+    query: state.oneShot,
+    connectionState: () => state.connection,
+    subscribeToConnectionState: (listener: () => void) => {
+      state.connectionListeners.add(listener);
+      return () => state.connectionListeners.delete(listener);
+    },
+  }),
 }));
 vi.mock("@/lib/ai/client", () => ({ interpretAiSearch: state.action }));
 vi.mock("@clerk/nextjs", () => ({
@@ -258,7 +271,7 @@ describe("sidebar hierarchy", () => {
     },
   );
 
-  it("starts expanded with a flag-only header and exactly one disclosure inside the desktop sidebar", () => {
+  it("starts expanded with a language button in the header and exactly one disclosure inside the desktop sidebar", () => {
     const header = renderShell();
     const sidebar = screen.getByRole("complementary", {
       name: "Primary navigation",
@@ -267,7 +280,7 @@ describe("sidebar hierarchy", () => {
       within(header).queryByRole("button", { name: /sidebar/i }),
     ).toBeNull();
     expect(
-      within(header).getByRole("combobox", { name: "Language English" }),
+      within(header).getByRole("button", { name: "Switch language to ไทย" }),
     ).toBeInTheDocument();
     expect(sidebar).toContainElement(
       screen.getByRole("button", { name: "Collapse sidebar" }),
@@ -444,13 +457,13 @@ describe("phone drawer search", () => {
     state.mobile = true;
   });
 
-  it("keeps search and warehouse context inside the drawer, with only a flag in the header", async () => {
+  it("keeps search and warehouse context inside the drawer, with only the language button in the header", async () => {
     const header = renderShell();
     expect(
       within(header).queryByRole("button", { name: /search/i }),
     ).toBeNull();
     expect(
-      within(header).getByRole("combobox", { name: "Language English" }),
+      within(header).getByRole("button", { name: "Switch language to ไทย" }),
     ).toBeInTheDocument();
     const { sheet } = await openDrawer(header);
     expect(sheet).toContainElement(screen.getByTestId("warehouse-select"));

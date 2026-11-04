@@ -1,0 +1,77 @@
+"use client";
+
+import { useConvex } from "convex/react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/Notice";
+import { guardedNavigate } from "@/lib/navigationGuard";
+
+/** A first connection may take a while; a dropped one usually returns fast. */
+export const FIRST_CONNECTION_GRACE_MS = 8_000;
+export const RECONNECTION_GRACE_MS = 4_000;
+
+/**
+ * The backend link as one comparable value: `"none"` without a Convex client,
+ * `"up"` while connected, `"first"` before the first connection, and
+ * `"down:<n>"` after the n-th connection dropped. Each outage is its own value.
+ */
+function useConnectionEpisode(): string {
+  // `useConvex` returns undefined (despite its type) when no backend is set.
+  const client = useConvex() as ReturnType<typeof useConvex> | undefined;
+  const subscribe = useCallback(
+    (notify: () => void) =>
+      client === undefined
+        ? () => {}
+        : client.subscribeToConnectionState(() => notify()),
+    [client],
+  );
+  const read = useCallback(() => {
+    if (client === undefined) return "none";
+    const state = client.connectionState();
+    if (state.isWebSocketConnected) return "up";
+    return state.hasEverConnected ? `down:${state.connectionCount}` : "first";
+  }, [client]);
+  return useSyncExternalStore(subscribe, read, () => "none");
+}
+
+/**
+ * Says so, without blocking the page, when the backend cannot be reached:
+ * the first connection has not opened after 8 s, or an open one has been
+ * down for 4 s. A normal load or a brief blip never shows it.
+ */
+export function ConnectionNotice() {
+  const t = useTranslations("App");
+  const episode = useConnectionEpisode();
+  const [stalled, setStalled] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (episode === "up" || episode === "none") return;
+    const timer = window.setTimeout(
+      () => setStalled(episode),
+      episode === "first" ? FIRST_CONNECTION_GRACE_MS : RECONNECTION_GRACE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [episode]);
+
+  if (stalled !== episode) return null;
+  return (
+    <Notice
+      tone="warning"
+      title={t("connectionLost")}
+      body={t("connectionLostHint")}
+      testId="connection-notice"
+      className="mt-2 mb-1"
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => guardedNavigate(() => window.location.reload())}
+      >
+        {t("reloadPage")}
+      </Button>
+    </Notice>
+  );
+}

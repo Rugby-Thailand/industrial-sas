@@ -41,6 +41,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
 }));
 vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: state.push, replace: vi.fn() }),
+  usePathname: () => "/hr/today",
 }));
 
 import {
