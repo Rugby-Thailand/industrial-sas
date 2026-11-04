@@ -1092,6 +1092,14 @@ const schema = defineSchema({
        * restarted backfill may make the warehouse ready again.
        */
       stale: v.optional(v.boolean()),
+      /** Some zone exceeded the entry cap: building-scoped readers fall back. */
+      overflow: v.optional(v.boolean()),
+      /**
+       * The finished-goods legacy generation when the backfill finished. Code
+       * that predates these rows still bumps it on every write, so a change
+       * means writes were not maintained (e.g. rollback then roll-forward).
+       */
+      summaryGeneration: v.optional(v.number()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsScanAssignments: defineTable(

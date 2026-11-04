@@ -30851,6 +30851,12 @@
             "type": "number"
           },
           "optional": true
+        },
+        "chain": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
         }
       }
     },
@@ -30875,9 +30881,34 @@
           },
           "optional": false
         },
+        "buildingReady": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
         "continueCursor": {
           "fieldType": {
             "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:sweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "started": {
+          "fieldType": {
+            "type": "number"
           },
           "optional": false
         }

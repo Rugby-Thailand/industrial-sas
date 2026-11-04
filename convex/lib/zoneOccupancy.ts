@@ -1,6 +1,6 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import { storageFootprintUsage } from "../model/storageLayout/areaUsage";
-import type { TenantDocumentAccess } from "./tenantDb";
+import { TenantDbError, type TenantDocumentAccess } from "./tenantDb";
 
 /**
  * Derived per-zone occupancy.
@@ -9,16 +9,23 @@ import type { TenantDocumentAccess } from "./tenantDb";
  * read every held placement and its pallet for every zone on every execution
  * and re-run. Tracked finished-goods mutations keep these rows exact inside
  * their own transaction; a resumable backfill fills existing zones; readers
- * use them only when the warehouse is ready, and fall back to the
- * authoritative ranges for any zone above the entry cap.
+ * use them only when the warehouse is ready.
+ *
+ * Zones above the entry cap ("overflowed") keep a marker row only. Writes do
+ * no per-write work for them (and never read their whole range), zone-scoped
+ * readers read them directly, and building-scoped readers fall back for the
+ * whole warehouse, because the building of every placement in such a zone
+ * cannot be checked cheaply.
  */
 export const ZONE_OCCUPANCY_VERSION = 1;
-/** Keeps an entries row far below Convex's 1 MiB document limit. */
+/** Keeps an entries row far below Convex's 1 MiB document limit (~0.9 KB each). */
 export const MAX_ZONE_OCCUPANCY_ENTRIES = 500;
 
 type Placement = Doc<"finishedGoodsPlacements">;
 type Pallet = Doc<"finishedGoodsPallets">;
 type Zone = Doc<"storageZones">;
+type Readiness = Doc<"storageZoneOccupancyReadiness">;
+type Held = { placements: readonly Placement[]; complete: boolean };
 export type ZoneOccupancySummary = Doc<"storageZoneOccupancy">;
 export type ZoneOccupancyEntries = Doc<"storageZoneOccupancyEntries">;
 /** The pallet fields occupancy readers use. Everything else stays on the pallet. */
@@ -63,32 +70,39 @@ const indexOrder = (a: Placement, b: Placement) =>
   (a.status === b.status ? 0 : a.status === "RESERVED" ? -1 : 1) ||
   a._creationTime - b._creationTime;
 
-function summarize(zone: Zone, placements: readonly Placement[]) {
-  const geometric = placements.filter((p) => p.mode !== "LOCATION_ONLY");
-  return {
-    held: placements.length,
-    unmeasured: placements.length - geometric.length,
-    buildingMismatch: placements.some((p) => p.buildingId !== zone.buildingId),
-    ...storageFootprintUsage([{ placements: geometric }]),
-  };
-}
-
-async function heldPlacementsOfZone(db: TenantDocumentAccess, zoneId: string) {
-  const groups = await Promise.all(
-    HELD.map((status) =>
-      db
-        .byIndex<Placement>(
-          "finishedGoodsPlacements",
-          "by_orgId_zoneId_status",
-          [
-            { field: "zoneId", value: zoneId },
-            { field: "status", value: status },
-          ],
-        )
-        .all(10_000),
-    ),
-  );
-  return groups.flat();
+/**
+ * At most cap+1 rows per status: `.all(cap)` reads cap+1 and refuses beyond the
+ * cap, which tells exact from overflowed without ever reading a huge range.
+ */
+async function heldPlacementsOfZone(
+  db: TenantDocumentAccess,
+  zoneId: string,
+): Promise<Held> {
+  try {
+    const groups = await Promise.all(
+      HELD.map((status) =>
+        db
+          .byIndex<Placement>(
+            "finishedGoodsPlacements",
+            "by_orgId_zoneId_status",
+            [
+              { field: "zoneId", value: zoneId },
+              { field: "status", value: status },
+            ],
+          )
+          .all(MAX_ZONE_OCCUPANCY_ENTRIES),
+      ),
+    );
+    const placements = groups.flat();
+    return {
+      placements,
+      complete: placements.length <= MAX_ZONE_OCCUPANCY_ENTRIES,
+    };
+  } catch (error) {
+    if (error instanceof TenantDbError && error.code === "CAPACITY_DATA_LIMIT")
+      return { placements: [], complete: false };
+    throw error;
+  }
 }
 
 async function rowsOf(db: TenantDocumentAccess, zoneId: string) {
@@ -111,29 +125,63 @@ async function rowsOf(db: TenantDocumentAccess, zoneId: string) {
   return { summary, entries };
 }
 
+/** Compare field values only, so an unchanged row is not rewritten. */
+const sameFields = (existing: object, next: Record<string, unknown>) =>
+  Object.keys(next).every(
+    (key) =>
+      JSON.stringify((existing as Record<string, unknown>)[key]) ===
+      JSON.stringify(next[key]),
+  );
+
+function summaryFields(
+  zone: Zone,
+  ordered: readonly Placement[],
+  complete: boolean,
+) {
+  if (!complete)
+    // Overflowed: a marker only; readers never use these numbers.
+    return {
+      held: ordered.length,
+      unmeasured: 0,
+      buildingMismatch: false,
+      storedFootprintAreaSqMm: 0,
+      heldFootprintAreaSqMm: 0,
+    };
+  const geometric = ordered.filter((p) => p.mode !== "LOCATION_ONLY");
+  return {
+    held: ordered.length,
+    unmeasured: ordered.length - geometric.length,
+    buildingMismatch: ordered.some((p) => p.buildingId !== zone.buildingId),
+    ...storageFootprintUsage([{ placements: geometric }]),
+  };
+}
+
 async function write(
   db: TenantDocumentAccess,
   zone: Zone,
-  placements: readonly Placement[],
+  held: Held,
   pallets: ReadonlyMap<string, OccupancyPallet>,
   existing: Awaited<ReturnType<typeof rowsOf>>,
 ) {
-  const ordered = [...placements].sort(indexOrder);
+  const ordered = [...held.placements].sort(indexOrder);
+  const { complete } = held;
   // A zone that never held anything needs no rows: readers treat absence as empty.
-  if (!ordered.length && !existing.summary && !existing.entries) return;
-  const complete = ordered.length <= MAX_ZONE_OCCUPANCY_ENTRIES;
+  if (complete && !ordered.length && !existing.summary && !existing.entries)
+    return;
   const summary = {
     warehouseId: zone.warehouseId,
     buildingId: zone.buildingId,
     zoneId: zone._id,
     version: ZONE_OCCUPANCY_VERSION,
     complete,
-    ...summarize(zone, ordered),
+    ...summaryFields(zone, ordered, complete),
   };
-  if (existing.summary)
+  if (!existing.summary) await db.insert("storageZoneOccupancy", summary);
+  else if (!sameFields(existing.summary, summary))
     await db.replace("storageZoneOccupancy", existing.summary._id, summary);
-  else await db.insert("storageZoneOccupancy", summary);
-  if (summary.buildingMismatch) await blockReadiness(db, zone.warehouseId);
+  if (summary.buildingMismatch)
+    await flagReadiness(db, zone.warehouseId, "blocked");
+  if (!complete) await flagReadiness(db, zone.warehouseId, "overflow");
   const kept = complete ? ordered : [];
   const facts = [
     ...new Map(
@@ -151,25 +199,26 @@ async function write(
     placements: kept,
     pallets: facts,
   };
-  if (existing.entries)
+  if (!existing.entries)
+    await db.insert("storageZoneOccupancyEntries", entries);
+  else if (!sameFields(existing.entries, entries))
     await db.replace(
       "storageZoneOccupancyEntries",
       existing.entries._id,
       entries,
     );
-  else await db.insert("storageZoneOccupancyEntries", entries);
 }
 
 async function factsFor(
   db: TenantDocumentAccess,
-  placements: readonly Placement[],
+  held: Held,
   known: ReadonlyMap<string, OccupancyPallet> = new Map(),
 ) {
   const facts = new Map(known);
   // Overflowed zones keep no entries, so their pallet facts would be discarded.
-  if (placements.length > MAX_ZONE_OCCUPANCY_ENTRIES) return facts;
+  if (!held.complete) return facts;
   await Promise.all(
-    [...new Set(placements.map((p) => p.palletId as string))]
+    [...new Set(held.placements.map((p) => p.palletId as string))]
       .filter((id) => !facts.has(id))
       .map(async (id) => {
         const pallet = await db.get<Pallet>("finishedGoodsPallets", id);
@@ -179,17 +228,17 @@ async function factsFor(
   return facts;
 }
 
-/** Rebuild one zone from its authoritative ranges (first touch, backfill, overflow). */
+/** Rebuild one zone from its authoritative ranges (first touch, backfill). */
 export async function rebuildZoneOccupancy(
   db: TenantDocumentAccess,
   zone: Zone,
 ) {
-  const placements = await heldPlacementsOfZone(db, zone._id);
+  const held = await heldPlacementsOfZone(db, zone._id);
   await write(
     db,
     zone,
-    placements,
-    await factsFor(db, placements),
+    held,
+    await factsFor(db, held),
     await rowsOf(db, zone._id),
   );
 }
@@ -246,19 +295,19 @@ export async function refreshZoneOccupancy(
     const zone = await db.get<Zone>("storageZones", zoneId);
     if (!zone) continue;
     const existing = await rowsOf(db, zoneId);
-    if (
-      !existing.summary ||
-      !existing.entries ||
-      !existing.entries.complete ||
-      existing.summary.version !== ZONE_OCCUPANCY_VERSION ||
-      existing.entries.version !== ZONE_OCCUPANCY_VERSION
-    ) {
-      const placements = await heldPlacementsOfZone(db, zoneId);
+    const currentVersion =
+      existing.summary?.version === ZONE_OCCUPANCY_VERSION &&
+      existing.entries?.version === ZONE_OCCUPANCY_VERSION;
+    // Overflowed zones are read directly: no per-write work, no full-range read.
+    if (currentVersion && existing.summary && !existing.summary.complete)
+      continue;
+    if (!currentVersion || !existing.summary || !existing.entries) {
+      const held = await heldPlacementsOfZone(db, zoneId);
       await write(
         db,
         zone,
-        placements,
-        await factsFor(db, placements, changedPallets),
+        held,
+        await factsFor(db, held, changedPallets),
         existing,
       );
       continue;
@@ -271,19 +320,17 @@ export async function refreshZoneOccupancy(
         (p): p is Placement => isHeld(p) && p.zoneId === zoneId,
       ),
     ];
+    const held = {
+      placements,
+      complete: placements.length <= MAX_ZONE_OCCUPANCY_ENTRIES,
+    };
     const known = new Map(
       existing.entries.pallets
         .filter((pallet) => !touched.pallets.has(pallet._id))
         .map((pallet) => [pallet._id as string, pallet] as const),
     );
     for (const [id, pallet] of changedPallets) known.set(id, pallet);
-    await write(
-      db,
-      zone,
-      placements,
-      await factsFor(db, placements, known),
-      existing,
-    );
+    await write(db, zone, held, await factsFor(db, held, known), existing);
   }
 }
 
@@ -292,7 +339,7 @@ async function readinessRow(
   warehouseId: string,
 ) {
   return db
-    .byIndex<Doc<"storageZoneOccupancyReadiness">>(
+    .byIndex<Readiness>(
       "storageZoneOccupancyReadiness",
       "by_orgId_warehouseId",
       [{ field: "warehouseId", value: warehouseId }],
@@ -300,26 +347,61 @@ async function readinessRow(
     .unique();
 }
 
-/** Building-scoped readers must not use zone rows for this warehouse. */
-async function blockReadiness(db: TenantDocumentAccess, warehouseId: string) {
+/** A cross-building placement (blocked) or an overflowed zone was written. */
+async function flagReadiness(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+  flag: "blocked" | "overflow",
+) {
   const row = await readinessRow(db, warehouseId);
-  if (row && !row.blocked)
-    await db.patch("storageZoneOccupancyReadiness", row._id, {
-      ready: false,
-      blocked: true,
-    });
+  if (!row || row[flag]) return;
+  await db.patch(
+    "storageZoneOccupancyReadiness",
+    row._id,
+    flag === "blocked" ? { blocked: true } : { overflow: true },
+  );
 }
 
-export async function zoneOccupancyReady(
+/**
+ * The legacy generation on the finished-goods summary row. Only code that
+ * predates the change log still bumps it on every write, so a value that moved
+ * since the backfill means writes ran that did not maintain these rows (for
+ * example a rollback followed by a roll-forward).
+ */
+export async function legacyWriterGeneration(
   db: Pick<TenantDocumentAccess, "byIndex">,
   warehouseId: string,
 ) {
-  const row = await readinessRow(db, warehouseId);
+  const row = await db
+    .byIndex<Doc<"finishedGoodsSummaryReadiness">>(
+      "finishedGoodsSummaryReadiness",
+      "by_orgId_warehouseId",
+      [{ field: "warehouseId", value: warehouseId }],
+    )
+    .unique();
+  return row?.generation ?? 0;
+}
+
+/**
+ * `zone`: zone-scoped readers (recommendations). `building`: readers that
+ * select by a placement's building; they also need no cross-building
+ * placement and no overflowed zone in the warehouse.
+ */
+export async function zoneOccupancyReady(
+  db: Pick<TenantDocumentAccess, "byIndex">,
+  warehouseId: string,
+  scope: "zone" | "building" = "zone",
+) {
+  const [row, generation] = await Promise.all([
+    readinessRow(db, warehouseId),
+    legacyWriterGeneration(db, warehouseId),
+  ]);
   return (
     row?.ready === true &&
-    row.blocked !== true &&
     row.stale !== true &&
-    row.version === ZONE_OCCUPANCY_VERSION
+    row.version === ZONE_OCCUPANCY_VERSION &&
+    (row.summaryGeneration ?? 0) === generation &&
+    (scope === "zone" || (row.blocked !== true && row.overflow !== true))
   );
 }
 

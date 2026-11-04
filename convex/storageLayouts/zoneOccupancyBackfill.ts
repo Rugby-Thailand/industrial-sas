@@ -9,6 +9,8 @@ import type { MutationCtx } from "../_generated/server";
 import { internalMutation } from "../_generated/server";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
+import { internal } from "../_generated/api";
+import { ensureSummaryReadiness } from "../lib/finishedGoodsSummary";
 import {
   rebuildZoneOccupancy,
   ZONE_OCCUPANCY_VERSION,
@@ -46,11 +48,16 @@ export const run = internalMutation({
     restart: v.optional(v.boolean()),
     cursor: v.optional(v.union(v.string(), v.null())),
     batchSize: v.optional(v.number()),
+    /** Schedule the next page until done (used by the sweep cron). */
+    chain: v.optional(v.boolean()),
   },
   returns: v.object({
     rebuilt: v.number(),
     isDone: v.boolean(),
+    /** Zone-scoped readers (recommendations) may use the rows. */
     ready: v.boolean(),
+    /** Building-scoped readers may too: no cross-building or overflowed zone. */
+    buildingReady: v.boolean(),
     continueCursor: v.string(),
   }),
   handler: async (ctx, args) => {
@@ -72,6 +79,7 @@ export const run = internalMutation({
           ready: false,
           blocked: false,
           stale: false,
+          overflow: false,
           version: ZONE_OCCUPANCY_VERSION,
         });
       else
@@ -93,20 +101,38 @@ export const run = internalMutation({
       });
     for (const zone of page.page) await rebuildZoneOccupancy(db, zone);
     let ready = false;
+    let buildingReady = false;
     if (page.isDone) {
-      // A rebuilt zone with a cross-building placement blocks readiness.
       const done = await readiness(ctx, orgId, args.warehouseId);
-      ready = done !== null && done.blocked !== true && done.stale !== true;
+      // Invalidation during this run poisons it; only a restart may finish.
+      ready = done !== null && done.stale !== true;
+      buildingReady =
+        ready && done!.blocked !== true && done!.overflow !== true;
       if (done && ready)
         await ctx.db.patch(done._id, {
           ready: true,
           version: ZONE_OCCUPANCY_VERSION,
+          // Writes by code that does not maintain these rows move this value.
+          summaryGeneration:
+            (await ensureSummaryReadiness(db, args.warehouseId))?.generation ??
+            0,
         });
-    }
+    } else if (args.chain)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storageLayouts.zoneOccupancyBackfill.run,
+        {
+          warehouseId: args.warehouseId,
+          cursor: page.continueCursor,
+          batchSize,
+          chain: true,
+        },
+      );
     return {
       rebuilt: page.page.length,
       isDone: page.isDone,
       ready,
+      buildingReady,
       continueCursor: page.continueCursor,
     };
   },
@@ -118,5 +144,40 @@ export const invalidate = internalMutation({
   handler: async (ctx, args) => {
     await invalidateZoneOccupancy(ctx, args.warehouseId);
     return { ready: false };
+  },
+});
+
+/**
+ * Hourly: new warehouses, fresh deployments and invalidated warehouses become
+ * ready without an operator. Blocked/overflowed warehouses stay zone-ready only.
+ */
+export const sweep = internalMutation({
+  args: {},
+  returns: v.object({ started: v.number() }),
+  handler: async (ctx) => {
+    let started = 0;
+    for (const warehouse of await ctx.db.query("warehouses").collect()) {
+      const row = await readiness(ctx, warehouse.orgId, warehouse._id);
+      const legacy = await ctx.db
+        .query("finishedGoodsSummaryReadiness")
+        .withIndex("by_orgId_warehouseId", (q) =>
+          q.eq("orgId", warehouse.orgId).eq("warehouseId", warehouse._id),
+        )
+        .unique();
+      if (
+        row?.ready &&
+        row.stale !== true &&
+        row.version === ZONE_OCCUPANCY_VERSION &&
+        (row.summaryGeneration ?? 0) === (legacy?.generation ?? 0)
+      )
+        continue;
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storageLayouts.zoneOccupancyBackfill.run,
+        { warehouseId: warehouse._id, restart: true, chain: true },
+      );
+      started++;
+    }
+    return { started };
   },
 });

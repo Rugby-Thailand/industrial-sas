@@ -14,6 +14,7 @@ import {
 import {
   invalidate as invalidateZoneOccupancyMutation,
   run as backfillZoneOccupancy,
+  sweep as sweepZoneOccupancy,
 } from "../../convex/storageLayouts/zoneOccupancyBackfill";
 import { MAX_ZONE_OCCUPANCY_ENTRIES } from "../../convex/lib/zoneOccupancy";
 import {
@@ -983,17 +984,22 @@ describe("derived zone occupancy", () => {
     await addPallets(seed, MAX_ZONE_OCCUPANCY_ENTRIES + 1);
     await linkPlacements(seed);
     const upper = await measuredPallet(seed, "PAL-UPPER");
-    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    expect(await backfillOccupancy(seed)).toMatchObject({
+      ready: true,
+      buildingReady: false,
+    });
     const summary = await seed.world.t.run(
       async (ctx) => (await ctx.db.query("storageZoneOccupancy").collect())[0]!,
     );
-    expect(summary).toMatchObject({
-      complete: false,
-      held: MAX_ZONE_OCCUPANCY_ENTRIES + 1,
-    });
+    expect(summary).toMatchObject({ complete: false });
     const { raw, derived } = await expectOccupancyParity(seed, upper);
-    // Only the small summary helps; entries fall back to the placements.
-    expect(derived.docs.occupancy).toBeLessThan(raw.docs.occupancy);
+    // An overflowed zone sends building readers to the authoritative path.
+    expect(derived.docs.occupancy).toBe(raw.docs.occupancy);
+    const readiness = await seed.world.t.run(
+      async (ctx) =>
+        (await ctx.db.query("storageZoneOccupancyReadiness").collect())[0]!,
+    );
+    expect(readiness).toMatchObject({ ready: true, overflow: true });
   }, 60000);
 
   it("does not let a backfill that was invalidated mid-run re-enable stale rows", async () => {
@@ -1038,10 +1044,11 @@ describe("derived zone occupancy", () => {
     expect((await backfillOccupancy(seed)).ready).toBe(true);
   });
 
-  it("refuses readiness while a placement names another building than its zone", async () => {
+  it("keeps building readers on placements while a placement names another building", async () => {
     const seed = await scaleWorld();
     await addPallets(seed, 3);
     await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
     await seed.world.t.run(async (ctx) => {
       const otherBuilding = await ctx.db.insert("storageBuildings", {
         ...fields(seed.building),
@@ -1052,13 +1059,88 @@ describe("derived zone occupancy", () => {
       )[0]!;
       await ctx.db.patch(placement._id, { buildingId: otherBuilding });
     });
-    expect((await backfillOccupancy(seed)).ready).toBe(false);
+    // Zone-scoped rows are still exact; building-scoped readers fall back.
+    expect(await backfillOccupancy(seed)).toMatchObject({
+      ready: true,
+      buildingReady: false,
+    });
     const readiness = await seed.world.t.run(
       async (ctx) =>
         (await ctx.db.query("storageZoneOccupancyReadiness").collect())[0]!,
     );
-    expect(readiness).toMatchObject({ ready: false, blocked: true });
+    expect(readiness).toMatchObject({ ready: true, blocked: true });
+    const { raw, derived } = await expectOccupancyParity(seed, upper);
+    expect(derived.docs.recommendation).toBeLessThan(raw.docs.recommendation);
+    // Building readers take the authoritative path in both modes.
+    expect(derived.docs.occupancy).toBe(raw.docs.occupancy);
   });
+
+  it("distrusts rows after writes by code that does not maintain them", async () => {
+    const seed = await scaleWorld();
+    await addPallets(seed, 3);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const ready = await occupancyReaders(seed, upper);
+    // Pre-change code bumps the legacy generation on every write (rollback).
+    await seed.world.t.run(async (ctx) => {
+      const row = (
+        await ctx.db.query("finishedGoodsSummaryReadiness").collect()
+      )[0]!;
+      await ctx.db.patch(row._id, { generation: (row.generation ?? 0) + 1 });
+    });
+    const distrusted = await occupancyReaders(seed, upper);
+    expect(distrusted.values).toEqual(ready.values);
+    expect(distrusted.docs.recommendation).toBeGreaterThan(
+      ready.docs.recommendation,
+    );
+    // The hourly sweep restarts it; a finished backfill trusts the rows again.
+    const started = await seed.world.t.run((ctx) =>
+      (
+        sweepZoneOccupancy as unknown as {
+          _handler(
+            ctx: GenericMutationCtx<DataModel>,
+            args: unknown,
+          ): Promise<{ started: number }>;
+        }
+      )._handler(ctx, {}),
+    );
+    expect(started.started).toBeGreaterThan(0);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    expect((await occupancyReaders(seed, upper)).docs.recommendation).toBe(
+      ready.docs.recommendation,
+    );
+  });
+
+  it("does no full-range work when writing into an overflowed zone", async () => {
+    const seed = await scaleWorld();
+    await addPallets(seed, MAX_ZONE_OCCUPANCY_ENTRIES + 1);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    expect(await backfillOccupancy(seed)).toMatchObject({
+      ready: true,
+      buildingReady: false,
+    });
+    const before = await seed.world.t.run((ctx) =>
+      ctx.db.query("storageZoneOccupancyEntries").collect(),
+    );
+    // A tracked write to a pallet held in that zone (stacking limits).
+    accepted(
+      await call(seed.world, saveStackingLimits, {
+        warehouseId: seed.warehouseId,
+        palletId: seed.palletId,
+        requestId: "overflow-write",
+        stackable: true,
+        maxStackLevels: 2,
+        expectedStackable: false,
+      }),
+    );
+    const after = await seed.world.t.run((ctx) =>
+      ctx.db.query("storageZoneOccupancyEntries").collect(),
+    );
+    expect(after).toEqual(before);
+    await expectOccupancyParity(seed, upper);
+  }, 60000);
 });
 
 describe("recommendation order across active buildings", () => {

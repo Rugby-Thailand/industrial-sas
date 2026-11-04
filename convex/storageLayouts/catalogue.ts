@@ -351,7 +351,7 @@ async function buildingWithOccupancy(
   ctx: TenantFunctionContext,
   row: BuildingDocument,
 ) {
-  if (await zoneOccupancyReady(ctx.tenantDb, row.warehouseId)) {
+  if (await zoneOccupancyReady(ctx.tenantDb, row.warehouseId, "building")) {
     // Exact per-zone summaries; footprint unions are per zone, so they add.
     const zones = await ctx.tenantDb
       .byIndex<ZoneOccupancySummary>(
@@ -572,7 +572,9 @@ async function derivedBuildingPlacements(
   ctx: TenantFunctionContext,
   building: BuildingDocument,
 ) {
-  if (!(await zoneOccupancyReady(ctx.tenantDb, building.warehouseId)))
+  if (
+    !(await zoneOccupancyReady(ctx.tenantDb, building.warehouseId, "building"))
+  )
     return null;
   const zones = await ctx.tenantDb
     .byIndex<ZoneOccupancySummary>(

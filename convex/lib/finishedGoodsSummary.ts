@@ -146,6 +146,23 @@ export async function summaryReadiness(
     )
     .unique();
 }
+/** The readiness row writers create on a warehouse's first finished-goods write. */
+export async function ensureSummaryReadiness(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+) {
+  const state = await summaryReadiness(db, warehouseId);
+  if (state) return state;
+  await db.insert("finishedGoodsSummaryReadiness", {
+    warehouseId,
+    version: VERSION,
+    ready: false,
+    continuationKey: crypto.randomUUID(),
+    generation: 1,
+  });
+  return summaryReadiness(db, warehouseId);
+}
+
 export async function recordFinishedGoodsChange(
   db: TenantDocumentAccess,
   warehouseId: string,
@@ -289,7 +306,6 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
       );
       if (row) zones.add(row.zoneId);
     }
-    if (table === "storageZones") zones.add(id);
     if (
       table === "finishedGoodsPallets" ||
       table === "finishedGoodsProducts" ||
@@ -372,14 +388,7 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
       for (const warehouseId of warehouses) {
         // Insert-only change marker: concurrent writers no longer conflict on
         // one warehouse document. Readers derive the continuation token from it.
-        if (!(await summaryReadiness(db, warehouseId)))
-          await db.insert("finishedGoodsSummaryReadiness", {
-            warehouseId,
-            version: VERSION,
-            ready: false,
-            continuationKey: crypto.randomUUID(),
-            generation: 1,
-          });
+        await ensureSummaryReadiness(db, warehouseId);
         await recordFinishedGoodsChange(db, warehouseId);
       }
     },
