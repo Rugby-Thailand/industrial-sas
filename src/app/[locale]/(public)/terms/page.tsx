@@ -3,9 +3,9 @@ import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Thai Property AI",
+  title: "Terms of Service · Yongkit",
   description:
-    "Terms of Service for the Thai Property AI warehouse and storage planning application.",
+    "Terms of Service for the Yongkit warehouse and storage planning application.",
   robots: { index: true, follow: true },
 };
 
@@ -21,7 +21,7 @@ export default async function Page({
       <h1>Terms of Service</h1>
       <p>Last updated: September 21, 2026</p>
       <p>
-        These terms apply to the Thai Property AI warehouse and storage planning
+        These terms apply to the Yongkit warehouse and storage planning
         application at{" "}
         <a href="https://app.thaipropertyai.com">app.thaipropertyai.com</a>.
         Questions can be sent to{" "}

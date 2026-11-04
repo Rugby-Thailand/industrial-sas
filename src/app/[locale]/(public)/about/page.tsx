@@ -3,8 +3,9 @@ import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 
 export const metadata: Metadata = {
-  title: "About | Thai Property AI",
-  description: "Warehouse and storage planning for authorized business teams.",
+  title: "About · Yongkit",
+  description:
+    "Yongkit industrial management software for warehouse operations and HR.",
   robots: { index: true, follow: true },
 };
 
@@ -17,12 +18,13 @@ export default async function AboutPage({
   setRequestLocale(locale);
   return (
     <>
-      <h1>Warehouse and storage planning</h1>
+      <h1>Industrial management software</h1>
       <p>
-        Thai Property AI helps authorized business teams plan storage layouts
-        and keep warehouse records together. The application at
-        app.thaipropertyai.com supports buildings, floors, storage locations,
-        products, packing, pallets and warehouse movements.
+        Yongkit brings warehouse operations and HR into one workspace for
+        authorized business teams. The application at app.thaipropertyai.com
+        supports buildings, floors, storage locations, products, packing,
+        pallets, warehouse movements, job-ticket scanning, employee attendance
+        and leave.
       </p>
       <h2>Work with your organization</h2>
       <p>
@@ -51,7 +53,7 @@ export default async function AboutPage({
         .
       </p>
       <p>
-        <Link href="/sign-in">Sign in to Thai Property AI</Link>
+        <Link href="/sign-in">Sign in to Yongkit</Link>
       </p>
     </>
   );

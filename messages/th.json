@@ -1,9 +1,9 @@
 {
   "App": {
-    "name": "Storage Planner",
-    "shortName": "Planner",
-    "description": "วางแผนอาคารและจุดจัดเก็บ",
-    "documentTitle": "{page} · Storage Planner",
+    "name": "โยงกิจ",
+    "shortName": "โยงกิจ",
+    "description": "ระบบบริหารจัดการอุตสาหกรรม",
+    "documentTitle": "{page} · โยงกิจ",
     "aboutPage": "เกี่ยวกับหน้านี้",
     "close": "ปิด",
     "breadcrumb": "เส้นทางหน้า",
@@ -68,7 +68,7 @@
     "productionOrders": "ดำเนินงานผลิต",
     "loadingNavigation": "กำลังโหลดงานที่ใช้งานได้…",
     "loadingPage": "กำลังโหลดหน้า…",
-    "sectionPlanner": "วางแผนพื้นที่จัดเก็บ",
+    "sectionPlanner": "คลังสินค้า",
     "finishedGoods": "สินค้าสำเร็จรูป",
     "jobScan": "สแกนใบ Job",
     "jobScanRecords": "รายการที่สแกนแล้ว",

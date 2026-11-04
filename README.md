@@ -1,9 +1,12 @@
-# Storage Planner
+# โยงกิจ · Yongkit
 
-Authenticated building, floor, and storage-location planning with finished-goods
-products, batches, packing, pallet placement, stacking, and moves. Includes Clerk
-organizations, warehouse authorization, Thai/English UI, QR addresses, and shared
-2D/3D storage scenes.
+โยงกิจ (Yongkit, pronounced “โยง-กิด”) is industrial management software that
+brings warehouse operations and HR into one workspace. It covers building,
+floor, and storage-location planning,
+finished goods, batches, packing, pallet placement, stacking, moves, and job-ticket
+scanning, alongside employee attendance and leave. Includes Clerk organizations,
+warehouse authorization, Thai/English UI, QR addresses, and shared 2D/3D storage
+scenes.
 
 Application source: `codex/storage-planner-release-2026-09-09` at `a29e299`.
 Historical documents and generated review artifacts are excluded. Tests remain

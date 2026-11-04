@@ -1,9 +1,9 @@
 {
   "App": {
-    "name": "Storage Planner",
-    "shortName": "Planner",
-    "description": "Building and storage spot planner",
-    "documentTitle": "{page} · Storage Planner",
+    "name": "Yongkit",
+    "shortName": "Yongkit",
+    "description": "Industrial management software",
+    "documentTitle": "{page} · Yongkit",
     "aboutPage": "About this page",
     "close": "Close",
     "breadcrumb": "Breadcrumb",
@@ -68,7 +68,7 @@
     "productionOrders": "Production execution",
     "loadingNavigation": "Loading available work…",
     "loadingPage": "Loading page…",
-    "sectionPlanner": "Storage planner",
+    "sectionPlanner": "Warehouse",
     "finishedGoods": "Finished goods",
     "jobScan": "Scan job tickets",
     "jobScanRecords": "Scanned records",
