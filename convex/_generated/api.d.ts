@@ -29,6 +29,7 @@ import type * as finishedGoods_locationImage from "../finishedGoods/locationImag
 import type * as finishedGoods_moveBuildingMigration from "../finishedGoods/moveBuildingMigration.js";
 import type * as finishedGoods_scanning from "../finishedGoods/scanning.js";
 import type * as finishedGoods_summaryMaintenance from "../finishedGoods/summaryMaintenance.js";
+import type * as finishedGoods_totalsBackfill from "../finishedGoods/totalsBackfill.js";
 import type * as finishedGoods_workflow from "../finishedGoods/workflow.js";
 import type * as hr_access from "../hr/access.js";
 import type * as hr_announcementSchedule from "../hr/announcementSchedule.js";
@@ -90,6 +91,7 @@ import type * as lib_tenantIndexPolicy from "../lib/tenantIndexPolicy.js";
 import type * as lib_tenantStorage from "../lib/tenantStorage.js";
 import type * as lib_tenantTable from "../lib/tenantTable.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as lib_warehouseTotals from "../lib/warehouseTotals.js";
 import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
 import type * as lib_zoneOccupancy from "../lib/zoneOccupancy.js";
 import type * as model_aiUsage_metrics from "../model/aiUsage/metrics.js";
@@ -188,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   "finishedGoods/moveBuildingMigration": typeof finishedGoods_moveBuildingMigration;
   "finishedGoods/scanning": typeof finishedGoods_scanning;
   "finishedGoods/summaryMaintenance": typeof finishedGoods_summaryMaintenance;
+  "finishedGoods/totalsBackfill": typeof finishedGoods_totalsBackfill;
   "finishedGoods/workflow": typeof finishedGoods_workflow;
   "hr/access": typeof hr_access;
   "hr/announcementSchedule": typeof hr_announcementSchedule;
@@ -249,6 +252,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tenantStorage": typeof lib_tenantStorage;
   "lib/tenantTable": typeof lib_tenantTable;
   "lib/validators": typeof lib_validators;
+  "lib/warehouseTotals": typeof lib_warehouseTotals;
   "lib/writeEnvelope": typeof lib_writeEnvelope;
   "lib/zoneOccupancy": typeof lib_zoneOccupancy;
   "model/aiUsage/metrics": typeof model_aiUsage_metrics;

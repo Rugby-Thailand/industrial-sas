@@ -346,6 +346,7 @@ const WAREHOUSE_TABLES: readonly (readonly [TableNames, string])[] = [
   ["finishedGoodsProductSummaries", "by_orgId_warehouseId"],
   ["finishedGoodsSummaryReadiness", "by_orgId_warehouseId"],
   ["finishedGoodsChangeShards", "by_orgId_warehouseId_shard"],
+  ["finishedGoodsWarehouseTotals", "by_orgId_warehouseId_shard"],
   ["storageCatalogueSignals", "by_orgId_warehouseId"],
   ["storageZoneOccupancyReadiness", "by_orgId_warehouseId"],
   ["storageZoneOccupancy", "by_orgId_warehouseId"],

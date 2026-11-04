@@ -1,6 +1,7 @@
 import type { Doc } from "../_generated/dataModel";
 import type { TenantDocumentAccess } from "./tenantDb";
 import { refreshZoneOccupancy } from "./zoneOccupancy";
+import { adjustWarehouseTotals, TOTAL_FIELDS } from "./warehouseTotals";
 
 const VERSION = 1;
 const numericFields = [
@@ -62,6 +63,14 @@ async function adjust(
     formats.some((format) => values.formatCounts[format] < 0)
   )
     throw new Error("Invalid finished goods summary delta");
+  await adjustWarehouseTotals(
+    db,
+    contribution.warehouseId,
+    contribution.productId,
+    Object.fromEntries(
+      TOTAL_FIELDS.map((field) => [field, sign * contribution[field]]),
+    ),
+  );
   if (previous)
     await db.patch("finishedGoodsProductSummaries", previous._id, {
       ...values,
@@ -320,7 +329,24 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
   // Zone occupancy: placements and the zones they left or entered.
   const placements = new Set<string>();
   const zones = new Set<string>();
-  const note = async (table: string, id: string) => {
+  // Products as they were before this mutation (null: inserted by it).
+  const productsBefore = new Map<
+    string,
+    { warehouseId: string; unit: string } | null
+  >();
+  const note = async (table: string, id: string, inserted = false) => {
+    if (table === "finishedGoodsProducts" && !productsBefore.has(id)) {
+      const before = inserted
+        ? null
+        : await db.get<Doc<"finishedGoodsProducts">>(
+            "finishedGoodsProducts",
+            id,
+          );
+      productsBefore.set(
+        id,
+        before ? { warehouseId: before.warehouseId, unit: before.unit } : null,
+      );
+    }
     if (table === "finishedGoodsPallets") touched.add(id);
     if (table === "finishedGoodsPlacements") {
       placements.add(id);
@@ -368,7 +394,7 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
     ...db,
     insert: async (table, payload) => {
       const id = await db.insert(table, payload);
-      await note(table, id);
+      await note(table, id, true);
       return id;
     },
     patch: async (table, id, fields) => {
@@ -390,6 +416,19 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
     db: tracked,
     flush: async () => {
       for (const id of touched) await reconcileUnitContribution(db, id);
+      for (const [id, before] of productsBefore) {
+        const after = await db.get<Doc<"finishedGoodsProducts">>(
+          "finishedGoodsProducts",
+          id,
+        );
+        const units: Record<string, number> = {};
+        if (before?.unit) units[before.unit] = (units[before.unit] ?? 0) - 1;
+        if (after?.unit) units[after.unit] = (units[after.unit] ?? 0) + 1;
+        const products = (after ? 1 : 0) - (before ? 1 : 0);
+        const warehouseId = after?.warehouseId ?? before?.warehouseId;
+        if (warehouseId && (products || Object.values(units).some(Boolean)))
+          await adjustWarehouseTotals(db, warehouseId, id, { products, units });
+      }
       await refreshZoneOccupancy(db, { zones, placements, pallets: touched });
       for (const warehouseId of storageWarehouses) {
         const state = await db

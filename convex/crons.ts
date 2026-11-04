@@ -14,4 +14,10 @@ crons.interval(
   internal.storageLayouts.zoneOccupancyBackfill.sweep,
   {},
 );
+crons.interval(
+  "build warehouse catalogue totals where not current",
+  { hours: 1 },
+  internal.finishedGoods.totalsBackfill.sweep,
+  {},
+);
 export default crons;

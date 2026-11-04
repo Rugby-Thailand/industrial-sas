@@ -82,6 +82,21 @@ function rebuildDerived(root, warehouseId) {
     });
   if (result && !result.ready)
     throw Error(`${root}: zone occupancy backfill finished without readiness`);
+  try {
+    execFileSync(
+      "pnpm",
+      [
+        "exec",
+        "convex",
+        "run",
+        "finishedGoods/totalsBackfill:run",
+        JSON.stringify({ warehouseId }),
+      ],
+      { cwd: root, stdio: "ignore" },
+    );
+  } catch {
+    // this target predates maintained totals
+  }
 }
 /** A mutation that returned a refusal value instead of throwing. */
 const refusal = (value) =>

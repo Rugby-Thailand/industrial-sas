@@ -514,8 +514,25 @@ const schema = defineSchema({
       cursor: v.optional(v.string()),
       generation: v.optional(v.number()),
       continuationKey: v.optional(v.string()),
+      /** WAREHOUSE_TOTALS_VERSION once finishedGoodsWarehouseTotals is built. */
+      totalsVersion: v.optional(v.number()),
+      /** The legacy generation when totals were built (rollback guard). */
+      totalsGeneration: v.optional(v.number()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /** Exact catalogue totals, sharded by product (lib/warehouseTotals). */
+  finishedGoodsWarehouseTotals: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      shard: v.number(),
+      products: v.number(),
+      awaitingMeasurement: v.number(),
+      awaitingStorage: v.number(),
+      stored: v.number(),
+      moving: v.number(),
+      units: v.array(v.object({ unit: v.string(), count: v.number() })),
+    }),
+  ).index("by_orgId_warehouseId_shard", byOrg("warehouseId", "shard")),
   /**
    * Sharded change counter for finished-goods writes: each write increments
    * one random shard, readers sum them. Any committed write changes the sum

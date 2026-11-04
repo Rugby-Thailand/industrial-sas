@@ -135,6 +135,9 @@ while (!summaries.ready) {
   });
 }
 
+// Exact catalogue totals (convex/lib/warehouseTotals.ts), after summaries.
+run("finishedGoods/totalsBackfill:run", { warehouseId: bootstrap.warehouseId });
+
 // Derived zone occupancy (convex/lib/zoneOccupancy.ts): rebuild after raw seeds.
 let occupancy = run("storageLayouts/zoneOccupancyBackfill:run", {
   warehouseId: bootstrap.warehouseId,
