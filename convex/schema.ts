@@ -518,6 +518,8 @@ const schema = defineSchema({
       totalsVersion: v.optional(v.number()),
       /** The legacy generation when totals were built (rollback guard). */
       totalsGeneration: v.optional(v.number()),
+      /** When a build refused (too many products); the sweep retries daily. */
+      totalsRefusedAt: v.optional(v.number()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   /** Exact catalogue totals, sharded by product (lib/warehouseTotals). */

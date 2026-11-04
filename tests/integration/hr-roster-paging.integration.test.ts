@@ -604,6 +604,24 @@ describe("HR roster paging", () => {
       .slice(0, 153)
       .map((row) => row.code)
       .sort();
+    // Clients that predate paging never receive a scanning answer they would
+    // crash on: a narrow search over this 153-row site is refused instead.
+    {
+      const { value: narrow } = await measured(w, roster.roster, {
+        warehouseId: w.warehouses.alphaA,
+        month: MONTH,
+        search: "Seven 1",
+      });
+      expect(narrow).toEqual({ ok: false, code: "LIMIT_EXCEEDED" });
+      const { value: unpaged } = await measured<RosterPage>(w, roster.roster, {
+        warehouseId: w.warehouses.alphaA,
+        month: MONTH,
+      });
+      expect(unpaged).toMatchObject({ ok: true, status: "ready" });
+      expect(
+        (unpaged.employees as { code: string }[]).map((row) => row.code),
+      ).toEqual(expected.slice(0, 50));
+    }
     if (CAPTURE) {
       // Reads of the previous implementation, for the change record only.
       const over = await measured(w, roster.roster, {
@@ -673,17 +691,6 @@ describe("HR roster paging", () => {
     expect(both.flatMap((page) => page.codes)).toEqual(
       expected.filter((_code, index) => index % 10 === 7 && index % 3 === 0),
     );
-
-    // The previous unpaged read refused this site (LIMIT_EXCEEDED); callers
-    // that predate paging now get its first 50 employees.
-    const { value } = await measured<RosterPage>(w, roster.roster, {
-      warehouseId: w.warehouses.alphaA,
-      month: MONTH,
-    });
-    expect(value).toMatchObject({ ok: true, status: "ready", isDone: false });
-    expect(
-      (value.employees as { code: string }[]).map((row) => row.code),
-    ).toEqual(expected.slice(0, 50));
   }, 60_000);
 
   it("refuses unsupported page sizes and resets a cursor bound to other criteria", async () => {

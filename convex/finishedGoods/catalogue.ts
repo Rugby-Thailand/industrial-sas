@@ -74,7 +74,10 @@ async function readiness(ctx: TenantFunctionContext, warehouseId: string) {
     : null;
 }
 export { readProductSummary as readSummary } from "../lib/finishedGoodsSummary";
-import { finishedGoodsGeneration } from "../lib/finishedGoodsSummary";
+import {
+  finishedGoodsGeneration,
+  PRODUCT_SUMMARY_VERSION,
+} from "../lib/finishedGoodsSummary";
 import { readWarehouseTotals } from "../lib/warehouseTotals";
 export async function activeMove(ctx: TenantFunctionContext, palletId: string) {
   for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
@@ -551,9 +554,10 @@ export const summary = queryWithOrg({
     // remains for warehouses whose totals are not built (or are suspect).
     if (!args.scanCursor) {
       const state = await readinessState(ctx, args.warehouseId);
-      const totals = state?.continuationKey
-        ? await readWarehouseTotals(ctx.tenantDb, state)
-        : null;
+      const totals =
+        state?.continuationKey && state.version === PRODUCT_SUMMARY_VERSION
+          ? await readWarehouseTotals(ctx.tenantDb, state)
+          : null;
       if (totals)
         return {
           status: "ready" as const,

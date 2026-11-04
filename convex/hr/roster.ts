@@ -414,6 +414,10 @@ export const roster = queryWithOrg({
         });
       },
     });
+    // Clients that predate paging cannot continue a scan (they would read
+    // `employees` from a scanning answer): give them the refusal they render.
+    if (legacy && page.status !== "ready")
+      return { ok: false as const, code: "LIMIT_EXCEEDED" };
     if (page.status !== "ready") return { ok: true as const, ...page };
     const [holidays, , catalogue] = await siteFacts();
     return {

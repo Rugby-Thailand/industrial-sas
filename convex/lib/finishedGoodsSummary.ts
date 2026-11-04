@@ -4,6 +4,8 @@ import { refreshZoneOccupancy } from "./zoneOccupancy";
 import { adjustWarehouseTotals, TOTAL_FIELDS } from "./warehouseTotals";
 
 const VERSION = 1;
+/** Product summaries' schema version; readers refuse any other. */
+export const PRODUCT_SUMMARY_VERSION = VERSION;
 const numericFields = [
   "count",
   "quantityMinor",

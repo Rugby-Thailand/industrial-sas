@@ -46,6 +46,9 @@ export const run = internalMutation({
         )
         .all(MAX_TOTALS_BACKFILL_PRODUCTS);
     } catch {
+      await db.patch("finishedGoodsSummaryReadiness", readiness._id, {
+        totalsRefusedAt: Date.now(),
+      });
       return { built: false, reason: "TOO_MANY_PRODUCTS" };
     }
     const shards = Array.from({ length: WAREHOUSE_TOTALS_SHARDS }, () => ({
@@ -93,6 +96,7 @@ export const run = internalMutation({
     await db.patch("finishedGoodsSummaryReadiness", readiness._id, {
       totalsVersion: WAREHOUSE_TOTALS_VERSION,
       totalsGeneration: readiness.generation ?? 0,
+      totalsRefusedAt: undefined,
     });
     return { built: true };
   },
@@ -125,7 +129,10 @@ export const sweep = internalMutation({
       if (
         !readiness?.ready ||
         (readiness.totalsVersion === WAREHOUSE_TOTALS_VERSION &&
-          readiness.totalsGeneration === (readiness.generation ?? 0))
+          readiness.totalsGeneration === (readiness.generation ?? 0)) ||
+        // Too large last time: retry once a day, not on every sweep.
+        (readiness.totalsRefusedAt !== undefined &&
+          Date.now() - readiness.totalsRefusedAt < 24 * 60 * 60 * 1000)
       )
         continue;
       await ctx.scheduler.runAfter(
