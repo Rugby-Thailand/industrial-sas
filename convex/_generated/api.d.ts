@@ -91,6 +91,7 @@ import type * as lib_tenantStorage from "../lib/tenantStorage.js";
 import type * as lib_tenantTable from "../lib/tenantTable.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_writeEnvelope from "../lib/writeEnvelope.js";
+import type * as lib_zoneOccupancy from "../lib/zoneOccupancy.js";
 import type * as model_aiUsage_metrics from "../model/aiUsage/metrics.js";
 import type * as model_aiUsage_usage from "../model/aiUsage/usage.js";
 import type * as model_authorization_navigationPermissions from "../model/authorization/navigationPermissions.js";
@@ -155,6 +156,7 @@ import type * as storageLayouts_moveOccupancy from "../storageLayouts/moveOccupa
 import type * as storageLayouts_namedLayout from "../storageLayouts/namedLayout.js";
 import type * as storageLayouts_pdImport from "../storageLayouts/pdImport.js";
 import type * as storageLayouts_writes from "../storageLayouts/writes.js";
+import type * as storageLayouts_zoneOccupancyBackfill from "../storageLayouts/zoneOccupancyBackfill.js";
 import type * as storageLayouts_zones from "../storageLayouts/zones.js";
 import type * as workspace_current from "../workspace/current.js";
 
@@ -248,6 +250,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tenantTable": typeof lib_tenantTable;
   "lib/validators": typeof lib_validators;
   "lib/writeEnvelope": typeof lib_writeEnvelope;
+  "lib/zoneOccupancy": typeof lib_zoneOccupancy;
   "model/aiUsage/metrics": typeof model_aiUsage_metrics;
   "model/aiUsage/usage": typeof model_aiUsage_usage;
   "model/authorization/navigationPermissions": typeof model_authorization_navigationPermissions;
@@ -312,6 +315,7 @@ declare const fullApi: ApiFromModules<{
   "storageLayouts/namedLayout": typeof storageLayouts_namedLayout;
   "storageLayouts/pdImport": typeof storageLayouts_pdImport;
   "storageLayouts/writes": typeof storageLayouts_writes;
+  "storageLayouts/zoneOccupancyBackfill": typeof storageLayouts_zoneOccupancyBackfill;
   "storageLayouts/zones": typeof storageLayouts_zones;
   "workspace/current": typeof workspace_current;
 }>;

@@ -1,3 +1,4 @@
+import { invalidateZoneOccupancy } from "../storageLayouts/zoneOccupancyBackfill";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { v } from "convex/values";
 
@@ -829,6 +830,8 @@ export const seedWorkflowScenarios = internalMutation({
     reusedPallets: v.number(),
   }),
   handler: async (ctx, args) => {
+    // Raw placement writes bypass tracked occupancy maintenance.
+    await invalidateZoneOccupancy(ctx, args.warehouseId);
     assertLocalSeedEnvironment();
     assertConfirmation(args.confirmation);
     const [warehouse, actor] = await Promise.all([
@@ -1206,6 +1209,8 @@ export const seedPalletBatch = internalMutation({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
+    // Raw placement writes bypass tracked occupancy maintenance.
+    await invalidateZoneOccupancy(ctx, args.warehouseId);
     assertConfirmation(args.confirmation);
     if (
       !Number.isInteger(args.startIndex) ||

@@ -1,4 +1,9 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
+import {
+  type OccupancyPallet,
+  zoneOccupancyEntries,
+  zoneOccupancyReady,
+} from "../lib/zoneOccupancy";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { identifiesPallet } from "../model/finishedGoods/palletIdentity";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
@@ -573,6 +578,8 @@ function createLocationReadScope(
   ctx: TenantFunctionContext,
   /** Buildings this snapshot already read; served without a second read. */
   knownBuildings: readonly Doc<"storageBuildings">[] = [],
+  /** The warehouse's derived zone occupancy is complete (zoneOccupancyReady). */
+  useZoneOccupancy = false,
 ) {
   const blocks = new Map<
     string,
@@ -588,12 +595,66 @@ function createLocationReadScope(
       Promise.resolve<Doc<"storageBuildings"> | null>(building),
     ]),
   );
+  const readPallet = createQueryDocumentReader(
+    ctx.tenantDb,
+    "finishedGoodsPallets",
+  );
+  const knownPallets = new Map<string, Promise<OccupancyPallet | null>>();
+  const pallet = (id: string): Promise<OccupancyPallet | null> =>
+    knownPallets.get(id) ?? readPallet(id);
+  // Held placements this snapshot already loaded, served to stack validation.
+  const readPlacement = createQueryDocumentReader(
+    ctx.tenantDb,
+    "finishedGoodsPlacements",
+  );
+  const knownPlacements = new Map<
+    string,
+    Promise<Doc<"finishedGoodsPlacements"> | null>
+  >();
+  const remember = (rows: readonly Doc<"finishedGoodsPlacements">[]) => {
+    for (const row of rows)
+      if (!knownPlacements.has(row._id))
+        knownPlacements.set(row._id, Promise.resolve(row));
+  };
   return {
     zone: createQueryDocumentReader(ctx.tenantDb, "storageZones"),
     building: (id: string) => known.get(id) ?? readBuilding(id),
+    pallet,
+    placement: (id: string) => knownPlacements.get(id) ?? readPlacement(id),
+    /** Held placements in by_orgId_zoneId_status order, per status. */
+    occupancy: async (zoneId: Id<"storageZones">) => {
+      const entries = useZoneOccupancy
+        ? await zoneOccupancyEntries(ctx.tenantDb, zoneId)
+        : null;
+      if (entries) {
+        for (const [id, facts] of entries.pallets)
+          if (!knownPallets.has(id))
+            knownPallets.set(id, Promise.resolve(facts));
+        remember(entries.placements);
+        return {
+          held: entries.placements.filter((p) => p.status === "RESERVED"),
+          stored: entries.placements.filter((p) => p.status === "STORED"),
+        };
+      }
+      const [held, stored] = await Promise.all(
+        (["RESERVED", "STORED"] as const).map((status) =>
+          rows<Doc<"finishedGoodsPlacements">>(
+            ctx,
+            "finishedGoodsPlacements",
+            "by_orgId_zoneId_status",
+            [
+              { field: "zoneId", value: zoneId },
+              { field: "status", value: status },
+            ],
+          ),
+        ),
+      );
+      remember(held!);
+      remember(stored!);
+      return { held: held!, stored: stored! };
+    },
     floor: createQueryDocumentReader(ctx.tenantDb, "storageFloors"),
     location: createQueryDocumentReader(ctx.tenantDb, "locations"),
-    pallet: createQueryDocumentReader(ctx.tenantDb, "finishedGoodsPallets"),
     blocks: (floorId: string) => {
       let pending = blocks.get(floorId);
       if (!pending) {
@@ -672,7 +733,7 @@ async function locationContext(
   const mismatch =
     recommendationProduct !== undefined &&
     conditionCheck({ zone }, recommendationProduct) === "MISMATCH";
-  const [positions, allBlocks, held, stored] = await Promise.all([
+  const [positions, allBlocks, { held, stored }] = await Promise.all([
     mismatch
       ? Promise.resolve([])
       : rows<Doc<"storagePositions">>(
@@ -685,24 +746,7 @@ async function locationContext(
           ],
         ),
     mismatch ? Promise.resolve([]) : scope.blocks(zone.floorId),
-    rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_zoneId_status",
-      [
-        { field: "zoneId", value: zone._id },
-        { field: "status", value: "RESERVED" },
-      ],
-    ),
-    rows<Doc<"finishedGoodsPlacements">>(
-      ctx,
-      "finishedGoodsPlacements",
-      "by_orgId_zoneId_status",
-      [
-        { field: "zoneId", value: zone._id },
-        { field: "status", value: "STORED" },
-      ],
-    ),
+    scope.occupancy(zone._id),
   ]);
   if (mismatch)
     return {
@@ -1089,7 +1133,11 @@ async function recommendations(
   const previewCandidates: Candidate[] = [];
   const reasons = new Set<string>();
   let active = 0;
-  const scope = createLocationReadScope(ctx, activeBuildings);
+  const scope = createLocationReadScope(
+    ctx,
+    activeBuildings,
+    await zoneOccupancyReady(ctx.tenantDb, args.warehouseId),
+  );
   const stackScope = createStackReadScope(ctx, pallet, scope);
   const contexts = await mapBounded(zones, (zone) =>
     locationContext(ctx, args.warehouseId, zone._id, scope, zone, product),
@@ -2481,7 +2529,7 @@ export async function heldPlacements(
 }
 /** Reads stack validation needs; mutations use fresh reads for every call. */
 interface StackReads {
-  pallet(id: string): Promise<Doc<"finishedGoodsPallets"> | null>;
+  pallet(id: string): Promise<OccupancyPallet | null>;
   product(id: string): Promise<Doc<"finishedGoodsProducts"> | null>;
   placement(id: string): Promise<Doc<"finishedGoodsPlacements"> | null>;
   hasActiveMove(id: Id<"finishedGoodsPallets">): Promise<boolean>;
@@ -2535,10 +2583,7 @@ function createStackReadScope(
   const reads: StackReads = {
     pallet: scope.pallet,
     product: createQueryDocumentReader(ctx.tenantDb, "finishedGoodsProducts"),
-    placement: createQueryDocumentReader(
-      ctx.tenantDb,
-      "finishedGoodsPlacements",
-    ),
+    placement: scope.placement,
     hasActiveMove: memoById(fresh.hasActiveMove),
     stackChildren: memoById(fresh.stackChildren),
   };
@@ -2548,10 +2593,7 @@ function createStackReadScope(
     upperBlock: () => (upperBlock ??= upperStackBlock(upper, reads)),
   };
 }
-async function stackingFormat(
-  pallet: Doc<"finishedGoodsPallets">,
-  reads: StackReads,
-) {
+async function stackingFormat(pallet: OccupancyPallet, reads: StackReads) {
   if (pallet.retiredAt) return false;
   if (pallet.storageFormat) return pallet.storageFormat === "PALLET";
   const product = await reads.product(pallet.productId);

@@ -17,7 +17,7 @@ const kb = (bytes) =>
   bytes === null || bytes === undefined ? "–" : (bytes / 1024).toFixed(1);
 const lines = [
   `Profile \`${report.label}\` · ${report.generatedAt} · ${report.samples} uncached samples per target (p50) · dataset ${JSON.stringify(report.dataset)}`,
-  `Targets: ${report.targets.map((t) => `${t.name}@${t.revision.slice(0, 8)}${t.dirty ? "+dirty" : ""}`).join(", ")} · load avg before/after ${report.loadAverage.before[0].toFixed(1)}/${report.loadAverage.after[0].toFixed(1)}`,
+  `Targets: ${report.targets.map((t) => `${t.name}@${t.revision.slice(0, 8)}${t.dirty ? "+dirty" : ""}${t.convexDigest ? ` (convex sha256:${t.convexDigest})` : ""}`).join(", ")} · load avg before/after ${report.loadAverage.before[0].toFixed(1)}/${report.loadAverage.after[0].toFixed(1)}`,
   "",
   `| Screen | Function | Docs read | KB read | Exec p50 ms | Base exec p50 ms | Requests | Return KB | Note |`,
   `|---|---|---:|---:|---:|---:|---:|---:|---|`,
@@ -52,12 +52,12 @@ for (const [name, data] of Object.entries(report.perTarget ?? {})) {
     "",
     `**${name}: reactive fan-out** (${data.fanout[0]?.subscriptions ?? 0} subscriptions open on one session)`,
     "",
-    "| Write | Queries re-run | Docs re-read | KB re-read | Re-run exec ms | Re-run functions |",
-    "|---|---:|---:|---:|---:|---|",
+    "| Write | Queries re-run | Docs re-read | KB re-read | Re-run exec ms | Client follow-up requests (docs) | Re-run functions |",
+    "|---|---:|---:|---:|---:|---:|---|",
   );
   for (const row of data.fanout)
     lines.push(
-      `| ${row.write}${row.error ? ` (error: ${row.error})` : ""} | ${row.reruns} | ${row.readDocs} | ${kb(row.readBytes)} | ${row.execMs} | ${Object.entries(
+      `| ${row.write}${row.error ? ` (error: ${row.error})` : ""} | ${row.reruns} | ${row.readDocs} | ${kb(row.readBytes)} | ${row.execMs} | ${row.followUpRequests ?? 0} (${row.followUpReadDocs ?? 0}) | ${Object.entries(
         row.byFunction,
       )
         .map(([fn, r]) => `${fn}×${r.reruns} (${r.readDocs} docs)`)

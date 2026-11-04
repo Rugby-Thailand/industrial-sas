@@ -6,7 +6,8 @@
 //
 // Results: output/perf/<label>.json (raw per-scenario summaries + run metadata).
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { loadavg } from "node:os";
 import { resolve as resolvePath } from "node:path";
 import {
@@ -50,6 +51,42 @@ const clerk = {
     process.env.LOCAL_TEST_CLERK_ORG_ID ?? "org_3JXrDUraQjTRO3hcIzMGC9CvIXV",
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Backfill derived zone occupancy after a restore, on targets that have it. */
+function rebuildDerived(root, warehouseId) {
+  const run = (args) => {
+    try {
+      return JSON.parse(
+        execFileSync(
+          "pnpm",
+          [
+            "exec",
+            "convex",
+            "run",
+            "storageLayouts/zoneOccupancyBackfill:run",
+            JSON.stringify(args),
+          ],
+          { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+        ),
+      );
+    } catch {
+      return null; // this target predates derived occupancy
+    }
+  };
+  let result = run({ warehouseId, restart: true, batchSize: 25 });
+  while (result && !result.isDone)
+    result = run({ warehouseId, cursor: result.continueCursor, batchSize: 25 });
+  if (result && !result.ready)
+    throw Error(`${root}: zone occupancy backfill finished without readiness`);
+}
+/** A mutation that returned a refusal value instead of throwing. */
+const refusal = (value) =>
+  value?.ok === false
+    ? (value.denial?.code ?? "DENIED")
+    : value?.value?.ok === false ||
+        value?.value?.error ||
+        value?.value?.written === false
+      ? (value.value.error?.code ?? value.value.code ?? "NOT_WRITTEN")
+      : undefined;
 const targets = targetSpecs.map(({ name, root }) => {
   if (restore)
     // Identical starting data for every compared run (writes and audit rows drift).
@@ -59,6 +96,7 @@ const targets = targetSpecs.map(({ name, root }) => {
       { cwd: root, stdio: "ignore" },
     );
   const deployment = loadDeployment(root);
+  if (restore) rebuildDerived(root, deployment.fixture.warehouseId);
   return {
     name,
     root,
@@ -70,8 +108,9 @@ const targets = targetSpecs.map(({ name, root }) => {
 const ids = discover(targets[0].deployment.fixture);
 
 /** Execute one function as the seeded user with a fresh (uncached) identity. */
-async function invoke(target, kind, fn, args) {
-  const { http, deployment } = target;
+async function invoke(target, kind, fn, args, client) {
+  const { deployment } = target;
+  const http = client ?? target.http;
   http.setAdminAuth(deployment.adminKey, identity(clerk));
   const started = Date.now();
   const t0 = performance.now();
@@ -202,6 +241,8 @@ async function profileFlows(target) {
       list.push(...entries.map((entry) => ({ ...entry, rtt: outcome.rtt })));
       calls.set(fn, list);
       if (outcome.error) throw Error(`${fn}: ${outcome.error}`);
+      if (refusal(outcome.value))
+        throw Error(`${fn}: refused ${refusal(outcome.value)}`);
       return outcome.value;
     };
     const ctx = {
@@ -243,7 +284,22 @@ async function profileFanout(target, scenarios) {
   const client = wsClient(target.deployment, clerk);
   // Only what the current client subscribes to: legacy endpoints have no live caller.
   const subscribed = scenarios.filter((scenario) => !scenario.legacy);
+  // Progressive queries stay subscribed with their final settled arguments,
+  // as useCatalogueSync/useHrPagedQuery leave them.
+  const settledArgs = async (scenario) => {
+    let args = scenario.args;
+    for (let request = 0; scenario.settle && request < 200; request++) {
+      const value = (await invoke(target, "query", scenario.fn, args)).value;
+      const result = value?.value ?? value;
+      if (result?.status !== "scanning" || !result.scanCursor) break;
+      args = { ...scenario.args, scanCursor: result.scanCursor };
+    }
+    return args;
+  };
+  const latest = new Map();
   const unsubscribers = [];
+  for (const scenario of subscribed)
+    scenario.subscribedArgs = await settledArgs(scenario);
   await Promise.all(
     subscribed.map(
       (scenario) =>
@@ -252,8 +308,9 @@ async function profileFanout(target, scenarios) {
           unsubscribers.push(
             client.onUpdate(
               scenario.fn,
-              scenario.args,
-              () => {
+              scenario.subscribedArgs,
+              (value) => {
+                latest.set(scenario, value?.value ?? value);
                 clearTimeout(timer);
                 resolve();
               },
@@ -268,7 +325,7 @@ async function profileFanout(target, scenarios) {
       (entry) => entry.udfType === "Query" && entry.caller !== "HttpApi",
     );
   /** Wait until no subscription re-executed for `quietMs` (bounded), so slow machines are not undercounted. */
-  const quiesce = async (quietMs = 1_500, maxMs = 20_000) => {
+  const quiesce = async (quietMs = 3_000, maxMs = 30_000) => {
     const deadline = Date.now() + maxMs;
     let seen = syncEntries().length;
     let quietSince = Date.now();
@@ -322,8 +379,7 @@ async function profileFanout(target, scenarios) {
           throw Error(
             `no recommended destination: ${JSON.stringify(recommended?.reasons)}`,
           );
-        const measuredAt =
-          pallet?.pallet?.measurementUpdatedAt ?? pallet?.measurementUpdatedAt;
+        const measuredAt = pallet?.pallet?.updatedAt ?? pallet?.updatedAt;
         return {
           warehouseId: ids.warehouseId,
           palletId: ids.awaitingPalletId,
@@ -384,8 +440,29 @@ async function profileFanout(target, scenarios) {
     }
     await quiesce();
     const started = Date.now();
+    const before = new Map(latest);
     const outcome = await invoke(target, "mutation", write.fn, writeArgs);
     await quiesce();
+    // A re-run that falls back to scanning/reset makes the client restart its
+    // chain: replay that chain and count it as follow-up work.
+    const followStarted = Date.now();
+    const followFns = new Set();
+    for (const scenario of subscribed) {
+      const now = latest.get(scenario);
+      if (!scenario.settle || now === before.get(scenario)) continue;
+      if (now?.status !== "scanning" && now?.status !== "reset") continue;
+      followFns.add(scenario.fn);
+      await settledArgs(scenario);
+    }
+    const followUps = followFns.size
+      ? logs.entries.filter(
+          (entry) =>
+            followFns.has(entry.identifier) &&
+            entry.caller === "HttpApi" &&
+            !entry.cachedResult &&
+            entry.executionTimestamp * 1000 >= followStarted,
+        )
+      : [];
 
     const reruns = logs.entries.filter(
       (entry) =>
@@ -408,7 +485,8 @@ async function profileFanout(target, scenarios) {
     results.push({
       write: write.name,
       ...(outcome.error ? { error: outcome.error } : {}),
-      writeOk: outcome.value?.ok ?? null,
+      writeOk: outcome.value?.ok === true && !refusal(outcome.value),
+      ...(refusal(outcome.value) ? { refused: refusal(outcome.value) } : {}),
       subscriptions: subscribed.length,
       reruns: reruns.length,
       readDocs: reruns.reduce(
@@ -423,6 +501,11 @@ async function profileFanout(target, scenarios) {
         reruns
           .reduce((sum, entry) => sum + entry.executionTime * 1000, 0)
           .toFixed(1),
+      ),
+      followUpRequests: followUps.length,
+      followUpReadDocs: followUps.reduce(
+        (sum, entry) => sum + entry.usageStats.databaseReadDocuments,
+        0,
       ),
       byFunction,
     });
@@ -448,9 +531,18 @@ async function profileFanout(target, scenarios) {
 async function contend(target, name, fn, argsFor, workers) {
   const { logs } = target;
   const started = Date.now();
+  // ConvexHttpClient queues mutations per client: one client per worker.
+  const clients = Array.from({ length: workers }, () =>
+    httpClient(target.deployment),
+  );
   const outcomes = await Promise.all(
     Array.from({ length: workers }, (_, index) =>
-      invoke(target, "mutation", fn, argsFor(index)),
+      invoke(target, "mutation", fn, argsFor(index), clients[index]),
+    ),
+  );
+  const overlapping = outcomes.some((a, i) =>
+    outcomes.some(
+      (b, j) => i !== j && a.started >= b.started && a.started < b.ended,
     ),
   );
   await sleep(1_000);
@@ -463,8 +555,9 @@ async function contend(target, name, fn, argsFor, workers) {
     name,
     workers,
     failed: outcomes.filter(
-      (outcome) => outcome.error || outcome.value?.value?.ok === false,
+      (outcome) => outcome.error || refusal(outcome.value),
     ).length,
+    overlapping,
     executions: entries.length,
     occRetries: entries.filter((entry) => entry.occInfo || entry.willRetry)
       .length,
@@ -581,6 +674,26 @@ for (const target of targets) {
 }
 for (const target of targets) await target.logs.stop();
 
+function convexDigest(root) {
+  const files = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "--", "convex"],
+    { cwd: root, encoding: "utf8" },
+  )
+    .split("\n")
+    .filter(Boolean)
+    .sort();
+  const hash = createHash("sha256");
+  for (const file of files) {
+    hash.update(file);
+    try {
+      hash.update(readFileSync(`${root}/${file}`));
+    } catch {
+      hash.update("<deleted>");
+    }
+  }
+  return hash.digest("hex").slice(0, 16);
+}
 const git = (root, ...args) =>
   execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
 mkdirSync("output/perf", { recursive: true });
@@ -597,6 +710,8 @@ const report = {
       revision: git(target.root, "rev-parse", "HEAD"),
       dirty:
         git(target.root, "status", "--porcelain", "--", "convex").length > 0,
+      // Content digest of the backend source that was deployed and measured.
+      convexDigest: convexDigest(target.root),
       backend: (
         await (await fetch(`${target.deployment.url}/version`)).text()
       ).trim(),

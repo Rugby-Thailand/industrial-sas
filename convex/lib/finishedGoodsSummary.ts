@@ -1,5 +1,6 @@
 import type { Doc } from "../_generated/dataModel";
 import type { TenantDocumentAccess } from "./tenantDb";
+import { refreshZoneOccupancy } from "./zoneOccupancy";
 
 const VERSION = 1;
 const numericFields = [
@@ -248,8 +249,20 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
   const touched = new Set<string>();
   const warehouses = new Set<string>();
   const storageWarehouses = new Set<string>();
+  // Zone occupancy: placements and the zones they left or entered.
+  const placements = new Set<string>();
+  const zones = new Set<string>();
   const note = async (table: string, id: string) => {
     if (table === "finishedGoodsPallets") touched.add(id);
+    if (table === "finishedGoodsPlacements") {
+      placements.add(id);
+      const row = await db.get<Doc<"finishedGoodsPlacements">>(
+        "finishedGoodsPlacements",
+        id,
+      );
+      if (row) zones.add(row.zoneId);
+    }
+    if (table === "storageZones") zones.add(id);
     if (
       table === "finishedGoodsPallets" ||
       table === "finishedGoodsProducts" ||
@@ -310,6 +323,7 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
     db: tracked,
     flush: async () => {
       for (const id of touched) await reconcileUnitContribution(db, id);
+      await refreshZoneOccupancy(db, { zones, placements, pallets: touched });
       for (const warehouseId of storageWarehouses) {
         const state = await db
           .byIndex<Doc<"storageCatalogueSignals">>(

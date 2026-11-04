@@ -99,6 +99,41 @@ const placementFields = {
   updatedByUserId: v.id("users"),
 };
 
+const geometricPlacementFields = {
+  ...placementFields,
+  mode: v.optional(v.literal("GEOMETRIC")),
+  supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+  xMm: v.number(),
+  yMm: v.number(),
+  zMm: v.number(),
+  widthMm: v.number(),
+  depthMm: v.number(),
+  heightMm: v.number(),
+  rotation: v.union(v.literal(0), v.literal(90)),
+};
+const locationOnlyPlacementFields = {
+  ...placementFields,
+  mode: v.literal("LOCATION_ONLY"),
+  assignmentId: v.id("finishedGoodsScanAssignments"),
+  sequence: v.number(),
+  supportPalletId: v.optional(v.null()),
+};
+/** An exact copy of a held placement document, system fields included. */
+const placementCopy = (
+  fields: typeof geometricPlacementFields | typeof locationOnlyPlacementFields,
+) =>
+  v.object({
+    _id: v.id("finishedGoodsPlacements"),
+    _creationTime: v.number(),
+    ...tenantFields(fields),
+  });
+const palletStatus = v.union(
+  v.literal("AWAITING_MEASUREMENT"),
+  v.literal("AWAITING_PLACEMENT"),
+  v.literal("RESERVED"),
+  v.literal("STORED"),
+);
+
 const hrSchedule = v.object({
   workDays: v.array(v.number()),
   startTime: v.string(),
@@ -933,12 +968,7 @@ const schema = defineSchema({
       weightKg: v.optional(v.number()),
       stackable: v.optional(v.boolean()),
       maxStackLevels: v.optional(v.number()),
-      status: v.union(
-        v.literal("AWAITING_MEASUREMENT"),
-        v.literal("AWAITING_PLACEMENT"),
-        v.literal("RESERVED"),
-        v.literal("STORED"),
-      ),
+      status: palletStatus,
       placementId: v.optional(v.id("finishedGoodsPlacements")),
       createdAt: v.number(),
       createdByUserId: v.id("users"),
@@ -962,29 +992,8 @@ const schema = defineSchema({
     ),
   finishedGoodsPlacements: defineTable(
     v.union(
-      v.object(
-        tenantFields({
-          ...placementFields,
-          mode: v.optional(v.literal("GEOMETRIC")),
-          supportPalletId: v.optional(v.id("finishedGoodsPallets")),
-          xMm: v.number(),
-          yMm: v.number(),
-          zMm: v.number(),
-          widthMm: v.number(),
-          depthMm: v.number(),
-          heightMm: v.number(),
-          rotation: v.union(v.literal(0), v.literal(90)),
-        }),
-      ),
-      v.object(
-        tenantFields({
-          ...placementFields,
-          mode: v.literal("LOCATION_ONLY"),
-          assignmentId: v.id("finishedGoodsScanAssignments"),
-          sequence: v.number(),
-          supportPalletId: v.optional(v.null()),
-        }),
-      ),
+      v.object(tenantFields(geometricPlacementFields)),
+      v.object(tenantFields(locationOnlyPlacementFields)),
     ),
   )
     .index("by_orgId_supportPalletId", byOrg("supportPalletId"))
@@ -1001,6 +1010,74 @@ const schema = defineSchema({
       "by_orgId_warehouseId_positionCode",
       byOrg("warehouseId", "positionCode"),
     ),
+  /**
+   * Derived per-zone summary of held (RESERVED/STORED) placements, maintained
+   * in the same transaction by tracked finished-goods writes. Readers use it
+   * only when the warehouse's readiness row is ready.
+   */
+  storageZoneOccupancy: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      buildingId: v.id("storageBuildings"),
+      zoneId: v.id("storageZones"),
+      version: v.number(),
+      /** False when the zone exceeds the entry cap: read its placements directly. */
+      complete: v.boolean(),
+      held: v.number(),
+      unmeasured: v.number(),
+      /** A held placement names a building other than its zone's. */
+      buildingMismatch: v.boolean(),
+      storedFootprintAreaSqMm: v.number(),
+      heldFootprintAreaSqMm: v.number(),
+    }),
+  )
+    .index("by_orgId_zoneId", byOrg("zoneId"))
+    .index("by_orgId_buildingId", byOrg("buildingId")),
+  /** Held placements of one zone in by_orgId_zoneId_status order, plus pallet facts. */
+  storageZoneOccupancyEntries: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      zoneId: v.id("storageZones"),
+      version: v.number(),
+      /** False above the entry cap: placements are omitted, read them directly. */
+      complete: v.boolean(),
+      placements: v.array(
+        v.union(
+          placementCopy(geometricPlacementFields),
+          placementCopy(locationOnlyPlacementFields),
+        ),
+      ),
+      pallets: v.array(
+        v.object({
+          _id: v.id("finishedGoodsPallets"),
+          warehouseId: v.id("warehouses"),
+          productId: v.id("finishedGoodsProducts"),
+          code: v.string(),
+          quantity: v.number(),
+          status: palletStatus,
+          placementId: v.optional(v.id("finishedGoodsPlacements")),
+          retiredAt: v.optional(v.number()),
+          storageFormat: v.optional(batchFormat),
+          stackable: v.optional(v.boolean()),
+          maxStackLevels: v.optional(v.number()),
+        }),
+      ),
+    }),
+  ).index("by_orgId_zoneId", byOrg("zoneId")),
+  /** Ready once every zone of the warehouse has been backfilled. */
+  storageZoneOccupancyReadiness: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      version: v.number(),
+      ready: v.boolean(),
+      /**
+       * A held placement names a building other than its zone's. Building
+       * readers select by placement building, so they cannot use zone rows
+       * until a restarted backfill finds no such placement.
+       */
+      blocked: v.optional(v.boolean()),
+    }),
+  ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsScanAssignments: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

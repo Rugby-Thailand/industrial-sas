@@ -135,6 +135,20 @@ while (!summaries.ready) {
   });
 }
 
+// Derived zone occupancy (convex/lib/zoneOccupancy.ts): rebuild after raw seeds.
+let occupancy = run("storageLayouts/zoneOccupancyBackfill:run", {
+  warehouseId: bootstrap.warehouseId,
+  restart: true,
+});
+for (let batches = 1; !occupancy.isDone; batches++) {
+  if (batches > 10000)
+    throw new Error("Zone occupancy backfill exceeded its safety limit");
+  occupancy = run("storageLayouts/zoneOccupancyBackfill:run", {
+    warehouseId: bootstrap.warehouseId,
+    cursor: occupancy.continueCursor,
+  });
+}
+
 const fixture = {
   generatedAt: new Date().toISOString(),
   email,

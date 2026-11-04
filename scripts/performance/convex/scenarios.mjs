@@ -81,6 +81,13 @@ export function discover(fixture) {
     reservedPalletId: reservedPallet?._id,
     awaitingPalletId: awaitingPallet?._id,
     storedPalletCode: storedPallet?.code,
+    // A second awaiting pallet: measurement edits leave fan-out's reserve target alone.
+    measurablePalletId: pallets.find(
+      (row) =>
+        row.status === "AWAITING_PLACEMENT" &&
+        row._id !== awaitingPallet?._id &&
+        Number.isInteger(row.quantity),
+    )?._id,
     buildingId: activeBuilding._id,
     zoneId: zone?._id,
     locationId: zone?.locationId,
@@ -428,21 +435,22 @@ export function mutationFlows(ids) {
       async run(call, ctx) {
         const pallet = await ctx.query("finishedGoods/workflow:getPallet", {
           ...w,
-          palletId: ids.storedPalletId,
+          palletId: ids.measurablePalletId,
         });
         const value = pallet.value?.pallet ?? pallet.value;
         await call("finishedGoods/workflow:saveMeasurement", {
           ...w,
-          palletId: ids.storedPalletId,
+          palletId: ids.measurablePalletId,
           requestId: requestId("measure"),
-          ...(value?.measurementUpdatedAt === undefined
+          ...(value?.updatedAt === undefined
             ? {}
-            : { expectedMeasurementUpdatedAt: value.measurementUpdatedAt }),
+            : { expectedMeasurementUpdatedAt: value.updatedAt }),
           quantity: value?.quantity ?? 24,
           dimensionsChecked: true,
           lengthMm: value?.lengthMm ?? 1000,
           widthMm: value?.widthMm ?? 1000,
-          heightMm: value?.heightMm ?? 1000,
+          // Changed value: an identical measurement is a no-op write.
+          heightMm: (value?.heightMm ?? 1000) + 1,
           weightKg: value?.weightKg ?? 100,
         });
       },
