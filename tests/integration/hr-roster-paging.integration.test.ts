@@ -568,6 +568,8 @@ describe("HR roster paging", () => {
       month: MONTH,
     });
     expect(await normalized(w, unpaged.employees)).toEqual(legacy.employees);
+    // …once: the rows are not also sent as `page`.
+    expect(unpaged).not.toHaveProperty("page");
   });
 
   it("pages a 153-employee site in index order with filters applied while scanning and bounded reads", async () => {
@@ -613,14 +615,13 @@ describe("HR roster paging", () => {
         search: "Seven 1",
       });
       expect(narrow).toEqual({ ok: false, code: "LIMIT_EXCEEDED" });
+      // Nor a silently truncated grid: like main, a site above the
+      // 50-employee limit is refused rather than cut to its first 50.
       const { value: unpaged } = await measured<RosterPage>(w, roster.roster, {
         warehouseId: w.warehouses.alphaA,
         month: MONTH,
       });
-      expect(unpaged).toMatchObject({ ok: true, status: "ready" });
-      expect(
-        (unpaged.employees as { code: string }[]).map((row) => row.code),
-      ).toEqual(expected.slice(0, 50));
+      expect(unpaged).toEqual({ ok: false, code: "LIMIT_EXCEEDED" });
     }
     if (CAPTURE) {
       // Reads of the previous implementation, for the change record only.

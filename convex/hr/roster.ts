@@ -444,9 +444,10 @@ export const roster = queryWithOrg({
       // at once.
       concurrency: ROSTER_HYDRATE_CONCURRENCY,
     });
-    // Clients that predate paging cannot continue a scan (they would read
-    // `employees` from a scanning answer): give them the refusal they render.
-    if (legacy && page.status !== "ready")
+    // Clients that predate paging can neither continue a scan nor page (they
+    // read `employees` as the whole roster): an incomplete answer gets the
+    // refusal they render, as main gave sites above the employee limit.
+    if (legacy && (page.status !== "ready" || !page.isDone))
       return { ok: false as const, code: "LIMIT_EXCEEDED" };
     if (page.status !== "ready") return { ok: true as const, ...page };
     const { holidays, catalogue } = await siteFacts();
@@ -462,8 +463,10 @@ export const roster = queryWithOrg({
       })),
       shifts: catalogue.items.map(shiftView),
       shiftsComplete: catalogue.complete,
-      ...page,
-      ...(legacy ? { employees: page.page } : {}),
+      // Old clients read `employees`; send the rows once, not twice.
+      ...(legacy
+        ? (({ page: rows, ...rest }) => ({ ...rest, employees: rows }))(page)
+        : page),
     };
   },
 });
