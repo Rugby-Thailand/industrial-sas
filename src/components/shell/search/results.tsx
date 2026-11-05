@@ -315,7 +315,12 @@ export function useStaticResults(
         id: `static-${destination.key}`,
         group: destination.kind === "TASK" ? "TASKS" : "PAGES",
         title: labels.label(destination),
-        ...(matchedAlias === undefined ? {} : { detail: matchedAlias }),
+        ...(matchedAlias === undefined ||
+        normalizeSearchText(labels.label(destination)).includes(
+          normalizeSearchText(matchedAlias),
+        )
+          ? {}
+          : { detail: t("matchedAlias", { alias: matchedAlias }) }),
         // Where it sits, without repeating the title.
         trail: labels.trailOf(destination.key, -1),
         ...(destination.kind === "SECTION"

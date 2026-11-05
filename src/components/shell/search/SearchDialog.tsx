@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import type { SearchMode } from "./GlobalSearchProvider";
 import { highlightParts } from "./highlight";
 import { useRecentDestinations } from "./recent";
+import { SearchResultsViewport } from "./SearchResultsViewport";
 import {
   searchesPeople,
   usePlaceResults,
@@ -318,11 +319,23 @@ function SearchBody({
       : [recent, goTo, tryAsking]
     : [
         { group: "AI", items: aiChoices, labelled: true },
-        ...ORDINARY_GROUPS.map((group) => ({
-          group,
-          items: ordinary.filter((result) => result.group === group),
-          labelled: true,
-        })),
+        ...ORDINARY_GROUPS.map((group) => {
+          const items = ordinary.filter((result) => result.group === group);
+          const sharedAction =
+            RECORD_GROUPS.includes(group) &&
+            items.length > 1 &&
+            items.every((item) => item.action === items[0]?.action)
+              ? items[0]?.action
+              : undefined;
+          return {
+            group,
+            items,
+            labelled: true,
+            ...(sharedAction === undefined
+              ? {}
+              : { description: sharedAction }),
+          };
+        }),
         { group: "ASK", items: askRow, labelled: false },
         ...(guidance
           ? [
@@ -483,10 +496,10 @@ function SearchBody({
   const firstOrdinary = ordinaryShown[0]?.group;
 
   return (
-    <div className="grid min-h-0 gap-3">
+    <div className="flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col gap-3 sm:max-h-[calc(min(42rem,80dvh)-2rem)]">
       {/* Search owns its close so it shares the title's row and centre line;
           other dialogs keep the shared corner close. */}
-      <div className="flex min-h-touch items-center justify-between gap-2 dense:min-h-control">
+      <div className="flex min-h-touch shrink-0 items-center justify-between gap-2 dense:min-h-control">
         <DialogHeader className="min-w-0 pr-0">
           <DialogTitle>{t(mode === "AI" ? "aiTitle" : "title")}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -507,7 +520,7 @@ function SearchBody({
         </DialogClose>
       </div>
       {/* The box has the row to itself: the AI is offered in the list. */}
-      <div className="relative min-w-0">
+      <div className="relative min-w-0 shrink-0">
         <Search
           aria-hidden="true"
           className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
@@ -599,12 +612,7 @@ function SearchBody({
       </p>
       {records.node}
 
-      <div
-        id={listId}
-        role="listbox"
-        aria-label={t("resultsLabel")}
-        className="min-h-0 overflow-y-auto overscroll-contain sm:max-h-[min(28rem,55dvh)]"
-      >
+      <SearchResultsViewport id={listId} label={t("resultsLabel")}>
         {shown.map((section) => {
           const labelId = `${id}-group-${section.group}`;
           const noteId = `${id}-note-${section.group}`;
@@ -662,7 +670,11 @@ function SearchBody({
                   id={noteId}
                   role="presentation"
                   className="px-2 pb-1 text-xs text-muted"
-                  data-testid="global-search-ask-scope"
+                  data-testid={
+                    section.group === "ASK"
+                      ? "global-search-ask-scope"
+                      : undefined
+                  }
                 >
                   {section.description}
                 </div>
@@ -673,6 +685,7 @@ function SearchBody({
                   id={`${id}-${result.id}`}
                   result={result}
                   query={settled}
+                  sharedAction={section.description === result.action}
                   disabled={!choosable(result)}
                   active={result.id === activeId}
                   onHover={() =>
@@ -685,7 +698,7 @@ function SearchBody({
             </div>
           );
         })}
-      </div>
+      </SearchResultsViewport>
       {/* A running request in the AI row's place: after the typed results,
           first when there are none. Its Cancel stays out of the listbox. */}
       {running ? <AiRunning onCancel={ai.cancel} /> : null}
@@ -812,6 +825,7 @@ function ResultOption({
   id,
   result,
   query,
+  sharedAction,
   disabled,
   active,
   onHover,
@@ -821,6 +835,8 @@ function ResultOption({
   readonly result: SearchResult;
   /** The text the results answer; its match is marked in the title. */
   readonly query: string;
+  /** The group already states the common action; retain its row description. */
+  readonly sharedAction: boolean;
   /** Needs more input, or shown for the previous text until it settles. */
   readonly disabled: boolean;
   readonly active: boolean;
@@ -873,6 +889,7 @@ function ResultOption({
         active
           ? "bg-accent-surface shadow-[inset_3px_0_0_var(--color-link)]"
           : "hover:bg-raised",
+        result.id === ASK_ID && "items-start",
         disabled && "cursor-default opacity-80 hover:bg-transparent",
       )}
       aria-labelledby={`${id}-title`}
@@ -881,7 +898,13 @@ function ResultOption({
     >
       {result.group === "ASK" ? (
         <>
-          <Sparkles aria-hidden="true" className="size-4 shrink-0 text-link" />
+          <Sparkles
+            aria-hidden="true"
+            className={cn(
+              "size-4 shrink-0 text-link",
+              result.id === ASK_ID && "mt-1",
+            )}
+          />
           <span className="grid min-w-0 flex-1 gap-0.5">
             <span id={`${id}-title`} className="break-words text-text">
               {result.title}
@@ -948,7 +971,10 @@ function ResultOption({
             </span>
           ) : null}
           {result.action ? (
-            <span id={`${id}-action`} className="text-xs text-link">
+            <span
+              id={`${id}-action`}
+              className={cn("text-xs text-muted", sharedAction && "sr-only")}
+            >
               {result.action}
             </span>
           ) : null}
@@ -981,7 +1007,7 @@ function AiRunning({ onCancel }: { readonly onCancel: () => void }) {
   const t = useTranslations("Search");
   return (
     <div
-      className="flex min-h-touch items-start gap-3 px-3 py-2 dense:min-h-control"
+      className="flex min-h-touch shrink-0 items-start gap-3 rounded-lg bg-accent-surface px-3 py-2 shadow-[inset_3px_0_0_var(--color-link)] dense:min-h-control"
       data-testid="global-search-ai-running"
     >
       <Spinner aria-hidden="true" className="mt-1 shrink-0 text-link" />

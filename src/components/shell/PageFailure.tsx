@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -42,7 +44,10 @@ export function PageFailure({
   /** What a member quotes to their administrator, under the actions. */
   readonly reference?: ReactNode;
 }) {
+  // Presentation only: the same mounted button/status nodes change copy,
+  // styling and busy attributes; no foreground or history entry is created.
   const [retrying, setRetrying] = useState(false);
+  const t = useTranslations("Error");
   useEffect(() => {
     if (!retrying) return;
     const timer = window.setTimeout(
@@ -76,8 +81,21 @@ export function PageFailure({
           }}
           data-testid="route-error-retry"
         >
-          {retrying ? <Spinner aria-hidden="true" /> : null}
-          {retryLabel}
+          <Spinner
+            aria-hidden="true"
+            className={cn(!retrying && "invisible")}
+          />
+          <span className="inline-grid">
+            <span aria-hidden="true" className="invisible [grid-area:1/1]">
+              {retryLabel}
+            </span>
+            <span aria-hidden="true" className="invisible [grid-area:1/1]">
+              {t("retrying")}
+            </span>
+            <span className="[grid-area:1/1]">
+              {retrying ? t("retrying") : retryLabel}
+            </span>
+          </span>
         </Button>
         {recovery === undefined ? null : (
           <Button asChild variant="outline">
@@ -87,6 +105,9 @@ export function PageFailure({
           </Button>
         )}
       </div>
+      <span role="status" className="sr-only">
+        {retrying ? t("retrying") : ""}
+      </span>
       {reference}
     </div>
   );

@@ -1302,6 +1302,26 @@
       ]
     },
     {
+      "id": "src/components/shell/search/SearchResultsViewport.tsx#SearchResultsViewport:moreBelow",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Measured list overflow shows an aria-hidden paragraph with a down-chevron below the same Search listbox. Scrolling, resizing or replacing results removes it when no rows remain below. The cue is not a foreground view or navigation action; Back still dismisses the owning Search dialog.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#ChevronDown", "p"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/components/shell/search/SearchResultsViewport.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/shell/search/SearchResultsViewport.test.tsx",
+          "name": "shows a continuation cue only while results remain below, without adding a history step"
+        }
+      ]
+    },
+    {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:clearedContext",
       "policy": "presentation",
       "expectation": "Clearing optional search context changes inline suggestions, the inline AI progress row, its answer and guidance in the retained search dialog; the search loader owns foreground Back.",
@@ -5327,26 +5347,6 @@
         {
           "file": "src/app/[locale]/(desktop)/error.test.tsx",
           "name": "copies the reference, page and time as one line and says so"
-        }
-      ]
-    },
-    {
-      "id": "src/components/shell/PageFailure.tsx#PageFailure:retrying",
-      "policy": "presentation",
-      "expectation": "A retry briefly marks the same Retry button busy with a spinner while focus stays on it; the failed boundary owns the retry, and nothing opens or adds a history entry.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/spinner#Spinner"],
-          "falsy": []
-        }
-      ],
-      "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
-      "cases": [
-        {
-          "file": "src/app/[locale]/(desktop)/error.test.tsx",
-          "name": "shows a running retry briefly and keeps focus on it, so a retry that fails again is not a dead button"
         }
       ]
     },

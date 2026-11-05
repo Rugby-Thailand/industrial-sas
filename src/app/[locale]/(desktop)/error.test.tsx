@@ -299,7 +299,9 @@ describe("desktop page error reference", () => {
       `รหัสอ้างอิง ${code} · สินค้าสำเร็จรูป · /finished-goods · ${time("th")}`,
     );
     expect(screen.getByRole("button", { name: "คัดลอกแล้ว" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("คัดลอกแล้ว");
+    expect(
+      within(screen.getByTestId("route-error-reference")).getByRole("status"),
+    ).toHaveTextContent("คัดลอกแล้ว");
     act(() => vi.advanceTimersByTime(2000));
     expect(screen.getByRole("button", { name: "คัดลอก" })).toBeVisible();
   });
@@ -312,6 +314,12 @@ describe("desktop page error reference", () => {
     fireEvent.click(again);
     expect(retry).toHaveBeenCalledOnce();
     expect(again).toHaveAttribute("aria-busy", "true");
+    expect(again).toHaveAccessibleName("กำลังลองใหม่…");
+    expect(
+      screen
+        .getAllByRole("status")
+        .some((region) => region.textContent === "กำลังลองใหม่…"),
+    ).toBe(true);
     expect(again).toHaveAttribute("aria-disabled", "true");
     expect(again).toHaveFocus();
     fireEvent.click(again);
