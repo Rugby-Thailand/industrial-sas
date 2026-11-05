@@ -447,21 +447,33 @@ function createdBuilding(
 }
 
 /**
- * Re-derive every building-name term of the warehouse (unchanged names cost
- * two reads). Null when there are too many buildings for one transaction.
+ * Re-derive building names after an unmaintained layout write, or only newly
+ * created buildings when the layout marker is current. Unchanged names cost
+ * two reads. Null when the selected range exceeds one transaction's bound.
  */
 async function repairBuildingNames(
   ctx: MutationCtx,
   orgId: Id<"organizations">,
   warehouseId: Id<"warehouses">,
   budget: SearchBudget,
+  createdSince?: number,
 ) {
-  const buildings = await ctx.db
-    .query("storageBuildings")
-    .withIndex("by_orgId_warehouseId_code", (q) =>
-      q.eq("orgId", orgId).eq("warehouseId", warehouseId),
-    )
-    .take(REPAIR_BUILDINGS + 1);
+  const buildings = await (
+    createdSince === undefined
+      ? ctx.db
+          .query("storageBuildings")
+          .withIndex("by_orgId_warehouseId_code", (q) =>
+            q.eq("orgId", orgId).eq("warehouseId", warehouseId),
+          )
+      : ctx.db
+          .query("storageBuildings")
+          .withIndex("by_orgId_warehouseId", (q) =>
+            q
+              .eq("orgId", orgId)
+              .eq("warehouseId", warehouseId)
+              .gte("_creationTime", createdSince),
+          )
+  ).take(REPAIR_BUILDINGS + 1);
   if (buildings.length > REPAIR_BUILDINGS) return null;
   return indexBuildingNames(
     tenantDb(ctx, orgId),
@@ -485,8 +497,8 @@ async function repairBuildingNames(
  *   are compared posting by posting. A window of up to 50 rows per phase is
  *   done in this transaction; a larger one in pages, one per transaction,
  *   over the same fixed window. The watermark moves to the window's end only
- *   after every phase is done, so readers keep merging (job scans) or
- *   skipping the index (locations) for any row not looked at yet.
+ *   after every phase is done. Readers trust a current layout marker;
+ *   unmaintained writes become visible when this repair reaches them.
  *
  * `checked` counts rows looked at; `reindexed` counts scans re-indexed and
  * locations compared. Only `continuation` calls (scheduled by a pass)
@@ -556,7 +568,15 @@ export const reconcile = internalMutation({
     if (state.layoutGeneration !== generation || built) {
       const deferred =
         args.kind === "jobScans"
-          ? await repairBuildingNames(ctx, orgId, args.warehouseId, budget)
+          ? await repairBuildingNames(
+              ctx,
+              orgId,
+              args.warehouseId,
+              budget,
+              state.layoutGeneration === generation
+                ? progress.watermark
+                : undefined,
+            )
           : null;
       if (!deferred) {
         // Readers already skip this index; rebuild it under a new run.

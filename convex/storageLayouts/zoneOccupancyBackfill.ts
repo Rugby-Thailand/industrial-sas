@@ -91,7 +91,7 @@ export const run = internalMutation({
     chain: v.optional(v.boolean()),
     /** The run a continuation belongs to (returned by its first page). */
     runId: v.optional(v.string()),
-    /** Documents one transaction may read rebuilding zones. */
+    /** Read-call stopping threshold; capped to leave room for one full zone. */
     budget: v.optional(v.number()),
   },
   returns: v.object({
@@ -111,8 +111,8 @@ export const run = internalMutation({
     if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50)
       throw new Error("batchSize must be an integer from 1 to 50");
     const budget = args.budget ?? REBUILD_READ_BUDGET;
-    if (!Number.isInteger(budget) || budget < 1 || budget > 16_000)
-      throw new Error("budget must be an integer from 1 to 16000");
+    if (!Number.isInteger(budget) || budget < 1 || budget > REBUILD_READ_BUDGET)
+      throw new Error("budget must be an integer from 1 to 500");
     const warehouse = await ctx.db.get(args.warehouseId);
     if (!warehouse) throw new Error("Warehouse not found");
     const orgId = warehouse.orgId;
@@ -136,12 +136,20 @@ export const run = internalMutation({
       };
     const runId = starting ? crypto.randomUUID() : args.runId!;
     if (starting) {
+      // Capture before any page is built. Maintained layout writes can advance
+      // this stamp after refreshing affected surfaces; legacy writes cannot.
+      const generations = {
+        summaryGeneration:
+          (await ensureSummaryReadiness(db, args.warehouseId))?.generation ?? 0,
+        layoutGeneration: await layoutGeneration(db, args.warehouseId),
+      };
       if (state)
         await ctx.db.patch(state._id, {
           ready: false,
           blocked: false,
           stale: false,
           overflow: false,
+          ...generations,
           version: ZONE_OCCUPANCY_VERSION,
           runId,
         });
@@ -152,6 +160,7 @@ export const run = internalMutation({
           version: ZONE_OCCUPANCY_VERSION,
           ready: false,
           runId,
+          ...generations,
         });
     }
     const resume = starting ? null : decodeResume(args.cursor);
@@ -211,20 +220,25 @@ export const run = internalMutation({
     let buildingReady = false;
     if (isDone) {
       const final = await readiness(ctx, orgId, args.warehouseId);
-      // Invalidation during this run poisons it; only a restart may finish.
-      ready = final !== null && final.stale !== true;
-      // What building readers will actually check (not the sticky flags).
+      // Neither explicit invalidation nor a legacy generation change may
+      // be hidden by stamping the current generation over earlier pages.
+      const summaryGeneration =
+        (await ensureSummaryReadiness(db, args.warehouseId))?.generation ?? 0;
+      const currentLayoutGeneration = await layoutGeneration(
+        db,
+        args.warehouseId,
+      );
+      ready =
+        final !== null &&
+        final.stale !== true &&
+        final.summaryGeneration === summaryGeneration &&
+        final.layoutGeneration === currentLayoutGeneration;
       buildingReady = ready && (await buildingScopeClear(db, args.warehouseId));
-      if (final && ready)
+      if (final)
         await ctx.db.patch(final._id, {
-          ready: true,
+          ready,
+          ...(!ready ? { stale: true } : {}),
           version: ZONE_OCCUPANCY_VERSION,
-          // Writes by code that does not maintain these rows move this value.
-          summaryGeneration:
-            (await ensureSummaryReadiness(db, args.warehouseId))?.generation ??
-            0,
-          // Likewise for layout writes and zone surfaces.
-          layoutGeneration: await layoutGeneration(db, args.warehouseId),
         });
     } else if (args.chain)
       await ctx.scheduler.runAfter(

@@ -1216,6 +1216,67 @@ describe("derived zone occupancy", () => {
     expect((await backfillOccupancy(seed)).ready).toBe(true);
   });
 
+  it.each(["summary", "layout"] as const)(
+    "rejects a backfill whose %s generation changes between pages",
+    async (kind) => {
+      const seed = await scaleWorld();
+      await addZones(seed, 4);
+      await addPallets(seed, 3);
+      await linkPlacements(seed);
+      // Exercise a replacement run as well as an initially empty readiness row.
+      expect((await backfillOccupancy(seed)).ready).toBe(true);
+      let result = await backfillStep(seed, { restart: true, batchSize: 1 });
+      expect(result.isDone).toBe(false);
+      await seed.world.t.run(async (ctx) => {
+        const table =
+          kind === "summary"
+            ? "finishedGoodsSummaryReadiness"
+            : "storageCatalogueSignals";
+        const row = (await ctx.db.query(table).collect()).find(
+          (row) => row.warehouseId === seed.warehouseId,
+        )!;
+        await ctx.db.patch(row._id, { generation: (row.generation ?? 0) + 1 });
+      });
+      while (!result.isDone)
+        result = await backfillStep(seed, {
+          cursor: result.continueCursor,
+          runId: result.runId,
+          batchSize: 1,
+        });
+      expect(result).toMatchObject({ ready: false, buildingReady: false });
+      expect((await backfillOccupancy(seed)).ready).toBe(true);
+    },
+  );
+
+  it("follows maintained layout writes between backfill pages", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 4);
+    let result = await backfillStep(seed, { restart: true, batchSize: 1 });
+    expect(result.isDone).toBe(false);
+    await trackedWrite(seed, (db) =>
+      db.patch("storageZones", seed.zone._id, { storageCondition: "COLD" }),
+    );
+    while (!result.isDone)
+      result = await backfillStep(seed, {
+        cursor: result.continueCursor,
+        runId: result.runId,
+        batchSize: 1,
+      });
+    expect(result.ready).toBe(true);
+    const upper = await measuredPallet(seed, "PAL-MID-BACKFILL");
+    await expectOccupancyParity(seed, upper);
+  });
+
+  it.each([501, 16000, 0, 1.5])(
+    "rejects unsafe backfill read budget %s",
+    async (budget) => {
+      const seed = await scaleWorld();
+      await expect(
+        backfillStep(seed, { restart: true, budget }),
+      ).rejects.toThrow("budget must be an integer from 1 to 500");
+    },
+  );
+
   it("refuses an older run's continuation once a newer run has started", async () => {
     const seed = await scaleWorld();
     await addZones(seed, 4);
