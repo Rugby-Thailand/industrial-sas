@@ -3185,6 +3185,7 @@
     "navigating": "Opening {trail}",
     "aiAsk": "Ask AI",
     "aiScope": "AI takes you to pages and forms for time, leave, requests and employees.",
+    "aiScopeStart": "Type what you need, then choose “Ask AI” to open pages and forms for time, leave, requests and employees.",
     "askQuery": "Ask AI where to go for “{query}”",
     "aiPrivacy": "Ask AI sends your typed text (including any names) and the current page type to the AI provider. No records are sent.",
     "exampleSelf": "Forgot to clock in yesterday",

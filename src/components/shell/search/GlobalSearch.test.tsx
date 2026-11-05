@@ -406,10 +406,22 @@ describe("AI Search", () => {
     expect(screen.getByRole("button", { name: "Ask AI" })).toBeDisabled();
     // What the AI is for is visible before asking: it finds pages and
     // forms, it is not a general chatbot.
+    // Before there is enough to ask, it also says how to enable Ask AI.
+    const start =
+      "Type what you need, then choose “Ask AI” to open pages and forms for time, leave, requests and employees.";
+    expect(screen.getByTestId("global-search-ai-scope")).toHaveTextContent(
+      start,
+    );
+    expect(
+      screen.getByRole("button", { name: "Ask AI" }),
+    ).toHaveAccessibleDescription(start);
+    fireEvent.change(input(), { target: { value: "leave" } });
     const scope =
       "AI takes you to pages and forms for time, leave, requests and employees.";
-    expect(screen.getByTestId("global-search-ai-scope")).toHaveTextContent(
-      scope,
+    await waitFor(() =>
+      expect(screen.getByTestId("global-search-ai-scope")).toHaveTextContent(
+        scope,
+      ),
     );
     expect(
       screen.getByRole("button", { name: "Ask AI" }),

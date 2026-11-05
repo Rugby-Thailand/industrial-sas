@@ -534,7 +534,12 @@ function SearchBody({
           data-testid="global-search-ai-scope"
         >
           <Sparkles aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
-          {t("aiScope")}
+          {/* Until there is enough to ask, say how to enable Ask AI. */}
+          {t(
+            query.trim().length < 2 && ai.state.status !== "RUNNING"
+              ? "aiScopeStart"
+              : "aiScope",
+          )}
         </p>
       ) : null}
 
