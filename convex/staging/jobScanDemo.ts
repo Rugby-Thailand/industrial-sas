@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { invalidateSearchIndex } from "../finishedGoods/searchIndexBackfill";
 
 export const JOB_SCAN_DEMO_CONFIRMATION = "LOCAL_JOB_SCAN_FIXTURES_V1";
 
@@ -76,6 +77,8 @@ export const seed = internalMutation({
       )
       .first();
     if (existing) return { inserted: 0 };
+    // Raw scan inserts bypass tracked search maintenance.
+    await invalidateSearchIndex(ctx, args.warehouseId, ["jobScans"]);
     const zones = (
       await ctx.db
         .query("storageZones")

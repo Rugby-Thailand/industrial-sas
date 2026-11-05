@@ -20,4 +20,10 @@ crons.interval(
   internal.finishedGoods.totalsBackfill.sweep,
   {},
 );
+crons.interval(
+  "backfill derived search indexes where not ready",
+  { hours: 1 },
+  internal.finishedGoods.searchIndexBackfill.sweep,
+  {},
+);
 export default crons;

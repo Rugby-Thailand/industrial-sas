@@ -1224,6 +1224,145 @@ const schema = defineSchema({
       "by_orgId_warehouseId_mapped_createdAt",
       byOrg("warehouseId", "mapped", "createdAt"),
     ),
+  /**
+   * Derived substring-search index for saved job scans
+   * (`convex/lib/jobScanSearch.ts`). One row per scan: its newest-first key,
+   * effective building and the dictionary term of every searchable field.
+   * Maintained in the writing transaction; never authorizes anything.
+   */
+  finishedGoodsJobScanSearchRows: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      scanId: v.id("finishedGoodsJobScans"),
+      createdAt: v.number(),
+      scanCreationTime: v.number(),
+      mapped: v.boolean(),
+      buildingId: v.optional(v.id("storageBuildings")),
+      t0: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t1: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t2: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t3: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t4: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t5: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t6: v.optional(v.id("finishedGoodsJobScanTerms")),
+    }),
+  )
+    .index("by_orgId_scanId", byOrg("scanId"))
+    .index(
+      "by_orgId_warehouseId_buildingId_createdAt",
+      byOrg("warehouseId", "buildingId", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t0_createdAt",
+      byOrg("warehouseId", "t0", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t1_createdAt",
+      byOrg("warehouseId", "t1", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t2_createdAt",
+      byOrg("warehouseId", "t2", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t3_createdAt",
+      byOrg("warehouseId", "t3", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t4_createdAt",
+      byOrg("warehouseId", "t4", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t5_createdAt",
+      byOrg("warehouseId", "t5", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t6_createdAt",
+      byOrg("warehouseId", "t6", "createdAt", "scanCreationTime"),
+    ),
+  /**
+   * Distinct normalized field values ("terms") of job scans, per field, plus
+   * one term per building name (field 7, key = building ID). A term is
+   * `shared` once more than a few scans link it; only shared terms have
+   * term-level gram postings, the others are posted per scan.
+   */
+  finishedGoodsJobScanTerms: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      field: v.number(),
+      key: v.string(),
+      text: v.string(),
+      shared: v.boolean(),
+    }),
+  ).index(
+    "by_orgId_warehouseId_field_key",
+    byOrg("warehouseId", "field", "key"),
+  ),
+  /** Trigram postings of shared terms; gram "" holds terms too long to post. */
+  finishedGoodsJobScanTermGrams: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      gram: v.string(),
+      termId: v.id("finishedGoodsJobScanTerms"),
+      field: v.number(),
+      key: v.string(),
+      text: v.string(),
+    }),
+  )
+    .index("by_orgId_warehouseId_gram", byOrg("warehouseId", "gram"))
+    .index("by_orgId_termId", byOrg("termId")),
+  /**
+   * Trigram postings of one scan's unshared terms in newest-first key order,
+   * with the posted texts inline. Gram "" lists texts not posted gram by gram
+   * (too long, or over a transaction's write budget until re-indexed).
+   */
+  finishedGoodsJobScanGrams: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      gram: v.string(),
+      createdAt: v.number(),
+      scanCreationTime: v.number(),
+      scanId: v.id("finishedGoodsJobScans"),
+      texts: v.array(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_warehouseId_gram_createdAt",
+      byOrg("warehouseId", "gram", "createdAt", "scanCreationTime"),
+    )
+    .index("by_orgId_scanId_gram", byOrg("scanId", "gram")),
+  /**
+   * Bigram postings of each location's picker match texts, in location-code
+   * order (`convex/lib/locationSearch.ts`). Gram "" holds locations whose
+   * postings did not fit a transaction's write budget yet.
+   */
+  locationSearchGrams: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      gram: v.string(),
+      code: v.string(),
+      locationId: v.id("locations"),
+      texts: v.array(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_warehouseId_gram_code",
+      byOrg("warehouseId", "gram", "code"),
+    )
+    .index("by_orgId_locationId_gram", byOrg("locationId", "gram")),
+  /** Per warehouse and index: ready once a backfill run covered every source row. */
+  searchIndexReadiness: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      kind: v.union(v.literal("jobScans"), v.literal("locations")),
+      version: v.number(),
+      ready: v.boolean(),
+      /** Raw writers invalidated the rows; only a restarted run may finish. */
+      stale: v.optional(v.boolean()),
+      /** The current backfill run; continuations of any other run are refused. */
+      runId: v.optional(v.string()),
+    }),
+  ).index("by_orgId_warehouseId_kind", byOrg("warehouseId", "kind")),
   finishedGoodsMoves: defineTable(
     tenantFields({
       version: v.optional(v.number()),

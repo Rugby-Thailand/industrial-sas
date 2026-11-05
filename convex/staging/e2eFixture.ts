@@ -339,7 +339,13 @@ export const prepare = internalMutation({
 const WAREHOUSE_TABLES: readonly (readonly [TableNames, string])[] = [
   ["finishedGoodsMoves", "by_orgId_warehouseId_status"],
   ["finishedGoodsScanAssignments", "by_orgId_warehouseId"],
+  ["finishedGoodsJobScanSearchRows", "by_orgId_warehouseId_t0_createdAt"],
+  ["finishedGoodsJobScanGrams", "by_orgId_warehouseId_gram_createdAt"],
+  ["finishedGoodsJobScanTermGrams", "by_orgId_warehouseId_gram"],
+  ["finishedGoodsJobScanTerms", "by_orgId_warehouseId_field_key"],
   ["finishedGoodsJobScans", "by_orgId_warehouseId_createdAt"],
+  ["locationSearchGrams", "by_orgId_warehouseId_gram_code"],
+  ["searchIndexReadiness", "by_orgId_warehouseId_kind"],
   ["finishedGoodsPlacements", "by_orgId_warehouseId_positionCode"],
   ["finishedGoodsPallets", "by_orgId_warehouseId_code"],
   ["finishedGoodsBatches", "by_orgId_warehouseId_productId_updatedAt"],
