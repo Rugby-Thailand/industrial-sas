@@ -111,7 +111,7 @@ function Caller() {
   const warehouse = workspace.selectedWarehouseId ?? "none";
   return (
     <>
-      <output aria-label="Current warehouse">{warehouse}</output>
+      <output aria-label="Observed warehouse">{warehouse}</output>
       <SidebarProvider>
         <WorkspaceContextBar />
       </SidebarProvider>
@@ -139,9 +139,12 @@ async function discard() {
   );
 }
 async function chooseB() {
-  fireEvent.keyDown(screen.getByRole("combobox", { name: "Warehouse" }), {
-    key: "ArrowDown",
-  });
+  fireEvent.keyDown(
+    screen.getByRole("combobox", { name: "Current warehouse" }),
+    {
+      key: "ArrowDown",
+    },
+  );
   fireEvent.click(
     await screen.findByRole("option", { name: "B · Warehouse B" }),
   );
@@ -165,7 +168,7 @@ describe("warehouse context departure ownership", () => {
     const href = window.location.href;
     const length = window.history.length;
     await chooseB();
-    expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("b");
+    expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent("b");
     expect(window.location.href).toBe(href);
     expect(window.history.length).toBe(length);
     act(() => window.history.back());
@@ -185,13 +188,15 @@ describe("warehouse context departure ownership", () => {
     await chooseB();
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(window.localStorage.getItem(WAREHOUSE_STORAGE_KEY)).toBe("a");
-    expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("a");
+    expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent("a");
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByRole("textbox")).toHaveValue("retain floor");
     await chooseB();
     await discard();
     await waitFor(() =>
-      expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("b"),
+      expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent(
+        "b",
+      ),
     );
     expect(window.localStorage.getItem(WAREHOUSE_STORAGE_KEY)).toBe("b");
     expect(screen.getByRole("textbox")).toHaveValue("");
@@ -210,7 +215,9 @@ describe("warehouse context departure ownership", () => {
     await screen.findByRole("dialog");
     await discard();
     await waitFor(() =>
-      expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("c"),
+      expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent(
+        "c",
+      ),
     );
     act(() => window.history.back());
     await waitFor(() =>
@@ -228,13 +235,15 @@ describe("warehouse context departure ownership", () => {
     expect(
       screen.getByRole("button", { name: "Discard changes" }),
     ).toBeDisabled();
-    expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("a");
+    expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent("a");
     expect(window.localStorage.getItem(WAREHOUSE_STORAGE_KEY)).toBe("a");
     await act(async () => finish?.());
     expect(screen.getByText("Saved a")).toBeVisible();
     await discard();
     await waitFor(() =>
-      expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("b"),
+      expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent(
+        "b",
+      ),
     );
     expect(screen.queryByText("Saved a")).not.toBeInTheDocument();
   });
@@ -244,7 +253,7 @@ describe("warehouse context departure ownership", () => {
       target: { value: "this tab's draft" },
     });
     external("b");
-    expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("a");
+    expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent("a");
     expect(readStoredWarehouse()).toBe("a");
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByRole("textbox")).toHaveValue("this tab's draft");
@@ -252,7 +261,9 @@ describe("warehouse context departure ownership", () => {
     external("c");
     await discard();
     await waitFor(() =>
-      expect(screen.getByLabelText("Current warehouse")).toHaveTextContent("c"),
+      expect(screen.getByLabelText("Observed warehouse")).toHaveTextContent(
+        "c",
+      ),
     );
     expect(readStoredWarehouse()).toBe("c");
   });

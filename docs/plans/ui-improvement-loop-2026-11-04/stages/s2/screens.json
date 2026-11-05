@@ -34,9 +34,7 @@
       "title": "Location step with the live camera open",
       "state": "camera-live",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "output/ui-loop/assets/camera-scene.y4m",
       "ready": "main h1",
       "steps": [
@@ -68,9 +66,7 @@
       "title": "Location step after camera permission is denied",
       "state": "error",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "deny",
       "ready": "main h1",
       "steps": [
@@ -95,9 +91,7 @@
       "title": "Camera denied: location label read from a chosen image, awaiting confirmation",
       "state": "review",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "deny",
       "ready": "main h1",
       "steps": [
@@ -136,9 +130,7 @@
       "title": "Ticket intake after choosing a location, no tickets yet",
       "state": "empty",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "ready": "main h1",
       "steps": [
         {
@@ -180,9 +172,7 @@
       "title": "Ticket intake: one ticket with the product barcode read, Job No. missing",
       "state": "partial",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "output/ui-loop/assets/camera-scene.y4m",
       "ready": "main h1",
       "steps": [
@@ -270,9 +260,7 @@
       "title": "Ticket intake: complete Job No. + product barcode pair, ready to save",
       "state": "ready",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "output/ui-loop/assets/camera-scene.y4m",
       "ready": "main h1",
       "steps": [
@@ -360,9 +348,7 @@
       "title": "Save blocked: ticket 2 is incomplete, after following the blocker link",
       "state": "blocked",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "output/ui-loop/assets/camera-scene.y4m",
       "ready": "main h1",
       "steps": [
@@ -501,9 +487,7 @@
       "title": "Scanned records list, All filter",
       "state": "populated",
       "path": "/finished-goods/scan/records?scans=%7B%22filter%22%3A%22ALL%22%2C%22search%22%3A%22%22%7D",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "ready": "main h1",
       "steps": [
         {
@@ -516,9 +500,7 @@
       "title": "Scanned records: search with no matches",
       "state": "empty",
       "path": "/finished-goods/scan/records?scans=%7B%22filter%22%3A%22ALL%22%2C%22search%22%3A%22%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B8%A1%E0%B8%B5%E0%B8%A3%E0%B8%B2%E0%B8%A2%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%99%E0%B8%B5%E0%B9%89%22%7D",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "ready": "main h1",
       "steps": [
         {
@@ -537,9 +519,7 @@
       "title": "After a successful save",
       "state": "success",
       "path": "/finished-goods/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "output/ui-loop/assets/camera-scene.y4m",
       "ready": "main h1",
       "steps": [
@@ -643,9 +623,7 @@
       "title": "Delete confirmation for selected scanned records",
       "state": "confirm",
       "path": "/finished-goods/scan/records?scans=%7B%22filter%22%3A%22ALL%22%2C%22search%22%3A%22FO99990001%22%7D",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "ready": "main h1",
       "steps": [
         {
@@ -715,9 +693,7 @@
       "title": "Package scan in progress: two packages added, location verified",
       "state": "partial",
       "path": "/finished-goods/packages/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "ready": "main h1",
       "steps": [
         {
@@ -806,9 +782,7 @@
       "title": "Package scanner dialog with the live camera",
       "state": "camera-live",
       "path": "/finished-goods/packages/scan",
-      "viewports": [
-        "mobile"
-      ],
+      "viewports": ["mobile"],
       "camera": "output/ui-loop/assets/camera-scene.y4m",
       "ready": "main h1",
       "steps": [

@@ -33,15 +33,26 @@ async function code128(value) {
   if (result.error) throw Error(`${value}: ${result.error}`);
   // Scalable: drop the fixed size for a viewBox, keep the bars crisp.
   const [, w, h] = result.svg.match(/<svg width="(\d+)" height="(\d+)"/);
-  return result.svg
-    .replace(/^[\s\S]*?<svg width="\d+" height="\d+"/, `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" shape-rendering="crispEdges"`);
+  return result.svg.replace(
+    /^[\s\S]*?<svg width="\d+" height="\d+"/,
+    `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" shape-rendering="crispEdges"`,
+  );
 }
 
 export const ASSETS = {
-  ticketPair: { file: "ticket-pair.jpg", job: "FO99990001", product: "UILOOP-PRODUCT-01" },
+  ticketPair: {
+    file: "ticket-pair.jpg",
+    job: "FO99990001",
+    product: "UILOOP-PRODUCT-01",
+  },
   // The ticket image reader needs a product barcode, so the partial ticket is
   // the one whose Job No. barcode label is missing.
-  ticketProductOnly: { file: "ticket-product-only.jpg", job: "FO99990002", product: "UILOOP-PRODUCT-02", jobBarcode: false },
+  ticketProductOnly: {
+    file: "ticket-product-only.jpg",
+    job: "FO99990002",
+    product: "UILOOP-PRODUCT-02",
+    jobBarcode: false,
+  },
   locationLabel: { file: "location-label.jpg", code: "DEMO-ANNEX-F01-Z01" },
   cameraScene: { file: "camera-scene.y4m" },
   // Probe only (not in screens.json): a Job No. barcode held in front of the
@@ -49,7 +60,12 @@ export const ASSETS = {
   cameraJobCode: { file: "camera-job-code.y4m", job: "FO99990003" },
 };
 
-const page = (body, w, h, bg) => `<!doctype html><html><head><meta charset="utf-8"><style>
+const page = (
+  body,
+  w,
+  h,
+  bg,
+) => `<!doctype html><html><head><meta charset="utf-8"><style>
   * { box-sizing: border-box; }
   body { margin:0; width:${w}px; height:${h}px; overflow:hidden; display:flex; align-items:center;
          justify-content:center; font-family: Tahoma, "Thonburi", sans-serif; background:${bg}; }
@@ -147,13 +163,36 @@ try {
     });
     await tab.close();
   };
-  await shot(await ticket(ASSETS.ticketPair), 1000, 1000, ASSETS.ticketPair.file);
-  await shot(await ticket(ASSETS.ticketProductOnly), 1000, 1000, ASSETS.ticketProductOnly.file);
-  await shot(await locationLabel(ASSETS.locationLabel), 900, 560, ASSETS.locationLabel.file);
+  await shot(
+    await ticket(ASSETS.ticketPair),
+    1000,
+    1000,
+    ASSETS.ticketPair.file,
+  );
+  await shot(
+    await ticket(ASSETS.ticketProductOnly),
+    1000,
+    1000,
+    ASSETS.ticketProductOnly.file,
+  );
+  await shot(
+    await locationLabel(ASSETS.locationLabel),
+    900,
+    560,
+    ASSETS.locationLabel.file,
+  );
   await shot(cameraScene(), 1280, 720, "camera-scene.png", "png");
   await shot(
-    page(`<div class="paper" style="padding:40px 60px"><div style="font-size:40px;font-weight:bold">JOB NO. ${ASSETS.cameraJobCode.job}</div><div class="bars" style="width:640px;height:160px;margin-top:16px">${await code128(ASSETS.cameraJobCode.job)}</div></div>`, 1280, 720, "#3a3e43"),
-    1280, 720, "camera-job-code.png", "png",
+    page(
+      `<div class="paper" style="padding:40px 60px"><div style="font-size:40px;font-weight:bold">JOB NO. ${ASSETS.cameraJobCode.job}</div><div class="bars" style="width:640px;height:160px;margin-top:16px">${await code128(ASSETS.cameraJobCode.job)}</div></div>`,
+      1280,
+      720,
+      "#3a3e43",
+    ),
+    1280,
+    720,
+    "camera-job-code.png",
+    "png",
   );
 } finally {
   await browser.close();
@@ -162,8 +201,18 @@ try {
 for (const name of ["camera-scene", "camera-job-code"])
   execFileSync(
     "ffmpeg",
-    ["-y", "-loglevel", "error", "-i", join(out, `${name}.png`),
-     "-frames:v", "1", "-pix_fmt", "yuv420p", join(out, `${name}.y4m`)],
+    [
+      "-y",
+      "-loglevel",
+      "error",
+      "-i",
+      join(out, `${name}.png`),
+      "-frames:v",
+      "1",
+      "-pix_fmt",
+      "yuv420p",
+      join(out, `${name}.y4m`),
+    ],
     { stdio: "inherit" },
   );
 writeFileSync(join(out, "assets.json"), `${JSON.stringify(ASSETS, null, 2)}\n`);
