@@ -102,6 +102,7 @@ import type * as model_finishedGoods_locationImage from "../model/finishedGoods/
 import type * as model_finishedGoods_packing from "../model/finishedGoods/packing.js";
 import type * as model_finishedGoods_palletIdentity from "../model/finishedGoods/palletIdentity.js";
 import type * as model_finishedGoods_placement from "../model/finishedGoods/placement.js";
+import type * as model_finishedGoods_recommendationView from "../model/finishedGoods/recommendationView.js";
 import type * as model_finishedGoods_scanning from "../model/finishedGoods/scanning.js";
 import type * as model_gs1_checkDigit from "../model/gs1/checkDigit.js";
 import type * as model_guards from "../model/guards.js";
@@ -263,6 +264,7 @@ declare const fullApi: ApiFromModules<{
   "model/finishedGoods/packing": typeof model_finishedGoods_packing;
   "model/finishedGoods/palletIdentity": typeof model_finishedGoods_palletIdentity;
   "model/finishedGoods/placement": typeof model_finishedGoods_placement;
+  "model/finishedGoods/recommendationView": typeof model_finishedGoods_recommendationView;
   "model/finishedGoods/scanning": typeof model_finishedGoods_scanning;
   "model/gs1/checkDigit": typeof model_gs1_checkDigit;
   "model/guards": typeof model_guards;
