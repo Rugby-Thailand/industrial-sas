@@ -116,13 +116,35 @@ async function rebuildDerived(root, warehouseId) {
   await convexRun(root, "finishedGoods/totalsBackfill:run", { warehouseId });
   // Derived substring-search indexes (convex/lib/jobScanSearch.ts, locationSearch.ts).
   for (const kind of ["jobScans", "locations"]) {
-    const page = (args) =>
-      convexRun(root, "finishedGoods/searchIndexBackfill:run", {
-        warehouseId,
-        kind,
-        batchSize: searchBackfillBatchSize,
-        ...args,
-      });
+    let batchSize = searchBackfillBatchSize;
+    const page = async (args) => {
+      for (;;) {
+        try {
+          return await convexRun(
+            root,
+            "finishedGoods/searchIndexBackfill:run",
+            {
+              warehouseId,
+              kind,
+              batchSize,
+              ...args,
+            },
+          );
+        } catch (error) {
+          // A timed-out mutation rolls back atomically. Retry the same run
+          // and cursor with less work; never advance past a failed page.
+          if (
+            batchSize === 1 ||
+            !String(error).includes("Function execution timed out")
+          )
+            throw error;
+          batchSize = Math.max(1, Math.floor(batchSize / 2));
+          console.log(
+            `${root}: ${kind} setup timed out; retrying page with batchSize=${batchSize}`,
+          );
+        }
+      }
+    };
     // A sweep may supersede this run on the restored data: build again.
     let built;
     for (let attempt = 0; attempt < 3; attempt++) {
