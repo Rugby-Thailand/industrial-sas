@@ -112,7 +112,8 @@ its pallet, and every zone's layout documents on every execution and re-run:
    Continue a manual run by passing back both `continueCursor` and `runId`; a
    restart issues a new `runId`, and pages of any older run are refused
    (`superseded: true`) so they cannot declare readiness. Each transaction stops
-   rebuilding zones once it has read about 4,000 documents (`budget`), and the next
+   rebuilding zones once it has spent about 500 read calls (`budget`; the zone that
+   crosses it still runs, and a full zone costs up to ~3,500), and the next
    one resumes the same page, so dense zones cannot push a page past the
    transaction limits.
 

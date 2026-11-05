@@ -51,27 +51,31 @@ const clerk = {
     process.env.LOCAL_TEST_CLERK_ORG_ID ?? "org_3JXrDUraQjTRO3hcIzMGC9CvIXV",
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Run an internal function on a target; null only when the target does not
+ * have it (it predates that store). Any other failure stops the profile: a
+ * derived store that silently failed to build would profile the fallback.
+ */
+function convexRun(root, fn, args) {
+  try {
+    return JSON.parse(
+      execFileSync(
+        "pnpm",
+        ["exec", "convex", "run", fn, JSON.stringify(args)],
+        { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      ),
+    );
+  } catch (error) {
+    const output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+    if (/Could not find (public )?function/i.test(output)) return null;
+    throw Error(`${root}: ${fn} failed: ${output.slice(0, 600)}`);
+  }
+}
+
 /** Backfill derived stores after a restore, on targets that have them. */
 function rebuildDerived(root, warehouseId) {
-  const run = (args) => {
-    try {
-      return JSON.parse(
-        execFileSync(
-          "pnpm",
-          [
-            "exec",
-            "convex",
-            "run",
-            "storageLayouts/zoneOccupancyBackfill:run",
-            JSON.stringify(args),
-          ],
-          { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-        ),
-      );
-    } catch {
-      return null; // this target predates derived occupancy
-    }
-  };
+  const run = (args) =>
+    convexRun(root, "storageLayouts/zoneOccupancyBackfill:run", args);
   let result = run({ warehouseId, restart: true, batchSize: 25 });
   while (result && !result.isDone)
     result = run({
@@ -82,46 +86,16 @@ function rebuildDerived(root, warehouseId) {
     });
   if (result && !result.ready)
     throw Error(`${root}: zone occupancy backfill finished without readiness`);
-  try {
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "convex",
-        "run",
-        "finishedGoods/totalsBackfill:run",
-        JSON.stringify({ warehouseId }),
-      ],
-      { cwd: root, stdio: "ignore" },
-    );
-  } catch {
-    // this target predates maintained totals
-  }
+  convexRun(root, "finishedGoods/totalsBackfill:run", { warehouseId });
   // Derived substring-search indexes (convex/lib/jobScanSearch.ts, locationSearch.ts).
   for (const kind of ["jobScans", "locations"]) {
-    const page = (args) => {
-      try {
-        return JSON.parse(
-          execFileSync(
-            "pnpm",
-            [
-              "exec",
-              "convex",
-              "run",
-              "finishedGoods/searchIndexBackfill:run",
-              JSON.stringify({ warehouseId, kind, batchSize: 50, ...args }),
-            ],
-            {
-              cwd: root,
-              encoding: "utf8",
-              stdio: ["ignore", "pipe", "ignore"],
-            },
-          ),
-        );
-      } catch {
-        return null; // this target predates the search indexes
-      }
-    };
+    const page = (args) =>
+      convexRun(root, "finishedGoods/searchIndexBackfill:run", {
+        warehouseId,
+        kind,
+        batchSize: 50,
+        ...args,
+      });
     let built = page({ restart: true });
     while (built && !built.isDone)
       built = page({ cursor: built.continueCursor, runId: built.runId });
@@ -133,29 +107,11 @@ function rebuildDerived(root, warehouseId) {
   // Rows written within 30 s before a build count as unreconciled until the
   // reconcile cron has looked at them (convex/lib/searchReadiness.ts). Do its
   // work now, once the margin has passed, so profiles see the steady state.
-  const reconcile = (kind) => {
-    try {
-      return JSON.parse(
-        execFileSync(
-          "pnpm",
-          [
-            "exec",
-            "convex",
-            "run",
-            "finishedGoods/searchIndexBackfill:reconcile",
-            JSON.stringify({ warehouseId, kind }),
-          ],
-          {
-            cwd: root,
-            encoding: "utf8",
-            stdio: ["ignore", "pipe", "ignore"],
-          },
-        ),
-      );
-    } catch {
-      return null; // this target predates the reconcile job
-    }
-  };
+  const reconcile = (kind) =>
+    convexRun(root, "finishedGoods/searchIndexBackfill:reconcile", {
+      warehouseId,
+      kind,
+    });
   if (reconcile("locations")) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 31_000);
     for (const kind of ["jobScans", "locations"])

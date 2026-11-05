@@ -1477,6 +1477,64 @@ describe("derived zone occupancy", () => {
     expect(new Set(rechecked)).toEqual(new Set(zones));
   });
 
+  it("backfills two dense zones in one page within the transaction read limit", async () => {
+    // Under the deployed limits (4,096 reads): each dense zone costs ~2,300
+    // reads (450 pallets, 5 each with stack facts); two in one page did not
+    // fit the old document budget.
+    const seed = await scaleWorld();
+    await addZones(seed, 2);
+    await addPallets(seed, 450);
+    await seed.world.t.run(async (ctx) => {
+      const other = (await ctx.db.query("storageZones").collect()).find(
+        (zone) => zone._id !== seed.zone._id,
+      )!;
+      for (let i = 0; i < 450; i++) {
+        const palletId = await ctx.db.insert("finishedGoodsPallets", {
+          ...seed.audit,
+          productId: seed.productId,
+          code: `DENSE-${i}`,
+          quantity: 1,
+          lengthMm: 1000,
+          widthMm: 1000,
+          heightMm: 1000,
+          status: "STORED",
+        });
+        await ctx.db.insert("finishedGoodsPlacements", {
+          ...seed.audit,
+          palletId,
+          buildingId: seed.building._id,
+          floorId: other.floorId,
+          zoneId: other._id,
+          locationId: other.locationId,
+          positionCode: `DENSE-POS-${i}`,
+          qrValue: `DENSE-QR-${i}`,
+          xMm: i,
+          yMm: 0,
+          zMm: 0,
+          widthMm: 1000,
+          depthMm: 1000,
+          heightMm: 1000,
+          rotation: 0,
+          status: "STORED",
+        });
+      }
+    });
+    await linkPlacements(seed);
+    let result = await backfillStep(seed, { restart: true, batchSize: 50 });
+    let steps = 1;
+    while (!result.isDone) {
+      result = await backfillStep(seed, {
+        cursor: result.continueCursor,
+        runId: result.runId,
+        batchSize: 50,
+      });
+      steps++;
+    }
+    expect(result).toMatchObject({ ready: true });
+    // The dense zones were rebuilt in separate transactions.
+    expect(steps).toBeGreaterThan(1);
+  }, 300000);
+
   it("stops a backfill page at its read budget and resumes the same page", async () => {
     const seed = await scaleWorld();
     await addZones(seed, 4);
@@ -2317,11 +2375,7 @@ describe("zone surfaces", () => {
     expect(zone.value).toEqual(zoneBefore.value);
     console.info(
       [
-        summary(
-          "list, layout documents",
-          before.stats,
-          before.value,
-        ),
+        summary("list, layout documents", before.stats, before.value),
         summary("list, zone surfaces", after.stats, after.value),
         summary(
           "nothing fits, layout documents",

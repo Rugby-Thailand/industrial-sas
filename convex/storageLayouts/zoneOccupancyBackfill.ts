@@ -24,12 +24,14 @@ import {
 import { layoutGeneration, rebuildZoneSurface } from "../lib/zoneSurfaces";
 
 /**
- * Documents one backfill transaction may read rebuilding zones. A zone near
- * the entry cap reads ~1,000 placements and up to 500 pallets, and its layout
- * surface up to 500 positions and their locations, so a page of dense zones
- * stops early and resumes at the same page, skipping zones done.
+ * Read calls (index ranges and gets) after which a backfill page stops
+ * rebuilding zones and resumes the same page in the next transaction. The
+ * check runs before each zone, so the zone that crosses it still runs: a
+ * full zone costs up to ~3,500 (500 pallets with stack facts, 5 each; its
+ * layout surface's 500 positions and their locations), which must still fit
+ * the 4,096-read transaction limit on top of this.
  */
-const REBUILD_READ_BUDGET = 4_000;
+const REBUILD_READ_BUDGET = 500;
 /** Overflowed zones scheduled per page of a warehouse's re-check walk. */
 const OVERFLOW_RECHECK_PAGE = 10;
 
