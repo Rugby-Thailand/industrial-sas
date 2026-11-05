@@ -1,0 +1,263 @@
+{
+  "auditor": "gpt-6.1-sol",
+  "stage": 1,
+  "loop": "9",
+  "capturedAt": "2026-11-05T13:31:54.947Z",
+  "screens": [
+    {
+      "id": "shell-page",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9 for the captured shell state: clear workspace context, accessible controls, and consistent responsive navigation.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-drawer",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9 for the captured drawer state: grouped destinations, clear selection, readable Thai, and adequately sized controls.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-rail",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9 for the captured rail state: aligned targets, clear active destination, accessible names, and retained warehouse context.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "locale-switch",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9 for the captured completed switch: destination-language labels, translated shell controls, and stable layouts in both directions.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-empty",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "The captured empty and recent states already meet 9: useful suggestions, clear selection, readable translations, and appropriate mobile targets.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-results",
+      "dimensions": {
+        "taskFocus": 8,
+        "hierarchy": 8,
+        "feedback": 9,
+        "ergonomics": 8,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Desktop mixed results conceal continuation below an orphaned heading",
+          "evidence": "search-results--mixed__en-desktop-dark.png, bottom of results panel: “Tasks (2)” appears without either task, immediately above the keyboard footer. No visible scrollbar or continuation cue identifies the remaining tasks and AI row. The accessibility snapshot contains those options; src/components/shell/search/SearchDialog.tsx:606 caps the scroll area, while :652 renders group headings independently. The mobile mixed capture exposes its task and AI row clearly.",
+          "fix": "Keep the existing listbox and result order, but add an overflow-only continuation cue using border, surface, and muted-text tokens. Keep each group heading visible with its first option when sizing the viewport, and make the scroll affordance visible above the keyboard footer.",
+          "benchmark": "",
+          "id": "S1-L9-sol-01"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Search interaction outcomes need runtime evidence",
+          "evidence": "The supplied screenshots and accessibility snapshots show selection and keyboard instructions, but do not demonstrate arrow navigation into offscreen tasks, Enter activation, Escape clearing then closing, focus return, or the mobile layout with the software keyboard open. Source handlers at src/components/shell/search/SearchDialog.tsx:373 and :433 establish implementation intent only.",
+          "fix": "Supply the relevant stage-gate runtime results for those interactions, including reaching the offscreen task and AI options and activating a mobile result with the software keyboard open.",
+          "benchmark": "Raycast: arrows and Enter; Escape clears then closes.",
+          "id": "S1-L9-sol-02"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Make continuation in desktop mixed results unmistakable and prevent a group heading from appearing without its first option.",
+      "average": 8.4,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "search-no-match",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "The captured state already meets 9: it explains the miss, offers a query-preserving fallback, and keeps alternative destinations accessible.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-ai-running",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "The captured running state already meets 9, with the query retained, ordinary results distinguished, named progress, and a clearly labelled Cancel action.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-loading",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Repeated connection messages weaken the outage hierarchy",
+          "evidence": "shell-loading__th-mobile-light.png and shell-loading__en-mobile-dark.png: the header and content card repeat “Waiting for connection” around an already explanatory warning banner; the header copy is truncated. Desktop variants repeat it again under Current warehouse. src/components/shell/DesktopShell.tsx:195–213 confirms the header repetition.",
+          "fix": "Keep ConnectionNotice as the prominent outage explanation and recovery action. Shorten HeaderBrand's unresolved connection label and use a concise data-unavailable label in the existing LedgerPanelStatus, retaining the reserved content layout and existing tokens.",
+          "benchmark": "",
+          "id": "S1-L9-sol-03"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Consolidate the repeated outage wording so the connection notice owns the explanation and the remaining placeholders identify only what is unavailable.",
+      "average": 8.9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "not-found",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured states: clear explanation, one recovery action, readable localisation and appropriate mobile targets.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "route-error",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Retry feedback shifts the adjacent recovery action",
+          "evidence": "Comparing route-error__en-desktop-dark.png with route-error--retrying__en-desktop-dark.png, the retry button expands when its spinner appears, moving “Go to Finished goods” approximately 24px right. src/components/shell/PageFailure.tsx:79 conditionally inserts the spinner without reserving space.",
+          "fix": "Reserve a fixed spinner slot inside the existing Button, using the existing Spinner and spacing tokens, so both recovery controls retain their positions while retrying.",
+          "benchmark": "",
+          "id": "S1-L9-sol-04"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Retry settlement is not demonstrated in this group",
+          "evidence": "route-error--retrying__en-desktop-dark.png captures the pending control; the supplied images do not show recovered product content or the settled result of another failed attempt.",
+          "fix": "Provide runtime evidence for retry after removing the simulated read failure and retry with the failure retained, checking restored content, repeat-attempt feedback and retained keyboard focus.",
+          "benchmark": "",
+          "id": "S1-L9-sol-05"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Bring hierarchy to 9 by reserving spinner space so the recovery action remains stationary during retry.",
+      "average": 8.9,
+      "cap": 9,
+      "score": 9
+    }
+  ],
+  "missing": [],
+  "stageScore": 8,
+  "stageMedian": 9,
+  "notes": [
+    "No actionable shell defects found in these captures. Organization, product and warehouse identities remain distinct; mobile controls and rail destinations retain accessible names. All supplied captures report zero overflow, console errors and axe violations. Scores cover captured states only; they do not certify runtime interactions. Search, AI, loading and recovery screens belong to other image groups and were not treated as missing. Source and test definitions were inspected; tests were not executed. No named benchmark establishes whole-shell parity, so bestReference remains empty.",
+    "Strong shared treatment across locales and themes: visible input focus, match highlighting, clear employee identity, and separately labelled AI navigation. The desktop mixed-results cutoff is the principal captured defect. Accepted AI copy, row placement, scope-control decisions, and demo content were not penalized. Coverage findings do not reduce dimension scores; other screen groups are outside this audit.",
+    "Search maintains clear grouping, visible focus, readable Thai marks, and appropriate mobile targets across the supplied variants. The approved AI row, scope copy, disclosure, and scope-control decisions were respected. No missing screens were inferred from this group. Static captures do not establish keyboard, Back/Forward, focus-return, cancellation, or reconnection outcomes; those behaviours were not deducted from captured-state scores. Source tests were inspected but not executed.",
+    "The shell remains available during the route failure, and the standalone not-found layout follows D11. Both screens have clear recovery priorities, readable Thai/English, no reported overflow and clean supplied axe results. Copy success includes a checkmark, changed label and accessible status. Coverage findings do not reduce dimension scores. No search-dialog conclusions or direct benchmark-product parity claims are supported by this image group."
+  ]
+}

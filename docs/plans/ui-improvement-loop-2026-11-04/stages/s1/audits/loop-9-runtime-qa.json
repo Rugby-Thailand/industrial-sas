@@ -1,0 +1,26 @@
+[
+  {
+    "width": 1440,
+    "case": "explicit Close restores focus; next native Back restores exact origin query/hash",
+    "pass": true
+  },
+  {
+    "width": 1440,
+    "case": "native Back dismisses Search before leaving page",
+    "pass": true
+  },
+  {
+    "width": 390,
+    "case": "explicit Close restores focus; next native Back restores exact origin query/hash",
+    "pass": true
+  },
+  {
+    "width": 390,
+    "case": "native Back dismisses Search before leaving page",
+    "pass": true
+  },
+  {
+    "case": "collapsed rail survives refresh and locale change preserving query/hash",
+    "pass": true
+  }
+]

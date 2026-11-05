@@ -718,6 +718,267 @@
         "Pending AI scope/selected-current-page advice partly revisits D14 and previous audit guidance; requires triage against the accepted interaction."
       ],
       "checkpoint": "plateau; dual 9 gate not achieved"
+    },
+    {
+      "loop": 9,
+      "commit": "2e1bbece",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 8,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        },
+        "opus": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 8,
+            "search-no-match": 9,
+            "search-ai-running": 8,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        }
+      },
+      "fixed": [
+        "S1-L8-opus-01",
+        "S1-L8-opus-04",
+        "S1-L8-opus-05",
+        "S1-L8-opus-06",
+        "S1-L8-opus-09",
+        "S1-L8-opus-11",
+        "S1-L8-opus-14",
+        "S1-L8-opus-15",
+        "S1-L8-opus-16"
+      ],
+      "partiallyFixed": [
+        {
+          "id": "S1-L8-opus-12",
+          "resolution": "Clears the previously selected result when AI starts; exposes the matching alias and highlights it. Capture pointer hover removed. Ranking is unchanged: demoting the current page is a search behavior change, not required for the visible feedback fix."
+        }
+      ],
+      "deferred": [
+        {
+          "id": "S1-L8-opus-02",
+          "reason": "Finished-goods toolbar belongs to Stage 3. Preserved as previously triaged."
+        },
+        {
+          "id": "S1-L8-opus-17",
+          "reason": "Shared breadcrumb current-page convention is retained. Error Back and recovery controls serve distinct origin versus safe-destination intents under D5/D11."
+        }
+      ],
+      "checks": {
+        "targetedTests": "234 passing after updating expected loading/error copy; search transition 49/49",
+        "a11y": "20/20 (single worker; initial parallel run timed out under machine load)",
+        "lint": "passed",
+        "typecheck": "passed",
+        "navigation": "passed",
+        "build": "passed",
+        "runtimeQA": "5/5 exact-origin/foreground/focus/persistence cases",
+        "impeccable": "no findings on edited UI targets"
+      },
+      "note": "Owner explicitly continued beyond the previous plateau until both reviewers reach 9. No rubric/score formula changes; audit prompt clarifies existing D9 and per-group coverage. Approved AI transfer disclosure from 0ad0e58f included in this round.",
+      "remainingFindings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Desktop mixed results conceal continuation below an orphaned heading",
+          "evidence": "search-results--mixed__en-desktop-dark.png, bottom of results panel: “Tasks (2)” appears without either task, immediately above the keyboard footer. No visible scrollbar or continuation cue identifies the remaining tasks and AI row. The accessibility snapshot contains those options; src/components/shell/search/SearchDialog.tsx:606 caps the scroll area, while :652 renders group headings independently. The mobile mixed capture exposes its task and AI row clearly.",
+          "fix": "Keep the existing listbox and result order, but add an overflow-only continuation cue using border, surface, and muted-text tokens. Keep each group heading visible with its first option when sizing the viewport, and make the scroll affordance visible above the keyboard footer.",
+          "benchmark": "",
+          "id": "S1-L9-sol-01",
+          "screen": "search-results"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Repeated connection messages weaken the outage hierarchy",
+          "evidence": "shell-loading__th-mobile-light.png and shell-loading__en-mobile-dark.png: the header and content card repeat “Waiting for connection” around an already explanatory warning banner; the header copy is truncated. Desktop variants repeat it again under Current warehouse. src/components/shell/DesktopShell.tsx:195–213 confirms the header repetition.",
+          "fix": "Keep ConnectionNotice as the prominent outage explanation and recovery action. Shorten HeaderBrand's unresolved connection label and use a concise data-unavailable label in the existing LedgerPanelStatus, retaining the reserved content layout and existing tokens.",
+          "benchmark": "",
+          "id": "S1-L9-sol-03",
+          "screen": "shell-loading"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Retry feedback shifts the adjacent recovery action",
+          "evidence": "Comparing route-error__en-desktop-dark.png with route-error--retrying__en-desktop-dark.png, the retry button expands when its spinner appears, moving “Go to Finished goods” approximately 24px right. src/components/shell/PageFailure.tsx:79 conditionally inserts the spinner without reserving space.",
+          "fix": "Reserve a fixed spinner slot inside the existing Button, using the existing Spinner and spacing tokens, so both recovery controls retain their positions while retrying.",
+          "benchmark": "",
+          "id": "S1-L9-sol-04",
+          "screen": "route-error"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "English sidebar search trigger drops the verb that the Thai trigger keeps",
+          "evidence": "shell-page__en-desktop-dark.png, sidebar search trigger at about x=16-270, y=128-172 reads 'Pages or employees…', while shell-page__th-desktop-light.png shows 'ค้นหาเมนูหรือพนักงาน…' ('Search menus or employees…'); messages/en.json:3132 vs messages/th.json:3132. The accessible name keeps 'Search pages or employees' (messages/en.json:3134), so only the visible text differs.",
+          "fix": "Change Search.triggerPeople in messages/en.json to 'Search pages or people…' (or 'Search pages, employees…') so the visible placeholder starts with a verb like the Thai one and the trigger reads as a search box at a glance; keep the ⌘K kbd chip.",
+          "benchmark": "Raycast: the placeholder says what can be searched in the current context",
+          "id": "S1-L9-opus-01",
+          "screen": "shell-page"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Current-page row is drawn as a third outlined box, so it reads like another input under the warehouse select and the search field",
+          "evidence": "shell-drawer__th-mobile-light.png and shell-drawer__en-mobile-dark.png, top of the drawer from y≈184 to y≈624 (2× px): the warehouse combobox, the search trigger and the active 'สินค้าสำเร็จรูป / Finished goods' row are all full-width rounded rectangles with a 1px grey border. In dark mode the active row differs from the search box only by a grey fill. Source: sidebarRow.ts:15 (data-active inset 1px border-strong ring) and SearchTriggers.tsx:100 (border border-input). The same stack appears in the expanded desktop sidebar in shell-page__th-desktop-light.png (x 16-270, y 80-280).",
+          "fix": "Drop the inset border-strong ring from data-active in sidebarRowClassName and mark the current page with the sidebar's selected surface alone (bg-sidebar-accent with text-sidebar-accent-foreground plus a 3px left accent bar in the brand token). Keep borders only on the two real controls (warehouse select and search trigger), so controls look like controls and the current location looks like a location.",
+          "benchmark": "",
+          "id": "S1-L9-opus-02",
+          "screen": "shell-drawer"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "On the icon rail the search button and the current page are two near-identical outlined squares",
+          "evidence": "shell-rail__en-desktop-dark.png, rail x≈8-56: the search square at y≈124-172 and the active Finished goods square at y≈196-244 both have a rounded 1px grey outline; the only difference is a dark-grey fill on the active one. In shell-rail__th-desktop-light.png the active square adds a pale blue fill and blue icon, so the two themes signal 'current page' with different strength. Source: SearchTriggers.tsx:100 (border border-input on the search row) and sidebarRow.ts:15 (active inset border-strong ring).",
+          "fix": "On the rail, render the search trigger as a plain ghost icon row (no border, keep the tooltip and ⌘K in its name) and show the current destination with the selected surface token (bg-sidebar-accent, icon in text-sidebar-accent-foreground) without the outline, identical in both themes. A thin divider between the search row and the Warehouse group already exists in the expanded sidebar and can be reused.",
+          "benchmark": "",
+          "id": "S1-L9-opus-04",
+          "screen": "shell-rail"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Thai placeholder says 'menu' while the English placeholder, dialog description and group headings say 'pages'",
+          "evidence": "search-empty__th-mobile-light.png and search-empty__th-desktop-light.png, input placeholder 'ค้นหาเมนูหรือพนักงาน' vs search-empty__en-mobile-dark.png 'Search pages or employees'; the a11y description and typed group heading use 'หน้า ส่วนงาน' / 'หน้าและส่วนงาน'; messages/th.json:3142-3143",
+          "fix": "Use one term in Thai: change Search.placeholderPeople to 'ค้นหาหน้าหรือพนักงาน' and Search.placeholder to 'ค้นหาหน้าหรือส่วนงาน', matching the 'หน้าและส่วนงาน' group heading",
+          "benchmark": "Raycast: the placeholder says what can be searched in the current context",
+          "id": "S1-L9-opus-07",
+          "screen": "search-empty"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Recent rows carry no time, so two recents look identical to the static shortcuts below them",
+          "evidence": "search-empty--recents__th-mobile-light.png, 'ล่าสุด' group (วันหยุดบริษัท, พนักงาน) uses the same row style as 'ไปที่'; search-empty--recents__en-desktop-dark.png, 'Recent' group",
+          "fix": "Add a muted relative time (for example 'เมื่อวาน' / 'Yesterday') in the right-hand trail slot of RECENT rows, before or below the module name, using text-xs text-muted",
+          "benchmark": "Notion search: recently visited pages are listed with timestamps",
+          "id": "S1-L9-opus-08",
+          "screen": "search-empty"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Every employee row repeats the same link-coloured 'Open the employee form' line, making each record three lines tall",
+          "evidence": "search-results--mixed__en-desktop-dark.png and search-results--mixed__th-mobile-light.png, Employees (4) group: four identical 'Open the employee form' / 'เปิดฟอร์มข้อมูลพนักงาน' lines in text-link; SearchDialog.tsx:949-952",
+          "fix": "Show result.action only on the active row (or once as a muted note under the Employees group heading) so non-active employee rows are two lines; if kept per row, render it text-muted instead of text-link so it does not read as a separate link inside the option",
+          "benchmark": "Raycast: the primary action is implied by Enter and shown in the footer, not repeated on every row",
+          "id": "S1-L9-opus-10",
+          "screen": "search-results"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "On desktop the list is capped short, so the Tasks group is cut off under its heading and the AI row is hidden with no scroll cue",
+          "evidence": "search-results--mixed__en-desktop-dark.png, bottom of list: 'Tasks (2)' heading visible with both task rows and the 'Ask AI where to go for “EMP”' row below the fold (a11y snapshot lists them); dialog ends at y≈707 on a 900 px viewport; SearchDialog.tsx:606 sm:max-h-[min(28rem,55dvh)]",
+          "fix": "Let the listbox fill the dialog's own min(42rem,80dvh) cap (flex-1 min-h-0 instead of the 28rem limit) and add a bottom fade mask on the listbox when it can scroll; compacting employee rows (finding above) also brings Tasks and the AI row into view",
+          "benchmark": "Linear search: grouped results fit the panel and overflow is visibly scrollable",
+          "id": "S1-L9-opus-11",
+          "screen": "search-results"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Matched English alias is shown in lowercase as the detail line in the Thai locale",
+          "evidence": "search-results--mixed__th-mobile-light.png, 'พนักงาน' row detail 'employees' and 'เพิ่มพนักงาน' row detail 'add employee'; results.tsx:318",
+          "fix": "Prefix the alias with a short label ('ตรงกับ “employees”' / 'Matches “employees”') or title-case it, so it reads as the match reason rather than stray text",
+          "benchmark": "",
+          "id": "S1-L9-opus-13",
+          "screen": "search-results"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Typed AI row icon is centred on the three-line block instead of aligned with the title",
+          "evidence": "search-results__th-mobile-light.png and search-results__en-mobile-dark.png, sparkle icon sits beside the description lines, not the 'ให้ AI หาหน้าสำหรับ “สมชาย”' title; SearchDialog.tsx:882-884 (compact rows use flex items-center)",
+          "fix": "For the ASK_ID row use items-start and add mt-0.5 to the Sparkles icon, as AiRunning already does for its spinner",
+          "benchmark": "",
+          "id": "S1-L9-opus-14",
+          "screen": "search-results"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Close-dialog X and clear-text X are the same glyph stacked in the same right-hand column on phone",
+          "evidence": "search-no-match__th-mobile-light.png and search-no-match__en-mobile-dark.png, top right: header X at ~(357,37) CSS and input clear X at ~(353,97) CSS; a11y nodes button \"Close search\" and button \"Clear search\" (search-no-match__en-desktop-dark.aria.yml lines 8 and 10)",
+          "fix": "Keep the header Close as the X and render the in-field clear as the existing ghost Button with a smaller, muted CircleX icon (or the text 'ล้าง / Clear'), so a gloved tap near the top right does not close the dialog when the user meant to clear the text",
+          "benchmark": "",
+          "id": "S1-L9-opus-16",
+          "screen": "search-no-match"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Matched-alias line under the page result is a bare bold link-coloured word that reads like a tag or link, and in Thai repeats the title's highlighted word",
+          "evidence": "search-ai-running__th-mobile-light.png and __th-desktop-light.png, result 'สินค้าสำเร็จรูป' with a second line 'สินค้า' in bold blue; __en-mobile-dark.png 'Finished goods' / 'pallets' in bold periwinkle; a11y 'mark: pallets' (search-ai-running__en-mobile-dark.aria.yml line 17); results.tsx:318 sets detail to matchedAlias and SearchDialog.tsx:944-947 renders it through Highlighted, so the whole line becomes a <mark> with font-bold text-link",
+          "fix": "Render the alias as muted metadata with a label, for example t('matchedAlias', { alias }) → 'ตรงกับ “สินค้า”' / 'Matches “pallets”' in text-xs text-muted with only the alias marked, and omit the line when the alias is already a substring of the title",
+          "benchmark": "Linear: matching terms highlighted in the result title, not repeated as a separate line",
+          "id": "S1-L9-opus-18",
+          "screen": "search-ai-running"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The pending AI row loses the look of the AI row it replaces and floats after a large gap, so it reads as a separate widget rather than the AI row in progress",
+          "evidence": "search-ai-running__th-mobile-light.png: ~45 CSS px empty gap between the 'สินค้าสำเร็จรูป' result and the spinner row, no tinted surface, no left accent and no sparkle, while the AI row in search-no-match__th-mobile-light.png is a tinted bg-accent-surface card with the Sparkles icon; SearchDialog.tsx:980-1000 (AiRunning) uses a plain flex row",
+          "fix": "Give AiRunning the same container as the ASK option (rounded-lg bg-accent-surface with the inset link-colour left bar), keep the Sparkles icon beside the Spinner or swap only the icon, show the query in the title ('AI กำลังหาหน้าสำหรับ “…”'), and remove the extra top margin so it sits directly under the typed results",
+          "benchmark": "Notion: 'Search all sources with AI' is one labelled row under the box that keeps its identity while the answer runs",
+          "id": "S1-L9-opus-19",
+          "screen": "search-ai-running"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "'Waiting for connection…' is repeated in the header, the sidebar warehouse slot and the card, and truncates in the English phone header",
+          "evidence": "shell-loading__en-desktop-dark.png: header title 'Waiting for connection…', sidebar 'Current warehouse / Waiting for connection…', card 'Waiting for connection…', plus the 'Can't reach the server' banner; shell-loading__en-mobile-dark.png header 'Waiting for connecti…' cut off; DesktopShell.tsx:212 falls back to t('waitingForConnection') for the organisation name, WorkspaceContextBar.tsx:165 and RouteLoading.tsx:37 repeat it",
+          "fix": "Let the banner and the page card carry the status. Render the header organisation slot and the sidebar warehouse value as a short Skeleton (or an em-dash with sr-only 'ไม่ทราบ / Unknown') while the name is unknown, so the header never truncates a status sentence",
+          "benchmark": "",
+          "id": "S1-L9-opus-21",
+          "screen": "shell-loading"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "\"Check the link\" advice gives no link to check, and the installed app has no address bar",
+          "evidence": "not-found__th-mobile-light.png and not-found__en-mobile-dark.png, body paragraph under the h1 (\"ตรวจลิงก์อีกครั้ง\" / \"Check the link\"); not-found__th-mobile-light.aria.yml main shows only heading, paragraph, link and no requested address; public/manifest.webmanifest:9 \"display\": \"standalone\"; src/app/[locale]/not-found.tsx:38-42",
+          "fix": "Under the PageHeader summary, show the requested path without the locale (for example /this-page-does-not-exist) in the same font-mono text-xs bg-raised code chip that FailureReference.tsx:63-70 uses, labelled \"ที่อยู่ที่เปิด / Address opened\", so a phone user in the standalone app can see and report the mistyped link.",
+          "benchmark": "",
+          "id": "S1-L9-opus-23",
+          "screen": "not-found"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Retrying state does not say what is happening, and a retry that fails again looks the same as the first failure",
+          "evidence": "route-error--retrying__en-desktop-dark.png, action row: the primary button turns grey with a spinner but keeps the label \"Try again\"; the alert above is unchanged. Compared with route-error__en-desktop-dark.png, the only visible difference after another failed attempt is a new reference (EG99EU vs 9HNC6E) and time (8:30 vs 8:33 PM). Source: src/components/shell/PageFailure.tsx:16, 68-81 (aria-busy only, no status text), FailureReference.tsx:63-70",
+          "fix": "While retrying, swap the label to \"กำลังลองใหม่… / Trying again…\" next to the existing Spinner and put the same text in an sr-only role=\"status\" span (the pattern FailureReference.tsx:89-91 already uses). When the boundary renders again after a retry, add a muted line under the Notice body, \"ลองใหม่แล้วยังโหลดไม่ได้ · 20:33 / Tried again, still not loading · 8:33 PM\", so members can see that the attempt ran and failed.",
+          "benchmark": "",
+          "id": "S1-L9-opus-24",
+          "screen": "route-error"
+        }
+      ],
+      "checkpoint": "continue to loop 10; dual gate not achieved"
     }
   ]
 }

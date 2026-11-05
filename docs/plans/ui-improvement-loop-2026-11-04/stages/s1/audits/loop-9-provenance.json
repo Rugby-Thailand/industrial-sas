@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "2e1bbecedac406970d4cb56739ab2d672e77ec52",
+  "buildId": "Mws2oEonpbvB-Qd3lb7Fp",
+  "models": {
+    "sol": "gpt-6.1-sol via Codex CLI",
+    "opus": "claude-opus-5.5 via Kiro CLI"
+  },
+  "checks": {
+    "navigation": "68 fixtures passed; inventory: 59 routes, 296 state owners, 26 actions",
+    "typecheck": "1090 files; pinned Bun 1.4.3 / TypeScript 7.0.2",
+    "lint": "normal ESLint passed",
+    "targetedTests": "234 tests across 21 files; four obsolete copy/loading assertions updated and their 19-test files passed; strengthened search transition test passed in 49-test suite",
+    "a11y": "20 tests / 5 files passed with one worker and 20s timeout; initial run hit hardware-load timeout, followed by overlapping axe error",
+    "build": "production webpack build passed",
+    "detector": "no findings on edited UI targets",
+    "runtimeQA": "5/5 passed"
+  },
+  "limitations": [
+    "Full repository test suite not run; previously recorded unrelated ICU placeholder parity test failure remains outside this loop."
+  ],
+  "captureNotes": [
+    "Existing local backend was stopped; resumed its saved instance before populated captures. Initial failed shell-page capture must be rerun; failure evidence retained separately.",
+    "Pointer moved away before snapshots to avoid incidental setup-click hover.",
+    "Additional recents capture uses representative existing destination keys in browser local storage; mixed search uses existing fixture employee codes. No record data modified.",
+    "Retry feedback timer held for the screenshot and accessibility snapshot, then resumed for axe. Supplemental captures include real existing frontend response to a simulated query failure, matching the base harness."
+  ],
+  "captures": {
+    "total": 46,
+    "failed": 0,
+    "overflow": 0,
+    "seriousOrCriticalAxe": 0
+  }
+}
