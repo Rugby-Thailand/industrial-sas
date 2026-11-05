@@ -238,6 +238,41 @@ describe("maintained warehouse totals", () => {
     expect(maintained.result.totals.products).toBe(125);
   });
 
+  it("leave the totals shards untouched by writes with no net change", async () => {
+    const seed = await catalogueWorld();
+    await seed.build();
+    const written: string[] = [];
+    await seed.run(async (db) => {
+      const counted = {
+        ...db,
+        insert: (table: string, doc: never) => {
+          written.push(table);
+          return db.insert(table as never, doc);
+        },
+        patch: (table: string, id: string, fields: never) => {
+          written.push(table);
+          return db.patch(table as never, id as never, fields);
+        },
+        replace: (table: string, id: string, fields: never) => {
+          written.push(table);
+          return db.replace(table as never, id as never, fields);
+        },
+      } as unknown as typeof db;
+      const writes = trackFinishedGoodsWrites(counted);
+      // Quantity-only pallet edit and a product rename: counts are unchanged.
+      await writes.db.patch("finishedGoodsPallets", seed.pallets[1]!, {
+        quantity: 7,
+      });
+      await writes.db.patch("finishedGoodsProducts", seed.products[0]!, {
+        name: "Renamed",
+      });
+      await writes.flush();
+    });
+    expect(written).toContain("finishedGoodsProductSummaries");
+    expect(written).not.toContain("finishedGoodsWarehouseTotals");
+    await seed.expectParity();
+  });
+
   it("fall back to the scan after writes by code that does not maintain them", async () => {
     const seed = await catalogueWorld();
     await seed.build();

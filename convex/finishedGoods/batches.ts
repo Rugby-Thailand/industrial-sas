@@ -451,11 +451,13 @@ export const pageProductBatches = queryWithOrg({
   target: { table: "finishedGoodsBatches" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const generation = await finishedGoodsGeneration(
-      ctx.tenantDb,
-      args.warehouseId,
-      (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ?? 0,
-    );
+    const generation = async () =>
+      finishedGoodsGeneration(
+        ctx.tenantDb,
+        args.warehouseId,
+        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
+          0,
+      );
     return paginatedScan(ctx, {
       scope: ["batches", args.warehouseId, args.productId],
       generation,
@@ -501,11 +503,13 @@ export const pageLegacyUnits = queryWithOrg({
   target: { table: "finishedGoodsPallets" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const generation = await finishedGoodsGeneration(
-      ctx.tenantDb,
-      args.warehouseId,
-      (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ?? 0,
-    );
+    const generation = async () =>
+      finishedGoodsGeneration(
+        ctx.tenantDb,
+        args.warehouseId,
+        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
+          0,
+      );
     return paginatedScan(ctx, {
       scope: ["legacy-units", args.warehouseId, args.productId],
       generation,

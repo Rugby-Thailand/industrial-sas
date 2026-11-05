@@ -51,6 +51,7 @@ async function adjust(
   db: TenantDocumentAccess,
   contribution: Contribution,
   sign: 1 | -1,
+  totals = true,
 ) {
   const previous = await summary(db, contribution.productId);
   const values = zero();
@@ -65,14 +66,15 @@ async function adjust(
     formats.some((format) => values.formatCounts[format] < 0)
   )
     throw new Error("Invalid finished goods summary delta");
-  await adjustWarehouseTotals(
-    db,
-    contribution.warehouseId,
-    contribution.productId,
-    Object.fromEntries(
-      TOTAL_FIELDS.map((field) => [field, sign * contribution[field]]),
-    ),
-  );
+  if (totals)
+    await adjustWarehouseTotals(
+      db,
+      contribution.warehouseId,
+      contribution.productId,
+      Object.fromEntries(
+        TOTAL_FIELDS.map((field) => [field, sign * contribution[field]]),
+      ),
+    );
   if (previous)
     await db.patch("finishedGoodsProductSummaries", previous._id, {
       ...values,
@@ -136,8 +138,27 @@ export async function reconcileUnitContribution(
     numericFields.every((field) => previous[field] === next[field])
   )
     return;
-  if (previous) await adjust(db, previous, -1);
-  if (next) await adjust(db, next, 1);
+  if (
+    previous &&
+    next &&
+    previous.productId === next.productId &&
+    previous.warehouseId === next.warehouseId
+  ) {
+    // One net totals delta: a quantity or format change leaves the shard alone.
+    await adjust(db, previous, -1, false);
+    await adjust(db, next, 1, false);
+    await adjustWarehouseTotals(
+      db,
+      next.warehouseId,
+      next.productId,
+      Object.fromEntries(
+        TOTAL_FIELDS.map((field) => [field, next[field] - previous[field]]),
+      ),
+    );
+  } else {
+    if (previous) await adjust(db, previous, -1);
+    if (next) await adjust(db, next, 1);
+  }
   if (previous && next)
     await db.replace("finishedGoodsUnitContributions", previous._id, next);
   else if (previous)

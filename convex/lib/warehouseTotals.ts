@@ -95,6 +95,14 @@ export async function adjustWarehouseTotals(
   productId: string,
   delta: TotalsDelta,
 ) {
+  // No read either: a zero delta must not re-run readers or join the shard's
+  // conflict set.
+  if (
+    !delta.products &&
+    TOTAL_FIELDS.every((field) => !delta[field]) &&
+    Object.values(delta.units ?? {}).every((change) => !change)
+  )
+    return;
   const shard = totalsShard(productId);
   const row = await shardRow(db, warehouseId, shard);
   const sum = applied(row ?? emptyShard(warehouseId, shard), delta);

@@ -388,7 +388,7 @@ export const page = queryWithOrg({
   target: { table: "finishedGoodsProducts" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const ready = await readiness(ctx, args.warehouseId);
+    const ready = await readinessState(ctx, args.warehouseId);
     if (!ready?.ready)
       return {
         status: "not_ready" as const,
@@ -413,14 +413,11 @@ export const page = queryWithOrg({
       throw new Error("CATALOGUE_CRITERIA_INVALID");
     const sorted = Boolean(filters.sort);
     const compare = createRowComparator(filters.sort, locale);
-    const scope = {
-      warehouseId,
-      tab,
-      search,
-      filters,
-      locale,
-      ...(sorted ? { generation: ready.generation ?? 0 } : {}),
-    };
+    const scope = { warehouseId, tab, search, filters, locale };
+    // Read only when a page resumes or continues, so first pages answered in
+    // one request do not re-run on every finished-goods write.
+    const generation = () =>
+      finishedGoodsGeneration(ctx.tenantDb, warehouseId, ready.generation ?? 0);
     const limit = sorted ? 50 : remainingScanCapacity(scanCursor, pageSize);
     if (tab === "products") {
       const result = await paginatedScan(ctx, {
@@ -428,7 +425,8 @@ export const page = queryWithOrg({
         pageSize,
         cursor,
         scanCursor,
-        generation: ready.generation ?? 0,
+        generation,
+        bindContinuation: sorted,
         read: (raw, endCursor) =>
           search.trim()
             ? readSearchedProducts(ctx, warehouseId, search, raw, limit)
@@ -464,7 +462,8 @@ export const page = queryWithOrg({
       pageSize,
       cursor,
       scanCursor,
-      generation: ready.generation ?? 0,
+      generation,
+      bindContinuation: sorted,
       read: (raw, endCursor) =>
         ctx.tenantDb
           .byIndex<Doc<"finishedGoodsPallets">>(
