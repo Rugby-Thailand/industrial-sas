@@ -26,9 +26,19 @@ import {
   sweep as sweepZoneOccupancy,
 } from "../../convex/storageLayouts/zoneOccupancyBackfill";
 import { trackFinishedGoodsWrites } from "../../convex/lib/finishedGoodsSummary";
-import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
+import {
+  createTenantDocumentAccess,
+  type TenantDocumentAccess,
+} from "../../convex/lib/tenantDb";
 import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
-import { MAX_ZONE_OCCUPANCY_ENTRIES } from "../../convex/lib/zoneOccupancy";
+import {
+  MAX_ZONE_OCCUPANCY_ENTRIES,
+  palletFacts,
+} from "../../convex/lib/zoneOccupancy";
+import {
+  SURFACE_REFRESH_LOCATION_BUDGET,
+  SURFACE_REFRESH_ZONE_BUDGET,
+} from "../../convex/lib/zoneSurfaces";
 import { ZONE_PREVIEW_FIELDS } from "../../convex/model/finishedGoods/recommendationView";
 import {
   createStorageBuilding,
@@ -37,6 +47,7 @@ import {
 import { createStorageZone } from "../../convex/storageLayouts/zones";
 import { backfillBuildingIndexes } from "../../convex/finishedGoods/moveBuildingMigration";
 import {
+  cancelMove,
   cancelReservation,
   confirmStored,
   recommend,
@@ -873,6 +884,22 @@ async function occupancyReaders(seed: ScaleSeed, palletId: string) {
     },
   };
 }
+/** Writes as a tracked mutation does: derived rows maintained in the same transaction. */
+async function trackedWrite(
+  seed: ScaleSeed,
+  write: (db: TenantDocumentAccess) => Promise<unknown>,
+) {
+  await seed.world.t.run(async (ctx) => {
+    const writes = trackFinishedGoodsWrites(
+      createTenantDocumentAccess(
+        { orgId: seed.world.orgA, requestId: "tracked" },
+        createMutationTenantStorage(ctx, "tracked"),
+      ),
+    );
+    await write(writes.db);
+    await writes.flush();
+  });
+}
 /** Same snapshot, authoritative reads versus derived rows: outputs must be identical. */
 async function expectOccupancyParity(seed: ScaleSeed, palletId: string) {
   await setOccupancyReady(seed, false);
@@ -1152,8 +1179,8 @@ describe("derived zone occupancy", () => {
     expect(readiness).toMatchObject({ ready: true, overflow: true });
     // A mismatched overflowed zone: its summary row is a marker, so the
     // unmeasured count is read from the placements, as without derived rows.
-    await seed.world.t.run((ctx) =>
-      ctx.db.patch(seed.zone._id, { storageCondition: "COLD" }),
+    await trackedWrite(seed, (db) =>
+      db.patch("storageZones", seed.zone._id, { storageCondition: "COLD" }),
     );
     const mismatched = await expectOccupancyParity(seed, upper);
     expect(mismatched.derived.values.recommendation).toMatchObject({
@@ -1595,7 +1622,7 @@ describe("recommendation order across active buildings", () => {
  * an unmeasured unit and a reserved floor block; plus a draft building that
  * can never be a candidate.
  */
-async function warehouseWorld() {
+async function warehouseWorld(stocked = true) {
   const seed = await scaleWorld();
   const layout = await seed.world.t.run(async (ctx) => {
     const floor = (await ctx.db.get(seed.zone.floorId))!;
@@ -1718,65 +1745,66 @@ async function warehouseWorld() {
   });
   // Stored pallets: 8 per floor area (every other one stackable), one in a
   // third of the rack positions.
-  await seed.world.t.run(async (ctx) => {
-    let n = 0;
-    const store = async (
-      zoneId: Id<"storageZones">,
-      place: { xMm: number; yMm: number; zMm: number },
-      extra: Partial<Doc<"finishedGoodsPallets">> = {},
-      supportPositionId?: Id<"storagePositions">,
-    ) => {
-      const zone = (await ctx.db.get(zoneId))!;
-      const palletId = await ctx.db.insert("finishedGoodsPallets", {
-        ...seed.audit,
-        productId: seed.productId,
-        code: `PAL-W${n}`,
-        quantity: 1,
-        lengthMm: 1000,
-        widthMm: 1000,
-        heightMm: 1000,
-        status: "STORED",
-        ...extra,
-      });
-      const placementId = await ctx.db.insert("finishedGoodsPlacements", {
-        ...seed.audit,
-        palletId,
-        buildingId: zone.buildingId,
-        floorId: zone.floorId,
-        zoneId,
-        locationId: zone.locationId,
-        ...(supportPositionId ? { supportPositionId } : {}),
-        positionCode: `POS-W${n++}`,
-        qrValue: `QR-W${n}`,
-        ...place,
-        widthMm: 1000,
-        depthMm: 1000,
-        heightMm: 1000,
-        rotation: 0,
-        status: "STORED",
-      });
-      await ctx.db.patch(palletId, { placementId });
-    };
-    for (const zoneId of [...layout.simple, ...layout.cold])
-      for (let k = 0; k < 8; k++)
-        await store(
+  if (stocked)
+    await seed.world.t.run(async (ctx) => {
+      let n = 0;
+      const store = async (
+        zoneId: Id<"storageZones">,
+        place: { xMm: number; yMm: number; zMm: number },
+        extra: Partial<Doc<"finishedGoodsPallets">> = {},
+        supportPositionId?: Id<"storagePositions">,
+      ) => {
+        const zone = (await ctx.db.get(zoneId))!;
+        const palletId = await ctx.db.insert("finishedGoodsPallets", {
+          ...seed.audit,
+          productId: seed.productId,
+          code: `PAL-W${n}`,
+          quantity: 1,
+          lengthMm: 1000,
+          widthMm: 1000,
+          heightMm: 1000,
+          status: "STORED",
+          ...extra,
+        });
+        const placementId = await ctx.db.insert("finishedGoodsPlacements", {
+          ...seed.audit,
+          palletId,
+          buildingId: zone.buildingId,
+          floorId: zone.floorId,
           zoneId,
-          { xMm: (k % 4) * 1100, yMm: Math.floor(k / 4) * 1100, zMm: 0 },
-          k % 2 ? { stackable: true, maxStackLevels: 3 } : {},
-        );
-    for (const { zoneId, positions } of layout.racks)
-      for (const position of positions.filter((_, i) => i % 3 === 0))
-        await store(
-          zoneId,
-          {
-            xMm: position.xMm!,
-            yMm: position.yMm!,
-            zMm: position.elevationMm!,
-          },
-          {},
-          position._id,
-        );
-  });
+          locationId: zone.locationId,
+          ...(supportPositionId ? { supportPositionId } : {}),
+          positionCode: `POS-W${n++}`,
+          qrValue: `QR-W${n}`,
+          ...place,
+          widthMm: 1000,
+          depthMm: 1000,
+          heightMm: 1000,
+          rotation: 0,
+          status: "STORED",
+        });
+        await ctx.db.patch(palletId, { placementId });
+      };
+      for (const zoneId of [...layout.simple, ...layout.cold])
+        for (let k = 0; k < 8; k++)
+          await store(
+            zoneId,
+            { xMm: (k % 4) * 1100, yMm: Math.floor(k / 4) * 1100, zMm: 0 },
+            k % 2 ? { stackable: true, maxStackLevels: 3 } : {},
+          );
+      for (const { zoneId, positions } of layout.racks)
+        for (const position of positions.filter((_, i) => i % 3 === 0))
+          await store(
+            zoneId,
+            {
+              xMm: position.xMm!,
+              yMm: position.yMm!,
+              zMm: position.elevationMm!,
+            },
+            {},
+            position._id,
+          );
+    });
   // The original pallet of scaleWorld is held nowhere; give one area an
   // unmeasured unit instead.
   await addLocationOnly(
@@ -1810,10 +1838,13 @@ const reserveArgs = (
 });
 const summary = (
   label: string,
-  stats: Parameters<typeof docsRead>[0] & { bytes: Record<string, number> },
+  stats: Parameters<typeof docsRead>[0] & {
+    bytes: Record<string, number>;
+    ranges: Record<string, number>;
+  },
   value: unknown,
 ) =>
-  `${label}: ${docsRead(stats)} docs, ${(bytesRead(stats) / 1024).toFixed(1)} KB read, ${(payloadBytes(value) / 1024).toFixed(1)} KB returned`;
+  `${label}: ${docsRead(stats)} docs, ${Object.values(stats.ranges).reduce((sum, n) => sum + n, 0)} index ranges, ${(bytesRead(stats) / 1024).toFixed(1)} KB read, ${(payloadBytes(value) / 1024).toFixed(1)} KB returned`;
 
 describe("recommendation list and zone detail", () => {
   it.each([true, false])(
@@ -1845,8 +1876,16 @@ describe("recommendation list and zone detail", () => {
         );
       // The list returns no per-zone geometry: a fraction of the full payload.
       expect(split.returned.list * 3).toBeLessThan(split.returned.full);
-      // A zone detail reads one zone, not the warehouse.
-      expect(docsRead(zone.stats) * 5).toBeLessThan(docsRead(full.stats));
+      // A zone detail reads one zone, not the warehouse: with derived rows,
+      // its surface and entries rows, no zone, position or location document.
+      if (derived) {
+        expect(zone.stats.rangeDocs["storageZoneSurfaces"]).toBe(1);
+        expect(zone.stats.rangeDocs["storageZoneOccupancyEntries"]).toBe(1);
+        expect(zone.stats.ranges["storagePositions"] ?? 0).toBe(0);
+        expect(zone.stats.gets["locations"] ?? 0).toBe(0);
+        expect(zone.stats.gets["storageZones"] ?? 0).toBe(0);
+      } else
+        expect(docsRead(zone.stats) * 5).toBeLessThan(docsRead(full.stats));
       expect(zone.stats.rangeDocs["storageZones"] ?? 0).toBe(0);
       expect(zone.stats.ranges["storageBuildings"] ?? 0).toBe(0);
       // Zones the list does not show have no detail.
@@ -1991,5 +2030,738 @@ describe("recommendation list and zone detail", () => {
     );
     expect((await preview({})).value).toBeNull();
     await expectSplitParity(seed, seed.probe);
+  }, 120000);
+});
+
+/** A document's fields as a tenant write takes them (no system fields, no orgId). */
+function tenantFieldsOf<
+  T extends { _id: unknown; _creationTime: number; orgId: unknown },
+>(doc: T) {
+  const { orgId, ...rest } = fields(doc);
+  void orgId;
+  return rest;
+}
+/** Every surface row without its run stamp and system fields, by zone. */
+const surfaceRows = (seed: ScaleSeed) =>
+  seed.world.t.run(async (ctx) =>
+    (await ctx.db.query("storageZoneSurfaces").collect())
+      .map((row) => {
+        const { _id, _creationTime, runId, ...fields } = row;
+        void _id;
+        void _creationTime;
+        void runId;
+        return fields;
+      })
+      .sort((a, b) => a.zoneId.localeCompare(b.zoneId)),
+  );
+const readinessRow = (seed: ScaleSeed) =>
+  seed.world.t.run(
+    async (ctx) =>
+      (await ctx.db.query("storageZoneOccupancyReadiness").collect())[0]!,
+  );
+/**
+ * The recommendation path without zone surfaces on the same snapshot:
+ * occupancy rows, the layout read from its documents (surface rows out of
+ * step), as code before surface rows read it.
+ */
+async function withoutSurfaces<T>(seed: ScaleSeed, read: () => Promise<T>) {
+  const row = await readinessRow(seed);
+  await seed.world.t.run((ctx) =>
+    ctx.db.patch(row._id, { layoutGeneration: -1 }),
+  );
+  try {
+    return await read();
+  } finally {
+    await seed.world.t.run((ctx) =>
+      ctx.db.patch(row._id, { layoutGeneration: row.layoutGeneration }),
+    );
+  }
+}
+const listArgs = (seed: ScaleSeed, palletId: string) => ({
+  warehouseId: seed.warehouseId,
+  palletId,
+  view: "list",
+});
+/** Rebuild every zone's rows in one run, 50 zones per transaction. */
+async function rebuildAll(seed: ScaleSeed) {
+  let result = await backfillStep(seed, { restart: true, batchSize: 50 });
+  while (!result.isDone)
+    result = await backfillStep(seed, {
+      cursor: result.continueCursor,
+      runId: result.runId,
+      batchSize: 50,
+    });
+  expect(result.ready).toBe(true);
+}
+/**
+ * The maintained rows equal rows rebuilt from scratch, readers use them, and
+ * the full and list recommendations equal the authoritative path's (the full
+ * payload carries every zone's preview fields).
+ */
+async function expectSurfaceParity(seed: ScaleSeed, palletId: string) {
+  const read = async () => ({
+    full: await measured(seed.world, recommend, {
+      warehouseId: seed.warehouseId,
+      palletId,
+    }),
+    list: await measured(seed.world, recommend, listArgs(seed, palletId)),
+  });
+  const derived = await read();
+  expect(derived.list.stats.ranges["storageZoneSurfaces"] ?? 0).toBeGreaterThan(
+    0,
+  );
+  await setOccupancyReady(seed, false);
+  const raw = await read();
+  await setOccupancyReady(seed, true);
+  expect(derived.full.value).toEqual(raw.full.value);
+  expect(derived.list.value).toEqual(raw.list.value);
+  const maintained = await surfaceRows(seed);
+  await rebuildAll(seed);
+  expect(await surfaceRows(seed)).toEqual(maintained);
+  return {
+    derived: { full: derived.full.value, list: derived.list.value },
+    raw: { full: raw.full.value, list: raw.list.value },
+  };
+}
+
+describe("zone surfaces", () => {
+  it("stay exact through every kind of tracked layout write", async () => {
+    // Layout only: stock adds nothing to these rows and slows every step.
+    const seed = await warehouseWorld(false);
+    expect(seed.simple.length).toBeGreaterThan(2);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    await expectSurfaceParity(seed, seed.probe);
+    const rack = seed.racks[0]!;
+    const zoneOf = (id: string) =>
+      seed.world.t.run(
+        async (ctx) => (await ctx.db.get(id as Id<"storageZones">))!,
+      );
+    const simple = await zoneOf(seed.simple[2]!);
+    const simpleLocation = await seed.world.t.run(
+      async (ctx) => (await ctx.db.get(simple.locationId))!,
+    );
+    const added: { zoneId?: Id<"storageZones"> } = {};
+    const steps: [string, (db: TenantDocumentAccess) => Promise<unknown>][] = [
+      [
+        "a cold area becomes dry and wider",
+        (db) =>
+          db.patch("storageZones", seed.cold[0]!, {
+            storageCondition: " dry ",
+            widthMm: 7000,
+          }),
+      ],
+      [
+        "an area is deactivated",
+        (db) =>
+          db.patch("storageZones", seed.simple[1]!, { status: "INACTIVE" }),
+      ],
+      [
+        "it is reactivated",
+        (db) => db.patch("storageZones", seed.simple[1]!, { status: "ACTIVE" }),
+      ],
+      [
+        "a rack position moves",
+        (db) =>
+          db.patch("storagePositions", rack.positions[1]!._id, { xMm: 2600 }),
+      ],
+      [
+        "a rack position is deactivated",
+        (db) =>
+          db.patch("storagePositions", rack.positions[4]!._id, {
+            status: "INACTIVE",
+          }),
+      ],
+      [
+        "a rack position is added",
+        (db) =>
+          db.insert("storagePositions", {
+            ...tenantFieldsOf(rack.positions[0]!),
+            code: `${rack.positions[0]!.code}-NEW`,
+            label: `${rack.positions[0]!.code}-NEW`,
+            xMm: 2600,
+            yMm: 1300,
+            elevationMm: 1500,
+          }),
+      ],
+      [
+        "a position's location is deactivated",
+        (db) =>
+          db.patch("locations", rack.positions[2]!.locationId, {
+            status: "INACTIVE",
+          }),
+      ],
+      [
+        "an area's location is deactivated",
+        (db) =>
+          db.patch("locations", simple.locationId, { status: "INACTIVE" }),
+      ],
+      [
+        "a building is archived",
+        (db) =>
+          db.patch("storageBuildings", seed.buildings[1]!, {
+            status: "ARCHIVED",
+          }),
+      ],
+      [
+        "it is activated again",
+        (db) =>
+          db.patch("storageBuildings", seed.buildings[1]!, {
+            status: "ACTIVE",
+          }),
+      ],
+      [
+        "an area is added",
+        async (db) => {
+          const locationId = await db.insert("locations", {
+            ...tenantFieldsOf(simpleLocation),
+            code: "L-ADDED",
+            status: "ACTIVE",
+          });
+          added.zoneId = (await db.insert("storageZones", {
+            ...tenantFieldsOf(simple),
+            locationId,
+            code: "A-ADDED",
+            label: "A-ADDED",
+            qrValue: "QR-ADDED",
+          })) as Id<"storageZones">;
+        },
+      ],
+      ["it is deleted", (db) => db.delete("storageZones", added.zoneId!)],
+    ];
+    const listed = async () =>
+      (
+        await measured<RecommendationPayload>(
+          seed.world,
+          recommend,
+          listArgs(seed, seed.probe),
+        )
+      ).value;
+    for (const [label, write] of steps) {
+      const before = await listed();
+      await trackedWrite(seed, write);
+      const { derived } = await expectSurfaceParity(seed, seed.probe);
+      // Every step changes what the probe is offered.
+      expect(derived.list, label).not.toEqual(before);
+    }
+    await expectSplitParity(seed, seed.probe);
+  }, 300000);
+
+  it("read one surface row and one entries row per compatible zone", async () => {
+    const seed = await warehouseWorld();
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const args = listArgs(seed, seed.probe);
+    const after = await measured<RecommendationPayload>(
+      seed.world,
+      recommend,
+      args,
+    );
+    const before = await withoutSurfaces(seed, () =>
+      measured<RecommendationPayload>(seed.world, recommend, args),
+    );
+    expect(after.value).toEqual(before.value);
+    // The dry probe: cold areas cannot match, so they are not read at all.
+    const compatible = seed.simple.length + seed.racks.length;
+    expect(after.stats.rangeDocs["storageZoneSurfaces"]).toBe(compatible);
+    expect(after.stats.rangeDocs["storageZoneOccupancyEntries"]).toBe(
+      compatible,
+    );
+    expect(after.stats.ranges["storageZoneOccupancy"] ?? 0).toBe(0);
+    expect(after.stats.ranges["storageZones"] ?? 0).toBe(0);
+    expect(after.stats.ranges["storagePositions"] ?? 0).toBe(0);
+    expect(after.stats.gets["locations"] ?? 0).toBe(0);
+    expect(before.stats.rangeDocs["storageZones"]).toBeGreaterThan(compatible);
+    // Nothing fits a pallet taller than every surface: reasons need every
+    // zone, mismatched ones included, and stay identical.
+    const tall = await seed.world.t.run((ctx) =>
+      ctx.db.insert("finishedGoodsPallets", {
+        ...seed.audit,
+        productId: seed.productId,
+        code: "PAL-TALL",
+        quantity: 1,
+        lengthMm: 1000,
+        widthMm: 1000,
+        heightMm: 9000,
+        status: "AWAITING_PLACEMENT",
+      }),
+    );
+    const tallAfter = await measured<RecommendationPayload>(
+      seed.world,
+      recommend,
+      listArgs(seed, tall),
+    );
+    const tallBefore = await withoutSurfaces(seed, () =>
+      measured<RecommendationPayload>(
+        seed.world,
+        recommend,
+        listArgs(seed, tall),
+      ),
+    );
+    expect(tallAfter.value).toEqual(tallBefore.value);
+    expect(tallAfter.value.candidates).toEqual([]);
+    expect(tallAfter.value.reasons).toContain("STORAGE_CONDITION_MISMATCH");
+    expect(tallAfter.stats.rangeDocs["storageZoneSurfaces"]).toBe(
+      compatible * 2 + seed.cold.length,
+    );
+    const zone = await measured(seed.world, recommendationZone, {
+      warehouseId: seed.warehouseId,
+      palletId: seed.probe,
+      zoneId: seed.racks[0]!.zoneId,
+    });
+    const zoneBefore = await withoutSurfaces(seed, () =>
+      measured(seed.world, recommendationZone, {
+        warehouseId: seed.warehouseId,
+        palletId: seed.probe,
+        zoneId: seed.racks[0]!.zoneId,
+      }),
+    );
+    expect(zone.value).toEqual(zoneBefore.value);
+    console.info(
+      [
+        summary(
+          "list, layout documents",
+          before.stats,
+          before.value,
+        ),
+        summary("list, zone surfaces", after.stats, after.value),
+        summary(
+          "nothing fits, layout documents",
+          tallBefore.stats,
+          tallBefore.value,
+        ),
+        summary(
+          "nothing fits, zone surfaces",
+          tallAfter.stats,
+          tallAfter.value,
+        ),
+        summary(
+          "rack zone detail, layout documents",
+          zoneBefore.stats,
+          zoneBefore.value,
+        ),
+        summary("rack zone detail, zone surfaces", zone.stats, zone.value),
+      ].join("\n"),
+    );
+    expect(docsRead(after.stats) * 2).toBeLessThan(docsRead(before.stats));
+    expect(docsRead(zone.stats)).toBeLessThan(docsRead(zoneBefore.stats));
+  }, 120000);
+
+  it("re-run the list for writes in zones that can hold the pallet, not in mismatched ones", async () => {
+    const seed = await warehouseWorld();
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const args = listArgs(seed, seed.probe);
+    const after = await measured(seed.world, recommend, args);
+    const before = await withoutSurfaces(seed, () =>
+      measured(seed.world, recommend, args),
+    );
+    // A cold product's pallet, reserved into a cold area.
+    const coldPallet = await seed.world.t.run(async (ctx) => {
+      const productId = await ctx.db.insert("finishedGoodsProducts", {
+        ...seed.audit,
+        sku: "SKU-COLD",
+        name: "Cold boxes",
+        unit: "pieces",
+        storageFormat: "PALLET",
+        storageCondition: "COLD",
+        status: "ACTIVE",
+      });
+      return ctx.db.insert("finishedGoodsPallets", {
+        ...seed.audit,
+        productId,
+        code: "PAL-COLD",
+        quantity: 1,
+        lengthMm: 1000,
+        widthMm: 1000,
+        heightMm: 1000,
+        status: "AWAITING_PLACEMENT",
+      });
+    });
+    const coldTarget = (
+      await measured<Recommended>(seed.world, recommend, {
+        warehouseId: seed.warehouseId,
+        palletId: coldPallet,
+      })
+    ).value.candidates.find((c) => (seed.cold as string[]).includes(c.zoneId))!;
+    expect(coldTarget).toBeDefined();
+    const cold = await recordWrites(
+      seed.world,
+      reserve,
+      reserveArgs(seed, coldPallet, "reserve-cold", coldTarget),
+    );
+    // A dry pallet reserved into an area the probe can use.
+    const dryTarget = (
+      await measured<Recommended>(seed.world, recommend, {
+        warehouseId: seed.warehouseId,
+        palletId: seed.other,
+      })
+    ).value.candidates.find((c) => c.zoneId === (seed.simple[3] as string))!;
+    const dry = await recordWrites(
+      seed.world,
+      reserve,
+      reserveArgs(seed, seed.other, "reserve-dry", dryTarget),
+    );
+    const tables = (readSet: ReadSet, writes: typeof cold.writes) =>
+      [...new Set(rerunsOn(readSet, writes).map((w) => w.table))].sort();
+    const reruns = {
+      coldBefore: tables(before.readSet, cold.writes),
+      coldAfter: tables(after.readSet, cold.writes),
+      dryBefore: tables(before.readSet, dry.writes),
+      dryAfter: tables(after.readSet, dry.writes),
+    };
+    console.info(`list re-runs by write: ${JSON.stringify(reruns)}`);
+    // Iteration 7 read every zone's occupancy, so a reservation in a cold
+    // area re-ran the dry list; it no longer does.
+    expect(reruns.coldBefore).toEqual(["storageZoneOccupancy"]);
+    expect(reruns.coldAfter).toEqual([]);
+    // A reservation in an area the probe can use changes what it is offered.
+    expect(reruns.dryBefore).toEqual(["storageZoneOccupancyEntries"]);
+    expect(reruns.dryAfter).toEqual(["storageZoneOccupancyEntries"]);
+  }, 120000);
+
+  it("are distrusted after layout writes by code that does not maintain them", async () => {
+    const seed = await warehouseWorld();
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const args = listArgs(seed, seed.probe);
+    const trusted = await measured<RecommendationPayload>(
+      seed.world,
+      recommend,
+      args,
+    );
+    // Code that predates surface rows: its tracked layout write advances the
+    // layout generation but leaves the surface rows as they were.
+    await seed.world.t.run(async (ctx) => {
+      await ctx.db.patch(seed.cold[0]!, { storageCondition: "DRY" });
+      const signal = (
+        await ctx.db.query("storageCatalogueSignals").collect()
+      ).find((row) => row.warehouseId === seed.warehouseId)!;
+      await ctx.db.patch(signal._id, { generation: signal.generation + 1 });
+    });
+    const distrusted = await measured<RecommendationPayload>(
+      seed.world,
+      recommend,
+      args,
+    );
+    expect(distrusted.stats.ranges["storageZoneSurfaces"] ?? 0).toBe(0);
+    expect(distrusted.value).not.toEqual(trusted.value);
+    expect(
+      distrusted.value.candidates.some(
+        (c) => c.zoneId === (seed.cold[0] as string),
+      ),
+    ).toBe(true);
+    await expectOccupancyParity(seed, seed.probe);
+    // The hourly sweep restarts the backfill; then the rows are trusted again.
+    const started = await seed.world.t.run((ctx) =>
+      (
+        sweepZoneOccupancy as unknown as {
+          _handler(
+            ctx: GenericMutationCtx<DataModel>,
+            args: unknown,
+          ): Promise<{ started: number }>;
+        }
+      )._handler(ctx, {}),
+    );
+    expect(started.started).toBeGreaterThan(0);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const rebuilt = await expectSurfaceParity(seed, seed.probe);
+    expect(rebuilt.derived.list).toEqual(distrusted.value);
+  }, 120000);
+
+  it("defer a layout change too large for one transaction, exact meanwhile", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, SURFACE_REFRESH_ZONE_BUDGET + 5);
+    await addPallets(seed, 3);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    await expectSurfaceParity(seed, upper);
+    const zones = await seed.world.t.run((ctx) =>
+      ctx.db.query("storageZones").collect(),
+    );
+    expect(zones.length).toBeGreaterThan(SURFACE_REFRESH_ZONE_BUDGET);
+    // One mutation relabels every area and dries the cold ones.
+    await trackedWrite(seed, async (db) => {
+      for (const zone of zones)
+        await db.patch("storageZones", zone._id, {
+          label: `${zone.label}!`,
+          storageCondition: "DRY",
+        });
+    });
+    expect(await readinessRow(seed)).toMatchObject({
+      ready: false,
+      stale: true,
+    });
+    // Readers use the layout until the rebuild: exact, and the change shows.
+    const meanwhile = await measured<RecommendationPayload>(
+      seed.world,
+      recommend,
+      listArgs(seed, upper),
+    );
+    expect(meanwhile.stats.ranges["storageZoneSurfaces"] ?? 0).toBe(0);
+    expect(meanwhile.value.candidates.length).toBe(zones.length);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    await expectSurfaceParity(seed, upper);
+    // Likewise a mutation writing more locations than the budget.
+    const locations = await seed.world.t.run((ctx) =>
+      ctx.db.query("locations").collect(),
+    );
+    expect(locations.length).toBeLessThanOrEqual(
+      SURFACE_REFRESH_LOCATION_BUDGET,
+    );
+  }, 300000);
+
+  it("serve stack facts from occupancy, exact for moving and occupied supports", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 2);
+    const target = await seed.world.t.run(async (ctx) => {
+      const zone = (await ctx.db.query("storageZones").collect())[1]!;
+      await ctx.db.patch(zone._id, { storageCondition: "DRY" });
+      return zone;
+    });
+    await addPallets(seed, 5);
+    await linkPlacements(seed);
+    const pallets = new Map(
+      (
+        await seed.world.t.run(async (ctx) => {
+          const all = await ctx.db.query("finishedGoodsPallets").collect();
+          for (const pallet of all)
+            await ctx.db.patch(pallet._id, {
+              stackable: true,
+              maxStackLevels: 3,
+            });
+          return all;
+        })
+      ).map((pallet) => [pallet.code, pallet]),
+    );
+    const probe = await measuredPallet(seed, "PAL-PROBE");
+    const other = await measuredPallet(seed, "PAL-OTHER");
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const blockedReasons = (value: unknown) =>
+      new Set(
+        (
+          value as {
+            candidates: { previewSupports: { blockedReason?: string }[] }[];
+          }
+        ).candidates.flatMap((c) =>
+          c.previewSupports.flatMap((s) =>
+            s.blockedReason ? [s.blockedReason] : [],
+          ),
+        ),
+      );
+    // PAL-4 starts moving to the other area.
+    const moving = pallets.get("PAL-4")!;
+    const destination = (
+      await measured<Recommended>(seed.world, recommendMove, {
+        warehouseId: seed.warehouseId,
+        palletId: moving._id,
+      })
+    ).value.candidates.find((c) => c.zoneId === target._id)!;
+    accepted(
+      await call(seed.world, reserveMove, {
+        warehouseId: seed.warehouseId,
+        palletId: moving._id,
+        requestId: "facts-move",
+        zoneId: destination.zoneId,
+        xMm: destination.xMm,
+        yMm: destination.yMm,
+        rotation: destination.rotation,
+        expectedSourcePlacementId: moving.placementId,
+      }),
+    );
+    // Another pallet is reserved on top of PAL-3.
+    const onTop = (
+      await measured<Recommended>(seed.world, recommend, {
+        warehouseId: seed.warehouseId,
+        palletId: other,
+      })
+    ).value.candidates.find(
+      (c) => c.supportPalletId === pallets.get("PAL-3")!._id,
+    )!;
+    expect(onTop).toBeDefined();
+    accepted(
+      await call(
+        seed.world,
+        reserve,
+        reserveArgs(seed, other, "facts-stack", onTop),
+      ),
+    );
+    const blocked = await expectOccupancyParity(seed, probe);
+    const reasons = blockedReasons(blocked.derived.values.recommendation);
+    expect(reasons).toContain("STACK_SUPPORT_MOVING");
+    expect(reasons).toContain("STACK_SUPPORT_OCCUPIED");
+    // The list asks no move or stack range of the supports in derived rows.
+    const args = listArgs(seed, probe);
+    const derived = await measured(seed.world, recommend, args);
+    await setOccupancyReady(seed, false);
+    const raw = await measured(seed.world, recommend, args);
+    await setOccupancyReady(seed, true);
+    expect(derived.value).toEqual(raw.value);
+    expect(derived.stats.ranges["finishedGoodsMoves"] ?? 0).toBe(0);
+    expect(raw.stats.ranges["finishedGoodsMoves"]).toBeGreaterThan(4);
+    console.info(
+      `stack facts: list index ranges ${JSON.stringify({
+        raw: {
+          finishedGoodsMoves: raw.stats.ranges["finishedGoodsMoves"],
+          finishedGoodsPlacements: raw.stats.ranges["finishedGoodsPlacements"],
+        },
+        derived: {
+          finishedGoodsMoves: derived.stats.ranges["finishedGoodsMoves"] ?? 0,
+          finishedGoodsPlacements:
+            derived.stats.ranges["finishedGoodsPlacements"] ?? 0,
+        },
+      })}`,
+    );
+    // Both clear through tracked writes, and the facts follow.
+    const move = await seed.world.t.run(
+      async (ctx) => (await ctx.db.query("finishedGoodsMoves").collect())[0]!,
+    );
+    accepted(
+      await call(seed.world, cancelMove, {
+        warehouseId: seed.warehouseId,
+        palletId: moving._id,
+        requestId: "facts-move-cancel",
+        moveId: move._id,
+      }),
+    );
+    accepted(
+      await call(seed.world, cancelReservation, {
+        warehouseId: seed.warehouseId,
+        palletId: other,
+        requestId: "facts-stack-cancel",
+      }),
+    );
+    const cleared = await expectOccupancyParity(seed, probe);
+    const after = blockedReasons(cleared.derived.values.recommendation);
+    expect(after).not.toContain("STACK_SUPPORT_MOVING");
+    expect(after).not.toContain("STACK_SUPPORT_OCCUPIED");
+  }, 120000);
+
+  it("ignore entries rows of an earlier version and rebuild them on the next write", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 2);
+    await addPallets(seed, 6);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const current = await expectOccupancyParity(seed, upper);
+    const entries = await seed.world.t.run(async (ctx) =>
+      (await ctx.db.query("storageZoneOccupancyEntries").collect()).find(
+        (row) => row.zoneId === seed.zone._id,
+      ),
+    );
+    // A row as code before the projection wrote it: whole placement copies.
+    await seed.world.t.run(async (ctx) => {
+      const placements = await ctx.db
+        .query("finishedGoodsPlacements")
+        .withIndex("by_orgId_zoneId_status", (q) =>
+          q.eq("orgId", seed.world.orgA).eq("zoneId", seed.zone._id),
+        )
+        .collect();
+      await ctx.db.replace(entries!._id, {
+        orgId: entries!.orgId,
+        warehouseId: entries!.warehouseId,
+        zoneId: entries!.zoneId,
+        version: 1,
+        complete: true,
+        placements,
+        pallets: entries!.pallets,
+      });
+    });
+    const old = await expectOccupancyParity(seed, upper);
+    expect(old.derived.values).toEqual(current.derived.values);
+    expect(old.derived.docs.inventory).toBeGreaterThan(
+      current.derived.docs.inventory,
+    );
+    await reserveFirst(seed, upper, "reserve-after-old-row");
+    expect(
+      await seed.world.t.run(async (ctx) => ctx.db.get(entries!._id)),
+    ).toMatchObject({ version: 2, buildingId: seed.building._id });
+    await expectOccupancyParity(seed, upper);
+  }, 120000);
+
+  it("cut the bytes of entries rows, the inventory and a reservation's writes", async () => {
+    const seed = await warehouseWorld();
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const building = {
+      warehouseId: seed.warehouseId,
+      buildingId: seed.building._id,
+    };
+    const derived = await measured(
+      seed.world,
+      getStorageBuildingInventory,
+      building,
+    );
+    // The same rows as version 1 stored them: whole placement copies and
+    // full pallet facts.
+    type EntriesLike = Record<string, unknown> & {
+      placements: { _id: string }[];
+      pallets: { _id: string }[];
+    };
+    const versionOne = async (
+      ctx: GenericMutationCtx<DataModel>,
+      row: EntriesLike,
+    ) =>
+      payloadBytes({
+        ...row,
+        placements: await Promise.all(
+          row.placements.map((p) =>
+            ctx.db.get(p._id as Id<"finishedGoodsPlacements">),
+          ),
+        ),
+        pallets: await Promise.all(
+          row.pallets.map(async (p) =>
+            palletFacts(
+              (await ctx.db.get(p._id as Id<"finishedGoodsPallets">))!,
+            ),
+          ),
+        ),
+      });
+    const { projected, copies } = await seed.world.t.run(async (ctx) => {
+      let projected = 0;
+      let copies = 0;
+      for (const row of await ctx.db
+        .query("storageZoneOccupancyEntries")
+        .collect()) {
+        projected += payloadBytes(row);
+        copies += await versionOne(ctx, row as unknown as EntriesLike);
+      }
+      return { projected, copies };
+    });
+    await setOccupancyReady(seed, false);
+    const raw = await measured(
+      seed.world,
+      getStorageBuildingInventory,
+      building,
+    );
+    await setOccupancyReady(seed, true);
+    expect(derived.value).toEqual(raw.value);
+    console.info(
+      [
+        `entries rows: ${(projected / 1024).toFixed(1)} KB (version 1: ${(copies / 1024).toFixed(1)} KB)`,
+        summary("inventory, placements", raw.stats, raw.value),
+        summary("inventory, entries rows", derived.stats, derived.value),
+      ].join("\n"),
+    );
+    expect(projected * 10).toBeLessThan(copies * 6);
+    // A reservation rewrites its zone's rows: the entries row is the bulk.
+    const target = (
+      await measured<Recommended>(seed.world, recommend, {
+        warehouseId: seed.warehouseId,
+        palletId: seed.other,
+      })
+    ).value.candidates.find((c) => c.zoneId === (seed.simple[3] as string))!;
+    const { writes } = await recordWrites(
+      seed.world,
+      reserve,
+      reserveArgs(seed, seed.other, "reserve-bytes", target),
+    );
+    const written = writes.find(
+      (w) => w.table === "storageZoneOccupancyEntries",
+    )!;
+    const asCopies = await seed.world.t.run((ctx) =>
+      versionOne(ctx, written.after as EntriesLike),
+    );
+    console.info(
+      `reservation's entries write: ${(payloadBytes(written.after) / 1024).toFixed(1)} KB (version 1: ${(asCopies / 1024).toFixed(1)} KB)`,
+    );
+    expect(payloadBytes(written.after) * 10).toBeLessThan(asCopies * 6);
   }, 120000);
 });
