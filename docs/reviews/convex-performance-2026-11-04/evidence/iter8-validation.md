@@ -49,7 +49,7 @@ The read-cost fixture's 50-employee traversal now finishes in one request;
 the former empty follow-up (12 queries / 10 documents) is eliminated. These
 are convex-test counts, not real-engine billing measurements.
 
-## Incomplete full-suite validation
+## Full-suite validation: two unresolved failures
 
 The initial full-suite run was stopped after the confirmed roster regression.
 It is not a passing run. Two catalogue-search cases exceeded the default
@@ -62,7 +62,14 @@ The same source files are unchanged from `80dc0a93`; baseline isolated and
 full-file runs passed. This is an unresolved intermittent test failure, not
 proof of a backend regression or proof that the entire suite passes.
 
-A full rerun at `47366fcc`, including all Vitest projects, is in progress:
+The full rerun (backend/test source frozen at `47366fcc`) completed in
+2,495 seconds: **415 files passed, 2 failed; 5,704 tests passed, 2 failed**.
+The second failure is DesktopShell mobile-menu focus restoration. Both its
+candidate and baseline isolated cases passed, and the relevant source is
+unchanged from baseline. Neither isolated pass erases the full-suite failure.
+Logs: `iter8-shell-diagnostic.log`, baseline `iter8-baseline-shell.log`.
+
+Command:
 
 ```sh
 SEARCH_INDEX_TEST_TIMEOUT_MS=3600000 pnpm exec vitest run \
@@ -90,9 +97,20 @@ read-only occupancy health call verified that transport on the local backend.
 Setup remains sequential; each page retains its own backend transaction,
 batch size, run ownership and readiness checks. Syntax, formatting and focused
 ESLint pass. The new run restores both datasets again, logs page progress,
-and then starts the same 300-needle comparison. Its final result remains pending.
+and then starts the same 300-needle comparison.
+
+That HTTP setup also failed at a ten-row search backfill page with the same
+one-second execution timeout, before parity started. `a6fd4698` retries only
+this explicit timeout on the identical run/cursor, halving the batch until
+one row. A one-row timeout or any other error still aborts. The failed mutation
+is atomic, so no failed page is skipped. This is a setup accommodation, not
+evidence that the production default backfill batch is safe under this load.
+The adaptive setup completed. Real-engine search parity then compared
+**537 needle/filter traversals across 300 needles with zero mismatches**.
+Candidate used 7,905 requests versus baseline 11,963 on identical restored L
+snapshots. These are traversal request counts, not execution-cost totals.
+Full metadata and limitations are in `iter8-search-parity.json`.
 
 ESLint passed before the follow-up. Formatting and focused ESLint passed for
 the roster repair. Full ESLint and `pnpm exec tsc --noEmit -p
-convex/tsconfig.json` both passed again at `47366fcc`. This does not turn the
-incomplete full-suite run or pending real-engine parity into a pass.
+convex/tsconfig.json` both passed again at `47366fcc`. The full-suite result remains two failures, as reported above.
