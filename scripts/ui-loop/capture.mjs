@@ -323,6 +323,8 @@ async function captureOne(browser, auth, screen, locale, theme, vpName) {
           return { locator: c.locator, box };
         }),
       );
+    // Capture the requested state, not the incidental hover left by a setup click.
+    await page.mouse.move(0, 0);
     await page.screenshot({
       path: join(out, `${name}.png`),
       fullPage: screen.fullPage ?? false,

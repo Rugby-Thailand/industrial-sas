@@ -45,7 +45,7 @@ export function LocaleSwitcher() {
       pending={isPending}
       onClick={choose}
       data-testid="locale-select"
-      className="shrink-0 px-3 font-medium text-muted hover:text-text"
+      className="shrink-0 px-2 font-medium text-muted hover:text-text sm:px-3"
     >
       <span className="sr-only">{t("switchTo")}</span>{" "}
       <span lang={next}>{LANGUAGE_NAMES[next]}</span>

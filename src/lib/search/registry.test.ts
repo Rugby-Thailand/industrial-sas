@@ -183,6 +183,15 @@ describe("menu matching", () => {
     expect(keys("สแกนใบงาน")[0]).toBe("planner.jobScan");
   });
 
+  it("identifies the alias behind a match without changing its rank", () => {
+    const [match] = matchDestinations("holiday", all, () => "Unrelated title");
+    expect(match?.matchedAlias).toBe("holiday");
+    expect(match?.destination.key).toBe("hr.settings.holidays");
+    expect(
+      matchDestinations("holiday", all, () => "holiday")[0]?.matchedAlias,
+    ).toBeUndefined();
+  });
+
   it("hides destinations without permission", () => {
     expect(keys("วันหยุด", [HR_PERMISSION.selfAccess])).toEqual([
       "hr.holidays",

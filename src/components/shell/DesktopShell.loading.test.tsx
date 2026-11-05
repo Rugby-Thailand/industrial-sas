@@ -206,8 +206,9 @@ describe("shell connection status", () => {
       "Waiting for connection…",
     );
     expect(sidebar).not.toHaveTextContent("Loading");
-    expect(within(header).getByTestId("header-brand-loading")).not.toHaveClass(
-      "animate-pulse",
+    expect(within(header).queryByTestId("header-brand-loading")).toBeNull();
+    expect(within(header).getByTestId("header-brand")).toHaveTextContent(
+      "Waiting for connection…",
     );
   });
 });

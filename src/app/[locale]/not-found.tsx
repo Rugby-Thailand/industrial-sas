@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
@@ -20,32 +21,31 @@ export default async function LocaleNotFound() {
   const app = await getTranslations("App");
 
   return (
-    <main
-      data-testid="not-found"
-      className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-2 p-6"
-    >
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p
-          className="text-base font-semibold text-text"
-          data-testid="not-found-brand"
-        >
+    <div className="min-h-dvh bg-canvas text-text">
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 sm:px-6">
+        <p className="text-base font-semibold" data-testid="not-found-brand">
           {app("name")}
         </p>
-        {/* Its label, not its padding, lines up with the text below. */}
-        <div className="-mr-3">
+        <div className="flex items-center gap-1 sm:gap-2">
           <LocaleSwitcher />
+          <ThemeToggle />
         </div>
-      </div>
-      <PageHeader
-        backFallbackHref={null}
-        title={t("title")}
-        summary={t("body")}
-      />
-      <Button asChild className="w-fit">
-        <Link href={ROUTES.storageLayouts} data-testid="not-found-action">
-          {t("action")}
-        </Link>
-      </Button>
-    </main>
+      </header>
+      <main
+        data-testid="not-found"
+        className="mx-auto max-w-xl px-6 pt-16 pb-8 sm:pt-[16vh]"
+      >
+        <PageHeader
+          backFallbackHref={null}
+          title={t("title")}
+          summary={t("body")}
+        />
+        <Button asChild className="w-fit">
+          <Link href={ROUTES.storageLayouts} data-testid="not-found-action">
+            {t("action")}
+          </Link>
+        </Button>
+      </main>
+    </div>
   );
 }

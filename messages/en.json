@@ -204,7 +204,7 @@
     "retry": "Try again",
     "hint": "The app hit a problem while showing this page. Try again, or start over from another page.",
     "pageTitle": "This page could not be opened",
-    "pageCause": "Its data didn't load. This may be temporary.",
+    "pageCause": "This page's data didn't load. This may be temporary.",
     "pageHint": "Nothing you saved is affected. If it still won't open, tell your organization administrator and quote the reference below.",
     "goTo": "Go to {destination}",
     "goToStart": "Go to start page",

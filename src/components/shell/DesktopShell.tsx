@@ -39,6 +39,7 @@ import {
   HeaderWarehouse,
   WorkspaceContextBar,
 } from "@/components/shell/WorkspaceContextBar";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { Button } from "@/components/ui/button";
 import type { SheetCompletionHandle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -164,6 +165,7 @@ function NavigationDisclosure({
       variant="ghost"
       size="icon"
       data-slot="sidebar-trigger"
+      className="aria-expanded:bg-transparent"
       onClick={toggleSidebar}
       aria-label={label}
       title={label}
@@ -192,9 +194,11 @@ function NavigationDisclosure({
  */
 function HeaderBrand() {
   const name = useOrganizationName();
+  const waiting = useConnectionStall() !== null;
+  const t = useTranslations("App");
   return (
     <div className="min-w-0 flex-1 px-1" data-testid="header-brand">
-      {name === undefined ? (
+      {name === undefined && !waiting ? (
         <Skeleton
           aria-hidden="true"
           className="h-5 w-40 max-w-full"
@@ -205,7 +209,7 @@ function HeaderBrand() {
           className="truncate text-sm font-semibold text-text sm:text-base"
           title={name}
         >
-          {name}
+          {name ?? t("waitingForConnection")}
         </p>
       )}
       <HeaderWarehouse />

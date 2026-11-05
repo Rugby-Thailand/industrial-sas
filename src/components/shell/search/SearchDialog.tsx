@@ -397,6 +397,7 @@ function SearchBody({
     )
       return;
     setQuery(text);
+    setActive({ query: text, id: null });
     onModeChange("AI");
     void ai.run(text);
     // The chosen row gives way to the progress row; typing, arrows and
@@ -842,6 +843,7 @@ function ResultOption({
     ? [
         result.detail === undefined ? null : "detail",
         result.id === ASK_ID ? "privacy" : null,
+        place && result.trail ? "aside" : null,
       ]
     : [
         aside === "" ? null : "aside",
@@ -853,7 +855,6 @@ function ResultOption({
     .filter(Boolean)
     .map((note) => `${id}-${note}`)
     .join(" ");
-  const named = !place;
   return (
     // Options are activated from the combobox (Enter) or by pointer.
     <div
@@ -874,10 +875,8 @@ function ResultOption({
           : "hover:bg-raised",
         disabled && "cursor-default opacity-80 hover:bg-transparent",
       )}
-      {...(named ? { "aria-labelledby": `${id}-title` } : {})}
-      {...(named && describedBy !== ""
-        ? { "aria-describedby": describedBy }
-        : {})}
+      aria-labelledby={`${id}-title`}
+      {...(describedBy !== "" ? { "aria-describedby": describedBy } : {})}
       {...(result.id === ASK_ID ? { "data-testid": "global-search-ai" } : {})}
     >
       {result.group === "ASK" ? (
@@ -908,10 +907,15 @@ function ResultOption({
         </>
       ) : place ? (
         <>
-          <span className="min-w-0 flex-1 font-medium break-words text-text">
+          <span
+            id={`${id}-title`}
+            className="min-w-0 flex-1 font-medium break-words text-text"
+          >
             {result.title}
           </span>
-          <span className="shrink-0 text-xs text-muted">{result.trail}</span>
+          <span id={`${id}-aside`} className="shrink-0 text-xs text-muted">
+            {result.trail}
+          </span>
         </>
       ) : (
         <>
@@ -940,7 +944,7 @@ function ResultOption({
               id={`${id}-detail`}
               className="text-xs break-words text-muted"
             >
-              {result.detail}
+              <Highlighted text={result.detail} query={query} />
             </span>
           ) : null}
           {result.action ? (
@@ -977,14 +981,17 @@ function AiRunning({ onCancel }: { readonly onCancel: () => void }) {
   const t = useTranslations("Search");
   return (
     <div
-      className="flex min-h-touch items-center gap-3 px-3 dense:min-h-control"
+      className="flex min-h-touch items-start gap-3 px-3 py-2 dense:min-h-control"
       data-testid="global-search-ai-running"
     >
-      <Spinner aria-hidden="true" className="text-link" />
+      <Spinner aria-hidden="true" className="mt-1 shrink-0 text-link" />
       {/* Only the words are announced; Cancel stays out of the region. */}
-      <p role="status" className="min-w-0 flex-1 text-sm text-text">
-        {t("aiRunning")}
-      </p>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p role="status" className="text-sm text-text">
+          {t("aiRunning")}
+        </p>
+        <p className="text-xs text-muted">{t("aiScope")}</p>
+      </div>
       <Button type="button" size="sm" variant="outline" onClick={onCancel}>
         {t("aiCancel")}
       </Button>

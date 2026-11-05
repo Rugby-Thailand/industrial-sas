@@ -134,7 +134,7 @@ describe("desktop page error boundary", () => {
         screen.getByRole("link", { name: `Go to ${hub}` }),
       ).toHaveAttribute("href", href);
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Its data didn't load. This may be temporary.",
+        "This page's data didn't load. This may be temporary.",
       );
       expect(screen.getByRole("alert")).not.toHaveTextContent(hub);
     },

@@ -1006,10 +1006,11 @@
       "targets": [
         "src/components/shell/LocaleSwitcher#LocaleSwitcher",
         "src/components/ui/PageHeader#PageHeader",
+        "src/components/ui/theme-toggle#ThemeToggle",
         "src/components/ui/button#Button",
         "src/i18n/navigation#Link"
       ],
-      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page. The wordmark's language button replaces the entry with the same path, query and hash in the other locale, adding no history entry.",
+      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page. The wordmark's language button replaces the entry with the same path, query and hash in the other locale, adding no history entry. The header theme toggle is a visual preference and creates no history entry.",
       "tests": ["src/app/[locale]/not-found.test.tsx"],
       "cases": [
         {

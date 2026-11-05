@@ -310,18 +310,21 @@ export function useStaticResults(
       0,
       12,
     );
-    const results: SearchResult[] = matches.map(({ destination }) => ({
-      id: `static-${destination.key}`,
-      group: destination.kind === "TASK" ? "TASKS" : "PAGES",
-      title: labels.label(destination),
-      // Where it sits, without repeating the title.
-      trail: labels.trailOf(destination.key, -1),
-      ...(destination.kind === "SECTION"
-        ? { action: t("actionOpenSection") }
-        : {}),
-      ...(destination.href === pathname ? { current: true } : {}),
-      target: { key: destination.key },
-    }));
+    const results: SearchResult[] = matches.map(
+      ({ destination, matchedAlias }) => ({
+        id: `static-${destination.key}`,
+        group: destination.kind === "TASK" ? "TASKS" : "PAGES",
+        title: labels.label(destination),
+        ...(matchedAlias === undefined ? {} : { detail: matchedAlias }),
+        // Where it sits, without repeating the title.
+        trail: labels.trailOf(destination.key, -1),
+        ...(destination.kind === "SECTION"
+          ? { action: t("actionOpenSection") }
+          : {}),
+        ...(destination.href === pathname ? { current: true } : {}),
+        target: { key: destination.key },
+      }),
+    );
     // "ลืมลงเวลาเมื่อวาน": a correction task with an explicit date opens the
     // member's OWN day. A query that also names someone ("ลืมลงเวลา EMP-002
     // เมื่อวาน", "…สมชาย…") is about that person, so no own-day link.

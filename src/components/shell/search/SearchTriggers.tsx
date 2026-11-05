@@ -97,7 +97,7 @@ export function SidebarSearchTriggers({
           {...(collapsed ? { tooltip: searchLabel } : {})}
           className={sidebarRowClassName(
             collapsed,
-            "border border-sidebar-border/60 bg-raised text-muted",
+            "border border-input bg-surface text-muted",
           )}
           data-testid="sidebar-search"
         >

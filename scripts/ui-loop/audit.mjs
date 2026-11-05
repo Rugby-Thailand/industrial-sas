@@ -80,6 +80,7 @@ function prompt(group) {
   return `You are an independent senior UI auditor for Yongkit (โยงกิจ), a Thai-first industrial web app (Next.js). This is a blind audit: you have no implementer notes and no earlier scores. Judge only what the evidence shows.
 
 Stage ${args.stage}: ${spec.title}. Module: ${spec.module}.
+This is one image group in a full-stage audit. Other groups cover the other screens; do not infer they are absent. Apply D9: missing interaction/state evidence is coverage, never a deduction from the dimensions of a captured state. Each dimension below 9 should be explained by concrete UI evidence on that screen, not a generic reservation about unshown states. Grade honestly; these instructions do not prescribe a score.
 
 ## Read first (read-only; you may open any file in this repository)
 - Rubric (binding): ${PLAN}/rubric.md

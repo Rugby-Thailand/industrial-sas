@@ -17,6 +17,8 @@ import {
 export interface DestinationMatch {
   readonly destination: StaticDestination;
   readonly score: number;
+  /** The alias responsible for the match, when it outranks the label. */
+  readonly matchedAlias?: string;
 }
 
 const within1 = (a: string, b: string): boolean => {
@@ -86,10 +88,21 @@ export function matchDestinations(
       continue;
     const name = label(destination);
     let score = scoreText(name, needle, 100);
-    for (const alias of destination.aliases)
-      score = Math.max(score, scoreText(alias, needle, 90));
+    let matchedAlias: string | undefined;
+    for (const alias of destination.aliases) {
+      const aliasScore = scoreText(alias, needle, 90);
+      if (aliasScore > score) {
+        score = aliasScore;
+        matchedAlias = alias;
+      }
+    }
     if (score === 0) score = typoScore([name, ...destination.aliases], needle);
-    if (score > 0) matches.push({ destination, score });
+    if (score > 0)
+      matches.push({
+        destination,
+        score,
+        ...(matchedAlias === undefined ? {} : { matchedAlias }),
+      });
   }
   return matches.sort(
     (a, b) =>

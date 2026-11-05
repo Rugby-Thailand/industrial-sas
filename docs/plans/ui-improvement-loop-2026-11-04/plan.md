@@ -81,6 +81,8 @@ capture ─▶ audit ─▶ triage ─▶ implement ─▶ verify ─▶ commit 
 
 ## Gates and stopping rules
 
+**Owner continuation, 2026-11-05:** “continue until we get 9/10 on both model.” For Stage 1 this supersedes the loop-budget and plateau stops below. Continue with Codex Sol 6.1 and Opus 5.5 through Kiro CLI until both independently score every screen at least 9. The frozen rubric, blind reviews and evidence requirements remain unchanged.
+
 | Rule                           | Action                                                                                                                                                                                                                                                           |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase 1 passes (sol min ≥ 9)   | Run the Opus audit on the same commit, then enter Phase 2.                                                                                                                                                                                                       |

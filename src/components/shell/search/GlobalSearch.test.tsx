@@ -1557,12 +1557,19 @@ describe("search guidance", () => {
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
       "↑ ↓ to choose · Enter to open · Esc to clear",
     );
+    fireEvent.mouseMove(
+      screen.getByRole("option", { name: "Company holidays" }),
+    );
     fireEvent.click(aiRow("holidays"));
 
     const words = await screen.findByText("AI is reading your request…");
+    expect(input()).not.toHaveAttribute("aria-activedescendant");
     expect(words).toHaveAttribute("role", "status");
     const running = screen.getByTestId("global-search-ai-running");
     expect(running.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(running).toHaveTextContent(
+      "AI takes you to pages and forms for time, leave, requests and employees.",
+    );
     // Cancel is beside the words, not inside what is announced, and keeps a
     // full touch target.
     const cancel = within(running).getByRole("button", { name: "Cancel" });
