@@ -269,3 +269,19 @@ unposted rows left), deleted tickets kept no postings, and every search row's
 `sourceHash` matched its scan afterwards. Reconciling the 1,000 ingested scans
 read two documents each and wrote no derived row; reconciling the rack's new
 locations compared their postings and changed none.
+
+### Bulk-delete cleanup (iteration 10)
+
+Once the search maintenance write budget is exhausted, orphan checks are deferred
+to scheduled `reindex` work. The source deletion remains atomic; cleanup rechecks
+term linkage before removal. Monitor scheduled function failures, backlog and
+usage: foreground completion does not mean the maintenance work has finished.
+
+One real-engine 300-id unique-text selection used 2,486 read calls, 6,223 document
+reads and 2,074 writes. Eleven subsequent transactions observed in its time window
+read 45,897 documents and wrote 15,299; these lack request-chain correlation and
+are not a guaranteed isolated total. Low-write selections with many shared terms
+remain unmeasured and can consume read calls before the write budget is exhausted.
+Add a read-call guard and measure that shape before treating the selection limit
+as safe for every input. See the
+[final audit](../reviews/convex-performance-2026-11-04/final-report.md).

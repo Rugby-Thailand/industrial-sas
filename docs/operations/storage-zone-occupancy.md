@@ -112,15 +112,20 @@ its pallet, and every zone's layout documents on every execution and re-run:
    Continue a manual run by passing back both `continueCursor` and `runId`; a
    restart issues a new `runId`, and pages of any older run are refused
    (`superseded: true`) so they cannot declare readiness. Each transaction stops
-   rebuilding zones once it has spent about 500 read calls (`budget`; the zone that
-   crosses it still runs, and a full zone costs up to ~3,500), and the next
-   one resumes the same page, so dense zones cannot push a page past the
-   transaction limits.
+   rebuilding zones once it has spent about 500 read calls. The optional `budget`
+   must be an integer from 1 to 500; it is a stopping threshold between zones,
+   not a hard bound on transaction reads. The zone that crosses it still runs
+   (a full zone can cost about 3,500 calls), and the next transaction resumes the
+   same page. Measure dense-zone headroom before relying on production limits.
 
    `ready: true, buildingReady: false` means a cross-building placement or an
    overflowed zone keeps building readers on the original path; recommendations
-   still use the rows. The backfill rebuilds each zone's surface row too, and on
-   finishing records the layout generation.
+   still use the rows. The backfill rebuilds each zone's surface row too. It captures
+   summary and layout generations at the start. Maintained writes can advance the
+   recorded generation after refreshing affected data; finish checks it against
+   current generations. Explicit invalidation or unmaintained generation drift
+   leaves the run stale instead of declaring readiness. A stale completed run
+   waits for the hourly sweep, or an explicit restart using the command above.
 
 3. To stop using the rows without a deploy: `storageLayouts/zoneOccupancyBackfill:invalidate`
    (the next sweep rebuilds them).

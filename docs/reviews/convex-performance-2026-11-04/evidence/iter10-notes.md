@@ -102,3 +102,13 @@ same space and records seven business refusals on each target. These are not
 successful-throughput improvements. Baseline roster and payslip refusals remain
 explicit. Setup used ten-row search backfill pages, with the harness timeout
 retry; this does not prove production-default backfill time headroom.
+
+## Final reviews and stopping condition
+
+Independent Sol 6.1 and Opus 5.5 (Kiro CLI) reviews both score **7/10** at
+`80a57bbd`, with the same backend digest as the final profile. Work stops at the
+requested ten-iteration cap; the 9/10 target was not reached and the paired 8/10
+screenshot threshold never applied. Opus additionally identifies an unmeasured
+read-call risk for low-write deletes with many shared terms; the write-budget
+guard does not establish a universal read-call bound. See the
+[final report](../final-report.md) and [Opus review](../audits/iter10-opus-kiro.md).
