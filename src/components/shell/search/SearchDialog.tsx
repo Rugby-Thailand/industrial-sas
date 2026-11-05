@@ -6,15 +6,18 @@ import {
   Fragment,
   useEffect,
   useId,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type Ref,
+  type RefObject,
 } from "react";
 
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/IconButton";
 import {
   Dialog,
   DialogClose,
@@ -104,6 +107,9 @@ export function SearchDialog({
     if (accepted) navigated.current = true;
     return accepted;
   };
+  // Escape clears typed text first and closes only an empty search. Back is
+  // not a key press: it still dismisses the dialog through its disclosure.
+  const clearOnEscape = useRef<(() => boolean) | null>(null);
   return (
     <Dialog
       open={open}
@@ -133,9 +139,16 @@ export function SearchDialog({
           if (navigated.current) event.preventDefault();
           navigated.current = false;
         }}
+        onEscapeKeyDown={(event) => {
+          // An IME uses Escape to drop its candidate; the search stays put.
+          if (event.isComposing || event.keyCode === 229)
+            event.preventDefault();
+          else if (clearOnEscape.current?.()) event.preventDefault();
+        }}
       >
         {open ? (
           <SearchBody
+            clearOnEscape={clearOnEscape}
             mode={mode}
             aiAvailable={aiAvailable}
             granted={granted}
@@ -150,6 +163,7 @@ export function SearchDialog({
 }
 
 function SearchBody({
+  clearOnEscape,
   mode,
   aiAvailable,
   granted,
@@ -157,6 +171,8 @@ function SearchBody({
   onModeChange,
   onNavigate,
 }: {
+  /** Clears typed text for Escape; false when there is nothing to clear. */
+  readonly clearOnEscape: RefObject<(() => boolean) | null>;
   readonly mode: SearchMode;
   readonly aiAvailable: boolean;
   readonly granted: readonly string[];
@@ -325,6 +341,20 @@ function SearchBody({
   const ask = () => {
     if (canAsk) askAbout(query);
   };
+  // Back to the empty box: no text, no chosen row, no AI request for the old
+  // text, and the caret stays in the box (the clear button itself goes away).
+  const clear = () => {
+    ai.cancel();
+    setComposing(false);
+    setQuery("");
+    setActive({ query: "", id: null });
+    inputRef.current?.focus();
+  };
+  useImperativeHandle(clearOnEscape, () => () => {
+    if (query === "") return false;
+    clear();
+    return true;
+  });
   const choose = (result: SearchResult) => {
     if (stale) return;
     if (result.ask !== undefined) askAbout(result.ask);
@@ -372,7 +402,7 @@ function SearchBody({
   const keys = [
     enabled.length > 0 ? t("keys.move") : null,
     enter === null ? null : t(`keys.${enter}`),
-    t("keys.close"),
+    t(query === "" ? "keys.close" : "keys.clear"),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -441,9 +471,26 @@ function SearchBody({
               setQuery(event.currentTarget.value);
             }}
             onKeyDown={onKeyDown}
-            className="min-h-touch w-full rounded-md border border-input bg-surface py-2 pr-3 pl-9 text-base text-text outline-none placeholder:text-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring"
+            className={cn(
+              "min-h-touch w-full rounded-md border border-input bg-surface py-2 pl-9 text-base text-text outline-none placeholder:text-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring",
+              // Typed text stops short of the clear button.
+              query === "" ? "pr-3" : "pr-12 dense:pr-11",
+            )}
             data-testid="global-search-input"
           />
+          {query === "" ? null : (
+            <IconButton
+              label={t("clear")}
+              variant="ghost"
+              className="absolute inset-y-0 right-0 my-auto text-muted hover:text-text dense:right-1.5"
+              // The caret stays in the box: a click must not move focus here.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={clear}
+              data-testid="global-search-clear"
+            >
+              <X aria-hidden="true" />
+            </IconButton>
+          )}
         </div>
         {aiAvailable ? (
           <Button
@@ -772,19 +819,19 @@ function ResultOption({
 }
 
 /**
- * Holds the place of the AI's choices while it works, so the ordinary
- * results below do not jump when a typical answer (two choices) arrives.
+ * Marks where the AI's choices will appear while it works: one short
+ * result-shaped line pair, so the ordinary results stay close to the box.
+ * The progress panel above already says what is happening.
  */
 function AiPending() {
   return (
     <div
       aria-hidden="true"
-      className="grid gap-1 px-2 pt-2 pb-3"
+      className="grid gap-1.5 px-3 pt-1 pb-3"
       data-testid="global-search-ai-pending"
     >
-      <Skeleton className="mb-1 h-3 w-24" />
-      <Skeleton className="h-16 w-full rounded-lg" />
-      <Skeleton className="h-16 w-full rounded-lg" />
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-4 w-1/2 max-w-64" />
     </div>
   );
 }

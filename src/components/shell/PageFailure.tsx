@@ -6,10 +6,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
 
 /**
- * A page that could not render: an h1 naming what failed, the likely cause,
- * then a safe destination (primary) and a retry (secondary). Without a safe
- * destination, retry becomes the primary action. Back keeps the real origin;
- * a directly opened failure invents no parent.
+ * A page that could not render: an h1 naming what failed, what to do next,
+ * then a retry (primary) and, when there is one, a safe destination
+ * (secondary). Back keeps the real origin; a directly opened failure invents
+ * no parent.
  */
 export function PageFailure({
   title,
@@ -31,21 +31,16 @@ export function PageFailure({
       <PageHeader title={title} backFallbackHref={null} />
       <Notice tone="danger" role="alert" title={cause} body={hint} />
       <div className="mt-4 flex flex-wrap gap-2">
+        <Button type="button" onClick={onRetry} data-testid="route-error-retry">
+          {retryLabel}
+        </Button>
         {recovery === undefined ? null : (
-          <Button asChild>
+          <Button asChild variant="outline">
             <Link href={recovery.href} data-testid="route-error-recovery">
               {recovery.label}
             </Link>
           </Button>
         )}
-        <Button
-          type="button"
-          variant={recovery === undefined ? "default" : "outline"}
-          onClick={onRetry}
-          data-testid="route-error-retry"
-        >
-          {retryLabel}
-        </Button>
       </div>
     </div>
   );

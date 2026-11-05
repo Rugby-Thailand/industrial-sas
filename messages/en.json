@@ -200,8 +200,9 @@
     "retry": "Try again",
     "hint": "The app hit a problem while showing this page. Try again, or start over from another page.",
     "pageTitle": "This page could not be opened",
-    "pageCause": "The data for this page could not be read.",
-    "pageHint": "The link may be wrong, the record may have been removed, or the service may be briefly unavailable.",
+    "pageCause": "This page's data didn't load.",
+    "pageHint": "Try again, or go back to {destination}.",
+    "pageHintRetry": "Try loading this page again.",
     "goTo": "Go to {destination}"
   },
   "Write": {
@@ -3127,6 +3128,7 @@
     "aiTitle": "AI Search",
     "description": "Find the pages, sections and records you can open.",
     "close": "Close search",
+    "clear": "Clear search",
     "inputLabel": "Search",
     "placeholder": "Search pages and sections",
     "placeholderPeople": "Search pages or employees",
@@ -3174,7 +3176,8 @@
       "move": "↑ ↓ to choose",
       "open": "Enter to open",
       "ask": "Enter to ask AI",
-      "close": "Esc to close"
+      "close": "Esc to close",
+      "clear": "Esc to clear"
     },
     "navigating": "Opening {trail}",
     "aiAsk": "Ask AI",

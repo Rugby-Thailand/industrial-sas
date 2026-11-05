@@ -1,5 +1,5 @@
 import { Spinner } from "@/components/ui/spinner";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
@@ -94,7 +94,8 @@ export function SidebarNavigation({
     >
       <SidebarContent
         ref={contentRef}
-        className={cn("gap-6 px-4 py-4", collapsed && "px-2")}
+        // The overflow strip below supplies the rest of the bottom gap.
+        className={cn("gap-6 px-4 pt-4 pb-2", collapsed && "px-2 pb-4")}
       >
         {navigationLoading ? (
           <p
@@ -155,17 +156,22 @@ export function SidebarNavigation({
         })}
       </SidebarContent>
       {collapsed ? null : (
-        // More destinations below: the last rows fade into the sidebar. It
-        // never takes pointer input, so the faded rows stay tappable.
+        // More destinations below: an edge line and a chevron in their own
+        // reserved strip under the list. Nothing covers a row, so every label
+        // keeps its full contrast and every row stays tappable.
         <div
           aria-hidden="true"
           data-testid="sidebar-overflow-cue"
           data-visible={contentBelow}
           className={cn(
-            "pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-sidebar to-transparent transition-opacity duration-200 motion-reduce:transition-none",
-            contentBelow ? "opacity-100" : "opacity-0",
+            "pointer-events-none mx-4 flex h-6 shrink-0 items-center justify-center border-t text-muted transition-[border-color,opacity] duration-200 motion-reduce:transition-none",
+            contentBelow
+              ? "border-sidebar-border opacity-100"
+              : "border-transparent opacity-0",
           )}
-        />
+        >
+          <ChevronDown className="size-4" />
+        </div>
       )}
     </nav>
   );

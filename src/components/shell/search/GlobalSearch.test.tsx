@@ -199,7 +199,7 @@ describe("global search dialog", () => {
     expect(opener).toHaveFocus();
   });
 
-  it("moves with arrows, ignores Enter while an IME composes, and returns focus on Escape", async () => {
+  it("moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape", async () => {
     renderSearch();
     const opener = screen.getByRole("button", { name: "Open SEARCH" });
     opener.focus();
@@ -217,12 +217,66 @@ describe("global search dialog", () => {
     fireEvent.compositionStart(input());
     fireEvent.keyDown(input(), { key: "Enter", keyCode: 229 });
     expect(state.push).not.toHaveBeenCalled();
+    // Escape drops the IME candidate: the text and the dialog stay.
+    fireEvent.keyDown(input(), { key: "Escape", isComposing: true });
+    expect(input()).toHaveValue("review");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     fireEvent.compositionEnd(input());
+    fireEvent.keyDown(input(), { key: "ArrowDown" });
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      /Esc to clear$/,
+    );
+
+    // Escape with text clears it: the dialog stays, the box keeps focus, the
+    // chosen row is forgotten and the places to go return.
+    fireEvent.keyDown(input(), { key: "Escape" });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(input()).toHaveValue("");
+    expect(input()).toHaveFocus();
+    const places = within(
+      screen.getByRole("group", { name: "Go to" }),
+    ).getAllByRole("option");
+    expect(input()).toHaveAttribute("aria-activedescendant", places[0]!.id);
+    expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
+      /Esc to close$/,
+    );
+
+    // Escape on the empty box closes and returns focus to the opener.
     fireEvent.keyDown(input(), { key: "Escape" });
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     expect(opener).toHaveFocus();
+    expect(state.push).not.toHaveBeenCalled();
+  });
+
+  it("clears the text with its own button, keeping focus in the box", async () => {
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    // Nothing typed, nothing to clear; the placeholder keeps the full width.
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
+    expect(input()).toHaveClass("pr-3");
+
+    await type("review");
+    fireEvent.keyDown(input(), { key: "ArrowDown" });
+    const clear = screen.getByRole("button", { name: "Clear search" });
+    // Typed text stops short of the button, which is a full touch target.
+    expect(input()).toHaveClass("pr-12");
+    expect(clear).toHaveClass("min-h-touch", "min-w-touch");
+    // A pointer press does not take focus from the box.
+    expect(fireEvent.mouseDown(clear)).toBe(false);
+    fireEvent.click(clear);
+
+    expect(input()).toHaveValue("");
+    expect(input()).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
+    const places = within(
+      screen.getByRole("group", { name: "Go to" }),
+    ).getAllByRole("option");
+    expect(input()).toHaveAttribute("aria-activedescendant", places[0]!.id);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(state.push).not.toHaveBeenCalled();
   });
 
   it("finds an exact code through the reviewer search and builds the review link", async () => {
@@ -1095,7 +1149,8 @@ describe("AI Search lifecycle", () => {
       );
       await startAi();
       if (change === "close") {
-        fireEvent.keyDown(input(), { key: "Escape" });
+        // Escape would clear the text first; the close button closes.
+        fireEvent.click(screen.getByRole("button", { name: "Close search" }));
         await waitFor(() =>
           expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
         );
@@ -1118,12 +1173,30 @@ describe("AI Search lifecycle", () => {
     const resolve = pending();
     renderSearch(<Opener mode="AI" />);
     await startAi();
-    fireEvent.keyDown(input(), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Close search" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Open AI" }));
     await screen.findByRole("dialog");
+    fireEvent.change(input(), { target: { value: "ตั้งวันหยุด" } });
+    await resolve(settingsAnswer);
+    expect(state.push).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("global-search-ai-outcome"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("drops a running request when Escape clears its text", async () => {
+    const resolve = pending();
+    renderSearch(<Opener mode="AI" />);
+    await startAi();
+    fireEvent.keyDown(input(), { key: "Escape" });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(input()).toHaveValue("");
+    expect(input()).toHaveFocus();
+    expect(screen.queryByText("AI is reading your request…")).toBeNull();
+    // The same text typed again does not bring the old answer back.
     fireEvent.change(input(), { target: { value: "ตั้งวันหยุด" } });
     await resolve(settingsAnswer);
     expect(state.push).not.toHaveBeenCalled();
@@ -1217,7 +1290,7 @@ describe("search guidance", () => {
     });
     expect(input()).toHaveAttribute("aria-activedescendant", fallback.id);
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
-      "↑ ↓ to choose · Enter to ask AI · Esc to close",
+      "↑ ↓ to choose · Enter to ask AI · Esc to clear",
     );
     fireEvent.keyDown(input(), { key: "Enter" });
     await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
@@ -1247,7 +1320,7 @@ describe("search guidance", () => {
     );
     // Enter does nothing here, so the hint does not offer it.
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
-      /^Esc to close$/,
+      /^Esc to clear$/,
     );
   });
 
@@ -1284,7 +1357,7 @@ describe("search guidance", () => {
     await screen.findByRole("dialog");
     await type("holidays");
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
-      "↑ ↓ to choose · Enter to open · Esc to close",
+      "↑ ↓ to choose · Enter to open · Esc to clear",
     );
     const button = screen.getByRole("button", { name: "Ask AI" });
     button.focus();
@@ -1315,17 +1388,19 @@ describe("search guidance", () => {
         name: /normal search results? Pages and sections/,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("global-search-ai-pending")).toHaveAttribute(
-      "aria-hidden",
-      "true",
+    const placeholder = screen.getByTestId("global-search-ai-pending");
+    expect(placeholder).toHaveAttribute("aria-hidden", "true");
+    // One short result-shaped line pair, not blocks that push results down.
+    expect(placeholder.querySelectorAll("[data-slot=skeleton]")).toHaveLength(
+      2,
     );
     // Enter can neither ask (running) nor open (nothing chosen) yet.
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
-      /^↑ ↓ to choose · Esc to close$/,
+      /^↑ ↓ to choose · Esc to clear$/,
     );
     fireEvent.keyDown(input(), { key: "ArrowDown" });
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
-      "↑ ↓ to choose · Enter to open · Esc to close",
+      "↑ ↓ to choose · Enter to open · Esc to clear",
     );
     await act(async () =>
       resolve({

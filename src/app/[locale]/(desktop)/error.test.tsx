@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("desktop page error boundary", () => {
-  it("names the failed page, offers its module hub first and retries second", () => {
+  it("names the failed page, retries first and offers its module hub second", () => {
     navigation.pathname = "/finished-goods/products/not-a-real-id";
     const { port, retry } = renderError();
 
@@ -54,17 +54,21 @@ describe("desktop page error boundary", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "เปิดหน้านี้ไม่ได้" }),
     ).toBeVisible();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "ระบบอ่านข้อมูลของหน้านี้ไม่สำเร็จ",
+    // An unclassified read failure: neutral words, the next step, no guesses.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("ยังโหลดข้อมูลหน้านี้ไม่ได้");
+    expect(alert).toHaveTextContent(
+      "ลองใหม่อีกครั้ง หรือกลับไปที่หน้าสินค้าสำเร็จรูป",
     );
+    expect(alert).not.toHaveTextContent(/ลิงก์|ถูกลบ/);
+    const again = screen.getByRole("button", { name: "ลองใหม่" });
+    expect(again).toHaveAttribute("data-variant", "default");
     const hub = screen.getByRole("link", { name: "ไปที่หน้าสินค้าสำเร็จรูป" });
     expect(hub).toHaveAttribute("href", "/finished-goods");
-    expect(hub).toHaveAttribute("data-variant", "default");
-    const again = screen.getByRole("button", { name: "ลองใหม่" });
-    expect(again).toHaveAttribute("data-variant", "outline");
-    // The hub comes before the retry in reading and tab order.
+    expect(hub).toHaveAttribute("data-variant", "outline");
+    // The retry comes before the hub in reading and tab order.
     expect(
-      hub.compareDocumentPosition(again) & Node.DOCUMENT_POSITION_FOLLOWING,
+      again.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
 
     fireEvent.click(again);
@@ -78,16 +82,21 @@ describe("desktop page error boundary", () => {
   });
 
   it.each([
-    ["/finished-goods/scan", "/finished-goods", "Go to Finished goods"],
-    ["/hr/leave/review/request-1", "/hr/leave/review", "Go to Review leave"],
-    ["/hr/today", "/master-data/storage-layouts", "Go to Buildings & spots"],
+    ["/finished-goods/scan", "/finished-goods", "Finished goods"],
+    ["/hr/leave/review/request-1", "/hr/leave/review", "Review leave"],
+    ["/hr/today", "/master-data/storage-layouts", "Buildings & spots"],
   ])(
     "sends a failure at %s to %s, never to the failed page itself",
-    (pathname, href, name) => {
+    (pathname, href, hub) => {
       navigation.pathname = pathname;
       renderError("en");
 
-      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+      expect(
+        screen.getByRole("link", { name: `Go to ${hub}` }),
+      ).toHaveAttribute("href", href);
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        `Try again, or go back to ${hub}.`,
+      );
     },
   );
 
@@ -99,6 +108,10 @@ describe("desktop page error boundary", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toHaveAttribute(
       "data-variant",
       "default",
+    );
+    // No destination to name: the copy offers the retry alone.
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Try loading this page again.",
     );
   });
 });

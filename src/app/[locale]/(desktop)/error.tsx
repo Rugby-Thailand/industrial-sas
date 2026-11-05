@@ -11,7 +11,8 @@ import { applicationRenderErrorEvent } from "@/lib/observability/applicationErro
 
 /**
  * A page that fails inside the app shell keeps the sidebar, header and
- * search, and offers its module hub before a retry.
+ * search. Retrying comes first; its module hub is the way out. The failure is
+ * not classified, so the copy names no cause (a bad link, removed data).
  */
 export default function DesktopPageError({
   error,
@@ -24,6 +25,10 @@ export default function DesktopPageError({
   const navigation = useTranslations("Navigation");
   const observability = useObservability();
   const recovery = recoveryDestination(usePathname());
+  const hub =
+    recovery === undefined
+      ? undefined
+      : { href: recovery.href, name: navigation(recovery.labelKey) };
 
   useEffect(() => {
     // `error` is intentionally a dependency but never part of the event: a new
@@ -36,13 +41,17 @@ export default function DesktopPageError({
     <PageFailure
       title={t("pageTitle")}
       cause={t("pageCause")}
-      hint={t("pageHint")}
-      {...(recovery === undefined
+      hint={
+        hub === undefined
+          ? t("pageHintRetry")
+          : t("pageHint", { destination: hub.name })
+      }
+      {...(hub === undefined
         ? {}
         : {
             recovery: {
-              href: recovery.href,
-              label: t("goTo", { destination: navigation(recovery.labelKey) }),
+              href: hub.href,
+              label: t("goTo", { destination: hub.name }),
             },
           })}
       retryLabel={t("retry")}

@@ -48,10 +48,18 @@ describe("locale error boundary", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "หน้าจอนี้ทำงานต่อไม่ได้",
     );
+    const start = screen.getByRole("link", {
+      name: "ไปที่หน้าอาคารและจุดจัดเก็บ",
+    });
+    expect(start).toHaveAttribute("href", "/master-data/storage-layouts");
+    // Retrying is the primary action; the start page is the way out.
+    const again = screen.getByRole("button", { name: "ลองใหม่" });
+    expect(again).toHaveAttribute("data-variant", "default");
+    expect(start).toHaveAttribute("data-variant", "outline");
     expect(
-      screen.getByRole("link", { name: "ไปที่หน้าอาคารและจุดจัดเก็บ" }),
-    ).toHaveAttribute("href", "/master-data/storage-layouts");
-    fireEvent.click(screen.getByRole("button", { name: "ลองใหม่" }));
+      again.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(again);
     expect(retry).toHaveBeenCalledOnce();
     expect(port.events).toHaveLength(1);
     expect(port.events[0]).toMatchObject({

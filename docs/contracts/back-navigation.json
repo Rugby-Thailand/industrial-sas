@@ -969,7 +969,7 @@
       "cases": [
         {
           "file": "src/app/[locale]/(desktop)/error.test.tsx",
-          "name": "names the failed page, offers its module hub first and retries second"
+          "name": "names the failed page, retries first and offers its module hub second"
         },
         {
           "file": "src/app/[locale]/(desktop)/error.test.tsx",
@@ -1249,7 +1249,7 @@
       "cases": [
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
-          "name": "moves with arrows, ignores Enter while an IME composes, and returns focus on Escape"
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
         },
         {
           "file": "src/components/shell/DesktopShell.navigation.test.tsx",
@@ -1339,7 +1339,7 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted places and AI examples as options there, and an AI request shows inline progress and an aria-hidden placeholder for its choices. Back dismisses the containing dialog.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted places and AI examples as options there, and an AI request shows inline progress and an aria-hidden placeholder for its choices. Typed text shows an inline clear IconButton; it and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. Back dismisses the containing dialog regardless of the text.",
       "render": [
         {
           "shape": "conditional",
@@ -1355,6 +1355,11 @@
           "shape": "conditional",
           "truthy": ["p"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["lucide-react#X", "src/components/ui/IconButton#IconButton"]
         },
         {
           "shape": "early-return",
@@ -6211,7 +6216,7 @@
       "cases": [
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
-          "name": "moves with arrows, ignores Enter while an IME composes, and returns focus on Escape"
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
         },
         {
           "file": "src/components/shell/DesktopShell.navigation.test.tsx",

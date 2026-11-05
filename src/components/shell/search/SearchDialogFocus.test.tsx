@@ -247,6 +247,10 @@ describe("focus after the search dialog closes", () => {
     fireEvent.keyDown(input(), { key: "Enter" });
     expect(onNavigate).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // The first Escape clears the refused text; the second dismisses.
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(input()).toHaveValue("");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await afterClose();
     expect(opener).toHaveFocus();

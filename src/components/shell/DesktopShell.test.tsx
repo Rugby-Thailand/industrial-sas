@@ -12,7 +12,15 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 
@@ -666,6 +674,49 @@ describe("phone drawer reopening", () => {
     frame();
     expect(list(sheet).scrollTop).toBe(720);
     scrollTo.mockRestore();
+  });
+
+  it("marks more destinations below in its own strip, never over a row", async () => {
+    // Like browsers, each observed element is reported once.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly report: () => void) {}
+        observe() {
+          queueMicrotask(this.report);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const layout = (name: "scrollHeight" | "clientHeight", value: number) =>
+      vi.spyOn(Element.prototype, name, "get").mockImplementation(function (
+        this: Element,
+      ) {
+        return this.getAttribute("data-sidebar") === "content" ? value : 0;
+      });
+    const spies = [layout("scrollHeight", 1300), layout("clientHeight", 400)];
+    onTestFinished(() => {
+      for (const spy of spies) spy.mockRestore();
+      vi.unstubAllGlobals();
+    });
+
+    const { sheet } = await openDrawer(renderShell());
+    await act(async () => {});
+    const cue = within(sheet).getByTestId("sidebar-overflow-cue");
+    expect(cue).toHaveAttribute("data-visible", "true");
+    expect(cue).toHaveAttribute("aria-hidden", "true");
+    // It follows the list in the layout instead of lying over its last rows,
+    // so no label is washed out and no tap can land on it.
+    expect(cue.previousElementSibling).toBe(list(sheet));
+    expect(list(sheet)).not.toContainElement(cue);
+    expect(cue).not.toHaveClass("absolute");
+    expect(cue).toHaveClass("pointer-events-none");
+
+    // At the end of the list there is nothing more to point at.
+    list(sheet).scrollTop = 900;
+    fireEvent.scroll(list(sheet));
+    expect(cue).toHaveAttribute("data-visible", "false");
   });
 
   it("leaves the list alone once the user starts scrolling it", async () => {
