@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "../../convex/schema";
+import type { Doc, Id } from "../../convex/_generated/dataModel";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
   type ConvexTenantWorld,
 } from "../fixtures/convex-tenant-world";
-import { measured } from "../fixtures/query-read-stats";
+import {
+  measured,
+  recordWrites,
+  rerunsOn,
+  type ReadSet,
+} from "../fixtures/query-read-stats";
 import {
   buildingOccupancy,
   getStorageBuildingInventory,
@@ -22,6 +28,7 @@ import { trackFinishedGoodsWrites } from "../../convex/lib/finishedGoodsSummary"
 import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
 import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
 import { MAX_ZONE_OCCUPANCY_ENTRIES } from "../../convex/lib/zoneOccupancy";
+import { ZONE_PREVIEW_FIELDS } from "../../convex/model/finishedGoods/recommendationView";
 import {
   createStorageBuilding,
   activateStorageBuilding,
@@ -32,6 +39,7 @@ import {
   cancelReservation,
   confirmStored,
   recommend,
+  recommendationZone,
   reserve,
   completeMove,
   recommendMove,
@@ -66,6 +74,94 @@ function fields<T extends { _id: unknown; _creationTime: number }>(
   void _id;
   void _creationTime;
   return rest;
+}
+type CandidateRecord = Record<string, unknown> & { zoneId: string };
+type RecommendationPayload = {
+  candidates: CandidateRecord[];
+  previewCandidates?: CandidateRecord[];
+  reasons: string[];
+};
+const payloadBytes = (value: unknown) =>
+  new TextEncoder().encode(JSON.stringify(value)).length;
+const docsRead = (stats: {
+  rangeDocs: Record<string, number>;
+  gets: Record<string, number>;
+}) =>
+  [stats.rangeDocs, stats.gets]
+    .flatMap((counts) => Object.values(counts))
+    .reduce((sum, count) => sum + count, 0);
+const bytesRead = (stats: { bytes: Record<string, number> }) =>
+  Object.values(stats.bytes).reduce((sum, count) => sum + count, 0);
+/**
+ * The split recommendation on one snapshot: the ranked list (`view: "list"`)
+ * plus `recommendationZone` for every zone it lists must reproduce the full
+ * original payload exactly, and list items carry no per-zone preview field.
+ */
+async function expectSplitParity(
+  seed: { world: ConvexTenantWorld; warehouseId: string },
+  palletId: string,
+  fn: unknown = recommend,
+) {
+  const args = { warehouseId: seed.warehouseId, palletId };
+  const full = await measured<RecommendationPayload>(seed.world, fn, args);
+  const list = await measured<RecommendationPayload>(seed.world, fn, {
+    ...args,
+    view: "list",
+  });
+  const listed = [
+    ...list.value.candidates,
+    ...(list.value.previewCandidates ?? []),
+  ];
+  for (const item of listed)
+    for (const field of ZONE_PREVIEW_FIELDS)
+      expect(item, field).not.toHaveProperty(field);
+  const zones = new Map<
+    string,
+    Awaited<ReturnType<typeof measured<Record<string, unknown> | null>>>
+  >();
+  for (const zoneId of new Set(listed.map((item) => item.zoneId)))
+    zones.set(
+      zoneId,
+      await measured<Record<string, unknown> | null>(
+        seed.world,
+        recommendationZone,
+        { ...args, zoneId },
+      ),
+    );
+  const assemble = (item: CandidateRecord) => {
+    const zone = zones.get(item.zoneId)!.value;
+    expect(zone, item.zoneId).not.toBeNull();
+    return { ...item, ...zone };
+  };
+  expect({
+    ...list.value,
+    candidates: list.value.candidates.map(assemble),
+    ...(list.value.previewCandidates
+      ? { previewCandidates: list.value.previewCandidates.map(assemble) }
+      : {}),
+  }).toEqual(full.value);
+  const details = [...zones.values()];
+  return {
+    full,
+    list,
+    zones,
+    values: {
+      list: list.value,
+      zones: Object.fromEntries(
+        [...zones].map(([zoneId, zone]) => [zoneId, zone.value]),
+      ),
+    },
+    docs: {
+      full: docsRead(full.stats),
+      list: docsRead(list.stats),
+      zoneMax: Math.max(0, ...details.map((zone) => docsRead(zone.stats))),
+    },
+    returned: {
+      full: payloadBytes(full.value),
+      list: payloadBytes(list.value),
+      zoneMax: Math.max(0, ...details.map((zone) => payloadBytes(zone.value))),
+    },
+  };
 }
 async function scaleWorld(limits = true) {
   const world = await createConvexTenantWorld(
@@ -252,7 +348,9 @@ describe("storage query scale envelope", () => {
     );
     expect(result.value.candidates).toHaveLength(101);
     expect(result.value.reasons).toEqual([]);
-  }, 30000);
+    const split = await expectSplitParity(seed, seed.palletId);
+    expect(split.list.value.candidates).toHaveLength(101);
+  }, 60000);
 });
 
 type Inventory = {
@@ -504,9 +602,14 @@ async function addLocationOnly(
   });
 }
 describe("recommendation reason and ranking parity", () => {
-  it.each([false, true])(
-    "preserves ordered reasons and geometry-unknown precedence (unknown first=%s)",
-    async (unknownFirst) => {
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    "preserves ordered reasons and geometry-unknown precedence (unknown first=%s, derived occupancy=%s)",
+    async (unknownFirst, derived) => {
       const seed = await scaleWorld();
       await addZones(seed, 2);
       const zones = await seed.world.t.run(async (ctx) => {
@@ -514,6 +617,7 @@ describe("recommendation reason and ranking parity", () => {
         return ctx.db.query("storageZones").collect();
       });
       await addLocationOnly(seed, zones[unknownFirst ? 0 : 1]!);
+      if (derived) expect((await backfillOccupancy(seed)).ready).toBe(true);
       const result = await measured<{
         candidates: unknown[];
         reasons: string[];
@@ -528,6 +632,13 @@ describe("recommendation reason and ranking parity", () => {
           : ["STORAGE_CONDITION_MISMATCH", "LOCATION_GEOMETRY_UNKNOWN"],
       });
       expect(result.stats.ranges["storagePositions"] ?? 0).toBe(0);
+      // Mismatched zones need only their unmeasured count: with derived rows
+      // that is the small summary row, never the entries row.
+      if (derived) {
+        expect(result.stats.ranges["storageZoneOccupancyEntries"] ?? 0).toBe(0);
+        expect(result.stats.ranges["storageZoneOccupancy"]).toBe(2);
+      }
+      await expectSplitParity(seed, seed.palletId);
       const contents = await inventory(seed);
       expect(
         contents.value.zones.flatMap((z) => z.locationOnlyPlacements),
@@ -559,6 +670,7 @@ describe("recommendation reason and ranking parity", () => {
       zones[2]!._id,
     ]);
     expect(result.value.reasons).toEqual([]);
+    await expectSplitParity(seed, seed.palletId);
     // Archived parents do not contribute a mismatch reason.
     await seed.world.t.run(async (ctx) => {
       await ctx.db.patch(seed.building._id, { status: "ARCHIVED" });
@@ -571,6 +683,7 @@ describe("recommendation reason and ranking parity", () => {
         })
       ).value,
     ).toMatchObject({ candidates: [], reasons: ["NO_ACTIVE_LOCATIONS"] });
+    await expectSplitParity(seed, seed.palletId);
   });
 });
 
@@ -615,6 +728,7 @@ describe("recommendation read budget", () => {
     expect(after.stats.gets["locations"] ?? 0).toBe(
       before.stats.gets["locations"] ?? 0,
     );
+    await expectSplitParity(seed, seed.palletId);
   });
 
   it("checks the placed pallet once, not once per pallet support", async () => {
@@ -663,7 +777,8 @@ describe("recommendation read budget", () => {
     expect(result.stats.gets["finishedGoodsPallets"]).toBeLessThanOrEqual(
       200 + 1,
     );
-  }, 30000);
+    await expectSplitParity(seed, upperId);
+  }, 60000);
 });
 
 type ScaleSeed = Awaited<ReturnType<typeof scaleWorld>>;
@@ -723,13 +838,18 @@ async function occupancyReaders(seed: ScaleSeed, palletId: string) {
     building,
   );
   const occupancy = await measured(seed.world, buildingOccupancy, building);
+  const split = await expectSplitParity(seed, palletId);
   return {
     values: {
       recommendation: recommendation.value,
+      recommendationList: split.values.list,
+      recommendationZones: split.values.zones,
       inventory: inventory.value,
       occupancy: occupancy.value,
     },
     docs: {
+      recommendationList: split.docs.list,
+      recommendationZoneMax: split.docs.zoneMax,
       recommendation: documents(recommendation.stats),
       inventory: documents(inventory.stats),
       occupancy: documents(occupancy.stats),
@@ -915,6 +1035,7 @@ describe("derived zone occupancy", () => {
       palletId: moving._id,
     });
     const destination = value.candidates.find((c) => c.zoneId === target._id)!;
+    await expectSplitParity(seed, moving._id, recommendMove);
     const base = { warehouseId: seed.warehouseId, palletId: moving._id };
     accepted(
       await call(seed.world, reserveMove, {
@@ -928,6 +1049,7 @@ describe("derived zone occupancy", () => {
       }),
     );
     await expectOccupancyParity(seed, probe);
+    await expectSplitParity(seed, moving._id, recommendMove);
     const move = await seed.world.t.run(
       async (ctx) => (await ctx.db.query("finishedGoodsMoves").collect())[0]!,
     );
@@ -941,6 +1063,7 @@ describe("derived zone occupancy", () => {
       }),
     );
     await expectOccupancyParity(seed, probe);
+    await expectSplitParity(seed, moving._id, recommendMove);
     const targetQr = await seed.world.t.run(
       async (ctx) => (await ctx.db.get(move.targetPlacementId))!.qrValue,
     );
@@ -962,6 +1085,7 @@ describe("derived zone occupancy", () => {
       }),
     );
     const done = await expectOccupancyParity(seed, probe);
+    await expectSplitParity(seed, moving._id, recommendMove);
     expect(
       (
         done.derived.values.inventory as { zones: { zoneId: string }[] }
@@ -1009,6 +1133,16 @@ describe("derived zone occupancy", () => {
         (await ctx.db.query("storageZoneOccupancyReadiness").collect())[0]!,
     );
     expect(readiness).toMatchObject({ ready: true, overflow: true });
+    // A mismatched overflowed zone: its summary row is a marker, so the
+    // unmeasured count is read from the placements, as without derived rows.
+    await seed.world.t.run((ctx) =>
+      ctx.db.patch(seed.zone._id, { storageCondition: "COLD" }),
+    );
+    const mismatched = await expectOccupancyParity(seed, upper);
+    expect(mismatched.derived.values.recommendation).toMatchObject({
+      candidates: [],
+      reasons: ["STORAGE_CONDITION_MISMATCH"],
+    });
   }, 60000);
 
   it("does not let a backfill that was invalidated mid-run re-enable stale rows", async () => {
@@ -1371,5 +1505,404 @@ describe("recommendation order across active buildings", () => {
     expect(new Set(value.previewCandidates.map((c) => c.buildingCode))).toEqual(
       new Set(["SCALE", "SECOND"]),
     );
+    await expectSplitParity(seed, tall);
   });
+});
+
+/**
+ * A warehouse shaped like the profiling tenant, small enough for convex-test:
+ * four active buildings, each with plain floor areas holding stored pallets
+ * (half of them stackable, so they offer stack surfaces), racks of exact
+ * positions, a cold area, an area with an unmeasured unit and a reserved
+ * floor block; plus a draft building that can never be a candidate.
+ */
+async function warehouseWorld() {
+  const seed = await scaleWorld();
+  const layout = await seed.world.t.run(async (ctx) => {
+    const floor = (await ctx.db.get(seed.zone.floorId))!;
+    const now = { createdAt: 1, updatedAt: 1 };
+    const users = {
+      createdByUserId: seed.world.userA,
+      updatedByUserId: seed.world.userA,
+    };
+    const location = (code: string) =>
+      ctx.db.insert("locations", { ...fields(seed.location), code });
+    const simple: Id<"storageZones">[] = [];
+    const racks: {
+      zoneId: Id<"storageZones">;
+      positions: Doc<"storagePositions">[];
+    }[] = [];
+    const zoneIn = async (
+      buildingId: Id<"storageBuildings">,
+      floorId: Id<"storageFloors">,
+      code: string,
+      extra: Partial<Doc<"storageZones">> = {},
+    ) =>
+      ctx.db.insert("storageZones", {
+        ...fields(seed.zone),
+        buildingId,
+        floorId,
+        locationId: await location(`L-${code}`),
+        code,
+        label: code,
+        qrValue: `QR-${code}`,
+        ...extra,
+      });
+    const buildings: Id<"storageBuildings">[] = [seed.building._id];
+    for (const code of ["B2", "B3", "B4"])
+      buildings.push(
+        await ctx.db.insert("storageBuildings", {
+          ...fields(seed.building),
+          code,
+          name: code,
+          status: "ACTIVE",
+        }),
+      );
+    for (const [index, buildingId] of buildings.entries()) {
+      const code = index === 0 ? "B1" : `B${index + 1}`;
+      const floorId =
+        index === 0
+          ? seed.zone.floorId
+          : await ctx.db.insert("storageFloors", {
+              ...fields(floor),
+              buildingId,
+            });
+      for (let i = 0; i < 4; i++)
+        simple.push(
+          index === 0 && i === 0
+            ? seed.zone._id
+            : await zoneIn(buildingId, floorId, `${code}-S${i}`),
+        );
+      for (let r = 0; r < 2; r++) {
+        const zoneId = await zoneIn(buildingId, floorId, `${code}-R${r}`, {
+          mode: "RACK",
+          widthMm: 4000,
+          depthMm: 2600,
+        });
+        const positions: Doc<"storagePositions">[] = [];
+        for (let bay = 0; bay < 3; bay++)
+          for (let slot = 0; slot < 2; slot++)
+            for (let level = 0; level < 2; level++) {
+              const positionCode = `${code}-R${r}-${bay}${slot}${level}`;
+              const id = await ctx.db.insert("storagePositions", {
+                orgId: seed.world.orgA,
+                warehouseId: seed.warehouseId,
+                buildingId,
+                floorId,
+                zoneId,
+                locationId: await location(`L-${positionCode}`),
+                code: positionCode,
+                label: positionCode,
+                qrValue: `QR-${positionCode}`,
+                kind: "RACK_SLOT",
+                isDefault: false,
+                xMm: bay * 1300,
+                yMm: slot * 1300,
+                widthMm: 1200,
+                depthMm: 1200,
+                elevationMm: level * 1500,
+                status: "ACTIVE",
+                ...now,
+                ...users,
+              });
+              positions.push((await ctx.db.get(id))!);
+            }
+        racks.push({ zoneId, positions });
+      }
+      await zoneIn(buildingId, floorId, `${code}-COLD`, {
+        storageCondition: "COLD",
+      });
+      await ctx.db.insert("storageFloorReservedBlocks", {
+        orgId: seed.world.orgA,
+        warehouseId: seed.warehouseId,
+        buildingId,
+        floorId,
+        label: `${code} aisle`,
+        xMm: 5000,
+        yMm: 0,
+        widthMm: 1000,
+        depthMm: 6000,
+        ...now,
+      });
+    }
+    const draftId = await ctx.db.insert("storageBuildings", {
+      ...fields(seed.building),
+      code: "DRAFT",
+      status: "DRAFT",
+    });
+    for (let i = 0; i < 5; i++)
+      await zoneIn(draftId, seed.zone.floorId, `DRAFT-${i}`);
+    return { simple, racks, buildings };
+  });
+  // Stored pallets: 8 per floor area (every other one stackable), one in a
+  // third of the rack positions.
+  await seed.world.t.run(async (ctx) => {
+    let n = 0;
+    const store = async (
+      zoneId: Id<"storageZones">,
+      place: { xMm: number; yMm: number; zMm: number },
+      extra: Partial<Doc<"finishedGoodsPallets">> = {},
+      supportPositionId?: Id<"storagePositions">,
+    ) => {
+      const zone = (await ctx.db.get(zoneId))!;
+      const palletId = await ctx.db.insert("finishedGoodsPallets", {
+        ...seed.audit,
+        productId: seed.productId,
+        code: `PAL-W${n}`,
+        quantity: 1,
+        lengthMm: 1000,
+        widthMm: 1000,
+        heightMm: 1000,
+        status: "STORED",
+        ...extra,
+      });
+      const placementId = await ctx.db.insert("finishedGoodsPlacements", {
+        ...seed.audit,
+        palletId,
+        buildingId: zone.buildingId,
+        floorId: zone.floorId,
+        zoneId,
+        locationId: zone.locationId,
+        ...(supportPositionId ? { supportPositionId } : {}),
+        positionCode: `POS-W${n++}`,
+        qrValue: `QR-W${n}`,
+        ...place,
+        widthMm: 1000,
+        depthMm: 1000,
+        heightMm: 1000,
+        rotation: 0,
+        status: "STORED",
+      });
+      await ctx.db.patch(palletId, { placementId });
+    };
+    for (const zoneId of layout.simple)
+      for (let k = 0; k < 8; k++)
+        await store(
+          zoneId,
+          { xMm: (k % 4) * 1100, yMm: Math.floor(k / 4) * 1100, zMm: 0 },
+          k % 2 ? { stackable: true, maxStackLevels: 3 } : {},
+        );
+    for (const { zoneId, positions } of layout.racks)
+      for (const position of positions.filter((_, i) => i % 3 === 0))
+        await store(
+          zoneId,
+          {
+            xMm: position.xMm!,
+            yMm: position.yMm!,
+            zMm: position.elevationMm!,
+          },
+          {},
+          position._id,
+        );
+  });
+  // The original pallet of scaleWorld is held nowhere; give one area an
+  // unmeasured unit instead.
+  await addLocationOnly(
+    seed,
+    (await seed.world.t.run((ctx) => ctx.db.get(layout.simple[5]!)))!,
+  );
+  const probe = await measuredPallet(seed, "PAL-PROBE");
+  const other = await measuredPallet(seed, "PAL-OTHER");
+  return { ...seed, ...layout, probe, other };
+}
+
+const reserveArgs = (
+  seed: ScaleSeed,
+  palletId: string,
+  requestId: string,
+  target: Recommended["candidates"][number],
+) => ({
+  warehouseId: seed.warehouseId,
+  palletId,
+  requestId,
+  zoneId: target.zoneId,
+  xMm: target.xMm,
+  yMm: target.yMm,
+  rotation: target.rotation,
+  ...(target.supportPositionId
+    ? { supportPositionId: target.supportPositionId }
+    : {}),
+  ...(target.supportPalletId
+    ? { supportPalletId: target.supportPalletId }
+    : {}),
+});
+const summary = (
+  label: string,
+  stats: Parameters<typeof docsRead>[0] & { bytes: Record<string, number> },
+  value: unknown,
+) =>
+  `${label}: ${docsRead(stats)} docs, ${(bytesRead(stats) / 1024).toFixed(1)} KB read, ${(payloadBytes(value) / 1024).toFixed(1)} KB returned`;
+
+describe("recommendation list and zone detail", () => {
+  it.each([true, false])(
+    "reproduce the full payload and read only the viewed zone (derived occupancy=%s)",
+    async (derived) => {
+      const seed = await warehouseWorld();
+      if (derived) expect((await backfillOccupancy(seed)).ready).toBe(true);
+      const split = await expectSplitParity(seed, seed.probe);
+      const { full, list } = split;
+      expect(list.value.candidates.length).toBeGreaterThan(20);
+      expect(list.value.candidates.some((c) => c.supportPalletId)).toBe(true);
+      expect(list.value.candidates.some((c) => c.supportPositionId)).toBe(true);
+      // The viewed zone: the default (first) candidate's.
+      const viewed = list.value.candidates[0]!.zoneId;
+      const zone = split.zones.get(viewed)!;
+      console.info(
+        [
+          `derived occupancy=${derived}`,
+          summary("full recommend", full.stats, full.value),
+          summary("list", list.stats, list.value),
+          summary("zone detail (viewed)", zone.stats, zone.value),
+          `largest zone detail: ${split.docs.zoneMax} docs, ${(split.returned.zoneMax / 1024).toFixed(1)} KB returned`,
+        ].join("\n"),
+      );
+      // The list returns no per-zone geometry: a fraction of the full payload.
+      expect(split.returned.list * 3).toBeLessThan(split.returned.full);
+      // A zone detail reads one zone, not the warehouse.
+      expect(docsRead(zone.stats) * 5).toBeLessThan(docsRead(full.stats));
+      expect(zone.stats.rangeDocs["storageZones"] ?? 0).toBe(0);
+      expect(zone.stats.ranges["storageBuildings"] ?? 0).toBe(0);
+      // Zones the list does not show have no detail.
+      const unlisted = await seed.world.t.run(async (ctx) =>
+        (await ctx.db.query("storageZones").collect())
+          .map((z) => z._id as string)
+          .filter((id) => !split.zones.has(id)),
+      );
+      expect(unlisted.length).toBeGreaterThan(0);
+      for (const zoneId of unlisted)
+        expect(
+          (
+            await measured(seed.world, recommendationZone, {
+              warehouseId: seed.warehouseId,
+              palletId: seed.probe,
+              zoneId,
+            })
+          ).value,
+        ).toBeNull();
+    },
+    120000,
+  );
+
+  it("re-runs a zone detail only for writes to that zone", async () => {
+    const seed = await warehouseWorld();
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    const args = { warehouseId: seed.warehouseId, palletId: seed.probe };
+    const before = await expectSplitParity(seed, seed.probe);
+    const zoneIds = [...before.zones.keys()];
+    const [viewed, elsewhere] = [zoneIds[0]!, zoneIds[zoneIds.length - 1]!];
+    expect(viewed).not.toBe(elsewhere);
+    const readSets = {
+      full: before.full.readSet,
+      list: before.list.readSet,
+      viewed: before.zones.get(viewed)!.readSet,
+      elsewhere: before.zones.get(elsewhere)!.readSet,
+    };
+    // Another operator reserves a different pallet in another zone.
+    const target = (
+      await measured<Recommended>(seed.world, recommend, {
+        ...args,
+        palletId: seed.other,
+      })
+    ).value.candidates.find((c) => c.zoneId === elsewhere)!;
+    expect(target).toBeDefined();
+    const { writes } = await recordWrites(
+      seed.world,
+      reserve,
+      reserveArgs(seed, seed.other, "reserve-elsewhere", target),
+    );
+    const tables = (readSet: ReadSet) =>
+      [...new Set(rerunsOn(readSet, writes).map((w) => w.table))].sort();
+    const reruns = {
+      full: tables(readSets.full),
+      list: tables(readSets.list),
+      viewed: tables(readSets.viewed),
+      elsewhere: tables(readSets.elsewhere),
+    };
+    console.info(`re-run on reserve elsewhere: ${JSON.stringify(reruns)}`);
+    // The viewed zone's detail does not depend on the other zone.
+    expect(reruns.viewed).toEqual([]);
+    // The list shows every zone, including the written one, so it re-runs, as
+    // the full payload did; the written zone's own detail re-runs too.
+    expect(reruns.list).toEqual(["storageZoneOccupancyEntries"]);
+    expect(reruns.full).toEqual(["storageZoneOccupancyEntries"]);
+    expect(reruns.elsewhere.length).toBeGreaterThan(0);
+    const after = await expectSplitParity(seed, seed.probe);
+    expect(after.zones.get(viewed)!.value).toEqual(
+      before.zones.get(viewed)!.value,
+    );
+    // What one such write costs a screen that shows this pallet's list and
+    // one zone: the old payload re-ran whole; now the list re-runs alone.
+    console.info(
+      [
+        `reserve elsewhere, screen re-run before: ${docsRead(after.full.stats)} docs, ${(payloadBytes(after.full.value) / 1024).toFixed(1)} KB returned`,
+        `reserve elsewhere, screen re-run after: ${docsRead(after.list.stats)} docs, ${(payloadBytes(after.list.value) / 1024).toFixed(1)} KB returned (zone detail: not re-run)`,
+      ].join("\n"),
+    );
+    // Positive control: a write into the viewed zone re-runs its detail.
+    const inViewed = (
+      await measured<Recommended>(seed.world, recommend, {
+        ...args,
+        palletId: seed.other,
+      })
+    ).value.candidates.find((c) => c.zoneId === viewed);
+    accepted(
+      await call(seed.world, cancelReservation, {
+        ...args,
+        palletId: seed.other,
+        requestId: "cancel-elsewhere",
+      }),
+    );
+    expect(inViewed).toBeDefined();
+    const viewedWrite = await recordWrites(
+      seed.world,
+      reserve,
+      reserveArgs(seed, seed.other, "reserve-viewed", inViewed!),
+    );
+    expect(
+      rerunsOn(readSets.viewed, viewedWrite.writes).length,
+    ).toBeGreaterThan(0);
+  }, 120000);
+
+  it("refuses zones of another warehouse or organization and unmeasured pallets", async () => {
+    const seed = await warehouseWorld();
+    const listed = await expectSplitParity(seed, seed.probe);
+    const zoneId = [...listed.zones.keys()][0]!;
+    const preview = (args: Record<string, unknown>) =>
+      measured(seed.world, recommendationZone, {
+        warehouseId: seed.warehouseId,
+        palletId: seed.probe,
+        zoneId,
+        ...args,
+      });
+    expect((await preview({})).value).not.toBeNull();
+    // Same tenant, another warehouse's zone id.
+    const foreignZone = await seed.world.t.run(async (ctx) => {
+      const zone = (await ctx.db.get(zoneId as Id<"storageZones">))!;
+      return ctx.db.insert("storageZones", {
+        ...fields(zone),
+        warehouseId: seed.world.warehouses.bravoA,
+        code: "FOREIGN",
+      });
+    });
+    expect((await preview({ zoneId: foreignZone })).value).toBeNull();
+    // Another organization's zone.
+    const otherOrgZone = await seed.world.t.run(async (ctx) => {
+      const zone = (await ctx.db.get(zoneId as Id<"storageZones">))!;
+      return ctx.db.insert("storageZones", {
+        ...fields(zone),
+        orgId: seed.world.orgB,
+        warehouseId: seed.world.warehouses.alphaB,
+        code: "OTHER-ORG",
+      });
+    });
+    expect((await preview({ zoneId: otherOrgZone })).value).toBeNull();
+    // An unmeasured pallet has no recommendation and no zone detail.
+    await seed.world.t.run((ctx) =>
+      ctx.db.patch(seed.probe as Id<"finishedGoodsPallets">, {
+        heightMm: undefined,
+      }),
+    );
+    expect((await preview({})).value).toBeNull();
+    await expectSplitParity(seed, seed.probe);
+  }, 120000);
 });

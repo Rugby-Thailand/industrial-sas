@@ -3,11 +3,11 @@
 `convex/lib/zoneOccupancy.ts` keeps three derived tables so occupancy readers stop
 reading every held placement and its pallet on every execution and re-run:
 
-| Table                           | Row                                                                    | Read by                                                     |
-| ------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `storageZoneOccupancy`          | Per zone: held/unmeasured counts, stored/held footprint areas          | `buildingOccupancy`, `listStorageBuildings`                 |
-| `storageZoneOccupancyEntries`   | Per zone: exact copies of held placements (index order) + pallet facts | `recommend`, `recommendMove`, `getStorageBuildingInventory` |
-| `storageZoneOccupancyReadiness` | Per warehouse: `ready`, `blocked`, `version`                           | all of the above                                            |
+| Table                           | Row                                                                    | Read by                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storageZoneOccupancy`          | Per zone: held/unmeasured counts, stored/held footprint areas          | `buildingOccupancy`, `listStorageBuildings`; recommendations, for zones whose storage condition mismatches (only the unmeasured count matters there) |
+| `storageZoneOccupancyEntries`   | Per zone: exact copies of held placements (index order) + pallet facts | `recommend`, `recommendMove`, `recommendationZone`, `getStorageBuildingInventory`                                                                    |
+| `storageZoneOccupancyReadiness` | Per warehouse: `ready`, `blocked`, `version`                           | all of the above                                                                                                                                     |
 
 ## Correctness model
 
@@ -77,6 +77,20 @@ Measured on the local large-tenant fixture (`docs/reviews/convex-performance-202
 `recommend` 2,886 → 686 docs, `getStorageBuildingInventory` 1,829 → 34,
 `buildingOccupancy` 917 → 20; one placement write re-reads 6,092 → 1,692 docs
 across open subscriptions.
+
+## Recommendation list and zone preview
+
+Put-away and move screens call `recommend`/`recommendMove` with `view: "list"`:
+the complete ranked list, each candidate without the fields its whole zone
+shares (`occupied`, `unavailable`, `previewSupports`, `zone`, identifiers;
+`convex/model/finishedGoods/recommendationView.ts`). The editor then loads
+`recommendationZone` for the zone it previews only, so a write in another
+zone never re-runs that preview. Both run the same per-zone evaluation
+(`zoneRecommendation`), so `{ ...listed, ...zone }` is exactly the original
+candidate (parity: `tests/integration/storage-query-scale.integration.test.ts`).
+Without `view`, both return the original full payload for tabs loaded before
+this change. The list still reads every active zone it ranks, so a held
+placement write in any of them re-runs it.
 
 ## Maintained catalogue totals
 

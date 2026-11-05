@@ -3,8 +3,14 @@ import {
   type OccupancyPallet,
   zoneOccupancyEntries,
   zoneOccupancyReady,
+  zoneUnmeasuredCount,
 } from "../lib/zoneOccupancy";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
+import {
+  listedCandidate as listed,
+  zonePreview,
+  type ZonePreviewField,
+} from "../model/finishedGoods/recommendationView";
 import { identifiesPallet } from "../model/finishedGoods/palletIdentity";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
 import {
@@ -35,6 +41,7 @@ import {
   placementError,
   validDimension,
   overlaps,
+  type MeasuredSize,
   type Surface,
   type Rectangle,
   type Rotation,
@@ -616,42 +623,52 @@ function createLocationReadScope(
       if (!knownPlacements.has(row._id))
         knownPlacements.set(row._id, Promise.resolve(row));
   };
+  /** Held placements in by_orgId_zoneId_status order, per status. */
+  const occupancy = async (zoneId: Id<"storageZones">) => {
+    const entries = useZoneOccupancy
+      ? await zoneOccupancyEntries(ctx.tenantDb, zoneId)
+      : null;
+    if (entries) {
+      for (const [id, facts] of entries.pallets)
+        if (!knownPallets.has(id)) knownPallets.set(id, Promise.resolve(facts));
+      remember(entries.placements);
+      return {
+        held: entries.placements.filter((p) => p.status === "RESERVED"),
+        stored: entries.placements.filter((p) => p.status === "STORED"),
+      };
+    }
+    const [held, stored] = await Promise.all(
+      (["RESERVED", "STORED"] as const).map((status) =>
+        rows<Doc<"finishedGoodsPlacements">>(
+          ctx,
+          "finishedGoodsPlacements",
+          "by_orgId_zoneId_status",
+          [
+            { field: "zoneId", value: zoneId },
+            { field: "status", value: status },
+          ],
+        ),
+      ),
+    );
+    remember(held!);
+    remember(stored!);
+    return { held: held!, stored: stored! };
+  };
   return {
     zone: createQueryDocumentReader(ctx.tenantDb, "storageZones"),
     building: (id: string) => known.get(id) ?? readBuilding(id),
     pallet,
     placement: (id: string) => knownPlacements.get(id) ?? readPlacement(id),
-    /** Held placements in by_orgId_zoneId_status order, per status. */
-    occupancy: async (zoneId: Id<"storageZones">) => {
-      const entries = useZoneOccupancy
-        ? await zoneOccupancyEntries(ctx.tenantDb, zoneId)
+    occupancy,
+    /** Unmeasured held placements: the summary row when ready, else counted. */
+    unmeasured: async (zoneId: Id<"storageZones">) => {
+      const count = useZoneOccupancy
+        ? await zoneUnmeasuredCount(ctx.tenantDb, zoneId)
         : null;
-      if (entries) {
-        for (const [id, facts] of entries.pallets)
-          if (!knownPallets.has(id))
-            knownPallets.set(id, Promise.resolve(facts));
-        remember(entries.placements);
-        return {
-          held: entries.placements.filter((p) => p.status === "RESERVED"),
-          stored: entries.placements.filter((p) => p.status === "STORED"),
-        };
-      }
-      const [held, stored] = await Promise.all(
-        (["RESERVED", "STORED"] as const).map((status) =>
-          rows<Doc<"finishedGoodsPlacements">>(
-            ctx,
-            "finishedGoodsPlacements",
-            "by_orgId_zoneId_status",
-            [
-              { field: "zoneId", value: zoneId },
-              { field: "status", value: status },
-            ],
-          ),
-        ),
-      );
-      remember(held!);
-      remember(stored!);
-      return { held: held!, stored: stored! };
+      if (count !== null) return count;
+      const { held, stored } = await occupancy(zoneId);
+      return [...held, ...stored].filter((p) => !isGeometricPlacement(p))
+        .length;
     },
     floor: createQueryDocumentReader(ctx.tenantDb, "storageFloors"),
     location: createQueryDocumentReader(ctx.tenantDb, "locations"),
@@ -727,40 +744,42 @@ async function locationContext(
     location.warehouseId !== warehouseId
   )
     return null;
-  // Geometry-unknown takes precedence over condition mismatch. Read both
-  // occupancy statuses even for a mismatch, but avoid supports/blocks/pallets
-  // that cannot affect that zone's result. Preserve input order in the caller.
-  const mismatch =
+  // A recommendation needs only the reason for a zone whose result is one:
+  // a condition mismatch, or (checked first) units of unknown geometry. Read
+  // nothing else for it; preserve input order in the caller.
+  const reasonOnly = (unmeasuredPalletCount: number) => ({
+    zone,
+    building,
+    floor,
+    positions: [] as Doc<"storagePositions">[],
+    supports: [],
+    unavailable: [],
+    occupancy: [],
+    unmeasuredPalletCount,
+  });
+  if (
     recommendationProduct !== undefined &&
-    conditionCheck({ zone }, recommendationProduct) === "MISMATCH";
-  const [positions, allBlocks, { held, stored }] = await Promise.all([
-    mismatch
-      ? Promise.resolve([])
-      : rows<Doc<"storagePositions">>(
-          ctx,
-          "storagePositions",
-          "by_orgId_zoneId_status_code",
-          [
-            { field: "zoneId", value: zone._id },
-            { field: "status", value: "ACTIVE" },
-          ],
-        ),
-    mismatch ? Promise.resolve([]) : scope.blocks(zone.floorId),
-    scope.occupancy(zone._id),
+    conditionCheck({ zone }, recommendationProduct) === "MISMATCH"
+  )
+    return reasonOnly(await scope.unmeasured(zone._id));
+  const { held, stored } = await scope.occupancy(zone._id);
+  const unmeasuredPalletCount = [...held, ...stored].filter(
+    (p) => !isGeometricPlacement(p),
+  ).length;
+  if (recommendationProduct !== undefined && unmeasuredPalletCount > 0)
+    return reasonOnly(unmeasuredPalletCount);
+  const [positions, allBlocks] = await Promise.all([
+    rows<Doc<"storagePositions">>(
+      ctx,
+      "storagePositions",
+      "by_orgId_zoneId_status_code",
+      [
+        { field: "zoneId", value: zone._id },
+        { field: "status", value: "ACTIVE" },
+      ],
+    ),
+    scope.blocks(zone.floorId),
   ]);
-  if (mismatch)
-    return {
-      zone,
-      building,
-      floor,
-      positions,
-      supports: [],
-      unavailable: [],
-      occupancy: [],
-      unmeasuredPalletCount: [...held, ...stored].filter(
-        (p) => !isGeometricPlacement(p),
-      ).length,
-    };
   const unavailable = allBlocks
     .filter((block) => overlaps(zone, block))
     .map((block) => ({
@@ -910,9 +929,7 @@ async function locationContext(
     supports,
     unavailable,
     occupancy,
-    unmeasuredPalletCount: [...held, ...stored].filter(
-      (p) => !isGeometricPlacement(p),
-    ).length,
+    unmeasuredPalletCount,
   };
 }
 type LocationContext = NonNullable<Awaited<ReturnType<typeof locationContext>>>;
@@ -993,6 +1010,26 @@ function conditionCheck(
   if (requiredCondition === "ANY") return "MATCH";
   return locationCondition === requiredCondition ? "MATCH" : "MISMATCH";
 }
+/** The zone's held placements other than `palletId`'s, as a destination shows them. */
+function occupiedView(
+  context: LocationContext,
+  palletId: Id<"finishedGoodsPallets">,
+): Destination["occupied"] {
+  return context.occupancy
+    .filter((p) => p.palletId !== palletId)
+    .map((p) => ({
+      placementId: p._id,
+      palletId: p.palletId,
+      positionCode: p.positionCode,
+      xMm: p.xMm,
+      yMm: p.yMm,
+      zMm: p.zMm,
+      widthMm: p.widthMm,
+      depthMm: p.depthMm,
+      heightMm: p.heightMm,
+      status: p.status as "RESERVED" | "STORED",
+    }));
+}
 function destination(
   context: LocationContext,
   support: LocationContext["supports"][number],
@@ -1008,25 +1045,12 @@ function destination(
   product: Doc<"finishedGoodsProducts">,
   palletId: Id<"finishedGoodsPallets">,
   positionCode = "Proposed",
+  occupied = occupiedView(context, palletId),
 ): Destination {
   const { zone, building, floor } = context;
   const supportPosition = context.positions.find(
     (position) => position._id === support.supportPositionId,
   );
-  const occupied = context.occupancy
-    .filter((p) => p.palletId !== palletId)
-    .map((p) => ({
-      placementId: p._id,
-      palletId: p.palletId,
-      positionCode: p.positionCode,
-      xMm: p.xMm,
-      yMm: p.yMm,
-      zMm: p.zMm,
-      widthMm: p.widthMm,
-      depthMm: p.depthMm,
-      heightMm: p.heightMm,
-      status: p.status as "RESERVED" | "STORED",
-    }));
   const error = placementError(
     box,
     support.surface,
@@ -1087,19 +1111,132 @@ function destination(
     unavailable: context.unavailable,
   };
 }
-async function recommendations(
+type MeasuredPallet = Doc<"finishedGoodsPallets"> & MeasuredSize;
+type RecommendationInputs =
+  | {
+      pallet: MeasuredPallet;
+      product: Doc<"finishedGoodsProducts">;
+    }
+  | { refusal: string };
+async function recommendationInputs(
   ctx: TenantFunctionContext,
   args: { warehouseId: Id<"warehouses">; palletId: Id<"finishedGoodsPallets"> },
-) {
+): Promise<RecommendationInputs> {
   const pallet = await palletOf(ctx, args);
-  if (!pallet) return { candidates: [], reasons: ["NOT_FOUND"] };
-  if (!measured(pallet))
-    return { candidates: [], reasons: ["MEASUREMENTS_REQUIRED"] };
+  if (!pallet) return { refusal: "NOT_FOUND" };
+  if (!measured(pallet)) return { refusal: "MEASUREMENTS_REQUIRED" };
   const product = await productOf(ctx, {
     warehouseId: args.warehouseId,
     productId: pallet.productId,
   });
-  if (!product) return { candidates: [], reasons: ["NOT_FOUND"] };
+  if (!product) return { refusal: "NOT_FOUND" };
+  return { pallet, product };
+}
+/**
+ * One active zone's share of a recommendation: its reasons in the order the
+ * warehouse list adds them, its fitting candidates (unsorted) and its
+ * inspect-only previews. The warehouse list and the per-zone detail both use
+ * this, so a zone's detail is exactly what the list derived for that zone.
+ */
+async function zoneRecommendation(
+  ctx: TenantFunctionContext,
+  pallet: MeasuredPallet,
+  product: Doc<"finishedGoodsProducts">,
+  context: LocationContext,
+  stackScope: StackScope,
+) {
+  const reasons: string[] = [];
+  const candidates: Candidate[] = [];
+  const previewCandidates: Candidate[] = [];
+  const result = { reasons, candidates, previewCandidates };
+  if (context.unmeasuredPalletCount > 0) {
+    reasons.push("LOCATION_GEOMETRY_UNKNOWN");
+    return result;
+  }
+  if (conditionCheck(context, product) === "MISMATCH") {
+    reasons.push("STORAGE_CONDITION_MISMATCH");
+    return result;
+  }
+  if (!context.supports.length) {
+    reasons.push("NO_SUPPORT_SURFACE");
+    return result;
+  }
+  const previewSupports: PreviewSupport[] = [];
+  for (const support of context.supports) {
+    if (support.supportPalletId === pallet._id) continue;
+    const blockedReason = support.supportPalletId
+      ? await validateStack(ctx, pallet, support.supportPalletId, stackScope)
+      : null;
+    previewSupports.push({
+      ...support,
+      ...compact({ blockedReason: blockedReason ?? undefined }),
+    });
+  }
+  // Every candidate of a zone shares these; build them once per zone.
+  const others = context.occupancy.filter((p) => p.palletId !== pallet._id);
+  const occupied = occupiedView(context, pallet._id);
+  for (const support of previewSupports) {
+    // A selectable height must be backed by a valid floor, rack, or pallet.
+    // Re-run the same stack rules here and again when the reservation commits.
+    if (support.blockedReason) {
+      reasons.push(support.blockedReason);
+      continue;
+    }
+    const box = firstFit(pallet, support.surface, others, context.unavailable);
+    if (!box) {
+      // Keep an inspectable floor/rack context even when no placement fits.
+      // This is a preview, never a reservation: geometry is checked in the UI
+      // and again by reserve/confirm on the server.
+      if (!support.supportPalletId) {
+        previewCandidates.push({
+          ...destination(
+            context,
+            support,
+            {
+              xMm: support.surface.xMm,
+              yMm: support.surface.yMm,
+              zMm: support.surface.zMm,
+              rotation: 0,
+              ...dimensions(pallet, 0),
+            },
+            product,
+            pallet._id,
+            undefined,
+            occupied,
+          ),
+          previewSupports,
+        });
+      }
+      reasons.push(
+        pallet.heightMm > support.surface.heightMm
+          ? "HEIGHT_EXCEEDED"
+          : "NO_FREE_FOOTPRINT",
+      );
+      continue;
+    }
+    candidates.push({
+      ...destination(
+        context,
+        support,
+        box,
+        product,
+        pallet._id,
+        undefined,
+        occupied,
+      ),
+      previewSupports,
+    });
+  }
+  return result;
+}
+async function recommendations(
+  ctx: TenantFunctionContext,
+  args: { warehouseId: Id<"warehouses">; palletId: Id<"finishedGoodsPallets"> },
+) {
+  const inputs = await recommendationInputs(ctx, args);
+  if ("refusal" in inputs)
+    return { candidates: [] as Candidate[], reasons: [inputs.refusal] };
+  const { pallet, product } = inputs;
   // Zones of draft/archived buildings can never be candidates (locationContext
   // rejects them), so read only ACTIVE buildings' zones. Keep the warehouse
   // code-index order: previewCandidates and reasons follow iteration order.
@@ -1145,76 +1282,17 @@ async function recommendations(
   for (const context of contexts) {
     if (!context) continue;
     active++;
-    if (context.unmeasuredPalletCount > 0) {
-      reasons.add("LOCATION_GEOMETRY_UNKNOWN");
-      continue;
-    }
-    if (conditionCheck(context, product) === "MISMATCH") {
-      reasons.add("STORAGE_CONDITION_MISMATCH");
-      continue;
-    }
-    if (!context.supports.length) {
-      reasons.add("NO_SUPPORT_SURFACE");
-      continue;
-    }
-    const previewSupports: PreviewSupport[] = [];
-    for (const support of context.supports) {
-      if (support.supportPalletId === pallet._id) continue;
-      const blockedReason = support.supportPalletId
-        ? await validateStack(ctx, pallet, support.supportPalletId, stackScope)
-        : null;
-      previewSupports.push({
-        ...support,
-        ...compact({ blockedReason: blockedReason ?? undefined }),
-      });
-    }
-    for (const support of previewSupports) {
-      // A selectable height must be backed by a valid floor, rack, or pallet.
-      // Re-run the same stack rules here and again when the reservation commits.
-      if (support.blockedReason) {
-        reasons.add(support.blockedReason);
-        continue;
-      }
-      const box = firstFit(
-        pallet,
-        support.surface,
-        context.occupancy.filter((p) => p.palletId !== pallet._id),
-        context.unavailable,
-      );
-      if (!box) {
-        // Keep an inspectable floor/rack context even when no placement fits.
-        // This is a preview, never a reservation: geometry is checked in the UI
-        // and again by reserve/confirm on the server.
-        if (!support.supportPalletId) {
-          previewCandidates.push({
-            ...destination(
-              context,
-              support,
-              {
-                xMm: support.surface.xMm,
-                yMm: support.surface.yMm,
-                zMm: support.surface.zMm,
-                rotation: 0,
-                ...dimensions(pallet, 0),
-              },
-              product,
-              pallet._id,
-            ),
-            previewSupports,
-          });
-        }
-        reasons.add(
-          pallet.heightMm > support.surface.heightMm
-            ? "HEIGHT_EXCEEDED"
-            : "NO_FREE_FOOTPRINT",
-        );
-        continue;
-      }
-      candidates.push({
-        ...destination(context, support, box, product, pallet._id),
-        previewSupports,
-      });
-    }
+    const zone = await zoneRecommendation(
+      ctx,
+      pallet,
+      product,
+      context,
+      stackScope,
+    );
+    for (const reason of zone.reasons) reasons.add(reason);
+    for (const candidate of zone.candidates) candidates.push(candidate);
+    for (const preview of zone.previewCandidates)
+      previewCandidates.push(preview);
   }
   candidates.sort(
     (a, b) =>
@@ -1236,30 +1314,105 @@ async function recommendations(
   };
 }
 
+export type ZonePreview = Pick<Candidate, "zoneId" | ZonePreviewField>;
+/** The ranked list without per-zone preview fields; refusals pass through. */
+function listView<
+  Result extends {
+    candidates: Candidate[];
+    previewCandidates?: Candidate[];
+    reasons: string[];
+  },
+>(result: Result) {
+  return {
+    candidates: result.candidates.map((c) => listed(c)),
+    ...(result.previewCandidates
+      ? { previewCandidates: result.previewCandidates.map((c) => listed(c)) }
+      : {}),
+    reasons: result.reasons,
+  };
+}
+const recommendationArgs = {
+  ...palletArgs,
+  /**
+   * "list": candidates without per-zone preview fields; fetch the viewed
+   * zone's with `recommendationZone`. Absent (clients that predate the split):
+   * the original full candidates.
+   */
+  view: v.optional(v.literal("list")),
+};
+
 export const recommend = queryWithOrg({
-  args: palletArgs,
+  args: recommendationArgs,
   returns: v.any(),
   permissionCode: READ,
   target: { table: "finishedGoodsPallets" },
   warehouseId: (a) => a.warehouseId,
-  handler: recommendations,
+  handler: async (ctx, { view, ...args }) => {
+    const result = await recommendations(ctx, args);
+    return view === "list" ? listView(result) : result;
+  },
 });
 export const recommendMove = queryWithOrg({
-  args: palletArgs,
+  args: recommendationArgs,
   returns: v.any(),
   permissionCode: READ,
   target: { table: "finishedGoodsPallets" },
   warehouseId: (a) => a.warehouseId,
-  handler: async (ctx, args) => {
+  handler: async (ctx, { view, ...args }) => {
     const pallet = await palletOf(ctx, args);
-    if (pallet?.status !== "STORED")
-      return {
-        candidates: [] as Candidate[],
-        reasons: ["STORED_PALLET_REQUIRED"],
-      };
-    if ((await stackChildren(ctx, pallet._id)).length)
-      return { candidates: [], reasons: ["PALLET_SUPPORTING_STACK"] };
-    return recommendations(ctx, args);
+    const result =
+      pallet?.status !== "STORED"
+        ? {
+            candidates: [] as Candidate[],
+            reasons: ["STORED_PALLET_REQUIRED"],
+          }
+        : (await stackChildren(ctx, pallet._id)).length
+          ? {
+              candidates: [] as Candidate[],
+              reasons: ["PALLET_SUPPORTING_STACK"],
+            }
+          : await recommendations(ctx, args);
+    return view === "list" ? listView(result) : result;
+  },
+});
+/**
+ * The per-zone preview fields of `recommend`/`recommendMove` (`view: "list"`)
+ * for the one zone a screen is viewing. Reads only that zone, so writes in
+ * other zones never re-run it. Null when the zone yields no listed candidate.
+ * Preview only: reserve/confirm validate against authoritative placements.
+ */
+export const recommendationZone = queryWithOrg({
+  args: { ...palletArgs, zoneId: v.id("storageZones") },
+  returns: v.any(),
+  permissionCode: READ,
+  target: { table: "finishedGoodsPallets" },
+  warehouseId: (a) => a.warehouseId,
+  handler: async (ctx, args): Promise<ZonePreview | null> => {
+    const inputs = await recommendationInputs(ctx, args);
+    if ("refusal" in inputs) return null;
+    const scope = createLocationReadScope(
+      ctx,
+      [],
+      await zoneOccupancyReady(ctx.tenantDb, args.warehouseId),
+    );
+    const context = await locationContext(
+      ctx,
+      args.warehouseId,
+      args.zoneId,
+      scope,
+      undefined,
+      inputs.product,
+    );
+    if (!context) return null;
+    const { candidates, previewCandidates } = await zoneRecommendation(
+      ctx,
+      inputs.pallet,
+      inputs.product,
+      context,
+      createStackReadScope(ctx, inputs.pallet, scope),
+    );
+    const first = candidates[0] ?? previewCandidates[0];
+    return first ? (zonePreview(first) as ZonePreview) : null;
   },
 });
 

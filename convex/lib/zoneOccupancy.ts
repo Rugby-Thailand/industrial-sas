@@ -497,3 +497,23 @@ export async function zoneOccupancyEntries(
     ),
   };
 }
+
+/**
+ * A zone's unmeasured held-placement count from its small summary row, or
+ * null to count it from the placements. Both rows of a zone are written
+ * together (`write`), so this equals the entries' LOCATION_ONLY count.
+ */
+export async function zoneUnmeasuredCount(
+  db: Pick<TenantDocumentAccess, "byIndex">,
+  zoneId: Id<"storageZones"> | string,
+): Promise<number | null> {
+  const row = await db
+    .byIndex<ZoneOccupancySummary>("storageZoneOccupancy", "by_orgId_zoneId", [
+      { field: "zoneId", value: zoneId },
+    ])
+    .unique();
+  // As for entries: a ready warehouse has rows for every zone holding anything.
+  if (!row) return 0;
+  if (row.version !== ZONE_OCCUPANCY_VERSION || !row.complete) return null;
+  return row.unmeasured;
+}
