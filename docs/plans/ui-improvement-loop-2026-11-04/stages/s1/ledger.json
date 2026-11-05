@@ -237,6 +237,487 @@
         "format": "pass",
         "capture": "20/20, overflow 0, serious axe 0, console clean except expected 404 and simulated failure"
       }
+    },
+    {
+      "loop": 3,
+      "commit": "fff51945",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 8,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 8,
+            "shell-loading": 8,
+            "not-found": 9,
+            "route-error": 9
+          }
+        }
+      },
+      "note": "Phase 1. Capture adds English + dark (en-dark) from this loop. Plateau rule check: min unchanged at 8 since loop 1, but median rose to 9 and 7/11 screens are at 9 with only concrete UI findings left, so the orchestrator continued (not a product decision or auditor disagreement).",
+      "fixed": [
+        "S1-L2-sol-02",
+        "S1-L2-sol-07",
+        "S1-L2-sol-09",
+        "S1-L2-sol-11",
+        "S1-L2-sol-15",
+        "S1-L2-sol-16",
+        "S1-L0-solb-11"
+      ],
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass (after ignoring .next-loop build output)",
+        "vitest": "985/986 (pre-existing JobScan.saveBlockedTickets ICU parity)",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "40/40 (th-light + en-dark), overflow 0, serious axe 0"
+      }
+    },
+    {
+      "loop": 4,
+      "commit": "4beb368b",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 8,
+            "not-found": 9,
+            "route-error": 9
+          }
+        }
+      },
+      "note": "Phase 1. 10/11 screens at 9; shell-loading at 8.",
+      "fixed": [
+        "S1-L3-sol-01",
+        "S1-L3-sol-07",
+        "S1-L3-sol-10",
+        "S1-L3-sol-12",
+        "S1-L0-opus-02"
+      ],
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass",
+        "vitest": "990/991 (pre-existing JobScan.saveBlockedTickets ICU parity)",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "40/40 (th-light + en-dark), overflow 0, serious axe 0"
+      }
+    },
+    {
+      "loop": 5,
+      "commit": "28cac08f",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 8,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        }
+      },
+      "note": "Phase 1. shell-loading reached 9; search-empty regressed 9→8 (disabled full-width Ask AI on phones gives no hint). Reverted loop 2's history microtask delay after it caused a Back race under load.",
+      "fixed": ["S1-L4-sol-08", "S1-L4-sol-11"],
+      "regression": [
+        {
+          "screen": "search-empty",
+          "from": 9,
+          "to": 8,
+          "cause": "Loop 4 phone layout made the disabled Ask AI button a full-width bar with no hint (S1-L5-sol-04)"
+        }
+      ],
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass",
+        "vitest": "2504/2510 full features run under load; 5 load timeouts pass in isolation; StorageLayoutNavigation race traced to loop 2 history change and reverted (8/8 parallel runs pass); 1 pre-existing ICU parity",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "40/40, overflow 0, serious axe 0"
+      }
+    },
+    {
+      "loop": 6,
+      "commit": "4fac690c",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 8,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        },
+        "opus": {
+          "min": 8,
+          "median": 8,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-switch": 8,
+            "search-empty": 8,
+            "search-results": 8,
+            "search-no-match": 8,
+            "search-ai-running": 8,
+            "shell-loading": 8,
+            "not-found": 8,
+            "route-error": 8
+          }
+        }
+      },
+      "note": "Phase 1 budget (6 loops) reached at 10/11 sol screens ≥ 9; search-ai-running oscillates 8↔9 with no layout change (loops 4–5: 9, loop 6: 8). Its finding is carried into Phase 2 loop 7 rather than stopping the stage (budget overrun recorded). Opus audit on the same commit: every screen 8.",
+      "fixed": ["S1-L5-sol-04"],
+      "phase": "1 → 2",
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass",
+        "vitest": "551/552 (pre-existing ICU parity)",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "40/40, overflow 0, serious axe 0"
+      }
+    },
+    {
+      "loop": 7,
+      "commit": "3f191cc4",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 8,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        },
+        "opus": {
+          "min": 8,
+          "median": 8,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-switch": 9,
+            "search-empty": 8,
+            "search-results": 8,
+            "search-no-match": 8,
+            "search-ai-running": 8,
+            "shell-loading": 8,
+            "not-found": 8,
+            "route-error": 8
+          }
+        }
+      },
+      "note": "Phase 2 loop 1. sol 10/11 at 9 (search-results 8: phone AI button space). Opus: locale-switch 9, others 8 with new, smaller P2s.",
+      "phase": 2,
+      "fixed": [
+        "S1-L6-sol-09",
+        "S1-L6-opus-01",
+        "S1-L6-opus-04",
+        "S1-L6-opus-05",
+        "S1-L6-opus-07",
+        "S1-L6-opus-10",
+        "S1-L6-opus-12",
+        "S1-L6-opus-14",
+        "S1-L6-opus-15",
+        "S1-L6-opus-16",
+        "S1-L6-opus-19",
+        "S1-L6-opus-20",
+        "S1-L6-opus-25",
+        "S1-L6-opus-26",
+        "S1-L6-opus-28",
+        "S1-L6-opus-30",
+        "S1-L6-opus-31",
+        "S1-L6-opus-32",
+        "S1-L6-opus-34",
+        "S1-L0-opus-03"
+      ],
+      "rejected": [
+        {
+          "id": "S1-L6-opus-03",
+          "reason": "Phone bottom tab bar is an IA decision: D12, pending owner"
+        },
+        {
+          "id": "S1-L6-opus-13",
+          "reason": "Scope chips: pending owner (S1-L0-solb-07)"
+        }
+      ],
+      "behaviour": [
+        {
+          "id": "S1-L6-opus-21",
+          "question": "No-match AI fallback is pre-selected, so Enter sends typed text (possibly names) to the AI provider; show Search.aiPrivacy?"
+        },
+        {
+          "id": "S1-L6-opus-24",
+          "question": "AI runs warehouse questions it cannot resolve: extend AI to warehouse pages, or refuse out-of-scope questions before calling?"
+        }
+      ],
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass",
+        "vitest": "1007/1008 (pre-existing ICU parity)",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "40/40, overflow 0, serious axe 0"
+      }
+    },
+    {
+      "loop": 8,
+      "commit": "9c6928a2",
+      "scores": {
+        "sol": {
+          "min": 9,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        },
+        "opus": {
+          "min": 8,
+          "median": 8,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-switch": 9,
+            "search-empty": 8,
+            "search-results": 8,
+            "search-no-match": 9,
+            "search-ai-running": 8,
+            "shell-loading": 8,
+            "not-found": 8,
+            "route-error": 8
+          }
+        }
+      },
+      "phase": 2,
+      "note": "Loop 8 resumed with Codex and Kiro CLI only. Sol 9 on all 11 screens; Kiro/Opus minimum 8, median 8. Stage 1 NOT passed. Plateau checkpoint: Opus minimum is 8 in loops 7 and 8. No Stage 2 work or PR.",
+      "fixed": [
+        "S1-L7-opus-01",
+        "S1-L7-opus-02",
+        "S1-L7-opus-03",
+        "S1-L7-opus-05",
+        "S1-L7-opus-06",
+        "S1-L7-opus-08",
+        "S1-L7-opus-14",
+        "S1-L7-opus-15",
+        "S1-L7-opus-18",
+        "S1-L7-opus-20",
+        "S1-L7-opus-21",
+        "S1-L7-opus-22",
+        "S1-L7-opus-24",
+        "S1-L7-opus-25",
+        "S1-L7-opus-26",
+        "S1-L7-sol-07"
+      ],
+      "checks": {
+        "typecheck": "pass: pinned Bun 1.4.3 / TypeScript 7.0.2, 1090 files",
+        "lint": "pass (full repository); changed capture script also linted",
+        "vitest": "230 related tests passed (213 shell/not-found/observability + 17 layout/error); SearchTriggers rerun 12/12",
+        "i18n": "8/9; pre-existing ICU regex parity failure at unchanged JobScan.saveBlockedTickets. New Thai shortcut prose regression corrected.",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "build": "production webpack build passed",
+        "capture": "40/40; overflow 0, serious/critical axe 0. Expected console errors only: 404 and injected read failures.",
+        "runtime": "5 browser cases passed: desktop/mobile explicit Close/focus/next Back, native Back, collapsed rail reload and locale/query/hash retention"
+      },
+      "evidenceCorrection": {
+        "screen": "search-ai-running",
+        "reason": "Live AI request completed before initial screenshot, so the pending state was absent. Initial evidence archived, not counted.",
+        "fix": "Hold /api/ai/search in capture only and assert pending row; recaptured all four variants.",
+        "audits": "Both models rescored corrected state. Other screens keep their first independent scores. Initial Sol recheck timed out; a four-image retry completed."
+      },
+      "auditorRunners": {
+        "sol": "Codex CLI gpt-6.1-sol",
+        "opus": "Kiro CLI claude-opus-5.5"
+      },
+      "remainingUiFindings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Sidebar search entry has no visible field in light mode, unlike dark mode",
+          "evidence": "shell-page__th-desktop-light.png x16–271 y128–172: fill #f6f7f9 equals the sidebar canvas (#f6f7f9) and the border is #ebeced (about 1.1:1), so the main HR navigation entry reads as a faint label, while shell-page__en-desktop-dark.png shows a filled, bordered field. The same applies to the drawer copy in shell-drawer__th-mobile-light.png y305–399. Source: SearchTriggers.tsx:100 (`border border-sidebar-border/60 bg-raised`), globals.css:141 (`--token-raised: var(--muted)`) and globals.css:223 (`--sidebar: #f6f7f9`).",
+          "fix": "In light mode, give the trigger the page search field's treatment: `bg-surface` with `border-input`, as on the Finished goods search box at y258. That gives at least a 3:1 boundary against the sidebar and matches the dark rendering.",
+          "benchmark": "Linear / Raycast: the search bar is a clearly bounded field that is the obvious way in",
+          "id": "S1-L8-opus-01",
+          "screen": "shell-page"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Phone page search placeholder is cut mid-glyph with no ellipsis",
+          "evidence": "shell-page__th-mobile-light.png y772–868: the placeholder ends 'หรือหน่' with the following glyph sliced off. shell-page__en-mobile-dark.png shows 'Search SKU, name or stc' cut the same way. messages/th.json:1459. This belongs to the Finished goods toolbar, not the shell, but it is visible on this screen at 390 px.",
+          "fix": "Use a shorter placeholder below the sm breakpoint (for example 'ค้นหารหัสหรือชื่อสินค้า' / 'Search SKU or name'), or add `placeholder:text-ellipsis` with `text-overflow: ellipsis` on the input so the cut ends on an ellipsis.",
+          "benchmark": "",
+          "id": "S1-L8-opus-02",
+          "screen": "shell-page"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Drawer close button looks pressed in dark mode but flat in light mode",
+          "evidence": "shell-drawer__en-mobile-dark.png x458–550 y26–118 shows a filled raised tile behind X at rest. In shell-drawer__th-mobile-light.png the same button has no fill. The cause is the ghost variant's `aria-expanded:bg-raised` (buttonVariants.ts ghost) applied to the disclosure, which carries aria-expanded (DesktopShell.tsx:170). The desktop sidebar toggle does the same in shell-page__en-desktop-dark.png x236–270 y13–46.",
+          "fix": "Add `aria-expanded:bg-transparent` to NavigationDisclosure's className. Its icon (X / PanelLeft) already shows the state, so dark and light render the same at rest.",
+          "benchmark": "",
+          "id": "S1-L8-opus-04",
+          "screen": "shell-drawer"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Light-mode rail marks the current page by icon hue alone",
+          "evidence": "shell-rail__th-desktop-light.png x8–56 y196–244: the active tile is #eff6ff on the #f6f7f9 rail (about 1.03:1), so the only visible cue is a blue icon (#1c4dd8) against dark-grey siblings (#4f5662). With no label in the rail, the state depends on colour. Dark mode (shell-rail__en-desktop-dark.png) shows a clearly visible grey tile. Source: globals.css:223/227, sidebar.tsx:340 (`group-data-[collapsible=icon]:data-active:bg-sidebar-accent!`).",
+          "fix": "Give the light-mode active row a tile with at least 3:1 contrast against the rail (a stronger sidebar-accent token, or bg-surface with a border-strong ring), or add a 3 px inset indicator bar on `data-active`, so the state does not rely on hue. Apply the same token to the expanded sidebar and the drawer.",
+          "benchmark": "",
+          "id": "S1-L8-opus-05",
+          "screen": "shell-rail"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Text language button squeezes the organisation name on Thai phones",
+          "evidence": "locale-switch__en-mobile-dark.png and shell-page__th-mobile-light.png header: the 'English' button takes about 92 css px, so the organisation name truncates to 'Industrial SAS Lo…'. With 'ไทย' it shows 'Industrial SAS Local …'. The full name exists only in a title attribute, which phones cannot reach. Source: LocaleSwitcher.tsx:48; DesktopShell.tsx HeaderBrand.",
+          "fix": "Below sm, show a compact own-name label ('EN' / 'ไทย', keeping lang and the sr-only 'switch to'), or reduce the button's horizontal padding (px-2), so the organisation name keeps about 10 more characters.",
+          "benchmark": "",
+          "id": "S1-L8-opus-06",
+          "screen": "locale-switch"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The pending AI row drops the AI's scope, so a warehouse request waits on an AI that only covers HR topics",
+          "evidence": "All four search-ai-running images, pending row ('AI is reading your request…' / 'AI กำลังตีความคำขอ…' + Cancel) shows no detail line; the query is 'pallets of DEMO-DRINK' on /finished-goods. messages/en.json Search.aiScope = 'AI takes you to pages and forms for time, leave, requests and employees.'; SearchDialog.tsx:964-981 (AiRunning renders only spinner, status text and Cancel)",
+          "fix": "Keep the Ask row's scope sentence (Search.aiScope) as a text-xs text-muted second line under the AiRunning status text, the same detail the row carried before it was pressed, so the member sees what the AI can and cannot answer while waiting",
+          "benchmark": "Notion: 'Search all sources with AI' row states what it searches",
+          "id": "S1-L8-opus-11",
+          "screen": "search-ai-running"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The only typed result is the page already open, shown in the selected style, and in English it carries no visible match",
+          "evidence": "search-ai-running__en-desktop-dark.png and __en-mobile-dark.png, 'Finished goods · This page' row with filled background and no <mark> for 'pallets of DEMO-DRINK'; th images highlight only 'สินค้า'. a11y: option 'สินค้าสำเร็จรูป' … 'หน้านี้'",
+          "fix": "Do not give the current page the active/selected fill while an AI request is pending, and rank a 'This page' result below other matches; when a result matched on a keyword rather than its title, show that keyword as the muted trail text so the reason is visible",
+          "benchmark": "Linear: matching terms highlighted in titles; GitHub: current location used as scope, not offered as a result",
+          "id": "S1-L8-opus-12",
+          "screen": "search-ai-running"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The header organisation slot is a bare skeleton bar that never resolves during the outage, while the sidebar names the same unknown in words",
+          "evidence": "shell-loading__th-mobile-light.png and __en-mobile-dark.png, header between the menu and search buttons (x≈68–218, y≈22–42 CSS): an unlabeled grey pill. shell-loading__th-desktop-light.png, header top-left (x≈316–476, y≈16–36): the same pill. The sidebar's 'Current warehouse' region says 'กำลังรอการเชื่อมต่อ… / Waiting for connection…' as text (en-desktop aria: region 'Current warehouse' → text 'Waiting for connection…'), and the mobile banner aria has no organisation node at all.",
+          "fix": "Render the organisation slot the way the sidebar warehouse region does once the connection banner is up: muted text 'กำลังรอการเชื่อมต่อ…' (text-muted, same size as the org name), or the last known organisation name if it is cached. Keep the pulsing skeleton only for the first few seconds before the 'can't reach the server' banner appears.",
+          "benchmark": "",
+          "id": "S1-L8-opus-14",
+          "screen": "shell-loading"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "On the phone the brand bar is centred with the message, so the wordmark and language switch float mid-screen and the theme toggle is missing",
+          "evidence": "not-found__th-mobile-light.png and not-found__en-mobile-dark.png: the 'โยงกิจ / Yongkit' row and the language button sit at y≈320–330 CSS, with about 300 px of blank space above them, so they read as part of the message instead of page chrome. On desktop (not-found__th-desktop-light.png) the same row floats at y≈365 in the middle of the 1440 canvas. Source: not-found.tsx:24-27 'flex min-h-dvh … justify-center' wraps the brand row and the message together. No theme toggle is present, although every other screen has one in the header (D7).",
+          "fix": "Move the brand row out of the centred block into a top header strip (the same px-4 h-14 header layout and border-b as the signed-in shell header), containing LocaleSwitcher and ThemeToggle from src/components/ui/theme-toggle.tsx. Then put the message block in the upper third (justify-start with pt-16 on phones, a centred max-w-xl on desktop).",
+          "benchmark": "",
+          "id": "S1-L8-opus-15",
+          "screen": "not-found"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "English cause line opens with a dangling \"Its\"",
+          "evidence": "route-error__en-mobile-dark.png and route-error__en-desktop-dark.png, red notice title \"Its data didn't load. This may be temporary.\"; messages/en.json:207 (Error.pageCause). The Thai line \"โหลดข้อมูลไม่สำเร็จ อาจเป็นปัญหาชั่วคราว\" (messages/th.json:207) has no such problem.",
+          "fix": "Change Error.pageCause in messages/en.json to \"This page's data didn't load. This may be temporary.\" (or \"Couldn't load this page's data. This may be temporary.\") so the notice title can be read without the h1 above it. Leave Thai unchanged.",
+          "benchmark": "",
+          "id": "S1-L8-opus-16",
+          "screen": "route-error"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Breadcrumb's current crumb repeats the h1, and three controls lead to the same hub",
+          "evidence": "route-error__th-mobile-light.png top: breadcrumb \"สินค้าสำเร็จรูป > เปิดหน้านี้ไม่ได้\" sits directly over the h1 \"เปิดหน้านี้ไม่ได้\". The breadcrumb link, the Back arrow and the outline button \"ไปที่หน้าสินค้าสำเร็จรูป\" all offer a way to Finished goods. src/components/ui/PageBreadcrumbs.tsx:64; src/app/[locale]/(desktop)/error.tsx:80-90",
+          "fix": "When PageFailure receives breadcrumbs, render only the hub crumb (or label the current crumb with the record type, for example \"สินค้า\" / \"Product\") so the h1 is not repeated. Keep the Back arrow and the outline recovery button as they are (D5, D11).",
+          "benchmark": "",
+          "id": "S1-L8-opus-17",
+          "screen": "route-error"
+        }
+      ],
+      "behaviour": [
+        {
+          "severity": "P2",
+          "type": "behaviour",
+          "title": "Nothing in the dialog says that the typed text, including a person's name, is sent to the AI provider",
+          "evidence": "search-results__th-mobile-light.png: the row 'ให้ AI หาหน้าสำหรับ “สมชาย”' asks the AI about an employee name with no disclosure; messages/th.json:3199 defines Search.aiPrivacy but no file under src/ uses it",
+          "fix": "Product owner to decide whether the AI row's detail line, or a one-time note under ให้ AI พาไป, should show Search.aiPrivacy; if yes, render it as text-xs text-muted under the scope sentence",
+          "benchmark": "",
+          "id": "S1-L8-opus-09",
+          "screen": "search-results"
+        }
+      ],
+      "methodologyNotes": [
+        "Some Opus reachesNineIf explanations depend on missing coverage or an undecided privacy disclosure, despite D9 excluding missing coverage from dimension deductions. Preserve scores; flag for rubric clarification, do not silently raise them.",
+        "Finished-goods toolbar placeholder finding is outside Stage 1 shell scope; retain it for Stage 3 instead of changing warehouse UI here.",
+        "Pending AI scope/selected-current-page advice partly revisits D14 and previous audit guidance; requires triage against the accepted interaction."
+      ],
+      "checkpoint": "plateau; dual 9 gate not achieved"
     }
   ]
 }

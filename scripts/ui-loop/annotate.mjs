@@ -9,6 +9,7 @@
 // JPEG per changed screen and viewport to the stage's annotated/ folder, then
 // rebuilds the stage gallery (index.html) from ledger.json and those files.
 import { chromium } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -216,7 +217,7 @@ if (!args["gallery-only"]) {
       .filter((d, i, a) => a.indexOf(d) === i)
       .flatMap((d) =>
         readdirSync(d)
-          .filter((f) => /^changes-.*\.json$/.test(f))
+          .filter((f) => /^changes(-.*)?\.json$/.test(f))
           .flatMap((f) => JSON.parse(readFileSync(join(d, f), "utf8"))),
       );
     const items = r.boxes.map((b) => {
@@ -258,3 +259,11 @@ if (!args["gallery-only"]) {
   console.log(`${written} annotated images`);
 }
 gallery();
+// The gallery is committed, so keep it in the repository's Prettier style.
+execFileSync(
+  "pnpm",
+  ["exec", "prettier", "--write", join(stageDir, "index.html")],
+  {
+    stdio: "ignore",
+  },
+);

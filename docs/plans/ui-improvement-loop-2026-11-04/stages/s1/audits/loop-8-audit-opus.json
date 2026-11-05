@@ -1,0 +1,397 @@
+{
+  "auditor": "opus-5.5",
+  "stage": 1,
+  "loop": "8",
+  "capturedAt": "2026-11-05T10:28:59.223Z",
+  "screens": [
+    {
+      "id": "shell-page",
+      "dimensions": {
+        "taskFocus": 8,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 8,
+        "accessibility": 8,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Sidebar search entry has no visible field in light mode, unlike dark mode",
+          "evidence": "shell-page__th-desktop-light.png x16–271 y128–172: fill #f6f7f9 equals the sidebar canvas (#f6f7f9) and the border is #ebeced (about 1.1:1), so the main HR navigation entry reads as a faint label, while shell-page__en-desktop-dark.png shows a filled, bordered field. The same applies to the drawer copy in shell-drawer__th-mobile-light.png y305–399. Source: SearchTriggers.tsx:100 (`border border-sidebar-border/60 bg-raised`), globals.css:141 (`--token-raised: var(--muted)`) and globals.css:223 (`--sidebar: #f6f7f9`).",
+          "fix": "In light mode, give the trigger the page search field's treatment: `bg-surface` with `border-input`, as on the Finished goods search box at y258. That gives at least a 3:1 boundary against the sidebar and matches the dark rendering.",
+          "benchmark": "Linear / Raycast: the search bar is a clearly bounded field that is the obvious way in",
+          "id": "S1-L8-opus-01"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Phone page search placeholder is cut mid-glyph with no ellipsis",
+          "evidence": "shell-page__th-mobile-light.png y772–868: the placeholder ends 'หรือหน่' with the following glyph sliced off. shell-page__en-mobile-dark.png shows 'Search SKU, name or stc' cut the same way. messages/th.json:1459. This belongs to the Finished goods toolbar, not the shell, but it is visible on this screen at 390 px.",
+          "fix": "Use a shorter placeholder below the sm breakpoint (for example 'ค้นหารหัสหรือชื่อสินค้า' / 'Search SKU or name'), or add `placeholder:text-ellipsis` with `text-overflow: ellipsis` on the input so the cut ends on an ellipsis.",
+          "benchmark": "",
+          "id": "S1-L8-opus-02"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "AI Search dialog and shell recovery/loading states are not captured in this stage",
+          "evidence": "Stage 1 covers 'Shell, navigation, AI Search', but none of the 12 images shows SearchDialog.tsx: the empty state with recents and the 'ให้ AI พาไป' group, typed results with highlight, zero results with the AI fallback row (D14), the AI pending row with Cancel, or an AI answer. not-found.tsx, error.tsx, (desktop)/loading.tsx and the ConnectionNotice stall state are also missing.",
+          "fix": "Add captures for search-empty, search-typed (th/en), search-no-results, search-ai-pending and search-ai-result at 390 and 1440, plus not-found, error and route loading in both themes.",
+          "benchmark": "Notion search (recent pages before typing, AI row with citations); Raycast fallback commands",
+          "id": "S1-L8-opus-03"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Light-mode search entry is drawn as a real field and the AI Search dialog states are captured and hold up against the Notion/Raycast anchors.",
+      "average": 8,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "shell-drawer",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 9,
+        "accessibility": 8,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Drawer close button looks pressed in dark mode but flat in light mode",
+          "evidence": "shell-drawer__en-mobile-dark.png x458–550 y26–118 shows a filled raised tile behind X at rest. In shell-drawer__th-mobile-light.png the same button has no fill. The cause is the ghost variant's `aria-expanded:bg-raised` (buttonVariants.ts ghost) applied to the disclosure, which carries aria-expanded (DesktopShell.tsx:170). The desktop sidebar toggle does the same in shell-page__en-desktop-dark.png x236–270 y13–46.",
+          "fix": "Add `aria-expanded:bg-transparent` to NavigationDisclosure's className. Its icon (X / PanelLeft) already shows the state, so dark and light render the same at rest.",
+          "benchmark": "",
+          "id": "S1-L8-opus-04"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The search entry inside the drawer reads as a field in light mode (filed on shell-page), and both themes render the close button the same way.",
+      "average": 8.3,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "shell-rail",
+      "dimensions": {
+        "taskFocus": 8,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 8,
+        "accessibility": 7,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Light-mode rail marks the current page by icon hue alone",
+          "evidence": "shell-rail__th-desktop-light.png x8–56 y196–244: the active tile is #eff6ff on the #f6f7f9 rail (about 1.03:1), so the only visible cue is a blue icon (#1c4dd8) against dark-grey siblings (#4f5662). With no label in the rail, the state depends on colour. Dark mode (shell-rail__en-desktop-dark.png) shows a clearly visible grey tile. Source: globals.css:223/227, sidebar.tsx:340 (`group-data-[collapsible=icon]:data-active:bg-sidebar-accent!`).",
+          "fix": "Give the light-mode active row a tile with at least 3:1 contrast against the rail (a stronger sidebar-accent token, or bg-surface with a border-strong ring), or add a 3 px inset indicator bar on `data-active`, so the state does not rely on hue. Apply the same token to the expanded sidebar and the drawer.",
+          "benchmark": "",
+          "id": "S1-L8-opus-05"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The current page is visible in the light rail without relying on icon colour, and rail tooltips are captured to confirm every icon is named on hover and focus.",
+      "average": 7.9,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "locale-switch",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Text language button squeezes the organisation name on Thai phones",
+          "evidence": "locale-switch__en-mobile-dark.png and shell-page__th-mobile-light.png header: the 'English' button takes about 92 css px, so the organisation name truncates to 'Industrial SAS Lo…'. With 'ไทย' it shows 'Industrial SAS Local …'. The full name exists only in a title attribute, which phones cannot reach. Source: LocaleSwitcher.tsx:48; DesktopShell.tsx HeaderBrand.",
+          "fix": "Below sm, show a compact own-name label ('EN' / 'ไทย', keeping lang and the sr-only 'switch to'), or reduce the button's horizontal padding (px-2), so the organisation name keeps about 10 more characters.",
+          "benchmark": "",
+          "id": "S1-L8-opus-06"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Already at 9: the same route, tab, view and sidebar state survive the switch, and the button names the target language in that language.",
+      "average": 8.6,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-empty",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 9,
+        "ergonomics": 8,
+        "language": 9,
+        "accessibility": 8,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "The Recent (ล่าสุด) group is never captured, so the 'useful before the first keystroke' state is only half evidenced",
+          "evidence": "search-empty__th-mobile-light.png and search-empty__th-desktop-light.png show only ไปที่ and ให้ AI พาไป; SearchDialog.tsx builds a RECENT section from useRecentDestinations() (recent.ts:81-88) that is empty with fresh storage, so its heading, order and row style are unverified",
+          "fix": "Seed the capture harness with two remembered destinations under the search-recent:<org>:<user> key (recent.ts:20-27) and capture search-empty again with ล่าสุด above ไปที่ in th/en and light/dark",
+          "benchmark": "Notion search: recently visited pages on open; Linear: recently opened issues on open",
+          "id": "S1-L8-opus-07"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The Recent group is captured and holds up in both locales and modes, and the page rows give screen readers the module as a description instead of folding it into the option name (the a11y snapshot reads 'Scan job tickets Warehouse').",
+      "average": 8.4,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "search-results",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 8,
+        "accessibility": 8,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "The 'page and record results' state is captured with one employee row and no page results",
+          "evidence": "search-results__th-desktop-light.png and search-results__en-mobile-dark.png: only the พนักงาน / Employees group (one row) plus the Ask AI row; the a11y snapshot search-results__th-mobile-light.aria.yml has no 'หน้าและส่วนงาน' group. Group ordering, the '(n)' group counts (GroupCount in SearchDialog.tsx), highlighting in page titles and the 'หน้านี้' aside are not shown",
+          "fix": "Add a capture with a query that matches both a page and records, for example a Thai term that hits a menu name and an employee, so หน้าและส่วนงาน, พนักงาน and the AI row appear together with counts",
+          "benchmark": "Raycast and Linear: results grouped by type",
+          "id": "S1-L8-opus-08"
+        },
+        {
+          "severity": "P2",
+          "type": "behaviour",
+          "title": "Nothing in the dialog says that the typed text, including a person's name, is sent to the AI provider",
+          "evidence": "search-results__th-mobile-light.png: the row 'ให้ AI หาหน้าสำหรับ “สมชาย”' asks the AI about an employee name with no disclosure; messages/th.json:3199 defines Search.aiPrivacy but no file under src/ uses it",
+          "fix": "Product owner to decide whether the AI row's detail line, or a one-time note under ให้ AI พาไป, should show Search.aiPrivacy; if yes, render it as text-xs text-muted under the scope sentence",
+          "benchmark": "",
+          "id": "S1-L8-opus-09"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "A mixed page-plus-record result set is captured and holds up, and the AI data disclosure is decided by the product owner.",
+      "average": 8.1,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "search-no-match",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 9,
+        "ergonomics": 8,
+        "language": 9,
+        "accessibility": 8,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "The states that follow a miss are not captured: AI pending row with Cancel, AI answer or error, and record search failed or incomplete",
+          "evidence": "search-no-match__*.png show only the idle Ask AI row; SearchDialog.tsx renders AiRunning (spinner, 'AI กำลังตีความคำขอ…', ยกเลิก), AiStatus errors in text-warning and the recordsUnavailable/recordsIncomplete text-xs text-warning lines, none of which appear in any loop-8 image",
+          "fix": "Capture search-no-match after pressing Enter on the AI row (pending), with a mocked AI answer, with AI_UNAVAILABLE, and with records failed, in th mobile light and en desktop dark, so the warning text contrast and the pending row layout can be checked",
+          "benchmark": "Notion: Search all sources with AI opens a results view",
+          "id": "S1-L8-opus-10"
+        }
+      ],
+      "bestReference": "Raycast",
+      "reachesNineIf": "Already at 9 on what is captured; the pending, answered and failed AI states still need captures to confirm it.",
+      "average": 8.6,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-ai-running",
+      "dimensions": {
+        "taskFocus": 8,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 8,
+        "accessibility": 9,
+        "consistency": 7
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The pending AI row drops the AI's scope, so a warehouse request waits on an AI that only covers HR topics",
+          "evidence": "All four search-ai-running images, pending row ('AI is reading your request…' / 'AI กำลังตีความคำขอ…' + Cancel) shows no detail line; the query is 'pallets of DEMO-DRINK' on /finished-goods. messages/en.json Search.aiScope = 'AI takes you to pages and forms for time, leave, requests and employees.'; SearchDialog.tsx:964-981 (AiRunning renders only spinner, status text and Cancel)",
+          "fix": "Keep the Ask row's scope sentence (Search.aiScope) as a text-xs text-muted second line under the AiRunning status text, the same detail the row carried before it was pressed, so the member sees what the AI can and cannot answer while waiting",
+          "benchmark": "Notion: 'Search all sources with AI' row states what it searches",
+          "id": "S1-L8-opus-11"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The only typed result is the page already open, shown in the selected style, and in English it carries no visible match",
+          "evidence": "search-ai-running__en-desktop-dark.png and __en-mobile-dark.png, 'Finished goods · This page' row with filled background and no <mark> for 'pallets of DEMO-DRINK'; th images highlight only 'สินค้า'. a11y: option 'สินค้าสำเร็จรูป' … 'หน้านี้'",
+          "fix": "Do not give the current page the active/selected fill while an AI request is pending, and rank a 'This page' result below other matches; when a result matched on a keyword rather than its title, show that keyword as the muted trail text so the reason is visible",
+          "benchmark": "Linear: matching terms highlighted in titles; GitHub: current location used as scope, not offered as a result",
+          "id": "S1-L8-opus-12"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Settled AI outcomes are not captured in this loop",
+          "evidence": "Only the running state is captured; Search.aiError (AI_TIMEOUT, AI_UNAVAILABLE, DENIED), Search.unsupported and the CHOOSE/CLARIFY result lists in messages/*.json have no screenshot, nor does the empty-query 'ให้ AI พาไป' examples state",
+          "fix": "Capture the empty-query dialog, an AI answer with choices, an UNSUPPORTED reply for a warehouse request, and AI_TIMEOUT, in th light and en dark at 390 and 1440 px",
+          "benchmark": "",
+          "id": "S1-L8-opus-13"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The pending row keeps the AI's scope line and the current page stops reading as the selected answer, with the settled AI outcomes captured and holding the same standard.",
+      "average": 8,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "shell-loading",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 9,
+        "ergonomics": 8,
+        "language": 9,
+        "accessibility": 8,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The header organisation slot is a bare skeleton bar that never resolves during the outage, while the sidebar names the same unknown in words",
+          "evidence": "shell-loading__th-mobile-light.png and __en-mobile-dark.png, header between the menu and search buttons (x≈68–218, y≈22–42 CSS): an unlabeled grey pill. shell-loading__th-desktop-light.png, header top-left (x≈316–476, y≈16–36): the same pill. The sidebar's 'Current warehouse' region says 'กำลังรอการเชื่อมต่อ… / Waiting for connection…' as text (en-desktop aria: region 'Current warehouse' → text 'Waiting for connection…'), and the mobile banner aria has no organisation node at all.",
+          "fix": "Render the organisation slot the way the sidebar warehouse region does once the connection banner is up: muted text 'กำลังรอการเชื่อมต่อ…' (text-muted, same size as the org name), or the last known organisation name if it is cached. Keep the pulsing skeleton only for the first few seconds before the 'can't reach the server' banner appears.",
+          "benchmark": "",
+          "id": "S1-L8-opus-14"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The header must stop showing an endless skeleton and name the organisation state in text, like the sidebar does. The banner could also say when the next automatic retry happens, so the outage reads as one consistent, explained state.",
+      "average": 8.4,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "not-found",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 7,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 8,
+        "accessibility": 8,
+        "consistency": 7
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "On the phone the brand bar is centred with the message, so the wordmark and language switch float mid-screen and the theme toggle is missing",
+          "evidence": "not-found__th-mobile-light.png and not-found__en-mobile-dark.png: the 'โยงกิจ / Yongkit' row and the language button sit at y≈320–330 CSS, with about 300 px of blank space above them, so they read as part of the message instead of page chrome. On desktop (not-found__th-desktop-light.png) the same row floats at y≈365 in the middle of the 1440 canvas. Source: not-found.tsx:24-27 'flex min-h-dvh … justify-center' wraps the brand row and the message together. No theme toggle is present, although every other screen has one in the header (D7).",
+          "fix": "Move the brand row out of the centred block into a top header strip (the same px-4 h-14 header layout and border-b as the signed-in shell header), containing LocaleSwitcher and ThemeToggle from src/components/ui/theme-toggle.tsx. Then put the message block in the upper third (justify-start with pt-16 on phones, a centred max-w-xl on desktop).",
+          "benchmark": "",
+          "id": "S1-L8-opus-15"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The not-found page needs the same top header strip as the rest of the app, with wordmark, language and theme controls, instead of a brand row floating mid-screen. The message and the one start-page action would then sit under that header.",
+      "average": 7.9,
+      "cap": 9,
+      "score": 8
+    },
+    {
+      "id": "route-error",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 8,
+        "feedback": 8,
+        "ergonomics": 8,
+        "language": 8,
+        "accessibility": 9,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "English cause line opens with a dangling \"Its\"",
+          "evidence": "route-error__en-mobile-dark.png and route-error__en-desktop-dark.png, red notice title \"Its data didn't load. This may be temporary.\"; messages/en.json:207 (Error.pageCause). The Thai line \"โหลดข้อมูลไม่สำเร็จ อาจเป็นปัญหาชั่วคราว\" (messages/th.json:207) has no such problem.",
+          "fix": "Change Error.pageCause in messages/en.json to \"This page's data didn't load. This may be temporary.\" (or \"Couldn't load this page's data. This may be temporary.\") so the notice title can be read without the h1 above it. Leave Thai unchanged.",
+          "benchmark": "",
+          "id": "S1-L8-opus-16"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Breadcrumb's current crumb repeats the h1, and three controls lead to the same hub",
+          "evidence": "route-error__th-mobile-light.png top: breadcrumb \"สินค้าสำเร็จรูป > เปิดหน้านี้ไม่ได้\" sits directly over the h1 \"เปิดหน้านี้ไม่ได้\". The breadcrumb link, the Back arrow and the outline button \"ไปที่หน้าสินค้าสำเร็จรูป\" all offer a way to Finished goods. src/components/ui/PageBreadcrumbs.tsx:64; src/app/[locale]/(desktop)/error.tsx:80-90",
+          "fix": "When PageFailure receives breadcrumbs, render only the hub crumb (or label the current crumb with the record type, for example \"สินค้า\" / \"Product\") so the h1 is not repeated. Keep the Back arrow and the outline recovery button as they are (D5, D11).",
+          "benchmark": "",
+          "id": "S1-L8-opus-17"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Retry in progress, a retry that fails again, and the Copied confirmation are not captured",
+          "evidence": "All four images show only the first failure. src/components/shell/PageFailure.tsx:68-81 shows a Spinner with aria-busy for 800 ms, and src/components/shell/FailureReference.tsx:79-90 swaps the label to referenceCopied and announces it in a status region. No capture shows either state or the page after a second failed attempt.",
+          "fix": "Add captures route-error--retrying (spinner visible on ลองใหม่ / Try again), route-error--failed-again (after retry with the simulated failure still active) and route-error--copied (reference copy confirmation), each in th mobile light and en desktop dark.",
+          "benchmark": "",
+          "id": "S1-L8-opus-18"
+        },
+        {
+          "severity": "P3",
+          "type": "coverage",
+          "title": "Offline failure is not captured next to the temporary read failure",
+          "evidence": "Captures cover only the simulated Convex read failure (console error \"capture: simulated temporary read failure\"). The shell has src/components/shell/ConnectionNotice.tsx, but no capture shows how the route error and the connection notice look together when the device is offline.",
+          "fix": "Add one route-error capture with the network offline (th, 390 px, light) to confirm the connection notice and the page failure don't conflict or stack two red banners.",
+          "benchmark": "",
+          "id": "S1-L8-opus-19"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The English cause line reads on its own, the breadcrumb stops repeating the h1, and captures confirm the retrying, failed-again and copied states behave as the source describes.",
+      "average": 8.3,
+      "cap": 9,
+      "score": 8
+    }
+  ],
+  "missing": [],
+  "stageScore": 8,
+  "stageMedian": 8,
+  "notes": [
+    "I read all 12 images as pixels and sampled colours with sharp. Cross-screen: (1) In light mode the shell's raised and accent tokens nearly match the sidebar canvas (#f6f7f9 vs #eff6ff / #ebeced). As a result, the search trigger (shell-page finding) and the active rail tile (shell-rail finding) are much weaker in light than in dark, so the dark theme carries clearer affordances than the primary light theme. (2) Ghost disclosure buttons with aria-expanded (desktop sidebar toggle, drawer close) show a raised fill only in dark mode (shell-drawer P3). (3) The AI Search dialog, which is part of this stage's scope, has no capture at all, so search could not be scored against the benchmark anchors. Filed as coverage on shell-page. (4) Issues owned by the Finished goods module, not the shell: the phone search placeholder clip (filed on shell-page because it shows there), 'ค้นหาเมนูหรือพนักงาน' vs 'Pages or employees' are fine, but quantities like '1552 CARTON' have no thousands separator and '3.002 KG' reads ambiguously as a thousands separator in shell-page__th-desktop-light.png. That should be raised in the Finished goods stage. (5) The accessibility snapshot shows dialog 'เมนูหลัก' containing navigation 'เมนูหลัก' (and complementary/navigation with the same name on desktop). The duplicate landmark names are a minor polish item. No Thai tone-mark clipping found in the shell; drawer rows measure about 52 css px, and header controls about 46 css px.",
+    "I read all 12 images as pixels. Shell-wide: the search dialog is consistent across th/en and light/dark. Mobile rows are 48 CSS px, desktop rows about 36 px with a key-hint footer, and the footer changes with state ('Esc ปิด' when empty, 'Esc ล้าง' after typing, 'Enter ถาม AI' on a miss). Thai tone marks and above/below vowels are not clipped anywhere (ตั้งวันหยุด, ไม่มีสิ่งนี้แน่นอน, ลืมลงเวลาเมื่อวาน). English wraps the AI scope sentence to two lines on mobile and Thai fits on one; both are fine. A cross-screen P3, not filed separately: page (place) rows are not given aria-labelledby (SearchDialog.tsx:853, const named = !place), so their accessible name includes the module ('Scan job tickets Warehouse', search-no-match__en-desktop-dark.aria.yml lines 17-22). Giving the title an id and the trail aria-describedby would match the record rows. Another P3: on desktop the module label (SearchDialog.tsx:902) sits about 550 px from the page title in a 640 px row, which makes it hard to read across. The record row's action line uses text-link (SearchDialog.tsx:935), so it looks like a separate link inside an option that opens as one target. Scope chips (D15), warehouse code lookup (D13) and the AI-as-row design (D14) were not scored down.",
+    "AI-running rescored on corrected pending captures via Kiro CLI. Unchanged shell-loading and not-found retain their original blind audit judgments. Raw corrected full group retained separately.",
+    "I read all four images as pixels: th mobile light, th desktop light, en mobile dark and en desktop dark. The route error boundary keeps the shell (sidebar, header, search), shows the hub breadcrumb, and gives an h1, a danger Notice with role=alert that states the cause and the next step, Retry as the primary button, a hub recovery link as the secondary button, and a copyable reference with page and time. On the phone, the h1 and buttons render without clipping Thai tone marks or vowels (เปิดหน้านี้ไม่ได้, ไปที่หน้าสินค้าสำเร็จรูป), Thai body text wraps between words (โปรดแจ้ง / ผู้ดูแลองค์กร...), and both buttons are about 48 px tall. Page overflow is 0 and axe is clean in all four captures. Dates follow each locale: Buddhist-era \"5 พ.ย. 2569 17:28\" in Thai and \"Nov 5, 2026, 5:28 PM\" in English. Contrast in dark mode is adequate for the salmon danger title, the grey body text and the blue primary button. Shell observation, not scored here: the phone header truncates the organisation name earlier in Thai (\"Industrial SAS Lo...\") than in English, because the language switch label \"English\" is wider than \"ไทย\". The full name is in the accessibility tree. On the phone, the actions sit in the upper third of the screen, which is the usual inline placement. Moving them toward the thumb zone would help one-handed use but is not a defect. The benchmark section covers search, not error pages, so no reference product is named."
+  ]
+}

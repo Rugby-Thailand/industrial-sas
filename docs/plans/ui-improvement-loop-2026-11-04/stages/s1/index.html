@@ -5,15 +5,815 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Stage 1: Shell, navigation, AI Search: UI loop gallery</title>
     <style>
-      body { margin: 0 auto; max-width: 1200px; padding: 24px; font: 15px/1.5 -apple-system, "Sukhumvit Set", "Helvetica Neue", sans-serif; color: #17202e; }
-      table { border-collapse: collapse; width: 100%; } th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #d6dae1; }
-      .grid { display: grid; gap: 16px; } .grid img { width: 100%; border: 1px solid #d6dae1; border-radius: 8px; }
+      body {
+        margin: 0 auto;
+        max-width: 1200px;
+        padding: 24px;
+        font:
+          15px/1.5 -apple-system,
+          "Sukhumvit Set",
+          "Helvetica Neue",
+          sans-serif;
+        color: #17202e;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid #d6dae1;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .grid img {
+        width: 100%;
+        border: 1px solid #d6dae1;
+        border-radius: 8px;
+      }
     </style>
   </head>
   <body>
     <h1>Stage 1: Shell, navigation, AI Search</h1>
-    <p>Score = lowest screen score (min) / median, per auditor. Gate: every screen ≥ 9 with gpt-6.1-sol, then with both auditors.</p>
-    <table><thead><tr><th>Loop</th><th>Commit</th><th>gpt-6.1-sol min / median</th><th>Opus 5.5 min / median</th><th>Fixes</th><th>Note</th></tr></thead><tbody><tr><td>0</td><td><code>b96fff98</code></td><td>7 / 8</td><td>5 / 7</td><td>0</td><td>Baseline. Calibration: sol runs A and B within 1 point on every screen (A min 7 / median 8, B min 6 / median 8); rubric frozen. Opus min 5 / median 7.</td></tr><tr><td>1</td><td><code>c354ff0a</code></td><td>8 / 8</td><td>– / –</td><td>37</td><td>Phase 1. Stage reached 8: first annotated set.</td></tr></tbody></table>
-    <section><h2>Loop 1</h2><div class="grid"><a href="annotated/loop-1-not-found__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-not-found__th-desktop-light.jpg" alt="loop-1-not-found__th-desktop-light.jpg"></a><a href="annotated/loop-1-not-found__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-not-found__th-mobile-light.jpg" alt="loop-1-not-found__th-mobile-light.jpg"></a><a href="annotated/loop-1-route-error__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-route-error__th-desktop-light.jpg" alt="loop-1-route-error__th-desktop-light.jpg"></a><a href="annotated/loop-1-route-error__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-route-error__th-mobile-light.jpg" alt="loop-1-route-error__th-mobile-light.jpg"></a><a href="annotated/loop-1-search-ai-running__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-search-ai-running__th-desktop-light.jpg" alt="loop-1-search-ai-running__th-desktop-light.jpg"></a><a href="annotated/loop-1-search-ai-running__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-search-ai-running__th-mobile-light.jpg" alt="loop-1-search-ai-running__th-mobile-light.jpg"></a><a href="annotated/loop-1-search-empty__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-search-empty__th-desktop-light.jpg" alt="loop-1-search-empty__th-desktop-light.jpg"></a><a href="annotated/loop-1-search-empty__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-search-empty__th-mobile-light.jpg" alt="loop-1-search-empty__th-mobile-light.jpg"></a><a href="annotated/loop-1-search-no-match__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-search-no-match__th-desktop-light.jpg" alt="loop-1-search-no-match__th-desktop-light.jpg"></a><a href="annotated/loop-1-search-no-match__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-search-no-match__th-mobile-light.jpg" alt="loop-1-search-no-match__th-mobile-light.jpg"></a><a href="annotated/loop-1-search-results__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-search-results__th-desktop-light.jpg" alt="loop-1-search-results__th-desktop-light.jpg"></a><a href="annotated/loop-1-search-results__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-search-results__th-mobile-light.jpg" alt="loop-1-search-results__th-mobile-light.jpg"></a><a href="annotated/loop-1-shell-drawer__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-shell-drawer__th-mobile-light.jpg" alt="loop-1-shell-drawer__th-mobile-light.jpg"></a><a href="annotated/loop-1-shell-loading__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-shell-loading__th-desktop-light.jpg" alt="loop-1-shell-loading__th-desktop-light.jpg"></a><a href="annotated/loop-1-shell-loading__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-shell-loading__th-mobile-light.jpg" alt="loop-1-shell-loading__th-mobile-light.jpg"></a><a href="annotated/loop-1-shell-page__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-shell-page__th-desktop-light.jpg" alt="loop-1-shell-page__th-desktop-light.jpg"></a><a href="annotated/loop-1-shell-page__th-mobile-light.jpg"><img loading="lazy" src="annotated/loop-1-shell-page__th-mobile-light.jpg" alt="loop-1-shell-page__th-mobile-light.jpg"></a><a href="annotated/loop-1-shell-rail__th-desktop-light.jpg"><img loading="lazy" src="annotated/loop-1-shell-rail__th-desktop-light.jpg" alt="loop-1-shell-rail__th-desktop-light.jpg"></a></div></section>
+    <p>
+      Score = lowest screen score (min) / median, per auditor. Gate: every
+      screen ≥ 9 with gpt-6.1-sol, then with both auditors.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Loop</th>
+          <th>Commit</th>
+          <th>gpt-6.1-sol min / median</th>
+          <th>Opus 5.5 min / median</th>
+          <th>Fixes</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>0</td>
+          <td><code>b96fff98</code></td>
+          <td>7 / 8</td>
+          <td>5 / 7</td>
+          <td>0</td>
+          <td>
+            Baseline. Calibration: sol runs A and B within 1 point on every
+            screen (A min 7 / median 8, B min 6 / median 8); rubric frozen. Opus
+            min 5 / median 7.
+          </td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td><code>c354ff0a</code></td>
+          <td>8 / 8</td>
+          <td>– / –</td>
+          <td>37</td>
+          <td>Phase 1. Stage reached 8: first annotated set.</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><code>fe3ad5c8</code></td>
+          <td>8 / 8</td>
+          <td>– / –</td>
+          <td>10</td>
+          <td>
+            Phase 1. Captures moved to a production build (next start on :3171)
+            because the dev server took 60+ s per page under load.
+          </td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><code>fff51945</code></td>
+          <td>8 / 9</td>
+          <td>– / –</td>
+          <td>7</td>
+          <td>
+            Phase 1. Capture adds English + dark (en-dark) from this loop.
+            Plateau rule check: min unchanged at 8 since loop 1, but median rose
+            to 9 and 7/11 screens are at 9 with only concrete UI findings left,
+            so the orchestrator continued (not a product decision or auditor
+            disagreement).
+          </td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><code>4beb368b</code></td>
+          <td>8 / 9</td>
+          <td>– / –</td>
+          <td>5</td>
+          <td>Phase 1. 10/11 screens at 9; shell-loading at 8.</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><code>28cac08f</code></td>
+          <td>8 / 9</td>
+          <td>– / –</td>
+          <td>2</td>
+          <td>
+            Phase 1. shell-loading reached 9; search-empty regressed 9→8
+            (disabled full-width Ask AI on phones gives no hint). Reverted loop
+            2's history microtask delay after it caused a Back race under load.
+          </td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td><code>4fac690c</code></td>
+          <td>8 / 9</td>
+          <td>8 / 8</td>
+          <td>1</td>
+          <td>
+            Phase 1 budget (6 loops) reached at 10/11 sol screens ≥ 9;
+            search-ai-running oscillates 8↔9 with no layout change (loops 4–5:
+            9, loop 6: 8). Its finding is carried into Phase 2 loop 7 rather
+            than stopping the stage (budget overrun recorded). Opus audit on the
+            same commit: every screen 8.
+          </td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td><code>3f191cc4</code></td>
+          <td>8 / 9</td>
+          <td>8 / 8</td>
+          <td>20</td>
+          <td>
+            Phase 2 loop 1. sol 10/11 at 9 (search-results 8: phone AI button
+            space). Opus: locale-switch 9, others 8 with new, smaller P2s.
+          </td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td><code>9c6928a2</code></td>
+          <td>9 / 9</td>
+          <td>8 / 8</td>
+          <td>16</td>
+          <td>
+            Loop 8 resumed with Codex and Kiro CLI only. Sol 9 on all 11
+            screens; Kiro/Opus minimum 8, median 8. Stage 1 NOT passed. Plateau
+            checkpoint: Opus minimum is 8 in loops 7 and 8. No Stage 2 work or
+            PR.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <section>
+      <h2>Loop 8</h2>
+      <div class="grid">
+        <a href="annotated/loop-8-not-found__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-not-found__en-desktop-dark.jpg"
+            alt="loop-8-not-found__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-not-found__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-not-found__en-mobile-dark.jpg"
+            alt="loop-8-not-found__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-not-found__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-not-found__th-desktop-light.jpg"
+            alt="loop-8-not-found__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-not-found__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-not-found__th-mobile-light.jpg"
+            alt="loop-8-not-found__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-route-error__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-route-error__en-desktop-dark.jpg"
+            alt="loop-8-route-error__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-route-error__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-route-error__en-mobile-dark.jpg"
+            alt="loop-8-route-error__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-route-error__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-route-error__th-desktop-light.jpg"
+            alt="loop-8-route-error__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-route-error__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-route-error__th-mobile-light.jpg"
+            alt="loop-8-route-error__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-search-ai-running__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-ai-running__en-desktop-dark.jpg"
+            alt="loop-8-search-ai-running__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-search-ai-running__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-ai-running__en-mobile-dark.jpg"
+            alt="loop-8-search-ai-running__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-search-ai-running__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-ai-running__th-desktop-light.jpg"
+            alt="loop-8-search-ai-running__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-search-ai-running__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-ai-running__th-mobile-light.jpg"
+            alt="loop-8-search-ai-running__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-search-no-match__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-no-match__en-desktop-dark.jpg"
+            alt="loop-8-search-no-match__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-search-no-match__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-no-match__en-mobile-dark.jpg"
+            alt="loop-8-search-no-match__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-search-no-match__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-no-match__th-desktop-light.jpg"
+            alt="loop-8-search-no-match__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-search-no-match__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-no-match__th-mobile-light.jpg"
+            alt="loop-8-search-no-match__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-search-results__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-results__en-desktop-dark.jpg"
+            alt="loop-8-search-results__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-search-results__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-results__en-mobile-dark.jpg"
+            alt="loop-8-search-results__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-search-results__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-results__th-desktop-light.jpg"
+            alt="loop-8-search-results__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-search-results__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-search-results__th-mobile-light.jpg"
+            alt="loop-8-search-results__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-shell-drawer__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-drawer__en-mobile-dark.jpg"
+            alt="loop-8-shell-drawer__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-shell-drawer__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-drawer__th-mobile-light.jpg"
+            alt="loop-8-shell-drawer__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-shell-loading__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-loading__en-desktop-dark.jpg"
+            alt="loop-8-shell-loading__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-shell-loading__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-loading__en-mobile-dark.jpg"
+            alt="loop-8-shell-loading__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-shell-loading__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-loading__th-desktop-light.jpg"
+            alt="loop-8-shell-loading__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-shell-loading__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-loading__th-mobile-light.jpg"
+            alt="loop-8-shell-loading__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-shell-page__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-page__en-desktop-dark.jpg"
+            alt="loop-8-shell-page__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-shell-page__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-page__en-mobile-dark.jpg"
+            alt="loop-8-shell-page__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-8-shell-page__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-page__th-desktop-light.jpg"
+            alt="loop-8-shell-page__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-8-shell-page__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-page__th-mobile-light.jpg"
+            alt="loop-8-shell-page__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-8-shell-rail__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-rail__en-desktop-dark.jpg"
+            alt="loop-8-shell-rail__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-8-shell-rail__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-8-shell-rail__th-desktop-light.jpg"
+            alt="loop-8-shell-rail__th-desktop-light.jpg"
+        /></a>
+      </div>
+    </section>
+    <section>
+      <h2>Loop 7</h2>
+      <div class="grid">
+        <a href="annotated/loop-7-not-found__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-not-found__en-desktop-dark.jpg"
+            alt="loop-7-not-found__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-not-found__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-not-found__en-mobile-dark.jpg"
+            alt="loop-7-not-found__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-not-found__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-not-found__th-desktop-light.jpg"
+            alt="loop-7-not-found__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-not-found__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-not-found__th-mobile-light.jpg"
+            alt="loop-7-not-found__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-route-error__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-route-error__en-desktop-dark.jpg"
+            alt="loop-7-route-error__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-route-error__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-route-error__en-mobile-dark.jpg"
+            alt="loop-7-route-error__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-route-error__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-route-error__th-desktop-light.jpg"
+            alt="loop-7-route-error__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-route-error__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-route-error__th-mobile-light.jpg"
+            alt="loop-7-route-error__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-search-ai-running__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-ai-running__en-desktop-dark.jpg"
+            alt="loop-7-search-ai-running__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-ai-running__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-ai-running__en-mobile-dark.jpg"
+            alt="loop-7-search-ai-running__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-ai-running__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-ai-running__th-desktop-light.jpg"
+            alt="loop-7-search-ai-running__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-search-ai-running__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-ai-running__th-mobile-light.jpg"
+            alt="loop-7-search-ai-running__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-search-empty__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-empty__en-desktop-dark.jpg"
+            alt="loop-7-search-empty__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-empty__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-empty__en-mobile-dark.jpg"
+            alt="loop-7-search-empty__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-empty__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-empty__th-desktop-light.jpg"
+            alt="loop-7-search-empty__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-search-empty__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-empty__th-mobile-light.jpg"
+            alt="loop-7-search-empty__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-search-no-match__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-no-match__en-desktop-dark.jpg"
+            alt="loop-7-search-no-match__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-no-match__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-no-match__en-mobile-dark.jpg"
+            alt="loop-7-search-no-match__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-no-match__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-no-match__th-desktop-light.jpg"
+            alt="loop-7-search-no-match__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-search-no-match__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-no-match__th-mobile-light.jpg"
+            alt="loop-7-search-no-match__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-search-results__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-results__en-desktop-dark.jpg"
+            alt="loop-7-search-results__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-results__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-results__en-mobile-dark.jpg"
+            alt="loop-7-search-results__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-search-results__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-results__th-desktop-light.jpg"
+            alt="loop-7-search-results__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-search-results__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-search-results__th-mobile-light.jpg"
+            alt="loop-7-search-results__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-shell-drawer__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-drawer__en-mobile-dark.jpg"
+            alt="loop-7-shell-drawer__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-shell-drawer__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-drawer__th-mobile-light.jpg"
+            alt="loop-7-shell-drawer__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-shell-loading__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-loading__en-desktop-dark.jpg"
+            alt="loop-7-shell-loading__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-shell-loading__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-loading__en-mobile-dark.jpg"
+            alt="loop-7-shell-loading__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-shell-loading__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-loading__th-desktop-light.jpg"
+            alt="loop-7-shell-loading__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-shell-loading__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-loading__th-mobile-light.jpg"
+            alt="loop-7-shell-loading__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-shell-page__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-page__en-desktop-dark.jpg"
+            alt="loop-7-shell-page__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-shell-page__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-page__en-mobile-dark.jpg"
+            alt="loop-7-shell-page__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-7-shell-page__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-page__th-desktop-light.jpg"
+            alt="loop-7-shell-page__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-7-shell-page__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-page__th-mobile-light.jpg"
+            alt="loop-7-shell-page__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-7-shell-rail__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-rail__en-desktop-dark.jpg"
+            alt="loop-7-shell-rail__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-7-shell-rail__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-7-shell-rail__th-desktop-light.jpg"
+            alt="loop-7-shell-rail__th-desktop-light.jpg"
+        /></a>
+      </div>
+    </section>
+    <section>
+      <h2>Loop 5</h2>
+      <div class="grid">
+        <a href="annotated/loop-5-search-ai-running__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-ai-running__en-desktop-dark.jpg"
+            alt="loop-5-search-ai-running__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-5-search-ai-running__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-ai-running__en-mobile-dark.jpg"
+            alt="loop-5-search-ai-running__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-5-search-ai-running__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-ai-running__th-desktop-light.jpg"
+            alt="loop-5-search-ai-running__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-5-search-ai-running__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-ai-running__th-mobile-light.jpg"
+            alt="loop-5-search-ai-running__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-5-search-empty__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-empty__en-desktop-dark.jpg"
+            alt="loop-5-search-empty__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-5-search-empty__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-empty__en-mobile-dark.jpg"
+            alt="loop-5-search-empty__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-5-search-empty__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-empty__th-desktop-light.jpg"
+            alt="loop-5-search-empty__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-5-search-empty__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-empty__th-mobile-light.jpg"
+            alt="loop-5-search-empty__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-5-search-no-match__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-no-match__en-desktop-dark.jpg"
+            alt="loop-5-search-no-match__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-5-search-no-match__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-no-match__en-mobile-dark.jpg"
+            alt="loop-5-search-no-match__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-5-search-no-match__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-no-match__th-desktop-light.jpg"
+            alt="loop-5-search-no-match__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-5-search-no-match__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-search-no-match__th-mobile-light.jpg"
+            alt="loop-5-search-no-match__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-5-shell-loading__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-loading__en-desktop-dark.jpg"
+            alt="loop-5-shell-loading__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-5-shell-loading__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-loading__en-mobile-dark.jpg"
+            alt="loop-5-shell-loading__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-5-shell-loading__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-loading__th-desktop-light.jpg"
+            alt="loop-5-shell-loading__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-5-shell-loading__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-loading__th-mobile-light.jpg"
+            alt="loop-5-shell-loading__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-5-shell-page__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-page__en-desktop-dark.jpg"
+            alt="loop-5-shell-page__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-5-shell-page__en-mobile-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-page__en-mobile-dark.jpg"
+            alt="loop-5-shell-page__en-mobile-dark.jpg" /></a
+        ><a href="annotated/loop-5-shell-page__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-page__th-desktop-light.jpg"
+            alt="loop-5-shell-page__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-5-shell-page__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-page__th-mobile-light.jpg"
+            alt="loop-5-shell-page__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-5-shell-rail__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-rail__en-desktop-dark.jpg"
+            alt="loop-5-shell-rail__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-5-shell-rail__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-5-shell-rail__th-desktop-light.jpg"
+            alt="loop-5-shell-rail__th-desktop-light.jpg"
+        /></a>
+      </div>
+    </section>
+    <section>
+      <h2>Loop 3</h2>
+      <div class="grid">
+        <a href="annotated/loop-3-locale-switch__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-locale-switch__th-desktop-light.jpg"
+            alt="loop-3-locale-switch__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-locale-switch__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-locale-switch__th-mobile-light.jpg"
+            alt="loop-3-locale-switch__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-route-error__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-route-error__th-desktop-light.jpg"
+            alt="loop-3-route-error__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-route-error__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-route-error__th-mobile-light.jpg"
+            alt="loop-3-route-error__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-search-ai-running__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-ai-running__th-desktop-light.jpg"
+            alt="loop-3-search-ai-running__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-search-ai-running__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-ai-running__th-mobile-light.jpg"
+            alt="loop-3-search-ai-running__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-search-empty__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-empty__th-desktop-light.jpg"
+            alt="loop-3-search-empty__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-search-empty__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-empty__th-mobile-light.jpg"
+            alt="loop-3-search-empty__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-search-no-match__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-no-match__th-desktop-light.jpg"
+            alt="loop-3-search-no-match__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-search-no-match__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-no-match__th-mobile-light.jpg"
+            alt="loop-3-search-no-match__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-search-results__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-results__th-desktop-light.jpg"
+            alt="loop-3-search-results__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-search-results__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-search-results__th-mobile-light.jpg"
+            alt="loop-3-search-results__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-shell-drawer__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-shell-drawer__th-mobile-light.jpg"
+            alt="loop-3-shell-drawer__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-shell-loading__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-shell-loading__th-desktop-light.jpg"
+            alt="loop-3-shell-loading__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-shell-loading__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-shell-loading__th-mobile-light.jpg"
+            alt="loop-3-shell-loading__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-3-shell-page__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-shell-page__th-desktop-light.jpg"
+            alt="loop-3-shell-page__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-3-shell-page__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-3-shell-page__th-mobile-light.jpg"
+            alt="loop-3-shell-page__th-mobile-light.jpg"
+        /></a>
+      </div>
+    </section>
+    <section>
+      <h2>Loop 1</h2>
+      <div class="grid">
+        <a href="annotated/loop-1-not-found__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-not-found__th-desktop-light.jpg"
+            alt="loop-1-not-found__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-not-found__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-not-found__th-mobile-light.jpg"
+            alt="loop-1-not-found__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-route-error__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-route-error__th-desktop-light.jpg"
+            alt="loop-1-route-error__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-route-error__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-route-error__th-mobile-light.jpg"
+            alt="loop-1-route-error__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-search-ai-running__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-ai-running__th-desktop-light.jpg"
+            alt="loop-1-search-ai-running__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-search-ai-running__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-ai-running__th-mobile-light.jpg"
+            alt="loop-1-search-ai-running__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-search-empty__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-empty__th-desktop-light.jpg"
+            alt="loop-1-search-empty__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-search-empty__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-empty__th-mobile-light.jpg"
+            alt="loop-1-search-empty__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-search-no-match__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-no-match__th-desktop-light.jpg"
+            alt="loop-1-search-no-match__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-search-no-match__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-no-match__th-mobile-light.jpg"
+            alt="loop-1-search-no-match__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-search-results__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-results__th-desktop-light.jpg"
+            alt="loop-1-search-results__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-search-results__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-search-results__th-mobile-light.jpg"
+            alt="loop-1-search-results__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-shell-drawer__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-shell-drawer__th-mobile-light.jpg"
+            alt="loop-1-shell-drawer__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-shell-loading__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-shell-loading__th-desktop-light.jpg"
+            alt="loop-1-shell-loading__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-shell-loading__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-shell-loading__th-mobile-light.jpg"
+            alt="loop-1-shell-loading__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-shell-page__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-shell-page__th-desktop-light.jpg"
+            alt="loop-1-shell-page__th-desktop-light.jpg" /></a
+        ><a href="annotated/loop-1-shell-page__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-shell-page__th-mobile-light.jpg"
+            alt="loop-1-shell-page__th-mobile-light.jpg" /></a
+        ><a href="annotated/loop-1-shell-rail__th-desktop-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-1-shell-rail__th-desktop-light.jpg"
+            alt="loop-1-shell-rail__th-desktop-light.jpg"
+        /></a>
+      </div>
+    </section>
   </body>
 </html>

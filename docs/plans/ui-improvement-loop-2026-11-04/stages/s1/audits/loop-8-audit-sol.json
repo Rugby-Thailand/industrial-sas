@@ -1,0 +1,313 @@
+{
+  "auditor": "gpt-6.1-sol",
+  "stage": 1,
+  "loop": "8",
+  "capturedAt": "2026-11-05T10:28:59.223Z",
+  "screens": [
+    {
+      "id": "shell-page",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Global search and AI Search are not captured",
+          "evidence": "shell-page__th-desktop-light.png shows the sidebar search trigger; shell-page__en-mobile-dark.png shows the header trigger, but no supplied image shows the dialog. src/components/shell/search/SearchDialog.tsx:293 defines opening suggestions; :514 defines the search field; :567 mounts AI feedback.",
+          "fix": "Capture the existing SearchDialog before typing, with matching and zero-result queries, and during AI pending, choice, and failure states. Include Thai/English and phone/desktop evidence with accessibility snapshots.",
+          "benchmark": "Linear and Raycast: useful opening suggestions, highlighted matches, and zero-result recovery; Notion: clearly identified AI search.",
+          "id": "S1-L8-sol-01"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Shell loading and recovery presentations are not captured",
+          "evidence": "All four shell-page images show populated content. Uncaptured presenters include src/app/[locale]/(desktop)/loading.tsx:4, src/app/[locale]/not-found.tsx:23, and src/app/[locale]/error.tsx:34.",
+          "fix": "Capture the existing RouteLoading, connection notice, not-found, and page-failure presentations in both locales and themes, including a narrow viewport. Verify visible explanations and recovery actions without changing the accepted destinations.",
+          "benchmark": "",
+          "id": "S1-L8-sol-02"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured populated shell meets 9; search and recovery captures are still needed for complete module sign-off.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-drawer",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Expanded and scrolled navigation states are not captured",
+          "evidence": "shell-drawer__th-mobile-light.png and shell-drawer__en-mobile-dark.png show collapsed People groups and an overflow cue above the account footer. Their accessibility snapshots contain Payslips and HR administration below the visible region. src/components/shell/SidebarNavigation.tsx:342 renders expanded child destinations.",
+          "fix": "Capture an expanded People submenu and the drawer scrolled to its final destinations, including an active nested destination. Check Thai wrapping and separation from the fixed account footer using the existing SidebarNavigation.",
+          "benchmark": "",
+          "id": "S1-L8-sol-03"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured drawer meets 9; expanded and scrolled states need visual evidence to extend that judgment.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-rail",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Visible identification of unfamiliar rail icons is not captured",
+          "evidence": "shell-rail__th-desktop-light.png and shell-rail__en-desktop-dark.png show the resting icon rail. Accessible names exist in the snapshots, and src/components/shell/SidebarNavigation.tsx:253 and :319 supply tooltips, but no capture shows those labels.",
+          "fix": "Capture the existing tooltip on a focused or hovered destination and the expanded sidebar after selecting a People group, including Thai labels.",
+          "benchmark": "",
+          "id": "S1-L8-sol-04"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The resting rail meets 9; tooltip and group-expansion evidence would complete its visual review.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "locale-switch",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "No material change is needed for 9 in the captured language-switch results.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-empty",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "The returning-user state is not captured",
+          "evidence": "search-empty__th-mobile-light.png and search-empty__en-desktop-dark.png show Go to and AI examples but no Recent group. src/components/shell/search/results.tsx:264 implements recent destinations.",
+          "fix": "Add captures with populated recent history, including a long Thai destination title, to verify the existing Recent group, module trails, wrapping, and separation from shortcuts.",
+          "benchmark": "Linear and Notion: useful recent destinations before typing.",
+          "id": "S1-L8-sol-05"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured state already reaches 9; the populated Recent state needs visual verification.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-results",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "A single employee does not demonstrate mixed or lengthy results",
+          "evidence": "search-results__th-mobile-light.png and search-results__en-desktop-dark.png contain one employee and the AI fallback; no matching page, period, or multi-item group appears. src/components/shell/search/SearchDialog.tsx:601 renders the scrollable grouped list.",
+          "fix": "Capture the existing list with simultaneous page and record matches, multiple employees, and long Thai titles; include enough results to exercise scrolling and group boundaries on mobile and desktop.",
+          "benchmark": "Linear: grouped results with highlighted matches.",
+          "id": "S1-L8-sol-06"
+        },
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "AI pending, clarification, and failure presentations are not shown",
+          "evidence": "Images #5–#8 show only the idle AI offer. src/components/shell/search/SearchDialog.tsx:690 mounts the pending row; :1000 and :1074 render AI context, outcomes, and errors.",
+          "fix": "Add captures of the existing AI pending row with Cancel, a multi-choice clarification, and a recoverable failure alongside ordinary results, checking Thai wrapping and both themes.",
+          "benchmark": "",
+          "id": "S1-L8-sol-07"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured single-result state already reaches 9; mixed results and AI response states need visual verification.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-no-match",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "A complete miss is shown, but unavailable and incomplete searches are not",
+          "evidence": "search-no-match__th-mobile-light.png and search-no-match__en-desktop-dark.png show a definitive no-match message. src/components/shell/search/SearchDialog.tsx:691 renders incomplete-search feedback, :699 renders record-search failure, and :785 distinguishes these outcomes.",
+          "fix": "Capture the existing record-search failure and incomplete-result states, plus a no-match state without AI permission, to verify that uncertainty and remaining recovery options stay clear.",
+          "benchmark": "",
+          "id": "S1-L8-sol-08"
+        }
+      ],
+      "bestReference": "Raycast",
+      "reachesNineIf": "The captured complete-miss state already reaches 9 and matches Raycast’s query-preserving fallback pattern; degraded-search variants need visual verification.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-ai-running",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Cancellation and request settlement need runtime evidence",
+          "evidence": "All four search-ai-running captures deliberately hold the response. Their accessibility snapshots establish the progress status and Cancel button, but cannot demonstrate cancellation, late-response suppression, or completed navigation. Relevant implementation: src/components/shell/search/useAiSearch.ts:136 and :204.",
+          "fix": "Attach passing runtime evidence for Cancel followed by a late response, closing and reopening during a request, and successful settlement through the existing Dialog completion owner; include phone keyboard visibility and focus return.",
+          "benchmark": "",
+          "id": "S1-L8-sol-09"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured running state already meets 9; runtime evidence is still needed to extend that judgment to cancellation and completion.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-loading",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "The captured connection-failure state already meets 9: it explains the interruption, names automatic retry and provides a clear recovery action.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "not-found",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "The captured not-found state already meets 9, with readable localized guidance and one clearly named recovery destination.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "route-error",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Recovery outcomes need runtime evidence",
+          "evidence": "All four route-error captures show the initial failure only. PageFailure.tsx:68–81 implements retry feedback; FailureReference.tsx:41–51 implements clipboard success and fallback, neither captured.",
+          "fix": "Provide caller-level test or interactive QA evidence for retry success and repeated failure, Copy confirmation and clipboard refusal, and header/native Back from ordinary navigation and direct entry. Exercise the existing PageFailure, FailureReference, and Back-contract components.",
+          "benchmark": "",
+          "id": "S1-L8-sol-10"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured presentation meets 9; runtime recovery evidence is still needed to complete the audit.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    }
+  ],
+  "missing": [],
+  "stageScore": 9,
+  "stageMedian": 9,
+  "notes": [
+    "No confirmed P0–P2 UI defects in the captured shell states. Phone measurements account for 2× image density: header controls and drawer rows retain 48 CSS px targets. Organization, warehouse, page actions, and account placement remain coherent across expanded, rail, and phone layouts. Thai text shows no evident clipping; switched locales retain consistent structure. Supplied checks report no overflow, console errors, or axe violations. Coverage findings do not reduce dimensions for unseen behavior, per D9. Existing navigation and locale tests were inspected but not executed. Finished-goods content was treated as shell context. Accepted decisions were not penalized. No supplied benchmark establishes whole-shell parity strongly enough to name a best reference.",
+    "No confirmed P0–P2 UI defects in the supplied captures. Thai marks are intact, mobile controls retain 48px targets, focus and selection are distinct, and employee matches are highlighted without obscuring identity or destination. The no-match state clearly explains recovery and preserves the query in its AI action. Supplied axe and overflow checks are clean. Coverage findings do not reduce dimension scores, per D9. Interaction tests were inspected but not executed; these scores assess the captured presentations. The blurred background does not support a separate shell audit.",
+    "AI-running rescored by Codex Sol 6.1 on four corrected pending-state captures. Unchanged screens retain the initial independent judgments. Original evidence and scores retained under superseded-ai-evidence.",
+    "No substantiated P0–P2 visual defects across the supplied captures. Retry is clearly primary, recovery names its destination, Thai text remains intact, and error meaning survives both themes without relying on colour. Accessibility snapshots expose the heading, alert, and named controls; supplied axe checks are clean. Per D9, missing interaction evidence does not reduce dimension scores. Search-dialog benchmark parity cannot be judged from these captures."
+  ]
+}

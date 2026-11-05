@@ -6,6 +6,7 @@
 // Scores come from the audit files in output/ui-loop/s<N>/loop-<k>/ (audit-sol.json,
 // else audit-sol-a.json; audit-opus.json). --entry merges extra fields such as
 // fixed, rejected, deferred, behaviour, checks and note.
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -56,6 +57,9 @@ ledger.loops = [...ledger.loops.filter((l) => l.loop !== loop), entry].sort(
   (a, b) => a.loop - b.loop,
 );
 writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`);
+execFileSync("pnpm", ["exec", "prettier", "--write", path], {
+  stdio: "ignore",
+});
 console.log(
   `loop ${loop}: sol ${entry.scores.sol?.min ?? "–"}/${entry.scores.sol?.median ?? "–"}, opus ${entry.scores.opus?.min ?? "–"}/${entry.scores.opus?.median ?? "–"} → ${path}`,
 );

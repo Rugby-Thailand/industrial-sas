@@ -2,6 +2,8 @@
 
 Date: 2026-11-04 · Status: in progress (Stages 1–4 approved for this run) · Owner: Rugby
 
+Runner update (2026-11-05, product owner): use **Codex and Kiro CLI only** because the direct Claude quota is exhausted. Codex orchestrates and runs gpt-6.1-sol audits; Opus 5.5 runs only through Kiro CLI. Do not launch Claude Code or direct Claude-provider agents. Preserve the existing independent audits and scoring gates. The verified Kiro executable is `/Users/macbook/.local/bin/kiro-cli`; the older `/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli-chat` path is absent.
+
 ## Goal
 
 Raise every Yongkit screen to **9/10**, measured against comparable products, in two phases per stage:
@@ -63,8 +65,8 @@ capture ─▶ audit ─▶ triage ─▶ implement ─▶ verify ─▶ commit 
 | --------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Capture         | script                                                                     | `capture.mjs --stage N --loop k`. Matrix each loop: Thai × {390, 1440} × light × all states.                                                                                                                                                                                                       |
 | Audit           | Phase 1: gpt-6.1-sol. Phase 2: gpt-6.1-sol **and** Opus 5.5, independently | Blind audit. Inputs: rubric, benchmark section for the module, PRODUCT.md, design system, decisions, screenshots, a11y/axe JSON and read-only source. **Not given:** implementer notes or earlier scores. Output: JSON per `rubric.md` → `audit-<model>.json`.                                     |
-| Triage          | orchestrator (Opus 5.5, main session)                                      | Merge findings. Accept up to ~8 per loop (P0 → P1 → P2). Reject findings that conflict with PRODUCT.md, the navigation contract or decisions, and log the reason. **Behaviour changes** (scan routing, validation, data rules) go to the user; they are not auto-implemented.                      |
-| Implement       | Opus 5.5 subagent in the stage worktree                                    | Fix accepted findings using existing components (PageHeader, EmptyState, Notice, StatusBadge, Dialog/Sheet). Record each change as `{screen, locator, summary, findingId}` for annotation. Must not edit the rubric, benchmark, decisions, capture script, seed or test expectations just to pass. |
+| Triage          | orchestrator (Codex, main session)                                         | Merge findings. Accept up to ~8 per loop (P0 → P1 → P2). Reject findings that conflict with PRODUCT.md, the navigation contract or decisions, and log the reason. **Behaviour changes** (scan routing, validation, data rules) go to the user; they are not auto-implemented.                      |
+| Implement       | Codex or Kiro CLI in the existing stage worktree                           | Fix accepted findings using existing components (PageHeader, EmptyState, Notice, StatusBadge, Dialog/Sheet). Record each change as `{screen, locator, summary, findingId}` for annotation. Must not edit the rubric, benchmark, decisions, capture script, seed or test expectations just to pass. |
 | Verify          | script                                                                     | `pnpm typecheck`, `pnpm lint`, Vitest for touched features plus `test:a11y`. Add `pnpm check:navigation` when routes or foregrounds change. Capture-time checks: 0 console errors, 0 page overflow at 390, 0 serious/critical axe issues. Failures are fixed before the next audit.                |
 | Commit + ledger | orchestrator                                                               | One commit per loop: `ui-loop(s<N>, loop <k>): …`. Append to `stages/s<N>/ledger.json`: commit, per-screen scores per auditor, fixed / rejected / deferred findings, checks.                                                                                                                       |
 
@@ -92,7 +94,7 @@ capture ─▶ audit ─▶ triage ─▶ implement ─▶ verify ─▶ commit 
 
 ## Running it
 
-- **Default:** orchestrate from the main Claude session, one stage per run. Capture and gpt-6.1-sol audits run through Bash: `codex exec -c model="gpt-6.1-sol" -s read-only -i <screens…> --output-schema audit.schema.json -o audit-sol.json`, in the background with an explicit timeout, one call per group of ≤ 12 images. The Opus implementer and Opus auditor run as subagents.
+- **Default:** orchestrate from the main Codex session, one stage per run. Capture and gpt-6.1-sol audits run through Bash: `codex exec -c model="gpt-6.1-sol" -s read-only -i <screens…> --output-schema audit.schema.json -o audit-sol.json`, in the background with an explicit timeout, one call per group of ≤ 12 images. The Opus implementer and independent Opus auditor run through Kiro CLI only, using `claude-opus-5.5 --effort high`.
 - **Optional:** one Workflow script per stage phase. Say "run it as a workflow" to opt in. A phase is about 2 agents per loop × 4–6 loops, which fits the under-10-agents guideline.
 
 ## Exit criteria (whole plan)
