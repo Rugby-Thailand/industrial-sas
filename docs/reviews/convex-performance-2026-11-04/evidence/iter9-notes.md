@@ -71,8 +71,9 @@ or dollar saving is claimed.
   `search-reconcile-building-window.integration.test.ts` passed (18.11 s).
   A subsequent instrumented four-case building run also passed.
 - Convex TypeScript check, changed-file ESLint, and formatting passed.
-- The broader job-scan/location search files are still running separately.
-  Their completion must be recorded before claiming their result.
+- The broader job-scan/location search files completed: **10 tests in two
+  files passed**, 921.31 seconds. Both reviewers finished before this result
+  was recorded; their reports correctly described it as pending.
 - Full-suite iteration 8 remains **5,704 passed / 2 failed**. See
   `iter8-validation.md`; no claim that the entire suite is green.
 - Iteration 8 real-engine parity: 537 traversals, zero mismatches. This is
@@ -83,6 +84,5 @@ or dollar saving is claimed.
 The 300-id delete transaction and its read-call headroom are not measured yet.
 Broad recommendation subscriptions, full inventory payload size, search write
 amplification, gapless counter contention, and default production backfill
-execution-time headroom remain review inputs. No new auditor score is assigned
-by the implementation agent. Both iteration 8 reviewers scored 7/10; the
-screenshot threshold has not yet been reached.
+execution-time headroom remain review inputs. Both independent iteration 9 reviewers scored **7/10** (see their reports).
+The screenshot threshold has not been reached.

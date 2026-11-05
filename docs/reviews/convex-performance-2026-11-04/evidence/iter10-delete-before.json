@@ -1,0 +1,34 @@
+{
+  "label": "iter10-delete-before",
+  "revision": "e8c7ac380f0db0585fac22d59b297e597ee80b08",
+  "selected": 300,
+  "remaining": 300,
+  "error": "[Request ID: 8ba74b6130695488] Server Error\nUncaught ConvexError: {\"code\":\"INTERNAL_ERROR\",\"requestId\":\"01a1ab08-57e7-7dca-a8b9-f2eaf8324a5b\"}\n    at runTenantHandler (../../convex/lib/tenantFunctions.ts:562:2)\n",
+  "rttMs": 777.9869999999992,
+  "executions": [
+    {
+      "usageStats": {
+        "databaseReadBytes": 2593498,
+        "databaseWriteBytes": 0,
+        "databaseIoReadBytes": 2593498,
+        "databaseIoWriteBytes": 0,
+        "databaseReadDocuments": 7032,
+        "databaseWriteDocuments": 0,
+        "databaseWriteIndexRows": 0,
+        "storageReadBytes": 0,
+        "storageWriteBytes": 0,
+        "vectorIndexReadBytes": 0,
+        "vectorIndexWriteBytes": 0,
+        "textIndexQueryBytes": 0,
+        "textIndexWriteQueryBytes": 0,
+        "vectorIndexReadQueryBytes": 0,
+        "vectorIndexWriteQueryBytes": 0,
+        "networkEgressBytes": 0,
+        "memoryUsedMb": 64
+      },
+      "executionTime": 0.773414542,
+      "error": "Uncaught ConvexError: {\"code\":\"INTERNAL_ERROR\",\"requestId\":\"01a1ab08-57e7-7dca-a8b9-f2eaf8324a5b\"}\n    at runTenantHandler (../../convex/lib/tenantFunctions.ts:562:2)\n"
+    }
+  ],
+  "scope": "Real local engine; one300-record high-diversity public delete; setup excluded; deferred work excluded"
+}
