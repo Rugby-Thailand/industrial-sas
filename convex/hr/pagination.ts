@@ -370,6 +370,12 @@ export async function hrScanPage<
           // Every following lane is finished and the source has no more.
           if (finishedAll && next.length <= peekLanes)
             position = { ...position, done: true };
+        } else if ((await source.after(lastFinished, 1)).length === 0) {
+          // A full page can also be the last page. The current lane is
+          // exhausted; check only for another authorized lane, without
+          // hydrating or consuming its rows. Buffered matches still keep
+          // isDone false below until they have all been returned.
+          position = { ...position, done: true };
         }
       }
     }

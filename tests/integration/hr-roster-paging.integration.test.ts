@@ -53,6 +53,40 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+it("returns the complete legacy roster at exactly 50 employees and refuses the 51st", async () => {
+  const w = await world();
+  const seed = seeder(w);
+  await seed.employees(
+    Array.from({ length: 49 }, (_, index) => ({
+      code: `BOUNDARY-${String(index).padStart(2, "0")}`,
+    })),
+  );
+  const read = async () =>
+    (
+      await measured<{
+        ok: boolean;
+        code?: string;
+        employees?: unknown[];
+        isDone?: boolean;
+        continueCursor?: string;
+      }>(w, roster.roster, {
+        warehouseId: w.warehouses.alphaA,
+        month: MONTH,
+      })
+    ).value;
+  expect(await read()).toMatchObject({
+    ok: true,
+    isDone: true,
+    employees: expect.any(Array),
+  });
+  await seed.employees([{ code: "BOUNDARY-49" }]);
+  const full = await read();
+  expect(full).toMatchObject({ ok: true, isDone: true, continueCursor: "" });
+  expect(full.employees).toHaveLength(50);
+  await seed.employees([{ code: "BOUNDARY-50" }]);
+  expect(await read()).toEqual({ ok: false, code: "LIMIT_EXCEEDED" });
+});
+
 async function world() {
   const value = await createConvexTenantWorld({
     "../convex/hr/roster.ts": () => import("../../convex/hr/roster"),
