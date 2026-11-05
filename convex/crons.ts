@@ -26,4 +26,10 @@ crons.interval(
   internal.finishedGoods.searchIndexBackfill.sweep,
   {},
 );
+crons.interval(
+  "reconcile derived search indexes with unmaintained writes",
+  { minutes: 1 },
+  internal.finishedGoods.searchIndexBackfill.reconcileSweep,
+  {},
+);
 export default crons;

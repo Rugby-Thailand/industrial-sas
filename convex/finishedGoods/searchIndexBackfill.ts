@@ -4,6 +4,10 @@
  * derived from the warehouse (or, for scheduled re-indexing, carried from the
  * writing transaction), never supplied by a client. Run with `restart: true`,
  * then pass each `continueCursor` and `runId` back until `ready`.
+ *
+ * `reconcile` (every minute, through `reconcileSweep`) repairs what writers
+ * that do not maintain the indexes left behind; see
+ * convex/lib/searchReadiness.ts for the markers readers check meanwhile.
  */
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -17,9 +21,17 @@ import {
   indexJobScans,
   JOB_SCAN_SEARCH_VERSION,
   repostJobScanTerms,
+  scanSourceHash,
   searchBudget,
+  type SearchBudget,
 } from "../lib/jobScanSearch";
 import { indexLocations, LOCATION_SEARCH_VERSION } from "../lib/locationSearch";
+import {
+  currentSearchReadiness,
+  layoutGeneration,
+  RECONCILE_MARGIN_MS,
+  type CurrentSearchReadiness,
+} from "../lib/searchReadiness";
 
 type Kind = "jobScans" | "locations";
 const kind = v.union(v.literal("jobScans"), v.literal("locations"));
@@ -51,8 +63,10 @@ async function readiness(
     .unique();
 }
 
-const current = (row: Doc<"searchIndexReadiness"> | null, which: Kind) =>
-  row?.ready === true && row.stale !== true && row.version === VERSION[which];
+const current = (
+  row: Doc<"searchIndexReadiness"> | null,
+  which: Kind,
+): row is CurrentSearchReadiness => currentSearchReadiness(row, VERSION[which]);
 
 /**
  * Raw-writing seeds and repairs call this so readers fall back to the
@@ -162,14 +176,21 @@ export const run = internalMutation({
         continueCursor: "",
       };
     const runId = starting ? crypto.randomUUID() : args.runId!;
-    const fields = {
-      ready: false,
-      stale: false,
-      version: VERSION[args.kind],
-      runId,
-    };
+    const db = tenantDb(ctx, orgId);
     if (starting) {
-      if (state) await ctx.db.patch(state._id, fields);
+      const fields = {
+        ready: false,
+        stale: false,
+        version: VERSION[args.kind],
+        runId,
+        // Maintained layout writes carry this along from here on. Rows
+        // written from here on (less the in-flight margin) may escape the
+        // pages below: readers treat them as unindexed until reconciled.
+        layoutGeneration: await layoutGeneration(db, args.warehouseId),
+        watermark: Date.now() - RECONCILE_MARGIN_MS,
+      };
+      if (state)
+        await ctx.db.patch(state._id, { ...fields, reconcile: undefined });
       else
         await ctx.db.insert("searchIndexReadiness", {
           orgId,
@@ -178,7 +199,6 @@ export const run = internalMutation({
           ...fields,
         });
     }
-    const db = tenantDb(ctx, orgId);
     const budget = searchBudget();
     // Job scans index building names first, then scans; one native page each.
     const position = starting
@@ -315,5 +335,393 @@ export const sweep = internalMutation({
         started++;
       }
     return { started, isDone: page.isDone };
+  },
+});
+
+type Phase = "updated" | "created";
+/** Job scans: changed (`updatedAt`), then created (`_creationTime`). */
+const PHASES: Record<Kind, readonly Phase[]> = {
+  jobScans: ["updated", "created"],
+  locations: ["created"],
+};
+const RECONCILE_PAGE = 50;
+/** More buildings than this re-index through a full rebuild instead. */
+const REPAIR_BUILDINGS = 100;
+/** A pass that has not moved for this long is resumed by the sweep. */
+const RECONCILE_STALL_MS = 120_000;
+
+/** Rows a reconcile phase covers: written in [from, upper). */
+function windowRows(
+  ctx: MutationCtx,
+  orgId: Id<"organizations">,
+  warehouseId: Id<"warehouses">,
+  which: Kind,
+  phase: Phase,
+  from: number,
+  upper: number,
+) {
+  if (which === "locations")
+    return {
+      locations: ctx.db
+        .query("locations")
+        .withIndex("by_orgId_warehouseId", (q) =>
+          q
+            .eq("orgId", orgId)
+            .eq("warehouseId", warehouseId)
+            .gte("_creationTime", from)
+            .lt("_creationTime", upper),
+        ),
+    };
+  const scans = ctx.db.query("finishedGoodsJobScans");
+  return {
+    scans:
+      phase === "updated"
+        ? scans.withIndex("by_orgId_warehouseId_updatedAt", (q) =>
+            q
+              .eq("orgId", orgId)
+              .eq("warehouseId", warehouseId)
+              .gte("updatedAt", from)
+              .lt("updatedAt", upper),
+          )
+        : scans.withIndex("by_orgId_warehouseId", (q) =>
+            q
+              .eq("orgId", orgId)
+              .eq("warehouseId", warehouseId)
+              .gte("_creationTime", from)
+              .lt("_creationTime", upper),
+          ),
+  };
+}
+
+/** A building of the warehouse created in [from, upper), if any. */
+function createdBuilding(
+  ctx: MutationCtx,
+  orgId: Id<"organizations">,
+  warehouseId: Id<"warehouses">,
+  from: number,
+  upper = Infinity,
+) {
+  return ctx.db
+    .query("storageBuildings")
+    .withIndex("by_orgId_warehouseId", (q) =>
+      q
+        .eq("orgId", orgId)
+        .eq("warehouseId", warehouseId)
+        .gte("_creationTime", from)
+        .lt("_creationTime", upper),
+    )
+    .first();
+}
+
+/**
+ * Re-derive every building-name term of the warehouse (unchanged names cost
+ * two reads). Null when there are too many buildings for one transaction.
+ */
+async function repairBuildingNames(
+  ctx: MutationCtx,
+  orgId: Id<"organizations">,
+  warehouseId: Id<"warehouses">,
+  budget: SearchBudget,
+) {
+  const buildings = await ctx.db
+    .query("storageBuildings")
+    .withIndex("by_orgId_warehouseId_code", (q) =>
+      q.eq("orgId", orgId).eq("warehouseId", warehouseId),
+    )
+    .take(REPAIR_BUILDINGS + 1);
+  if (buildings.length > REPAIR_BUILDINGS) return null;
+  return indexBuildingNames(
+    tenantDb(ctx, orgId),
+    buildings.map((building) => ({
+      buildingId: building._id,
+      warehouseIds: [warehouseId],
+    })),
+    budget,
+  );
+}
+
+/**
+ * Bring an index up to date with writes that did not maintain it, so its
+ * readers can trust it again:
+ *
+ * - The layout counter moved without the index (`layoutGeneration`), or a
+ *   building was created since the watermark: job scans re-derive building
+ *   names here; picker postings are rebuilt by a restarted build.
+ * - Rows written in [watermark, now - margin): job scans whose search row was
+ *   built from other field values (`sourceHash`) are re-indexed; locations
+ *   are compared posting by posting. A window of up to 50 rows per phase is
+ *   done in this transaction; a larger one in pages, one per transaction,
+ *   over the same fixed window. The watermark moves to the window's end only
+ *   after every phase is done, so readers keep merging (job scans) or
+ *   skipping the index (locations) for any row not looked at yet.
+ *
+ * `checked` counts rows looked at; `reindexed` counts scans re-indexed and
+ * locations compared. Only `continuation` calls (scheduled by a pass)
+ * continue a pass without starting a new one, so one pass never spawns a
+ * second chain.
+ */
+export const reconcile = internalMutation({
+  args: {
+    warehouseId: v.id("warehouses"),
+    kind,
+    continuation: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    status: v.union(
+      v.literal("skipped"),
+      v.literal("idle"),
+      v.literal("rebuilding"),
+      v.literal("continuing"),
+      v.literal("done"),
+    ),
+    checked: v.number(),
+    reindexed: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const result = (
+      status: "skipped" | "idle" | "rebuilding" | "continuing" | "done",
+      checked = 0,
+      reindexed = 0,
+    ) => ({ status, checked, reindexed });
+    const warehouse = await ctx.db.get(args.warehouseId);
+    if (!warehouse) return result("skipped");
+    const orgId = warehouse.orgId;
+    const state = await readiness(ctx, orgId, args.warehouseId, args.kind);
+    if (!current(state, args.kind)) return result("skipped");
+    const db = tenantDb(ctx, orgId);
+    const budget = searchBudget();
+    const later = { scans: [] as string[], terms: [] as string[] };
+    let locations: string[] = [];
+    const schedule = async () => {
+      if (later.scans.length || later.terms.length || locations.length)
+        await ctx.scheduler.runAfter(
+          0,
+          internal.finishedGoods.searchIndexBackfill.reindex,
+          { orgId, ...later, locations },
+        );
+    };
+
+    const generation = await layoutGeneration(db, args.warehouseId);
+    // A building created since the watermark (raw inserts move no counter):
+    // re-derive names when a pass starts; the pass only covers buildings
+    // created before its window's end, which all exist by then.
+    const built =
+      args.kind === "jobScans" && !state.reconcile && !args.continuation
+        ? await createdBuilding(ctx, orgId, args.warehouseId, state.watermark)
+        : null;
+    if (state.layoutGeneration !== generation || built) {
+      const deferred =
+        args.kind === "jobScans"
+          ? await repairBuildingNames(ctx, orgId, args.warehouseId, budget)
+          : null;
+      if (!deferred) {
+        // Readers already skip this index; rebuild it under a new run.
+        await ctx.scheduler.runAfter(
+          0,
+          internal.finishedGoods.searchIndexBackfill.run,
+          {
+            warehouseId: args.warehouseId,
+            kind: args.kind,
+            restart: true,
+            chain: true,
+          },
+        );
+        return result("rebuilding");
+      }
+      later.terms.push(...deferred);
+      if (state.layoutGeneration !== generation)
+        await ctx.db.patch(state._id, { layoutGeneration: generation });
+    }
+
+    // Job scans whose search rows were built from other field values (or
+    // not at all); locations are compared posting by posting.
+    let checked = 0;
+    let reindexed = 0;
+    const reconcileRows = async (
+      rows: readonly (Doc<"finishedGoodsJobScans"> | Doc<"locations">)[],
+    ) => {
+      checked += rows.length;
+      if (args.kind === "locations") {
+        reindexed += rows.length;
+        locations.push(
+          ...(await indexLocations(
+            db,
+            rows.map((row) => row._id as string),
+            budget,
+          )),
+        );
+        return;
+      }
+      const stale: string[] = [];
+      for (const scan of rows as readonly Doc<"finishedGoodsJobScans">[]) {
+        const row = await ctx.db
+          .query("finishedGoodsJobScanSearchRows")
+          .withIndex("by_orgId_scanId", (q) =>
+            q.eq("orgId", orgId).eq("scanId", scan._id),
+          )
+          .first();
+        if (row?.sourceHash !== (await scanSourceHash(scan)))
+          stale.push(scan._id);
+      }
+      reindexed += stale.length;
+      if (!stale.length) return;
+      const indexed = await indexJobScans(db, stale, budget, true);
+      later.scans.push(...indexed.deferredScans, ...indexed.orphanScans);
+      later.terms.push(...indexed.deferredTerms);
+    };
+    const now = Date.now();
+    const phases = PHASES[args.kind];
+    let pass = state.reconcile;
+    if (!pass) {
+      const upper = now - RECONCILE_MARGIN_MS;
+      if (args.continuation || upper <= state.watermark) {
+        await schedule();
+        return result("idle");
+      }
+      // Usually the whole window fits one transaction.
+      const windows = await Promise.all(
+        phases.map((phase) => {
+          const rows = windowRows(
+            ctx,
+            orgId,
+            args.warehouseId,
+            args.kind,
+            phase,
+            state.watermark,
+            upper,
+          );
+          return rows.scans
+            ? rows.scans.take(RECONCILE_PAGE + 1)
+            : rows.locations.take(RECONCILE_PAGE + 1);
+        }),
+      );
+      if (windows.every((rows) => rows.length <= RECONCILE_PAGE)) {
+        const unique = new Map(
+          windows.flat().map((row) => [row._id as string, row] as const),
+        );
+        await reconcileRows([...unique.values()]);
+        await schedule();
+        await ctx.db.patch(state._id, { watermark: upper });
+        return result("done", checked, reindexed);
+      }
+      pass = { upper, phase: phases[0]!, cursor: null, at: now };
+    }
+    // A large window: one page of one phase per transaction.
+    const rows = windowRows(
+      ctx,
+      orgId,
+      args.warehouseId,
+      args.kind,
+      pass.phase,
+      state.watermark,
+      pass.upper,
+    );
+    const page = rows.scans
+      ? await rows.scans.paginate({
+          cursor: pass.cursor,
+          numItems: RECONCILE_PAGE,
+        })
+      : await rows.locations.paginate({
+          cursor: pass.cursor,
+          numItems: RECONCILE_PAGE,
+        });
+    await reconcileRows(page.page);
+    await schedule();
+    const nextPhase = phases[phases.indexOf(pass.phase) + 1];
+    const next = !page.isDone
+      ? { ...pass, cursor: page.continueCursor, at: now }
+      : nextPhase
+        ? { ...pass, phase: nextPhase, cursor: null, at: now }
+        : null;
+    if (!next) {
+      await ctx.db.patch(state._id, {
+        watermark: pass.upper,
+        reconcile: undefined,
+      });
+      return result("done", checked, reindexed);
+    }
+    await ctx.db.patch(state._id, { reconcile: next });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.finishedGoods.searchIndexBackfill.reconcile,
+      { warehouseId: args.warehouseId, kind: args.kind, continuation: true },
+    );
+    return result("continuing", checked, reindexed);
+  },
+});
+
+/**
+ * Every minute: start `reconcile` for each built index with something to do
+ * (a layout write that bypassed it, rows written since its watermark, or a
+ * stalled pass). Idle indexes cost their readiness row, the layout counter
+ * and one empty index probe per phase; nothing is written.
+ */
+export const reconcileSweep = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())) },
+  returns: v.object({ scheduled: v.number(), isDone: v.boolean() }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("searchIndexReadiness")
+      .paginate({ cursor: args.cursor ?? null, numItems: 50 });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.finishedGoods.searchIndexBackfill.reconcileSweep,
+        { cursor: page.continueCursor },
+      );
+    const now = Date.now();
+    const upper = now - RECONCILE_MARGIN_MS;
+    const generations = new Map<string, Promise<number>>();
+    let scheduled = 0;
+    for (const row of page.page) {
+      if (!current(row, row.kind)) continue;
+      let generation = generations.get(row.warehouseId);
+      if (!generation)
+        generations.set(
+          row.warehouseId,
+          (generation = layoutGeneration(
+            tenantDb(ctx, row.orgId),
+            row.warehouseId,
+          )),
+        );
+      let due =
+        (await generation) !== row.layoutGeneration ||
+        (row.reconcile !== undefined &&
+          row.reconcile.at < now - RECONCILE_STALL_MS);
+      if (!due && !row.reconcile && upper > row.watermark)
+        due =
+          row.kind === "jobScans" &&
+          (await createdBuilding(
+            ctx,
+            row.orgId,
+            row.warehouseId,
+            row.watermark,
+            upper,
+          )) !== null;
+      if (!due && !row.reconcile && upper > row.watermark)
+        for (const phase of PHASES[row.kind]) {
+          const rows = windowRows(
+            ctx,
+            row.orgId,
+            row.warehouseId,
+            row.kind,
+            phase,
+            row.watermark,
+            upper,
+          );
+          if (await (rows.scans ?? rows.locations).first()) {
+            due = true;
+            break;
+          }
+        }
+      if (!due) continue;
+      await ctx.scheduler.runAfter(
+        0,
+        internal.finishedGoods.searchIndexBackfill.reconcile,
+        { warehouseId: row.warehouseId, kind: row.kind },
+      );
+      scheduled++;
+    }
+    return { scheduled, isDone: page.isDone };
   },
 });

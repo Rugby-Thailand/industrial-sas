@@ -72,18 +72,109 @@ carried in the cursor so a traversal never changes lanes.
 - **Derived rows never decide.** Every proposal is re-read and re-matched by the
   original predicate; tenant, warehouse and authorization checks are unchanged.
 - **Readiness.** Readers use the index only while the warehouse's
-  `searchIndexReadiness` row for that kind is `ready`, not `stale`, and at the
-  current version; otherwise the original bounded scans answer (their cursors
-  are not interchangeable: a cursor from the other path restarts at page one).
+  `searchIndexReadiness` row for that kind is `ready`, not `stale`, at the
+  current version (2) and carries both markers below; otherwise the original
+  bounded scans answer (their cursors are not interchangeable: a cursor from
+  the other path restarts at page one).
 - **Raw writers invalidate.** Staging seeds that insert scans, buildings,
   locations, positions or areas with `ctx.db` call `invalidateSearchIndex`
   (which also poisons a running backfill); the e2e reset deletes all rows of the
   new tables for its warehouses. `staging/locationBuildingBackfill` only sets
-  `buildingId`, which no posting depends on.
+  `buildingId`, which no posting depends on. Audited (iteration 8): every raw
+  writer of scans, buildings, locations, positions and areas under `convex/`
+  is one of these; the `LOCAL-DRAFT` building of `staging/annexDemo:ensure`
+  was the only one outside an invalidated branch and now invalidates too.
+  The importers (`storageLayouts/fg1Import`, `pdImport`) write through the
+  tracked tenant writer.
+
+## Writers that do not maintain the indexes
+
+Code without this maintenance can run after a build: `main`, or any commit
+before the index existed, deployed in a rollback and then rolled forward. Its
+writes leave no postings, and readiness alone cannot see them. Two markers on
+the readiness row (`convex/lib/searchReadiness.ts`) make them visible, and a
+reconcile job repairs them without an operator.
+
+- **Layout counter.** Every tracked layout write (buildings, floors, areas,
+  positions) bumps the warehouse's `storageCatalogueSignals.generation` once,
+  in `main` and in this branch alike. The readiness row keeps a copy,
+  `layoutGeneration`, that only maintained transactions move along: the
+  search write tracker reads the counter before the write and after the
+  finished-goods flush, and follows only when it moved by exactly one (this
+  transaction was its only writer). A difference means a layout write that
+  did not maintain the index.
+- **Watermark.** Rows written at or after `watermark` may lack postings.
+  Readers look them up by time: scans by `updatedAt` and by `_creationTime`
+  (new indexes `finishedGoodsJobScans.by_orgId_warehouseId_updatedAt` and
+  `by_orgId_warehouseId`), locations and buildings by `_creationTime`
+  (`by_orgId_warehouseId`).
+
+| Readers see                                           | Job-scan search                                                | Picker      |
+| ----------------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| layout counter ≠ `layoutGeneration`                   | history merge (same engine, same cursors)                      | keyset scan |
+| a building created at or after the watermark          | history merge                                                  | —           |
+| scans with `updatedAt` or `_creationTime` ≥ watermark | merged as candidates (up to 99 per index; more: history merge) | —           |
+| a location created at or after the watermark          | —                                                              | keyset scan |
+
+Every candidate is still re-read and re-matched, so merging extra scans costs
+reads, never results.
+
+**Repair.** `finishedGoods/searchIndexBackfill:reconcileSweep` runs every
+minute. For each built index with something to do it schedules `reconcile`;
+idle indexes cost their readiness row, the counter and one empty index probe
+per phase, and write nothing.
+
+- Counter differs: job scans re-derive every building name of the warehouse
+  in one transaction (≤ 100 buildings; more restarts the build); the picker
+  restarts its build (it keeps the keyset scan meanwhile).
+- Window `[watermark, now − 30 s)`: scans whose search row was built from
+  other field values (`sourceHash`, a digest of the fields postings derive
+  from) are re-indexed; the others cost two reads. New locations are compared
+  posting by posting; new buildings get their names re-derived. Up to 50 rows
+  per phase run in one transaction; larger windows run one page per
+  transaction, chained, under a fixed window. The watermark moves to the
+  window's end only when every phase is done.
+- A build (`run` with `restart`) sets both markers when it starts: the
+  current counter, and `watermark = start − 30 s`.
+
+**Guarantee.** While an index is current, a search returns exactly the rows,
+in exactly the order, of the scan it replaces, provided every write since the
+build is one of:
+
+1. a write through this branch's tracked tenant writer (every tenant
+   mutation; derived rows written in the same transaction);
+2. an insert by any code, raw or tracked (scans, locations, buildings): its
+   `_creationTime` stays at or after the watermark until a reconcile has
+   looked at the row;
+3. a job-scan patch by any code that sets `updatedAt` to its clock or later
+   (`main`'s corrections and remaps write `max(now, before + 1)`);
+4. a layout write through any code's tracked tenant writer (`main` and every
+   commit that has `storageCatalogueSignals`), including importer rollbacks
+   that put old `updatedAt` values back;
+5. a delete by any code (postings only propose rows; a deleted row is never
+   returned);
+
+and no transaction lives longer than the 30 s margin (Convex mutations are
+limited to seconds): the watermark only moves to 30 s before the reconcile
+that verified the rows, so a write whose clock reading is older has
+committed before that reconcile read the window.
+
+Not covered, and needing `invalidate` after it runs: a raw `ctx.db` patch by
+old code that changes searchable fields of an existing scan, location or
+layout row without moving `updatedAt` or the counter, and a rollback to a
+commit of this branch before version 2 (it maintains postings but neither
+marker nor digest). `main` has no such raw patch today: its raw writers are
+staging seeds that insert, and `locationBuildingBackfill`, which only sets
+`buildingId`. Rows of scans and locations that old code deleted keep their
+search rows and postings: they only propose missing rows and are not
+collected.
 
 ## Rollout
 
-1. Deploy. New tables start empty; readers keep the original scans.
+1. Deploy. New tables start empty; readers keep the original scans. Version 2
+   (iteration 8) adds the markers: existing version-1 indexes are not current
+   and are rebuilt the same way (postings that are already right are not
+   rewritten; every scan is read once).
 2. The hourly `finishedGoods/searchIndexBackfill:sweep` cron starts a chained,
    resumable backfill for every warehouse and kind that is not ready. To run one
    immediately:
@@ -103,37 +194,48 @@ carried in the cursor so a traversal never changes lanes.
    `finishedGoods/searchIndexBackfill:invalidate '{"warehouseId":"<id>"}'`
    (optionally `"kind"`); the next sweep rebuilds it.
 
+5. After a rollback to `main` and back, nothing is needed: within a minute
+   of the roll-forward the reconcile cron repairs what `main` wrote, and
+   readers stay exact meanwhile (previous section). To force it:
+   `finishedGoods/searchIndexBackfill:reconcile '{"warehouseId":"<id>","kind":"jobScans"}'`.
+
 ## Release constraint
 
-Code that writes job scans or layout rows without this maintenance (`main`, or
-any earlier commit of the performance branch) is not detected automatically:
-nothing it writes moves a marker these readers check. After running such code,
-call `invalidate` for every affected warehouse (both kinds) before relying on the
-index again; the sweep rebuilds it. Squash-merge the branch, as for the other
-derived stores (`docs/operations/storage-zone-occupancy.md`).
+Squash-merge the branch, as for the other derived stores
+(`docs/operations/storage-zone-occupancy.md`): intermediate commits of this
+branch before version 2 are not covered by the markers (see above).
 
 ## Test measurements (convex-test, not the real backend)
 
-Documents read through `ctx.db` (including about 15 authorization reads) for
-the first 50-row page, on the 2,200-scan generated corpus of
-`tests/integration/job-scan-search-index.integration.test.ts`:
+Documents read through `ctx.db` (including the authorization reads) for the
+first 50-row page, on the 2,200-scan generated corpus of
+`tests/integration/job-scan-search-index.integration.test.ts` (iteration-8
+run; the index path now also reads the layout counter and probes the
+watermark ranges, empty here):
 
 | Needle                 | Matches | Index path      | Scan path          |
 | ---------------------- | ------: | --------------- | ------------------ |
-| One job number         |       1 | 119 docs, 1 req | 2,918 docs, 22 req |
-| Thai lot text          |       3 | 103 docs, 1 req | 2,927 docs, 22 req |
-| Miss                   |       0 | 60 docs, 1 req  | 2,906 docs, 22 req |
-| Job-number fragment    |      91 | 303 docs, 1 req | 1,338 docs, 10 req |
-| Building name          |     143 | 177 docs, 1 req | 1,270 docs, 8 req  |
-| Common customer        |     435 | 291 docs, 1 req | 452 docs, 3 req    |
-| Every record ("box-0") |   2,200 | 276 docs, 1 req | 125 docs, 1 req    |
-| Two code points ("c1") |     286 | scan path       | 608 docs, 4 req    |
+| One job number         |       1 | 78 docs, 1 req  | 2,911 docs, 22 req |
+| Thai lot text (miss)   |       0 | 40 docs, 1 req  | 2,899 docs, 22 req |
+| Miss                   |       0 | 9 docs, 1 req   | 2,899 docs, 22 req |
+| Job-number fragment    |      94 | 253 docs, 1 req | 1,322 docs, 10 req |
+| Building name          |     144 | 127 docs, 1 req | 1,251 docs, 8 req  |
+| Common customer        |     482 | 222 docs, 1 req | 474 docs, 3 req    |
+| Every record ("box-0") |   2,200 | 278 docs, 1 req | 127 docs, 1 req    |
+| Two code points ("c1") |     295 | scan path       | 604 docs, 4 req    |
 
-Documents written: `saveJobScans` with 1 item 4 → 62, with 50 items 53 → 1,539
-(50 long unique texts: 1,547); a 60-ticket remap 63 → 140; deleting 30 tickets
-33 → 843. Parity: 0 mismatches over 240 needle/filter traversals at 2,200 scans and 264
-at 900 scans; the picker matched the keyset scan page for page in 167 and 114
+Documents written (base → base + derived): `saveJobScans` with 1 item 4 → 60,
+with 50 items 53 → 1,534 (50 long unique texts: 1,547); a 60-ticket remap
+63 → 144; deleting 30 tickets 33 → 963. Parity: 0 mismatches over 187
+needle/filter traversals at 900 scans (iteration 8; iteration 7: 240 at 2,200
+and 264 at 900); the picker matched the keyset scan page for page in 114
 traversals over 640 locations.
+
+Writes that bypass maintenance (same file, 300 scans): a rare needle reads
+367 documents while building names come from history, 29 once reconciled. A
+reader that trusted readiness alone returned nothing for the bypassing rows.
+The picker reads its keyset scan plus 2 documents (246 → 248) until a new
+location is reconciled, then 52.
 
 Picker, 640 locations, every page of a 20-row search (all requests summed):
 

@@ -6,11 +6,12 @@
  */
 import type { GenericMutationCtx } from "convex/server";
 import { v } from "convex/values";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { DataModel } from "../../convex/schema";
 import * as locations from "../../convex/finishedGoods/jobScanLocations";
 import * as backfill from "../../convex/finishedGoods/searchIndexBackfill";
+import { RECONCILE_MARGIN_MS } from "../../convex/lib/searchReadiness";
 import { mutationWithOrg } from "../../convex/lib/tenantFunctions";
 import { createStorageBuilding } from "../../convex/storageLayouts/writes";
 import {
@@ -29,7 +30,11 @@ import {
   type ConvexTenantWorld,
 } from "../fixtures/convex-tenant-world";
 
-vi.setConfig({ testTimeout: 600_000 });
+// convex-test scans every document on each index read; on a loaded machine
+// SEARCH_INDEX_TEST_TIMEOUT_MS raises the limit (as for job scans).
+vi.setConfig({
+  testTimeout: Number(process.env["SEARCH_INDEX_TEST_TIMEOUT_MS"] ?? 600_000),
+});
 
 type Runtime = {
   _handler: (
@@ -182,7 +187,21 @@ async function setup(count: number) {
 }
 type Fixture = Awaited<ReturnType<typeof setup>>;
 
+// Only Date is faked: time moves when a test says so (`advance`), so rows
+// can be placed before or after a build's watermark; timers stay real.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+/** Let more than the reconcile margin pass. */
+const advance = (ms = RECONCILE_MARGIN_MS + 1_000) =>
+  vi.setSystemTime(Date.now() + ms);
+
 async function runBackfill(fixture: Fixture) {
+  // The fixture was written well before the build (outside its margin).
+  advance();
   let cursor: string | undefined;
   let runId: string | undefined;
   for (let step = 0; step < 1_000; step++) {
@@ -285,6 +304,43 @@ async function drainScheduled(world: ConvexTenantWorld) {
       return jobs.length;
   }
   throw new Error("scheduled work did not finish");
+}
+
+/** The warehouse's picker readiness row and layout counter. */
+async function markers(fixture: Fixture) {
+  return fixture.world.t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("searchIndexReadiness")
+      .withIndex("by_orgId_warehouseId_kind", (q) =>
+        q
+          .eq("orgId", fixture.world.orgA)
+          .eq("warehouseId", fixture.warehouseId)
+          .eq("kind", "locations"),
+      )
+      .unique();
+    const signal = await ctx.db
+      .query("storageCatalogueSignals")
+      .withIndex("by_orgId_warehouseId", (q) =>
+        q
+          .eq("orgId", fixture.world.orgA)
+          .eq("warehouseId", fixture.warehouseId),
+      )
+      .unique();
+    return { row: row!, generation: signal?.generation ?? 0 };
+  });
+}
+
+/** The reconcile cron's work for this warehouse, once the margin has passed. */
+async function reconcileNow(fixture: Fixture) {
+  advance();
+  const result = (await fixture.world.t.run((ctx) =>
+    (backfill.reconcile as unknown as Runtime)._handler(ctx, {
+      warehouseId: fixture.warehouseId,
+      kind: "locations",
+    }),
+  )) as { status: string; checked: number; reindexed: number };
+  await drainScheduled(fixture.world);
+  return result;
 }
 
 describe("index-backed location picker search", () => {
@@ -506,5 +562,105 @@ describe("index-backed location picker search", () => {
       await setReady(fixture, true);
       expect(indexed.pages, text).toEqual(scanned.pages);
     }
+  });
+  it("skips the postings while writes that bypassed them may exist, then reconciles them", async () => {
+    const fixture = await setup(160);
+    await runBackfill(fixture);
+    const { world, warehouseId } = fixture;
+    const compare = async (text: string) => {
+      const args = { warehouseId, text, pageSize: 20 };
+      const indexed = await traverse(world, args);
+      await setReady(fixture, false);
+      const scanned = await traverse(world, args);
+      await setReady(fixture, true);
+      expect(indexed.pages, text).toEqual(scanned.pages);
+      return {
+        matches: indexed.pages.flatMap((page) => page.items).length,
+        docs: docsRead(indexed.stats),
+        scanDocs: docsRead(scanned.stats),
+      };
+    };
+    // An active area shown by its own label (no support position).
+    const zone = await world.t.run(async (ctx) => {
+      const positioned = new Set(
+        (await ctx.db.query("storagePositions").collect()).map(
+          (row) => row.locationId,
+        ),
+      );
+      for (const row of await ctx.db.query("storageZones").collect())
+        if (
+          !positioned.has(row.locationId) &&
+          (await ctx.db.get(row.locationId))?.status === "ACTIVE"
+        )
+          return row;
+      throw new Error("fixture has no area-only location");
+    });
+    // Code without the index (main after a rollback): a registration
+    // inserted without postings, and an area relabelled through its tracked
+    // writer, which bumps the layout counter but not the index's copy.
+    const insertLegacy = (code: string, label: string) =>
+      world.t.run((ctx) =>
+        ctx.db.insert("locations", {
+          orgId: world.orgA,
+          warehouseId,
+          code,
+          label,
+          status: "ACTIVE",
+          locationType: "NAMED_STORAGE",
+          buildingId: fixture.buildingA,
+          floorId: fixture.floorA,
+        }),
+      );
+    await insertLegacy("LEG-NAMED-01", "ชั้นลับเก่า");
+    await world.t.run(async (ctx) => {
+      await ctx.db.patch(zone._id, { label: "ป้ายเก่า OLDLABEL" });
+      const signal = await ctx.db
+        .query("storageCatalogueSignals")
+        .withIndex("by_orgId_warehouseId", (q) =>
+          q.eq("orgId", world.orgA).eq("warehouseId", warehouseId),
+        )
+        .unique();
+      if (signal)
+        await ctx.db.patch(signal._id, { generation: signal.generation + 1 });
+      else
+        await ctx.db.insert("storageCatalogueSignals", {
+          orgId: world.orgA,
+          warehouseId,
+          generation: 1,
+        });
+    });
+    // Unrepaired: the keyset scan answers (same pages; its reads plus the
+    // layout counter and the fresh location the readiness check found).
+    const legacy = ["LEG-NAMED", "ชั้นลับ", "OLDLABEL", "ป้ายเก่า"];
+    for (const text of legacy) {
+      const read = await compare(text);
+      expect(read.matches, text).toBeGreaterThan(0);
+      expect(read.docs, text).toBe(read.scanDocs + 2);
+    }
+    // The counter moved without the index: postings are rebuilt (a restarted
+    // build, which also covers the inserted registration).
+    expect(await reconcileNow(fixture)).toMatchObject({ status: "rebuilding" });
+    const rebuilt = await markers(fixture);
+    expect(rebuilt.row.ready).toBe(true);
+    expect(rebuilt.row.layoutGeneration).toBe(rebuilt.generation);
+    for (const text of legacy) {
+      const read = await compare(text);
+      expect(read.docs, text).toBeLessThan(read.scanDocs);
+    }
+
+    // A creation alone (no layout write): skipped until reconciled, then the
+    // reconcile job posts it in place without a rebuild.
+    await insertLegacy("LEG-NAMED-02", "ชั้นลับใหม่");
+    const pending = await compare("ชั้นลับใหม่");
+    expect(pending.matches).toBe(1);
+    expect(pending.docs).toBe(pending.scanDocs + 2);
+    expect(await reconcileNow(fixture)).toMatchObject({
+      status: "done",
+      checked: 1,
+    });
+    const posted = await compare("ชั้นลับใหม่");
+    expect(posted.matches).toBe(1);
+    expect(posted.docs).toBeLessThan(posted.scanDocs);
+    console.log("LEGACY PICKER READS", JSON.stringify({ pending, posted }));
   });
 });

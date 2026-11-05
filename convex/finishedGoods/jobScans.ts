@@ -31,7 +31,7 @@ import { boundedRecordPage } from "../lib/boundedRecordPage";
 import {
   indexableNeedle,
   jobScanNameMatches,
-  jobScanSearchReady,
+  jobScanSearchIndex,
   jobScanTextMatches,
   normalizeJobScanSearch,
   searchJobScans,
@@ -696,13 +696,14 @@ export const listJobScans = queryWithOrg({
     // Needles of 3+ code points: trigram postings propose candidates in
     // newest-first order; each is re-read and matched by `accept`, exactly as
     // the scan below would. Unready warehouses and short needles keep it.
-    if (
-      needle &&
-      indexableNeedle(needle) &&
-      (await jobScanSearchReady(ctx.tenantDb, args.warehouseId))
-    )
+    const index =
+      needle && indexableNeedle(needle)
+        ? await jobScanSearchIndex(ctx.tenantDb, args.warehouseId)
+        : null;
+    if (index)
       return searchJobScans(ctx, {
         warehouseId: args.warehouseId,
+        readiness: index,
         filter: args.filter,
         needle,
         pageSize,

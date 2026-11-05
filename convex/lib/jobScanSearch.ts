@@ -17,6 +17,13 @@ import {
 import type { BoundedRecordPage } from "./boundedRecordPage";
 import type { TenantFunctionContext } from "./tenantFunctions";
 import { catalogueScope } from "./cataloguePagination";
+import {
+  currentSearchReadiness,
+  layoutGeneration,
+  RECENT_LIMIT,
+  searchIndexReadiness,
+  type CurrentSearchReadiness,
+} from "./searchReadiness";
 
 /**
  * Exact, index-backed substring search over saved job scans.
@@ -36,9 +43,13 @@ import { catalogueScope } from "./cataloguePagination";
  * an unposted row "" listing T). Building names are shared terms keyed by
  * building, found the same way, streamed through the rows' building index.
  * Writers keep the invariant in their own transaction (`indexJobScans`);
- * readers use the index only while the warehouse's readiness row is ready.
+ * readers use the index only while the warehouse's readiness row is current,
+ * merge every scan written since its watermark (writers that did not keep
+ * the invariant), and answer from history while building names may be stale
+ * (`convex/lib/searchReadiness.ts`).
  */
-export const JOB_SCAN_SEARCH_VERSION = 1;
+/** 2: search rows carry `sourceHash`; readiness carries the reconcile markers. */
+export const JOB_SCAN_SEARCH_VERSION = 2;
 export const JOB_SCAN_SEARCH_FIELDS = [
   "factoryOrder",
   "productBarcodeText",
@@ -109,30 +120,29 @@ export const searchBudget = (): SearchBudget => ({
   left: SEARCH_WRITE_BUDGET,
 });
 
-export async function jobScanSearchReadiness(
+/** The warehouse's readiness row while the index may answer, else null. */
+export async function jobScanSearchIndex(
   db: Pick<TenantDocumentAccess, "byIndex">,
   warehouseId: string,
 ) {
-  return db
-    .byIndex<Doc<"searchIndexReadiness">>(
-      "searchIndexReadiness",
-      "by_orgId_warehouseId_kind",
-      [
-        { field: "warehouseId", value: warehouseId },
-        { field: "kind", value: "jobScans" },
-      ],
-    )
-    .unique();
+  const row = await searchIndexReadiness(db, warehouseId, "jobScans");
+  return currentSearchReadiness(row, JOB_SCAN_SEARCH_VERSION) ? row : null;
 }
-export async function jobScanSearchReady(
-  db: Pick<TenantDocumentAccess, "byIndex">,
-  warehouseId: string,
-) {
-  const row = await jobScanSearchReadiness(db, warehouseId);
-  return (
-    row?.ready === true &&
-    row.stale !== true &&
-    row.version === JOB_SCAN_SEARCH_VERSION
+
+/**
+ * Everything the search rows and postings of a scan are derived from (its
+ * zone's building never changes). Equal digests: nothing to re-index.
+ */
+export async function scanSourceHash(scan: Scan) {
+  return sha256Hex(
+    JSON.stringify([
+      scan.warehouseId,
+      scan.createdAt,
+      scan.mapped,
+      scan.buildingId ?? null,
+      scan.zoneId ?? null,
+      ...JOB_SCAN_SEARCH_FIELDS.map((field) => scan[field] ?? null),
+    ]),
   );
 }
 
@@ -424,6 +434,7 @@ export async function indexJobScans(
       ...Object.fromEntries(
         SLOTS.map((slot, index) => [slot, slots[index]?._id]),
       ),
+      sourceHash: await scanSourceHash(scan),
     };
     if (before)
       for (const [index, slot] of SLOTS.entries())
@@ -646,7 +657,23 @@ interface Source<T> {
   readonly scan?: (row: T) => Scan;
 }
 
-class Stream<T> {
+/** Candidates in newest-first key order, read a chunk at a time. */
+interface CandidateStream {
+  buffer: { key: Key; scan?: Scan }[];
+  done: boolean;
+  fill(): Promise<number>;
+}
+
+/** Candidates already in hand (scans written since the watermark). */
+class ListStream implements CandidateStream {
+  readonly done = true;
+  constructor(readonly buffer: { key: Key; scan: Scan }[]) {}
+  async fill() {
+    return 0;
+  }
+}
+
+class Stream<T> implements CandidateStream {
   buffer: { key: Key; scan?: Scan }[] = [];
   done = false;
   private position: Key | null;
@@ -711,6 +738,8 @@ class Stream<T> {
 
 export interface JobScanSearchOptions<Row> {
   warehouseId: Id<"warehouses">;
+  /** The warehouse's current readiness row (`jobScanSearchIndex`). */
+  readiness: CurrentSearchReadiness;
   filter: "ALL" | "MAPPED" | "UNMAPPED";
   needle: string;
   pageSize: number;
@@ -847,46 +876,91 @@ export async function searchJobScans<Row>(
   };
   const wh = { field: "warehouseId", value: warehouseId } as const;
 
+  // Rows the index may lack: scans changed or created since the watermark
+  // (any writer), and building names after a layout write that did not
+  // maintain them or a building created since. Building names, or too many
+  // scans: answer from history instead (same order, same cursors).
+  const since = {
+    lower: { value: options.readiness.watermark, inclusive: true },
+  };
+  const [generation, building, changed, created] = await Promise.all([
+    layoutGeneration(db, warehouseId),
+    db
+      .byIndex("storageBuildings", "by_orgId_warehouseId", [wh], {
+        field: TENANT_INDEX_TIEBREAKER,
+        ...since,
+      })
+      .first(),
+    db
+      .byIndex<Scan>(
+        "finishedGoodsJobScans",
+        "by_orgId_warehouseId_updatedAt",
+        [wh],
+        {
+          field: "updatedAt",
+          ...since,
+        },
+      )
+      .take(RECENT_LIMIT + 1),
+    db
+      .byIndex<Scan>("finishedGoodsJobScans", "by_orgId_warehouseId", [wh], {
+        field: TENANT_INDEX_TIEBREAKER,
+        ...since,
+      })
+      .take(RECENT_LIMIT + 1),
+  ]);
+  work += 1 + (building ? 1 : 0) + changed.length + created.length;
+  const recent = new Map(
+    [...changed, ...created].map((scan) => [scan._id as string, scan]),
+  );
+  let exhaustive =
+    generation !== options.readiness.layoutGeneration ||
+    building !== null ||
+    changed.length > RECENT_LIMIT ||
+    created.length > RECENT_LIMIT;
+
   // Shared terms containing the needle: through their rarest gram.
   const probes = probeGrams(needle, 3, MAX_PROBES);
   let termGram = state.h;
-  let termRows: TermGram[] | null = null;
-  if (!termGram) {
-    const sampled = await Promise.all(
-      probes.map((gram) =>
-        take<TermGram>(
-          TERM_GRAMS,
-          "by_orgId_warehouseId_gram",
-          [wh, { field: "gram", value: gram }],
-          TERM_PROBE + 1,
-        ),
-      ),
-    );
-    let best = 0;
-    for (let index = 1; index < probes.length; index++)
-      if (sampled[index]!.length < sampled[best]!.length) best = index;
-    termGram = probes[best]!;
-    if (sampled[best]!.length <= TERM_PROBE) termRows = sampled[best]!;
-  }
-  termRows ??= await take<TermGram>(
-    TERM_GRAMS,
-    "by_orgId_warehouseId_gram",
-    [wh, { field: "gram", value: termGram }],
-    TERM_LIMIT + 1,
-  );
-  const unpostedTerms = await take<TermGram>(
-    TERM_GRAMS,
-    "by_orgId_warehouseId_gram",
-    [wh, { field: "gram", value: UNPOSTED_GRAM }],
-    TERM_LIMIT + 1,
-  );
   const matchingTerms = new Map<string, TermGram>();
-  for (const row of [...termRows, ...unpostedTerms])
-    if (row.text.includes(needle)) matchingTerms.set(row.termId, row);
-  const exhaustive =
-    termRows.length > TERM_LIMIT ||
-    unpostedTerms.length > TERM_LIMIT ||
-    matchingTerms.size > STREAM_CAP;
+  if (!exhaustive) {
+    let termRows: TermGram[] | null = null;
+    if (!termGram) {
+      const sampled = await Promise.all(
+        probes.map((gram) =>
+          take<TermGram>(
+            TERM_GRAMS,
+            "by_orgId_warehouseId_gram",
+            [wh, { field: "gram", value: gram }],
+            TERM_PROBE + 1,
+          ),
+        ),
+      );
+      let best = 0;
+      for (let index = 1; index < probes.length; index++)
+        if (sampled[index]!.length < sampled[best]!.length) best = index;
+      termGram = probes[best]!;
+      if (sampled[best]!.length <= TERM_PROBE) termRows = sampled[best]!;
+    }
+    termRows ??= await take<TermGram>(
+      TERM_GRAMS,
+      "by_orgId_warehouseId_gram",
+      [wh, { field: "gram", value: termGram }],
+      TERM_LIMIT + 1,
+    );
+    const unpostedTerms = await take<TermGram>(
+      TERM_GRAMS,
+      "by_orgId_warehouseId_gram",
+      [wh, { field: "gram", value: UNPOSTED_GRAM }],
+      TERM_LIMIT + 1,
+    );
+    for (const row of [...termRows, ...unpostedTerms])
+      if (row.text.includes(needle)) matchingTerms.set(row.termId, row);
+    exhaustive =
+      termRows.length > TERM_LIMIT ||
+      unpostedTerms.length > TERM_LIMIT ||
+      matchingTerms.size > STREAM_CAP;
+  }
 
   // Per-scan postings: the gram whose postings are fewest (or sparsest).
   // Not needed when the history merge answers (too many shared terms).
@@ -930,11 +1004,9 @@ export async function searchJobScans<Row>(
     filter === "ALL" || row.mapped === (filter === "MAPPED");
   const textOk = (row: ScanGram) =>
     row.texts.some((text) => text.includes(needle));
-  const streams: Stream<unknown>[] = [];
+  const streams: CandidateStream[] = [];
   const add = <T>(source: Source<T>, chunk: number) =>
-    streams.push(
-      new Stream<T>(db, source, start, chunk) as unknown as Stream<unknown>,
-    );
+    streams.push(new Stream<T>(db, source, start, chunk));
   if (exhaustive) {
     // Too many matching terms to merge: scan history in key order, exactly
     // as the unindexed path does, keeping this traversal's cursor format.
@@ -991,6 +1063,15 @@ export async function searchJobScans<Row>(
         },
         perTerm,
       );
+    // Scans written since the watermark, wherever their postings stand.
+    streams.push(
+      new ListStream(
+        [...recent.values()]
+          .map((scan) => ({ key: scanKey(scan), scan }))
+          .filter(({ key }) => !start || order(key, start) > 0)
+          .sort((a, b) => order(a.key, b.key)),
+      ),
+    );
   }
 
   // Merge newest first; equal keys are one scan proposed by several streams.
@@ -1062,7 +1143,7 @@ export async function searchJobScans<Row>(
       scope,
       ...next,
       ...(scanGram ? { g: scanGram } : {}),
-      h: termGram,
+      ...(termGram ? { h: termGram } : {}),
     } satisfies CursorState);
   if (page.length < pageSize && outcome === "budget") {
     if (!options.progressive)

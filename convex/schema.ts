@@ -942,7 +942,9 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_buildingId_code",
       byOrg("warehouseId", "status", "buildingId", "code"),
-    ),
+    )
+    /** Locations created since the picker index's watermark (any writer). */
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsProducts: defineTable(
     tenantFields({
       archivedAt: v.optional(v.number()),
@@ -1225,7 +1227,13 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_mapped_createdAt",
       byOrg("warehouseId", "mapped", "createdAt"),
-    ),
+    )
+    /**
+     * Search reconciliation (`convex/lib/searchReadiness.ts`): scans changed
+     * or created since the search watermark, whoever wrote them.
+     */
+    .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   /**
    * Derived substring-search index for saved job scans
    * (`convex/lib/jobScanSearch.ts`). One row per scan: its newest-first key,
@@ -1247,6 +1255,8 @@ const schema = defineSchema({
       t4: v.optional(v.id("finishedGoodsJobScanTerms")),
       t5: v.optional(v.id("finishedGoodsJobScanTerms")),
       t6: v.optional(v.id("finishedGoodsJobScanTerms")),
+      /** Digest of the scan fields these rows were built from. */
+      sourceHash: v.optional(v.string()),
     }),
   )
     .index("by_orgId_scanId", byOrg("scanId"))
@@ -1363,6 +1373,22 @@ const schema = defineSchema({
       stale: v.optional(v.boolean()),
       /** The current backfill run; continuations of any other run are refused. */
       runId: v.optional(v.string()),
+      /**
+       * The warehouse's `storageCatalogueSignals.generation` this index
+       * accounts for; only maintained layout writes move it along.
+       */
+      layoutGeneration: v.optional(v.number()),
+      /** Rows written at or after this time may be unindexed (see reconcile). */
+      watermark: v.optional(v.number()),
+      /** An unfinished reconcile pass over [watermark, upper). */
+      reconcile: v.optional(
+        v.object({
+          upper: v.number(),
+          phase: v.union(v.literal("updated"), v.literal("created")),
+          cursor: v.union(v.string(), v.null()),
+          at: v.number(),
+        }),
+      ),
     }),
   ).index("by_orgId_warehouseId_kind", byOrg("warehouseId", "kind")),
   finishedGoodsMoves: defineTable(
@@ -1536,7 +1562,9 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_code",
       byOrg("warehouseId", "status", "code"),
-    ),
+    )
+    /** Buildings created since the job-scan search watermark (any writer). */
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   storageFloors: defineTable(
     tenantFields({
       baseElevationMm: v.optional(v.number()),

@@ -7,6 +7,11 @@ import {
   UNPOSTED_GRAM,
 } from "./textGrams";
 import type { SearchBudget } from "./jobScanSearch";
+import {
+  currentSearchReadiness,
+  layoutGeneration,
+  searchIndexReadiness,
+} from "./searchReadiness";
 
 /**
  * Exact, index-backed contains search for the job-scan location picker.
@@ -21,9 +26,12 @@ import type { SearchBudget } from "./jobScanSearch";
  * every proposed location and applies its unchanged predicate.
  *
  * Writers keep postings exact in their own transaction (tracked tenant
- * writes); readers use them only while the warehouse's readiness row is ready.
+ * writes); readers use them only while the warehouse's readiness row is
+ * current, no layout write bypassed them, and no location was created since
+ * the watermark (`convex/lib/searchReadiness.ts`).
  */
-export const LOCATION_SEARCH_VERSION = 1;
+/** 2: readiness carries the layout generation and watermark. */
+export const LOCATION_SEARCH_VERSION = 2;
 export const MIN_INDEXED_LOCATION_NEEDLE = 2;
 const GRAMS = "locationSearchGrams";
 const MAX_TEXT_GRAMS = 512;
@@ -45,25 +53,33 @@ export function indexableLocationNeedle(needle: string) {
   );
 }
 
+/**
+ * The postings may answer: built, and nothing written since that could lack
+ * them. A layout write that did not maintain them moves the layout counter
+ * without this index; a location created since the watermark may have no
+ * postings until the reconcile job has looked at it.
+ */
 export async function locationSearchReady(
   db: Pick<TenantDocumentAccess, "byIndex">,
   warehouseId: string,
 ) {
-  const row = await db
-    .byIndex<Doc<"searchIndexReadiness">>(
-      "searchIndexReadiness",
-      "by_orgId_warehouseId_kind",
-      [
-        { field: "warehouseId", value: warehouseId },
-        { field: "kind", value: "locations" },
-      ],
-    )
-    .unique();
-  return (
-    row?.ready === true &&
-    row.stale !== true &&
-    row.version === LOCATION_SEARCH_VERSION
-  );
+  const row = await searchIndexReadiness(db, warehouseId, "locations");
+  if (!currentSearchReadiness(row, LOCATION_SEARCH_VERSION)) return false;
+  const [generation, created] = await Promise.all([
+    layoutGeneration(db, warehouseId),
+    db
+      .byIndex<Doc<"locations">>(
+        "locations",
+        "by_orgId_warehouseId",
+        [{ field: "warehouseId", value: warehouseId }],
+        {
+          field: "_creationTime",
+          lower: { value: row.watermark, inclusive: true },
+        },
+      )
+      .first(),
+  ]);
+  return generation === row.layoutGeneration && created === null;
 }
 
 /** Raw code/label texts the picker compares for this location row, if any. */

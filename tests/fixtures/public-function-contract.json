@@ -6146,6 +6146,129 @@
       }
     }
   },
+  "finishedGoods/searchIndexBackfill:reconcile": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "kind": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "jobScans"
+              },
+              {
+                "type": "literal",
+                "value": "locations"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "continuation": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "skipped"
+              },
+              {
+                "type": "literal",
+                "value": "idle"
+              },
+              {
+                "type": "literal",
+                "value": "rebuilding"
+              },
+              {
+                "type": "literal",
+                "value": "continuing"
+              },
+              {
+                "type": "literal",
+                "value": "done"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "checked": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "reindexed": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/searchIndexBackfill:reconcileSweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "scheduled": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "finishedGoods/searchIndexBackfill:reindex": {
     "kind": "mutation",
     "visibility": "internal",

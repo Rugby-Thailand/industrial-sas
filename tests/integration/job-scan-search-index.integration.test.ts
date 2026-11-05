@@ -7,11 +7,12 @@
  * hosted billing units.
  */
 import type { GenericMutationCtx } from "convex/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import type { DataModel } from "../../convex/schema";
 import * as jobScans from "../../convex/finishedGoods/jobScans";
 import * as backfill from "../../convex/finishedGoods/searchIndexBackfill";
+import { RECONCILE_MARGIN_MS } from "../../convex/lib/searchReadiness";
 import {
   jobScanTextMatches,
   normalizeJobScanSearch,
@@ -285,7 +286,21 @@ async function setup(count: number) {
 }
 type Fixture = Awaited<ReturnType<typeof setup>>;
 
+// Only Date is faked: time moves when a test says so (`advance`), so rows
+// can be placed before or after a build's watermark; timers stay real.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+/** Let more than the reconcile margin pass. */
+const advance = (ms = RECONCILE_MARGIN_MS + 1_000) =>
+  vi.setSystemTime(Date.now() + ms);
+
 async function runBackfill(fixture: Fixture, warehouseId?: Id<"warehouses">) {
+  // The corpus was written well before the build (outside its margin).
+  advance();
   let cursor: string | undefined;
   let runId: string | undefined;
   for (let step = 0; step < 1_000; step++) {
@@ -509,6 +524,43 @@ async function drainScheduled(world: ConvexTenantWorld) {
       return jobs.length;
   }
   throw new Error("scheduled work did not finish");
+}
+
+/** The warehouse's job-scan readiness row and layout counter. */
+async function markers(fixture: Fixture) {
+  return fixture.world.t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("searchIndexReadiness")
+      .withIndex("by_orgId_warehouseId_kind", (q) =>
+        q
+          .eq("orgId", fixture.world.orgA)
+          .eq("warehouseId", fixture.warehouseId)
+          .eq("kind", "jobScans"),
+      )
+      .unique();
+    const signal = await ctx.db
+      .query("storageCatalogueSignals")
+      .withIndex("by_orgId_warehouseId", (q) =>
+        q
+          .eq("orgId", fixture.world.orgA)
+          .eq("warehouseId", fixture.warehouseId),
+      )
+      .unique();
+    return { row: row!, generation: signal?.generation ?? 0 };
+  });
+}
+
+/** The reconcile cron's work for this warehouse, once the margin has passed. */
+async function reconcileNow(fixture: Fixture) {
+  advance();
+  const result = (await fixture.world.t.run((ctx) =>
+    (backfill.reconcile as unknown as Runtime)._handler(ctx, {
+      warehouseId: fixture.warehouseId,
+      kind: "jobScans",
+    }),
+  )) as { status: string; checked: number; reindexed: number };
+  await drainScheduled(fixture.world);
+  return result;
 }
 
 describe("index-backed job-scan search", () => {
@@ -1043,6 +1095,309 @@ describe("index-backed job-scan search", () => {
     expect(filled(kept.pages).flat().sort()).toEqual(
       edited.map((scan) => scan._id as string).sort(),
     );
+  });
+
+  it("stays exact through writes that bypass maintenance, then reconciles them", async () => {
+    const fixture = await setup(300);
+    await runBackfill(fixture);
+    const { world, warehouseId } = fixture;
+    const before = await markers(fixture);
+    const recent = await world.t.run((ctx) =>
+      ctx.db
+        .query("finishedGoodsJobScans")
+        .withIndex("by_orgId_warehouseId_createdAt", (q) =>
+          q.eq("orgId", world.orgA).eq("warehouseId", warehouseId),
+        )
+        .order("desc")
+        .take(40),
+    );
+    const corrected = recent[5]!;
+    const removed = recent[7]!;
+    const renamed = fixture.buildings[1]!;
+    // What code without the index does (main after a rollback): saves and
+    // corrections stamp `updatedAt`, a staging seed backdates its rows and
+    // inserts a building raw (no layout counter), a delete, and a building
+    // rename through its tracked writer, which bumps the layout counter but
+    // knows nothing of the search markers.
+    const now = Date.now();
+    const seeded = await world.t.run(async (ctx) => {
+      const buildingId = await ctx.db.insert("storageBuildings", {
+        orgId: world.orgA,
+        warehouseId,
+        code: "BLDG-SEED",
+        name: "Seed Annex อาคารเมล็ด",
+        widthMm: 10000,
+        depthMm: 10000,
+        defaultFloorHeightMm: 3000,
+        floorCount: 1,
+        totalHeightMm: 3000,
+        grossAreaSqMm: 100000000,
+        reservedAreaSqMm: 0,
+        usableAreaSqMm: 100000000,
+        status: "ACTIVE",
+        version: 1,
+        createdAt: now,
+        createdByUserId: world.userA,
+        updatedAt: now,
+        updatedByUserId: world.userA,
+      });
+      const floorId = await ctx.db.insert("storageFloors", {
+        orgId: world.orgA,
+        warehouseId,
+        buildingId,
+        floorNumber: 1,
+        widthMm: 10000,
+        depthMm: 10000,
+        heightMm: 3000,
+        grossAreaSqMm: 100000000,
+        reservedAreaSqMm: 0,
+        usableAreaSqMm: 100000000,
+        version: 1,
+        updatedAt: now,
+        updatedByUserId: world.userA,
+      });
+      const locationId = await ctx.db.insert("locations", {
+        orgId: world.orgA,
+        warehouseId,
+        code: "BLDG-SEED-Z01",
+        locationType: "FLOOR_BLOCK",
+        status: "ACTIVE",
+        buildingId,
+        floorId,
+      });
+      return ctx.db.insert("storageZones", {
+        orgId: world.orgA,
+        warehouseId,
+        buildingId,
+        floorId,
+        locationId,
+        code: "BLDG-SEED-Z01",
+        label: "Z01",
+        qrValue: `ISAS:LOCATION:1:${locationId}`,
+        xMm: 0,
+        yMm: 0,
+        widthMm: 1000,
+        depthMm: 1000,
+        maxStackHeightMm: 3000,
+        status: "ACTIVE",
+        createdAt: now,
+        createdByUserId: world.userA,
+        updatedAt: now,
+        updatedByUserId: world.userA,
+      });
+    });
+    await world.t.run(async (ctx) => {
+      const base = {
+        orgId: world.orgA,
+        warehouseId,
+        productBarcodeText: "LEGACY-BX-77",
+        source: "MANUAL" as const,
+        locationText: "ข้างเสา L1",
+        mapped: false,
+        createdByUserId: world.userA,
+        updatedByUserId: world.userA,
+      };
+      await ctx.db.insert("finishedGoodsJobScans", {
+        ...base,
+        factoryOrder: "FO-LEGACY-NEW-01",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.db.insert("finishedGoodsJobScans", {
+        ...base,
+        factoryOrder: "FO-LEGACY-OLD-02",
+        partName: "ชิ้นงานย้อนหลัง",
+        createdAt: 1_500,
+        updatedAt: 1_500,
+      });
+      await ctx.db.patch(corrected._id, {
+        factoryOrder: "FO-LEGACY-FIX-03",
+        customer: "ลูกค้าแก้ไขเก่า",
+        updatedAt: Math.max(now, corrected.updatedAt + 1),
+      });
+      await ctx.db.delete(removed._id);
+      await ctx.db.patch(renamed, { name: "Legacy Hall ห้องเก่า" });
+      const signal = await ctx.db
+        .query("storageCatalogueSignals")
+        .withIndex("by_orgId_warehouseId", (q) =>
+          q.eq("orgId", world.orgA).eq("warehouseId", warehouseId),
+        )
+        .unique();
+      if (signal)
+        await ctx.db.patch(signal._id, { generation: signal.generation + 1 });
+      else
+        await ctx.db.insert("storageCatalogueSignals", {
+          orgId: world.orgA,
+          warehouseId,
+          generation: 1,
+        });
+    });
+    const call = async (fn: unknown, args: unknown) => {
+      const result = (await world.t
+        .withIdentity(identity)
+        .run((ctx) =>
+          (fn as Runtime)._handler(ctx as GenericMutationCtx<DataModel>, args),
+        )) as { ok: boolean; value: unknown };
+      expect(result.ok, JSON.stringify(result)).toBe(true);
+      expect(
+        (result.value as { error?: unknown } | null)?.error,
+        JSON.stringify(result.value),
+      ).toBeUndefined();
+    };
+    // Maintained saves into the seeded building: their search rows name a
+    // building that has no name term yet.
+    await call(jobScans.saveJobScans, {
+      warehouseId,
+      requestId: "into-seeded-building",
+      locationText: "",
+      location: { zoneId: seeded },
+      items: Array.from({ length: 3 }, (_, n) => ({
+        factoryOrder: `FO-SEEDED-${n}`,
+        productBarcodeText: `SD-${n}`,
+        source: "MANUAL" as const,
+      })),
+    });
+    const needles = [
+      "seed annex",
+      "อาคารเมล็ด",
+      "fo-legacy",
+      "legacy-new",
+      "ชิ้นงานย้อน",
+      "legacy-fix",
+      corrected.factoryOrder,
+      "ลูกค้าแก้ไข",
+      removed.factoryOrder,
+      "legacy hall",
+      "ห้องเก่า",
+      "building a",
+      "บริษัท ฟาบริ",
+    ];
+    const checkAll = async () => {
+      for (const raw of needles)
+        for (const filter of ["ALL", "MAPPED", "UNMAPPED"] as const) {
+          const indexed = await traverse(fixture, {
+            search: raw,
+            filter,
+            pageSize: 20,
+          });
+          expect(indexed.pages.flat(), `${raw} ${filter}`).toEqual(
+            await expected(fixture, normalizeJobScanSearch(raw), filter),
+          );
+        }
+    };
+    const rare = async () => {
+      const result = await traverse(fixture, {
+        search: "legacy-old",
+        filter: "ALL",
+        pageSize: 20,
+      });
+      return { docs: docsRead(result.stats), requests: result.requests };
+    };
+    // Unrepaired: the layout counter moved without the index, so building
+    // names come from history, merged by the same engine (same cursors).
+    expect((await markers(fixture)).generation).toBe(before.generation + 1);
+    await checkAll();
+    const first = await request(world, {
+      warehouseId,
+      filter: "ALL",
+      search: "legacy-fix",
+      pageSize: 20,
+    });
+    expect(
+      JSON.parse(first.page.continueCursor || first.page.scanCursor || "{}")
+        .v ?? "jss1",
+    ).toBe("jss1");
+    const unrepaired = await rare();
+    // Control: a reader that trusted readiness alone (iteration 7) would miss
+    // them. Pretend the markers cover everything, then put them back.
+    const trusted = await markers(fixture);
+    const pretend = (fields: Record<string, unknown>) =>
+      world.t.run((ctx) => ctx.db.patch(trusted.row._id, fields));
+    await pretend({
+      watermark: Date.now() + 3_600_000,
+      layoutGeneration: trusted.generation,
+    });
+    for (const raw of ["legacy-new", "legacy-old", "legacy-fix", "seed annex"])
+      expect(
+        (
+          await traverse(fixture, { search: raw, filter: "ALL", pageSize: 20 })
+        ).pages.flat(),
+        raw,
+      ).toEqual([]);
+    await pretend({
+      watermark: trusted.row.watermark,
+      layoutGeneration: trusted.row.layoutGeneration,
+    });
+
+    // The reconcile job re-derives building names (the renamed and the
+    // seeded one) and re-indexes the three scans whose search rows were
+    // built from other values (the delete leaves rows that only propose a
+    // missing scan; the maintained saves compare equal).
+    const repaired = await reconcileNow(fixture);
+    expect(repaired).toMatchObject({ status: "done", reindexed: 3 });
+    const after = await markers(fixture);
+    expect(after.row.layoutGeneration).toBe(after.generation);
+    expect(after.row.watermark).toBeGreaterThan(now);
+    expect(after.row.reconcile).toBeUndefined();
+    await checkAll();
+    const reconciled = await rare();
+    console.log("LEGACY READS", JSON.stringify({ unrepaired, reconciled }));
+    expect(reconciled.requests).toBe(1);
+    expect(reconciled.docs).toBeLessThan(unrepaired.docs);
+    expect(reconciled.docs).toBeLessThan(150);
+
+    // Maintained writes keep their rows current: a reconcile after them only
+    // compares digests, and a tracked layout write moves the marker along.
+    await call(jobScans.saveJobScans, {
+      warehouseId,
+      requestId: "after-reconcile",
+      locationText: "ข้างเสา M2",
+      items: Array.from({ length: 12 }, (_, n) => ({
+        factoryOrder: `FO-MAINTAINED-${n}`,
+        productBarcodeText: `MT-${n}`,
+        source: "MANUAL" as const,
+      })),
+    });
+    const rename = mutationWithOrg({
+      args: {
+        warehouseId: v.id("warehouses"),
+        buildingId: v.id("storageBuildings"),
+        name: v.string(),
+      },
+      permissionCode: "masterData.storageLayout.manage",
+      target: { table: "storageBuildings" },
+      warehouseId: (args) => args.warehouseId,
+      handler: async (ctx, args) => {
+        await ctx.tenantDb.patch("storageBuildings", args.buildingId, {
+          name: args.name,
+        });
+        return null;
+      },
+    });
+    await call(rename, {
+      warehouseId,
+      buildingId: renamed,
+      name: "Maintained Hall",
+    });
+    const followed = await markers(fixture);
+    expect(followed.generation).toBe(after.generation + 1);
+    expect(followed.row.layoutGeneration).toBe(followed.generation);
+    for (const raw of ["fo-maintained", "maintained hall", "legacy hall"])
+      for (const filter of ["ALL", "UNMAPPED"] as const) {
+        const indexed = await traverse(fixture, {
+          search: raw,
+          filter,
+          pageSize: 20,
+        });
+        expect(indexed.pages.flat(), raw).toEqual(
+          await expected(fixture, normalizeJobScanSearch(raw), filter),
+        );
+      }
+    expect(await reconcileNow(fixture)).toMatchObject({
+      status: "done",
+      checked: 12,
+      reindexed: 0,
+    });
   });
 
   it("falls back to the scan until ready, and after raw writers invalidate it", async () => {

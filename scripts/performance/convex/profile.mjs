@@ -130,6 +130,38 @@ function rebuildDerived(root, warehouseId) {
         `${root}: ${kind} search backfill finished without readiness`,
       );
   }
+  // Rows written within 30 s before a build count as unreconciled until the
+  // reconcile cron has looked at them (convex/lib/searchReadiness.ts). Do its
+  // work now, once the margin has passed, so profiles see the steady state.
+  const reconcile = (kind) => {
+    try {
+      return JSON.parse(
+        execFileSync(
+          "pnpm",
+          [
+            "exec",
+            "convex",
+            "run",
+            "finishedGoods/searchIndexBackfill:reconcile",
+            JSON.stringify({ warehouseId, kind }),
+          ],
+          {
+            cwd: root,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+          },
+        ),
+      );
+    } catch {
+      return null; // this target predates the reconcile job
+    }
+  };
+  if (reconcile("locations")) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 31_000);
+    for (const kind of ["jobScans", "locations"])
+      for (let step = 0; step < 1_000; step++)
+        if (reconcile(kind)?.status !== "continuing") break;
+  }
 }
 /** A mutation that returned a refusal value instead of throwing. */
 const refusal = (value) =>
