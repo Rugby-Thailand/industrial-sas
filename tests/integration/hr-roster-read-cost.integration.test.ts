@@ -136,7 +136,7 @@ async function midMonthSite() {
     );
   const frozen = (
     versionId: Id<"hrPeriodVersions">,
-    rows: readonly [Id<"hrEmployees">, number][],
+    rows: readonly (readonly [Id<"hrEmployees">, number])[],
   ) =>
     w.t.run(async (ctx) => {
       for (const [employeeId, day] of rows)
