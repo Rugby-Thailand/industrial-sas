@@ -226,6 +226,41 @@ async function unpostTerm(
   }
 }
 
+/**
+ * Delete a scan-field term that no search row links any more, with its
+ * term-level postings, so unused shared terms can neither grow storage nor
+ * push a search past the shared-stream cap. Building-name terms follow their
+ * building instead. Reads the term's slot range, so a concurrent writer that
+ * links the term conflicts with this delete and retries.
+ */
+async function collectIfOrphaned(
+  db: TenantDocumentAccess,
+  termId: string,
+  budget: SearchBudget,
+): Promise<"kept" | "deleted" | "deferred"> {
+  const term = await db.get<Term>(TERMS, termId);
+  if (!term || term.field >= SLOTS.length) return "kept";
+  const linked = await db
+    .byIndex<SearchRow>(
+      SEARCH_ROWS,
+      `by_orgId_warehouseId_${SLOTS[term.field]}_createdAt`,
+      [
+        { field: "warehouseId", value: term.warehouseId },
+        { field: SLOTS[term.field]!, value: term._id },
+      ],
+    )
+    .take(1);
+  if (linked.length) return "kept";
+  const postings = term.shared
+    ? Math.min(gramsOf(term.text, 3).length, MAX_TERM_GRAMS + 1)
+    : 0;
+  if (postings + 1 > budget.left) return "deferred";
+  if (term.shared) await unpostTerm(db, term._id, budget);
+  await db.delete(TERMS, term._id);
+  budget.left -= 1;
+  return "deleted";
+}
+
 /** Promote a term once more than `SHARED_AFTER` rows link it. */
 async function promoteIfShared(
   db: TenantDocumentAccess,
@@ -347,6 +382,8 @@ export async function indexJobScans(
     before: SearchRow | null;
     slots: (Term | undefined)[];
   }[] = [];
+  // Terms a deleted or edited scan stopped linking: collected if unused.
+  const released = new Set<string>();
   for (const scanId of new Set(scanIds)) {
     const [scan, before] = await Promise.all([
       db.get<Scan>("finishedGoodsJobScans", scanId),
@@ -358,6 +395,7 @@ export async function indexJobScans(
     ]);
     if (!scan) {
       if (before) {
+        for (const slot of SLOTS) if (before[slot]) released.add(before[slot]);
         await db.delete(SEARCH_ROWS, before._id);
         budget.left -= 1;
       }
@@ -387,6 +425,10 @@ export async function indexJobScans(
         SLOTS.map((slot, index) => [slot, slots[index]?._id]),
       ),
     };
+    if (before)
+      for (const [index, slot] of SLOTS.entries())
+        if (before[slot] && before[slot] !== slots[index]?._id)
+          released.add(before[slot]);
     if (!before)
       await db.insert(
         SEARCH_ROWS,
@@ -493,6 +535,9 @@ export async function indexJobScans(
         await db.insert(SCAN_GRAMS, { ...key, gram, texts });
     budget.left -= changes;
   }
+  for (const termId of released)
+    if ((await collectIfOrphaned(db, termId, budget)) === "deferred")
+      result.deferredTerms.push(termId);
   return result;
 }
 
@@ -504,7 +549,13 @@ export async function repostJobScanTerms(
 ) {
   const deferred: string[] = [];
   for (const termId of new Set(termIds)) {
-    const term = await db.get<Term>(TERMS, termId);
+    const collected = await collectIfOrphaned(db, termId, budget);
+    if (collected === "deferred") {
+      deferred.push(termId);
+      continue;
+    }
+    const term =
+      collected === "deleted" ? null : await db.get<Term>(TERMS, termId);
     if (!term) {
       await unpostTerm(db, termId, budget);
       continue;

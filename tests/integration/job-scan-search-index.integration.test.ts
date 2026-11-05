@@ -919,6 +919,132 @@ describe("index-backed job-scan search", () => {
     for (const raw of ["FOX4", "ขขขข", "CUST 1"]) await check(raw);
   });
 
+  it("collects terms no scan links any more, so dead values cannot force a history search", async () => {
+    const fixture = await setup(200);
+    await runBackfill(fixture);
+    const { world, warehouseId } = fixture;
+    const call = async (fn: unknown, args: unknown) => {
+      const result = (await world.t
+        .withIdentity(identity)
+        .run((ctx) =>
+          (fn as Runtime)._handler(ctx as GenericMutationCtx<DataModel>, args),
+        )) as { ok: boolean; value: unknown };
+      expect(result.ok, JSON.stringify(result)).toBe(true);
+      // Business refusals are values: never let one pass as a write.
+      expect(
+        (result.value as { error?: unknown } | null)?.error,
+        JSON.stringify(result.value),
+      ).toBeUndefined();
+      return result.value;
+    };
+    // 49 customers (more than the 48 shared streams a search merges), each
+    // linked by 9 scans so it is shared, then every one of them deleted.
+    const CUSTOMERS_N = 49;
+    for (let round = 0; round < 9; round++)
+      await call(jobScans.saveJobScans, {
+        warehouseId,
+        requestId: `obsolete-${round}`,
+        locationText: "ข้างเสา Z1",
+        items: Array.from({ length: CUSTOMERS_N }, (_, i) => ({
+          factoryOrder: `FO6988${String(round * 100 + i).padStart(4, "0")}`,
+          productBarcodeText: `OBS-${round}-${i}`,
+          customer: `obsolete-customer-${String(i).padStart(2, "0")}`,
+          source: "MANUAL" as const,
+        })),
+      });
+    await drainScheduled(world);
+    const terms = () =>
+      world.t.run(async (ctx) => ({
+        terms: (await ctx.db.query("finishedGoodsJobScanTerms").collect())
+          .filter((term) => term.text.includes("obsolete-customer"))
+          .map((term) => term.shared),
+        grams: (
+          await ctx.db.query("finishedGoodsJobScanTermGrams").collect()
+        ).filter((gram) => gram.text.includes("obsolete-customer")).length,
+      }));
+    const live = await terms();
+    expect(live.terms).toHaveLength(CUSTOMERS_N);
+    expect(live.terms.every(Boolean)).toBe(true);
+    expect(live.grams).toBeGreaterThan(0);
+    const saved = await world.t.run((ctx) =>
+      ctx.db
+        .query("finishedGoodsJobScans")
+        .collect()
+        .then((rows) =>
+          rows
+            .filter((row) => row.productBarcodeText?.startsWith("OBS-"))
+            .map((row) => row._id),
+        ),
+    );
+    expect(saved).toHaveLength(9 * CUSTOMERS_N);
+    for (let start = 0; start < saved.length; start += 50)
+      await call(jobScans.deleteJobScans, {
+        warehouseId,
+        requestId: `obsolete-delete-${start}`,
+        ids: saved.slice(start, start + 50),
+      });
+    await drainScheduled(world);
+    expect(await terms()).toEqual({ terms: [], grams: 0 });
+    // A search for the dead values reads postings, not history.
+    const dead = await traverse(fixture, {
+      search: "obsolete-customer",
+      filter: "ALL",
+      pageSize: 50,
+    });
+    expect(filled(dead.pages)).toEqual([]);
+    expect(dead.requests).toBe(1);
+    expect(docsRead(dead.stats)).toBeLessThan(200);
+
+    // An edit that moves every scan off a shared value releases it too.
+    await call(jobScans.saveJobScans, {
+      warehouseId,
+      requestId: "edited-away",
+      locationText: "ข้างเสา Z1",
+      items: Array.from({ length: 9 }, (_, i) => ({
+        factoryOrder: `FO6989${String(i).padStart(4, "0")}`,
+        productBarcodeText: `EDIT-${i}`,
+        customer: "edited-away-customer",
+        source: "MANUAL" as const,
+      })),
+    });
+    const edited = await world.t.run((ctx) =>
+      ctx.db
+        .query("finishedGoodsJobScans")
+        .collect()
+        .then((rows) =>
+          rows.filter((row) => row.productBarcodeText?.startsWith("EDIT-")),
+        ),
+    );
+    for (const scan of edited)
+      await call(jobScans.updateJobScan, {
+        warehouseId,
+        jobScanId: scan._id,
+        requestId: `edit-${scan._id}`,
+        expectedVersion: scan.version ?? 1,
+        fields: {
+          factoryOrder: scan.factoryOrder,
+          productBarcodeText: scan.productBarcodeText,
+          customer: "kept-customer",
+        },
+      });
+    await drainScheduled(world);
+    expect(
+      (
+        await world.t.run((ctx) =>
+          ctx.db.query("finishedGoodsJobScanTerms").collect(),
+        )
+      ).filter((term) => term.text.includes("edited-away")),
+    ).toEqual([]);
+    const kept = await traverse(fixture, {
+      search: "kept-customer",
+      filter: "ALL",
+      pageSize: 50,
+    });
+    expect(filled(kept.pages).flat().sort()).toEqual(
+      edited.map((scan) => scan._id as string).sort(),
+    );
+  });
+
   it("falls back to the scan until ready, and after raw writers invalidate it", async () => {
     const fixture = await setup(300);
     const page = async () =>
