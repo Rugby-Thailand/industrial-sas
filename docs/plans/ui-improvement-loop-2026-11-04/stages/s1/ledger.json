@@ -1,0 +1,242 @@
+{
+  "stage": 1,
+  "loops": [
+    {
+      "loop": 0,
+      "commit": "b96fff98",
+      "scores": {
+        "sol": {
+          "min": 7,
+          "median": 8,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-menu": 7,
+            "search-empty": 7,
+            "search-results": 8,
+            "search-no-match": 8,
+            "search-ai-running": 8,
+            "shell-loading": 7,
+            "not-found": 8,
+            "route-error": 7
+          }
+        },
+        "opus": {
+          "min": 5,
+          "median": 7,
+          "screens": {
+            "shell-page": 7,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-menu": 7,
+            "search-empty": 7,
+            "search-results": 8,
+            "search-no-match": 7,
+            "search-ai-running": 6,
+            "shell-loading": 6,
+            "not-found": 7,
+            "route-error": 5
+          }
+        }
+      },
+      "note": "Baseline. Calibration: sol runs A and B within 1 point on every screen (A min 7 / median 8, B min 6 / median 8); rubric frozen. Opus min 5 / median 7.",
+      "calibration": {
+        "solA": {
+          "min": 7,
+          "median": 8
+        },
+        "solB": {
+          "min": 6,
+          "median": 8
+        },
+        "opus": {
+          "min": 5,
+          "median": 7
+        },
+        "maxScreenDiff": 1
+      }
+    },
+    {
+      "loop": 1,
+      "commit": "c354ff0a",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 8,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-switch": 8,
+            "search-empty": 8,
+            "search-results": 8,
+            "search-no-match": 9,
+            "search-ai-running": 8,
+            "shell-loading": 8,
+            "not-found": 9,
+            "route-error": 8
+          }
+        }
+      },
+      "note": "Phase 1. Stage reached 8: first annotated set.",
+      "fixed": [
+        "S1-L0-sola-02",
+        "S1-L0-sola-04",
+        "S1-L0-sola-05",
+        "S1-L0-sola-07",
+        "S1-L0-sola-08",
+        "S1-L0-sola-09",
+        "S1-L0-sola-12",
+        "S1-L0-sola-13",
+        "S1-L0-sola-18",
+        "S1-L0-solb-02",
+        "S1-L0-solb-03",
+        "S1-L0-solb-04",
+        "S1-L0-solb-05",
+        "S1-L0-solb-06",
+        "S1-L0-solb-08",
+        "S1-L0-solb-12",
+        "S1-L0-solb-17",
+        "S1-L0-opus-04",
+        "S1-L0-opus-07",
+        "S1-L0-opus-08",
+        "S1-L0-opus-10",
+        "S1-L0-opus-11",
+        "S1-L0-opus-12",
+        "S1-L0-opus-13",
+        "S1-L0-opus-14",
+        "S1-L0-opus-16",
+        "S1-L0-opus-18",
+        "S1-L0-opus-20",
+        "S1-L0-opus-21",
+        "S1-L0-opus-23",
+        "S1-L0-opus-26",
+        "S1-L0-opus-28",
+        "S1-L0-opus-29",
+        "S1-L0-opus-31",
+        "S1-L0-opus-32",
+        "S1-L0-opus-33",
+        "S1-L0-opus-35"
+      ],
+      "deferred": [
+        {
+          "id": "S1-L0-opus-01",
+          "reason": "Phone header search button: next loop if search scores stall"
+        },
+        {
+          "id": "S1-L0-opus-02",
+          "reason": "Warehouse on phone header: revisit in Stage 2 (scanning context)"
+        },
+        {
+          "id": "S1-L0-opus-03",
+          "reason": "Account footer person name: later loop"
+        },
+        {
+          "id": "S1-L0-opus-06",
+          "reason": "Warehouse name truncation: later loop"
+        },
+        {
+          "id": "S1-L0-opus-27",
+          "reason": "Loading keeps page heading: loop 2"
+        },
+        {
+          "id": "S1-L0-opus-30",
+          "reason": "Not-found inside the shell needs a new catch-all route: later, with navigation contract review"
+        },
+        {
+          "id": "S1-L0-sola-19",
+          "reason": "Malformed record id should be 'not found', not a retry error: Stage 3 (product/batch/pallet pages)"
+        },
+        {
+          "id": "S1-L0-opus-34",
+          "reason": "Same as sola-19: Stage 3"
+        }
+      ],
+      "behaviour": [
+        {
+          "id": "S1-L0-opus-15",
+          "question": "Show the AI privacy notice (Search.aiPrivacy exists but is never shown)?"
+        },
+        {
+          "id": "S1-L0-opus-19",
+          "question": "Should global search cover warehouse codes (product, pallet, job ticket) with exact-code jump? Placeholder no longer promises it."
+        },
+        {
+          "id": "S1-L0-solb-07",
+          "question": "Optional search scope chips (People / Warehouse)?"
+        }
+      ],
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass",
+        "vitest": "301/302 (pre-existing JobScan.saveBlockedTickets ICU parity failure at HEAD)",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "20/20, overflow 0, serious axe 0; console: next-themes script-tag warning on language switch (pre-existing), expected 404/Convex errors"
+      }
+    },
+    {
+      "loop": 2,
+      "commit": "fe3ad5c8",
+      "scores": {
+        "sol": {
+          "min": 8,
+          "median": 8,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 8,
+            "shell-rail": 8,
+            "locale-switch": 8,
+            "search-empty": 8,
+            "search-results": 8,
+            "search-no-match": 8,
+            "search-ai-running": 8,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 8
+          }
+        }
+      },
+      "note": "Phase 1. Captures moved to a production build (next start on :3171) because the dev server took 60+ s per page under load.",
+      "fixed": [
+        "S1-L1-sol-03",
+        "S1-L1-sol-06",
+        "S1-L1-sol-08",
+        "S1-L1-sol-14",
+        "S1-L1-sol-17",
+        "S1-L0-sola-15",
+        "S1-L0-solb-15",
+        "S1-L0-opus-01",
+        "S1-L0-opus-22",
+        "S1-L0-opus-27"
+      ],
+      "deferred": [
+        {
+          "id": "S1-L1-sol-19",
+          "reason": "Malformed record id → not found: Stage 3. The route-error screen now shows a temporary read failure on a valid product."
+        }
+      ],
+      "behaviour": [
+        {
+          "id": "S1-L2-sol-05",
+          "question": "Optional search scope chips (same as S1-L0-solb-07)."
+        },
+        {
+          "id": "loop2-search-agent",
+          "question": "AI Search tells users leave requests are recorded outside the app; leave pages now exist (src/lib/search/resolveIntent.ts). Update the copy and suggestions?"
+        }
+      ],
+      "checks": {
+        "typecheck": "pass",
+        "lint": "pass",
+        "vitest": "5113/5118 in the full run under heavy load; 4 timing failures pass in isolation (StorageLayoutNavigation ×3 runs); 1 pre-existing JobScan.saveBlockedTickets ICU parity",
+        "a11y": "20/20",
+        "navigation": "pass",
+        "format": "pass",
+        "capture": "20/20, overflow 0, serious axe 0, console clean except expected 404 and simulated failure"
+      }
+    }
+  ]
+}

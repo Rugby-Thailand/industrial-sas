@@ -8,7 +8,7 @@
       "title": "Shell around a populated page (Finished goods)",
       "state": "populated",
       "path": "/finished-goods",
-      "ready": "main h1"
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1"
     },
     {
       "id": "shell-drawer",
@@ -16,7 +16,7 @@
       "state": "populated",
       "path": "/finished-goods",
       "viewports": ["mobile"],
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "click": "header [data-slot=sidebar-trigger]"
@@ -35,7 +35,7 @@
       "state": "populated",
       "path": "/finished-goods",
       "viewports": ["desktop"],
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "click": "[data-sidebar=sidebar] [data-slot=sidebar-trigger]"
@@ -50,7 +50,7 @@
       "title": "Header language button, then the same page after switching language",
       "state": "populated",
       "path": "/finished-goods",
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "click": "[data-testid=locale-select]"
@@ -59,7 +59,7 @@
           "wait": 2500
         },
         {
-          "waitFor": "main h1"
+          "waitFor": "main:not(:has([data-testid=panel-LOADING])) h1"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "title": "Search dialog, nothing typed",
       "state": "empty",
       "path": "/finished-goods",
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "press": "ControlOrMeta+k"
@@ -86,7 +86,7 @@
       "title": "Search dialog with page and record results",
       "state": "populated",
       "path": "/finished-goods",
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "press": "ControlOrMeta+k"
@@ -113,7 +113,7 @@
       "title": "Search dialog, no match",
       "state": "empty",
       "path": "/finished-goods",
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "press": "ControlOrMeta+k"
@@ -140,7 +140,7 @@
       "title": "Search dialog after Ask AI: request running",
       "state": "loading",
       "path": "/finished-goods",
-      "ready": "main h1",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [
         {
           "press": "ControlOrMeta+k"
@@ -186,12 +186,20 @@
     },
     {
       "id": "route-error",
-      "title": "Route error boundary",
+      "title": "Route error boundary: a product page whose data read fails temporarily",
       "state": "error",
-      "path": "/finished-goods/products/not-a-real-id",
+      "path": "/finished-goods",
+      "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
+      "failQuery": "finishedGoods/workflow:getProduct",
       "steps": [
         {
-          "wait": 5000
+          "click": "main a[href*='/finished-goods/products/']"
+        },
+        {
+          "waitFor": "[data-testid=route-error]"
+        },
+        {
+          "wait": 800
         }
       ]
     }

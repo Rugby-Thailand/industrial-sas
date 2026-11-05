@@ -1,0 +1,838 @@
+{
+  "stage": 2,
+  "title": "Warehouse scanning",
+  "module": "Warehouse mobile scanning",
+  "sources": [
+    "src/app/[locale]/(desktop)/finished-goods/scan/",
+    "src/app/[locale]/(desktop)/finished-goods/packages/scan/",
+    "src/features/finishedGoods/jobScan/",
+    "src/features/finishedGoods/PackageScanScreen.tsx",
+    "src/features/finishedGoods/BarcodeCameraBox.tsx",
+    "src/features/finishedGoods/BarcodeImagePicker.tsx",
+    "src/features/finishedGoods/CameraFrame.tsx",
+    "src/features/finishedGoods/useBarcodeCamera.ts",
+    "src/features/finishedGoods/shared.tsx",
+    "messages/th.json (JobScan)",
+    "messages/en.json (JobScan)"
+  ],
+  "screens": [
+    {
+      "id": "scan-location",
+      "title": "Scan job ticket: location step (start)",
+      "state": "populated",
+      "path": "/finished-goods/scan",
+      "ready": "main h1",
+      "steps": [
+        {
+          "waitFor": "main ul li button"
+        }
+      ],
+      "notes": "First screen of Scan job ticket: search, scan or photograph the storage location; first page of seeded locations listed."
+    },
+    {
+      "id": "scan-location-camera",
+      "title": "Location step with the live camera open",
+      "state": "camera-live",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "output/ui-loop/assets/camera-scene.y4m",
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": {
+              "th": "เล็งกล้องไปที่บาร์โค้ดหรือ QR",
+              "en": "Point the camera at a barcode"
+            }
+          }
+        },
+        {
+          "wait": 1000
+        }
+      ],
+      "notes": "Chromium fake camera plays a code-free pallet scene, so the viewfinder stays open (decoder timing and glare are not represented)."
+    },
+    {
+      "id": "scan-location-camera-denied",
+      "title": "Location step after camera permission is denied",
+      "state": "error",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "deny",
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": "main [role=alert]"
+        }
+      ],
+      "notes": "getUserMedia rejects with NotAllowedError (init script)."
+    },
+    {
+      "id": "scan-location-image-read",
+      "retries": 1,
+      "title": "Camera denied: location label read from a chosen image, awaiting confirmation",
+      "state": "review",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "deny",
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": "main [role=alert]"
+        },
+        {
+          "files": [
+            "input[type=file][accept^=\"image/jpeg\"]",
+            "output/ui-loop/assets/location-label.jpg"
+          ]
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        }
+      ],
+      "notes": "Image fallback: the generated label photo (Code128 DEMO-ANNEX-F01-Z01) is decoded on the device; the Use button is not pressed."
+    },
+    {
+      "id": "scan-tickets-empty",
+      "title": "Ticket intake after choosing a location, no tickets yet",
+      "state": "empty",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "ready": "main h1",
+      "steps": [
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "ค้นหาตำแหน่ง",
+                "en": "Search location"
+              }
+            },
+            "DEMO-ANNEX-F01-Z01"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "DEMO-ANNEX-F01-Z01",
+              "en": "DEMO-ANNEX-F01-Z01"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "กรอกเอง",
+              "en": "Manual"
+            }
+          }
+        }
+      ],
+      "notes": "Location DEMO-ANNEX-F01-Z01 chosen by search; the pallet step before any ticket."
+    },
+    {
+      "id": "scan-ticket-incomplete",
+      "retries": 1,
+      "title": "Ticket intake: one ticket with the product barcode read, Job No. missing",
+      "state": "partial",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "output/ui-loop/assets/camera-scene.y4m",
+      "ready": "main h1",
+      "steps": [
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "ค้นหาตำแหน่ง",
+                "en": "Search location"
+              }
+            },
+            "DEMO-ANNEX-F01-Z01"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "DEMO-ANNEX-F01-Z01",
+              "en": "DEMO-ANNEX-F01-Z01"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "กรอกเอง",
+              "en": "Manual"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "เลือกภาพ",
+              "en": "Choose image"
+            }
+          }
+        },
+        {
+          "files": [
+            "input[type=file][accept^=\"image/jpeg\"]",
+            "output/ui-loop/assets/ticket-product-only.jpg"
+          ]
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "wait": 500
+        }
+      ],
+      "notes": "Scan code mode; a ticket photo whose Job No. barcode label is missing is chosen in the image picker and confirmed, so only product barcode UILOOP-PRODUCT-02 is read. Save is blocked naming ticket 1. (The ticket image reader returns nothing for a photo without a product barcode, so a Job-No.-only image cannot be used.)"
+    },
+    {
+      "id": "scan-ticket-complete",
+      "retries": 1,
+      "title": "Ticket intake: complete Job No. + product barcode pair, ready to save",
+      "state": "ready",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "output/ui-loop/assets/camera-scene.y4m",
+      "ready": "main h1",
+      "steps": [
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "ค้นหาตำแหน่ง",
+                "en": "Search location"
+              }
+            },
+            "DEMO-ANNEX-F01-Z01"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "DEMO-ANNEX-F01-Z01",
+              "en": "DEMO-ANNEX-F01-Z01"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "กรอกเอง",
+              "en": "Manual"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "เลือกภาพ",
+              "en": "Choose image"
+            }
+          }
+        },
+        {
+          "files": [
+            "input[type=file][accept^=\"image/jpeg\"]",
+            "output/ui-loop/assets/ticket-pair.jpg"
+          ]
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "wait": 500
+        }
+      ],
+      "notes": "Ticket photo with both barcodes (FO99990001 + UILOOP-PRODUCT-01) chosen in Scan code mode; nothing is saved."
+    },
+    {
+      "id": "scan-save-blocked",
+      "retries": 1,
+      "title": "Save blocked: ticket 2 is incomplete, after following the blocker link",
+      "state": "blocked",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "output/ui-loop/assets/camera-scene.y4m",
+      "ready": "main h1",
+      "steps": [
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "ค้นหาตำแหน่ง",
+                "en": "Search location"
+              }
+            },
+            "DEMO-ANNEX-F01-Z01"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "DEMO-ANNEX-F01-Z01",
+              "en": "DEMO-ANNEX-F01-Z01"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "กรอกเอง",
+              "en": "Manual"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "เลือกภาพ",
+              "en": "Choose image"
+            }
+          }
+        },
+        {
+          "files": [
+            "input[type=file][accept^=\"image/jpeg\"]",
+            "output/ui-loop/assets/ticket-pair.jpg"
+          ]
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "wait": 500
+        },
+        {
+          "files": [
+            "input[type=file][accept^=\"image/jpeg\"]",
+            "output/ui-loop/assets/ticket-product-only.jpg"
+          ]
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "wait": 500
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ไปที่ใบที่ 2",
+              "en": "Go to ticket #2"
+            }
+          }
+        },
+        {
+          "wait": 1200
+        }
+      ],
+      "notes": "Two tickets from two chosen images: a complete pair, then a product barcode without Job No. The save bar names ticket 2; its Go to ticket link has been followed. Nothing is saved."
+    },
+    {
+      "id": "scan-records",
+      "title": "Scanned records list (default view: awaiting location)",
+      "state": "populated",
+      "path": "/finished-goods/scan/records",
+      "ready": "main h1",
+      "steps": [
+        {
+          "waitFor": "main ol li, main ul li"
+        }
+      ],
+      "notes": "Seeded job-scan records (convex/staging/jobScanDemo.ts)."
+    },
+    {
+      "id": "scan-records-all",
+      "title": "Scanned records list, All filter",
+      "state": "populated",
+      "path": "/finished-goods/scan/records?scans=%7B%22filter%22%3A%22ALL%22%2C%22search%22%3A%22%22%7D",
+      "viewports": [
+        "mobile"
+      ],
+      "ready": "main h1",
+      "steps": [
+        {
+          "waitFor": "main ol li, main ul li"
+        }
+      ]
+    },
+    {
+      "id": "scan-records-no-match",
+      "title": "Scanned records: search with no matches",
+      "state": "empty",
+      "path": "/finished-goods/scan/records?scans=%7B%22filter%22%3A%22ALL%22%2C%22search%22%3A%22%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B8%A1%E0%B8%B5%E0%B8%A3%E0%B8%B2%E0%B8%A2%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%99%E0%B8%B5%E0%B9%89%22%7D",
+      "viewports": [
+        "mobile"
+      ],
+      "ready": "main h1",
+      "steps": [
+        {
+          "waitFor": {
+            "text": {
+              "th": "ไม่พบรายการที่ตรงกับ",
+              "en": "No records match"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scan-saved",
+      "retries": 1,
+      "title": "After a successful save",
+      "state": "success",
+      "path": "/finished-goods/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "output/ui-loop/assets/camera-scene.y4m",
+      "ready": "main h1",
+      "steps": [
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "ค้นหาตำแหน่ง",
+                "en": "Search location"
+              }
+            },
+            "DEMO-ANNEX-F01-Z01"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "DEMO-ANNEX-F01-Z01",
+              "en": "DEMO-ANNEX-F01-Z01"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "กรอกเอง",
+              "en": "Manual"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนรหัส",
+              "en": "Scan code"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "เลือกภาพ",
+              "en": "Choose image"
+            }
+          }
+        },
+        {
+          "files": [
+            "input[type=file][accept^=\"image/jpeg\"]",
+            "output/ui-loop/assets/ticket-pair.jpg"
+          ]
+        },
+        {
+          "waitFor": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ใช้รหัสที่อ่านได้",
+              "en": "Use scanned code(s)"
+            }
+          }
+        },
+        {
+          "wait": 500
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "บันทึก 1 ใบ",
+              "en": "Save 1 ticket"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": {
+              "th": "บันทึกแล้ว 1 ใบ",
+              "en": "Saved 1 ticket"
+            }
+          }
+        }
+      ],
+      "notes": "Writes one finishedGoodsJobScans record (FO99990001 at DEMO-ANNEX-F01-Z01). scan-records-delete-confirm, captured next, deletes every FO99990001 record."
+    },
+    {
+      "id": "scan-records-delete-confirm",
+      "title": "Delete confirmation for selected scanned records",
+      "state": "confirm",
+      "path": "/finished-goods/scan/records?scans=%7B%22filter%22%3A%22ALL%22%2C%22search%22%3A%22FO99990001%22%7D",
+      "viewports": [
+        "mobile"
+      ],
+      "ready": "main h1",
+      "steps": [
+        {
+          "waitFor": {
+            "role": "checkbox",
+            "name": {
+              "th": "เลือกทั้งหมดในหน้านี้",
+              "en": "Select all on this page"
+            }
+          }
+        },
+        {
+          "wait": 800
+        },
+        {
+          "click": {
+            "role": "checkbox",
+            "name": {
+              "th": "เลือกทั้งหมดในหน้านี้",
+              "en": "Select all on this page"
+            }
+          }
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ลบที่เลือก",
+              "en": "Delete"
+            }
+          }
+        },
+        {
+          "waitFor": "[role=dialog]"
+        }
+      ],
+      "after": [
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ลบ",
+              "en": "Delete"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": {
+              "th": "ไม่พบรายการที่ตรงกับ",
+              "en": "No records match"
+            }
+          }
+        }
+      ],
+      "notes": "Cleanup for scan-saved: searches FO99990001, selects all and opens the delete dialog (captured); after capture it confirms the delete. Needs scan-saved (or a leftover FO99990001 record) first."
+    },
+    {
+      "id": "package-scan",
+      "title": "Assign package labels (package scan) start",
+      "state": "empty",
+      "path": "/finished-goods/packages/scan",
+      "ready": "main h1"
+    },
+    {
+      "id": "package-scan-progress",
+      "title": "Package scan in progress: two packages added, location verified",
+      "state": "partial",
+      "path": "/finished-goods/packages/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "ready": "main h1",
+      "steps": [
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "รหัสบรรจุภัณฑ์",
+                "en": "Package code"
+              }
+            },
+            "P-000006"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "เพิ่มบรรจุภัณฑ์",
+              "en": "Add package"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": "1. P-000006"
+          }
+        },
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "รหัสบรรจุภัณฑ์",
+                "en": "Package code"
+              }
+            },
+            "P-000007"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "เพิ่มบรรจุภัณฑ์",
+              "en": "Add package"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": "2. P-000007"
+          }
+        },
+        {
+          "fill": [
+            {
+              "role": "textbox",
+              "name": {
+                "th": "รหัสตำแหน่งจัดเก็บ",
+                "en": "Storage location code"
+              }
+            },
+            "DEMO-ANNEX-F01-Z03"
+          ]
+        },
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "ตรวจตำแหน่ง",
+              "en": "Verify location"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": "DEMO-ANNEX-F01-Z03 ·"
+          }
+        }
+      ],
+      "notes": "Typed codes for seeded AWAITING_PLACEMENT pallets P-000006/P-000007 and zone DEMO-ANNEX-F01-Z03. Nothing is confirmed, so nothing is written."
+    },
+    {
+      "id": "package-scan-camera",
+      "title": "Package scanner dialog with the live camera",
+      "state": "camera-live",
+      "path": "/finished-goods/packages/scan",
+      "viewports": [
+        "mobile"
+      ],
+      "camera": "output/ui-loop/assets/camera-scene.y4m",
+      "ready": "main h1",
+      "steps": [
+        {
+          "click": {
+            "role": "button",
+            "name": {
+              "th": "สแกนบรรจุภัณฑ์",
+              "en": "Scan packages"
+            }
+          }
+        },
+        {
+          "waitFor": {
+            "text": {
+              "th": "เล็งกล้องไปที่บาร์โค้ดหรือ QR",
+              "en": "Point the camera at a barcode"
+            }
+          }
+        },
+        {
+          "wait": 1000
+        }
+      ]
+    }
+  ]
+}
