@@ -30,7 +30,11 @@ import {
   type ConvexTenantWorld,
 } from "../fixtures/convex-tenant-world";
 
-vi.setConfig({ testTimeout: 600_000 });
+// convex-test scans every document on each index read, so these corpora are
+// slow on a loaded machine; SEARCH_INDEX_TEST_TIMEOUT_MS raises the limit.
+vi.setConfig({
+  testTimeout: Number(process.env["SEARCH_INDEX_TEST_TIMEOUT_MS"] ?? 600_000),
+});
 
 type Runtime = {
   _handler: (
@@ -101,6 +105,8 @@ const stamps = (world: ConvexTenantWorld) => ({
 });
 
 async function setup(count: number) {
+  // The same corpus whichever tests run (a filtered run must reproduce it).
+  seed = 11;
   const world = await createConvexTenantWorld({
     "../convex/finishedGoods/searchIndexBackfill.ts": () =>
       import("../../convex/finishedGoods/searchIndexBackfill"),
@@ -658,11 +664,18 @@ describe("index-backed job-scan search", () => {
     const reads = (label: string) =>
       (report[label] as { indexed: { docs: number; requests: number } })
         .indexed;
-    // Rare needles: matches plus a small constant (probes, auth, readiness),
-    // where the scan reads all 2,200 records over 22 requests.
+    // Rare needles: matches plus a constant set by the probe sizes, where
+    // the scan reads all 2,200 records over 22 requests. The constant is at
+    // most 6 term-gram probes of 17 rows, 6 scan-gram probes of 8 rows, the
+    // unposted rows, readiness and ~15 authorization reads.
+    const scanned = (label: string) =>
+      (report[label] as { scan: { docs: number } }).scan.docs;
     for (const label of ["rare (one job number)", "rare Thai (lot)", "miss"]) {
       expect(reads(label).requests).toBe(1);
-      expect(reads(label).docs).toBeLessThanOrEqual(120);
+      expect(reads(label).docs).toBeLessThanOrEqual(
+        (report[label] as { matches: number }).matches + 200,
+      );
+      expect(reads(label).docs).toBeLessThan(scanned(label) / 10);
     }
     // Other needles fill one 50-row page in one request, from postings,
     // matching terms' streams or (densest) the history itself.
