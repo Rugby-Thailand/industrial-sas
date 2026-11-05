@@ -1,0 +1,26 @@
+{
+  "sourceCommit": "23cebd12",
+  "buildId": "OJfybycOFMa4yQEEdLetT",
+  "models": {
+    "sol": "gpt-6.1-sol via Codex CLI",
+    "opus": "claude-opus-5.5 via Kiro CLI"
+  },
+  "checks": {
+    "fullCheck": "pnpm check passed: 68 navigation fixtures, format, typecheck (1092 files), normal ESLint, and 5179 tests across 384 files including accessibility",
+    "build": "production webpack build passed",
+    "detector": "no findings on edited targets",
+    "aliasRegression": "New test failed before the alias was added, then passed for Thai/English task-set parity and unchanged permission filtering",
+    "captures": "46/46 captured with no horizontal overflow or serious/critical axe violations",
+    "runtimeQA": "12/12 cases passed, including bilingual EMP task visibility, Back/Close, locale, keyboard and outage recovery",
+    "console": "No unexpected console errors: only the intended 404 responses and injected temporary query failure in error-state captures."
+  },
+  "captureNotes": [
+    "AI request held by harness without contacting provider.",
+    "Supplemental recents use representative stored destination keys; mixed results search the existing fixture with EMP. No records changed.",
+    "Product owner approved EMP finding the review-day task in Thai and English. Only the shared review employee day alias was added; permission, relevance, employee/date and route behavior remain unchanged."
+  ],
+  "limitations": [
+    "Browser keyboard checks use Playwright key events, not a physical phone software keyboard.",
+    "Retry after an error that persists is verified; recovery after removing the fault is not established here."
+  ]
+}

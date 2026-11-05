@@ -1,0 +1,235 @@
+{
+  "auditor": "gpt-6.1-sol",
+  "stage": 1,
+  "loop": "14",
+  "capturedAt": "2026-11-05T16:06:15.419Z",
+  "screens": [
+    {
+      "id": "shell-page",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured populated shell: workspace context, navigation, search and page actions remain clearly separated.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-drawer",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured open drawer, with readable destinations, clear selection, adequate touch targets and a visible continuation cue.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-rail",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured collapsed rail, retaining workspace context, a distinct active destination and accessible control names.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "locale-switch",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured switched state, with consistent translated shell labels and a clearly named return-language action.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-empty",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "Already reaches 9: useful shortcuts and recents, clear selection, readable localization, and explicit AI examples support immediate navigation.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-results",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Phone software-keyboard layout is not demonstrated",
+          "evidence": "search-results__th-mobile-light.png and search-results--mixed__th-mobile-light.png show the full 844 CSS-pixel viewport without a software keyboard; runtime-qa.json verifies navigation and scrolling but does not document keyboard-open viewport behavior.",
+          "fix": "Verify the existing SearchDialog and SearchResultsViewport with Thai and English software keyboards open: keep the query and Close accessible, scroll to the final AI option, and activate a result by touch. Attach the observed viewport and outcome.",
+          "benchmark": "",
+          "id": "S1-L14-sol-01"
+        }
+      ],
+      "bestReference": "Linear",
+      "reachesNineIf": "Already reaches 9 for the captured states; keyboard-open phone verification remains a coverage check without reducing these scores.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-no-match",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "Already meets 9 for the captured no-match state: clear guidance, a query-preserving AI fallback, and readable alternative destinations.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-ai-running",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Supplied runtime evidence does not verify cancellation followed by a late response",
+          "evidence": "search-ai-running__th-mobile-light.png and search-ai-running__en-desktop-dark.png show the pending row and Cancel. output/ui-loop/s1/loop-14/runtime-qa.json contains no cancellation case. src/components/shell/search/GlobalSearch.test.tsx:1299 defines a late-lookup cancellation test, but its execution result is not supplied.",
+          "fix": "Record a runtime check using the existing Cancel button: cancel the held request, release its response, and verify that progress disappears, the query remains, and no late navigation or answer occurs.",
+          "benchmark": "",
+          "id": "S1-L14-sol-02"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9 visually; the cancellation coverage finding does not reduce the captured state's dimensions.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-loading",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9 for the sustained-outage state: one clear connection explanation and recovery action, with quiet local unavailable-data labels.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "not-found",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9: the captured states explain the problem clearly and provide one prominent recovery action.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "route-error",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already meets 9: recovery actions, reassurance, support reference, copy confirmation, and retry feedback are clear and appropriately ordered.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    }
+  ],
+  "missing": [],
+  "stageScore": 9,
+  "stageMedian": 9,
+  "notes": [
+    "No reportable defects were established in this group's shell and navigation evidence. Thai labels show no visible clipping; both themes preserve readable hierarchy and selection. Accessibility snapshots name icon controls and retain navigation structure; all supplied captures report zero overflow and no axe violations. runtime-qa.json verifies Search dismissal, focus return, exact-origin Back restoration, and rail persistence through refresh and locale changes. Search results and recovery screens belong to other image groups, so their absence here creates no coverage finding or score deduction. bestReference remains empty because the supplied product comparisons concern the search dialog rather than these shell states.",
+    "Both screens maintain consistent focus, selection, spacing, and Thai/English presentation across mobile/light and desktop/dark captures. Mixed results distinguish pages, employees, and tasks; desktop explicitly signals additional results below. Runtime evidence confirms Back dismissal, focus return, Escape clearing then closing, and arrow navigation through the final AI option. No substantive UI defect is established in this group. Accepted scope and AI presentation decisions are respected; other screen groups are not treated as missing.",
+    "No material UI defects found across these twelve captures. Thai marks and mixed-language queries remain readable; mobile controls retain touch sizing, and desktop overlays use a sensible width. Both themes distinguish progress, selection, and outage feedback without relying on colour alone. Supplied runtime checks verify search Back handling, focus return, Escape sequencing, and outage recovery preserving query/hash. Coverage does not lower dimension scores; other screen groups are outside this audit.",
+    "No material UI defects found in this group. Both screens retain readable Thai and English, adequate mobile targets, clear contrast, and zero reported overflow or axe violations. Images #9–10 show explicit copy and retry feedback; runtime QA confirms retry settles after repeated failure without shifting the recovery action. The simpler not-found shell and neutral start-page label follow D11. Search and other screens outside this group were not assessed."
+  ]
+}
