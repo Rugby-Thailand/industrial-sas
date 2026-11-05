@@ -153,6 +153,25 @@ for (let batches = 1; !occupancy.isDone; batches++) {
   });
 }
 
+// Derived search indexes (convex/lib/jobScanSearch.ts, locationSearch.ts).
+for (const kind of ["jobScans", "locations"]) {
+  let built = run("finishedGoods/searchIndexBackfill:run", {
+    warehouseId: bootstrap.warehouseId,
+    kind,
+    restart: true,
+  });
+  for (let batches = 1; !built.isDone; batches++) {
+    if (batches > 10000)
+      throw new Error(`${kind} search backfill exceeded its safety limit`);
+    built = run("finishedGoods/searchIndexBackfill:run", {
+      warehouseId: bootstrap.warehouseId,
+      kind,
+      cursor: built.continueCursor,
+      runId: built.runId,
+    });
+  }
+}
+
 const fixture = {
   generatedAt: new Date().toISOString(),
   email,

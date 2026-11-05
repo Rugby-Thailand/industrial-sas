@@ -51,7 +51,7 @@ const clerk = {
     process.env.LOCAL_TEST_CLERK_ORG_ID ?? "org_3JXrDUraQjTRO3hcIzMGC9CvIXV",
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-/** Backfill derived zone occupancy after a restore, on targets that have it. */
+/** Backfill derived stores after a restore, on targets that have them. */
 function rebuildDerived(root, warehouseId) {
   const run = (args) => {
     try {
@@ -96,6 +96,39 @@ function rebuildDerived(root, warehouseId) {
     );
   } catch {
     // this target predates maintained totals
+  }
+  // Derived substring-search indexes (convex/lib/jobScanSearch.ts, locationSearch.ts).
+  for (const kind of ["jobScans", "locations"]) {
+    const page = (args) => {
+      try {
+        return JSON.parse(
+          execFileSync(
+            "pnpm",
+            [
+              "exec",
+              "convex",
+              "run",
+              "finishedGoods/searchIndexBackfill:run",
+              JSON.stringify({ warehouseId, kind, batchSize: 50, ...args }),
+            ],
+            {
+              cwd: root,
+              encoding: "utf8",
+              stdio: ["ignore", "pipe", "ignore"],
+            },
+          ),
+        );
+      } catch {
+        return null; // this target predates the search indexes
+      }
+    };
+    let built = page({ restart: true });
+    while (built && !built.isDone)
+      built = page({ cursor: built.continueCursor, runId: built.runId });
+    if (built && !built.ready)
+      throw Error(
+        `${root}: ${kind} search backfill finished without readiness`,
+      );
   }
 }
 /** A mutation that returned a refusal value instead of throwing. */
