@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "b6c6d6f4",
+  "buildId": "8nsPU3gtCoFO7Jp1PQcTi",
+  "models": {
+    "sol": "gpt-6.1-sol via Codex CLI",
+    "opus": "claude-opus-5.5 via Kiro CLI"
+  },
+  "checks": {
+    "targetedTests": "252 tests across 9 files passed",
+    "backendSearchTests": "29 tests across 2 files passed",
+    "a11y": "20 tests across 5 files passed",
+    "navigation": "68 fixtures; 59 routes, 296 state owners, 26 actions",
+    "typecheck": "1092 files passed; production build typecheck passed",
+    "lint": "normal ESLint plus changed-file check passed",
+    "build": "production webpack build passed",
+    "detector": "no findings on edited targets",
+    "runtimeQA": "8/8 cases passed; merged employee order confirmed on desktop and phone",
+    "fullCheck": "Navigation, format, typecheck and lint passed; 5169 tests passed, six test-harness failures in two files. Those checks were repaired separately, and both files (19 tests including parser regressions) pass; full suite will rerun in loop 12."
+  },
+  "captureNotes": [
+    "AI request held by harness without contacting provider.",
+    "Supplemental recents use representative stored destination keys; mixed results search the existing fixture with EMP. No records changed.",
+    "Employee ordering uses the existing server relevance rank then code after permission-scope merge. No query or alias policy changed."
+  ],
+  "captures": {
+    "total": 46,
+    "failed": 0,
+    "overflow": 0,
+    "seriousOrCriticalAxe": 0
+  },
+  "limitations": [
+    "Browser keyboard checks use Playwright key events, not a physical phone software keyboard.",
+    "Retry after an error that persists is verified; recovery after removing the fault is not established here."
+  ]
+}
