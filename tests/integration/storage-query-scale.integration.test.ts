@@ -1513,8 +1513,9 @@ describe("recommendation order across active buildings", () => {
  * A warehouse shaped like the profiling tenant, small enough for convex-test:
  * four active buildings, each with plain floor areas holding stored pallets
  * (half of them stackable, so they offer stack surfaces), racks of exact
- * positions, a cold area, an area with an unmeasured unit and a reserved
- * floor block; plus a draft building that can never be a candidate.
+ * positions, a stocked cold area (a mismatch for the dry probe), an area with
+ * an unmeasured unit and a reserved floor block; plus a draft building that
+ * can never be a candidate.
  */
 async function warehouseWorld() {
   const seed = await scaleWorld();
@@ -1528,6 +1529,7 @@ async function warehouseWorld() {
     const location = (code: string) =>
       ctx.db.insert("locations", { ...fields(seed.location), code });
     const simple: Id<"storageZones">[] = [];
+    const cold: Id<"storageZones">[] = [];
     const racks: {
       zoneId: Id<"storageZones">;
       positions: Doc<"storagePositions">[];
@@ -1609,9 +1611,11 @@ async function warehouseWorld() {
             }
         racks.push({ zoneId, positions });
       }
-      await zoneIn(buildingId, floorId, `${code}-COLD`, {
-        storageCondition: "COLD",
-      });
+      cold.push(
+        await zoneIn(buildingId, floorId, `${code}-COLD`, {
+          storageCondition: "COLD",
+        }),
+      );
       await ctx.db.insert("storageFloorReservedBlocks", {
         orgId: seed.world.orgA,
         warehouseId: seed.warehouseId,
@@ -1632,7 +1636,7 @@ async function warehouseWorld() {
     });
     for (let i = 0; i < 5; i++)
       await zoneIn(draftId, seed.zone.floorId, `DRAFT-${i}`);
-    return { simple, racks, buildings };
+    return { simple, cold, racks, buildings };
   });
   // Stored pallets: 8 per floor area (every other one stackable), one in a
   // third of the rack positions.
@@ -1675,7 +1679,7 @@ async function warehouseWorld() {
       });
       await ctx.db.patch(palletId, { placementId });
     };
-    for (const zoneId of layout.simple)
+    for (const zoneId of [...layout.simple, ...layout.cold])
       for (let k = 0; k < 8; k++)
         await store(
           zoneId,
@@ -1756,6 +1760,11 @@ describe("recommendation list and zone detail", () => {
           `largest zone detail: ${split.docs.zoneMax} docs, ${(split.returned.zoneMax / 1024).toFixed(1)} KB returned`,
         ].join("\n"),
       );
+      // Mismatched (cold) zones cost the list a summary row, not entries.
+      if (derived)
+        expect(list.stats.rangeDocs["storageZoneOccupancyEntries"]).toBe(
+          seed.simple.length + seed.racks.length,
+        );
       // The list returns no per-zone geometry: a fraction of the full payload.
       expect(split.returned.list * 3).toBeLessThan(split.returned.full);
       // A zone detail reads one zone, not the warehouse.
