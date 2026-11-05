@@ -87,6 +87,47 @@ it("returns the complete legacy roster at exactly 50 employees and refuses the 5
   expect(await read()).toEqual({ ok: false, code: "LIMIT_EXCEEDED" });
 });
 
+it("returns the legacy roster for 40 current employees behind 60 former employees", async () => {
+  const w = await world();
+  const seed = seeder(w);
+  await seed.employees([
+    ...Array.from({ length: 60 }, (_, index) => ({
+      code: `FORMER-${index.toString().padStart(2, "0")}`,
+      employmentEndDate: "2026-09-30",
+      status: "INACTIVE" as const,
+    })),
+    ...Array.from({ length: 40 }, (_, index) => ({
+      code: `PRESENT-${index.toString().padStart(2, "0")}`,
+    })),
+  ]);
+  const result = await measured<{ ok: boolean; employees?: unknown[] }>(
+    w,
+    roster.roster,
+    { warehouseId: w.warehouses.alphaA, month: MONTH },
+  );
+  expect(result.value.ok).toBe(true);
+  expect(result.value.employees).toHaveLength(40);
+});
+
+it("refuses an oversized legacy roster before hydrating rows even when a search narrows it", async () => {
+  const w = await world();
+  const seed = seeder(w);
+  await seed.employees(
+    Array.from({ length: 153 }, (_, index) => ({
+      code: `ACTIVE-${index.toString().padStart(3, "0")}`,
+    })),
+  );
+  const result = await measured<{ ok: boolean; code?: string }>(
+    w,
+    roster.roster,
+    { warehouseId: w.warehouses.alphaA, month: MONTH, search: "ACTIVE-001" },
+  );
+  expect(result.value).toEqual({ ok: false, code: "LIMIT_EXCEEDED" });
+  expect(result.stats.rangeDocs.hrEmployees).toBeLessThanOrEqual(100);
+  expect(result.stats.ranges.hrRosterAssignments ?? 0).toBe(0);
+  expect(result.stats.ranges.hrAttendanceDays ?? 0).toBe(0);
+});
+
 async function world() {
   const value = await createConvexTenantWorld({
     "../convex/hr/roster.ts": () => import("../../convex/hr/roster"),

@@ -57,6 +57,7 @@ import {
   orgClock,
   planView,
   rosterAssignment,
+  siteEmployeesInRange,
   sitePeriods,
   sitePeriodsEndingFrom,
   siteOf,
@@ -399,56 +400,95 @@ export const roster = queryWithOrg({
       return name;
     };
 
-    const page = await hrScanPage(ctx, {
-      surface: "roster",
-      criteria: { site: site._id, month: args.month, search, departmentId },
-      pageSize,
-      cursor: args.cursor,
-      scanCursor: args.scanCursor,
-      table: "hrEmployees",
-      lanes: [
-        {
-          key: site._id,
-          index: "by_orgId_warehouseId_code",
-          equality: [{ field: "warehouseId", value: site._id }],
-        },
-      ],
-      chunk:
-        legacy || search !== "" || departmentId !== null
-          ? HR_MAX_CHUNK
-          : pageSize,
-      match: (employee: Employee) =>
-        employee.warehouseId === site._id &&
-        employedInRange(employee, first, last) &&
-        (search === "" ||
-          includes(employee.code, search) ||
-          includes(employee.displayName, search)) &&
-        (departmentId === null || employee.departmentId === departmentId),
-      hydrate: async (employee) => {
-        const [{ holidays, closed, open }, department] = await Promise.all([
-          siteFacts(),
-          departmentName(employee.departmentId),
-        ]);
-        return await rosterRow(ctx, {
-          employee,
-          siteId: site._id,
-          dates,
-          holidays,
-          closed,
-          open,
-          offset: clock.offset,
-          departmentName: department,
-        });
-      },
-      // Bounded, as elsewhere, so a page never issues hundreds of reads
-      // at once.
-      concurrency: ROSTER_HYDRATE_CONCURRENCY,
-    });
-    // Clients that predate paging can neither continue a scan nor page (they
-    // read `employees` as the whole roster): an incomplete answer gets the
-    // refusal they render, as main gave sites above the employee limit.
-    if (legacy && (page.status !== "ready" || !page.isDone))
+    // Preserve the unpaged contract: cap employed staff before applying UI
+    // filters, and finish the bounded site scan across former-employee rows.
+    // Refuse before loading any employee's monthly cells.
+    const legacyEmployees = legacy
+      ? await siteEmployeesInRange(
+          ctx,
+          site._id,
+          first,
+          last,
+          MAX_ROSTER_EMPLOYEES,
+        )
+      : undefined;
+    if (legacyEmployees === null)
       return { ok: false as const, code: "LIMIT_EXCEEDED" };
+    const match = (employee: Employee) =>
+      employee.warehouseId === site._id &&
+      employedInRange(employee, first, last) &&
+      (search === "" ||
+        includes(employee.code, search) ||
+        includes(employee.displayName, search)) &&
+      (departmentId === null || employee.departmentId === departmentId);
+    const hydrate = async (employee: Employee) => {
+      const [{ holidays, closed, open }, department] = await Promise.all([
+        siteFacts(),
+        departmentName(employee.departmentId),
+      ]);
+      return await rosterRow(ctx, {
+        employee,
+        siteId: site._id,
+        dates,
+        holidays,
+        closed,
+        open,
+        offset: clock.offset,
+        departmentName: department,
+      });
+    };
+    const legacyPage = async (employees: readonly Employee[]) => {
+      const selected = employees.filter(match);
+      const rows: Awaited<ReturnType<typeof hydrate>>[] = [];
+      for (
+        let offset = 0;
+        offset < selected.length;
+        offset += ROSTER_HYDRATE_CONCURRENCY
+      )
+        rows.push(
+          ...(await Promise.all(
+            selected
+              .slice(offset, offset + ROSTER_HYDRATE_CONCURRENCY)
+              .map(hydrate),
+          )),
+        );
+      return {
+        status: "ready" as const,
+        page: rows,
+        isDone: true,
+        continueCursor: "",
+      };
+    };
+    const page =
+      legacyEmployees !== undefined
+        ? await legacyPage(legacyEmployees)
+        : await hrScanPage(ctx, {
+            surface: "roster",
+            criteria: {
+              site: site._id,
+              month: args.month,
+              search,
+              departmentId,
+            },
+            pageSize,
+            cursor: args.cursor,
+            scanCursor: args.scanCursor,
+            table: "hrEmployees",
+            lanes: [
+              {
+                key: site._id,
+                index: "by_orgId_warehouseId_code",
+                equality: [{ field: "warehouseId", value: site._id }],
+              },
+            ],
+            chunk:
+              search !== "" || departmentId !== null ? HR_MAX_CHUNK : pageSize,
+            match,
+            hydrate,
+            // Bounded, as elsewhere, so a page never issues hundreds of reads
+            // at once.
+            concurrency: ROSTER_HYDRATE_CONCURRENCY,
+          });
     if (page.status !== "ready") return { ok: true as const, ...page };
     const { holidays, catalogue } = await siteFacts();
     return {
