@@ -1,7 +1,7 @@
 /** Local-only probes for actual transaction headroom. Never bypass tenant auth. */
 import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "../_generated/server";
+import { mutation, internalQuery } from "../_generated/server";
 
 function assertLocal() {
   const url = process.env.CONVEX_CLOUD_URL ?? process.env.CONVEX_URL ?? "";
@@ -18,7 +18,10 @@ export const metrics = internalQuery({
     return ctx.meta.getTransactionMetrics();
   },
 });
-export const deleteScans = internalMutation({
+// Public only so admin acting-as calls retain their user identity. The local
+// guard disables this probe on hosted deployments; the nested mutation keeps
+// its normal permission, warehouse and selection checks.
+export const deleteScans = mutation({
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),

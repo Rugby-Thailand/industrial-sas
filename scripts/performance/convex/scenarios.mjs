@@ -507,7 +507,12 @@ export function queryScenarios(ids) {
       "hr-admin",
       "hr/roster:roster",
       { warehouseId: ids.warehouseId, month: previousMonth, pageSize: 20 },
-      { settle: true, label: "previous month", subscribe: false },
+      {
+        settle: true,
+        label: "previous month",
+        subscribe: false,
+        baseArgs: { warehouseId: ids.warehouseId, month: previousMonth },
+      },
     ),
     q("hr-admin", "hr/roster:shifts", { warehouseId: ids.warehouseId }),
     q("hr-admin", "hr/payslips:list", {}),

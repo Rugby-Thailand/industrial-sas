@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import { deleteJobScans } from "../../convex/finishedGoods/jobScans";
 import {
@@ -116,3 +116,30 @@ it("atomically deletes 300 diverse scans within read-call limits and completes d
   }));
   expect(leftovers).toEqual({ rows: 0, grams: 0, terms: 0, termGrams: 0 });
 }, 120000);
+
+it("disables the headroom probe off loopback and preserves normal authentication", async () => {
+  const world = await createConvexTenantWorld({
+    "../convex/staging/performanceLimits.ts": () =>
+      import("../../convex/staging/performanceLimits"),
+    "../convex/finishedGoods/jobScans.ts": () =>
+      import("../../convex/finishedGoods/jobScans"),
+  });
+  const args = {
+    warehouseId: world.warehouses.alphaA,
+    requestId: "probe-guard",
+    ids: [],
+  };
+  try {
+    vi.stubEnv("ALLOW_LOCAL_TEST_SEED", "true");
+    vi.stubEnv("CONVEX_CLOUD_URL", "https://example.convex.cloud");
+    await expect(
+      world.t.mutation(api.staging.performanceLimits.deleteScans, args),
+    ).rejects.toThrow("enabled loopback fixture");
+    vi.stubEnv("CONVEX_CLOUD_URL", "http://127.0.0.1:3290");
+    await expect(
+      world.t.mutation(api.staging.performanceLimits.deleteScans, args),
+    ).rejects.toThrow("ANONYMOUS");
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
