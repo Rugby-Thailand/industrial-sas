@@ -68,7 +68,15 @@ export const run = internalMutation({
     if (!readiness?.ready)
       return { built: false, reason: "PRODUCT_SUMMARIES_NOT_READY" };
     let build: TotalsBuild;
-    if (args.runId === undefined || readiness.totalsBuild?.poisoned) {
+    // A poisoned build (invalidated, or a write it could not place) and one
+    // that saw writes by code that does not maintain totals (legacy
+    // generation moved) start over from zero.
+    const restart =
+      readiness.totalsBuild?.poisoned === true ||
+      (readiness.totalsBuild !== undefined &&
+        readiness.totalsBuild.generation !== undefined &&
+        readiness.totalsBuild.generation !== (readiness.generation ?? 0));
+    if (args.runId === undefined || restart) {
       if (
         args.runId !== undefined &&
         readiness.totalsBuild?.runId !== args.runId
@@ -79,6 +87,7 @@ export const run = internalMutation({
         runId: crypto.randomUUID(),
         startedAt: Date.now(),
         afterIds: [],
+        generation: readiness.generation ?? 0,
       };
       for (const row of await db
         .byIndex<Doc<"finishedGoodsWarehouseTotals">>(
@@ -265,8 +274,15 @@ export const invalidate = internalMutation({
         q.eq("orgId", warehouse.orgId).eq("warehouseId", args.warehouseId),
       )
       .unique();
-    if (!readiness?.totalsVersion) return { invalidated: false };
-    await ctx.db.patch(readiness._id, { totalsVersion: undefined });
+    if (!readiness?.totalsVersion && !readiness?.totalsBuild)
+      return { invalidated: false };
+    // An unfinished build must not publish what it counted so far either.
+    await ctx.db.patch(readiness._id, {
+      totalsVersion: undefined,
+      ...(readiness.totalsBuild
+        ? { totalsBuild: { ...readiness.totalsBuild, poisoned: true } }
+        : {}),
+    });
     return { invalidated: true };
   },
 });

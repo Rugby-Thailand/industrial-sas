@@ -532,8 +532,10 @@ const schema = defineSchema({
           after: v.optional(v.number()),
           /** Counted products created exactly at `after`. */
           afterIds: v.array(v.id("finishedGoodsProducts")),
-          /** A write could not tell whether its product was counted. */
+          /** Invalidated, or a write could not tell whether it was counted. */
           poisoned: v.optional(v.boolean()),
+          /** The legacy writer generation when the build started. */
+          generation: v.optional(v.number()),
         }),
       ),
     }),

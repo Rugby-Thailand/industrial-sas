@@ -2,7 +2,10 @@ import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
 
 import { summary } from "../../convex/finishedGoods/catalogue";
-import { run as buildTotals } from "../../convex/finishedGoods/totalsBackfill";
+import {
+  invalidate as invalidateTotals,
+  run as buildTotals,
+} from "../../convex/finishedGoods/totalsBackfill";
 import {
   backfillProductSummaries,
   trackFinishedGoodsWrites,
@@ -352,6 +355,53 @@ describe("maintained warehouse totals", () => {
       expect.arrayContaining(["CRATE", "DRUM"]),
     );
   });
+
+  it.each(["invalidated", "legacy generation moved"] as const)(
+    "never publish a partial build after a write that skipped totals (%s)",
+    async (how) => {
+      const seed = await catalogueWorld();
+      const first = await seed.buildStep({ batchSize: 10 });
+      expect(first).toMatchObject({ reason: "IN_PROGRESS" });
+      // Code that maintains product summaries but not totals writes a
+      // product the build has already counted.
+      await seed.world.t.run(async (ctx) => {
+        const summary = await ctx.db
+          .query("finishedGoodsProductSummaries")
+          .withIndex("by_orgId_productId", (q) =>
+            q.eq("orgId", seed.world.orgA).eq("productId", seed.products[0]!),
+          )
+          .unique();
+        await ctx.db.patch(summary!._id, { stored: summary!.stored + 1 });
+        if (how === "legacy generation moved") {
+          const row = (
+            await ctx.db.query("finishedGoodsSummaryReadiness").collect()
+          )[0]!;
+          await ctx.db.patch(row._id, {
+            generation: (row.generation ?? 0) + 1,
+          });
+        }
+      });
+      if (how === "invalidated")
+        expect(
+          await seed.world.t.run((ctx) =>
+            (
+              invalidateTotals as unknown as {
+                _handler(
+                  ctx: GenericMutationCtx<DataModel>,
+                  args: unknown,
+                ): Promise<{ invalidated: boolean }>;
+              }
+            )._handler(ctx, { warehouseId: seed.world.warehouses.alphaA }),
+          ),
+        ).toEqual({ invalidated: true });
+      // The old run's continuation starts over instead of finishing.
+      let step = await seed.buildStep({ batchSize: 10, runId: first.runId });
+      expect(step.runId).not.toBe(first.runId);
+      while (!step.built)
+        step = await seed.buildStep({ batchSize: 10, runId: step.runId });
+      await seed.expectParity();
+    },
+  );
 
   it("refuse a superseded build's next page", async () => {
     const seed = await catalogueWorld();
