@@ -1,4 +1,11 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
+import {
+  type HeldPlacement,
+  type OccupancyPallet,
+  type ZoneOccupancySummary,
+  zoneOccupancyEntries,
+  zoneOccupancyReady,
+} from "../lib/zoneOccupancy";
 import { storageCatalogueGeneration } from "../lib/finishedGoodsSummary";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import {
@@ -88,16 +95,23 @@ async function readZonePlacements(
 function createPlacementReader(
   ctx: TenantFunctionContext,
   moves: ReadonlyMap<string, MoveOccupancy>,
+  /** Pallet facts from derived zone occupancy, served without a pallet read. */
+  knownPallets: ReadonlyMap<string, OccupancyPallet> = new Map(),
 ) {
-  const readPallet = createQueryDocumentReader(
+  const fetchPallet = createQueryDocumentReader(
     ctx.tenantDb,
     "finishedGoodsPallets",
   );
+  const readPallet = (id: string): Promise<OccupancyPallet | null> => {
+    const known = knownPallets.get(id);
+    return known ? Promise.resolve(known) : fetchPallet(id);
+  };
   const readProduct = createQueryDocumentReader(
     ctx.tenantDb,
     "finishedGoodsProducts",
   );
-  return async (placement: PlacementDocument) => {
+  // Reads only HeldPlacement fields, so derived entries and documents agree.
+  return async (placement: HeldPlacement) => {
     const pallet = await readPallet(placement.palletId);
     const product = pallet ? await readProduct(pallet.productId) : null;
     if (!isGeometricPlacement(placement))
@@ -339,6 +353,32 @@ async function buildingWithOccupancy(
   ctx: TenantFunctionContext,
   row: BuildingDocument,
 ) {
+  if (await zoneOccupancyReady(ctx.tenantDb, row.warehouseId, "building")) {
+    // Exact per-zone summaries; footprint unions are per zone, so they add.
+    const zones = await ctx.tenantDb
+      .byIndex<ZoneOccupancySummary>(
+        "storageZoneOccupancy",
+        "by_orgId_buildingId",
+        [{ field: "buildingId", value: row._id }],
+      )
+      .all(10_000);
+    const sum = (
+      field:
+        | "held"
+        | "unmeasured"
+        | "storedFootprintAreaSqMm"
+        | "heldFootprintAreaSqMm",
+    ) => zones.reduce((total, zone) => total + zone[field], 0);
+    return {
+      ...row,
+      buildingId: row._id,
+      blocked: row.status === "ACTIVE" && sum("held") > 0,
+      unmeasuredPalletCount: sum("unmeasured"),
+      measuredAreaPartial: sum("unmeasured") > 0,
+      storedFootprintAreaSqMm: sum("storedFootprintAreaSqMm"),
+      heldFootprintAreaSqMm: sum("heldFootprintAreaSqMm"),
+    };
+  }
   const placements = (
     await Promise.all(
       (["STORED", "RESERVED"] as const).map((status) =>
@@ -525,6 +565,68 @@ export const getStorageBuilding = storageBuildingQuery(true);
 /** Geometry stays cached when pallets, products or moves change. */
 export const getStorageBuildingLayout = storageBuildingQuery(false);
 
+/**
+ * The building's held placements from derived zone occupancy, in the
+ * by_orgId_buildingId_status order (RESERVED, then STORED; each by creation),
+ * or null when any zone must be read directly.
+ */
+async function derivedBuildingPlacements(
+  ctx: TenantFunctionContext,
+  building: BuildingDocument,
+) {
+  if (
+    !(await zoneOccupancyReady(ctx.tenantDb, building.warehouseId, "building"))
+  )
+    return null;
+  const zones = await ctx.tenantDb
+    .byIndex<ZoneOccupancySummary>(
+      "storageZoneOccupancy",
+      "by_orgId_buildingId",
+      [{ field: "buildingId", value: building._id }],
+    )
+    .all(10_000);
+  // Overflowed zones are read directly; every other zone from its entries.
+  const entries = await Promise.all(
+    zones
+      .filter((zone) => zone.held > 0)
+      .map(async (zone) => {
+        const derived = zone.complete
+          ? await zoneOccupancyEntries(ctx.tenantDb, zone.zoneId)
+          : null;
+        if (derived) return derived;
+        const held = await Promise.all(
+          (["RESERVED", "STORED"] as const).map((status) =>
+            ctx.tenantDb
+              .byIndex<PlacementDocument>(
+                "finishedGoodsPlacements",
+                "by_orgId_zoneId_status",
+                [
+                  { field: "zoneId", value: zone.zoneId },
+                  { field: "status", value: status },
+                ],
+              )
+              .all(10_000),
+          ),
+        );
+        return {
+          placements: held.flat() as HeldPlacement[],
+          pallets: new Map<string, OccupancyPallet>(),
+        };
+      }),
+  );
+  const pallets = new Map<string, OccupancyPallet>();
+  for (const entry of entries)
+    for (const [id, pallet] of entry.pallets) pallets.set(id, pallet);
+  const rows = entries
+    .flatMap((entry) => entry.placements)
+    .sort(
+      (a, b) =>
+        (a.status === b.status ? 0 : a.status === "RESERVED" ? -1 : 1) ||
+        a._creationTime - b._creationTime,
+    );
+  return { rows, pallets };
+}
+
 export const getStorageBuildingInventory = queryWithOrg({
   args: buildingArgs,
   returns: v.any(),
@@ -538,29 +640,32 @@ export const getStorageBuildingInventory = queryWithOrg({
     );
     if (building === null || building.warehouseId !== args.warehouseId)
       return { found: false as const };
-    const rows = (
-      await Promise.all(
-        (["RESERVED", "STORED"] as const).map((status) =>
-          ctx.tenantDb
-            .byIndex<PlacementDocument>(
-              "finishedGoodsPlacements",
-              "by_orgId_buildingId_status",
-              [
-                { field: "buildingId", value: args.buildingId },
-                { field: "status", value: status },
-              ],
-            )
-            .all(10_000),
-        ),
-      )
-    ).flat();
+    const derived = await derivedBuildingPlacements(ctx, building);
+    const rows =
+      derived?.rows ??
+      (
+        await Promise.all(
+          (["RESERVED", "STORED"] as const).map((status) =>
+            ctx.tenantDb
+              .byIndex<PlacementDocument>(
+                "finishedGoodsPlacements",
+                "by_orgId_buildingId_status",
+                [
+                  { field: "buildingId", value: args.buildingId },
+                  { field: "status", value: status },
+                ],
+              )
+              .all(10_000),
+          ),
+        )
+      ).flat();
     const moves = await readBuildingMoveOccupancy(
       ctx,
       args.warehouseId,
       args.buildingId,
       rows.map((row) => row.palletId),
     );
-    const readPlacement = createPlacementReader(ctx, moves);
+    const readPlacement = createPlacementReader(ctx, moves, derived?.pallets);
     // Bound independent hydration to avoid thousands of concurrent database
     // requests. Keep placement and zone insertion order identical to the reads.
     const hydrated = new Array<Awaited<ReturnType<PlacementReader>>>(

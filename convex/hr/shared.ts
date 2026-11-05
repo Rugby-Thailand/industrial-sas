@@ -20,6 +20,7 @@ import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
 import {
   TENANT_INDEX_MAX_BATCH_SIZE,
+  TENANT_INDEX_MAX_PAGE_SIZE,
   TenantDbError,
   type TenantIndexReader,
 } from "../lib/tenantDb";
@@ -767,6 +768,50 @@ export async function hasFrozenPlan(
   );
 }
 
+/**
+ * `hasFrozenPlan` for one employee over date ranges, with one bounded range
+ * read per range instead of a lookup per date. A range that fills its bound
+ * (more than two versions per date on average) falls back to point lookups
+ * for its dates after the last row read, so every answer equals
+ * `hasFrozenPlan` for any data.
+ */
+export async function frozenPlanReader(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  ranges: readonly (readonly [IsoDate, IsoDate])[],
+): Promise<(date: IsoDate) => boolean | Promise<boolean>> {
+  const frozen = new Set<string>();
+  const unread: (readonly [string, IsoDate])[] = [];
+  await Promise.all(
+    ranges.map(async ([from, to]) => {
+      const bound = Math.min(
+        TENANT_INDEX_MAX_PAGE_SIZE,
+        inclusiveDayCount(from, to) * 2,
+      );
+      const rows = await ctx.tenantDb
+        .byIndex<Doc<"hrPeriodRows">>(
+          "hrPeriodRows",
+          "by_orgId_employeeId_businessDate",
+          [{ field: "employeeId", value: employeeId }],
+          {
+            field: "businessDate",
+            lower: { value: from, inclusive: true },
+            upper: { value: to, inclusive: true },
+          },
+        )
+        .take(bound);
+      for (const row of rows) frozen.add(row.businessDate);
+      // Rows arrive in date order: only later dates can have unread rows.
+      if (rows.length === bound)
+        unread.push([rows[bound - 1]!.businessDate, to]);
+    }),
+  );
+  return (date) =>
+    frozen.has(date) ||
+    (unread.some(([after, to]) => after < date && date <= to) &&
+      hasFrozenPlan(ctx, employeeId, date));
+}
+
 /** The plan input of a stored assignment row; a CLEARED tombstone is none. */
 export function rosterAssignment(
   row: RosterRow | null | undefined,
@@ -1129,23 +1174,90 @@ export async function employeesInRange(
   }
 }
 
+/**
+ * `employeesInRange` over one site, read in code-ordered chunks so that a site
+ * with more than `limit` employed rows is refused (null) as soon as the
+ * `limit + 1`-th is seen, instead of after reading the whole workforce. The
+ * answer equals `employeesInRange` on the complete site range: the employed
+ * rows in index order, or null when there are more than `limit` of them or
+ * more rows than the budget allows.
+ */
 export async function siteEmployeesInRange(
   ctx: TenantFunctionContext,
   warehouseId: string,
   startDate: IsoDate,
   endDate: IsoDate,
   limit: number,
-  budget?: EmployeeScanBudget,
+  budget: EmployeeScanBudget = { remaining: MAX_HR_EMPLOYEE_SCAN },
 ): Promise<readonly Employee[] | null> {
-  return await employeesInRange(
-    ctx.tenantDb.byIndex<Employee>("hrEmployees", "by_orgId_warehouseId_code", [
-      { field: "warehouseId", value: warehouseId },
-    ]),
-    startDate,
-    endDate,
-    limit,
-    budget,
-  );
+  const site = [{ field: "warehouseId", value: warehouseId }] as const;
+  const whole = () =>
+    employeesInRange(
+      ctx.tenantDb.byIndex<Employee>(
+        "hrEmployees",
+        "by_orgId_warehouseId_code",
+        [...site],
+      ),
+      startDate,
+      endDate,
+      limit,
+      budget,
+    );
+  const employed: Employee[] = [];
+  // Rows already read at the current lower bound's code (ties share a code).
+  let after: { code: string; ids: Set<string> } | undefined;
+  let consumed = 0;
+  for (;;) {
+    const seen = after?.ids.size ?? 0;
+    const want = Math.min(
+      TENANT_INDEX_MAX_PAGE_SIZE,
+      seen + budget.remaining - consumed + 1,
+    );
+    // So many rows share one code that a chunk cannot move past them.
+    if (want <= seen) return await whole();
+    const rows = await ctx.tenantDb
+      .byIndex<Employee>(
+        "hrEmployees",
+        "by_orgId_warehouseId_code",
+        [...site],
+        after
+          ? {
+              field: "code",
+              lower: { value: after.code, inclusive: true },
+            }
+          : undefined,
+      )
+      .take(want);
+    const fresh = after
+      ? rows.filter(
+          (row) => !(row.code === after!.code && after!.ids.has(row._id)),
+        )
+      : rows;
+    if (consumed + fresh.length > budget.remaining) {
+      budget.remaining = 0;
+      return null;
+    }
+    consumed += fresh.length;
+    for (const row of fresh)
+      if (employedInRange(row, startDate, endDate)) employed.push(row);
+    if (employed.length > limit) {
+      budget.remaining -= consumed;
+      return null;
+    }
+    if (rows.length < want) {
+      budget.remaining -= consumed;
+      return employed;
+    }
+    if (!fresh.length) return await whole();
+    const last = fresh.at(-1)!;
+    after = {
+      code: last.code,
+      ids: new Set([
+        ...(after?.code === last.code ? after.ids : []),
+        ...fresh.filter((row) => row.code === last.code).map((row) => row._id),
+      ]),
+    };
+  }
 }
 
 export async function sitePeriods(

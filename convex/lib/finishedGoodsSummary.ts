@@ -1,7 +1,13 @@
-import type { Doc } from "../_generated/dataModel";
+import type { GenericMutationCtx } from "convex/server";
+import type { DataModel, Doc } from "../_generated/dataModel";
 import type { TenantDocumentAccess } from "./tenantDb";
+import { refreshZoneOccupancy } from "./zoneOccupancy";
+import { trackSurfaceWrites } from "./zoneSurfaces";
+import { adjustWarehouseTotals, TOTAL_FIELDS } from "./warehouseTotals";
 
 const VERSION = 1;
+/** Product summaries' schema version; readers refuse any other. */
+export const PRODUCT_SUMMARY_VERSION = VERSION;
 const numericFields = [
   "count",
   "quantityMinor",
@@ -47,6 +53,7 @@ async function adjust(
   db: TenantDocumentAccess,
   contribution: Contribution,
   sign: 1 | -1,
+  totals = true,
 ) {
   const previous = await summary(db, contribution.productId);
   const values = zero();
@@ -61,6 +68,15 @@ async function adjust(
     formats.some((format) => values.formatCounts[format] < 0)
   )
     throw new Error("Invalid finished goods summary delta");
+  if (totals)
+    await adjustWarehouseTotals(
+      db,
+      contribution.warehouseId,
+      contribution.productId,
+      Object.fromEntries(
+        TOTAL_FIELDS.map((field) => [field, sign * contribution[field]]),
+      ),
+    );
   if (previous)
     await db.patch("finishedGoodsProductSummaries", previous._id, {
       ...values,
@@ -124,8 +140,27 @@ export async function reconcileUnitContribution(
     numericFields.every((field) => previous[field] === next[field])
   )
     return;
-  if (previous) await adjust(db, previous, -1);
-  if (next) await adjust(db, next, 1);
+  if (
+    previous &&
+    next &&
+    previous.productId === next.productId &&
+    previous.warehouseId === next.warehouseId
+  ) {
+    // One net totals delta: a quantity or format change leaves the shard alone.
+    await adjust(db, previous, -1, false);
+    await adjust(db, next, 1, false);
+    await adjustWarehouseTotals(
+      db,
+      next.warehouseId,
+      next.productId,
+      Object.fromEntries(
+        TOTAL_FIELDS.map((field) => [field, next[field] - previous[field]]),
+      ),
+    );
+  } else {
+    if (previous) await adjust(db, previous, -1);
+    if (next) await adjust(db, next, 1);
+  }
   if (previous && next)
     await db.replace("finishedGoodsUnitContributions", previous._id, next);
   else if (previous)
@@ -145,6 +180,74 @@ export async function summaryReadiness(
     )
     .unique();
 }
+/** The readiness row writers create on a warehouse's first finished-goods write. */
+export async function ensureSummaryReadiness(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+) {
+  const state = await summaryReadiness(db, warehouseId);
+  if (state) return state;
+  await db.insert("finishedGoodsSummaryReadiness", {
+    warehouseId,
+    version: VERSION,
+    ready: false,
+    continuationKey: crypto.randomUUID(),
+    generation: 1,
+  });
+  return summaryReadiness(db, warehouseId);
+}
+
+/** Shards spread concurrent writers; readers sum this many tiny rows. */
+export const FINISHED_GOODS_CHANGE_SHARDS = 8;
+
+/** Read-modify-write one random shard: only writers on that shard conflict. */
+export async function recordFinishedGoodsChange(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+) {
+  const shard = Math.floor(Math.random() * FINISHED_GOODS_CHANGE_SHARDS);
+  const row = await db
+    .byIndex<Doc<"finishedGoodsChangeShards">>(
+      "finishedGoodsChangeShards",
+      "by_orgId_warehouseId_shard",
+      [
+        { field: "warehouseId", value: warehouseId },
+        { field: "shard", value: shard },
+      ],
+    )
+    .unique();
+  if (row)
+    await db.patch("finishedGoodsChangeShards", row._id, {
+      count: row.count + 1,
+    });
+  else
+    await db.insert("finishedGoodsChangeShards", {
+      warehouseId,
+      shard,
+      count: 1,
+    });
+}
+
+/**
+ * Catalogue continuation token: changes whenever a finished-goods write
+ * commits (shard sum) or a backfill restart bumps the legacy generation. Both
+ * only increase, so their sum changes exactly when either does.
+ */
+export async function finishedGoodsGeneration(
+  db: TenantDocumentAccess,
+  warehouseId: string,
+  legacyGeneration = 0,
+) {
+  const shards = await db
+    .byIndex<Doc<"finishedGoodsChangeShards">>(
+      "finishedGoodsChangeShards",
+      "by_orgId_warehouseId_shard",
+      [{ field: "warehouseId", value: warehouseId }],
+    )
+    .all(FINISHED_GOODS_CHANGE_SHARDS);
+  return shards.reduce((sum, row) => sum + row.count, legacyGeneration);
+}
+
 /** Layout cursor invalidation is independent of inventory/backfill readiness. */
 export async function storageCatalogueGeneration(
   db: TenantDocumentAccess,
@@ -244,12 +347,54 @@ export async function backfillProductSummaries(
 }
 
 /** Wrap source writes once and flush after the entire mutation, including moves. */
-export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
+export function trackFinishedGoodsWrites(
+  db: TenantDocumentAccess,
+  scheduler?: GenericMutationCtx<DataModel>["scheduler"],
+) {
+  const surfaces = trackSurfaceWrites(db);
   const touched = new Set<string>();
   const warehouses = new Set<string>();
   const storageWarehouses = new Set<string>();
-  const note = async (table: string, id: string) => {
+  // Zone occupancy: placements and the zones they left or entered.
+  const placements = new Set<string>();
+  const zones = new Set<string>();
+  // Pallets carrying a written placement (their occupancy stack facts).
+  const supports = new Set<string>();
+  // Products as they were before this mutation (null: inserted by it).
+  const productsBefore = new Map<
+    string,
+    { warehouseId: string; unit: string; _creationTime: number } | null
+  >();
+  const note = async (table: string, id: string, inserted = false) => {
+    if (table === "finishedGoodsProducts" && !productsBefore.has(id)) {
+      const before = inserted
+        ? null
+        : await db.get<Doc<"finishedGoodsProducts">>(
+            "finishedGoodsProducts",
+            id,
+          );
+      productsBefore.set(
+        id,
+        before
+          ? {
+              warehouseId: before.warehouseId,
+              unit: before.unit,
+              _creationTime: before._creationTime,
+            }
+          : null,
+      );
+    }
     if (table === "finishedGoodsPallets") touched.add(id);
+    if (table === "finishedGoodsPlacements") {
+      placements.add(id);
+      const row = await db.get<Doc<"finishedGoodsPlacements">>(
+        "finishedGoodsPlacements",
+        id,
+      );
+      if (row) zones.add(row.zoneId);
+      // The pallet it rests on (before and after): its stack facts change.
+      if (row?.supportPalletId) supports.add(row.supportPalletId);
+    }
     if (
       table === "finishedGoodsPallets" ||
       table === "finishedGoodsProducts" ||
@@ -275,7 +420,9 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
           row.warehouseId,
         );
       }
+      surfaces.note(table, id, row, inserted);
     }
+    if (table === "locations") surfaces.note(table, id, null, inserted);
     if (table === "finishedGoodsMoves") {
       const move = await db.get<Doc<"finishedGoodsMoves">>(
         "finishedGoodsMoves",
@@ -288,7 +435,7 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
     ...db,
     insert: async (table, payload) => {
       const id = await db.insert(table, payload);
-      await note(table, id);
+      await note(table, id, true);
       return id;
     },
     patch: async (table, id, fields) => {
@@ -310,6 +457,37 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
     db: tracked,
     flush: async () => {
       for (const id of touched) await reconcileUnitContribution(db, id);
+      for (const [id, before] of productsBefore) {
+        const after = await db.get<Doc<"finishedGoodsProducts">>(
+          "finishedGoodsProducts",
+          id,
+        );
+        // Unit labels are user input ("__proto__", "constructor"…): count them
+        // in a Map, never as properties of an ordinary object.
+        const changes = new Map<string, number>();
+        if (before?.unit)
+          changes.set(before.unit, (changes.get(before.unit) ?? 0) - 1);
+        if (after?.unit)
+          changes.set(after.unit, (changes.get(after.unit) ?? 0) + 1);
+        const units = Object.fromEntries(changes);
+        const products = (after ? 1 : 0) - (before ? 1 : 0);
+        const warehouseId = after?.warehouseId ?? before?.warehouseId;
+        if (warehouseId && (products || Object.values(units).some(Boolean)))
+          await adjustWarehouseTotals(
+            db,
+            warehouseId,
+            id,
+            { products, units },
+            (after ?? before)?._creationTime,
+          );
+      }
+      await refreshZoneOccupancy(db, {
+        zones,
+        placements,
+        pallets: new Set([...touched, ...supports]),
+      });
+      // Each warehouse's layout generation before and after this mutation.
+      const generations = new Map<string, { before: number; after: number }>();
       for (const warehouseId of storageWarehouses) {
         const state = await db
           .byIndex<Doc<"storageCatalogueSignals">>(
@@ -327,21 +505,15 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
             warehouseId,
             generation: 1,
           });
+        const before = state?.generation ?? 0;
+        generations.set(warehouseId, { before, after: before + 1 });
       }
+      await surfaces.flush(generations, scheduler);
       for (const warehouseId of warehouses) {
-        const state = await summaryReadiness(db, warehouseId);
-        if (state)
-          await db.patch("finishedGoodsSummaryReadiness", state._id, {
-            generation: (state.generation ?? 0) + 1,
-          });
-        else
-          await db.insert("finishedGoodsSummaryReadiness", {
-            warehouseId,
-            version: VERSION,
-            ready: false,
-            continuationKey: crypto.randomUUID(),
-            generation: 1,
-          });
+        // A sharded change counter: concurrent writers rarely share a shard,
+        // and readers derive the continuation token from the shard sum.
+        await ensureSummaryReadiness(db, warehouseId);
+        await recordFinishedGoodsChange(db, warehouseId);
       }
     },
   };

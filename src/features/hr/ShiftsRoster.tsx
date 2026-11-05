@@ -47,6 +47,7 @@ import { hrRefs } from "@/lib/convex/hrApi";
 import { HR_CODES, ROUTES } from "@/lib/navigation";
 
 import { useDialogCompletion, useRefusalFields } from "./HrOrgShared";
+import { HrPagedState, HrPager, useHrPagedQuery } from "./HrPagedList";
 import { SettingsHeading } from "./HrSettingsHeading";
 import {
   HrGate,
@@ -659,8 +660,8 @@ interface RosterValue {
     readonly holidayName?: string;
   }[];
   readonly shifts: readonly ShiftRow[];
-  readonly totalEmployees: number;
-  readonly employees: readonly RosterEmployee[];
+  /** This page of employees (server-paged, site employee-code order). */
+  readonly page: readonly RosterEmployee[];
 }
 
 export function HrRosterScreen() {
@@ -695,7 +696,9 @@ function RosterView() {
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState(false);
   const validMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(month);
-  const outcome = useQuery(
+  // Employees are paged on the server; criteria changes start at page 1 and
+  // the position follows browser history like the other HR lists.
+  const { view, paging } = useHrPagedQuery(
     hrRefs.roster,
     site === "" || !validMonth
       ? "skip"
@@ -704,8 +707,10 @@ function RosterView() {
           month,
           ...(search.trim() === "" ? {} : { search: search.trim() }),
         },
-  ) as Outcome<RosterValue | { ok: false; code: string }>;
-  const value = outcome?.ok && outcome.value.ok ? outcome.value : undefined;
+    "roster",
+  );
+  const value =
+    view.kind === "ready" ? (view.value as unknown as RosterValue) : undefined;
   const assignment = useWorkflowStep(
     "rosterAssign",
     `hr-roster-assign:${site}:${month}`,
@@ -787,23 +792,32 @@ function RosterView() {
           {t("monthInvalid")}
         </p>
       ) : (
-        <HrQueryState outcome={outcome}>
-          {() =>
-            outcome?.ok && !outcome.value.ok ? (
-              <HrInlineError code={outcome.value.code} />
-            ) : value ? (
+        <>
+          <HrPagedState
+            view={view}
+            refused={(code) => <HrInlineError code={code} />}
+          >
+            {(page) => (
+              // Keyed by site and month only: the selection and its observed
+              // revisions survive moving between employee pages.
               <RosterAssignment
                 key={`${site}:${month}`}
-                value={value}
+                value={page as unknown as RosterValue}
                 siteId={site}
                 assigning={assigning}
                 onDone={assignment.back}
                 onSaved={() => assignment.complete(() => {})}
                 onPending={setPending}
               />
-            ) : null
-          }
-        </HrQueryState>
+            )}
+          </HrPagedState>
+          <HrPager
+            paging={paging}
+            label={t("rosterPagination")}
+            disabled={pending}
+            pageSizeDisabled={assigning}
+          />
+        </>
       )}
     </div>
   );
@@ -1002,7 +1016,7 @@ function RosterAssignment({
           </div>
         </form>
       ) : null}
-      {value.employees.length === 0 ? (
+      {value.page.length === 0 ? (
         <EmptyState title={t("noEmployees")} body={t("noEmployeesHint")} />
       ) : (
         <RosterGrid
@@ -1074,7 +1088,7 @@ function RosterGrid({
           </tr>
         </thead>
         <tbody>
-          {value.employees.map((employee) => (
+          {value.page.map((employee) => (
             <tr key={employee.id}>
               <th
                 scope="row"

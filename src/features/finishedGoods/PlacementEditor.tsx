@@ -1,6 +1,8 @@
 "use client";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Check, Pencil } from "lucide-react";
+import type { ReactNode } from "react";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { completeTask } from "@/lib/taskNavigation";
@@ -9,7 +11,9 @@ import {
   fgRefs,
   type Candidate,
   type Destination,
+  type ListedCandidate,
   type PalletDetail,
+  type ZonePreview,
 } from "@/lib/convex/finishedGoodsApi";
 import { PalletScene, type PalletPlacement } from "./PalletScene";
 import {
@@ -23,6 +27,7 @@ import {
   ErrorNotice,
   useWriteError,
   Field,
+  Loading,
   mmText,
   palletPath,
   panel,
@@ -121,6 +126,63 @@ export function DestinationSummary({
         </p>
       </details>
     </div>
+  );
+}
+/**
+ * The recommendation list (`view: "list"`) carries no per-zone geometry. Load
+ * the previewed candidate's zone only, then edit the full candidate exactly as
+ * the original payload provided it. Switching between supports of one zone
+ * reuses the same subscription; writes in other zones never re-run it.
+ */
+export function ZonePlacementEditor({
+  candidate,
+  destinations,
+  openingZones,
+  unavailable,
+  ...editor
+}: Omit<Parameters<typeof PlacementEditor>[0], "candidate" | "destinations"> & {
+  candidate: ListedCandidate;
+  /** The listed candidates; the editor reads those of the same zone. */
+  destinations: readonly ListedCandidate[];
+  /** Zone previews the list already carries (the zones a screen opens on). */
+  openingZones?: readonly ZonePreview[] | undefined;
+  /** Shown if the zone no longer offers this candidate. */
+  unavailable: ReactNode;
+}) {
+  const carried = openingZones?.find(
+    (zone) => zone.zoneId === candidate.zoneId,
+  );
+  const outcome = useQuery(
+    fgRefs.recommendationZone,
+    carried
+      ? "skip"
+      : {
+          warehouseId: editor.warehouseId,
+          palletId: editor.detail.pallet._id,
+          zoneId: candidate.zoneId,
+        },
+  );
+  let zone: ZonePreview | null;
+  if (carried) zone = carried;
+  else if (!outcome) return <Loading />;
+  else if (!outcome.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    );
+  else zone = outcome.value;
+  if (!zone) return <>{unavailable}</>;
+  const full: Candidate = { ...candidate, ...zone };
+  return (
+    <PlacementEditor
+      key={destinationKey(full)}
+      {...editor}
+      candidate={full}
+      destinations={destinations
+        .filter((d) => d.zoneId === candidate.zoneId)
+        .map((d): Candidate => ({ ...d, ...zone }))}
+    />
   );
 }
 export function PlacementEditor({

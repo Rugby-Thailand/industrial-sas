@@ -187,6 +187,12 @@ export async function hrScanPage<
     readonly beyond?: (document: Document) => boolean;
     /** Presentation of a matched row; null drops it. */
     readonly hydrate: (document: Document) => Promise<Row | null>;
+    /**
+     * Shown rows re-read, matched and hydrated at once (page order is kept);
+     * default 1, in order. Above 1 only when `match` and `hydrate` do not
+     * depend on call order.
+     */
+    readonly concurrency?: number;
   },
 ): Promise<HrPage<Row>> {
   const source = Array.isArray(options.lanes)
@@ -364,6 +370,12 @@ export async function hrScanPage<
           // Every following lane is finished and the source has no more.
           if (finishedAll && next.length <= peekLanes)
             position = { ...position, done: true };
+        } else if ((await source.after(lastFinished, 1)).length === 0) {
+          // A full page can also be the last page. The current lane is
+          // exhausted; check only for another authorized lane, without
+          // hydrating or consuming its rows. Buffered matches still keep
+          // isDone false below until they have all been returned.
+          position = { ...position, done: true };
         }
       }
     }
@@ -382,17 +394,31 @@ export async function hrScanPage<
 
   const shown = ids.slice(0, options.pageSize);
   const rest = ids.slice(options.pageSize);
-  const page: Row[] = [];
-  for (const id of shown) {
+  const show = async (id: string) => {
     // Rows read in an earlier request are re-read and re-authorized now.
     let document = loaded.get(id) ?? null;
     if (document === null) {
       document = await ctx.tenantDb.get<Document>(options.table, id);
-      if (document === null || !(await options.match(document))) continue;
+      if (document === null || !(await options.match(document))) return null;
     }
-    const row = await options.hydrate(document);
-    if (row !== null) page.push(row);
-  }
+    return await options.hydrate(document);
+  };
+  const rows = new Array<Row | null>(shown.length);
+  let next = 0;
+  await Promise.all(
+    Array.from(
+      {
+        length: Math.min(Math.max(1, options.concurrency ?? 1), shown.length),
+      },
+      async () => {
+        while (next < shown.length) {
+          const index = next++;
+          rows[index] = await show(shown[index]!);
+        }
+      },
+    ),
+  );
+  const page = rows.filter((row): row is Row => row !== null);
   const isDone = position.done && rest.length === 0;
   return {
     status: "ready",

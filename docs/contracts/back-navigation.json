@@ -8641,7 +8641,7 @@
       "id": "src/features/hr/ShiftsRoster.tsx#RosterView:assignment",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "The named rosterAssign step is entered by Assign shifts and controls the inline assignment form and selectable date cells. Back/Cancel consume this entry after dirty consent; pending writes block departure. Success settles the draft and uses the live operation owner before consuming the step. Origin locale/query/hash, Forward and direct remount are covered by caller tests.",
+      "expectation": "The named rosterAssign step is entered by Assign shifts and controls the inline assignment form and selectable date cells. Back/Cancel consume this entry after dirty consent; pending writes block departure and paging; page size cannot change during assignment because it would replace the query and unmount its draft. Success settles the draft and uses the live operation owner before consuming the step. Origin locale/query/hash, Forward and direct remount are covered by caller tests.",
       "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
       "cases": [
         {
@@ -8666,6 +8666,10 @@
         },
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "roster paging protects an assignment draft and pending save through completion"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
           "name": "a refreshed roster assignment link remounts with an empty selection and Cancel removes only its step"
         },
         {
@@ -8681,37 +8685,18 @@
     {
       "id": "src/features/hr/ShiftsRoster.tsx#RosterView:month",
       "policy": "presentation",
-      "expectation": "Month is an ordinary catalogue filter. Its validity selects an inline alert versus the retained query/table; loading/error/empty data affect the same roster. It creates no predecessor and cannot change during assignment. The separate assignment state owns selectable cells and its foreground form.",
+      "expectation": "Month is an ordinary roster filter. Its validity selects an inline alert versus the server-paged roster (shared HrPagedState and HrPager); loading/refusal/empty data and employee pages affect the same roster in place. Page positions are history metadata of the current entry, not Back entries. It creates no predecessor and cannot change during assignment. The separate assignment state owns selectable cells and its foreground form.",
       "uses": ["branch"],
       "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["RosterAssignment"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["button"],
-          "falsy": ["span"]
-        },
         {
           "shape": "conditional",
           "truthy": ["p[role=alert]"],
           "falsy": [
             "RosterAssignment",
-            "src/features/hr/HrShared#HrInlineError",
-            "src/features/hr/HrShared#HrQueryState"
+            "src/features/hr/HrPagedList#HrPagedState",
+            "src/features/hr/HrPagedList#HrPager",
+            "src/features/hr/HrShared#HrInlineError"
           ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": ["RosterGrid"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/features/hr/HrShared#HrInlineError"],
-          "falsy": ["RosterAssignment"]
         }
       ],
       "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
@@ -8719,41 +8704,10 @@
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",
           "name": "roster month and employee filters keep the same page and are disabled while assigning"
-        }
-      ]
-    },
-    {
-      "id": "src/features/hr/ShiftsRoster.tsx#RosterView:search",
-      "policy": "presentation",
-      "expectation": "Employee search is an ordinary inline list filter, without a Back entry. Query loading, denial and empty results affect the retained roster; the separate assignment state owns its selectable controls. Search is disabled while assigning.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["RosterAssignment"],
-          "falsy": []
         },
-        {
-          "shape": "conditional",
-          "truthy": ["button"],
-          "falsy": ["span"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/components/ui/EmptyState#EmptyState"],
-          "falsy": ["RosterGrid"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["src/features/hr/HrShared#HrInlineError"],
-          "falsy": ["RosterAssignment"]
-        }
-      ],
-      "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
-      "cases": [
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",
-          "name": "roster month and employee filters keep the same page and are disabled while assigning"
+          "name": "roster employees page on the server and a selection survives moving between pages"
         }
       ]
     }

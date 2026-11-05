@@ -49,7 +49,8 @@ export const pageArgs = {
   cursor: v.optional(v.string()),
   scanCursor: v.optional(v.string()),
 };
-async function readiness(ctx: TenantFunctionContext, warehouseId: string) {
+/** The readiness row alone: stable, so readers of it do not re-run on writes. */
+async function readinessState(ctx: TenantFunctionContext, warehouseId: string) {
   return ctx.tenantDb
     .byIndex<Doc<"finishedGoodsSummaryReadiness">>(
       "finishedGoodsSummaryReadiness",
@@ -58,7 +59,26 @@ async function readiness(ctx: TenantFunctionContext, warehouseId: string) {
     )
     .unique();
 }
+/** Readiness plus the continuation token, for multi-request scans only. */
+async function readiness(ctx: TenantFunctionContext, warehouseId: string) {
+  const state = await readinessState(ctx, warehouseId);
+  return state
+    ? {
+        ...state,
+        generation: await finishedGoodsGeneration(
+          ctx.tenantDb,
+          warehouseId,
+          state.generation ?? 0,
+        ),
+      }
+    : null;
+}
 export { readProductSummary as readSummary } from "../lib/finishedGoodsSummary";
+import {
+  finishedGoodsGeneration,
+  PRODUCT_SUMMARY_VERSION,
+} from "../lib/finishedGoodsSummary";
+import { readWarehouseTotals } from "../lib/warehouseTotals";
 export async function activeMove(ctx: TenantFunctionContext, palletId: string) {
   for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
     const move = await ctx.tenantDb
@@ -368,7 +388,7 @@ export const page = queryWithOrg({
   target: { table: "finishedGoodsProducts" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const ready = await readiness(ctx, args.warehouseId);
+    const ready = await readinessState(ctx, args.warehouseId);
     if (!ready?.ready)
       return {
         status: "not_ready" as const,
@@ -393,14 +413,11 @@ export const page = queryWithOrg({
       throw new Error("CATALOGUE_CRITERIA_INVALID");
     const sorted = Boolean(filters.sort);
     const compare = createRowComparator(filters.sort, locale);
-    const scope = {
-      warehouseId,
-      tab,
-      search,
-      filters,
-      locale,
-      ...(sorted ? { generation: ready.generation ?? 0 } : {}),
-    };
+    const scope = { warehouseId, tab, search, filters, locale };
+    // Read only when a page resumes or continues, so first pages answered in
+    // one request do not re-run on every finished-goods write.
+    const generation = () =>
+      finishedGoodsGeneration(ctx.tenantDb, warehouseId, ready.generation ?? 0);
     const limit = sorted ? 50 : remainingScanCapacity(scanCursor, pageSize);
     if (tab === "products") {
       const result = await paginatedScan(ctx, {
@@ -408,7 +425,8 @@ export const page = queryWithOrg({
         pageSize,
         cursor,
         scanCursor,
-        generation: ready.generation ?? 0,
+        generation,
+        bindContinuation: sorted,
         read: (raw, endCursor) =>
           search.trim()
             ? readSearchedProducts(ctx, warehouseId, search, raw, limit)
@@ -444,7 +462,8 @@ export const page = queryWithOrg({
       pageSize,
       cursor,
       scanCursor,
-      generation: ready.generation ?? 0,
+      generation,
+      bindContinuation: sorted,
       read: (raw, endCursor) =>
         ctx.tenantDb
           .byIndex<Doc<"finishedGoodsPallets">>(
@@ -512,7 +531,9 @@ export const productSummary = queryWithOrg({
       args.productId,
     );
     if (!product || product.warehouseId !== args.warehouseId) return null;
-    const ready = await readiness(ctx, args.warehouseId);
+    // One product's summary needs no continuation token: do not depend on
+    // every finished-goods write in the warehouse.
+    const ready = await readinessState(ctx, args.warehouseId);
     if (!ready?.ready) return null;
     return readSummary(ctx, product, ready);
   },
@@ -528,6 +549,23 @@ export const summary = queryWithOrg({
   target: { table: "finishedGoodsProducts" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
+    // Exact maintained totals answer in one request; the paged scan below
+    // remains for warehouses whose totals are not built (or are suspect).
+    if (!args.scanCursor) {
+      const state = await readinessState(ctx, args.warehouseId);
+      const totals =
+        state?.continuationKey && state.version === PRODUCT_SUMMARY_VERSION
+          ? await readWarehouseTotals(ctx.tenantDb, state)
+          : null;
+      if (totals)
+        return {
+          status: "ready" as const,
+          totals,
+          isDone: true,
+          continueCursor: "",
+          scanned: totals.products,
+        };
+    }
     const ready = await readiness(ctx, args.warehouseId);
     const empty = {
       products: 0,

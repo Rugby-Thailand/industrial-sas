@@ -1,0 +1,440 @@
+import type { GenericMutationCtx } from "convex/server";
+import { describe, expect, it } from "vitest";
+
+import { summary } from "../../convex/finishedGoods/catalogue";
+import {
+  invalidate as invalidateTotals,
+  run as buildTotals,
+} from "../../convex/finishedGoods/totalsBackfill";
+import {
+  backfillProductSummaries,
+  trackFinishedGoodsWrites,
+} from "../../convex/lib/finishedGoodsSummary";
+import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
+import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
+import type { DataModel } from "../../convex/schema";
+import {
+  createConvexTenantWorld,
+  seedConvexAuthorization,
+} from "../fixtures/convex-tenant-world";
+import { settlePage } from "../fixtures/query-read-stats";
+
+type Totals = {
+  products: number;
+  awaitingMeasurement: number;
+  awaitingStorage: number;
+  stored: number;
+  moving: number;
+  units: string[];
+};
+
+async function catalogueWorld() {
+  const world = await createConvexTenantWorld();
+  await seedConvexAuthorization(world, {
+    roleA: "ORG_ADMIN",
+    roleB: "ORG_ADMIN",
+  });
+  const warehouseId = world.warehouses.alphaA;
+  const audit = {
+    orgId: world.orgA,
+    warehouseId,
+    createdAt: 1,
+    updatedAt: 1,
+    createdByUserId: world.userA,
+    updatedByUserId: world.userA,
+  };
+  const { products, pallets } = await world.t.run(async (ctx) => {
+    const products = [];
+    for (const [sku, unit] of [
+      ["A", "PCS"],
+      ["B", "KG"],
+      ["C", "PCS"],
+    ] as const)
+      products.push(
+        await ctx.db.insert("finishedGoodsProducts", {
+          ...audit,
+          sku,
+          name: `Product ${sku}`,
+          unit,
+          storageFormat: "PALLET",
+          storageCondition: "ANY",
+          status: "ACTIVE",
+        }),
+      );
+    // Enough products that the paged scan needs more than one 100-row chunk.
+    for (let i = 0; i < 120; i++)
+      await ctx.db.insert("finishedGoodsProducts", {
+        ...audit,
+        sku: `Z-${String(i).padStart(3, "0")}`,
+        name: `Filler ${i}`,
+        unit: i % 2 ? "PCS" : "SET",
+        storageFormat: "PALLET",
+        storageCondition: "ANY",
+        status: "ACTIVE",
+      });
+    const statuses = [
+      "AWAITING_MEASUREMENT",
+      "AWAITING_PLACEMENT",
+      "RESERVED",
+      "STORED",
+    ] as const;
+    const pallets = [];
+    for (let i = 0; i < 30; i++)
+      pallets.push(
+        await ctx.db.insert("finishedGoodsPallets", {
+          ...audit,
+          productId: products[i % 3]!,
+          code: `P-${i}`,
+          quantity: 1,
+          status: statuses[i % 4]!,
+        }),
+      );
+    return { products, pallets };
+  });
+  const run = <T>(
+    fn: (db: ReturnType<typeof createTenantDocumentAccess>) => Promise<T>,
+  ) =>
+    world.t.run((ctx) =>
+      fn(
+        createTenantDocumentAccess(
+          { orgId: world.orgA, requestId: "totals-test" },
+          createMutationTenantStorage(ctx, "totals-test"),
+        ),
+      ),
+    );
+  for (let batch = 0; batch < 10; batch++)
+    if ((await run((db) => backfillProductSummaries(db, warehouseId))).ready)
+      break;
+  type BuildResult = {
+    built: boolean;
+    reason?: string;
+    runId?: string;
+    counted?: number;
+  };
+  const buildStep = (args: Record<string, unknown> = {}) =>
+    world.t.run((ctx) =>
+      (
+        buildTotals as unknown as {
+          _handler(
+            ctx: GenericMutationCtx<DataModel>,
+            args: unknown,
+          ): Promise<BuildResult>;
+        }
+      )._handler(ctx, { warehouseId, chain: false, ...args }),
+    );
+  const build = () => buildStep();
+  const setTotalsVersion = (version: number | undefined) =>
+    world.t.run(async (ctx) => {
+      const row = (
+        await ctx.db.query("finishedGoodsSummaryReadiness").collect()
+      )[0]!;
+      await ctx.db.patch(row._id, { totalsVersion: version });
+    });
+  const read = async () => {
+    const settled = await settlePage<{
+      status: string;
+      scanCursor?: string;
+      continueCursor: string;
+      isDone: boolean;
+      totals: Totals;
+    }>(world, summary, { warehouseId });
+    return {
+      result: settled.result,
+      requests: settled.requests,
+      docs: Object.values(settled.stats.rangeDocs)
+        .concat(Object.values(settled.stats.gets))
+        .reduce((sum, count) => sum + count, 0),
+    };
+  };
+  /** Maintained totals versus the paged scan, on the same snapshot. */
+  const expectParity = async () => {
+    await setTotalsVersion(undefined);
+    const scanned = await read();
+    await setTotalsVersion(1);
+    const maintained = await read();
+    expect(maintained.result).toEqual(scanned.result);
+    return { scanned, maintained };
+  };
+  return {
+    world,
+    run,
+    build,
+    buildStep,
+    read,
+    expectParity,
+    products,
+    pallets,
+  };
+}
+
+describe("maintained warehouse totals", () => {
+  it("answer the catalogue summary exactly, in one request, through writes", async () => {
+    const seed = await catalogueWorld();
+    expect(await seed.build()).toMatchObject({ built: true, counted: 123 });
+    const first = await seed.expectParity();
+    expect(first.maintained.requests).toBe(1);
+    expect(first.maintained.docs).toBeLessThan(first.scanned.docs);
+    expect(first.scanned.requests).toBeGreaterThan(1);
+    expect(first.maintained.result.totals).toMatchObject({
+      products: 123,
+      units: ["KG", "PCS", "SET"],
+    });
+
+    // New product with a new unit, a unit change, and pallet transitions.
+    await seed.run(async (db) => {
+      const writes = trackFinishedGoodsWrites(db);
+      await writes.db.insert("finishedGoodsProducts", {
+        warehouseId: seed.world.warehouses.alphaA,
+        sku: "D",
+        name: "Product D",
+        unit: "BOX",
+        storageFormat: "PALLET",
+        storageCondition: "ANY",
+        status: "ACTIVE",
+        createdAt: 2,
+        updatedAt: 2,
+        createdByUserId: seed.world.userA,
+        updatedByUserId: seed.world.userA,
+      });
+      await writes.db.patch("finishedGoodsProducts", seed.products[1]!, {
+        unit: "L",
+      });
+      await writes.db.patch("finishedGoodsPallets", seed.pallets[0]!, {
+        status: "STORED",
+      });
+      await writes.db.delete("finishedGoodsPallets", seed.pallets[5]!);
+      await writes.flush();
+    });
+    const second = await seed.expectParity();
+    expect(second.maintained.result.totals).toMatchObject({
+      products: 124,
+      units: ["BOX", "L", "PCS", "SET"],
+    });
+  });
+
+  it("keep unit labels that are object property names exact", async () => {
+    const seed = await catalogueWorld();
+    await seed.build();
+    const insert = (
+      db: Parameters<Parameters<typeof seed.run>[0]>[0],
+      sku: string,
+      unit: string,
+    ) => {
+      const writes = trackFinishedGoodsWrites(db);
+      return writes.db
+        .insert("finishedGoodsProducts", {
+          warehouseId: seed.world.warehouses.alphaA,
+          sku,
+          name: `Product ${sku}`,
+          unit,
+          storageFormat: "PALLET",
+          storageCondition: "ANY",
+          status: "ACTIVE",
+          createdAt: 2,
+          updatedAt: 2,
+          createdByUserId: seed.world.userA,
+          updatedByUserId: seed.world.userA,
+        })
+        .then(async (id) => {
+          await writes.flush();
+          return id;
+        });
+    };
+    await seed.run((db) => insert(db, "PROTO", "__proto__"));
+    const ctor = await seed.run((db) => insert(db, "CTOR", "constructor"));
+    await seed.run(async (db) => {
+      const writes = trackFinishedGoodsWrites(db);
+      await writes.db.patch("finishedGoodsProducts", ctor, {
+        unit: "toString",
+      });
+      await writes.flush();
+    });
+    const { maintained } = await seed.expectParity();
+    expect(maintained.result.totals.units).toEqual(
+      expect.arrayContaining(["__proto__", "toString"]),
+    );
+    expect(maintained.result.totals.units).not.toContain("constructor");
+    expect(maintained.result.totals.products).toBe(125);
+  });
+
+  it("leave the totals shards untouched by writes with no net change", async () => {
+    const seed = await catalogueWorld();
+    await seed.build();
+    const written: string[] = [];
+    await seed.run(async (db) => {
+      const counted = {
+        ...db,
+        insert: (table: string, doc: never) => {
+          written.push(table);
+          return db.insert(table as never, doc);
+        },
+        patch: (table: string, id: string, fields: never) => {
+          written.push(table);
+          return db.patch(table as never, id as never, fields);
+        },
+        replace: (table: string, id: string, fields: never) => {
+          written.push(table);
+          return db.replace(table as never, id as never, fields);
+        },
+      } as unknown as typeof db;
+      const writes = trackFinishedGoodsWrites(counted);
+      // Quantity-only pallet edit and a product rename: counts are unchanged.
+      await writes.db.patch("finishedGoodsPallets", seed.pallets[1]!, {
+        quantity: 7,
+      });
+      await writes.db.patch("finishedGoodsProducts", seed.products[0]!, {
+        name: "Renamed",
+      });
+      await writes.flush();
+    });
+    expect(written).toContain("finishedGoodsProductSummaries");
+    expect(written).not.toContain("finishedGoodsWarehouseTotals");
+    await seed.expectParity();
+  });
+
+  it("build a catalogue of any size page by page, exact through writes between pages", async () => {
+    const seed = await catalogueWorld();
+    let step = await seed.buildStep({ batchSize: 10 });
+    expect(step).toMatchObject({ built: false, reason: "IN_PROGRESS" });
+    // The 10 oldest products are counted; the rest are not yet.
+    expect((await seed.read()).requests).toBeGreaterThan(1);
+    const tracked = (
+      fn: (
+        db: ReturnType<typeof trackFinishedGoodsWrites>["db"],
+      ) => Promise<unknown>,
+    ) =>
+      seed.run(async (db) => {
+        const writes = trackFinishedGoodsWrites(db);
+        await fn(writes.db);
+        await writes.flush();
+      });
+    const fillers = await seed.world.t.run((ctx) =>
+      ctx.db
+        .query("finishedGoodsProducts")
+        .collect()
+        .then((rows) => rows.filter((row) => row.sku.startsWith("Z-"))),
+    );
+    // Counted product: its delta applies. Uncounted ones: the build reads them.
+    await tracked((db) =>
+      db.patch("finishedGoodsPallets", seed.pallets[0]!, { status: "STORED" }),
+    );
+    await tracked((db) =>
+      db.patch("finishedGoodsProducts", fillers.at(-1)!._id, {
+        unit: "CRATE",
+      }),
+    );
+    await tracked((db) =>
+      db.insert("finishedGoodsProducts", {
+        warehouseId: seed.world.warehouses.alphaA,
+        sku: "NEW",
+        name: "New product",
+        unit: "DRUM",
+        storageFormat: "PALLET",
+        storageCondition: "ANY",
+        status: "ACTIVE",
+        createdAt: 3,
+        updatedAt: 3,
+        createdByUserId: seed.world.userA,
+        updatedByUserId: seed.world.userA,
+      }),
+    );
+    let pages = 1;
+    while (!step.built) {
+      step = await seed.buildStep({ batchSize: 10, runId: step.runId });
+      pages++;
+      if (pages === 5)
+        await tracked((db) =>
+          db.delete("finishedGoodsPallets", seed.pallets[7]!),
+        );
+    }
+    expect(pages).toBe(13);
+    const { maintained } = await seed.expectParity();
+    expect(maintained.requests).toBe(1);
+    expect(maintained.result.totals).toMatchObject({ products: 124 });
+    expect(maintained.result.totals.units).toEqual(
+      expect.arrayContaining(["CRATE", "DRUM"]),
+    );
+  });
+
+  it.each(["invalidated", "legacy generation moved"] as const)(
+    "never publish a partial build after a write that skipped totals (%s)",
+    async (how) => {
+      const seed = await catalogueWorld();
+      const first = await seed.buildStep({ batchSize: 10 });
+      expect(first).toMatchObject({ reason: "IN_PROGRESS" });
+      // Code that maintains product summaries but not totals writes a
+      // product the build has already counted.
+      await seed.world.t.run(async (ctx) => {
+        const summary = await ctx.db
+          .query("finishedGoodsProductSummaries")
+          .withIndex("by_orgId_productId", (q) =>
+            q.eq("orgId", seed.world.orgA).eq("productId", seed.products[0]!),
+          )
+          .unique();
+        await ctx.db.patch(summary!._id, { stored: summary!.stored + 1 });
+        if (how === "legacy generation moved") {
+          const row = (
+            await ctx.db.query("finishedGoodsSummaryReadiness").collect()
+          )[0]!;
+          await ctx.db.patch(row._id, {
+            generation: (row.generation ?? 0) + 1,
+          });
+        }
+      });
+      if (how === "invalidated")
+        expect(
+          await seed.world.t.run((ctx) =>
+            (
+              invalidateTotals as unknown as {
+                _handler(
+                  ctx: GenericMutationCtx<DataModel>,
+                  args: unknown,
+                ): Promise<{ invalidated: boolean }>;
+              }
+            )._handler(ctx, { warehouseId: seed.world.warehouses.alphaA }),
+          ),
+        ).toEqual({ invalidated: true });
+      // The old run's continuation starts over instead of finishing.
+      let step = await seed.buildStep({ batchSize: 10, runId: first.runId });
+      expect(step.runId).not.toBe(first.runId);
+      while (!step.built)
+        step = await seed.buildStep({ batchSize: 10, runId: step.runId });
+      await seed.expectParity();
+    },
+  );
+
+  it("refuse a superseded build's next page", async () => {
+    const seed = await catalogueWorld();
+    const a = await seed.buildStep({ batchSize: 10 });
+    const b = await seed.buildStep({ batchSize: 10 });
+    expect(b.runId).not.toBe(a.runId);
+    expect(await seed.buildStep({ batchSize: 10, runId: a.runId })).toEqual({
+      built: false,
+      reason: "SUPERSEDED",
+    });
+    let step = b;
+    while (!step.built)
+      step = await seed.buildStep({ batchSize: 50, runId: step.runId });
+    await seed.expectParity();
+  });
+
+  it("fall back to the scan after writes by code that does not maintain them", async () => {
+    const seed = await catalogueWorld();
+    await seed.build();
+    const before = await seed.read();
+    expect(before.requests).toBe(1);
+    // Pre-change code bumps the legacy generation on every write (rollback).
+    await seed.world.t.run(async (ctx) => {
+      const row = (
+        await ctx.db.query("finishedGoodsSummaryReadiness").collect()
+      )[0]!;
+      await ctx.db.patch(row._id, { generation: (row.generation ?? 0) + 1 });
+    });
+    const after = await seed.read();
+    expect(after.result).toEqual(before.result);
+    expect(after.docs).toBeGreaterThan(before.docs);
+    // A rebuild trusts them again.
+    await seed.build();
+    expect((await seed.read()).requests).toBe(1);
+  });
+});

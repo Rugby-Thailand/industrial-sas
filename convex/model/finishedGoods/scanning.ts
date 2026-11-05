@@ -70,8 +70,11 @@ export type GeometricPlacement = Extract<
   Doc<"finishedGoodsPlacements">,
   { mode?: "GEOMETRIC" }
 >;
-export function isGeometricPlacement(
-  placement: Doc<"finishedGoodsPlacements">,
-): placement is GeometricPlacement {
+/** Also narrows projections of a placement (derived occupancy entries). */
+export function isGeometricPlacement<
+  Placement extends { mode?: "GEOMETRIC" | "LOCATION_ONLY" },
+>(
+  placement: Placement,
+): placement is Extract<Placement, { mode?: "GEOMETRIC" }> {
   return placement.mode !== "LOCATION_ONLY";
 }

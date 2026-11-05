@@ -99,6 +99,78 @@ const placementFields = {
   updatedByUserId: v.id("users"),
 };
 
+const geometricPlacementFields = {
+  ...placementFields,
+  mode: v.optional(v.literal("GEOMETRIC")),
+  supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+  xMm: v.number(),
+  yMm: v.number(),
+  zMm: v.number(),
+  widthMm: v.number(),
+  depthMm: v.number(),
+  heightMm: v.number(),
+  rotation: v.union(v.literal(0), v.literal(90)),
+};
+const locationOnlyPlacementFields = {
+  ...placementFields,
+  mode: v.literal("LOCATION_ONLY"),
+  assignmentId: v.id("finishedGoodsScanAssignments"),
+  sequence: v.number(),
+  supportPalletId: v.optional(v.null()),
+};
+/** An exact copy of a held placement document, system fields included. */
+const placementCopy = (
+  fields: typeof geometricPlacementFields | typeof locationOnlyPlacementFields,
+) =>
+  v.object({
+    _id: v.id("finishedGoodsPlacements"),
+    _creationTime: v.number(),
+    ...tenantFields(fields),
+  });
+/**
+ * A held placement as derived occupancy stores it (version 2): the fields
+ * readers use. The zone, and the warehouse and building unless they differ
+ * from the zone's, come from the entries row.
+ */
+const heldEntryFields = {
+  _id: v.id("finishedGoodsPlacements"),
+  _creationTime: v.number(),
+  warehouseId: v.optional(v.id("warehouses")),
+  buildingId: v.optional(v.id("storageBuildings")),
+  palletId: v.id("finishedGoodsPallets"),
+  status: placementFields.status,
+  positionCode: v.string(),
+  updatedAt: v.number(),
+  supportPositionId: v.optional(v.id("storagePositions")),
+};
+const heldEntry = v.union(
+  v.object({
+    ...heldEntryFields,
+    mode: v.optional(v.literal("GEOMETRIC")),
+    supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+    xMm: v.number(),
+    yMm: v.number(),
+    zMm: v.number(),
+    widthMm: v.number(),
+    depthMm: v.number(),
+    heightMm: v.number(),
+    rotation: v.union(v.literal(0), v.literal(90)),
+  }),
+  v.object({
+    ...heldEntryFields,
+    mode: v.literal("LOCATION_ONLY"),
+    assignmentId: v.id("finishedGoodsScanAssignments"),
+    sequence: v.number(),
+    supportPalletId: v.optional(v.null()),
+  }),
+);
+const palletStatus = v.union(
+  v.literal("AWAITING_MEASUREMENT"),
+  v.literal("AWAITING_PLACEMENT"),
+  v.literal("RESERVED"),
+  v.literal("STORED"),
+);
+
 const hrSchedule = v.object({
   workDays: v.array(v.number()),
   startTime: v.string(),
@@ -479,8 +551,57 @@ const schema = defineSchema({
       cursor: v.optional(v.string()),
       generation: v.optional(v.number()),
       continuationKey: v.optional(v.string()),
+      /** WAREHOUSE_TOTALS_VERSION once finishedGoodsWarehouseTotals is built. */
+      totalsVersion: v.optional(v.number()),
+      /** The legacy generation when totals were built (rollback guard). */
+      totalsGeneration: v.optional(v.number()),
+      /** When a build refused (too many products); the sweep retries daily. */
+      totalsRefusedAt: v.optional(v.number()),
+      /**
+       * A resumable totals build. Products are counted in creation order;
+       * writes apply deltas only to products already counted (lib/warehouseTotals).
+       */
+      totalsBuild: v.optional(
+        v.object({
+          runId: v.string(),
+          startedAt: v.number(),
+          /** Creation time of the last counted product; absent: none yet. */
+          after: v.optional(v.number()),
+          /** Counted products created exactly at `after`. */
+          afterIds: v.array(v.id("finishedGoodsProducts")),
+          /** Invalidated, or a write could not tell whether it was counted. */
+          poisoned: v.optional(v.boolean()),
+          /** The legacy writer generation when the build started. */
+          generation: v.optional(v.number()),
+        }),
+      ),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /** Exact catalogue totals, sharded by product (lib/warehouseTotals). */
+  finishedGoodsWarehouseTotals: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      shard: v.number(),
+      products: v.number(),
+      awaitingMeasurement: v.number(),
+      awaitingStorage: v.number(),
+      stored: v.number(),
+      moving: v.number(),
+      units: v.array(v.object({ unit: v.string(), count: v.number() })),
+    }),
+  ).index("by_orgId_warehouseId_shard", byOrg("warehouseId", "shard")),
+  /**
+   * Sharded change counter for finished-goods writes: each write increments
+   * one random shard, readers sum them. Any committed write changes the sum
+   * (a late commit included), while concurrent writers rarely share a shard.
+   */
+  finishedGoodsChangeShards: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      shard: v.number(),
+      count: v.number(),
+    }),
+  ).index("by_orgId_warehouseId_shard", byOrg("warehouseId", "shard")),
   finishedGoodsProductSummaries: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
@@ -858,7 +979,9 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_buildingId_code",
       byOrg("warehouseId", "status", "buildingId", "code"),
-    ),
+    )
+    /** Locations created since the picker index's watermark (any writer). */
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsProducts: defineTable(
     tenantFields({
       archivedAt: v.optional(v.number()),
@@ -889,7 +1012,9 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_warehouseId_sku", byOrg("warehouseId", "sku"))
-    .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt")),
+    .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
+    // Creation order: the resumable totals build's immutable scan position.
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsPallets: defineTable(
     tenantFields({
       legacyRecovery: v.optional(
@@ -933,12 +1058,7 @@ const schema = defineSchema({
       weightKg: v.optional(v.number()),
       stackable: v.optional(v.boolean()),
       maxStackLevels: v.optional(v.number()),
-      status: v.union(
-        v.literal("AWAITING_MEASUREMENT"),
-        v.literal("AWAITING_PLACEMENT"),
-        v.literal("RESERVED"),
-        v.literal("STORED"),
-      ),
+      status: palletStatus,
       placementId: v.optional(v.id("finishedGoodsPlacements")),
       createdAt: v.number(),
       createdByUserId: v.id("users"),
@@ -962,29 +1082,8 @@ const schema = defineSchema({
     ),
   finishedGoodsPlacements: defineTable(
     v.union(
-      v.object(
-        tenantFields({
-          ...placementFields,
-          mode: v.optional(v.literal("GEOMETRIC")),
-          supportPalletId: v.optional(v.id("finishedGoodsPallets")),
-          xMm: v.number(),
-          yMm: v.number(),
-          zMm: v.number(),
-          widthMm: v.number(),
-          depthMm: v.number(),
-          heightMm: v.number(),
-          rotation: v.union(v.literal(0), v.literal(90)),
-        }),
-      ),
-      v.object(
-        tenantFields({
-          ...placementFields,
-          mode: v.literal("LOCATION_ONLY"),
-          assignmentId: v.id("finishedGoodsScanAssignments"),
-          sequence: v.number(),
-          supportPalletId: v.optional(v.null()),
-        }),
-      ),
+      v.object(tenantFields(geometricPlacementFields)),
+      v.object(tenantFields(locationOnlyPlacementFields)),
     ),
   )
     .index("by_orgId_supportPalletId", byOrg("supportPalletId"))
@@ -1000,6 +1099,188 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_positionCode",
       byOrg("warehouseId", "positionCode"),
+    ),
+  /**
+   * Derived per-zone summary of held (RESERVED/STORED) placements, maintained
+   * in the same transaction by tracked finished-goods writes. Readers use it
+   * only when the warehouse's readiness row is ready.
+   */
+  storageZoneOccupancy: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      buildingId: v.id("storageBuildings"),
+      zoneId: v.id("storageZones"),
+      version: v.number(),
+      /** False when the zone exceeds the entry cap: read its placements directly. */
+      complete: v.boolean(),
+      held: v.number(),
+      unmeasured: v.number(),
+      /** A held placement names a building other than its zone's. */
+      buildingMismatch: v.boolean(),
+      storedFootprintAreaSqMm: v.number(),
+      heldFootprintAreaSqMm: v.number(),
+    }),
+  )
+    .index("by_orgId_zoneId", byOrg("zoneId"))
+    .index("by_orgId_buildingId", byOrg("buildingId"))
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    // Exact, self-healing building readiness: is any zone overflowed or mixed?
+    .index("by_orgId_warehouseId_complete", byOrg("warehouseId", "complete"))
+    .index(
+      "by_orgId_warehouseId_buildingMismatch",
+      byOrg("warehouseId", "buildingMismatch"),
+    ),
+  /** Held placements of one zone in by_orgId_zoneId_status order, plus pallet facts. */
+  storageZoneOccupancyEntries: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      /** The zone's building (version 2+). */
+      buildingId: v.optional(v.id("storageBuildings")),
+      zoneId: v.id("storageZones"),
+      version: v.number(),
+      /** False above the entry cap: placements are omitted, read them directly. */
+      complete: v.boolean(),
+      /**
+       * Version 2+: reader projections (heldEntry). Version 1 rows hold whole
+       * document copies; they stay valid until rebuilt, and no reader uses them.
+       */
+      placements: v.array(
+        v.union(
+          heldEntry,
+          placementCopy(geometricPlacementFields),
+          placementCopy(locationOnlyPlacementFields),
+        ),
+      ),
+      pallets: v.array(
+        v.object({
+          _id: v.id("finishedGoodsPallets"),
+          /** Version 2+: absent when it is the row's warehouse. */
+          warehouseId: v.optional(v.id("warehouses")),
+          productId: v.id("finishedGoodsProducts"),
+          code: v.string(),
+          quantity: v.number(),
+          status: palletStatus,
+          placementId: v.optional(v.id("finishedGoodsPlacements")),
+          retiredAt: v.optional(v.number()),
+          storageFormat: v.optional(batchFormat),
+          stackable: v.optional(v.boolean()),
+          maxStackLevels: v.optional(v.number()),
+          /**
+           * Version 2+ stack facts: an active (RESERVED or IN_TRANSIT) move,
+           * and the pallets its held placements carry. Absent: none, unless
+           * `stackUnknown` (not computed; readers query them).
+           */
+          activeMove: v.optional(v.literal(true)),
+          stackedPalletIds: v.optional(v.array(v.id("finishedGoodsPallets"))),
+          stackUnknown: v.optional(v.literal(true)),
+        }),
+      ),
+    }),
+  )
+    .index("by_orgId_zoneId", byOrg("zoneId"))
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /** Ready once every zone of the warehouse has been backfilled. */
+  storageZoneOccupancyReadiness: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      version: v.number(),
+      ready: v.boolean(),
+      /**
+       * A held placement names a building other than its zone's. Building
+       * readers select by placement building, so they cannot use zone rows
+       * until a restarted backfill finds no such placement.
+       */
+      blocked: v.optional(v.boolean()),
+      /**
+       * Raw writers invalidated rows while a backfill was running; only a
+       * restarted backfill may make the warehouse ready again.
+       */
+      stale: v.optional(v.boolean()),
+      /** Some zone exceeded the entry cap: building-scoped readers fall back. */
+      overflow: v.optional(v.boolean()),
+      /**
+       * The finished-goods legacy generation when the backfill finished. Code
+       * that predates these rows still bumps it on every write, so a change
+       * means writes were not maintained (e.g. rollback then roll-forward).
+       */
+      summaryGeneration: v.optional(v.number()),
+      /** The current backfill run; continuations of any other run are refused. */
+      runId: v.optional(v.string()),
+      /**
+       * The storage layout generation (storageCatalogueSignals) zone surfaces
+       * are in step with. Maintaining writes advance both; code that does not
+       * maintain surfaces moves only the signal, so readers stop trusting them.
+       */
+      layoutGeneration: v.optional(v.number()),
+    }),
+  ).index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /**
+   * Derived per-zone layout for recommendations (convex/lib/zoneSurfaces.ts):
+   * the zone's fields, whether it and its location are usable, and its ACTIVE
+   * positions with whether each position's location is usable. Maintained by
+   * tracked layout writes; read only while recommendationReadiness allows.
+   */
+  storageZoneSurfaces: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      buildingId: v.id("storageBuildings"),
+      floorId: v.id("storageFloors"),
+      zoneId: v.id("storageZones"),
+      version: v.number(),
+      /** The occupancy backfill run current when the row was written. */
+      runId: v.string(),
+      /** The zone's building is ACTIVE and in the zone's warehouse. */
+      buildingActive: v.boolean(),
+      /** The zone is ACTIVE and its location is ACTIVE in its warehouse. */
+      eligible: v.boolean(),
+      /** Trimmed upper-case storage condition ("" when none). */
+      conditionKey: v.string(),
+      code: v.string(),
+      zone: v.object({
+        _creationTime: v.number(),
+        locationId: v.id("locations"),
+        label: v.string(),
+        qrValue: v.string(),
+        status: masterDataStatus,
+        mode: v.optional(
+          v.union(
+            v.literal("SIMPLE"),
+            v.literal("FLOOR_POSITIONS"),
+            v.literal("RACK"),
+            v.literal("PLATFORM"),
+          ),
+        ),
+        storageCondition: v.optional(v.string()),
+        baseElevationMm: v.optional(v.number()),
+        xMm: v.number(),
+        yMm: v.number(),
+        widthMm: v.number(),
+        depthMm: v.number(),
+        maxStackHeightMm: v.number(),
+      }),
+      /** False above the position cap: positions are omitted, read them directly. */
+      complete: v.boolean(),
+      /** ACTIVE positions in by_orgId_zoneId_status_code order. */
+      positions: v.array(
+        v.object({
+          _id: v.id("storagePositions"),
+          code: v.string(),
+          label: v.string(),
+          xMm: v.optional(v.number()),
+          yMm: v.optional(v.number()),
+          widthMm: v.optional(v.number()),
+          depthMm: v.optional(v.number()),
+          elevationMm: v.optional(v.number()),
+          /** The position's location is ACTIVE in the zone's warehouse. */
+          usable: v.boolean(),
+        }),
+      ),
+    }),
+  )
+    .index("by_orgId_zoneId", byOrg("zoneId"))
+    .index(
+      "by_orgId_warehouseId_buildingActive_eligible_conditionKey",
+      byOrg("warehouseId", "buildingActive", "eligible", "conditionKey"),
     ),
   finishedGoodsScanAssignments: defineTable(
     tenantFields({
@@ -1073,7 +1354,181 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_mapped_createdAt",
       byOrg("warehouseId", "mapped", "createdAt"),
+    )
+    /**
+     * Search reconciliation (`convex/lib/searchReadiness.ts`): scans changed
+     * or created since the search watermark, whoever wrote them.
+     */
+    .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /**
+   * Derived substring-search index for saved job scans
+   * (`convex/lib/jobScanSearch.ts`). One row per scan: its newest-first key,
+   * effective building and the dictionary term of every searchable field.
+   * Maintained in the writing transaction; never authorizes anything.
+   */
+  finishedGoodsJobScanSearchRows: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      scanId: v.id("finishedGoodsJobScans"),
+      createdAt: v.number(),
+      scanCreationTime: v.number(),
+      mapped: v.boolean(),
+      buildingId: v.optional(v.id("storageBuildings")),
+      t0: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t1: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t2: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t3: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t4: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t5: v.optional(v.id("finishedGoodsJobScanTerms")),
+      t6: v.optional(v.id("finishedGoodsJobScanTerms")),
+      /** Digest of the scan fields these rows were built from. */
+      sourceHash: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_scanId", byOrg("scanId"))
+    .index(
+      "by_orgId_warehouseId_buildingId_createdAt",
+      byOrg("warehouseId", "buildingId", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t0_createdAt",
+      byOrg("warehouseId", "t0", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t1_createdAt",
+      byOrg("warehouseId", "t1", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t2_createdAt",
+      byOrg("warehouseId", "t2", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t3_createdAt",
+      byOrg("warehouseId", "t3", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t4_createdAt",
+      byOrg("warehouseId", "t4", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t5_createdAt",
+      byOrg("warehouseId", "t5", "createdAt", "scanCreationTime"),
+    )
+    .index(
+      "by_orgId_warehouseId_t6_createdAt",
+      byOrg("warehouseId", "t6", "createdAt", "scanCreationTime"),
     ),
+  /**
+   * Distinct normalized field values ("terms") of job scans, per field, plus
+   * one term per building name (field 7, key = building ID). A term is
+   * `shared` once more than a few scans link it; only shared terms have
+   * term-level gram postings, the others are posted per scan.
+   */
+  finishedGoodsJobScanTerms: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      field: v.number(),
+      key: v.string(),
+      text: v.string(),
+      shared: v.boolean(),
+    }),
+  ).index(
+    "by_orgId_warehouseId_field_key",
+    byOrg("warehouseId", "field", "key"),
+  ),
+  /** Trigram postings of shared terms; gram "" holds terms too long to post. */
+  finishedGoodsJobScanTermGrams: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      gram: v.string(),
+      termId: v.id("finishedGoodsJobScanTerms"),
+      field: v.number(),
+      key: v.string(),
+      text: v.string(),
+    }),
+  )
+    .index("by_orgId_warehouseId_gram", byOrg("warehouseId", "gram"))
+    .index("by_orgId_termId", byOrg("termId")),
+  /**
+   * Trigram postings of one scan's unshared terms in newest-first key order,
+   * with the posted texts inline. Gram "" lists texts not posted gram by gram
+   * (too long, or over a transaction's write budget until re-indexed).
+   */
+  finishedGoodsJobScanGrams: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      gram: v.string(),
+      createdAt: v.number(),
+      scanCreationTime: v.number(),
+      scanId: v.id("finishedGoodsJobScans"),
+      texts: v.array(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_warehouseId_gram_createdAt",
+      byOrg("warehouseId", "gram", "createdAt", "scanCreationTime"),
+    )
+    .index("by_orgId_scanId_gram", byOrg("scanId", "gram")),
+  /**
+   * Bigram postings of each location's picker match texts, in location-code
+   * order (`convex/lib/locationSearch.ts`). Gram "" holds locations whose
+   * postings did not fit a transaction's write budget yet.
+   */
+  locationSearchGrams: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      gram: v.string(),
+      code: v.string(),
+      locationId: v.id("locations"),
+      texts: v.array(v.string()),
+    }),
+  )
+    .index(
+      "by_orgId_warehouseId_gram_code",
+      byOrg("warehouseId", "gram", "code"),
+    )
+    .index("by_orgId_locationId_gram", byOrg("locationId", "gram")),
+  /** Per warehouse and index: ready once a backfill run covered every source row. */
+  searchIndexReadiness: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      kind: v.union(v.literal("jobScans"), v.literal("locations")),
+      version: v.number(),
+      ready: v.boolean(),
+      /** Raw writers invalidated the rows; only a restarted run may finish. */
+      stale: v.optional(v.boolean()),
+      /** The current backfill run; continuations of any other run are refused. */
+      runId: v.optional(v.string()),
+      /**
+       * The warehouse's `storageCatalogueSignals.generation` this index
+       * accounts for; only maintained layout writes move it along.
+       */
+      layoutGeneration: v.optional(v.number()),
+    }),
+  ).index("by_orgId_warehouseId_kind", byOrg("warehouseId", "kind")),
+  /**
+   * Reconcile progress of one search index (lib/searchReadiness.ts). Kept
+   * apart from the readiness row on purpose: readers never read it, so
+   * advancing the watermark re-runs no search subscription.
+   */
+  searchIndexReconcile: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      kind: v.union(v.literal("jobScans"), v.literal("locations")),
+      /** Rows written at or after this time may be unindexed (see reconcile). */
+      watermark: v.number(),
+      /** An unfinished reconcile pass over [watermark, upper). */
+      reconcile: v.optional(
+        v.object({
+          upper: v.number(),
+          phase: v.union(v.literal("updated"), v.literal("created")),
+          cursor: v.union(v.string(), v.null()),
+          at: v.number(),
+        }),
+      ),
+    }),
+  ).index("by_orgId_warehouseId_kind", byOrg("warehouseId", "kind")),
   finishedGoodsMoves: defineTable(
     tenantFields({
       version: v.optional(v.number()),
@@ -1245,7 +1700,9 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_status_code",
       byOrg("warehouseId", "status", "code"),
-    ),
+    )
+    /** Buildings created since the job-scan search watermark (any writer). */
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   storageFloors: defineTable(
     tenantFields({
       baseElevationMm: v.optional(v.number()),

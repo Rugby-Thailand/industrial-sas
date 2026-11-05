@@ -39,18 +39,27 @@ import {
 } from "../model/hr/roster";
 import { isEmployedOn } from "../model/hr/schedule";
 import {
+  HR_MAX_CHUNK,
+  hrPageArgs,
+  hrScanPage,
+  isHrPageSize,
+} from "./pagination";
+import {
   diff,
+  employedInRange,
   employeeRosterRowsInRange,
   employmentOf,
   fail,
+  frozenPlanReader,
   hasFrozenPlan,
+  holidaysInRange,
   hrCommand,
-  loadSiteDays,
   orgClock,
   planView,
   rosterAssignment,
   siteEmployeesInRange,
   sitePeriods,
+  sitePeriodsEndingFrom,
   siteOf,
   siteScope,
   planFromStored,
@@ -59,6 +68,8 @@ import {
 } from "./shared";
 
 const ADMIN = HR_PERMISSION.adminManage;
+/** Employees of one roster page hydrated at once (each issues 4 reads). */
+const ROSTER_HYDRATE_CONCURRENCY = 10;
 type Shift = Doc<"hrShifts">;
 
 const shiftColor = v.union(
@@ -267,6 +278,37 @@ const frozenCovering = (
   );
 
 /**
+ * Site-level facts of one roster month: holidays, the shift catalogue, the
+ * dates a closed or closing period freezes, and the runs of other dates
+ * (where a frozen plan decides the lock). Only periods ending in or after
+ * the month can cover one of its dates, whatever their length or overlap.
+ */
+async function rosterSiteFacts(
+  ctx: TenantFunctionContext,
+  siteId: string,
+  dates: readonly IsoDate[],
+) {
+  const first = dates[0]!;
+  const [holidays, periods, catalogue] = await Promise.all([
+    holidaysInRange(ctx, siteId, first, dates[dates.length - 1]!),
+    sitePeriodsEndingFrom(ctx, siteId, first),
+    siteShifts(ctx, siteId),
+  ]);
+  const closed = new Set(
+    dates.filter((date) => frozenCovering(periods, date) !== undefined),
+  );
+  const open: [IsoDate, IsoDate][] = [];
+  let previous = false;
+  for (const date of dates) {
+    const isOpen = !closed.has(date);
+    if (isOpen && previous) open[open.length - 1]![1] = date;
+    else if (isOpen) open.push([date, date]);
+    previous = isOpen;
+  }
+  return { holidays, catalogue, closed, open };
+}
+
+/**
  * Dates of one employee in `[from, to]` claimed by an active leave request
  * (pending, approved or awaiting cancellation). A pending request captured
  * each date's plan at submission and approval writes that plan, so the
@@ -297,18 +339,36 @@ async function leaveClaimedDates(
 const includes = (value: string, search: string) =>
   value.toLocaleLowerCase().includes(search.toLocaleLowerCase());
 
-/** One site's monthly roster: employee rows × every date of the month. */
+/**
+ * One site's monthly roster: a page of employee rows × every date of the
+ * month, in site employee-code order (`hrScanPage`, one index lane).
+ *
+ * Employment in the month, search and department are matched while
+ * scanning, so a filter narrows pages instead of applying after a cap. A
+ * page reads only its own employees' attendance days, roster rows, leave
+ * claims and frozen plans (one range read each, ten employees at a time);
+ * holidays, the periods that can cover the month and the shift catalogue
+ * are read once per answered page.
+ *
+ * Callers that predate paging omit `pageSize`: they get one 50-employee page
+ * (the former grid size) with its rows also under `employees`.
+ */
 export const roster = queryWithOrg({
   args: {
     warehouseId: v.string(),
     month: v.string(),
     search: v.optional(v.string()),
     departmentId: v.optional(v.string()),
+    ...hrPageArgs,
   },
   returns: v.any(),
   permissionCode: ADMIN,
   target: { table: "hrRosterAssignments" },
   handler: async (ctx, args) => {
+    const legacy = args.pageSize === undefined;
+    const pageSize = args.pageSize ?? MAX_ROSTER_EMPLOYEES;
+    if (!isHrPageSize(pageSize))
+      return { ok: false as const, code: "PAGE_SIZE_INVALID" };
     const clock = orgClock(ctx);
     if (clock === null)
       return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
@@ -318,123 +378,119 @@ export const roster = queryWithOrg({
     if (site === null) return { ok: false as const, code: "SITE_UNAVAILABLE" };
     const first = dates[0]!;
     const last = dates[dates.length - 1]!;
-    const employees = await siteEmployeesInRange(
-      ctx,
-      site._id,
-      first,
-      last,
-      MAX_ROSTER_EMPLOYEES,
-    );
-    if (employees === null)
-      return { ok: false as const, code: "LIMIT_EXCEEDED" };
-    const [{ days, holidays }, periods, catalogue] = await Promise.all([
-      loadSiteDays(ctx, site._id, dates),
-      sitePeriods(ctx, site._id),
-      siteShifts(ctx, site._id),
-    ]);
     const search = args.search?.trim() ?? "";
-    const departments = new Map<string, string | null>();
-    const departmentName = async (id: string | undefined) => {
+    const departmentId =
+      args.departmentId === undefined || args.departmentId === ""
+        ? null
+        : args.departmentId;
+
+    // Site-level facts, read once and only for an answered page.
+    let facts: ReturnType<typeof rosterSiteFacts> | undefined;
+    const siteFacts = () => (facts ??= rosterSiteFacts(ctx, site._id, dates));
+    const departments = new Map<string, Promise<string | null>>();
+    const departmentName = (id: string | undefined) => {
       if (id === undefined) return null;
-      if (!departments.has(id)) {
-        const row = await ctx.tenantDb.get<Doc<"hrDepartments">>(
-          "hrDepartments",
-          id,
-        );
-        departments.set(id, row?.name ?? null);
+      let name = departments.get(id);
+      if (name === undefined) {
+        name = ctx.tenantDb
+          .get<Doc<"hrDepartments">>("hrDepartments", id)
+          .then((row) => row?.name ?? null);
+        departments.set(id, name);
       }
-      return departments.get(id) ?? null;
+      return name;
     };
-    const shown = employees.filter(
-      (employee) =>
-        (search === "" ||
-          includes(employee.code, search) ||
-          includes(employee.displayName, search)) &&
-        (args.departmentId === undefined ||
-          args.departmentId === "" ||
-          employee.departmentId === args.departmentId),
-    );
-    const items = [];
-    for (const employee of shown) {
-      const rows = await employeeRosterRowsInRange(
-        ctx,
-        employee._id,
-        first,
-        last,
-      );
-      const claimed = await leaveClaimedDates(
-        ctx,
-        employee._id,
-        first,
-        last,
-        dates.length * 2,
-      );
-      const cells = await Promise.all(
-        dates.map(async (date) => {
-          const revisionRow = rows.get(date);
-          // Old-site times never transfer implicitly. Keep only the global
-          // employee/date revision so a new authorized decision can replace
-          // the old row without an unresolvable stale revision or an ABA reset.
-          const row =
-            revisionRow?.warehouseId === site._id ? revisionRow : undefined;
-          const day = days.get(`${employee._id}:${date}`);
-          const eligibility = rosterCellEligible(employee, site._id, date);
-          const plan = day
-            ? undefined
-            : rosterPlanFor({
-                date,
-                schedule: employee.schedule,
-                assignment: rosterAssignment(row),
-                holidayName: holidays.get(date),
-                offsetMinutes: clock.offset,
-              });
-          const lock = day
-            ? "RECORDED"
-            : frozenCovering(periods, date) !== undefined
-              ? "PERIOD_CLOSED"
-              : (await hasFrozenPlan(ctx, employee._id, date))
-                ? "FROZEN"
-                : claimed.has(date)
-                  ? "LEAVE_CLAIMED"
-                  : eligibility !== "OK"
-                    ? eligibility
-                    : null;
-          return {
-            date,
-            revision: revisionRow?.revision ?? 0,
-            assignment:
-              row === undefined || row.kind === "CLEARED"
-                ? null
-                : row.kind === "OFF"
-                  ? { kind: "OFF" as const }
-                  : {
-                      kind: "SHIFT" as const,
-                      shiftId: row.shift?.shiftId,
-                      code: row.shift?.code ?? "",
-                      name: row.shift?.name ?? "",
-                      color: row.shift?.color ?? "slate",
-                      version: row.shift?.version ?? 0,
-                      startTime: row.shift?.startTime ?? "",
-                      endTime: row.shift?.endTime ?? "",
-                      endsNextDay: row.shift?.endsNextDay ?? false,
-                    },
-            // The captured plan of a recorded day is shown as recorded.
-            plan: planView(day ? planFromStored(day.plan) : plan!),
-            recorded: day !== undefined,
-            lock,
-          };
-        }),
-      );
-      items.push({
-        id: employee._id,
-        code: employee.code,
-        displayName: employee.displayName,
-        status: employee.status,
-        departmentId: employee.departmentId ?? null,
-        departmentName: await departmentName(employee.departmentId),
-        cells,
+
+    // Preserve the unpaged contract: cap employed staff before applying UI
+    // filters, and finish the bounded site scan across former-employee rows.
+    // Refuse before loading any employee's monthly cells.
+    const legacyEmployees = legacy
+      ? await siteEmployeesInRange(
+          ctx,
+          site._id,
+          first,
+          last,
+          MAX_ROSTER_EMPLOYEES,
+        )
+      : undefined;
+    if (legacyEmployees === null)
+      return { ok: false as const, code: "LIMIT_EXCEEDED" };
+    const match = (employee: Employee) =>
+      employee.warehouseId === site._id &&
+      employedInRange(employee, first, last) &&
+      (search === "" ||
+        includes(employee.code, search) ||
+        includes(employee.displayName, search)) &&
+      (departmentId === null || employee.departmentId === departmentId);
+    const hydrate = async (employee: Employee) => {
+      const [{ holidays, closed, open }, department] = await Promise.all([
+        siteFacts(),
+        departmentName(employee.departmentId),
+      ]);
+      return await rosterRow(ctx, {
+        employee,
+        siteId: site._id,
+        dates,
+        holidays,
+        closed,
+        open,
+        offset: clock.offset,
+        departmentName: department,
       });
-    }
+    };
+    const legacyPage = async (employees: readonly Employee[]) => {
+      const selected = employees.filter(match);
+      const rows: Awaited<ReturnType<typeof hydrate>>[] = [];
+      for (
+        let offset = 0;
+        offset < selected.length;
+        offset += ROSTER_HYDRATE_CONCURRENCY
+      )
+        rows.push(
+          ...(await Promise.all(
+            selected
+              .slice(offset, offset + ROSTER_HYDRATE_CONCURRENCY)
+              .map(hydrate),
+          )),
+        );
+      return {
+        status: "ready" as const,
+        page: rows,
+        isDone: true,
+        continueCursor: "",
+      };
+    };
+    const page =
+      legacyEmployees !== undefined
+        ? await legacyPage(legacyEmployees)
+        : await hrScanPage(ctx, {
+            surface: "roster",
+            criteria: {
+              site: site._id,
+              month: args.month,
+              search,
+              departmentId,
+            },
+            pageSize,
+            cursor: args.cursor,
+            scanCursor: args.scanCursor,
+            table: "hrEmployees",
+            lanes: [
+              {
+                key: site._id,
+                index: "by_orgId_warehouseId_code",
+                equality: [{ field: "warehouseId", value: site._id }],
+              },
+            ],
+            chunk:
+              search !== "" || departmentId !== null ? HR_MAX_CHUNK : pageSize,
+            match,
+            hydrate,
+            // Bounded, as elsewhere, so a page never issues hundreds of reads
+            // at once.
+            concurrency: ROSTER_HYDRATE_CONCURRENCY,
+          });
+    if (page.status !== "ready") return { ok: true as const, ...page };
+    const { holidays, catalogue } = await siteFacts();
     return {
       ok: true as const,
       today: clock.today,
@@ -447,11 +503,122 @@ export const roster = queryWithOrg({
       })),
       shifts: catalogue.items.map(shiftView),
       shiftsComplete: catalogue.complete,
-      totalEmployees: employees.length,
-      employees: items,
+      // Old clients read `employees`; send the rows once, not twice.
+      ...(legacy
+        ? (({ page: rows, ...rest }) => ({ ...rest, employees: rows }))(page)
+        : page),
     };
   },
 });
+
+/**
+ * One employee's roster row for the month: per-employee index reads only.
+ * Days and live assignment times count only at this site (a moved
+ * employee's old-site rows keep just their global revision).
+ */
+async function rosterRow(
+  ctx: TenantFunctionContext,
+  input: {
+    readonly employee: Employee;
+    readonly siteId: string;
+    readonly dates: readonly IsoDate[];
+    readonly holidays: ReadonlyMap<IsoDate, string>;
+    /** Dates frozen by a closed or closing period. */
+    readonly closed: ReadonlySet<IsoDate>;
+    /** The runs of the other dates, where frozen plans are read. */
+    readonly open: readonly (readonly [IsoDate, IsoDate])[];
+    readonly offset: number;
+    readonly departmentName: string | null;
+  },
+) {
+  const { employee, siteId, dates, holidays, closed } = input;
+  const first = dates[0]!;
+  const last = dates[dates.length - 1]!;
+  const [rows, recorded, claimed, frozen] = await Promise.all([
+    employeeRosterRowsInRange(ctx, employee._id, first, last),
+    ctx.tenantDb
+      .byIndex<Doc<"hrAttendanceDays">>(
+        "hrAttendanceDays",
+        "by_orgId_employeeId_businessDate",
+        [{ field: "employeeId", value: employee._id }],
+        {
+          field: "businessDate",
+          lower: { value: first, inclusive: true },
+          upper: { value: last, inclusive: true },
+        },
+      )
+      .all(dates.length * 2),
+    leaveClaimedDates(ctx, employee._id, first, last, dates.length * 2),
+    frozenPlanReader(ctx, employee._id, input.open),
+  ]);
+  const days = new Map<IsoDate, Doc<"hrAttendanceDays">>();
+  for (const day of recorded)
+    if (day.warehouseId === siteId) days.set(day.businessDate, day);
+  const cells = await Promise.all(
+    dates.map(async (date) => {
+      const revisionRow = rows.get(date);
+      // Old-site times never transfer implicitly. Keep only the global
+      // employee/date revision so a new authorized decision can replace
+      // the old row without an unresolvable stale revision or an ABA reset.
+      const row = revisionRow?.warehouseId === siteId ? revisionRow : undefined;
+      const day = days.get(date);
+      const eligibility = rosterCellEligible(employee, siteId, date);
+      const plan = day
+        ? undefined
+        : rosterPlanFor({
+            date,
+            schedule: employee.schedule,
+            assignment: rosterAssignment(row),
+            holidayName: holidays.get(date),
+            offsetMinutes: input.offset,
+          });
+      const lock = day
+        ? "RECORDED"
+        : closed.has(date)
+          ? "PERIOD_CLOSED"
+          : (await frozen(date))
+            ? "FROZEN"
+            : claimed.has(date)
+              ? "LEAVE_CLAIMED"
+              : eligibility !== "OK"
+                ? eligibility
+                : null;
+      return {
+        date,
+        revision: revisionRow?.revision ?? 0,
+        assignment:
+          row === undefined || row.kind === "CLEARED"
+            ? null
+            : row.kind === "OFF"
+              ? { kind: "OFF" as const }
+              : {
+                  kind: "SHIFT" as const,
+                  shiftId: row.shift?.shiftId,
+                  code: row.shift?.code ?? "",
+                  name: row.shift?.name ?? "",
+                  color: row.shift?.color ?? "slate",
+                  version: row.shift?.version ?? 0,
+                  startTime: row.shift?.startTime ?? "",
+                  endTime: row.shift?.endTime ?? "",
+                  endsNextDay: row.shift?.endsNextDay ?? false,
+                },
+        // The captured plan of a recorded day is shown as recorded.
+        plan: planView(day ? planFromStored(day.plan) : plan!),
+        recorded: day !== undefined,
+        lock,
+      };
+    }),
+  );
+  return {
+    id: employee._id,
+    code: employee.code,
+    displayName: employee.displayName,
+    status: employee.status,
+    departmentId: employee.departmentId ?? null,
+    departmentName: input.departmentName,
+    cells,
+  };
+}
 
 const cellValidator = v.object({
   employeeId: v.id("hrEmployees"),

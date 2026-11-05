@@ -6103,6 +6103,377 @@
       ]
     }
   },
+  "finishedGoods/searchIndexBackfill:invalidate": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "kind": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "jobScans"
+              },
+              {
+                "type": "literal",
+                "value": "locations"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "ready": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/searchIndexBackfill:reconcile": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "kind": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "jobScans"
+              },
+              {
+                "type": "literal",
+                "value": "locations"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "continuation": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "status": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "skipped"
+              },
+              {
+                "type": "literal",
+                "value": "idle"
+              },
+              {
+                "type": "literal",
+                "value": "rebuilding"
+              },
+              {
+                "type": "literal",
+                "value": "continuing"
+              },
+              {
+                "type": "literal",
+                "value": "done"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "checked": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "reindexed": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/searchIndexBackfill:reconcileSweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "scheduled": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/searchIndexBackfill:reindex": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        },
+        "scans": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": false
+        },
+        "terms": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": false
+        },
+        "locations": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "remaining": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/searchIndexBackfill:run": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "kind": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "literal",
+                "value": "jobScans"
+              },
+              {
+                "type": "literal",
+                "value": "locations"
+              }
+            ]
+          },
+          "optional": false
+        },
+        "restart": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "batchSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "chain": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "superseded": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "indexed": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "ready": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/searchIndexBackfill:sweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "started": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "finishedGoods/summaryMaintenance:prepare": {
     "kind": "mutation",
     "visibility": "public",
@@ -6199,6 +6570,136 @@
           }
         }
       ]
+    }
+  },
+  "finishedGoods/totalsBackfill:invalidate": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "invalidated": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/totalsBackfill:run": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "batchSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "chain": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "built": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "reason": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "counted": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    }
+  },
+  "finishedGoods/totalsBackfill:sweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "started": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
     }
   },
   "finishedGoods/workflow:cancelMove": {
@@ -7292,6 +7793,125 @@
             "tableName": "finishedGoodsPallets"
           },
           "optional": false
+        },
+        "view": {
+          "fieldType": {
+            "type": "literal",
+            "value": "list"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "finishedGoods/workflow:recommendationZone": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "palletId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "finishedGoodsPallets"
+          },
+          "optional": false
+        },
+        "zoneId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "storageZones"
+          },
+          "optional": false
         }
       }
     },
@@ -7397,6 +8017,13 @@
             "tableName": "finishedGoodsPallets"
           },
           "optional": false
+        },
+        "view": {
+          "fieldType": {
+            "type": "literal",
+            "value": "list"
+          },
+          "optional": true
         }
       }
     },
@@ -20899,6 +21526,30 @@
             "type": "string"
           },
           "optional": true
+        },
+        "pageSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "scanCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "attempt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
         }
       }
     },
@@ -30752,6 +31403,279 @@
           }
         }
       ]
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:health": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:invalidate": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "ready": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:recheckOverflow": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "scheduled": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:recheckZone": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "zoneId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "storageZones"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "complete": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:run": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "restart": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        },
+        "batchSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "chain": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "budget": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "superseded": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "rebuilt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "ready": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "buildingReady": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:sweep": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "started": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
     }
   },
   "storageLayouts/zones:archiveStoragePosition": {

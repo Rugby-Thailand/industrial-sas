@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   actorId: "user-a",
   push: vi.fn(),
   replace: vi.fn(),
-  query: vi.fn<(name: string) => unknown>(),
+  query: vi.fn<(name: string, args?: unknown) => unknown>(),
   write:
     vi.fn<
       (name: string, args: unknown) => Promise<ReturnType<typeof writeSuccess>>
@@ -53,7 +53,9 @@ vi.mock("convex/react", () => ({
     (ref: Parameters<typeof getFunctionName>[0]) => (args: unknown) =>
       mocks.write(getFunctionName(ref), args),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
-    args === "skip" ? undefined : mocks.query(getFunctionName(ref)),
+    args === "skip"
+      ? undefined
+      : recommendationTestResponse(getFunctionName(ref), args, mocks.query),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
@@ -83,7 +85,12 @@ import {
   reservedPalletDetail,
   writeFailure,
   writeSuccess as success,
+  recommendationTestResponse,
 } from "@tests/fixtures/finished-goods-ui";
+import {
+  listedCandidate,
+  zonePreview,
+} from "../../../convex/model/finishedGoods/recommendationView";
 import { PalletScreen } from "./PalletScreens";
 import { Summary } from "./PalletSummary";
 import {
@@ -606,6 +613,138 @@ describe("exact storage recommendations", () => {
       expect(callsFor("reserve")).toHaveLength(0);
     },
   );
+  it("ranks from the list and previews only the selected zone's geometry", () => {
+    // The scene's occupancy reaches the screen only through the zone query.
+    const here = {
+      ...finishedGoodDestination,
+      occupied: [
+        {
+          placementId: "placement-x",
+          palletId: "pallet-x",
+          positionCode: "P-X",
+          xMm: 100,
+          yMm: 200,
+          zMm: 0,
+          widthMm: 1000,
+          depthMm: 1200,
+          heightMm: 1400,
+          status: "STORED" as const,
+        },
+      ],
+    };
+    const there = {
+      ...finishedGoodDestination,
+      zoneId: "zone-other",
+      locationName: "Other spot",
+      xMm: 500,
+    };
+    const zoneArgs = () =>
+      mocks.query.mock.calls
+        .filter(([name]) => name.endsWith(":recommendationZone"))
+        .map(([, args]) => (args as { zoneId: string }).zoneId);
+    mocks.query.mockImplementation((name, args) =>
+      name.endsWith(":getPallet")
+        ? querySuccess(currentDetail)
+        : name.endsWith(":recommendationZone")
+          ? querySuccess(
+              zonePreview(
+                [here, there].find(
+                  (c) => c.zoneId === (args as { zoneId: string }).zoneId,
+                )!,
+              ),
+            )
+          : querySuccess({
+              candidates: [here, there].map((c) => listedCandidate(c)),
+              reasons: [],
+            }),
+    );
+    renderPallet("storage");
+    expect(
+      mocks.query.mock.calls.find(([name]) => name.endsWith(":recommend"))?.[1],
+    ).toEqual({
+      warehouseId: "warehouse-a",
+      palletId: "pallet-a",
+      view: "list",
+    });
+    expect(new Set(zoneArgs())).toEqual(new Set(["zone-a"]));
+    expect(
+      screen.getByText("This position overlaps a stored or reserved pallet"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Reserve this position" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Other spot/ }));
+    expect(zoneArgs().at(-1)).toBe("zone-other");
+    expect(screen.getByRole("spinbutton", { name: "X (m)" })).toHaveValue(0.5);
+    expect(
+      screen.queryByText("This position overlaps a stored or reserved pallet"),
+    ).not.toBeInTheDocument();
+    expect(callsFor("reserve")).toHaveLength(0);
+  });
+  it("keeps the location list while the selected zone's preview loads", () => {
+    let zone: unknown;
+    mocks.query.mockImplementation((name) =>
+      name.endsWith(":getPallet")
+        ? querySuccess(currentDetail)
+        : name.endsWith(":recommendationZone")
+          ? zone
+          : querySuccess({
+              candidates: [listedCandidate(finishedGoodDestination)],
+              reasons: [],
+            }),
+    );
+    const view = renderPallet("storage");
+    expect(
+      screen.getByRole("region", { name: "Location options" }),
+    ).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading");
+    expect(
+      screen.queryByRole("button", { name: "Reserve this position" }),
+    ).not.toBeInTheDocument();
+    zone = querySuccess(zonePreview(finishedGoodDestination));
+    view.refresh();
+    expect(
+      screen.getByRole("button", { name: "Reserve this position" }),
+    ).toBeEnabled();
+    // A zone that no longer offers the candidate is never edited.
+    zone = querySuccess(null);
+    view.refresh();
+    expect(
+      screen.getByText(
+        "The previous location is no longer available. Select another destination to continue.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Reserve this position" }),
+    ).not.toBeInTheDocument();
+  });
+  it("opens on the zone the list carries without a second round trip", () => {
+    mocks.query.mockImplementation((name) =>
+      name.endsWith(":getPallet")
+        ? querySuccess(currentDetail)
+        : name.endsWith(":recommendationZone")
+          ? undefined
+          : querySuccess({
+              candidates: [listedCandidate(finishedGoodDestination)],
+              reasons: [],
+              openingZones: [zonePreview(finishedGoodDestination)],
+            }),
+    );
+    renderPallet("storage");
+    expect(
+      screen
+        .queryAllByRole("status")
+        .some((status) => /Loading/.test(status.textContent ?? "")),
+    ).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Reserve this position" }),
+    ).toBeEnabled();
+    expect(
+      mocks.query.mock.calls.filter(([name]) =>
+        name.endsWith(":recommendationZone"),
+      ),
+    ).toHaveLength(0);
+  });
   it("recovers an empty location search without losing the edited position", () => {
     renderPallet("storage");
     number("X (m)", "0.7");

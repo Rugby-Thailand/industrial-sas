@@ -19,8 +19,12 @@ const state = vi.hoisted(() => ({
 vi.mock("convex/react", async () => {
   const { getFunctionName: name } = await import("convex/server");
   return {
-    useQuery: (reference: Parameters<typeof name>[0], args: unknown) =>
-      args === "skip" ? undefined : state.queries.get(name(reference)),
+    useQuery: (reference: Parameters<typeof name>[0], args: unknown) => {
+      if (args === "skip") return undefined;
+      const value = state.queries.get(name(reference));
+      // A function answers per arguments (e.g. one page per cursor).
+      return typeof value === "function" ? value(args) : value;
+    },
     useMutation: (reference: Parameters<typeof name>[0]) => {
       const key = name(reference);
       if (!state.mutations.has(key)) state.mutations.set(key, vi.fn());
@@ -117,8 +121,10 @@ function rosterValue(revision = 0) {
     dates: dates.map((date, index) => ({ date, weekday: 2 + index })),
     shifts: [day],
     shiftsComplete: true,
-    totalEmployees: 1,
-    employees: [
+    status: "ready",
+    isDone: true,
+    continueCursor: "",
+    page: [
       {
         id: "e1",
         code: "E001",
@@ -530,9 +536,9 @@ it("a selected cell that becomes locked can be removed while retaining the other
   // Attendance is captured for 2026-10-21 by another user: the server now
   // refuses every action on that date (ROSTER_DAY_RECORDED).
   const locked = rosterValue();
-  locked.employees[0]!.cells[2]!.revision = 7;
-  locked.employees[0]!.cells[1] = {
-    ...locked.employees[0]!.cells[1]!,
+  locked.page[0]!.cells[2]!.revision = 7;
+  locked.page[0]!.cells[1] = {
+    ...locked.page[0]!.cells[1]!,
     recorded: true,
     lock: "RECORDED",
   };
@@ -565,8 +571,8 @@ it("a selected cell that becomes locked can be removed while retaining the other
 });
 it("a date covered by a pending leave request is shown locked and cannot be selected", async () => {
   const value = rosterValue();
-  value.employees[0]!.cells[1] = {
-    ...value.employees[0]!.cells[1]!,
+  value.page[0]!.cells[1] = {
+    ...value.page[0]!.cells[1]!,
     lock: "LEAVE_CLAIMED",
   };
   state.queries.set(getFunctionName(hrRefs.roster), query(value));
@@ -584,4 +590,124 @@ it("a date covered by a pending leave request is shown locked and cannot be sele
   expect(within(bar).getByRole("status")).toHaveTextContent(
     "No dates selected",
   );
+});
+
+it("roster employees page on the server and a selection survives moving between pages", async () => {
+  const first = rosterValue();
+  const second = rosterValue();
+  Object.assign(first, { isDone: false, continueCursor: "page-2" });
+  second.page = [
+    {
+      ...second.page[0]!,
+      id: "e2",
+      code: "E002",
+      displayName: "Malee",
+      departmentName: "Packing",
+    },
+  ];
+  const pages = vi.fn((args: { cursor?: string; pageSize?: number }) =>
+    query(args.cursor === "page-2" ? second : first),
+  );
+  state.queries.set(getFunctionName(hrRefs.roster), pages);
+  const save = mutation(hrRefs.assignRoster);
+  save.mockResolvedValue(saved("a1"));
+  open(HrRosterScreen, "/en/hr/roster#grid");
+  expect(pages).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      warehouseId: "w1",
+      month: "2026-10",
+      pageSize: 20,
+    }),
+  );
+  const pager = screen.getByRole("navigation", {
+    name: "Roster employee pages",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Assign shifts" }));
+  const bar = await screen.findByRole("form", {
+    name: "Assign shifts to selected dates",
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-21/ }));
+  fireEvent.click(within(pager).getByRole("button", { name: "Next page" }));
+  await screen.findByRole("button", { name: /Malee, 2026-10-22/ });
+  expect(pages).toHaveBeenLastCalledWith(
+    expect.objectContaining({ cursor: "page-2" }),
+  );
+  expect(screen.queryByRole("rowheader", { name: /Somchai/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Malee, 2026-10-22/ }));
+  expect(within(bar).getByRole("status")).toHaveTextContent("2 dates selected");
+  fireEvent.click(within(pager).getByRole("button", { name: "Previous page" }));
+  expect(
+    await screen.findByRole("button", { name: /Somchai, 2026-10-21/ }),
+  ).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(within(bar).getByRole("combobox"));
+  fireEvent.click(await screen.findByRole("option", { name: "OFF" }));
+  fireEvent.click(within(bar).getByRole("button", { name: "Save assignment" }));
+  await waitFor(() =>
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: { kind: "OFF" },
+        cells: [
+          { employeeId: "e1", date: "2026-10-21", expectedRevision: 0 },
+          { employeeId: "e2", date: "2026-10-22", expectedRevision: 0 },
+        ],
+      }),
+    ),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("form", { name: "Assign shifts to selected dates" }),
+    ).toBeNull(),
+  );
+  expect(here()).toBe("/en/hr/roster#grid");
+});
+
+it("roster paging protects an assignment draft and pending save through completion", async () => {
+  const first = { ...rosterValue(), isDone: false, continueCursor: "page-2" };
+  // Changing size would start a cold subscription and remove the grid while it loads.
+  const pages = vi.fn((args: { pageSize?: number }) =>
+    args.pageSize === 50 ? undefined : query(first),
+  );
+  state.queries.set(getFunctionName(hrRefs.roster), pages);
+  const pending = deferred();
+  const save = mutation(hrRefs.assignRoster);
+  save.mockReturnValue(pending.promise);
+  open(HrRosterScreen, "/en/hr/roster#grid");
+  const pager = screen.getByRole("navigation", {
+    name: "Roster employee pages",
+  });
+  const size = within(pager).getByRole("combobox");
+  expect(size).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Assign shifts" }));
+  const bar = await screen.findByRole("form", {
+    name: "Assign shifts to selected dates",
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-21/ }));
+  expect(size).toBeDisabled();
+  fireEvent.click(size);
+  expect(pages.mock.calls.every(([args]) => args.pageSize === 20)).toBe(true);
+  expect(within(bar).getByRole("status")).toHaveTextContent("1 date selected");
+  expect(
+    within(pager).getByRole("button", { name: "Next page" }),
+  ).toBeEnabled();
+  fireEvent.click(within(bar).getByRole("combobox"));
+  fireEvent.click(await screen.findByRole("option", { name: "OFF" }));
+  fireEvent.click(within(bar).getByRole("button", { name: "Save assignment" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(
+    within(pager).getByRole("button", { name: "Next page" }),
+  ).toBeDisabled();
+  expect(size).toBeDisabled();
+  await traverse("back");
+  expect(bar).toBeVisible();
+  expect(within(bar).getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await act(async () => pending.resolve(saved("a1")));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("form", { name: "Assign shifts to selected dates" }),
+    ).toBeNull(),
+  );
+  expect(within(pager).getByRole("combobox")).toBeEnabled();
+  await waitFor(() => expect(here()).toBe("/en/hr/roster#grid"));
+  await traverse("back");
+  await waitFor(() => expect(here()).toBe("/en/hr/today"));
 });
