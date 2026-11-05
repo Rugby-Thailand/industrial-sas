@@ -80,12 +80,10 @@ function ReviewContext() {
   return null;
 }
 
-function renderSearch(children = <Opener />) {
+function renderSearch(children = <Opener />, locale: "en" | "th" = "en") {
   return renderWithIntl(
     <GlobalSearchProvider>{children}</GlobalSearchProvider>,
-    {
-      locale: "en",
-    },
+    { locale },
   );
 }
 
@@ -443,8 +441,8 @@ describe("AI Search", () => {
     ).getAllByRole("option");
     // "This record" needs a page context; there is none here.
     expect(examples.map((option) => option.textContent)).toEqual([
-      "ลืมลงเวลาเมื่อวาน",
-      "ตั้งวันหยุด",
+      "Forgot to clock in yesterday",
+      "Set up holidays",
     ]);
     expect(screen.getByTestId("global-search-keys")).toHaveTextContent(
       "↑ ↓ to choose · Enter to open · Esc to close",
@@ -494,12 +492,13 @@ describe("AI Search", () => {
     renderSearch();
     fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
     await screen.findByRole("dialog");
-    fireEvent.click(screen.getByRole("option", { name: "ตั้งวันหยุด" }));
-    expect(input()).toHaveValue("ตั้งวันหยุด");
+    fireEvent.click(screen.getByRole("option", { name: "Set up holidays" }));
+    expect(input()).toHaveValue("Set up holidays");
     expect(input()).toHaveFocus();
     expect(screen.getByRole("heading", { name: "AI Search" })).toBeVisible();
     await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
-    expect(state.action.mock.calls[0]![0].query).toBe("ตั้งวันหยุด");
+    // The AI receives the example as shown, in the page's language.
+    expect(state.action.mock.calls[0]![0].query).toBe("Set up holidays");
     expect(
       await screen.findByText("What would you like to do? Try one of these."),
     ).toBeInTheDocument();
@@ -517,7 +516,26 @@ describe("AI Search", () => {
     expect(input()).toHaveAttribute("aria-activedescendant", first.id);
     fireEvent.keyDown(input(), { key: "Enter" });
     await waitFor(() => expect(state.action).toHaveBeenCalledTimes(2));
-    expect(state.action.mock.calls[1]![0].query).toBe("ลืมลงเวลาเมื่อวาน");
+    expect(state.action.mock.calls[1]![0].query).toBe(
+      "Forgot to clock in yesterday",
+    );
+  });
+
+  it("offers and asks the examples in Thai on a Thai page", async () => {
+    state.action.mockResolvedValue({
+      ok: true,
+      value: {
+        ok: true,
+        today: "2026-10-09",
+        intent: grounded({ kind: "CLARIFY", clarify: "TASK" }),
+      },
+    });
+    renderSearch(<Opener />, "th");
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("option", { name: "ตั้งวันหยุด" }));
+    await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
+    expect(state.action.mock.calls[0]![0].query).toBe("ตั้งวันหยุด");
   });
 
   it("offers the review example only while a page names the record", async () => {
@@ -534,9 +552,9 @@ describe("AI Search", () => {
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual([
-      "ลืมลงเวลาเมื่อวาน",
-      "ตรวจคำขอที่ต้องแก้ของรายการนี้",
-      "ตั้งวันหยุด",
+      "Forgot to clock in yesterday",
+      "Review this record's correction request",
+      "Set up holidays",
     ]);
   });
 

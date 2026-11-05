@@ -80,7 +80,12 @@ describe("ConnectionNotice", () => {
     const shown = screen.getByRole("status");
     expect(shown).toBe(notice());
     expect(shown).toHaveTextContent("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
-    expect(shown).toHaveTextContent("ระบบจะลองเชื่อมต่อใหม่ให้อัตโนมัติ");
+    // Nothing has loaded yet, so it never claims the data is merely stale.
+    expect(shown).toHaveTextContent(
+      "หน้านี้ยังโหลดข้อมูลไม่ได้จนกว่าจะเชื่อมต่อได้",
+    );
+    expect(shown).toHaveTextContent("ระบบกำลังลองเชื่อมต่อใหม่ให้อัตโนมัติ");
+    expect(shown).not.toHaveTextContent("อาจไม่เป็นปัจจุบัน");
     expect(
       screen.getByRole("button", { name: "โหลดหน้าใหม่" }),
     ).toBeInTheDocument();
@@ -110,6 +115,11 @@ describe("ConnectionNotice", () => {
     setLink({ isWebSocketConnected: false });
     advance(RECONNECTION_GRACE_MS);
     expect(notice()).toHaveTextContent("Can't reach the server");
+    // Data had loaded before the drop: what is shown may be out of date.
+    expect(notice()).toHaveTextContent(
+      "Until then, data on this page may be out of date.",
+    );
+    expect(notice()).not.toHaveTextContent("can't load its data");
 
     setLink({ isWebSocketConnected: true, connectionCount: 3 });
     expect(notice()).toBeNull();

@@ -32,7 +32,10 @@ import {
 import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
 import { useDrawerSearchHandoff } from "@/components/shell/useDrawerSearchHandoff";
 import { useOrganizationName } from "@/components/shell/useOrganizationName";
-import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
+import {
+  HeaderWarehouse,
+  WorkspaceContextBar,
+} from "@/components/shell/WorkspaceContextBar";
 import { Button } from "@/components/ui/button";
 import type { SheetCompletionHandle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -160,10 +163,10 @@ function NavigationDisclosure({
 }
 
 /**
- * The organization this session works in, as the header's brand. Warehouse
- * context lives in the sidebar, so a phone header never carries it. Until
- * the organization resolves, a placeholder holds its place rather than
- * repeating the product name the sidebar already shows.
+ * The organization this session works in, as the header's brand. Until it
+ * resolves, a placeholder holds its place rather than repeating the product
+ * name the sidebar already shows. The selected warehouse joins it as a
+ * second line while the sidebar's selector is out of sight.
  */
 function HeaderBrand() {
   const name = useOrganizationName();
@@ -183,6 +186,7 @@ function HeaderBrand() {
           {name}
         </p>
       )}
+      <HeaderWarehouse />
     </div>
   );
 }

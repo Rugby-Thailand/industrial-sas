@@ -39,7 +39,9 @@ function useConnectionEpisode(): string {
 /**
  * Says so, without blocking the page, when the backend cannot be reached:
  * the first connection has not opened after 8 s, or an open one has been
- * down for 4 s. A normal load or a brief blip never shows it.
+ * down for 4 s. A normal load or a brief blip never shows it. Before the
+ * first connection nothing has loaded, so only a dropped connection warns
+ * that the data shown may be out of date.
  */
 export function ConnectionNotice() {
   const t = useTranslations("App");
@@ -60,7 +62,9 @@ export function ConnectionNotice() {
     <Notice
       tone="warning"
       title={t("connectionLost")}
-      body={t("connectionLostHint")}
+      body={t(
+        episode === "first" ? "connectionFirstHint" : "connectionLostHint",
+      )}
       testId="connection-notice"
       className="mt-2 mb-1"
     >

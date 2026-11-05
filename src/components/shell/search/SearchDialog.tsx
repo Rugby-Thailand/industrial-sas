@@ -434,8 +434,12 @@ function SearchBody({
           </Button>
         </DialogClose>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1">
+      {/* A phone gives the typed request the full row; Ask AI sits below. */}
+      <div
+        className="grid gap-2 sm:flex sm:items-center"
+        data-testid="global-search-row"
+      >
+        <div className="relative min-w-0 sm:flex-1">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
@@ -499,6 +503,7 @@ function SearchBody({
             onClick={ask}
             disabled={!canAsk}
             aria-describedby={scopeId}
+            className="w-full sm:w-auto"
             data-testid="global-search-ai"
           >
             <Sparkles aria-hidden="true" />

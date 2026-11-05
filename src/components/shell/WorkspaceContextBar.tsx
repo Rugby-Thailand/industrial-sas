@@ -13,7 +13,10 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { warehouseLabel } from "@/lib/workspace/workspace";
+import {
+  warehouseLabel,
+  type WarehouseOption,
+} from "@/lib/workspace/workspace";
 
 const CONTEXT_SLOT = "workspace-context";
 
@@ -29,6 +32,52 @@ function focusExpandedWarehouse() {
     context?.querySelector<HTMLElement>('[data-slot="select-trigger"]') ??
     context
   )?.focus();
+}
+
+/**
+ * The warehouse this session works in. Undefined for HR-only members, an
+ * organization without an open warehouse, or before one is chosen.
+ */
+function useSelectedWarehouse(): WarehouseOption | undefined {
+  const workspace = useWorkspace();
+  if (
+    workspace.denied ||
+    !workspace.selectable ||
+    workspace.organization === undefined
+  )
+    return undefined;
+  return workspace.warehouses.find(
+    (warehouse) => warehouse.id === workspace.selectedWarehouseId,
+  );
+}
+
+/**
+ * The selected warehouse as a read-only line under the header's
+ * organization name, whenever the sidebar's selector is out of sight: on a
+ * phone, where it lives in the drawer, and beside the collapsed rail. The
+ * code alone on a phone; the name joins it where there is room.
+ */
+export function HeaderWarehouse() {
+  const t = useTranslations("Workspace");
+  const { isMobile, state } = useSidebar();
+  const selected = useSelectedWarehouse();
+  if (selected === undefined || (!isMobile && state === "expanded"))
+    return null;
+  const label = warehouseLabel(selected);
+  return (
+    <p
+      className="flex min-w-0 items-center gap-1 text-xs text-muted"
+      title={label}
+      data-testid="header-warehouse"
+    >
+      <WarehouseIcon aria-hidden="true" className="size-3 shrink-0" />
+      <span className="sr-only">{`${t("warehouse")}: ${label}`}</span>
+      <span aria-hidden="true" className="truncate">
+        {selected.code}
+        <span className="hidden sm:inline">{` · ${selected.name}`}</span>
+      </span>
+    </p>
+  );
 }
 
 /**
@@ -48,12 +97,7 @@ export function WorkspaceContextBar({
   const warehouseId = useId();
   const available =
     workspace.selectable && workspace.organization !== undefined;
-  const selected = available
-    ? workspace.warehouses.find(
-        (warehouse) => warehouse.id === workspace.selectedWarehouseId,
-      )
-    : undefined;
-
+  const selected = useSelectedWarehouse();
   const selectedLabel = selected ? warehouseLabel(selected) : undefined;
 
   // HR-only members have organization context, but no warehouse access.

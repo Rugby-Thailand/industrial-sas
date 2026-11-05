@@ -35,6 +35,8 @@ const state = vi.hoisted(() => ({
   // The workspace and actor the shell is rendered for; reset per test.
   organizationId: "org-a",
   warehouseId: "wh-1",
+  // An HR-only member: the warehouse workspace is refused.
+  workspaceDenied: false,
   actorKey: "org-a:user-a",
   hrPermissions: [
     "hr.self.access",
@@ -131,6 +133,15 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
     navigationPermissions: ["masterData.storageLayout.read"],
     permissionsReady: true,
     selectWarehouse: state.selectWarehouse,
+    ...(state.workspaceDenied
+      ? {
+          organization: undefined,
+          warehouses: [],
+          selectedWarehouseId: undefined,
+          selectable: false,
+          denied: true,
+        }
+      : {}),
   }),
 }));
 vi.mock("@/components/shell/AccountButton", () => ({
@@ -187,6 +198,7 @@ beforeEach(() => {
   state.pathname = "/master-data/storage-layouts";
   state.organizationId = "org-a";
   state.warehouseId = "wh-1";
+  state.workspaceDenied = false;
   state.actorKey = "org-a:user-a";
   state.selectWarehouse.mockReset();
   state.push.mockReset();
@@ -461,6 +473,48 @@ describe("sidebar hierarchy", () => {
       "aria-current",
       "page",
     );
+  });
+});
+
+describe("selected warehouse in the header", () => {
+  const LABEL = "WH-1 · Main warehouse";
+
+  it("names the warehouse under the organization on a phone, without opening the drawer", () => {
+    state.mobile = true;
+    const header = renderShell();
+    const brand = within(header).getByTestId("header-brand");
+    const line = within(brand).getByTestId("header-warehouse");
+    expect(brand).toHaveTextContent("Demo Co");
+    expect(line).toHaveAttribute("title", LABEL);
+    expect(within(line).getByText(`Warehouse: ${LABEL}`)).toBeInTheDocument();
+    expect(drawer()).toBeNull();
+  });
+
+  it("leaves it to the expanded sidebar and shows it again beside the collapsed rail", () => {
+    const header = renderShell();
+    expect(within(header).queryByTestId("header-warehouse")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(within(header).getByTestId("header-warehouse")).toHaveAttribute(
+      "title",
+      LABEL,
+    );
+    // The rail control names the warehouse too, for its tooltip and readers.
+    expect(screen.getByTestId("sidebar-warehouse-rail")).toHaveAccessibleName(
+      `Warehouse: ${LABEL}`,
+    );
+  });
+
+  it.each([
+    ["an HR-only member", { workspaceDenied: true }],
+    ["no warehouse chosen yet", { warehouseId: "" }],
+  ])("adds nothing for %s", (_case, overrides) => {
+    state.mobile = true;
+    Object.assign(state, overrides);
+    const header = renderShell();
+    expect(within(header).getByTestId("header-brand")).toHaveTextContent(
+      "Demo Co",
+    );
+    expect(within(header).queryByTestId("header-warehouse")).toBeNull();
   });
 });
 
