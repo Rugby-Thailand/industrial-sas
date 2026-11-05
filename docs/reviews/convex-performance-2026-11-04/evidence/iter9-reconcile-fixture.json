@@ -1,0 +1,272 @@
+{
+  "scope": "convex-test read instrumentation, not real-engine billing or latency; one reconcile transaction excludes any scheduled rebuild",
+  "beforeRevision": "a98199d4",
+  "afterImplementationRevision": "0328014e",
+  "before": [
+    {
+      "mode": "maintained",
+      "status": "rebuilding",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 102
+        },
+        "gets": {
+          "(unknown table)": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 186,
+          "storageBuildings": 57185
+        }
+      },
+      "documents": 106,
+      "readCalls": 6,
+      "bytes": 58049
+    },
+    {
+      "mode": "raw",
+      "status": "rebuilding",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 0,
+          "storageBuildings": 102
+        },
+        "gets": {
+          "(unknown table)": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 2,
+          "storageBuildings": 57189
+        }
+      },
+      "documents": 105,
+      "readCalls": 6,
+      "bytes": 57869
+    },
+    {
+      "mode": "overflow",
+      "status": "rebuilding",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 0,
+          "storageBuildings": 102
+        },
+        "gets": {
+          "(unknown table)": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 2,
+          "storageBuildings": 57189
+        }
+      },
+      "documents": 105,
+      "readCalls": 6,
+      "bytes": 57869
+    },
+    {
+      "mode": "generation-mismatch",
+      "status": "rebuilding",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 102
+        },
+        "gets": {
+          "(unknown table)": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 186,
+          "storageBuildings": 57189
+        }
+      },
+      "documents": 106,
+      "readCalls": 6,
+      "bytes": 58053
+    }
+  ],
+  "after": [
+    {
+      "mode": "maintained",
+      "status": "done",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2,
+          "finishedGoodsJobScanTerms": 1,
+          "finishedGoodsJobScans": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2,
+          "finishedGoodsJobScanTerms": 1,
+          "finishedGoodsJobScans": 0
+        },
+        "gets": {
+          "(unknown table)": 1,
+          "storageBuildings": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 186,
+          "storageBuildings": 1706,
+          "finishedGoodsJobScanTerms": 265,
+          "finishedGoodsJobScans": 4
+        }
+      },
+      "documents": 8,
+      "readCalls": 10,
+      "bytes": 2839
+    },
+    {
+      "mode": "raw",
+      "status": "done",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2,
+          "finishedGoodsJobScanTerms": 1,
+          "finishedGoodsJobScans": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 0,
+          "storageBuildings": 2,
+          "finishedGoodsJobScanTerms": 0,
+          "finishedGoodsJobScans": 0
+        },
+        "gets": {
+          "(unknown table)": 1,
+          "storageBuildings": 1,
+          "finishedGoodsJobScanTerms": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 2,
+          "storageBuildings": 1718,
+          "finishedGoodsJobScanTerms": 262,
+          "finishedGoodsJobScans": 4
+        }
+      },
+      "documents": 7,
+      "readCalls": 11,
+      "bytes": 2664
+    },
+    {
+      "mode": "overflow",
+      "status": "rebuilding",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 0,
+          "storageBuildings": 102
+        },
+        "gets": {
+          "(unknown table)": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 2,
+          "storageBuildings": 58604
+        }
+      },
+      "documents": 105,
+      "readCalls": 6,
+      "bytes": 59284
+    },
+    {
+      "mode": "generation-mismatch",
+      "status": "rebuilding",
+      "stats": {
+        "ranges": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 2
+        },
+        "rangeDocs": {
+          "searchIndexReadiness": 1,
+          "searchIndexReconcile": 1,
+          "storageCatalogueSignals": 1,
+          "storageBuildings": 102
+        },
+        "gets": {
+          "(unknown table)": 1
+        },
+        "bytes": {
+          "(unknown table)": 177,
+          "searchIndexReadiness": 293,
+          "searchIndexReconcile": 208,
+          "storageCatalogueSignals": 186,
+          "storageBuildings": 57189
+        }
+      },
+      "documents": 106,
+      "readCalls": 6,
+      "bytes": 58053
+    }
+  ]
+}
