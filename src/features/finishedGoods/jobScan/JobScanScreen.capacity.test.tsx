@@ -151,16 +151,20 @@ it("INV-09 rejects the 51st ticket before save and persists the accepted 50 thro
     screen.getByText("Save 50 tickets", { selector: "button" }),
   ).toBeEnabled();
   fireEvent.click(screen.getByText("Save 50 tickets", { selector: "button" }));
-  await waitFor(() =>
-    expect(
-      screen.getByRole("heading", { name: "Saved 50 tickets" }),
-    ).toBeVisible(),
+  // The save also writes ~1,250 search postings, which convex-test takes
+  // seconds to apply (184 ms on the real backend): wait for it, not 1 s.
+  await waitFor(
+    () =>
+      expect(
+        screen.getByRole("heading", { name: "Saved 50 tickets" }),
+      ).toBeVisible(),
+    { timeout: 15_000 },
   );
   expect(mocks.save).toHaveBeenCalledOnce();
   expect(
     await world.t.run((ctx) => ctx.db.query("finishedGoodsJobScans").collect()),
   ).toHaveLength(50);
-}, 20000);
+}, 40000);
 
 it("caps manual additions and permits completing an existing 50th ticket with a single barcode", () => {
   start();
