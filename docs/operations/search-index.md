@@ -111,3 +111,39 @@ nothing it writes moves a marker these readers check. After running such code,
 call `invalidate` for every affected warehouse (both kinds) before relying on the
 index again; the sweep rebuilds it. Squash-merge the branch, as for the other
 derived stores (`docs/operations/storage-zone-occupancy.md`).
+
+## Test measurements (convex-test, not the real backend)
+
+Documents read through `ctx.db` (including about 15 authorization reads) for
+the first 50-row page, on the 2,200-scan generated corpus of
+`tests/integration/job-scan-search-index.integration.test.ts`:
+
+| Needle                 | Matches | Index path      | Scan path          |
+| ---------------------- | ------: | --------------- | ------------------ |
+| One job number         |       1 | 119 docs, 1 req | 2,918 docs, 22 req |
+| Thai lot text          |       3 | 103 docs, 1 req | 2,927 docs, 22 req |
+| Miss                   |       0 | 60 docs, 1 req  | 2,906 docs, 22 req |
+| Job-number fragment    |      91 | 303 docs, 1 req | 1,338 docs, 10 req |
+| Building name          |     143 | 177 docs, 1 req | 1,270 docs, 8 req  |
+| Common customer        |     435 | 291 docs, 1 req | 452 docs, 3 req    |
+| Every record ("box-0") |   2,200 | 276 docs, 1 req | 125 docs, 1 req    |
+| Two code points ("c1") |     286 | scan path       | 608 docs, 4 req    |
+
+Documents written: `saveJobScans` with 1 item 4 → 62, with 50 items 53 → 1,539
+(50 long unique texts: 1,547); a 60-ticket remap 63 → 140; deleting 30 tickets
+33 → 843. Parity: 0 mismatches over 240 needle/filter traversals at 2,200 scans and 264
+at 900 scans; the picker matched the keyset scan page for page in 167 and 114
+traversals over 640 locations.
+
+Picker, 640 locations, every page of a 20-row search (all requests summed):
+
+| Needle          | Matches | Index path       | Keyset scan        |
+| --------------- | ------: | ---------------- | ------------------ |
+| `NO-SUCH-PLACE` |       0 | 25 docs, 1 req   | 1,010 docs, 2 req  |
+| `F1-L30-0123`   |       0 | 138 docs, 1 req  | 1,089 docs, 2 req  |
+| `Shelf 3`       |      18 | 289 docs, 1 req  | 1,096 docs, 2 req  |
+| `ปลายทาง`       |      63 | 566 docs, 4 req  | 1,217 docs, 4 req  |
+| `R0`            |     203 | 886 docs, 11 req | 1,286 docs, 11 req |
+
+Hydrating a match (location, source, area and parents) is unchanged, so
+match-heavy searches keep about four reads per match.
