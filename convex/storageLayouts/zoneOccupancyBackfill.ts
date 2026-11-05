@@ -21,11 +21,13 @@ import {
   rebuildZoneOccupancy,
   ZONE_OCCUPANCY_VERSION,
 } from "../lib/zoneOccupancy";
+import { layoutGeneration, rebuildZoneSurface } from "../lib/zoneSurfaces";
 
 /**
  * Documents one backfill transaction may read rebuilding zones. A zone near
- * the entry cap reads ~1,000 placements and up to 500 pallets, so a page of
- * dense zones stops early and resumes at the same page, skipping zones done.
+ * the entry cap reads ~1,000 placements and up to 500 pallets, and its layout
+ * surface up to 500 positions and their locations, so a page of dense zones
+ * stops early and resumes at the same page, skipping zones done.
  */
 const REBUILD_READ_BUDGET = 4_000;
 /** Overflowed zones scheduled per page of a warehouse's re-check walk. */
@@ -165,11 +167,28 @@ export const run = internalMutation({
     const done = new Set(resume?.done ?? []);
     let spent = 0;
     let rebuilt = 0;
+    const buildings = new Map<
+      string,
+      Promise<Doc<"storageBuildings"> | null>
+    >();
+    const readBuilding = (id: string) => {
+      let pending = buildings.get(id);
+      if (!pending) {
+        pending = db.get<Doc<"storageBuildings">>("storageBuildings", id);
+        buildings.set(id, pending);
+      }
+      return pending;
+    };
     // Always rebuild at least one zone, so every transaction makes progress.
     for (const zone of page.page) {
       if (done.has(zone._id)) continue;
       if (rebuilt > 0 && spent >= budget) break;
       spent += await rebuildZoneOccupancy(db, zone);
+      // Its layout surface, stamped with this run (rows of other runs belong
+      // to zones deleted since, which readers skip).
+      spent += (
+        await rebuildZoneSurface(db, zone._id, runId, readBuilding, zone)
+      ).read;
       done.add(zone._id);
       rebuilt++;
     }
@@ -202,6 +221,8 @@ export const run = internalMutation({
           summaryGeneration:
             (await ensureSummaryReadiness(db, args.warehouseId))?.generation ??
             0,
+          // Likewise for layout writes and zone surfaces.
+          layoutGeneration: await layoutGeneration(db, args.warehouseId),
         });
     } else if (args.chain)
       await ctx.scheduler.runAfter(
@@ -264,11 +285,19 @@ export const sweep = internalMutation({
           q.eq("orgId", warehouse.orgId).eq("warehouseId", warehouse._id),
         )
         .unique();
+      const layout = await ctx.db
+        .query("storageCatalogueSignals")
+        .withIndex("by_orgId_warehouseId", (q) =>
+          q.eq("orgId", warehouse.orgId).eq("warehouseId", warehouse._id),
+        )
+        .unique();
       if (
         row?.ready &&
         row.stale !== true &&
         row.version === ZONE_OCCUPANCY_VERSION &&
-        (row.summaryGeneration ?? 0) === (legacy?.generation ?? 0)
+        (row.summaryGeneration ?? 0) === (legacy?.generation ?? 0) &&
+        // Layout writes by code that does not maintain zone surfaces.
+        row.layoutGeneration === (layout?.generation ?? 0)
       ) {
         // Writes skip overflowed zones, so only a re-check notices one that
         // fell back under the cap and can serve building readers again. Every
@@ -401,8 +430,16 @@ export const health = internalQuery({
         ],
       )
       .take(100);
+    const generation = await layoutGeneration(db, args.warehouseId);
     return {
       ready: row?.ready === true && row.stale !== true,
+      /** Recommendations may also use zone surfaces (layout in step). */
+      surfacesReady:
+        row?.ready === true &&
+        row.stale !== true &&
+        row.layoutGeneration === generation,
+      layoutGeneration: row?.layoutGeneration ?? null,
+      currentLayoutGeneration: generation,
       version: row?.version ?? null,
       currentVersion: ZONE_OCCUPANCY_VERSION,
       runId: row?.runId ?? null,

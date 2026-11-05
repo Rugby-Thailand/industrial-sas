@@ -127,6 +127,43 @@ const placementCopy = (
     _creationTime: v.number(),
     ...tenantFields(fields),
   });
+/**
+ * A held placement as derived occupancy stores it (version 2): the fields
+ * readers use. The zone, and the warehouse and building unless they differ
+ * from the zone's, come from the entries row.
+ */
+const heldEntryFields = {
+  _id: v.id("finishedGoodsPlacements"),
+  _creationTime: v.number(),
+  warehouseId: v.optional(v.id("warehouses")),
+  buildingId: v.optional(v.id("storageBuildings")),
+  palletId: v.id("finishedGoodsPallets"),
+  status: placementFields.status,
+  positionCode: v.string(),
+  updatedAt: v.number(),
+  supportPositionId: v.optional(v.id("storagePositions")),
+};
+const heldEntry = v.union(
+  v.object({
+    ...heldEntryFields,
+    mode: v.optional(v.literal("GEOMETRIC")),
+    supportPalletId: v.optional(v.id("finishedGoodsPallets")),
+    xMm: v.number(),
+    yMm: v.number(),
+    zMm: v.number(),
+    widthMm: v.number(),
+    depthMm: v.number(),
+    heightMm: v.number(),
+    rotation: v.union(v.literal(0), v.literal(90)),
+  }),
+  v.object({
+    ...heldEntryFields,
+    mode: v.literal("LOCATION_ONLY"),
+    assignmentId: v.id("finishedGoodsScanAssignments"),
+    sequence: v.number(),
+    supportPalletId: v.optional(v.null()),
+  }),
+);
 const palletStatus = v.union(
   v.literal("AWAITING_MEASUREMENT"),
   v.literal("AWAITING_PLACEMENT"),
@@ -1097,12 +1134,19 @@ const schema = defineSchema({
   storageZoneOccupancyEntries: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),
+      /** The zone's building (version 2+). */
+      buildingId: v.optional(v.id("storageBuildings")),
       zoneId: v.id("storageZones"),
       version: v.number(),
       /** False above the entry cap: placements are omitted, read them directly. */
       complete: v.boolean(),
+      /**
+       * Version 2+: reader projections (heldEntry). Version 1 rows hold whole
+       * document copies; they stay valid until rebuilt, and no reader uses them.
+       */
       placements: v.array(
         v.union(
+          heldEntry,
           placementCopy(geometricPlacementFields),
           placementCopy(locationOnlyPlacementFields),
         ),
@@ -1110,7 +1154,8 @@ const schema = defineSchema({
       pallets: v.array(
         v.object({
           _id: v.id("finishedGoodsPallets"),
-          warehouseId: v.id("warehouses"),
+          /** Version 2+: absent when it is the row's warehouse. */
+          warehouseId: v.optional(v.id("warehouses")),
           productId: v.id("finishedGoodsProducts"),
           code: v.string(),
           quantity: v.number(),
@@ -1120,6 +1165,14 @@ const schema = defineSchema({
           storageFormat: v.optional(batchFormat),
           stackable: v.optional(v.boolean()),
           maxStackLevels: v.optional(v.number()),
+          /**
+           * Version 2+ stack facts: an active (RESERVED or IN_TRANSIT) move,
+           * and the pallets its held placements carry. Absent: none, unless
+           * `stackUnknown` (not computed; readers query them).
+           */
+          activeMove: v.optional(v.literal(true)),
+          stackedPalletIds: v.optional(v.array(v.id("finishedGoodsPallets"))),
+          stackUnknown: v.optional(v.literal(true)),
         }),
       ),
     }),
@@ -1153,8 +1206,82 @@ const schema = defineSchema({
       summaryGeneration: v.optional(v.number()),
       /** The current backfill run; continuations of any other run are refused. */
       runId: v.optional(v.string()),
+      /**
+       * The storage layout generation (storageCatalogueSignals) zone surfaces
+       * are in step with. Maintaining writes advance both; code that does not
+       * maintain surfaces moves only the signal, so readers stop trusting them.
+       */
+      layoutGeneration: v.optional(v.number()),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
+  /**
+   * Derived per-zone layout for recommendations (convex/lib/zoneSurfaces.ts):
+   * the zone's fields, whether it and its location are usable, and its ACTIVE
+   * positions with whether each position's location is usable. Maintained by
+   * tracked layout writes; read only while recommendationReadiness allows.
+   */
+  storageZoneSurfaces: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      buildingId: v.id("storageBuildings"),
+      floorId: v.id("storageFloors"),
+      zoneId: v.id("storageZones"),
+      version: v.number(),
+      /** The occupancy backfill run current when the row was written. */
+      runId: v.string(),
+      /** The zone's building is ACTIVE and in the zone's warehouse. */
+      buildingActive: v.boolean(),
+      /** The zone is ACTIVE and its location is ACTIVE in its warehouse. */
+      eligible: v.boolean(),
+      /** Trimmed upper-case storage condition ("" when none). */
+      conditionKey: v.string(),
+      code: v.string(),
+      zone: v.object({
+        _creationTime: v.number(),
+        locationId: v.id("locations"),
+        label: v.string(),
+        qrValue: v.string(),
+        status: masterDataStatus,
+        mode: v.optional(
+          v.union(
+            v.literal("SIMPLE"),
+            v.literal("FLOOR_POSITIONS"),
+            v.literal("RACK"),
+            v.literal("PLATFORM"),
+          ),
+        ),
+        storageCondition: v.optional(v.string()),
+        baseElevationMm: v.optional(v.number()),
+        xMm: v.number(),
+        yMm: v.number(),
+        widthMm: v.number(),
+        depthMm: v.number(),
+        maxStackHeightMm: v.number(),
+      }),
+      /** False above the position cap: positions are omitted, read them directly. */
+      complete: v.boolean(),
+      /** ACTIVE positions in by_orgId_zoneId_status_code order. */
+      positions: v.array(
+        v.object({
+          _id: v.id("storagePositions"),
+          code: v.string(),
+          label: v.string(),
+          xMm: v.optional(v.number()),
+          yMm: v.optional(v.number()),
+          widthMm: v.optional(v.number()),
+          depthMm: v.optional(v.number()),
+          elevationMm: v.optional(v.number()),
+          /** The position's location is ACTIVE in the zone's warehouse. */
+          usable: v.boolean(),
+        }),
+      ),
+    }),
+  )
+    .index("by_orgId_zoneId", byOrg("zoneId"))
+    .index(
+      "by_orgId_warehouseId_buildingActive_eligible_conditionKey",
+      byOrg("warehouseId", "buildingActive", "eligible", "conditionKey"),
+    ),
   finishedGoodsScanAssignments: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

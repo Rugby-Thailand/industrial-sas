@@ -17,7 +17,7 @@ import { TenantDbError, type TenantDocumentAccess } from "./tenantDb";
  * whole warehouse, because the building of every placement in such a zone
  * cannot be checked cheaply.
  */
-export const ZONE_OCCUPANCY_VERSION = 1;
+export const ZONE_OCCUPANCY_VERSION = 2;
 /** Keeps an entries row far below Convex's 1 MiB document limit (~0.9 KB each). */
 export const MAX_ZONE_OCCUPANCY_ENTRIES = 500;
 
@@ -25,11 +25,90 @@ type Placement = Doc<"finishedGoodsPlacements">;
 type Pallet = Doc<"finishedGoodsPallets">;
 type Zone = Doc<"storageZones">;
 type Readiness = Doc<"storageZoneOccupancyReadiness">;
-type Held = { placements: readonly Placement[]; complete: boolean };
+type PickPresent<T, K extends PropertyKey> = T extends unknown
+  ? Pick<T, Extract<keyof T, K>>
+  : never;
+/**
+ * The placement fields occupancy readers use (geometry, identity, ordering,
+ * the inventory's columns). Entries rows store these, not whole documents, so
+ * every reader and every rewrite moves roughly half the bytes.
+ */
+export type HeldPlacement = PickPresent<
+  Placement,
+  | "_id"
+  | "_creationTime"
+  | "warehouseId"
+  | "buildingId"
+  | "zoneId"
+  | "palletId"
+  | "status"
+  | "positionCode"
+  | "updatedAt"
+  | "supportPositionId"
+  | "supportPalletId"
+  | "mode"
+  | "xMm"
+  | "yMm"
+  | "zMm"
+  | "widthMm"
+  | "depthMm"
+  | "heightMm"
+  | "rotation"
+  | "assignmentId"
+  | "sequence"
+>;
+type Held = { placements: readonly HeldPlacement[]; complete: boolean };
 export type ZoneOccupancySummary = Doc<"storageZoneOccupancy">;
 export type ZoneOccupancyEntries = Doc<"storageZoneOccupancyEntries">;
-/** The pallet fields occupancy readers use. Everything else stays on the pallet. */
-export type OccupancyPallet = ZoneOccupancyEntries["pallets"][number];
+type StoredPallet = ZoneOccupancyEntries["pallets"][number];
+/**
+ * The pallet fields occupancy readers use. Everything else stays on the
+ * pallet. `activeMove`/`stackedPalletIds` absent: unknown, query them.
+ */
+export type OccupancyPallet = Omit<
+  StoredPallet,
+  "warehouseId" | "stackUnknown" | "activeMove"
+> & { warehouseId: Id<"warehouses">; activeMove?: boolean };
+
+/**
+ * Stored form: the row's warehouse, no active move and no stacked pallets are
+ * left implicit (the common case), and unknown stack facts are marked.
+ */
+function storedPallet(
+  facts: OccupancyPallet,
+  warehouseId: string,
+): StoredPallet {
+  const { warehouseId: own, activeMove, stackedPalletIds, ...rest } = facts;
+  return {
+    ...rest,
+    ...(own === warehouseId ? {} : { warehouseId: own }),
+    ...(activeMove === undefined || stackedPalletIds === undefined
+      ? { stackUnknown: true }
+      : {
+          ...(activeMove ? { activeMove: true as const } : {}),
+          ...(stackedPalletIds.length ? { stackedPalletIds } : {}),
+        }),
+  };
+}
+function occupancyPallet(
+  stored: StoredPallet,
+  row: Pick<ZoneOccupancyEntries, "warehouseId">,
+): OccupancyPallet {
+  const { warehouseId, stackUnknown, activeMove, stackedPalletIds, ...rest } =
+    stored;
+  return {
+    ...rest,
+    warehouseId: warehouseId ?? row.warehouseId,
+    ...(stackUnknown
+      ? {}
+      : {
+          activeMove: activeMove === true,
+          stackedPalletIds: stackedPalletIds ?? [],
+        }),
+  };
+}
+const occupancyPallets = (row: ZoneOccupancyEntries) =>
+  row.pallets.map((pallet) => occupancyPallet(pallet, row));
 
 const HELD = ["RESERVED", "STORED"] as const;
 const isHeld = (placement: Placement | null): placement is Placement =>
@@ -58,15 +137,153 @@ export function palletFacts(pallet: Pallet): OccupancyPallet {
   };
 }
 
+/** Stack supports one pallet per level; more is malformed: leave it unknown. */
+const MAX_STACK_FACT_CHILDREN = 50;
 /**
- * The validator is the exact placement-document union; generated types merge
- * union members inside arrays, so narrow the stored copies back to documents.
+ * Pallets one mutation computes stack facts for when it rebuilds a zone that
+ * had no rows. Beyond it the facts stay unknown and readers query them, so a
+ * write never pays four index ranges per pallet of a dense zone.
  */
-const storedPlacements = (row: ZoneOccupancyEntries) =>
-  row.placements as unknown as readonly Placement[];
+const STACK_FACTS_PER_REBUILD = 50;
+
+/**
+ * What stack validation asks of a support pallet besides its own fields:
+ * whether it has an active move, and which pallets its held placements carry
+ * (by_orgId_supportPalletId_status, creation order). Recommendations read
+ * these here instead of four index ranges per supporting pallet; mutations
+ * still query them. Maintained with the pallet's facts: move writes touch
+ * their pallet, and placement writes touch the pallet they rest on.
+ */
+async function stackFacts(
+  db: Pick<TenantDocumentAccess, "byIndex">,
+  palletId: string,
+): Promise<Pick<OccupancyPallet, "activeMove" | "stackedPalletIds">> {
+  const [moves, children] = await Promise.all([
+    Promise.all(
+      (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
+        db
+          .byIndex<Doc<"finishedGoodsMoves">>(
+            "finishedGoodsMoves",
+            "by_orgId_palletId_status",
+            [
+              { field: "palletId", value: palletId },
+              { field: "status", value: status },
+            ],
+          )
+          .first(),
+      ),
+    ),
+    Promise.all(
+      HELD.map((status) =>
+        db
+          .byIndex<Placement>(
+            "finishedGoodsPlacements",
+            "by_orgId_supportPalletId_status",
+            [
+              { field: "supportPalletId", value: palletId },
+              { field: "status", value: status },
+            ],
+          )
+          .take(MAX_STACK_FACT_CHILDREN + 1),
+      ),
+    ),
+  ]);
+  const held = children.flat();
+  return {
+    activeMove: moves.some((move) => move !== null),
+    ...(held.length > MAX_STACK_FACT_CHILDREN
+      ? {}
+      : {
+          stackedPalletIds: held
+            .sort((a, b) => a._creationTime - b._creationTime)
+            .map((p) => p.palletId),
+        }),
+  };
+}
+async function palletWithStackFacts(db: TenantDocumentAccess, pallet: Pallet) {
+  return { ...palletFacts(pallet), ...(await stackFacts(db, pallet._id)) };
+}
+
+const present = <T extends Record<string, unknown>>(fields: T) =>
+  Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined),
+  ) as T;
+
+/** The reader projection of a placement document (see HeldPlacement). */
+export function heldPlacement(p: Placement | HeldPlacement): HeldPlacement {
+  const base = {
+    _id: p._id,
+    _creationTime: p._creationTime,
+    warehouseId: p.warehouseId,
+    buildingId: p.buildingId,
+    zoneId: p.zoneId,
+    palletId: p.palletId,
+    status: p.status,
+    positionCode: p.positionCode,
+    updatedAt: p.updatedAt,
+    supportPositionId: p.supportPositionId,
+  };
+  if (p.mode === "LOCATION_ONLY")
+    return present({
+      ...base,
+      mode: p.mode,
+      assignmentId: p.assignmentId,
+      sequence: p.sequence,
+      supportPalletId: p.supportPalletId,
+    }) as HeldPlacement;
+  return present({
+    ...base,
+    mode: p.mode,
+    supportPalletId: p.supportPalletId,
+    xMm: p.xMm,
+    yMm: p.yMm,
+    zMm: p.zMm,
+    widthMm: p.widthMm,
+    depthMm: p.depthMm,
+    heightMm: p.heightMm,
+    rotation: p.rotation,
+  }) as HeldPlacement;
+}
+
+/**
+ * Stored form: the zone, and the warehouse and building when they are the
+ * zone's (always, unless a malformed placement names others), come from the
+ * row, so only exceptions are written per entry.
+ */
+function storedEntry(p: HeldPlacement, zone: Zone) {
+  const { zoneId, warehouseId, buildingId, ...rest } = p;
+  void zoneId;
+  return {
+    ...rest,
+    ...(warehouseId === zone.warehouseId ? {} : { warehouseId }),
+    ...(buildingId === zone.buildingId ? {} : { buildingId }),
+  };
+}
+
+/**
+ * Current-version entries back as reader projections. Generated types merge
+ * the validator's union members inside arrays, so narrow them here.
+ */
+function heldEntries(row: ZoneOccupancyEntries): HeldPlacement[] {
+  const stored = row.placements as unknown as readonly (Partial<
+    Pick<HeldPlacement, "warehouseId" | "buildingId">
+  > &
+    Omit<HeldPlacement, "zoneId" | "warehouseId" | "buildingId">)[];
+  return stored.map(
+    (entry) =>
+      ({
+        ...entry,
+        zoneId: row.zoneId,
+        warehouseId: entry.warehouseId ?? row.warehouseId,
+        buildingId: entry.buildingId ?? row.buildingId!,
+      }) as HeldPlacement,
+  );
+}
+const currentEntries = (row: ZoneOccupancyEntries | null) =>
+  row?.version === ZONE_OCCUPANCY_VERSION && row.buildingId !== undefined;
 
 /** by_orgId_zoneId_status order: RESERVED before STORED, each by creation. */
-const indexOrder = (a: Placement, b: Placement) =>
+const indexOrder = (a: HeldPlacement, b: HeldPlacement) =>
   (a.status === b.status ? 0 : a.status === "RESERVED" ? -1 : 1) ||
   a._creationTime - b._creationTime;
 
@@ -93,7 +310,7 @@ async function heldPlacementsOfZone(
           .all(MAX_ZONE_OCCUPANCY_ENTRIES),
       ),
     );
-    const placements = groups.flat();
+    const placements = groups.flat().map(heldPlacement);
     return {
       placements,
       complete: placements.length <= MAX_ZONE_OCCUPANCY_ENTRIES,
@@ -125,9 +342,11 @@ async function rowsOf(db: TenantDocumentAccess, zoneId: string) {
   return { summary, entries };
 }
 
-/** Compare field values only, so an unchanged row is not rewritten. */
-/** Key-order-independent serialization: stored documents reorder fields. */
-const canonical = (value: unknown): string =>
+/**
+ * Key-order-independent serialization: stored documents reorder fields.
+ * Compare field values only, so an unchanged row is not rewritten.
+ */
+export const canonical = (value: unknown): string =>
   Array.isArray(value)
     ? `[${value.map(canonical).join(",")}]`
     : value !== null && typeof value === "object"
@@ -151,7 +370,7 @@ const sameFields = (existing: object, next: Record<string, unknown>) =>
 
 function summaryFields(
   zone: Zone,
-  ordered: readonly Placement[],
+  ordered: readonly HeldPlacement[],
   complete: boolean,
 ) {
   if (!complete)
@@ -209,11 +428,12 @@ async function write(
   ];
   const entries = {
     warehouseId: zone.warehouseId,
+    buildingId: zone.buildingId,
     zoneId: zone._id,
     version: ZONE_OCCUPANCY_VERSION,
     complete,
-    placements: kept,
-    pallets: facts,
+    placements: kept.map((p) => storedEntry(p, zone)),
+    pallets: facts.map((pallet) => storedPallet(pallet, zone.warehouseId)),
   };
   if (!existing.entries)
     await db.insert("storageZoneOccupancyEntries", entries);
@@ -229,17 +449,27 @@ async function factsFor(
   db: TenantDocumentAccess,
   held: Held,
   known: ReadonlyMap<string, OccupancyPallet> = new Map(),
+  /** Pallets that may get stack facts (Infinity in the backfill). */
+  stackLimit = STACK_FACTS_PER_REBUILD,
 ) {
   const facts = new Map(known);
   // Overflowed zones keep no entries, so their pallet facts would be discarded.
   if (!held.complete) return facts;
+  const missing = [
+    ...new Set(held.placements.map((p) => p.palletId as string)),
+  ].filter((id) => !facts.has(id));
+  const withStack = missing.length <= stackLimit;
   await Promise.all(
-    [...new Set(held.placements.map((p) => p.palletId as string))]
-      .filter((id) => !facts.has(id))
-      .map(async (id) => {
-        const pallet = await db.get<Pallet>("finishedGoodsPallets", id);
-        if (pallet) facts.set(id, palletFacts(pallet));
-      }),
+    missing.map(async (id) => {
+      const pallet = await db.get<Pallet>("finishedGoodsPallets", id);
+      if (pallet)
+        facts.set(
+          id,
+          withStack
+            ? await palletWithStackFacts(db, pallet)
+            : palletFacts(pallet),
+        );
+    }),
   );
   return facts;
 }
@@ -253,13 +483,15 @@ export async function rebuildZoneOccupancy(
   zone: Zone,
 ) {
   const held = await heldPlacementsOfZone(db, zone._id);
-  const facts = await factsFor(db, held);
+  const facts = await factsFor(db, held, new Map(), Infinity);
   await write(db, zone, held, facts, await rowsOf(db, zone._id));
-  // An overflowed zone may have read up to cap+1 rows per status.
+  // An overflowed zone may have read up to cap+1 rows per status. Each
+  // pallet's stack facts take four index ranges: count them as documents so
+  // a page of dense zones stays far below the range limit too.
   const placements = held.complete
     ? held.placements.length
     : HELD.length * (MAX_ZONE_OCCUPANCY_ENTRIES + 1);
-  return placements + facts.size + 2;
+  return placements + facts.size * 5 + 2;
 }
 
 /** Overflowed zones of a warehouse, for the bounded hourly re-check. */
@@ -316,7 +548,8 @@ export async function refreshZoneOccupancy(
         ),
       ),
     ]);
-    if (pallet) changedPallets.set(palletId, palletFacts(pallet));
+    if (pallet)
+      changedPallets.set(palletId, await palletWithStackFacts(db, pallet));
     for (const hold of holds.flat()) {
       placementIds.add(hold._id);
       zones.add(hold.zoneId);
@@ -334,7 +567,7 @@ export async function refreshZoneOccupancy(
     const existing = await rowsOf(db, zoneId);
     const currentVersion =
       existing.summary?.version === ZONE_OCCUPANCY_VERSION &&
-      existing.entries?.version === ZONE_OCCUPANCY_VERSION;
+      currentEntries(existing.entries);
     // Overflowed zones are read directly: no per-write work, no full-range read.
     if (currentVersion && existing.summary && !existing.summary.complete)
       continue;
@@ -350,19 +583,17 @@ export async function refreshZoneOccupancy(
       continue;
     }
     const placements = [
-      ...storedPlacements(existing.entries).filter(
-        (p) => !placementIds.has(p._id),
-      ),
-      ...[...current.values()].filter(
-        (p): p is Placement => isHeld(p) && p.zoneId === zoneId,
-      ),
+      ...heldEntries(existing.entries).filter((p) => !placementIds.has(p._id)),
+      ...[...current.values()]
+        .filter((p): p is Placement => isHeld(p) && p.zoneId === zoneId)
+        .map(heldPlacement),
     ];
     const held = {
       placements,
       complete: placements.length <= MAX_ZONE_OCCUPANCY_ENTRIES,
     };
     const known = new Map(
-      existing.entries.pallets
+      occupancyPallets(existing.entries)
         .filter((pallet) => !touched.pallets.has(pallet._id))
         .map((pallet) => [pallet._id as string, pallet] as const),
     );
@@ -438,12 +669,30 @@ export async function zoneOccupancyReady(
     legacyWriterGeneration(db, warehouseId),
   ]);
   return (
+    zoneRowsTrusted(row, generation) &&
+    (scope === "zone" || (await buildingScopeClear(db, warehouseId)))
+  );
+}
+
+/** The readiness row says zone-scoped readers may use the rows. */
+export function zoneRowsTrusted(
+  row: Readiness | null,
+  legacyGeneration: number,
+): row is Readiness {
+  return (
     row?.ready === true &&
     row.stale !== true &&
     row.version === ZONE_OCCUPANCY_VERSION &&
-    (row.summaryGeneration ?? 0) === generation &&
-    (scope === "zone" || (await buildingScopeClear(db, warehouseId)))
+    (row.summaryGeneration ?? 0) === legacyGeneration
   );
+}
+
+/** The warehouse's occupancy readiness row (null before any backfill). */
+export async function zoneOccupancyReadiness(
+  db: Pick<TenantDocumentAccess, "byIndex">,
+  warehouseId: string,
+) {
+  return readinessRow(db, warehouseId);
 }
 
 /**
@@ -476,7 +725,7 @@ export async function zoneOccupancyEntries(
   db: Pick<TenantDocumentAccess, "byIndex">,
   zoneId: Id<"storageZones"> | string,
 ): Promise<{
-  placements: readonly Placement[];
+  placements: readonly HeldPlacement[];
   pallets: ReadonlyMap<string, OccupancyPallet>;
 } | null> {
   const row = await db
@@ -489,11 +738,11 @@ export async function zoneOccupancyEntries(
   // Ready warehouses keep rows for every zone holding a placement, so a zone
   // without one holds nothing.
   if (!row) return { placements: [], pallets: new Map() };
-  if (row.version !== ZONE_OCCUPANCY_VERSION || !row.complete) return null;
+  if (!currentEntries(row) || !row.complete) return null;
   return {
-    placements: storedPlacements(row),
+    placements: heldEntries(row),
     pallets: new Map(
-      row.pallets.map((pallet) => [pallet._id as string, pallet]),
+      occupancyPallets(row).map((pallet) => [pallet._id as string, pallet]),
     ),
   };
 }

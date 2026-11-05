@@ -1,5 +1,6 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
+  type HeldPlacement,
   type OccupancyPallet,
   type ZoneOccupancySummary,
   zoneOccupancyEntries,
@@ -109,7 +110,8 @@ function createPlacementReader(
     ctx.tenantDb,
     "finishedGoodsProducts",
   );
-  return async (placement: PlacementDocument) => {
+  // Reads only HeldPlacement fields, so derived entries and documents agree.
+  return async (placement: HeldPlacement) => {
     const pallet = await readPallet(placement.palletId);
     const product = pallet ? await readProduct(pallet.productId) : null;
     if (!isGeometricPlacement(placement))
@@ -607,7 +609,7 @@ async function derivedBuildingPlacements(
           ),
         );
         return {
-          placements: held.flat(),
+          placements: held.flat() as HeldPlacement[],
           pallets: new Map<string, OccupancyPallet>(),
         };
       }),

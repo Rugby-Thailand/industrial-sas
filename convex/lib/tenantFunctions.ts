@@ -488,7 +488,10 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
     );
 
     const summaryWrites = audit
-      ? trackFinishedGoodsWrites(sourceDb)
+      ? trackFinishedGoodsWrites(
+          sourceDb,
+          "scheduler" in rawContext ? rawContext.scheduler : undefined,
+        )
       : undefined;
     const searchWrites = summaryWrites
       ? trackSearchIndexWrites(

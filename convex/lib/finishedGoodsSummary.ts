@@ -1,6 +1,8 @@
-import type { Doc } from "../_generated/dataModel";
+import type { GenericMutationCtx } from "convex/server";
+import type { DataModel, Doc } from "../_generated/dataModel";
 import type { TenantDocumentAccess } from "./tenantDb";
 import { refreshZoneOccupancy } from "./zoneOccupancy";
+import { trackSurfaceWrites } from "./zoneSurfaces";
 import { adjustWarehouseTotals, TOTAL_FIELDS } from "./warehouseTotals";
 
 const VERSION = 1;
@@ -345,13 +347,19 @@ export async function backfillProductSummaries(
 }
 
 /** Wrap source writes once and flush after the entire mutation, including moves. */
-export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
+export function trackFinishedGoodsWrites(
+  db: TenantDocumentAccess,
+  scheduler?: GenericMutationCtx<DataModel>["scheduler"],
+) {
+  const surfaces = trackSurfaceWrites(db);
   const touched = new Set<string>();
   const warehouses = new Set<string>();
   const storageWarehouses = new Set<string>();
   // Zone occupancy: placements and the zones they left or entered.
   const placements = new Set<string>();
   const zones = new Set<string>();
+  // Pallets carrying a written placement (their occupancy stack facts).
+  const supports = new Set<string>();
   // Products as they were before this mutation (null: inserted by it).
   const productsBefore = new Map<
     string,
@@ -384,6 +392,8 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
         id,
       );
       if (row) zones.add(row.zoneId);
+      // The pallet it rests on (before and after): its stack facts change.
+      if (row?.supportPalletId) supports.add(row.supportPalletId);
     }
     if (
       table === "finishedGoodsPallets" ||
@@ -410,7 +420,9 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
           row.warehouseId,
         );
       }
+      surfaces.note(table, id, row, inserted);
     }
+    if (table === "locations") surfaces.note(table, id, null, inserted);
     if (table === "finishedGoodsMoves") {
       const move = await db.get<Doc<"finishedGoodsMoves">>(
         "finishedGoodsMoves",
@@ -469,7 +481,13 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
             (after ?? before)?._creationTime,
           );
       }
-      await refreshZoneOccupancy(db, { zones, placements, pallets: touched });
+      await refreshZoneOccupancy(db, {
+        zones,
+        placements,
+        pallets: new Set([...touched, ...supports]),
+      });
+      // Each warehouse's layout generation before and after this mutation.
+      const generations = new Map<string, { before: number; after: number }>();
       for (const warehouseId of storageWarehouses) {
         const state = await db
           .byIndex<Doc<"storageCatalogueSignals">>(
@@ -487,7 +505,10 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
             warehouseId,
             generation: 1,
           });
+        const before = state?.generation ?? 0;
+        generations.set(warehouseId, { before, after: before + 1 });
       }
+      await surfaces.flush(generations, scheduler);
       for (const warehouseId of warehouses) {
         // A sharded change counter: concurrent writers rarely share a shard,
         // and readers derive the continuation token from the shard sum.

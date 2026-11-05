@@ -371,8 +371,10 @@ export const bootstrapLocalDemo = internalMutation({
       .unique();
     let created = false;
     if (!building) {
-      // Raw building/location writes bypass tracked search maintenance.
+      // Raw building/location writes bypass tracked search and zone surface
+      // maintenance.
       await invalidateSearchIndex(ctx, warehouse._id);
+      await invalidateZoneOccupancy(ctx, warehouse._id);
       const grossAreaSqMm = 30_000 * 20_000;
       const buildingId = await ctx.db.insert("storageBuildings", {
         orgId: organization._id,
@@ -568,8 +570,10 @@ export const configure = internalMutation({
       .unique();
     if (!building)
       throw new Error("DEMO-ANNEX was not found in this warehouse");
-    // Raw location/zone writes bypass tracked search maintenance.
+    // Raw location/zone writes bypass tracked search and zone surface
+    // maintenance.
     await invalidateSearchIndex(ctx, warehouse._id);
+    await invalidateZoneOccupancy(ctx, warehouse._id);
 
     const floors = await ctx.db
       .query("storageFloors")

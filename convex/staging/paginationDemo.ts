@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 import { invalidateSearchIndex } from "../finishedGoods/searchIndexBackfill";
+import { invalidateZoneOccupancy } from "../storageLayouts/zoneOccupancyBackfill";
 
 export const PAGINATION_CONFIRMATION = "LOCAL_PAGINATION_FIXTURES_V1";
 const prefix = "PAGINATION-";
@@ -48,9 +49,12 @@ export const seed = internalMutation({
     if (!warehouse || !actor)
       throw new Error("Seed warehouse or actor not found");
     const orgId = warehouse.orgId;
-    // Raw building/location writes bypass tracked search maintenance.
-    if (args.kind === "buildings")
+    // Raw building/location writes bypass tracked search and zone surface
+    // maintenance.
+    if (args.kind === "buildings") {
       await invalidateSearchIndex(ctx, args.warehouseId);
+      await invalidateZoneOccupancy(ctx, args.warehouseId);
+    }
     const shared = { orgId, warehouseId: args.warehouseId };
     const audit = {
       createdAt: 1_700_000_000_000,

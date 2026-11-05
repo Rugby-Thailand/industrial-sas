@@ -1,10 +1,22 @@
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
+  heldPlacement,
+  type HeldPlacement,
   type OccupancyPallet,
+  ZONE_OCCUPANCY_VERSION,
   zoneOccupancyEntries,
-  zoneOccupancyReady,
   zoneUnmeasuredCount,
 } from "../lib/zoneOccupancy";
+import {
+  compatibleConditionKeys,
+  currentZoneSurface,
+  listedSurfaces,
+  recommendationReadiness,
+  surfaceZone,
+  usableLocation,
+  type SurfaceZone,
+  type ZoneSurfaceRow,
+} from "../lib/zoneSurfaces";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import {
   listedCandidate as listed,
@@ -614,11 +626,8 @@ function createLocationReadScope(
     ctx.tenantDb,
     "finishedGoodsPlacements",
   );
-  const knownPlacements = new Map<
-    string,
-    Promise<Doc<"finishedGoodsPlacements"> | null>
-  >();
-  const remember = (rows: readonly Doc<"finishedGoodsPlacements">[]) => {
+  const knownPlacements = new Map<string, Promise<HeldPlacement | null>>();
+  const remember = (rows: readonly HeldPlacement[]) => {
     for (const row of rows)
       if (!knownPlacements.has(row._id))
         knownPlacements.set(row._id, Promise.resolve(row));
@@ -637,17 +646,20 @@ function createLocationReadScope(
         stored: entries.placements.filter((p) => p.status === "STORED"),
       };
     }
+    // The same projection the derived entries store, so both paths agree.
     const [held, stored] = await Promise.all(
-      (["RESERVED", "STORED"] as const).map((status) =>
-        rows<Doc<"finishedGoodsPlacements">>(
-          ctx,
-          "finishedGoodsPlacements",
-          "by_orgId_zoneId_status",
-          [
-            { field: "zoneId", value: zoneId },
-            { field: "status", value: status },
-          ],
-        ),
+      (["RESERVED", "STORED"] as const).map(async (status) =>
+        (
+          await rows<Doc<"finishedGoodsPlacements">>(
+            ctx,
+            "finishedGoodsPlacements",
+            "by_orgId_zoneId_status",
+            [
+              { field: "zoneId", value: zoneId },
+              { field: "status", value: status },
+            ],
+          )
+        ).map(heldPlacement),
       ),
     );
     remember(held!);
@@ -658,7 +670,10 @@ function createLocationReadScope(
     zone: createQueryDocumentReader(ctx.tenantDb, "storageZones"),
     building: (id: string) => known.get(id) ?? readBuilding(id),
     pallet,
-    placement: (id: string) => knownPlacements.get(id) ?? readPlacement(id),
+    /** Derived facts of a pallet already loaded from occupancy, else null. */
+    facts: (id: string) => knownPallets.get(id) ?? Promise.resolve(null),
+    placement: (id: string): Promise<HeldPlacement | null> =>
+      knownPlacements.get(id) ?? readPlacement(id),
     occupancy,
     /** Unmeasured held placements: the summary row when ready, else counted. */
     unmeasured: async (zoneId: Id<"storageZones">) => {
@@ -717,6 +732,72 @@ async function mapBounded<Input, Output>(
   return result;
 }
 
+/** The position fields a recommendation reads; a position document has them. */
+type PositionView = Pick<
+  Doc<"storagePositions">,
+  | "_id"
+  | "code"
+  | "label"
+  | "xMm"
+  | "yMm"
+  | "widthMm"
+  | "depthMm"
+  | "elevationMm"
+>;
+/** Where a zone's location check and ACTIVE positions come from. */
+interface ZoneLayout<Position extends PositionView> {
+  /** The zone's location is ACTIVE in the warehouse. */
+  locationUsable(): Promise<boolean>;
+  /** ACTIVE positions in by_orgId_zoneId_status_code order. */
+  positions(): Promise<readonly Position[]>;
+  /** The position's location is ACTIVE in the warehouse. */
+  positionUsable(position: Position): Promise<boolean>;
+}
+/** Read straight from the layout documents (mutations, and readers' fallback). */
+function documentLayout(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  zone: SurfaceZone,
+  scope: ReturnType<typeof createLocationReadScope>,
+): ZoneLayout<Doc<"storagePositions">> {
+  return {
+    locationUsable: async () =>
+      usableLocation(await scope.location(zone.locationId), warehouseId),
+    positions: () =>
+      rows<Doc<"storagePositions">>(
+        ctx,
+        "storagePositions",
+        "by_orgId_zoneId_status_code",
+        [
+          { field: "zoneId", value: zone._id },
+          { field: "status", value: "ACTIVE" },
+        ],
+      ),
+    positionUsable: async (position) =>
+      usableLocation(await scope.location(position.locationId), warehouseId),
+  };
+}
+type SurfacePositionView = ZoneSurfaceRow["positions"][number];
+/** From the zone's derived surface row (zoneSurfaces); exact, one document. */
+function surfaceLayout(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  row: ZoneSurfaceRow,
+  scope: ReturnType<typeof createLocationReadScope>,
+): ZoneLayout<SurfacePositionView | Doc<"storagePositions">> {
+  const documents = documentLayout(ctx, warehouseId, surfaceZone(row), scope);
+  return {
+    locationUsable: async () => row.eligible,
+    // Above the position cap the row omits positions: read them directly.
+    positions: () =>
+      row.complete ? Promise.resolve(row.positions) : documents.positions(),
+    positionUsable: (position) =>
+      "usable" in position
+        ? Promise.resolve(position.usable)
+        : documents.positionUsable(position),
+  };
+}
+
 async function locationContext(
   ctx: TenantFunctionContext,
   warehouseId: string,
@@ -726,12 +807,28 @@ async function locationContext(
   recommendationProduct?: Doc<"finishedGoodsProducts">,
 ) {
   const zone = knownZone ?? (await scope.zone(zoneId));
-  if (!zone || zone.warehouseId !== warehouseId || zone.status !== "ACTIVE")
-    return null;
-  const [building, floor, location] = await Promise.all([
+  if (!zone) return null;
+  return resolvedContext(
+    warehouseId,
+    zone,
+    scope,
+    documentLayout(ctx, warehouseId, zone, scope),
+    recommendationProduct,
+  );
+}
+
+async function resolvedContext<Position extends PositionView>(
+  warehouseId: string,
+  zone: SurfaceZone,
+  scope: ReturnType<typeof createLocationReadScope>,
+  layout: ZoneLayout<Position>,
+  recommendationProduct?: Doc<"finishedGoodsProducts">,
+) {
+  if (zone.warehouseId !== warehouseId || zone.status !== "ACTIVE") return null;
+  const [building, floor, locationUsable] = await Promise.all([
     scope.building(zone.buildingId),
     scope.floor(zone.floorId),
-    scope.location(zone.locationId),
+    layout.locationUsable(),
   ]);
   if (
     !building ||
@@ -739,9 +836,7 @@ async function locationContext(
     building.warehouseId !== warehouseId ||
     !floor ||
     floor.buildingId !== building._id ||
-    !location ||
-    location.status !== "ACTIVE" ||
-    location.warehouseId !== warehouseId
+    !locationUsable
   )
     return null;
   // A recommendation needs only the reason for a zone whose result is one:
@@ -751,7 +846,7 @@ async function locationContext(
     zone,
     building,
     floor,
-    positions: [] as Doc<"storagePositions">[],
+    positions: [] as Position[],
     supports: [],
     unavailable: [],
     occupancy: [],
@@ -769,15 +864,7 @@ async function locationContext(
   if (recommendationProduct !== undefined && unmeasuredPalletCount > 0)
     return reasonOnly(unmeasuredPalletCount);
   const [positions, allBlocks] = await Promise.all([
-    rows<Doc<"storagePositions">>(
-      ctx,
-      "storagePositions",
-      "by_orgId_zoneId_status_code",
-      [
-        { field: "zoneId", value: zone._id },
-        { field: "status", value: "ACTIVE" },
-      ],
-    ),
+    layout.positions(),
     scope.blocks(zone.floorId),
   ]);
   const unavailable = allBlocks
@@ -824,13 +911,7 @@ async function locationContext(
         position.depthMm === undefined
       )
         continue;
-      const positionLocation = await scope.location(position.locationId);
-      if (
-        !positionLocation ||
-        positionLocation.status !== "ACTIVE" ||
-        positionLocation.warehouseId !== warehouseId
-      )
-        continue;
+      if (!(await layout.positionUsable(position))) continue;
       const zMm = position.elevationMm ?? base;
       const xMm = position.xMm - zone.xMm,
         yMm = position.yMm - zone.yMm;
@@ -925,14 +1006,19 @@ async function locationContext(
     zone,
     building,
     floor,
-    positions,
+    positions: positions as readonly Position[],
     supports,
     unavailable,
     occupancy,
     unmeasuredPalletCount,
   };
 }
-type LocationContext = NonNullable<Awaited<ReturnType<typeof locationContext>>>;
+type ResolvedContext<Position extends PositionView> = NonNullable<
+  Awaited<ReturnType<typeof resolvedContext<Position>>>
+>;
+type LocationContext = ResolvedContext<Doc<"storagePositions">>;
+/** What recommendations need of a context, from documents or surface rows. */
+type RecommendationContext = ResolvedContext<PositionView>;
 export interface PreviewSupport {
   supportPositionId?: Id<"storagePositions">;
   supportPalletId?: Id<"finishedGoodsPallets">;
@@ -1000,7 +1086,7 @@ export interface Destination {
 }
 export type Candidate = Destination;
 function conditionCheck(
-  context: { zone: Doc<"storageZones"> },
+  context: { zone: Pick<SurfaceZone, "storageCondition"> },
   product: Doc<"finishedGoodsProducts">,
 ): "UNKNOWN" | "MATCH" | "MISMATCH" {
   const locationCondition = context.zone.storageCondition?.trim().toUpperCase();
@@ -1012,7 +1098,7 @@ function conditionCheck(
 }
 /** The zone's held placements other than `palletId`'s, as a destination shows them. */
 function occupiedView(
-  context: LocationContext,
+  context: RecommendationContext,
   palletId: Id<"finishedGoodsPallets">,
 ): Destination["occupied"] {
   return context.occupancy
@@ -1031,8 +1117,8 @@ function occupiedView(
     }));
 }
 function destination(
-  context: LocationContext,
-  support: LocationContext["supports"][number],
+  context: RecommendationContext,
+  support: RecommendationContext["supports"][number],
   box: {
     xMm: number;
     yMm: number;
@@ -1142,7 +1228,7 @@ async function zoneRecommendation(
   ctx: TenantFunctionContext,
   pallet: MeasuredPallet,
   product: Doc<"finishedGoodsProducts">,
-  context: LocationContext,
+  context: RecommendationContext,
   stackScope: StackScope,
 ) {
   const reasons: string[] = [];
@@ -1229,10 +1315,22 @@ async function zoneRecommendation(
   }
   return result;
 }
+/** A refusal (reasons only) or the ranked result; the type clients infer. */
+type RecommendationResult =
+  | {
+      candidates: Candidate[];
+      reasons: string[];
+      previewCandidates?: undefined;
+    }
+  | {
+      candidates: Candidate[];
+      previewCandidates: Candidate[];
+      reasons: string[];
+    };
 async function recommendations(
   ctx: TenantFunctionContext,
   args: { warehouseId: Id<"warehouses">; palletId: Id<"finishedGoodsPallets"> },
-) {
+): Promise<RecommendationResult> {
   const inputs = await recommendationInputs(ctx, args);
   if ("refusal" in inputs)
     return { candidates: [] as Candidate[], reasons: [inputs.refusal] };
@@ -1249,46 +1347,123 @@ async function recommendations(
       { field: "status", value: "ACTIVE" },
     ],
   );
-  const zones = (
-    await Promise.all(
-      activeBuildings.map((building) =>
-        rows<Doc<"storageZones">>(
-          ctx,
-          "storageZones",
-          "by_orgId_buildingId_code",
-          [{ field: "buildingId", value: building._id }],
+  const { occupancy, surfaces } = await recommendationReadiness(
+    ctx.tenantDb,
+    args.warehouseId,
+  );
+  const scope = createLocationReadScope(ctx, activeBuildings, occupancy);
+  const stackScope = createStackReadScope(ctx, pallet, scope);
+  type ZoneResult = Awaited<ReturnType<typeof zoneRecommendation>>;
+  const evaluate = async (
+    contexts: readonly (RecommendationContext | null)[],
+  ): Promise<(ZoneResult | null)[]> => {
+    const results: (ZoneResult | null)[] = [];
+    for (const context of contexts)
+      results.push(
+        context
+          ? await zoneRecommendation(ctx, pallet, product, context, stackScope)
+          : null,
+      );
+    return results;
+  };
+  const byCode = (
+    a: { code: string; _creationTime: number },
+    b: { code: string; _creationTime: number },
+  ) => compareCodePoints(a.code, b.code) || a._creationTime - b._creationTime;
+  if (!surfaces) {
+    // Read the layout: every zone of every active building.
+    const zones = (
+      await Promise.all(
+        activeBuildings.map((building) =>
+          rows<Doc<"storageZones">>(
+            ctx,
+            "storageZones",
+            "by_orgId_buildingId_code",
+            [{ field: "buildingId", value: building._id }],
+          ),
+        ),
+      )
+    )
+      .flat()
+      .sort(byCode);
+    return ranked(
+      await evaluate(
+        await mapBounded(zones, (zone) =>
+          locationContext(
+            ctx,
+            args.warehouseId,
+            zone._id,
+            scope,
+            zone,
+            product,
+          ),
         ),
       ),
-    )
-  )
-    .flat()
-    .sort(
-      (a, b) =>
-        compareCodePoints(a.code, b.code) || a._creationTime - b._creationTime,
     );
+  }
+  // Zone surfaces: one row per zone, and only zones whose storage condition
+  // can match the product. A mismatched zone contributes only a reason, and
+  // reasons are shown only when nothing fits, so they are read only then.
+  const activeIds = new Set(activeBuildings.map((b) => b._id as string));
+  const listed = async (key?: string) =>
+    (await listedSurfaces(ctx.tenantDb, args.warehouseId, key))
+      .filter(
+        (row) =>
+          row.runId === surfaces.runId &&
+          row.version === ZONE_OCCUPANCY_VERSION &&
+          activeIds.has(row.buildingId),
+      )
+      .map((row) => ({ row, zone: surfaceZone(row) }))
+      .sort((a, b) => byCode(a.zone, b.zone));
+  const results = new Map<string, ZoneResult | null>();
+  const resultsOf = async (zones: Awaited<ReturnType<typeof listed>>) => {
+    const pending = zones.filter(({ zone }) => !results.has(zone._id));
+    const contexts = await mapBounded(pending, ({ row, zone }) =>
+      resolvedContext(
+        args.warehouseId,
+        zone,
+        scope,
+        surfaceLayout(ctx, args.warehouseId, row, scope),
+        product,
+      ),
+    );
+    const evaluated = await evaluate(contexts);
+    pending.forEach(({ zone }, index) =>
+      results.set(zone._id, evaluated[index]!),
+    );
+    return zones.map(({ zone }) => results.get(zone._id)!);
+  };
+  const keys = compatibleConditionKeys(product.storageCondition);
+  const compatible =
+    keys === null
+      ? await listed()
+      : (await Promise.all(keys.map((key) => listed(key))))
+          .flat()
+          .sort((a, b) => byCode(a.zone, b.zone));
+  const first = ranked(await resultsOf(compatible));
+  if (keys === null || first.candidates.length) return first;
+  // Nothing fits: every active zone's reasons, in zone-code order.
+  return ranked(await resultsOf(await listed()));
+}
+
+/**
+ * Zone results in zone-code order, ranked: candidates sorted, inspect-only
+ * previews and reasons in zone order, reasons only when nothing fits.
+ */
+function ranked(
+  results: readonly ({
+    reasons: string[];
+    candidates: Candidate[];
+    previewCandidates: Candidate[];
+  } | null)[],
+) {
   const candidates: Candidate[] = [];
   const previewCandidates: Candidate[] = [];
   const reasons = new Set<string>();
   let active = 0;
-  const scope = createLocationReadScope(
-    ctx,
-    activeBuildings,
-    await zoneOccupancyReady(ctx.tenantDb, args.warehouseId),
-  );
-  const stackScope = createStackReadScope(ctx, pallet, scope);
-  const contexts = await mapBounded(zones, (zone) =>
-    locationContext(ctx, args.warehouseId, zone._id, scope, zone, product),
-  );
-  for (const context of contexts) {
-    if (!context) continue;
+  for (const zone of results) {
+    if (!zone) continue;
     active++;
-    const zone = await zoneRecommendation(
-      ctx,
-      pallet,
-      product,
-      context,
-      stackScope,
-    );
     for (const reason of zone.reasons) reasons.add(reason);
     for (const candidate of zone.candidates) candidates.push(candidate);
     for (const preview of zone.previewCandidates)
@@ -1319,7 +1494,7 @@ export type ZonePreview = Pick<Candidate, "zoneId" | ZonePreviewField>;
 function listView<
   Result extends {
     candidates: Candidate[];
-    previewCandidates?: Candidate[];
+    previewCandidates?: Candidate[] | undefined;
     reasons: string[];
   },
 >(result: Result) {
@@ -1402,19 +1577,31 @@ export const recommendationZone = queryWithOrg({
   handler: async (ctx, args): Promise<ZonePreview | null> => {
     const inputs = await recommendationInputs(ctx, args);
     if ("refusal" in inputs) return null;
-    const scope = createLocationReadScope(
-      ctx,
-      [],
-      await zoneOccupancyReady(ctx.tenantDb, args.warehouseId),
-    );
-    const context = await locationContext(
-      ctx,
+    const { occupancy, surfaces } = await recommendationReadiness(
+      ctx.tenantDb,
       args.warehouseId,
-      args.zoneId,
-      scope,
-      undefined,
-      inputs.product,
     );
+    const scope = createLocationReadScope(ctx, [], occupancy);
+    // The zone's surface row, or (no current row) its layout documents.
+    const row = surfaces
+      ? await currentZoneSurface(ctx.tenantDb, args.zoneId, surfaces.runId)
+      : null;
+    const context = row
+      ? await resolvedContext(
+          args.warehouseId,
+          surfaceZone(row),
+          scope,
+          surfaceLayout(ctx, args.warehouseId, row, scope),
+          inputs.product,
+        )
+      : await locationContext(
+          ctx,
+          args.warehouseId,
+          args.zoneId,
+          scope,
+          undefined,
+          inputs.product,
+        );
     if (!context) return null;
     const { candidates, previewCandidates } = await zoneRecommendation(
       ctx,
@@ -2696,11 +2883,11 @@ export async function heldPlacements(
 interface StackReads {
   pallet(id: string): Promise<OccupancyPallet | null>;
   product(id: string): Promise<Doc<"finishedGoodsProducts"> | null>;
-  placement(id: string): Promise<Doc<"finishedGoodsPlacements"> | null>;
+  placement(id: string): Promise<HeldPlacement | null>;
   hasActiveMove(id: Id<"finishedGoodsPallets">): Promise<boolean>;
   stackChildren(
     id: Id<"finishedGoodsPallets">,
-  ): Promise<Doc<"finishedGoodsPlacements">[]>;
+  ): Promise<readonly { palletId: Id<"finishedGoodsPallets"> }[]>;
 }
 interface StackScope {
   readonly reads: StackReads;
@@ -2745,12 +2932,22 @@ function createStackReadScope(
   scope: ReturnType<typeof createLocationReadScope>,
 ): StackScope {
   const fresh = freshStackReads(ctx);
+  // Pallets read from derived occupancy carry their stack facts; others
+  // (and facts left unknown) are queried.
   const reads: StackReads = {
     pallet: scope.pallet,
     product: createQueryDocumentReader(ctx.tenantDb, "finishedGoodsProducts"),
     placement: scope.placement,
-    hasActiveMove: memoById(fresh.hasActiveMove),
-    stackChildren: memoById(fresh.stackChildren),
+    hasActiveMove: memoById(async (id) => {
+      const known = (await scope.facts(id))?.activeMove;
+      return known ?? fresh.hasActiveMove(id);
+    }),
+    stackChildren: memoById(async (id) => {
+      const known = (await scope.facts(id))?.stackedPalletIds;
+      return known
+        ? known.map((palletId) => ({ palletId }))
+        : fresh.stackChildren(id);
+    }),
   };
   let upperBlock: Promise<string | null> | undefined;
   return {
