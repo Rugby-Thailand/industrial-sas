@@ -290,8 +290,11 @@ export function queryScenarios(ids) {
         { ...w, palletId },
         {
           label: fn.endsWith("Move") ? "move: viewed zone" : "viewed zone",
-          // main has no zone query: nothing to subscribe to there.
+          // main has no zone query: nothing to subscribe to there. The
+          // opening zone rides along with the list, so the default screen
+          // does not subscribe to it either (a switched zone adds one).
           baseArgs: null,
+          subscribe: false,
           // Resolved once against the restored snapshot (same ids on every
           // target), with the argument shape every target accepts.
           resolveArgs: async (query) => ({

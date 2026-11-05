@@ -111,15 +111,20 @@ async function allIds(target, filter, search) {
     if (result.status === "reset")
       throw Error(`reset for ${JSON.stringify(search)}`);
     ids.push(...result.items.map((item) => item.id));
-    if (result.isDone || !result.continueCursor) break;
+    if (result.isDone || !result.continueCursor)
+      return { ids, requests, searchPath };
     cursor = result.continueCursor;
   }
-  return { ids, requests, searchPath };
+  // A traversal that never finished is a broken comparison, not a match.
+  throw Error(`${JSON.stringify(search)} did not finish within 200 pages`);
 }
 
 let mismatches = 0;
 let searched = 0;
+let shortNeedles = 0;
 let compared = 0;
+// The index serves needles of 3+ code points (MIN_INDEXED_NEEDLE).
+const indexable = (needle) => [...needle.normalize("NFKC")].length >= 3;
 const cost = { candidate: { requests: 0 }, base: { requests: 0 } };
 for (const needle of needles)
   for (const filter of ["ALL", "MAPPED", "UNMAPPED"]) {
@@ -130,7 +135,8 @@ for (const needle of needles)
     compared++;
     cost.candidate.requests += candidate.requests;
     cost.base.requests += base.requests;
-    if (candidate.searchPath && candidate.ids.length) searched++;
+    if (!indexable(needle)) shortNeedles++;
+    else if (candidate.searchPath && candidate.ids.length) searched++;
     if (JSON.stringify(candidate.ids) !== JSON.stringify(base.ids)) {
       mismatches++;
       console.log(
@@ -148,7 +154,11 @@ console.log(
     needles: needles.size,
     compared,
     mismatches,
-    answeredBySearchIndex: searched,
+    // Non-empty traversals of indexable needles that never returned
+    // `scanning`: answered without the bounded scan. This does not tell an
+    // index plan from the exact history fallback, which answers the same way.
+    indexableAnsweredWithoutScanning: searched,
+    shortNeedleTraversals: shortNeedles,
     requests: cost,
   }),
 );

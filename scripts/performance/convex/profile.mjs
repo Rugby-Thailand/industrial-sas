@@ -241,9 +241,11 @@ async function runChain(target, scenario, state) {
       state.resultCode = outcome.value.denial?.code ?? "DENIED";
     else if (value?.ok === false) state.resultCode = value.code ?? "NOT_OK";
     if (!scenario.settle || value?.status !== "scanning" || !value.scanCursor)
-      break;
+      return { windows, rtt };
     args = { ...scenario.args, scanCursor: value.scanCursor };
   }
+  // A chain that never settled is a broken measurement, not a data point.
+  state.lastError ??= `${scenario.fn} did not settle within 200 requests`;
   return { windows, rtt };
 }
 
@@ -645,6 +647,7 @@ async function contend(target, name, fn, argsFor, workers) {
       entry.identifier === fn && entry.executionTimestamp * 1000 >= started - 5,
   );
   const rtts = outcomes.map((outcome) => outcome.rtt).sort((a, b) => a - b);
+  const pooled = rtts;
   return {
     name,
     workers,
@@ -672,6 +675,7 @@ async function contend(target, name, fn, argsFor, workers) {
       .slice(0, 3),
     rttMsMax: Number(rtts.at(-1).toFixed(1)),
     rttMsP50: Number(rtts[Math.floor(workers / 2)].toFixed(1)),
+    rtts: pooled.map((rtt) => Number(rtt.toFixed(1))),
   };
 }
 
@@ -691,7 +695,8 @@ async function repeated(rounds, run) {
     failures: [...new Set(results.flatMap((r) => r.failures))],
     overlapping: results.every((r) => r.overlapping),
     occInfo: results.flatMap((r) => r.occInfo).slice(0, 3),
-    rttMsP50: p50(results.map((r) => r.rttMsP50)),
+    // Pooled over every worker of every round, not a median of medians.
+    rttMsP50: p50(results.flatMap((r) => r.rtts)),
     rttMsMax: Math.max(...results.map((r) => r.rttMsMax)),
   };
 }
