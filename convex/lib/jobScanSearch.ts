@@ -247,6 +247,10 @@ async function collectIfOrphaned(
   termId: string,
   budget: SearchBudget,
 ): Promise<"kept" | "deleted" | "deferred"> {
+  // No collection fits once writes exhaust this budget. Even checking each
+  // released term would spend two read calls per term on large deletes.
+  // Deferred work rechecks linkage in its own transaction.
+  if (budget.left <= 0) return "deferred";
   const term = await db.get<Term>(TERMS, termId);
   if (!term || term.field >= SLOTS.length) return "kept";
   const linked = await db
