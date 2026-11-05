@@ -138,7 +138,9 @@
     {
       "id": "search-ai-running",
       "title": "Search dialog after Ask AI: request running",
-      "state": "loading",
+      "state": "loading (AI response held by capture harness)",
+      "holdRequest": "/api/ai/search",
+      "captureReady": "[data-testid=global-search-ai-running]",
       "path": "/finished-goods",
       "ready": "main:not(:has([data-testid=panel-LOADING])) h1",
       "steps": [

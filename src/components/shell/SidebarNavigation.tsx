@@ -33,6 +33,9 @@ import { usePathname } from "@/i18n/navigation";
 import { activeNavigationHref, type NavigationItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
+/** Every destination row and submenu toggle, nested rows included. */
+const MENU_ROW_SELECTOR = "[data-sidebar=menu-item]";
+
 interface RowProps {
   readonly activeHref: string | undefined;
   readonly collapsed: boolean;
@@ -75,7 +78,8 @@ export function SidebarNavigation({
     isMobile && openMobile,
     settled && activeHref !== undefined,
   );
-  const contentBelow = useContentBelow(contentRef);
+  // Measured against the last destination row, not the padded list box.
+  const contentBelow = useContentBelow(contentRef, MENU_ROW_SELECTOR);
 
   return (
     <nav

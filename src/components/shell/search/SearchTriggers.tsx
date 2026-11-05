@@ -39,7 +39,10 @@ export function HeaderSearchTrigger() {
   const controls = useSearchControls();
   const { isMobile } = useSidebar();
   if (!isMobile || controls === null) return null;
-  const label = t("triggerLabelTouch");
+  // Says what search finds, like the dialog's placeholder.
+  const label = t(
+    controls.canSearchPeople ? "triggerLabelPeople" : "triggerLabel",
+  );
   return (
     <Button
       type="button"
@@ -60,7 +63,7 @@ export function HeaderSearchTrigger() {
   );
 }
 
-/** One sidebar entry for page, record and AI search. */
+/** One sidebar entry for page, employee and AI search. */
 export function SidebarSearchTriggers({
   collapsed,
   onOpen,
@@ -77,9 +80,12 @@ export function SidebarSearchTriggers({
   const showShortcut = !isMobile && !coarse;
   if (controls === null) return null;
   const open = onOpen ?? controls.open;
+  // Says what search finds, like the dialog's placeholder.
+  const people = controls.canSearchPeople;
+  const label = t(people ? "triggerLabelPeople" : "triggerLabel");
   const searchLabel = showShortcut
-    ? t("triggerLabel", { shortcut })
-    : t("triggerLabelTouch");
+    ? t("triggerShortcut", { label, shortcut })
+    : label;
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -97,7 +103,7 @@ export function SidebarSearchTriggers({
         >
           <Search aria-hidden="true" className="size-4" />
           <span className={collapsed ? "sr-only" : "flex-1 truncate"}>
-            {t("trigger")}
+            {t(people ? "triggerPeople" : "trigger")}
           </span>
           {collapsed || !showShortcut ? null : (
             <kbd className="rounded border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 text-xs text-sidebar-accent-foreground">

@@ -86,7 +86,7 @@ const changes = [
 ].flatMap((d) =>
   existsSync(d)
     ? readdirSync(d)
-        .filter((f) => /^changes-.*\.json$/.test(f))
+        .filter((f) => /^changes(-.*)?\.json$/.test(f))
         .flatMap((f) => JSON.parse(readFileSync(join(d, f), "utf8")))
     : [],
 );
@@ -220,6 +220,10 @@ async function captureOne(browser, auth, screen, locale, theme, vpName) {
   });
   const page = await context.newPage();
   const consoleErrors = [];
+  // Deterministic pending-state evidence: keep this request in the browser
+  // until the context closes, without contacting the provider or faking UI.
+  if (screen.holdRequest)
+    await page.route(new URL(screen.holdRequest, base).href, () => {});
   page.on("console", (m) => {
     if (m.type() === "error") consoleErrors.push(m.text().slice(0, 400));
   });
@@ -296,6 +300,12 @@ async function captureOne(browser, auth, screen, locale, theme, vpName) {
     await settle(page);
     for (const step of screen.steps ?? []) await runStep(page, step, locale);
     await settle(page);
+    // A successful screenshot must still show the state named by its spec.
+    if (screen.captureReady)
+      await page.locator(screen.captureReady).first().waitFor({
+        state: "visible",
+        timeout: 10_000,
+      });
     result.url = page.url().replace(base, "");
     result.overflowPx = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,

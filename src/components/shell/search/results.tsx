@@ -70,6 +70,17 @@ export interface SearchResult {
   readonly hint?: string;
   /** Choosing it asks the AI this text instead of opening a target. */
   readonly ask?: string;
+  /** The page already open: marked "This page" where its trail would be. */
+  readonly current?: boolean;
+}
+
+/** Whether search finds employees too, or only pages (the placeholder scope). */
+export function searchesPeople(granted: readonly string[]): boolean {
+  return hasNavigationPermission(
+    [HR_CODES.review, HR_CODES.admin],
+    granted,
+    "ANY",
+  );
 }
 
 /** Label helpers shared by normal results and AI choices. */
@@ -282,10 +293,14 @@ export function usePlaceResults(
   }, [granted, labels, pathname, recentKeys]);
 }
 
-/** Pages, sections and tasks from the registry, plus date-only self tasks. */
+/**
+ * Pages, sections and tasks from the registry, plus date-only self tasks.
+ * One that opens the page already shown (`pathname`) is marked as such.
+ */
 export function useStaticResults(
   query: string,
   granted: readonly string[],
+  pathname: string,
 ): readonly SearchResult[] {
   const t = useTranslations("Search");
   const labels = useResultLabels();
@@ -304,6 +319,7 @@ export function useStaticResults(
       ...(destination.kind === "SECTION"
         ? { action: t("actionOpenSection") }
         : {}),
+      ...(destination.href === pathname ? { current: true } : {}),
       target: { key: destination.key },
     }));
     // "ลืมลงเวลาเมื่อวาน": a correction task with an explicit date opens the
@@ -336,7 +352,7 @@ export function useStaticResults(
         target: { key: "hr.selfDay", date: day.date, focus: "correction" },
       });
     return results;
-  }, [granted, hr.employee, hr.today, labels, query, t]);
+  }, [granted, hr.employee, hr.today, labels, pathname, query, t]);
 }
 
 export interface RecordState {

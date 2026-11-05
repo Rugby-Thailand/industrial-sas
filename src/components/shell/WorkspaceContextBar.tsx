@@ -59,7 +59,7 @@ function useSelectedWarehouse(): WarehouseOption | undefined {
  * code alone on a phone; the name joins it where there is room.
  */
 export function HeaderWarehouse() {
-  const t = useTranslations("Workspace");
+  const navigation = useTranslations("Navigation");
   const { isMobile, state } = useSidebar();
   const selected = useSelectedWarehouse();
   if (selected === undefined || (!isMobile && state === "expanded"))
@@ -72,7 +72,7 @@ export function HeaderWarehouse() {
       data-testid="header-warehouse"
     >
       <WarehouseIcon aria-hidden="true" className="size-3 shrink-0" />
-      <span className="sr-only">{`${t("warehouse")}: ${label}`}</span>
+      <span className="sr-only">{`${navigation("currentWarehouse")}: ${label}`}</span>
       <span aria-hidden="true" className="truncate">
         {selected.code}
         <span className="hidden sm:inline">{` · ${selected.name}`}</span>
@@ -82,10 +82,11 @@ export function HeaderWarehouse() {
 }
 
 /**
- * The warehouse this session works in, under its visible label in the
- * sidebar header. Every page offers the warehouse selector when storage
- * access is available. The collapsed rail shows one warehouse icon that
- * expands the sidebar and moves focus to the warehouse it reveals.
+ * The warehouse this session works in, under its visible label ("Current
+ * warehouse", distinct from the Warehouse module heading) in the sidebar
+ * header. Every page offers the warehouse selector when storage access is
+ * available. The collapsed rail shows one warehouse icon that expands the
+ * sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({
   collapsed = false,
@@ -94,6 +95,9 @@ export function WorkspaceContextBar({
 }) {
   const t = useTranslations("Workspace");
   const app = useTranslations("App");
+  const navigation = useTranslations("Navigation");
+  // "Current warehouse", not the "Warehouse" module heading below it.
+  const fieldLabel = navigation("currentWarehouse");
   const workspace = useWorkspace();
   const { setOpen } = useSidebar();
   const warehouseId = useId();
@@ -112,8 +116,8 @@ export function WorkspaceContextBar({
   if (collapsed) {
     const label =
       selectedLabel === undefined
-        ? t("warehouse")
-        : `${t("warehouse")}: ${selectedLabel}`;
+        ? fieldLabel
+        : `${fieldLabel}: ${selectedLabel}`;
     return (
       <SidebarMenu className="pt-2">
         <SidebarMenuItem>
@@ -149,7 +153,7 @@ export function WorkspaceContextBar({
       {!available ? (
         <>
           <p id={labelId} className={labelClassName}>
-            {t("warehouse")}
+            {fieldLabel}
           </p>
           <div
             key={waiting ? "waiting" : "status"}
@@ -186,7 +190,7 @@ export function WorkspaceContextBar({
            * `for` reaches it.
            */}
           <label id={labelId} htmlFor={warehouseId} className={labelClassName}>
-            {t("warehouse")}
+            {fieldLabel}
           </label>
           {/* The section title shows a truncated selection in full. */}
           <SelectControl

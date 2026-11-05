@@ -687,7 +687,8 @@ async function chooseTodayFromSearch(beforeChoose?: () => void) {
   fireEvent.keyDown(window, { key: "k", metaKey: true });
   const input = await screen.findByRole("combobox", { name: "Search" });
   fireEvent.change(input, { target: { value: "Today" } });
-  await screen.findByRole("option", { name: /Today/ });
+  // The result itself, not the AI row that repeats the typed text.
+  await screen.findByRole("option", { name: "Today" });
   beforeChoose?.();
   fireEvent.keyDown(screen.getByRole("combobox", { name: "Search" }), {
     key: "Enter",
@@ -795,7 +796,7 @@ it("mobile header Search closes on Back, returns focus to its button, and the ne
     { locale: "en" },
   );
   const search = within(screen.getByRole("banner")).getByRole("button", {
-    name: "Search pages and records",
+    name: "Search pages or employees",
   });
   fireEvent.click(search);
   const input = await screen.findByRole("combobox", { name: "Search" });
@@ -840,7 +841,9 @@ it("mobile drawer Search waits for its native Back before opening the search dia
     .mockImplementationOnce(() => {});
   try {
     fireEvent.click(
-      within(drawer).getByRole("button", { name: /^Search pages and records/ }),
+      within(drawer).getByRole("button", {
+        name: /^Search pages or employees/,
+      }),
     );
     expect(back).toHaveBeenCalledOnce();
     // Close focus and animations may finish while the browser has not popped.
@@ -859,7 +862,8 @@ it("mobile drawer Search waits for its native Back before opening the search dia
     screen.queryByRole("dialog", { name: "Primary navigation" }),
   ).toBeNull();
   fireEvent.change(input, { target: { value: "Today" } });
-  await screen.findByRole("option", { name: /Today/ });
+  // The result itself, not the AI row that repeats the typed text.
+  await screen.findByRole("option", { name: "Today" });
   fireEvent.keyDown(input, { key: "Enter" });
   await settleDestination();
   expect(window.location.pathname).toBe("/en/hr/today");
@@ -906,7 +910,9 @@ it("mobile drawer Search waits for its exit animation and keeps search input foc
       ...new URLSearchParams(window.location.search).keys(),
     ].find((key) => key.startsWith("overlay"))!;
     fireEvent.click(
-      within(drawer).getByRole("button", { name: /^Search pages and records/ }),
+      within(drawer).getByRole("button", {
+        name: /^Search pages or employees/,
+      }),
     );
     await waitFor(() => expect(drawer).toHaveAttribute("data-state", "closed"));
     await waitFor(() =>

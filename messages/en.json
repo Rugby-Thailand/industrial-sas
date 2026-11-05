@@ -117,7 +117,8 @@
     "hrPayslipImport": "Import payslips",
     "hrFrozenPeriods": "Closed periods",
     "openAccountMenu": "Open account menu",
-    "closeAccountMenu": "Close account menu"
+    "closeAccountMenu": "Close account menu",
+    "currentWarehouse": "Current warehouse"
   },
   "Access": {
     "organizationRequiredTitle": "Organization access required",
@@ -194,7 +195,7 @@
   },
   "NotFound": {
     "title": "Page not found",
-    "body": "The link may be mistyped, or the page may have moved or been removed. Check the address, or go to the start page and pick from the menu.",
+    "body": "The link may be mistyped, or the page may have moved or been removed. Check the link, or go to the start page and pick from the menu.",
     "action": "Go to start page"
   },
   "Error": {
@@ -204,9 +205,12 @@
     "hint": "The app hit a problem while showing this page. Try again, or start over from another page.",
     "pageTitle": "This page could not be opened",
     "pageCause": "Its data didn't load. This may be temporary.",
-    "pageHint": "Nothing you saved is affected. If it still won't open, tell your organization administrator.",
+    "pageHint": "Nothing you saved is affected. If it still won't open, tell your organization administrator and quote the reference below.",
     "goTo": "Go to {destination}",
-    "goToStart": "Go to start page"
+    "goToStart": "Go to start page",
+    "reference": "Reference",
+    "copyReference": "Copy",
+    "referenceCopied": "Copied"
   },
   "Write": {
     "required": "This field is required.",
@@ -3124,9 +3128,11 @@
     }
   },
   "Search": {
-    "trigger": "Search…",
-    "triggerLabel": "Search pages and records ({shortcut})",
-    "triggerLabelTouch": "Search pages and records",
+    "trigger": "Search pages…",
+    "triggerPeople": "Pages or employees…",
+    "triggerLabel": "Search pages",
+    "triggerLabelPeople": "Search pages or employees",
+    "triggerShortcut": "{label} ({shortcut})",
     "title": "Search",
     "aiTitle": "AI Search",
     "description": "Find the pages, sections and records you can open.",
@@ -3162,6 +3168,7 @@
     "needsDate": "Add a date to open this person's day, e.g. “yesterday”.",
     "inactive": "Inactive",
     "ownTask": "Your own attendance",
+    "thisPage": "This page",
     "noMatchUnavailable": "No page matches, and records could not be searched right now. Try again, or type a full employee code.",
     "noMatchIncomplete": "No match among the records searched, but not every record could be searched. Type a full employee code or narrow the search.",
     "versionUnavailable": "Version {version} is not available for this period.",

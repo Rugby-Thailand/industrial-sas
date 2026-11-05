@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { PanelLeft, X } from "lucide-react";
+import { Menu, PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
@@ -58,7 +58,18 @@ import { cn } from "@/lib/utils";
 const MAIN_ID = "main-content";
 const NAV_ID = "primary-navigation";
 
-export function DesktopShell({ children }: { readonly children: ReactNode }) {
+export function DesktopShell({
+  children,
+  defaultOpen = true,
+}: {
+  readonly children: ReactNode;
+  /**
+   * Whether the desktop sidebar starts expanded: the member's last choice,
+   * read from the sidebar's cookie by the server layout, so the icon rail
+   * survives a reload or a language switch. Phones always start closed.
+   */
+  readonly defaultOpen?: boolean;
+}) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
   const usageReport = pathname === ROUTES.aiUsage;
@@ -72,7 +83,7 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
                 including the phone drawer's portal. */}
             <ConnectionStallProvider>
               <SidebarProvider
-                defaultOpen
+                defaultOpen={defaultOpen}
                 className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
                 style={
                   {
@@ -159,10 +170,15 @@ function NavigationDisclosure({
       aria-expanded={expanded}
       {...(!isMobile || openMobile ? { "aria-controls": NAV_ID } : {})}
     >
-      {isMobile && openMobile ? (
-        <X aria-hidden="true" />
+      {/* A phone opens a drawer menu; the desktop toggle collapses a panel. */}
+      {isMobile ? (
+        openMobile ? (
+          <X aria-hidden="true" data-testid="menu-close-icon" />
+        ) : (
+          <Menu aria-hidden="true" data-testid="menu-open-icon" />
+        )
       ) : (
-        <PanelLeft aria-hidden="true" />
+        <PanelLeft aria-hidden="true" data-testid="sidebar-toggle-icon" />
       )}
     </Button>
   );

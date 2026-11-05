@@ -27,7 +27,6 @@ import {
   DialogTitle,
   type DialogCompletionHandle,
 } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { formatBusinessDate } from "@/features/hr/format";
 import { usePathname } from "@/i18n/navigation";
@@ -46,6 +45,7 @@ import type { SearchMode } from "./GlobalSearchProvider";
 import { highlightParts } from "./highlight";
 import { useRecentDestinations } from "./recent";
 import {
+  searchesPeople,
   usePlaceResults,
   useRecordResults,
   useResultLabels,
@@ -64,6 +64,13 @@ const ORDINARY_GROUPS: readonly ResultGroup[] = [
 ];
 /** Groups of typed results; their headings count them. */
 const COUNTED_GROUPS: readonly ResultGroup[] = ["AI", ...ORDINARY_GROUPS];
+/**
+ * Record groups: the heading names the kind and the action line says what
+ * opens, so a trail on their rows would only repeat them.
+ */
+const RECORD_GROUPS: readonly ResultGroup[] = ["EMPLOYEES", "PERIODS"];
+/** The row that offers the typed text to the AI. */
+const ASK_ID = "ask-query";
 const DEBOUNCE_MS = 250;
 
 interface Section {
@@ -71,8 +78,6 @@ interface Section {
   readonly items: readonly SearchResult[];
   /** False: the group is named for assistive technology only. */
   readonly labelled: boolean;
-  /** Guidance shown before the heading; the group's description. */
-  readonly hint?: string;
   /** What the group is for, under its heading; the group's description. */
   readonly description?: string;
 }
@@ -198,7 +203,6 @@ function SearchBody({
   const pathname = usePathname();
   const id = useId();
   const listId = `${id}-results`;
-  const scopeId = `${id}-ai-scope`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
@@ -206,11 +210,7 @@ function SearchBody({
   const today = hr.today ?? null;
   // Nothing typed: the list offers places to go and things to ask.
   const browsing = query.trim() === "";
-  const canSearchPeople = hasNavigationPermission(
-    [HR_CODES.review, HR_CODES.admin],
-    granted,
-    "ANY",
-  );
+  const canSearchPeople = searchesPeople(granted);
 
   // The page context is shown and can be cleared; a new record re-offers it.
   const contextKey = pageContext === null ? "" : JSON.stringify(pageContext);
@@ -218,7 +218,7 @@ function SearchBody({
   const context =
     contextKey !== "" && clearedContext !== contextKey ? pageContext : null;
 
-  const staticResults = useStaticResults(settled, granted);
+  const staticResults = useStaticResults(settled, granted, pathname);
   const records = useRecordResults(settled, granted, today, settled !== "");
   const places = usePlaceResults(granted, pathname, useRecentDestinations());
   const examples = useExampleResults(granted, context);
@@ -232,10 +232,12 @@ function SearchBody({
     () => aiResults(ai.state, labels.choiceResult),
     [ai.state, labels],
   );
-  // While the AI works on (or has answered) this text, the ordinary results
-  // below its answer are labelled as such, so neither is taken for the other.
+  // While the AI works on (or has answered) this text, the count of the
+  // typed results is for screen readers only. Once its answer or error sits
+  // above them, they are labelled as such, so neither is taken for the other.
   const aiActive = mode === "AI" && ai.state.status !== "IDLE";
   const running = ai.state.status === "RUNNING";
+  const aiAnswered = aiActive && !running;
 
   // Results belong to the settled text. While the input differs (typing,
   // before the pause) or an IME is composing, they are shown but cannot be
@@ -251,16 +253,13 @@ function SearchBody({
     [records.state.results, staticResults],
   );
   const canAsk =
-    aiAvailable &&
-    !composing &&
-    query.trim().length >= 2 &&
-    ai.state.status !== "RUNNING";
+    aiAvailable && !composing && query.trim().length >= 2 && !running;
   const noResults =
     !browsing && ordinary.length === 0 && aiChoices.length === 0;
   const noMatch = noResults && !stale && !records.state.loading;
   // Whether the latest settled text matched nothing. It holds while the next
-  // text is typed and searched, so the offer below and the Ask AI button do
-  // not trade places on every keystroke.
+  // text is typed and searched, so the guidance and places to go do not
+  // come and go on every keystroke.
   const [unmatched, setUnmatched] = useState(false);
   const outcome = browsing
     ? false
@@ -268,32 +267,28 @@ function SearchBody({
       ? unmatched
       : noMatch;
   if (outcome !== unmatched) setUnmatched(outcome);
-  // Nothing matched: the typed text itself is offered to the AI, as the one
-  // AI action in place of the button. Typed further, the offer stays (but
-  // cannot be chosen until the results settle) until something matches.
-  const offerAsk =
-    outcome &&
-    noResults &&
+  // The one AI action for typed text: a row after the typed results, so
+  // first when nothing matches. It asks about the text as typed, so unlike
+  // the results it can be chosen before the text settles. A running request
+  // takes its place, and an answer for this text replaces it.
+  const askRow: readonly SearchResult[] =
     aiAvailable &&
+    !browsing &&
     query.trim().length >= 2 &&
-    ai.state.status === "IDLE";
-  const fallback: readonly SearchResult[] = offerAsk
-    ? [
-        {
-          id: "ask-query",
-          group: "ASK",
-          title: t("askQuery", { query: query.trim() }),
-          // What the AI is for, on the one row that asks it.
-          detail: t("aiScope"),
-          trail: "",
-          target: null,
-          ask: query,
-        },
-      ]
-    : [];
-  // Ask AI (and the scope under it) once there is text to ask about; when
-  // nothing matched, the list offers the text to the AI instead.
-  const askInRow = aiAvailable && !browsing && !offerAsk;
+    (ai.state.status === "IDLE" || ai.state.status === "ERROR")
+      ? [
+          {
+            id: ASK_ID,
+            group: "ASK",
+            title: t("askQuery", { query: query.trim() }),
+            // What the AI is for, on the one row that asks it.
+            detail: t("aiScope"),
+            trail: "",
+            target: null,
+            ask: query,
+          },
+        ]
+      : [];
 
   const recent: Section = {
     group: "RECENT",
@@ -307,58 +302,72 @@ function SearchBody({
     labelled: true,
     description: t("aiScope"),
   };
-  // Nothing matched (held while the next text is typed): after the AI offer,
-  // say what can be searched and offer places to go, except while the AI
-  // works on it. A failed or partial record search says its own next step.
-  const guidance = outcome &&
-    noResults &&
-    !running && {
-      group: "GOTO" as const,
-      items: places.shortcuts,
-      labelled: true,
-      ...(records.state.failed || records.state.incomplete
-        ? {}
-        : {
-            hint: t(canSearchPeople ? "noMatchHintPeople" : "noMatchHintPages"),
-          }),
-    };
+  // Nothing matched (held while the next text is typed): the status says
+  // what can be searched, and the list offers places to go after the AI
+  // row, except while the AI works on it. A failed or partial record search
+  // says its own next step instead.
+  const guidance = outcome && noResults && !running;
+  const hint =
+    guidance && !records.state.failed && !records.state.incomplete
+      ? t(canSearchPeople ? "noMatchHintPeople" : "noMatchHintPages")
+      : null;
   const sections: readonly Section[] = browsing
     ? // Asked the AI and cleared the box: its examples come first.
       mode === "AI"
       ? [tryAsking, recent, goTo]
       : [recent, goTo, tryAsking]
     : [
-        { group: "ASK", items: fallback, labelled: false },
         { group: "AI", items: aiChoices, labelled: true },
         ...ORDINARY_GROUPS.map((group) => ({
           group,
           items: ordinary.filter((result) => result.group === group),
           labelled: true,
         })),
-        ...(guidance ? [guidance] : []),
+        { group: "ASK", items: askRow, labelled: false },
+        ...(guidance
+          ? [
+              {
+                group: "GOTO" as const,
+                items: places.shortcuts,
+                labelled: true,
+              },
+            ]
+          : []),
       ];
   const shown = sections.filter((section) => section.items.length > 0);
   const results = shown.flatMap((section) => section.items);
-  const enabled = stale
-    ? []
-    : results.filter(
-        (result) => result.target !== null || result.ask !== undefined,
-      );
-  // The first openable result is active in normal search; in AI mode Enter
-  // asks the AI until the user moves into the results. Places offered after
-  // a miss are reached with the arrows: Enter must not open one by surprise.
+  // Results belong to the settled text; a row that asks belongs to the text
+  // as typed. Neither can be chosen while an IME composes.
+  const choosable = (result: SearchResult) =>
+    result.ask === undefined ? !stale && result.target !== null : !composing;
+  const enabled = results.filter(choosable);
+  // Normal search starts on the first openable result, or on the AI row
+  // when nothing matched; AI mode leaves Enter to ask until the user moves.
+  // Places offered after a miss are reached with the arrows: Enter must not
+  // open one by surprise.
   const [active, setActive] = useState<{ query: string; id: string | null }>({
     query: "",
     id: null,
   });
+  const settledEnabled = stale ? [] : enabled;
+  const firstTyped = settledEnabled.find(
+    (result) => result.group !== "GOTO" && result.group !== "ASK",
+  );
+  const askFirst =
+    noResults && settledEnabled.some((result) => result.id === ASK_ID);
   const activeId =
     active.query === settled &&
     enabled.some((result) => result.id === active.id)
       ? active.id
-      : mode === "AI"
-        ? null
-        : (enabled.find((result) => browsing || result.group !== "GOTO")?.id ??
-          null);
+      : browsing
+        ? mode === "AI"
+          ? null
+          : (settledEnabled[0]?.id ?? null)
+        : mode !== "AI" && firstTyped !== undefined
+          ? firstTyped.id
+          : askFirst
+            ? ASK_ID
+            : null;
   const activeResult = enabled.find((result) => result.id === activeId);
 
   useEffect(() => {
@@ -390,7 +399,7 @@ function SearchBody({
     setQuery(text);
     onModeChange("AI");
     void ai.run(text);
-    // The pressed control is disabled while the AI runs; typing, arrows and
+    // The chosen row gives way to the progress row; typing, arrows and
     // Escape stay with the box.
     inputRef.current?.focus();
   };
@@ -412,7 +421,7 @@ function SearchBody({
     return true;
   });
   const choose = (result: SearchResult) => {
-    if (stale) return;
+    if (!choosable(result)) return;
     if (result.ask !== undefined) askAbout(result.ask);
     else if (result.target !== null)
       onNavigate(
@@ -496,97 +505,64 @@ function SearchBody({
           </Button>
         </DialogClose>
       </div>
-      {/* A phone gives the typed request the full row; Ask AI sits below. */}
-      <div
-        className="grid gap-2 sm:flex sm:items-center"
-        data-testid="global-search-row"
-      >
-        <div className="relative min-w-0 sm:flex-1">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-          />
-          <input
-            ref={inputRef}
-            type="text"
-            role="combobox"
-            aria-label={t("inputLabel")}
-            aria-expanded={results.length > 0}
-            aria-controls={listId}
-            aria-autocomplete="list"
-            aria-activedescendant={
-              activeId === null ? undefined : `${id}-${activeId}`
-            }
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint={mode === "AI" ? "send" : "go"}
-            maxLength={300}
-            placeholder={t(
-              mode === "AI"
-                ? "aiPlaceholder"
-                : canSearchPeople
-                  ? "placeholderPeople"
-                  : "placeholder",
-            )}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={(event) => {
-              setComposing(false);
-              setQuery(event.currentTarget.value);
-            }}
-            onKeyDown={onKeyDown}
-            className={cn(
-              "min-h-touch w-full rounded-md border border-input bg-surface py-2 pl-9 text-base text-text outline-none placeholder:text-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring",
-              // Typed text stops short of the clear button.
-              query === "" ? "pr-3" : "pr-12 dense:pr-11",
-            )}
-            data-testid="global-search-input"
-          />
-          {query === "" ? null : (
-            <IconButton
-              label={t("clear")}
-              variant="ghost"
-              className="absolute inset-y-0 right-0 my-auto text-muted hover:text-text dense:right-1.5"
-              // The caret stays in the box: a click must not move focus here.
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={clear}
-              data-testid="global-search-clear"
-            >
-              <X aria-hidden="true" />
-            </IconButton>
+      {/* The box has the row to itself: the AI is offered in the list. */}
+      <div className="relative min-w-0">
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          role="combobox"
+          aria-label={t("inputLabel")}
+          aria-expanded={results.length > 0}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            activeId === null ? undefined : `${id}-${activeId}`
+          }
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint={mode === "AI" ? "send" : "go"}
+          maxLength={300}
+          placeholder={t(
+            mode === "AI"
+              ? "aiPlaceholder"
+              : canSearchPeople
+                ? "placeholderPeople"
+                : "placeholder",
           )}
-        </div>
-        {askInRow ? (
-          <Button
-            type="button"
-            variant={mode === "AI" ? "default" : "outline"}
-            onClick={ask}
-            disabled={!canAsk}
-            aria-describedby={scopeId}
-            // While the AI works, a phone shows its progress here instead.
-            className={cn("w-full sm:w-auto", running && "max-sm:hidden")}
-            data-testid="global-search-ai"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={(event) => {
+            setComposing(false);
+            setQuery(event.currentTarget.value);
+          }}
+          onKeyDown={onKeyDown}
+          className={cn(
+            "min-h-touch w-full rounded-md border border-input bg-surface py-2 pl-9 text-base text-text outline-none placeholder:text-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring",
+            // Typed text stops short of the clear button.
+            query === "" ? "pr-3" : "pr-12 dense:pr-11",
+          )}
+          data-testid="global-search-input"
+        />
+        {query === "" ? null : (
+          <IconButton
+            label={t("clear")}
+            variant="ghost"
+            className="absolute inset-y-0 right-0 my-auto text-muted hover:text-text dense:right-1.5"
+            // The caret stays in the box: a click must not move focus here.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={clear}
+            data-testid="global-search-clear"
           >
-            <Sparkles aria-hidden="true" />
-            {t("aiAsk")}
-          </Button>
-        ) : null}
+            <X aria-hidden="true" />
+          </IconButton>
+        )}
       </div>
-      {aiActive && running ? <AiRunning onCancel={ai.cancel} /> : null}
-      {/* What the AI is for, beside the button that asks it: it finds a
-          page or form, it does not answer questions. */}
-      {askInRow ? (
-        <p
-          id={scopeId}
-          className="-mt-1 flex items-start gap-1.5 text-xs text-muted"
-          data-testid="global-search-ai-scope"
-        >
-          <Sparkles aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
-          {t("aiScope")}
-        </p>
-      ) : null}
 
       {aiAvailable && mode === "AI" ? (
         <AiPanel
@@ -596,16 +572,29 @@ function SearchBody({
         />
       ) : null}
 
+      {/* The miss and what to try instead, read out together, on the
+          group headings' edge. */}
       <p
         role="status"
         aria-live="polite"
         className={cn(
-          "text-sm",
+          "px-2 text-sm",
           quietStatus ? "sr-only" : noMatch ? "text-text" : "text-muted",
         )}
         data-testid="global-search-status"
       >
         {status}
+        {hint === null ? null : (
+          <>
+            {" "}
+            <span
+              className="block text-muted"
+              data-testid="global-search-no-match-hint"
+            >
+              {hint}
+            </span>
+          </>
+        )}
       </p>
       {records.node}
 
@@ -615,14 +604,13 @@ function SearchBody({
         aria-label={t("resultsLabel")}
         className="min-h-0 overflow-y-auto overscroll-contain sm:max-h-[min(28rem,55dvh)]"
       >
-        {aiActive && running ? <AiPending /> : null}
         {shown.map((section) => {
           const labelId = `${id}-group-${section.group}`;
           const noteId = `${id}-note-${section.group}`;
           const typed = ORDINARY_GROUPS.includes(section.group);
-          // Under the AI's progress or answer, one heading names the results
-          // of the typed text; a group is named as well only beside another.
-          const underAi = aiActive && typed;
+          // Under the AI's answer, one heading names the results of the
+          // typed text; a group is named as well only beside another.
+          const underAi = aiAnswered && typed;
           const ordinaryHeading = underAi && section.group === firstOrdinary;
           const heading =
             section.labelled && !(underAi && ordinaryShown.length === 1);
@@ -639,8 +627,7 @@ function SearchBody({
                       : labelId,
                   }
                 : { "aria-label": t("aiAsk") })}
-              {...(section.hint === undefined &&
-              section.description === undefined
+              {...(section.description === undefined
                 ? {}
                 : { "aria-describedby": noteId })}
               className="pb-2"
@@ -657,16 +644,6 @@ function SearchBody({
                   <GroupCount count={ordinary.length} />
                 </div>
               ) : null}
-              {section.hint === undefined ? null : (
-                <div
-                  id={noteId}
-                  role="presentation"
-                  className="px-2 pb-1 text-sm text-muted"
-                  data-testid="global-search-no-match-hint"
-                >
-                  {section.hint}
-                </div>
-              )}
               {heading ? (
                 <div
                   id={labelId}
@@ -695,11 +672,10 @@ function SearchBody({
                   id={`${id}-${result.id}`}
                   result={result}
                   query={settled}
-                  stale={stale}
+                  disabled={!choosable(result)}
                   active={result.id === activeId}
                   onHover={() =>
-                    !stale &&
-                    (result.target !== null || result.ask !== undefined) &&
+                    choosable(result) &&
                     setActive({ query: settled, id: result.id })
                   }
                   onChoose={() => choose(result)}
@@ -709,6 +685,9 @@ function SearchBody({
           );
         })}
       </div>
+      {/* A running request in the AI row's place: after the typed results,
+          first when there are none. Its Cancel stays out of the listbox. */}
+      {running ? <AiRunning onCancel={ai.cancel} /> : null}
       {showRecordsStatus && records.state.incomplete ? (
         <p
           className="text-xs text-warning"
@@ -832,7 +811,7 @@ function ResultOption({
   id,
   result,
   query,
-  stale,
+  disabled,
   active,
   onHover,
   onChoose,
@@ -841,19 +820,37 @@ function ResultOption({
   readonly result: SearchResult;
   /** The text the results answer; its match is marked in the title. */
   readonly query: string;
-  /** Shown for the previous text; not openable until results settle. */
-  readonly stale: boolean;
+  /** Needs more input, or shown for the previous text until it settles. */
+  readonly disabled: boolean;
   readonly active: boolean;
   readonly onHover: () => void;
   readonly onChoose: () => void;
 }) {
-  const disabled =
-    stale || (result.target === null && result.ask === undefined);
+  const t = useTranslations("Search");
   // Places to go and things to ask are one line each; an offer to ask about
   // the typed text says under it what the AI is for.
   const place = result.group === "RECENT" || result.group === "GOTO";
   const compact = place || result.group === "ASK";
-  const described = result.group === "ASK" && result.detail !== undefined;
+  // A result is named by its title; where it sits (or that it is the page
+  // already open), what it is and what opening it does describe it.
+  const aside = result.current
+    ? t("thisPage")
+    : RECORD_GROUPS.includes(result.group)
+      ? ""
+      : result.trail;
+  const notes = compact
+    ? [result.detail === undefined ? null : "detail"]
+    : [
+        aside === "" ? null : "aside",
+        result.detail ? "detail" : null,
+        result.action ? "action" : null,
+        result.hint ? "hint" : null,
+      ];
+  const describedBy = notes
+    .filter(Boolean)
+    .map((note) => `${id}-${note}`)
+    .join(" ");
+  const named = !place;
   return (
     // Options are activated from the combobox (Enter) or by pointer.
     <div
@@ -868,21 +865,17 @@ function ResultOption({
         "min-h-touch cursor-pointer rounded-lg px-3 py-2 text-left",
         compact
           ? "flex items-center gap-3 dense:min-h-control dense:py-1.5"
-          : "grid gap-0.5",
+          : "grid content-center gap-0.5",
         active
           ? "bg-accent-surface shadow-[inset_3px_0_0_var(--color-link)]"
           : "hover:bg-raised",
         disabled && "cursor-default opacity-80 hover:bg-transparent",
       )}
-      {...(described
-        ? {
-            "aria-labelledby": `${id}-title`,
-            "aria-describedby": `${id}-detail`,
-          }
+      {...(named ? { "aria-labelledby": `${id}-title` } : {})}
+      {...(named && describedBy !== ""
+        ? { "aria-describedby": describedBy }
         : {})}
-      {...(result.id === "ask-query"
-        ? { "data-testid": "global-search-ask-query" }
-        : {})}
+      {...(result.id === ASK_ID ? { "data-testid": "global-search-ai" } : {})}
     >
       {result.group === "ASK" ? (
         <>
@@ -891,14 +884,14 @@ function ResultOption({
             <span id={`${id}-title`} className="break-words text-text">
               {result.title}
             </span>
-            {described ? (
+            {result.detail === undefined ? null : (
               <span
                 id={`${id}-detail`}
                 className="text-xs break-words text-muted"
               >
                 {result.detail}
               </span>
-            ) : null}
+            )}
           </span>
         </>
       ) : place ? (
@@ -910,20 +903,43 @@ function ResultOption({
         </>
       ) : (
         <>
-          <span className="text-xs break-words text-muted">{result.trail}</span>
-          <span className="font-semibold break-words text-text">
-            <Highlighted text={result.title} query={query} />
+          {/* The title leads; where it sits takes the places' right slot. */}
+          <span className="flex items-baseline justify-between gap-3">
+            <span
+              id={`${id}-title`}
+              className="min-w-0 font-semibold break-words text-text"
+            >
+              <Highlighted text={result.title} query={query} />
+            </span>
+            {aside === "" ? null : (
+              <span
+                id={`${id}-aside`}
+                className="shrink-0 text-xs text-muted"
+                data-testid={
+                  result.current ? "global-search-this-page" : undefined
+                }
+              >
+                {aside}
+              </span>
+            )}
           </span>
           {result.detail ? (
-            <span className="text-xs break-words text-muted">
+            <span
+              id={`${id}-detail`}
+              className="text-xs break-words text-muted"
+            >
               {result.detail}
             </span>
           ) : null}
           {result.action ? (
-            <span className="text-xs text-link">{result.action}</span>
+            <span id={`${id}-action`} className="text-xs text-link">
+              {result.action}
+            </span>
           ) : null}
           {result.hint ? (
-            <span className="text-xs text-warning">{result.hint}</span>
+            <span id={`${id}-hint`} className="text-xs text-warning">
+              {result.hint}
+            </span>
           ) : null}
         </>
       )}
@@ -942,44 +958,24 @@ function GroupCount({ count }: { readonly count: number }) {
 }
 
 /**
- * A running AI request in one row under the box: what is happening and how
- * to stop it. On a phone it takes the Ask AI button's place.
+ * A running AI request in the AI row's place, shaped like that row: what is
+ * happening and how to stop it. It is the only AI control while it runs.
  */
 function AiRunning({ onCancel }: { readonly onCancel: () => void }) {
   const t = useTranslations("Search");
   return (
     <div
-      className="flex min-h-touch items-center justify-between gap-3 pl-3 dense:min-h-control"
+      className="flex min-h-touch items-center gap-3 px-3 dense:min-h-control"
       data-testid="global-search-ai-running"
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <Spinner aria-hidden="true" className="text-link" />
-        {/* Only the words are announced; Cancel stays out of the region. */}
-        <p role="status" className="min-w-0 text-sm text-text">
-          {t("aiRunning")}
-        </p>
-      </div>
+      <Spinner aria-hidden="true" className="text-link" />
+      {/* Only the words are announced; Cancel stays out of the region. */}
+      <p role="status" className="min-w-0 flex-1 text-sm text-text">
+        {t("aiRunning")}
+      </p>
       <Button type="button" size="sm" variant="outline" onClick={onCancel}>
         {t("aiCancel")}
       </Button>
-    </div>
-  );
-}
-
-/**
- * Marks where the AI's choices will appear while it works: one short
- * result-shaped line pair, so the ordinary results stay close to the box.
- * The progress row above already says what is happening.
- */
-function AiPending() {
-  return (
-    <div
-      aria-hidden="true"
-      className="grid gap-1.5 px-3 pt-1 pb-3"
-      data-testid="global-search-ai-pending"
-    >
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-4 w-1/2 max-w-64" />
     </div>
   );
 }

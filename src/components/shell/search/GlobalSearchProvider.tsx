@@ -29,6 +29,7 @@ import type { PageSearchContext } from "@/lib/search/resolveIntent";
 
 import { PageContextSetter } from "./pageContext";
 import { recentStorageKey, rememberRecent } from "./recent";
+import { searchesPeople } from "./results";
 import { SearchDialog } from "./SearchDialog";
 
 export type SearchMode = "SEARCH" | "AI";
@@ -37,6 +38,8 @@ interface SearchControls {
   readonly open: (mode: SearchMode) => void;
   /** AI Search is an HR capability; storage-only members never see it. */
   readonly aiAvailable: boolean;
+  /** Search finds employees too; the triggers and placeholder say so. */
+  readonly canSearchPeople: boolean;
 }
 
 const SearchControlsContext = createContext<SearchControls | null>(null);
@@ -145,7 +148,11 @@ export function GlobalSearchProvider({
     [granted, recentKey, router, t],
   );
 
-  const controls = useMemo(() => ({ open, aiAvailable }), [aiAvailable, open]);
+  const canSearchPeople = searchesPeople(granted);
+  const controls = useMemo(
+    () => ({ open, aiAvailable, canSearchPeople }),
+    [aiAvailable, canSearchPeople, open],
+  );
   return (
     <SearchControlsContext.Provider value={controls}>
       <PageContextSetter.Provider value={setPageContext}>

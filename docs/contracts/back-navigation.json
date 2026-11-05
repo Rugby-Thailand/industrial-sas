@@ -963,10 +963,17 @@
     {
       "file": "src/app/[locale]/(desktop)/error.tsx",
       "policy": "error",
-      "targets": ["src/components/shell/PageFailure#PageFailure"],
-      "expectation": "A page that fails inside the app shell keeps the sidebar, header and search. Recovery and the breadcrumb use the nearest destination above the failed path in the member's permitted menu; without one, the member's own start page; while access loads, the neutrally named start route. Never the failed page itself or a page that redirects back into it. Retry stays primary; native browser history remains available without inventing an unsafe parent.",
+      "targets": [
+        "src/components/shell/FailureReference#FailureReference",
+        "src/components/shell/PageFailure#PageFailure"
+      ],
+      "expectation": "A page that fails inside the app shell keeps the sidebar, header and search. Recovery and the breadcrumb use the nearest destination above the failed path in the member's permitted menu; without one, the member's own start page; while access loads, the neutrally named start route. Never the failed page itself or a page that redirects back into it. Retry stays primary; native browser history remains available without inventing an unsafe parent. Under the actions, a copyable reference (Next's digest, else a generated ID) with the page and time opens nothing and adds no history entry.",
       "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
       "cases": [
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "gives a reference to quote with the page and time, and records the same reference with the route pattern"
+        },
         {
           "file": "src/app/[locale]/(desktop)/error.test.tsx",
           "name": "names the failed page, retries first and offers its module hub second"
@@ -997,11 +1004,23 @@
       "file": "src/app/[locale]/not-found.tsx",
       "policy": "not-found",
       "targets": [
+        "src/components/shell/LocaleSwitcher#LocaleSwitcher",
         "src/components/ui/PageHeader#PageHeader",
         "src/components/ui/button#Button",
         "src/i18n/navigation#Link"
       ],
-      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page."
+      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page. The wordmark's language button replaces the entry with the same path, query and hash in the other locale, adding no history entry.",
+      "tests": ["src/app/[locale]/not-found.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/not-found.test.tsx",
+          "name": "asks a %s reader to check the link and offers the start page"
+        },
+        {
+          "file": "src/app/[locale]/not-found.test.tsx",
+          "name": "opens the same address in the other language from a %s page"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/page.tsx",
@@ -1289,30 +1308,12 @@
       "render": [
         {
           "shape": "conditional",
-          "truthy": ["AiPending"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
           "truthy": ["AiRunning"],
           "falsy": []
         },
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["lucide-react#Sparkles", "p"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "lucide-react#Sparkles",
-            "src/components/ui/button#Button"
-          ],
           "falsy": []
         },
         {
@@ -1331,6 +1332,11 @@
           ]
         },
         {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
+        },
+        {
           "shape": "early-return",
           "truthy": ["p[role=alert]"],
           "falsy": []
@@ -1341,24 +1347,11 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:composing",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "IME composition hides premature results, their group headings and no-match guidance inside search and holds the Ask AI Button (with its scope line) or inline AI offer as it was; it does not open a new workflow.",
+      "expectation": "IME composition keeps premature results, their group headings, the inline AI option and the no-match hint under the status as they were inside search, none of them choosable; it does not open a new workflow.",
       "render": [
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["lucide-react#Sparkles", "p"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "lucide-react#Sparkles",
-            "src/components/ui/button#Button"
-          ],
           "falsy": []
         },
         {
@@ -1370,6 +1363,11 @@
           "shape": "conditional",
           "truthy": ["span"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
         }
       ]
     },
@@ -1377,13 +1375,8 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted recent places, places to go and AI examples (the examples group carries the AI scope as its description) as options there, with no Ask AI Button. Typed text shows the Ask AI Button with its scope line and an inline clear IconButton; it and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. An AI request shows one inline progress row with Cancel under the box (on a phone in place of the Button) and an aria-hidden placeholder for its choices. When nothing matches, the no-match status comes first, the typed text is offered to the AI as one inline option carrying the scope, then what can be searched and the places-to-go group; the Ask AI Button is not rendered while that option is shown. Back dismisses the containing dialog regardless of the text.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted recent places, places to go and AI examples (the examples group carries the AI scope as its description) as options there. Typed text shows an inline clear IconButton and, when AI is available, one inline “Ask AI where to go for …” option carrying the AI scope after the typed results, first when nothing matches; no Ask AI Button is rendered at any width. The clear button and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. An AI request replaces that option with one inline progress row with Cancel after the listbox. When nothing matches, the no-match status carries what can be searched, then the AI option, then the places-to-go group. Back dismisses the containing dialog regardless of the text.",
       "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["AiPending"],
-          "falsy": []
-        },
         {
           "shape": "conditional",
           "truthy": ["AiRunning"],
@@ -1392,19 +1385,6 @@
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["lucide-react#Sparkles", "p"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "lucide-react#Sparkles",
-            "src/components/ui/button#Button"
-          ],
           "falsy": []
         },
         {
@@ -1423,6 +1403,11 @@
           "falsy": ["lucide-react#X", "src/components/ui/IconButton#IconButton"]
         },
         {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
+        },
+        {
           "shape": "early-return",
           "truthy": ["p[role=alert]"],
           "falsy": []
@@ -1433,7 +1418,7 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:unmatched",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Remembers whether the latest settled search text matched nothing, so the inline “Ask AI where to go for …” option (with the AI scope as its description), the what-can-be-searched guidance and the places-to-go group stay in the list, and the Ask AI Button and its scope line stay out of the input row, while the next text is typed and searched. All live inside the same search dialog; none is a foreground step or history entry, and Back dismisses the dialog.",
+      "expectation": "Remembers whether the latest settled search text matched nothing, so the what-can-be-searched hint under the status and the places-to-go group after the inline AI option stay while the next text is typed and searched. All live inside the same search dialog; none is a foreground step or history entry, and Back dismisses the dialog.",
       "render": [
         {
           "shape": "conditional",
@@ -1442,22 +1427,14 @@
         },
         {
           "shape": "conditional",
-          "truthy": ["lucide-react#Sparkles", "p"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "lucide-react#Sparkles",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
+          "truthy": [],
+          "falsy": ["span"]
         }
       ],
       "cases": [
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
-          "name": "makes the typed-text offer the only AI action when nothing matches, and keeps it in place while typing on"
+          "name": "offers AI as one row after the typed results, first when nothing matches, and keeps it in place while typing on"
         },
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
@@ -1470,24 +1447,11 @@
       "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Debounced search text changes results, the group and typed-text headings with their counts, no-match guidance and whether the Ask AI Button (with its scope line) or the inline AI offer is shown in the same dialog; it never creates a foreground predecessor.",
+      "expectation": "Debounced search text changes results, the group and typed-text headings with their counts, the no-match hint and where the inline AI option sits in the same dialog; it never creates a foreground predecessor.",
       "render": [
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["lucide-react#Sparkles", "p"],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "lucide-react#Sparkles",
-            "src/components/ui/button#Button"
-          ],
           "falsy": []
         },
         {
@@ -1499,6 +1463,11 @@
           "shape": "conditional",
           "truthy": ["span"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
         }
       ]
     },
@@ -5337,6 +5306,46 @@
           "shape": "conditional",
           "truthy": ["p[role=alert]"],
           "falsy": []
+        }
+      ]
+    },
+    {
+      "id": "src/components/shell/FailureReference.tsx#FailureReference:copied",
+      "policy": "presentation",
+      "expectation": "Copying the failure reference briefly relabels the same Copy button and announces it in a polite status; nothing opens and no history entry is added.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Check"],
+          "falsy": ["lucide-react#Copy"]
+        }
+      ],
+      "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "copies the reference, page and time as one line and says so"
+        }
+      ]
+    },
+    {
+      "id": "src/components/shell/PageFailure.tsx#PageFailure:retrying",
+      "policy": "presentation",
+      "expectation": "A retry briefly marks the same Retry button busy with a spinner while focus stays on it; the failed boundary owns the retry, and nothing opens or adds a history entry.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/spinner#Spinner"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "shows a running retry briefly and keeps focus on it, so a retry that fails again is not a dead button"
         }
       ]
     },

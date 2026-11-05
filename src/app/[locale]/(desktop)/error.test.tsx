@@ -1,6 +1,6 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ObservabilityProvider } from "@/components/providers/ObservabilityProvider";
 import type { ObservabilityEvent } from "@/lib/observability/event";
@@ -53,15 +53,17 @@ const recordingPort = (): ObservabilityPort & {
   return { events, record: (event) => void events.push(event) };
 };
 
-function renderError(locale: "th" | "en" = "th") {
+function renderError(
+  locale: "th" | "en" = "th",
+  error: Error & { digest?: string } = new Error(
+    "productId not-a-real-id for tenant secret",
+  ),
+) {
   const port = recordingPort();
   const retry = vi.fn();
   renderWithIntl(
     <ObservabilityProvider port={port}>
-      <DesktopPageError
-        error={new Error("productId not-a-real-id for tenant secret")}
-        retry={retry}
-      />
+      <DesktopPageError error={error} retry={retry} />
     </ObservabilityProvider>,
     { locale },
   );
@@ -198,7 +200,127 @@ describe("desktop page error boundary", () => {
     );
     // No destination to name: the copy still says what else to do.
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Nothing you saved is affected. If it still won't open, tell your organization administrator.",
+      "Nothing you saved is affected. If it still won't open, tell your organization administrator and quote the reference below.",
     );
+  });
+});
+
+describe("desktop page error reference", () => {
+  const AT = new Date("2026-11-05T05:40:00Z");
+  const time = (locale: "th" | "en") =>
+    new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Bangkok",
+    }).format(AT);
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(AT);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("gives a reference to quote with the page and time, and records the same reference with the route pattern", () => {
+    const { port } = renderError();
+
+    const group = screen.getByRole("group", { name: "รหัสอ้างอิง" });
+    const code = within(group).getByTestId("route-error-reference-code");
+    expect(code.textContent).toMatch(/^[2-9A-HJKMNP-Z]{6}$/);
+    expect(
+      within(group).getByTestId("route-error-reference-detail"),
+    ).toHaveTextContent(`สินค้าสำเร็จรูป · ${time("th")}`);
+    // It follows the actions, outside the alert, which still names no page.
+    expect(screen.getByRole("alert")).not.toContainElement(group);
+    expect(port.events).toEqual([
+      expect.objectContaining({
+        occurredAt: AT.getTime(),
+        dimensions: {
+          boundary: "locale",
+          reference: code.textContent,
+          route: "th.finished-goods",
+        },
+      }),
+    ]);
+    expect(JSON.stringify(port.events)).not.toContain("tenant secret");
+  });
+
+  it("quotes a server error by its digest and a detail page by its menu row, with its address in the copy", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    navigation.pathname = "/finished-goods/products/not-a-real-id";
+    const error = Object.assign(new Error("hidden"), { digest: "2338461745" });
+    const { port } = renderError("en", error);
+
+    expect(screen.getByTestId("route-error-reference-code")).toHaveTextContent(
+      "2338461745",
+    );
+    expect(
+      screen.getByTestId("route-error-reference-detail"),
+    ).toHaveTextContent(`Finished goods · ${time("en")}`);
+    expect(port.events[0]?.dimensions).toEqual({
+      boundary: "locale",
+      reference: "2338461745",
+      route: "en.finished-goods.products.[id]",
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    });
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(
+      `Reference 2338461745 · Finished goods · /finished-goods/products/not-a-real-id · ${time("en")}`,
+    );
+  });
+
+  it("names a page outside the menu by its address", () => {
+    access.storage = [];
+    access.hr = [HR_SELF];
+    navigation.pathname = "/hr/customize";
+    renderError("en");
+
+    expect(
+      screen.getByTestId("route-error-reference-detail"),
+    ).toHaveTextContent(`/hr/customize · ${time("en")}`);
+  });
+
+  it("copies the reference, page and time as one line and says so", async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderError();
+    const code = screen.getByTestId("route-error-reference-code").textContent;
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "คัดลอก" }));
+    });
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(
+      `รหัสอ้างอิง ${code} · สินค้าสำเร็จรูป · /finished-goods · ${time("th")}`,
+    );
+    expect(screen.getByRole("button", { name: "คัดลอกแล้ว" })).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("คัดลอกแล้ว");
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.getByRole("button", { name: "คัดลอก" })).toBeVisible();
+  });
+
+  it("shows a running retry briefly and keeps focus on it, so a retry that fails again is not a dead button", () => {
+    const { retry } = renderError();
+    const again = screen.getByRole("button", { name: "ลองใหม่" });
+    again.focus();
+
+    fireEvent.click(again);
+    expect(retry).toHaveBeenCalledOnce();
+    expect(again).toHaveAttribute("aria-busy", "true");
+    expect(again).toHaveAttribute("aria-disabled", "true");
+    expect(again).toHaveFocus();
+    fireEvent.click(again);
+    expect(retry).toHaveBeenCalledOnce();
+
+    act(() => vi.advanceTimersByTime(800));
+    expect(again).not.toHaveAttribute("aria-busy");
+    expect(again).not.toHaveAttribute("aria-disabled");
+    fireEvent.click(again);
+    expect(retry).toHaveBeenCalledTimes(2);
   });
 });

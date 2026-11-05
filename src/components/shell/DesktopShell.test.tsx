@@ -166,7 +166,7 @@ import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 
-const SEARCH_ROW = /^Search pages and records/;
+const SEARCH_ROW = /^Search pages or employees/;
 
 const arrival = { notify: () => undefined as void };
 /** The page section a deep link focuses once navigation has happened. */
@@ -276,7 +276,9 @@ describe("sidebar hierarchy", () => {
       state.pathname = pathname;
       const header = renderShell();
       if (mobile) await openDrawer(header);
-      const picker = screen.getByRole("combobox", { name: "Warehouse" });
+      const picker = screen.getByRole("combobox", {
+        name: "Current warehouse",
+      });
       expect(picker).toBeEnabled();
       fireEvent.keyDown(picker, { key: "ArrowDown" });
       fireEvent.click(
@@ -313,6 +315,60 @@ describe("sidebar hierarchy", () => {
       screen.getByRole("button", { name: SEARCH_ROW }),
     );
     expect(screen.queryByTestId("sidebar-ai-search")).toBeNull();
+  });
+
+  it("draws a panel glyph, not the phone menu glyph, on the desktop collapse toggle", () => {
+    renderShell();
+    const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
+    expect(
+      within(toggle).getByTestId("sidebar-toggle-icon"),
+    ).toBeInTheDocument();
+    expect(within(toggle).queryByTestId("menu-open-icon")).toBeNull();
+  });
+
+  it.each([
+    ["closed", "Open menu", "menu-open-icon"],
+    ["open", "Close menu", "menu-close-icon"],
+  ])(
+    "draws the phone menu button's %s state with its own glyph",
+    async (drawerState, name, icon) => {
+      state.mobile = true;
+      const header = renderShell();
+      if (drawerState === "open") await openDrawer(header);
+      // The open drawer hides the page behind it from the accessibility tree.
+      const button = within(header).getByRole("button", { name, hidden: true });
+      expect(within(button).getByTestId(icon)).toBeInTheDocument();
+      expect(within(button).queryByTestId("sidebar-toggle-icon")).toBeNull();
+    },
+  );
+
+  it("starts on the icon rail when the member last collapsed it", () => {
+    renderWithIntl(
+      <DesktopShell defaultOpen={false}>
+        <Destination />
+      </DesktopShell>,
+      { locale: "en" },
+    );
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("header-warehouse")).toBeInTheDocument();
+  });
+
+  it("keeps a phone's drawer closed whatever the desktop sidebar last was", () => {
+    state.mobile = true;
+    renderWithIntl(
+      <DesktopShell defaultOpen={false}>
+        <Destination />
+      </DesktopShell>,
+      { locale: "en" },
+    );
+    expect(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: "Open menu",
+      }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(drawer()).toBeNull();
   });
 
   it("keeps subpages inside closed parent menus until the user expands them", () => {
@@ -486,7 +542,9 @@ describe("selected warehouse in the header", () => {
     const line = within(brand).getByTestId("header-warehouse");
     expect(brand).toHaveTextContent("Demo Co");
     expect(line).toHaveAttribute("title", LABEL);
-    expect(within(line).getByText(`Warehouse: ${LABEL}`)).toBeInTheDocument();
+    expect(
+      within(line).getByText(`Current warehouse: ${LABEL}`),
+    ).toBeInTheDocument();
     expect(drawer()).toBeNull();
   });
 
@@ -500,7 +558,7 @@ describe("selected warehouse in the header", () => {
     );
     // The rail control names the warehouse too, for its tooltip and readers.
     expect(screen.getByTestId("sidebar-warehouse-rail")).toHaveAccessibleName(
-      `Warehouse: ${LABEL}`,
+      `Current warehouse: ${LABEL}`,
     );
   });
 
@@ -526,7 +584,7 @@ describe("phone drawer search", () => {
   it("keeps warehouse context inside the drawer and offers search in both the header and the drawer", async () => {
     const header = renderShell();
     const search = within(header).getByRole("button", {
-      name: "Search pages and records",
+      name: "Search pages or employees",
     });
     const language = within(header).getByRole("button", {
       name: "Switch language to ไทย",
@@ -746,13 +804,28 @@ describe("phone drawer reopening", () => {
         disconnect() {}
       },
     );
-    const layout = (name: "scrollHeight" | "clientHeight", value: number) =>
-      vi.spyOn(Element.prototype, name, "get").mockImplementation(function (
-        this: Element,
-      ) {
-        return this.getAttribute("data-sidebar") === "content" ? value : 0;
-      });
-    const spies = [layout("scrollHeight", 1300), layout("clientHeight", 400)];
+    // A 400px list window whose last row ends at 1292px, above 8px of
+    // padding: the cue follows the last row, not the padded scroll box.
+    const spies = [
+      vi
+        .spyOn(Element.prototype, "clientHeight", "get")
+        .mockImplementation(function (this: Element) {
+          return this.getAttribute("data-sidebar") === "content" ? 400 : 0;
+        }),
+      vi
+        .spyOn(Element.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: Element) {
+          if (this.getAttribute("data-sidebar") === "content")
+            return DOMRect.fromRect({ height: 400 });
+          const content = this.closest("[data-sidebar=content]");
+          if (this.getAttribute("data-sidebar") !== "menu-item" || !content)
+            return DOMRect.fromRect();
+          return DOMRect.fromRect({
+            y: 1252 - content.scrollTop,
+            height: 40,
+          });
+        }),
+    ];
     onTestFinished(() => {
       for (const spy of spies) spy.mockRestore();
       vi.unstubAllGlobals();
@@ -774,6 +847,13 @@ describe("phone drawer reopening", () => {
     list(sheet).scrollTop = 900;
     fireEvent.scroll(list(sheet));
     expect(cue).toHaveAttribute("data-visible", "false");
+    // The last row in view with only the list's bottom padding cut off.
+    list(sheet).scrollTop = 893;
+    fireEvent.scroll(list(sheet));
+    expect(cue).toHaveAttribute("data-visible", "false");
+    list(sheet).scrollTop = 880;
+    fireEvent.scroll(list(sheet));
+    expect(cue).toHaveAttribute("data-visible", "true");
   });
 
   it("leaves the list alone once the user starts scrolling it", async () => {

@@ -2,7 +2,10 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { applicationRenderErrorEvent } from "./applicationError";
+import {
+  applicationRenderErrorEvent,
+  renderFailureOccurrence,
+} from "./applicationError";
 import {
   normalizeRoute,
   OBSERVABILITY_DIMENSION_KEYS,
@@ -158,6 +161,7 @@ describe("observability dimension allowlist", () => {
     });
     expect(OBSERVABILITY_DIMENSION_KEYS).toEqual([
       "boundary",
+      "reference",
       "metric",
       "value",
       "delta",
@@ -165,6 +169,54 @@ describe("observability dimension allowlist", () => {
       "navigationType",
       "route",
     ]);
+  });
+
+  it("keeps a failure reference only in Next's digest or the generated shape", () => {
+    for (const reference of ["K7Q2MD", "1234567890", "4294967295@E394", "7"])
+      expect(redactDimensions({ reference })).toEqual({ reference });
+    for (const reference of [
+      // A Thai phone number and a national ID: digits, but not a digest.
+      "0812345678",
+      "1103700012345",
+      "EMP0042",
+      "DEMO01",
+      "k7q2md",
+      "FO69070073",
+      SENTINELS.asciiName,
+      SENTINELS.productCode,
+      SENTINELS.thaiCustomer,
+      123456,
+    ])
+      expect(redactDimensions({ reference })).toEqual({});
+
+    expect(
+      applicationRenderErrorEvent("locale", 10, {
+        reference: "K7Q2MD",
+        route: "/th/finished-goods/products/k57c2n3sjmdpkjncn9jf0a19gh8ey9h5",
+      }).dimensions,
+    ).toEqual({
+      boundary: "locale",
+      reference: "K7Q2MD",
+      route: `th.finished-goods.products.${ROUTE_PLACEHOLDER}`,
+    });
+  });
+
+  it("fixes one quotable reference per caught error: Next's digest, else a generated one", () => {
+    const server = Object.assign(new Error("hidden"), { digest: "2338461745" });
+    expect(renderFailureOccurrence(server).reference).toBe("2338461745");
+
+    const client = new Error(`failed for ${SENTINELS.name}`);
+    const first = renderFailureOccurrence(client);
+    expect(first.reference).toMatch(/^[2-9A-HJKMNP-Z]{6}$/);
+    expect(renderFailureOccurrence(client)).toBe(first);
+    expect(renderFailureOccurrence(new Error("again")).reference).not.toBe(
+      first.reference,
+    );
+    // A digest of an unreviewed shape is never shown or recorded as is.
+    const odd = Object.assign(new Error("odd"), { digest: SENTINELS.email });
+    expect(renderFailureOccurrence(odd).reference).toMatch(
+      /^[2-9A-HJKMNP-Z]{6}$/,
+    );
   });
 
   it("covers every static segment of the current app route tree", () => {

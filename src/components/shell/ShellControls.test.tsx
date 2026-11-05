@@ -87,14 +87,31 @@ describe("WorkspaceContextBar in the sidebar", () => {
     render();
     expect(screen.getByTestId("warehouse-select")).toHaveTextContent("TG-OPT");
     expect(
-      screen.getByRole("combobox", { name: "Warehouse" }),
+      screen.getByRole("combobox", { name: "Current warehouse" }),
     ).toBeInTheDocument();
+  });
+
+  it("names the selector apart from the Warehouse module heading, in Thai too", () => {
+    renderWithIntl(
+      <TooltipProvider>
+        <SidebarProvider defaultOpen>
+          <WorkspaceContextBar />
+        </SidebarProvider>
+      </TooltipProvider>,
+      { locale: "th" },
+    );
+    expect(
+      screen.getByRole("combobox", { name: "คลังที่ใช้งาน" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("คลังสินค้า", { exact: true })).toBeNull();
   });
 
   it("keeps the picker available before a warehouse is selected", () => {
     state.workspace = ready({ selectedWarehouseId: undefined });
     render();
-    expect(screen.getByRole("combobox", { name: "Warehouse" })).toBeEnabled();
+    expect(
+      screen.getByRole("combobox", { name: "Current warehouse" }),
+    ).toBeEnabled();
     expect(screen.getByTestId("warehouse-select")).toHaveTextContent(
       "Select a warehouse",
     );
@@ -190,7 +207,9 @@ describe("WorkspaceContextBar in the sidebar", () => {
     );
     const user = userEvent.setup();
     const choose = async () => {
-      await user.click(screen.getByRole("combobox", { name: "Warehouse" }));
+      await user.click(
+        screen.getByRole("combobox", { name: "Current warehouse" }),
+      );
       await user.click(screen.getByRole("option", { name: /TG-B/ }));
     };
     await choose();
@@ -213,7 +232,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
   it("collapses to one rail icon that opens the sidebar", () => {
     render({ collapsed: true });
     const rail = screen.getByRole("button", {
-      name: "Warehouse: TG-OPT · Top Gold Optimized Warehouse",
+      name: "Current warehouse: TG-OPT · Top Gold Optimized Warehouse",
     });
     expect(screen.getByTestId("sidebar-state")).toHaveTextContent("collapsed");
     fireEvent.click(rail);
@@ -252,13 +271,17 @@ describe("WorkspaceContextBar rail expansion", () => {
     rail.focus();
     fireEvent.click(rail);
     expect(rail).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Warehouse" })).toHaveFocus();
+    expect(
+      screen.getByRole("combobox", { name: "Current warehouse" }),
+    ).toHaveFocus();
   });
 
   it("focuses the unavailable explanation when storage access is missing", () => {
     state.workspace = ready({ selectable: false, organization: undefined });
     render();
     fireEvent.click(screen.getByTestId("sidebar-warehouse-rail"));
-    expect(screen.getByRole("region", { name: "Warehouse" })).toHaveFocus();
+    expect(
+      screen.getByRole("region", { name: "Current warehouse" }),
+    ).toHaveFocus();
   });
 });

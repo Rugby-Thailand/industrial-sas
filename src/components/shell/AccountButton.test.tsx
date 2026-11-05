@@ -50,14 +50,30 @@ const render = (collapsed = false) =>
   });
 
 describe("sidebar account footer", () => {
-  it("names the signed-in person beside the account menu", () => {
+  it("names the signed-in person on the row that opens the account menu", async () => {
     render();
 
     const name = screen.getByTestId("sidebar-account-name");
     expect(name).toHaveTextContent("Local Tester");
     expect(name).toHaveClass("truncate", "text-sm", "font-medium");
     expect(name).toHaveAttribute("title", "Local Tester");
-    expect(screen.getByRole("button", { name: "เปิดเมนูบัญชี" })).toBeVisible();
+    // One control: the menu trigger, named by its own label and the name.
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    await waitFor(() =>
+      expect(screen.getByRole("button")).toHaveAccessibleName(
+        "เปิดเมนูบัญชี Local Tester",
+      ),
+    );
+  });
+
+  it("makes the whole full-width row the menu's touch target, with the row's focus ring", () => {
+    render();
+
+    const row = screen.getByTestId("sidebar-account");
+    expect(row).toContainElement(screen.getByTestId("sidebar-account-name"));
+    expect(row).toContainElement(screen.getByRole("button"));
+    expect(row).toHaveClass("relative", "min-h-touch", "w-full");
+    expect(row).toHaveClass("has-[button:focus-visible]:ring-2");
   });
 
   it("falls back to the primary email address when the account has no name", () => {
@@ -93,12 +109,23 @@ describe("sidebar account footer", () => {
   it("marks the English-named avatar decorative inside the localized button", async () => {
     render();
 
-    const button = screen.getByRole("button", { name: "เปิดเมนูบัญชี" });
+    const button = screen.getByRole("button");
     const image = button.querySelector("img");
     await waitFor(() => expect(image).toHaveAttribute("alt", ""));
     // Its title alone would still name it.
     expect(image).toHaveAttribute("aria-hidden", "true");
     expect(screen.queryByRole("img")).toBeNull();
+    expect(button).toHaveAccessibleName("เปิดเมนูบัญชี Local Tester");
+  });
+
+  it("keeps the localized label alone until the name is known", async () => {
+    clerk.isLoaded = false;
+    clerk.user = null;
+    render();
+
+    const button = screen.getByRole("button");
+    await waitFor(() => expect(button).toHaveAttribute("id"));
+    expect(button).not.toHaveAttribute("aria-labelledby");
     expect(button).toHaveAccessibleName("เปิดเมนูบัญชี");
   });
 
