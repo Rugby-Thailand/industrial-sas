@@ -256,14 +256,40 @@ export function queryScenarios(ids) {
       { ...w, palletId: ids.storedPalletId },
       { settle: true },
     ),
-    q("fg-pallet", "finishedGoods/workflow:recommend", {
-      ...w,
-      palletId: ids.awaitingPalletId ?? ids.reservedPalletId,
-    }),
-    q("fg-pallet", "finishedGoods/workflow:recommendMove", {
-      ...w,
-      palletId: ids.storedPalletId,
-    }),
+    // Put-away and move destinations: the ranked list, plus the preview of
+    // the zone the screen opens on (its first candidate's). The full payload
+    // (no `view`) now serves only tabs loaded before the split.
+    ...[
+      [
+        "finishedGoods/workflow:recommend",
+        ids.awaitingPalletId ?? ids.reservedPalletId,
+      ],
+      ["finishedGoods/workflow:recommendMove", ids.storedPalletId],
+    ].flatMap(([fn, palletId]) => [
+      q("fg-pallet", fn, { ...w, palletId, view: "list" }, { label: "list" }),
+      q(
+        "fg-pallet",
+        fn,
+        { ...w, palletId },
+        { legacy: true, label: "full payload" },
+      ),
+      q(
+        "fg-pallet",
+        "finishedGoods/workflow:recommendationZone",
+        { ...w, palletId },
+        {
+          label: fn.endsWith("Move") ? "move: viewed zone" : "viewed zone",
+          // Resolved once against the restored snapshot (same ids on every
+          // target), with the argument shape every target accepts.
+          resolveArgs: async (query) => ({
+            ...w,
+            palletId,
+            zoneId: (await query(fn, { ...w, palletId }))?.candidates?.[0]
+              ?.zoneId,
+          }),
+        },
+      ),
+    ]),
     q(
       "fg-pallet",
       "finishedGoods/workflow:stackChoices",

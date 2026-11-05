@@ -726,6 +726,14 @@ async function profileContention(target, workers = 8) {
 const scenarios = queryScenarios(ids).filter(
   (scenario) => !only?.length || only.includes(scenario.screen),
 );
+// Arguments a screen derives from another query's result (the zone it opens
+// on), resolved once: every target starts from the same restored data.
+for (const scenario of scenarios)
+  if (scenario.resolveArgs)
+    scenario.args = await scenario.resolveArgs(async (fn, args) => {
+      const value = (await invoke(targets[0], "query", fn, args)).value;
+      return value?.value ?? value;
+    });
 const loadBefore = loadavg();
 const queries = [];
 for (const scenario of scenarios) {
