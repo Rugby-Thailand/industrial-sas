@@ -776,7 +776,83 @@ async function profileContention(target, workers = 8) {
     },
     Math.min(workers, ids.contentionPallets.length),
   );
-  return [scans, pallets, crossProduct, measurements];
+  // One dense zone, distinct pallets (Sol: same-zone entries rows): each
+  // worker reserves its own recommended position in the zone holding the
+  // most placements, then the reservations are cancelled.
+  const zoneOf = async (palletId) => {
+    const recommended = (
+      await invoke(target, "query", "finishedGoods/workflow:recommend", {
+        warehouseId: ids.warehouseId,
+        palletId,
+      })
+    ).value?.value;
+    return recommended?.candidates ?? [];
+  };
+  const candidatesByPallet = new Map();
+  for (const pallet of ids.contentionPallets)
+    candidatesByPallet.set(pallet._id, await zoneOf(pallet._id));
+  const zoneCounts = new Map();
+  for (const candidates of candidatesByPallet.values())
+    for (const zoneId of new Set(candidates.map((c) => c.zoneId)))
+      zoneCounts.set(zoneId, (zoneCounts.get(zoneId) ?? 0) + 1);
+  const denseZone = [...zoneCounts.keys()].sort(
+    (a, b) =>
+      (zoneCounts.get(b) ?? 0) - (zoneCounts.get(a) ?? 0) ||
+      (ids.zoneHeld[b] ?? 0) - (ids.zoneHeld[a] ?? 0),
+  )[0];
+  const zonePallets = ids.contentionPallets.filter((pallet) =>
+    candidatesByPallet.get(pallet._id).some((c) => c.zoneId === denseZone),
+  );
+  const sameZone = zonePallets.length
+    ? await contend(
+        target,
+        "reserve (one dense zone, distinct pallets)",
+        "finishedGoods/workflow:reserve",
+        (index) => {
+          const pallet = zonePallets[index];
+          const inZone = candidatesByPallet
+            .get(pallet._id)
+            .filter((c) => c.zoneId === denseZone);
+          // Spread the workers over the zone's positions.
+          const candidate =
+            inZone[Math.floor((index * inZone.length) / zonePallets.length)];
+          return {
+            warehouseId: ids.warehouseId,
+            palletId: pallet._id,
+            requestId: requestId(`occ-zone-${index}`),
+            zoneId: candidate.zoneId,
+            ...(candidate.supportPositionId
+              ? { supportPositionId: candidate.supportPositionId }
+              : {}),
+            ...(candidate.supportPalletId
+              ? { supportPalletId: candidate.supportPalletId }
+              : {}),
+            xMm: candidate.xMm,
+            yMm: candidate.yMm,
+            rotation: candidate.rotation,
+          };
+        },
+        zonePallets.length,
+      )
+    : null;
+  for (const [index, pallet] of zonePallets.entries())
+    await invoke(
+      target,
+      "mutation",
+      "finishedGoods/workflow:cancelReservation",
+      {
+        warehouseId: ids.warehouseId,
+        palletId: pallet._id,
+        requestId: requestId(`occ-zone-cancel-${index}`),
+      },
+    );
+  return [
+    scans,
+    pallets,
+    crossProduct,
+    measurements,
+    ...(sameZone ? [sameZone] : []),
+  ];
 }
 
 const scenarios = queryScenarios(ids).filter(
