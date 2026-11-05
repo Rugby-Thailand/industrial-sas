@@ -242,26 +242,40 @@ function SearchBody({
     !composing &&
     query.trim().length >= 2 &&
     ai.state.status !== "RUNNING";
-  const noMatch =
-    !browsing &&
-    !stale &&
-    !records.state.loading &&
-    ordinary.length === 0 &&
-    aiChoices.length === 0;
-  // Nothing matched: the typed text itself is offered to the AI.
-  const fallback: readonly SearchResult[] =
-    noMatch && canAsk && ai.state.status === "IDLE"
-      ? [
-          {
-            id: "ask-query",
-            group: "ASK",
-            title: t("askQuery", { query: query.trim() }),
-            trail: "",
-            target: null,
-            ask: query,
-          },
-        ]
-      : [];
+  const noResults =
+    !browsing && ordinary.length === 0 && aiChoices.length === 0;
+  const noMatch = noResults && !stale && !records.state.loading;
+  // Whether the latest settled text matched nothing. It holds while the next
+  // text is typed and searched, so the offer below and the Ask AI button do
+  // not trade places on every keystroke.
+  const [unmatched, setUnmatched] = useState(false);
+  const outcome = browsing
+    ? false
+    : stale || records.state.loading
+      ? unmatched
+      : noMatch;
+  if (outcome !== unmatched) setUnmatched(outcome);
+  // Nothing matched: the typed text itself is offered to the AI, as the one
+  // AI action in place of the button. Typed further, the offer stays (but
+  // cannot be chosen until the results settle) until something matches.
+  const offerAsk =
+    outcome &&
+    noResults &&
+    aiAvailable &&
+    query.trim().length >= 2 &&
+    ai.state.status === "IDLE";
+  const fallback: readonly SearchResult[] = offerAsk
+    ? [
+        {
+          id: "ask-query",
+          group: "ASK",
+          title: t("askQuery", { query: query.trim() }),
+          trail: "",
+          target: null,
+          ask: query,
+        },
+      ]
+    : [];
 
   const goTo: Section = { group: "GOTO", items: shortcuts, labelled: true };
   const tryAsking: Section = {
@@ -496,7 +510,7 @@ function SearchBody({
             </IconButton>
           )}
         </div>
-        {aiAvailable ? (
+        {aiAvailable && !offerAsk ? (
           <Button
             type="button"
             variant={mode === "AI" ? "default" : "outline"}

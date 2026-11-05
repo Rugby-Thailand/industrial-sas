@@ -6,6 +6,7 @@ import { useId } from "react";
 import { flushSync } from "react-dom";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { SelectControl } from "@/components/ui/SelectControl";
 import {
   SidebarMenu,
@@ -92,9 +93,14 @@ export function WorkspaceContextBar({
   readonly collapsed?: boolean;
 }) {
   const t = useTranslations("Workspace");
+  const app = useTranslations("App");
   const workspace = useWorkspace();
   const { setOpen } = useSidebar();
   const warehouseId = useId();
+  // Loading behind a stalled connection waits quietly: the shell's notice
+  // is the announcement.
+  const stall = useConnectionStall();
+  const waiting = workspace.loading && stall !== null;
   const available =
     workspace.selectable && workspace.organization !== undefined;
   const selected = useSelectedWarehouse();
@@ -143,11 +149,14 @@ export function WorkspaceContextBar({
       </h2>
       {!available ? (
         <div
+          key={waiting ? "waiting" : "status"}
           className="mt-1 flex flex-col gap-0.5 text-xs"
-          {...(workspace.loading ? { role: "status" } : {})}
+          {...(workspace.loading && !waiting ? { role: "status" } : {})}
         >
           {workspace.loading ? (
-            <span className="text-muted">{t("loading")}</span>
+            <span className="text-muted">
+              {waiting ? app("waitingForConnection") : t("loading")}
+            </span>
           ) : workspace.organization !== undefined ? (
             // An organization member without an active warehouse they may open.
             <>

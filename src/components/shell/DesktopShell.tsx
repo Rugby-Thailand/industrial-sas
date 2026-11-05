@@ -21,7 +21,10 @@ import {
 } from "@/components/system/NavigationProgress";
 import { SkipToContentLink } from "@/components/shell/SkipToContentLink";
 import { AccountButton } from "@/components/shell/AccountButton";
-import { ConnectionNotice } from "@/components/shell/ConnectionNotice";
+import {
+  ConnectionNotice,
+  ConnectionStallProvider,
+} from "@/components/shell/ConnectionNotice";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
@@ -66,47 +69,51 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
       <NavigationProgressProvider>
         <NavigationGuardProvider>
           <GlobalSearchProvider>
-            <SidebarProvider
-              defaultOpen
-              className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
-              style={
-                {
-                  "--sidebar-width-icon": "4rem",
-                  "--sidebar-width": "18rem",
-                } as CSSProperties
-              }
-            >
-              <SkipToContentLink targetId={MAIN_ID}>
-                {t("skipToContent")}
-              </SkipToContentLink>
-              <HrLandingRedirect />
-              <AppSidebar menuOpener={menuOpener} />
-              <SidebarInset className="min-w-0 overflow-hidden">
-                <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <MobileNavigationDisclosure menuOpener={menuOpener} />
-                    <HeaderBrand />
-                    <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-                      <HeaderSearchTrigger />
-                      <LocaleSwitcher />
-                      <ThemeToggle />
+            {/* One stall answer for the notice and every loading presenter,
+                including the phone drawer's portal. */}
+            <ConnectionStallProvider>
+              <SidebarProvider
+                defaultOpen
+                className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
+                style={
+                  {
+                    "--sidebar-width-icon": "4rem",
+                    "--sidebar-width": "18rem",
+                  } as CSSProperties
+                }
+              >
+                <SkipToContentLink targetId={MAIN_ID}>
+                  {t("skipToContent")}
+                </SkipToContentLink>
+                <HrLandingRedirect />
+                <AppSidebar menuOpener={menuOpener} />
+                <SidebarInset className="min-w-0 overflow-hidden">
+                  <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <MobileNavigationDisclosure menuOpener={menuOpener} />
+                      <HeaderBrand />
+                      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                        <HeaderSearchTrigger />
+                        <LocaleSwitcher />
+                        <ThemeToggle />
+                      </div>
                     </div>
-                  </div>
-                  <ConnectionNotice />
-                </header>
-                <main
-                  id={MAIN_ID}
-                  tabIndex={-1}
-                  className={
-                    usageReport
-                      ? "min-w-0 flex-1 overflow-auto bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
-                      : "min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
-                  }
-                >
-                  <NavigationContent>{children}</NavigationContent>
-                </main>
-              </SidebarInset>
-            </SidebarProvider>
+                    <ConnectionNotice />
+                  </header>
+                  <main
+                    id={MAIN_ID}
+                    tabIndex={-1}
+                    className={
+                      usageReport
+                        ? "min-w-0 flex-1 overflow-auto bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
+                        : "min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+                    }
+                  >
+                    <NavigationContent>{children}</NavigationContent>
+                  </main>
+                </SidebarInset>
+              </SidebarProvider>
+            </ConnectionStallProvider>
           </GlobalSearchProvider>
         </NavigationGuardProvider>
       </NavigationProgressProvider>

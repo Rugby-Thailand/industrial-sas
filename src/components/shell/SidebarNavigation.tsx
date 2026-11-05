@@ -1,5 +1,10 @@
 import { Spinner } from "@/components/ui/spinner";
-import { ChevronDown, ChevronRight, type LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CloudOff,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
@@ -16,6 +21,7 @@ import {
 } from "@/components/shell/sidebarEntries";
 import { sidebarRowClassName } from "@/components/shell/sidebarRow";
 import { useContentBelow } from "@/components/shell/useContentBelow";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import {
   SidebarContent,
   SidebarGroup,
@@ -70,6 +76,9 @@ export function SidebarNavigation({
   const sections = visibleDesktopNavigation(useGrantedPermissions());
   const navigationLoading =
     !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
+  // A stalled connection is announced by the shell's notice; the menu's
+  // placeholder then says when it fills, quietly and without motion.
+  const waiting = useConnectionStall() !== null;
   const activeHref = activeNavigationHref(
     pathname,
     sections.flatMap((section) => section.items.map((item) => item.href)),
@@ -99,18 +108,24 @@ export function SidebarNavigation({
       >
         {navigationLoading ? (
           <p
-            role="status"
+            key={waiting ? "waiting" : "loading"}
+            {...(waiting ? {} : { role: "status" })}
             className={
               collapsed
                 ? "flex justify-center px-2 py-4 text-muted"
                 : "px-3 py-4 text-sm text-muted"
             }
+            data-testid="sidebar-navigation-loading"
           >
             {collapsed ? (
-              <Spinner aria-hidden="true" className="size-4" />
+              waiting ? (
+                <CloudOff aria-hidden="true" className="size-4" />
+              ) : (
+                <Spinner aria-hidden="true" className="size-4" />
+              )
             ) : null}
             <span className={collapsed ? "sr-only" : undefined}>
-              {t("loadingNavigation")}
+              {t(waiting ? "waitingNavigation" : "loadingNavigation")}
             </span>
           </p>
         ) : null}

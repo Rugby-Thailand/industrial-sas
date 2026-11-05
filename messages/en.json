@@ -12,7 +12,8 @@
     "connectionLost": "Can't reach the server",
     "connectionFirstHint": "This page can't load its data until the connection returns. The app keeps retrying automatically.",
     "connectionLostHint": "The app will keep trying to reconnect. Until then, data on this page may be out of date.",
-    "reloadPage": "Reload page"
+    "reloadPage": "Reload page",
+    "waitingForConnection": "Waiting for connection…"
   },
   "Locale": {
     "switchTo": "Switch language to"
@@ -69,6 +70,7 @@
     "handheldDelivery": "Delivery and POD",
     "productionOrders": "Production execution",
     "loadingNavigation": "Loading available work…",
+    "waitingNavigation": "Available work appears once connected",
     "loadingPage": "Loading page…",
     "sectionPlanner": "Warehouse",
     "finishedGoods": "Finished goods",

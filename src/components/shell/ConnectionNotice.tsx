@@ -2,8 +2,19 @@
 
 import { useConvex } from "convex/react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
+import {
+  ConnectionStallContext,
+  useConnectionStall,
+  type ConnectionStall,
+} from "@/components/system/connectionStall";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { guardedNavigate } from "@/lib/navigationGuard";
@@ -37,14 +48,16 @@ function useConnectionEpisode(): string {
 }
 
 /**
- * Says so, without blocking the page, when the backend cannot be reached:
- * the first connection has not opened after 8 s, or an open one has been
- * down for 4 s. A normal load or a brief blip never shows it. Before the
- * first connection nothing has loaded, so only a dropped connection warns
- * that the data shown may be out of date.
+ * Decides, for the whole shell, when the backend cannot be reached: the
+ * first connection has not opened after 8 s, or an open one has been down
+ * for 4 s. A normal load or a brief blip never counts. The notice below and
+ * the loading presenters read the same answer, so they never disagree.
  */
-export function ConnectionNotice() {
-  const t = useTranslations("App");
+export function ConnectionStallProvider({
+  children,
+}: {
+  readonly children: ReactNode;
+}) {
   const episode = useConnectionEpisode();
   const [stalled, setStalled] = useState<string | null>(null);
 
@@ -57,14 +70,29 @@ export function ConnectionNotice() {
     return () => window.clearTimeout(timer);
   }, [episode]);
 
-  if (stalled !== episode) return null;
+  const stall: ConnectionStall =
+    stalled !== episode ? null : episode === "first" ? "first" : "dropped";
+  return (
+    <ConnectionStallContext value={stall}>{children}</ConnectionStallContext>
+  );
+}
+
+/**
+ * Says so, without blocking the page, while the connection has stalled.
+ * Before the first connection nothing has loaded, so only a dropped
+ * connection warns that the data shown may be out of date. This is the one
+ * announcement: waiting presenters below it stay quiet.
+ */
+export function ConnectionNotice() {
+  const t = useTranslations("App");
+  const stall = useConnectionStall();
+
+  if (stall === null) return null;
   return (
     <Notice
       tone="warning"
       title={t("connectionLost")}
-      body={t(
-        episode === "first" ? "connectionFirstHint" : "connectionLostHint",
-      )}
+      body={t(stall === "first" ? "connectionFirstHint" : "connectionLostHint")}
       testId="connection-notice"
       className="mt-2 mb-1"
     >

@@ -179,4 +179,39 @@ describe("shell connection status", () => {
     expect(warning).toHaveTextContent("Can't reach the server");
     expect(screen.getByRole("main")).toHaveTextContent("Page");
   });
+
+  it("stops presenting the sidebar and header as loading once the connection stalls", () => {
+    vi.useFakeTimers();
+    state.connected = false;
+    const { header, sidebar } = renderShell();
+    expect(within(sidebar).getAllByRole("status")).toHaveLength(2);
+    expect(within(header).getByTestId("header-brand-loading")).toHaveClass(
+      "animate-pulse",
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(8_000);
+    });
+
+    // The banner's notice is the one announcement of the outage (the
+    // shell's empty navigation announcer aside).
+    expect(
+      screen
+        .getAllByRole("status")
+        .filter((region) => region.textContent !== ""),
+    ).toEqual([within(header).getByTestId("connection-notice")]);
+    expect(
+      within(sidebar).getByTestId("sidebar-navigation-loading"),
+    ).toHaveTextContent("Available work appears once connected");
+    expect(within(sidebar).getByTestId("sidebar-warehouse")).toHaveTextContent(
+      "Waiting for connection…",
+    );
+    expect(sidebar).not.toHaveTextContent("Loading");
+    expect(within(header).getByTestId("header-brand-loading")).not.toHaveClass(
+      "animate-pulse",
+    );
+    expect(
+      within(sidebar).getByTestId("sidebar-organization-loading"),
+    ).not.toHaveClass("animate-pulse");
+  });
 });

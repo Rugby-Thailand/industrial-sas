@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   APP_HISTORY_KEY,
   GUARD_HISTORY_KEY,
-  subscribeHistoryChanges,
   trackAppHistory,
 } from "./appHistory";
 import {
@@ -194,30 +193,4 @@ describe("tracked pushes and the guard marker", () => {
       stop();
     }
   });
-});
-
-// Next writes history from a useInsertionEffect, where React forbids the
-// store reader's update: readers hear of a write once the writing task ends.
-it("reports tracked writes to location readers after the write, not inside it", async () => {
-  history.replaceState({ [APP_HISTORY_KEY]: 0 }, "", "/en/finished-goods");
-  const stop = trackAppHistory();
-  const reader = vi.fn();
-  const unsubscribe = subscribeHistoryChanges(reader);
-  try {
-    history.pushState({}, "", "/en/finished-goods/scan");
-    expect(reader).not.toHaveBeenCalled();
-    await Promise.resolve();
-    expect(reader).toHaveBeenCalledOnce();
-    // A traversal is already outside React's commit and is reported at once.
-    window.dispatchEvent(new PopStateEvent("popstate"));
-    expect(reader).toHaveBeenCalledTimes(2);
-    // A reader that unsubscribes before the report is not called.
-    history.pushState({}, "", "/en/finished-goods/scan/records");
-    unsubscribe();
-    await Promise.resolve();
-    expect(reader).toHaveBeenCalledTimes(2);
-  } finally {
-    unsubscribe();
-    stop();
-  }
 });

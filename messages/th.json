@@ -12,7 +12,8 @@
     "connectionLost": "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้",
     "connectionFirstHint": "หน้านี้ยังโหลดข้อมูลไม่ได้จนกว่าจะเชื่อมต่อได้ ระบบกำลังลองเชื่อมต่อใหม่ให้อัตโนมัติ",
     "connectionLostHint": "ระบบจะลองเชื่อมต่อใหม่ให้อัตโนมัติ ระหว่างนี้ข้อมูลบนหน้านี้อาจไม่เป็นปัจจุบัน",
-    "reloadPage": "โหลดหน้าใหม่"
+    "reloadPage": "โหลดหน้าใหม่",
+    "waitingForConnection": "กำลังรอการเชื่อมต่อ…"
   },
   "Locale": {
     "switchTo": "เปลี่ยนภาษาเป็น"
@@ -69,6 +70,7 @@
     "handheldDelivery": "ส่งมอบและ POD",
     "productionOrders": "ดำเนินงานผลิต",
     "loadingNavigation": "กำลังโหลดงานที่ใช้งานได้…",
+    "waitingNavigation": "งานที่ใช้งานได้จะแสดงเมื่อเชื่อมต่อได้",
     "loadingPage": "กำลังโหลดหน้า…",
     "sectionPlanner": "คลังสินค้า",
     "finishedGoods": "สินค้าสำเร็จรูป",

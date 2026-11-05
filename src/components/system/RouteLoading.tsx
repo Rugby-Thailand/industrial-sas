@@ -1,24 +1,40 @@
 "use client";
 
+import { CloudOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 
 export function RouteLoading() {
   const t = useTranslations("Navigation");
+  const app = useTranslations("App");
+  // While the shell says the server can't be reached, the page waits without
+  // motion and leaves the announcement to that notice (see LedgerPanelStatus).
+  const waiting = useConnectionStall() !== null;
 
   return (
     <section
-      role="status"
-      aria-label={t("loadingPage")}
-      aria-busy="true"
-      aria-live="polite"
+      key={waiting ? "waiting" : "loading"}
+      {...(waiting
+        ? { "data-waiting": "connection" }
+        : {
+            role: "status",
+            "aria-label": t("loadingPage"),
+            "aria-busy": "true",
+            "aria-live": "polite",
+          })}
+      data-testid="route-loading"
       className="flex flex-col gap-6"
     >
       <div className="flex min-h-touch items-center gap-2 text-sm text-muted">
-        <Spinner aria-hidden="true" />
-        <span>{t("loadingPage")}</span>
+        {waiting ? (
+          <CloudOff aria-hidden="true" className="size-4 shrink-0" />
+        ) : (
+          <Spinner aria-hidden="true" />
+        )}
+        <span>{waiting ? app("waitingForConnection") : t("loadingPage")}</span>
       </div>
       <div aria-hidden="true" className="flex flex-col gap-3">
         <Skeleton className="h-8 w-full max-w-72" />

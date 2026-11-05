@@ -167,21 +167,11 @@ export function subscribeHistoryWrites(listener: () => void): () => void {
  * Observe every change of the current entry: tracked writes and browser
  * traversals (`popstate`). For `useSyncExternalStore` readers of location or
  * depth; each reader keeps its own snapshot.
- *
- * Writes are reported once the writing task's synchronous work ends. Next
- * writes history from a `useInsertionEffect`, where React forbids scheduling
- * the reader's update; nothing else can run before the microtask.
  */
 export function subscribeHistoryChanges(listener: () => void): () => void {
-  let subscribed = true;
-  const release = subscribeHistoryWrites(() =>
-    queueMicrotask(() => {
-      if (subscribed) listener();
-    }),
-  );
+  const release = subscribeHistoryWrites(listener);
   window.addEventListener("popstate", listener);
   return () => {
-    subscribed = false;
     release();
     window.removeEventListener("popstate", listener);
   };

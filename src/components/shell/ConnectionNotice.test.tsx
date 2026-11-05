@@ -26,11 +26,24 @@ vi.mock("convex/react", () => ({
       : undefined,
 }));
 
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { RouteLoading } from "@/components/system/RouteLoading";
+
 import {
   ConnectionNotice,
+  ConnectionStallProvider,
   FIRST_CONNECTION_GRACE_MS,
   RECONNECTION_GRACE_MS,
 } from "./ConnectionNotice";
+
+/** The notice reads the shell's stall answer, so it renders inside it. */
+const renderNotice = (options?: { locale: "en" | "th" }) =>
+  renderWithIntl(
+    <ConnectionStallProvider>
+      <ConnectionNotice />
+    </ConnectionStallProvider>,
+    options,
+  );
 
 function setLink(next: Partial<typeof link.state>) {
   act(() => {
@@ -60,7 +73,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("ConnectionNotice", () => {
   it("stays silent on a normal load that connects within the grace period", () => {
-    renderWithIntl(<ConnectionNotice />);
+    renderNotice();
     advance(FIRST_CONNECTION_GRACE_MS - 1_000);
     setLink({
       isWebSocketConnected: true,
@@ -72,7 +85,7 @@ describe("ConnectionNotice", () => {
   });
 
   it("warns once the first connection has not opened after 8 s and clears when it connects", () => {
-    renderWithIntl(<ConnectionNotice />);
+    renderNotice();
     advance(FIRST_CONNECTION_GRACE_MS - 1);
     expect(notice()).toBeNull();
     advance(1);
@@ -104,7 +117,7 @@ describe("ConnectionNotice", () => {
       hasEverConnected: true,
       connectionCount: 1,
     });
-    renderWithIntl(<ConnectionNotice />, { locale: "en" });
+    renderNotice({ locale: "en" });
 
     setLink({ isWebSocketConnected: false });
     advance(RECONNECTION_GRACE_MS - 1_000);
@@ -136,7 +149,7 @@ describe("ConnectionNotice", () => {
       value: { ...original, reload },
     });
     try {
-      renderWithIntl(<ConnectionNotice />, { locale: "en" });
+      renderNotice({ locale: "en" });
       advance(FIRST_CONNECTION_GRACE_MS);
       fireEvent.click(screen.getByRole("button", { name: "Reload page" }));
       expect(reload).toHaveBeenCalledOnce();
@@ -148,9 +161,74 @@ describe("ConnectionNotice", () => {
     }
   });
 
+  it("lets loading presenters wait without motion while stalled, under one announcement, and load again on reconnect", () => {
+    const { container } = renderWithIntl(
+      <ConnectionStallProvider>
+        <ConnectionNotice />
+        <LedgerPanelStatus
+          state={{ kind: "LOADING" }}
+          label="กำลังโหลดสินค้าสำเร็จรูป…"
+        />
+        <RouteLoading />
+      </ConnectionStallProvider>,
+    );
+    const panel = () => screen.getByTestId("panel-LOADING");
+    const route = () => screen.getByTestId("route-loading");
+    const spinning = () => container.querySelectorAll(".animate-spin");
+    const pulsing = () => container.querySelectorAll(".animate-pulse");
+    const skeletons = container.querySelectorAll("[data-slot=skeleton]");
+
+    advance(FIRST_CONNECTION_GRACE_MS - 1);
+    expect(panel()).toHaveAttribute("role", "status");
+    expect(panel()).toHaveTextContent("กำลังโหลดสินค้าสำเร็จรูป…");
+    expect(route()).toHaveAttribute("role", "status");
+    expect(spinning()).toHaveLength(2);
+    expect(pulsing()).toHaveLength(skeletons.length);
+
+    advance(1);
+    // The notice is the one live announcement; the presenters say what they
+    // wait for, hold still, and are not read out a second time.
+    expect(screen.getAllByRole("status")).toEqual([notice()]);
+    expect(panel()).not.toHaveAttribute("role");
+    expect(panel()).toHaveTextContent(/^กำลังรอการเชื่อมต่อ…$/);
+    expect(route()).not.toHaveAttribute("role");
+    expect(route()).not.toHaveAttribute("aria-live");
+    expect(route()).toHaveTextContent(/^กำลังรอการเชื่อมต่อ…$/);
+    expect(spinning()).toHaveLength(0);
+    expect(panel().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(pulsing()).toHaveLength(0);
+    expect(container.querySelectorAll("[data-slot=skeleton]")).toHaveLength(
+      skeletons.length,
+    );
+
+    setLink({
+      isWebSocketConnected: true,
+      hasEverConnected: true,
+      connectionCount: 1,
+    });
+    expect(notice()).toBeNull();
+    expect(panel()).toHaveAttribute("role", "status");
+    expect(panel()).toHaveTextContent("กำลังโหลดสินค้าสำเร็จรูป…");
+    expect(route()).toHaveTextContent("กำลังโหลดหน้า…");
+    expect(spinning()).toHaveLength(2);
+    expect(pulsing()).toHaveLength(skeletons.length);
+  });
+
+  it("leaves presenters outside the shell loading as usual", () => {
+    const { container } = renderWithIntl(
+      <LedgerPanelStatus state={{ kind: "LOADING" }} label="Loading" />,
+    );
+    advance(FIRST_CONNECTION_GRACE_MS * 2);
+    expect(screen.getByRole("status")).toBe(
+      screen.getByTestId("panel-LOADING"),
+    );
+    expect(container.querySelector(".animate-spin")).not.toBeNull();
+    expect(container.querySelectorAll(".animate-pulse")).toHaveLength(4);
+  });
+
   it("has nothing to watch without a configured backend", () => {
     link.client = false;
-    renderWithIntl(<ConnectionNotice />);
+    renderNotice();
     advance(FIRST_CONNECTION_GRACE_MS * 2);
     expect(notice()).toBeNull();
   });

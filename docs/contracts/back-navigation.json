@@ -1287,6 +1287,14 @@
         },
         {
           "shape": "conditional",
+          "truthy": [
+            "lucide-react#Sparkles",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
           "truthy": ["p"],
           "falsy": []
         },
@@ -1321,11 +1329,19 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:composing",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "IME composition hides premature results and no-match guidance inside search; it does not open a new workflow.",
+      "expectation": "IME composition hides premature results and no-match guidance inside search and holds the Ask AI Button or inline AI offer as it was; it does not open a new workflow.",
       "render": [
         {
           "shape": "conditional",
           "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "lucide-react#Sparkles",
+            "src/components/ui/button#Button"
+          ],
           "falsy": []
         },
         {
@@ -1339,7 +1355,7 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted places and AI examples as options there, and an AI request shows inline progress and an aria-hidden placeholder for its choices. Typed text shows an inline clear IconButton; it and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. Back dismisses the containing dialog regardless of the text.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted places and AI examples as options there, and an AI request shows inline progress and an aria-hidden placeholder for its choices. Typed text shows an inline clear IconButton; it and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. When nothing matches, the typed text is offered to the AI as one inline option and the Ask AI Button is not rendered while that option is shown. Back dismisses the containing dialog regardless of the text.",
       "render": [
         {
           "shape": "conditional",
@@ -1349,6 +1365,14 @@
         {
           "shape": "conditional",
           "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "lucide-react#Sparkles",
+            "src/components/ui/button#Button"
+          ],
           "falsy": []
         },
         {
@@ -1379,14 +1403,50 @@
       ]
     },
     {
-      "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
+      "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:unmatched",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Debounced search text changes results, the ordinary-results heading and no-match guidance in the same dialog; it never creates a foreground predecessor.",
+      "expectation": "Remembers whether the latest settled search text matched nothing, so the inline “Ask AI where to go for …” option stays in the list, and the Ask AI Button stays out of the input row, while the next text is typed and searched. Both live inside the same search dialog; neither is a foreground step or history entry, and Back dismisses the dialog.",
       "render": [
         {
           "shape": "conditional",
           "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "lucide-react#Sparkles",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "makes the typed-text offer the only AI action when nothing matches, and keeps it in place while typing on"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
+    },
+    {
+      "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Debounced search text changes results, the ordinary-results heading, no-match guidance and whether the Ask AI Button or the inline AI offer is shown in the same dialog; it never creates a foreground predecessor.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "lucide-react#Sparkles",
+            "src/components/ui/button#Button"
+          ],
           "falsy": []
         },
         {

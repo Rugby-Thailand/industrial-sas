@@ -35,7 +35,7 @@ it("returns through history when a previous app entry exists", () => {
   expect(router.back).toHaveBeenCalledOnce();
   expect(router.replace).not.toHaveBeenCalled();
 });
-it("follows tracked writes and traversals, and stops listening after unmount", async () => {
+it("follows tracked writes and traversals, and stops listening after unmount", () => {
   window.history.replaceState({ appNavigationIndex: 0 }, "", "/en/hr/leave");
   const stopTracking = trackAppHistory();
   const remove = vi.spyOn(window, "removeEventListener");
@@ -44,15 +44,11 @@ it("follows tracked writes and traversals, and stops listening after unmount", a
     locale: "en",
   });
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-  // A tracked push adds an app entry; readers hear of it after the write.
-  await act(async () =>
-    window.history.pushState({}, "", "/en/hr/leave/review"),
-  );
+  // A tracked push adds an app entry.
+  act(() => window.history.pushState({}, "", "/en/hr/leave/review"));
   expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
   // A metadata-only write is not reported; the traversal event is.
-  await act(async () =>
-    window.history.replaceState({ appNavigationIndex: 0 }, ""),
-  );
+  act(() => window.history.replaceState({ appNavigationIndex: 0 }, ""));
   expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
   act(() => {
     window.dispatchEvent(new PopStateEvent("popstate"));

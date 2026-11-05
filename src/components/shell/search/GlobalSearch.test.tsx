@@ -1321,6 +1321,57 @@ describe("search guidance", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("makes the typed-text offer the only AI action when nothing matches, and keeps it in place while typing on", async () => {
+    state.queries.set(ref(hrRefs.searchReviewEmployees), () => found());
+    state.queries.set(ref(hrRefs.searchAdminEmployees), () => found());
+    state.action.mockResolvedValue({
+      ok: true,
+      value: {
+        ok: true,
+        today: "2026-10-09",
+        intent: grounded({ kind: "CLARIFY", clarify: "TASK" }),
+      },
+    });
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    const askButton = () => screen.queryByRole("button", { name: "Ask AI" });
+    const offer = (text: string) =>
+      screen.getByRole("option", { name: `Ask AI where to go for “${text}”` });
+
+    // Ordinary results: Ask AI stays beside the box and nothing is offered.
+    await type("holidays");
+    expect(askButton()).toBeEnabled();
+    expect(screen.queryByTestId("global-search-ask-query")).toBeNull();
+
+    // Nothing matches: the offer replaces the button.
+    await type("ซซซซซ");
+    expect(askButton()).toBeNull();
+    expect(input()).toHaveAttribute("aria-activedescendant", offer("ซซซซซ").id);
+
+    // Typing on, the offer follows the text but waits for it to settle, and
+    // the button does not come back for each keystroke.
+    fireEvent.change(input(), { target: { value: "ซซซซซซ" } });
+    expect(askButton()).toBeNull();
+    expect(offer("ซซซซซซ")).toHaveAttribute("aria-disabled", "true");
+    await type("ซซซซซซ");
+    expect(askButton()).toBeNull();
+    expect(offer("ซซซซซซ")).not.toHaveAttribute("aria-disabled");
+
+    // Choosing the offer asks the AI about the text shown in it.
+    fireEvent.click(offer("ซซซซซซ"));
+    await waitFor(() => expect(state.action).toHaveBeenCalledTimes(1));
+    expect(state.action.mock.calls[0]![0].query).toBe("ซซซซซซ");
+    await screen.findByTestId("global-search-ai-outcome");
+    expect(screen.queryByTestId("global-search-ask-query")).toBeNull();
+    expect(askButton()).toBeInTheDocument();
+
+    // A text with matches brings the button back once its results settle.
+    await type("holidays");
+    expect(askButton()).toBeEnabled();
+    expect(screen.queryByTestId("global-search-ask-query")).toBeNull();
+  });
+
   it("says what can be searched when nothing matches and AI is not available", async () => {
     state.access = { status: "NONE", permissions: [], sites: [] };
     state.workspace = {
