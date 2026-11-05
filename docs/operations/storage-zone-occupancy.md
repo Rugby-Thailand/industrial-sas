@@ -82,10 +82,14 @@ across open subscriptions.
 
 `finishedGoodsWarehouseTotals` (`convex/lib/warehouseTotals.ts`) holds exact
 catalogue totals in 8 product-sharded rows, maintained by the same tracked
-writes. `finishedGoods/totalsBackfill:run` builds them in one transaction
-(warehouses up to 2,000 products; larger ones keep the paged summary scan),
-and the hourly `finishedGoods/totalsBackfill:sweep` rebuilds them where they
-are missing or suspect.
+writes. `finishedGoods/totalsBackfill:run` builds them for a catalogue of any
+size, 500 products per transaction in creation order, chaining itself until
+done. While it runs, writes apply deltas only to products it has already
+counted (it counts the others' current state when it reaches them), and the
+catalogue summary keeps using the paged scan. A newer run supersedes an older
+one. The hourly `finishedGoods/totalsBackfill:sweep` starts a build where
+totals are missing or suspect, and restarts one whose chain stopped for an
+hour.
 
 ## Release constraint: squash-merge
 

@@ -520,6 +520,22 @@ const schema = defineSchema({
       totalsGeneration: v.optional(v.number()),
       /** When a build refused (too many products); the sweep retries daily. */
       totalsRefusedAt: v.optional(v.number()),
+      /**
+       * A resumable totals build. Products are counted in creation order;
+       * writes apply deltas only to products already counted (lib/warehouseTotals).
+       */
+      totalsBuild: v.optional(
+        v.object({
+          runId: v.string(),
+          startedAt: v.number(),
+          /** Creation time of the last counted product; absent: none yet. */
+          after: v.optional(v.number()),
+          /** Counted products created exactly at `after`. */
+          afterIds: v.array(v.id("finishedGoodsProducts")),
+          /** A write could not tell whether its product was counted. */
+          poisoned: v.optional(v.boolean()),
+        }),
+      ),
     }),
   ).index("by_orgId_warehouseId", byOrg("warehouseId")),
   /** Exact catalogue totals, sharded by product (lib/warehouseTotals). */
@@ -955,7 +971,9 @@ const schema = defineSchema({
     }),
   )
     .index("by_orgId_warehouseId_sku", byOrg("warehouseId", "sku"))
-    .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt")),
+    .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
+    // Creation order: the resumable totals build's immutable scan position.
+    .index("by_orgId_warehouseId", byOrg("warehouseId")),
   finishedGoodsPallets: defineTable(
     tenantFields({
       legacyRecovery: v.optional(

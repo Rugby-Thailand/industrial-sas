@@ -10,8 +10,23 @@ import type { TenantDocumentAccess } from "./tenantDb";
  */
 export const WAREHOUSE_TOTALS_VERSION = 1;
 export const WAREHOUSE_TOTALS_SHARDS = 8;
-/** Larger catalogues keep the paged summary scan (one backfill transaction). */
-export const MAX_TOTALS_BACKFILL_PRODUCTS = 2_000;
+/** Products one build transaction counts (two reads each). */
+export const TOTALS_BUILD_PAGE = 500;
+
+type Readiness = Doc<"finishedGoodsSummaryReadiness">;
+export type TotalsBuild = NonNullable<Readiness["totalsBuild"]>;
+/** Has the running build counted this product yet? Only then do deltas apply. */
+export function buildCounted(
+  build: TotalsBuild,
+  product: { _id: string; _creationTime: number },
+) {
+  return (
+    build.after !== undefined &&
+    (product._creationTime < build.after ||
+      (product._creationTime === build.after &&
+        (build.afterIds as readonly string[]).includes(product._id)))
+  );
+}
 
 export const TOTAL_FIELDS = [
   "awaitingMeasurement",
@@ -32,7 +47,7 @@ export function totalsShard(productId: string) {
   return Math.abs(hash) % WAREHOUSE_TOTALS_SHARDS;
 }
 
-const emptyShard = (warehouseId: string, shard: number) => ({
+export const emptyShard = (warehouseId: string, shard: number) => ({
   warehouseId,
   shard,
   products: 0,
@@ -43,7 +58,7 @@ const emptyShard = (warehouseId: string, shard: number) => ({
   units: [] as { unit: string; count: number }[],
 });
 
-async function shardRow(
+export async function shardRow(
   db: TenantDocumentAccess,
   warehouseId: string,
   shard: number,
@@ -60,7 +75,7 @@ async function shardRow(
     .unique();
 }
 
-function applied(
+export function applied(
   base: ReturnType<typeof emptyShard>,
   delta: TotalsDelta,
 ): ReturnType<typeof emptyShard> {
@@ -88,12 +103,18 @@ function applied(
   return next;
 }
 
-/** Apply one product's delta. Rows exist before readiness; readers ignore them until then. */
+/**
+ * Apply one product's delta. Rows exist before readiness; readers ignore them
+ * until then. While a resumable build runs, a product it has not counted yet
+ * takes no delta: the build counts its current state when it gets there.
+ */
 export async function adjustWarehouseTotals(
   db: TenantDocumentAccess,
   warehouseId: string,
   productId: string,
   delta: TotalsDelta,
+  /** The product's creation time when the caller already has it. */
+  productCreationTime?: number,
 ) {
   // No read either: a zero delta must not re-run readers or join the shard's
   // conflict set.
@@ -103,6 +124,34 @@ export async function adjustWarehouseTotals(
     Object.values(delta.units ?? {}).every((change) => !change)
   )
     return;
+  const readiness = await db
+    .byIndex<Readiness>(
+      "finishedGoodsSummaryReadiness",
+      "by_orgId_warehouseId",
+      [{ field: "warehouseId", value: warehouseId }],
+    )
+    .unique();
+  const build = readiness?.totalsBuild;
+  if (readiness && build) {
+    const created =
+      productCreationTime ??
+      (
+        await db.get<Doc<"finishedGoodsProducts">>(
+          "finishedGoodsProducts",
+          productId,
+        )
+      )?._creationTime;
+    if (created === undefined) {
+      // Cannot tell whether the build counted it: the build must start over.
+      if (!build.poisoned)
+        await db.patch("finishedGoodsSummaryReadiness", readiness._id, {
+          totalsBuild: { ...build, poisoned: true },
+        });
+      return;
+    }
+    if (!buildCounted(build, { _id: productId, _creationTime: created }))
+      return;
+  }
   const shard = totalsShard(productId);
   const row = await shardRow(db, warehouseId, shard);
   const sum = applied(row ?? emptyShard(warehouseId, shard), delta);

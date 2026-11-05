@@ -102,17 +102,24 @@ async function catalogueWorld() {
   for (let batch = 0; batch < 10; batch++)
     if ((await run((db) => backfillProductSummaries(db, warehouseId))).ready)
       break;
-  const build = () =>
+  type BuildResult = {
+    built: boolean;
+    reason?: string;
+    runId?: string;
+    counted?: number;
+  };
+  const buildStep = (args: Record<string, unknown> = {}) =>
     world.t.run((ctx) =>
       (
         buildTotals as unknown as {
           _handler(
             ctx: GenericMutationCtx<DataModel>,
             args: unknown,
-          ): Promise<{ built: boolean }>;
+          ): Promise<BuildResult>;
         }
-      )._handler(ctx, { warehouseId }),
+      )._handler(ctx, { warehouseId, chain: false, ...args }),
     );
+  const build = () => buildStep();
   const setTotalsVersion = (version: number | undefined) =>
     world.t.run(async (ctx) => {
       const row = (
@@ -145,13 +152,22 @@ async function catalogueWorld() {
     expect(maintained.result).toEqual(scanned.result);
     return { scanned, maintained };
   };
-  return { world, run, build, read, expectParity, products, pallets };
+  return {
+    world,
+    run,
+    build,
+    buildStep,
+    read,
+    expectParity,
+    products,
+    pallets,
+  };
 }
 
 describe("maintained warehouse totals", () => {
   it("answer the catalogue summary exactly, in one request, through writes", async () => {
     const seed = await catalogueWorld();
-    expect(await seed.build()).toEqual({ built: true });
+    expect(await seed.build()).toMatchObject({ built: true, counted: 123 });
     const first = await seed.expectParity();
     expect(first.maintained.requests).toBe(1);
     expect(first.maintained.docs).toBeLessThan(first.scanned.docs);
@@ -270,6 +286,85 @@ describe("maintained warehouse totals", () => {
     });
     expect(written).toContain("finishedGoodsProductSummaries");
     expect(written).not.toContain("finishedGoodsWarehouseTotals");
+    await seed.expectParity();
+  });
+
+  it("build a catalogue of any size page by page, exact through writes between pages", async () => {
+    const seed = await catalogueWorld();
+    let step = await seed.buildStep({ batchSize: 10 });
+    expect(step).toMatchObject({ built: false, reason: "IN_PROGRESS" });
+    // The 10 oldest products are counted; the rest are not yet.
+    expect((await seed.read()).requests).toBeGreaterThan(1);
+    const tracked = (
+      fn: (
+        db: ReturnType<typeof trackFinishedGoodsWrites>["db"],
+      ) => Promise<unknown>,
+    ) =>
+      seed.run(async (db) => {
+        const writes = trackFinishedGoodsWrites(db);
+        await fn(writes.db);
+        await writes.flush();
+      });
+    const fillers = await seed.world.t.run((ctx) =>
+      ctx.db
+        .query("finishedGoodsProducts")
+        .collect()
+        .then((rows) => rows.filter((row) => row.sku.startsWith("Z-"))),
+    );
+    // Counted product: its delta applies. Uncounted ones: the build reads them.
+    await tracked((db) =>
+      db.patch("finishedGoodsPallets", seed.pallets[0]!, { status: "STORED" }),
+    );
+    await tracked((db) =>
+      db.patch("finishedGoodsProducts", fillers.at(-1)!._id, {
+        unit: "CRATE",
+      }),
+    );
+    await tracked((db) =>
+      db.insert("finishedGoodsProducts", {
+        warehouseId: seed.world.warehouses.alphaA,
+        sku: "NEW",
+        name: "New product",
+        unit: "DRUM",
+        storageFormat: "PALLET",
+        storageCondition: "ANY",
+        status: "ACTIVE",
+        createdAt: 3,
+        updatedAt: 3,
+        createdByUserId: seed.world.userA,
+        updatedByUserId: seed.world.userA,
+      }),
+    );
+    let pages = 1;
+    while (!step.built) {
+      step = await seed.buildStep({ batchSize: 10, runId: step.runId });
+      pages++;
+      if (pages === 5)
+        await tracked((db) =>
+          db.delete("finishedGoodsPallets", seed.pallets[7]!),
+        );
+    }
+    expect(pages).toBe(13);
+    const { maintained } = await seed.expectParity();
+    expect(maintained.requests).toBe(1);
+    expect(maintained.result.totals).toMatchObject({ products: 124 });
+    expect(maintained.result.totals.units).toEqual(
+      expect.arrayContaining(["CRATE", "DRUM"]),
+    );
+  });
+
+  it("refuse a superseded build's next page", async () => {
+    const seed = await catalogueWorld();
+    const a = await seed.buildStep({ batchSize: 10 });
+    const b = await seed.buildStep({ batchSize: 10 });
+    expect(b.runId).not.toBe(a.runId);
+    expect(await seed.buildStep({ batchSize: 10, runId: a.runId })).toEqual({
+      built: false,
+      reason: "SUPERSEDED",
+    });
+    let step = b;
+    while (!step.built)
+      step = await seed.buildStep({ batchSize: 50, runId: step.runId });
     await seed.expectParity();
   });
 

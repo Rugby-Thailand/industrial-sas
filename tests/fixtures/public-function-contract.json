@@ -6240,6 +6240,24 @@
             "tableName": "warehouses"
           },
           "optional": false
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "batchSize": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        },
+        "chain": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
         }
       }
     },
@@ -6255,6 +6273,18 @@
         "reason": {
           "fieldType": {
             "type": "string"
+          },
+          "optional": true
+        },
+        "runId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        },
+        "counted": {
+          "fieldType": {
+            "type": "number"
           },
           "optional": true
         }

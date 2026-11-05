@@ -355,7 +355,7 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
   // Products as they were before this mutation (null: inserted by it).
   const productsBefore = new Map<
     string,
-    { warehouseId: string; unit: string } | null
+    { warehouseId: string; unit: string; _creationTime: number } | null
   >();
   const note = async (table: string, id: string, inserted = false) => {
     if (table === "finishedGoodsProducts" && !productsBefore.has(id)) {
@@ -367,7 +367,13 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
           );
       productsBefore.set(
         id,
-        before ? { warehouseId: before.warehouseId, unit: before.unit } : null,
+        before
+          ? {
+              warehouseId: before.warehouseId,
+              unit: before.unit,
+              _creationTime: before._creationTime,
+            }
+          : null,
       );
     }
     if (table === "finishedGoodsPallets") touched.add(id);
@@ -455,7 +461,13 @@ export function trackFinishedGoodsWrites(db: TenantDocumentAccess) {
         const products = (after ? 1 : 0) - (before ? 1 : 0);
         const warehouseId = after?.warehouseId ?? before?.warehouseId;
         if (warehouseId && (products || Object.values(units).some(Boolean)))
-          await adjustWarehouseTotals(db, warehouseId, id, { products, units });
+          await adjustWarehouseTotals(
+            db,
+            warehouseId,
+            id,
+            { products, units },
+            (after ?? before)?._creationTime,
+          );
       }
       await refreshZoneOccupancy(db, { zones, placements, pallets: touched });
       for (const warehouseId of storageWarehouses) {
