@@ -1,13 +1,64 @@
 # Derived storage zone occupancy
 
-`convex/lib/zoneOccupancy.ts` keeps three derived tables so occupancy readers stop
-reading every held placement and its pallet on every execution and re-run:
+`convex/lib/zoneOccupancy.ts` and `convex/lib/zoneSurfaces.ts` keep four derived
+tables so occupancy and recommendation readers stop reading every held placement,
+its pallet, and every zone's layout documents on every execution and re-run:
 
-| Table                           | Row                                                                    | Read by                                                                                                                                              |
-| ------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storageZoneOccupancy`          | Per zone: held/unmeasured counts, stored/held footprint areas          | `buildingOccupancy`, `listStorageBuildings`; recommendations, for zones whose storage condition mismatches (only the unmeasured count matters there) |
-| `storageZoneOccupancyEntries`   | Per zone: exact copies of held placements (index order) + pallet facts | `recommend`, `recommendMove`, `recommendationZone`, `getStorageBuildingInventory`                                                                    |
-| `storageZoneOccupancyReadiness` | Per warehouse: `ready`, `blocked`, `version`                           | all of the above                                                                                                                                     |
+| Table                           | Row                                                                                                                                       | Read by                                                                                                                                              |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storageZoneOccupancy`          | Per zone: held/unmeasured counts, stored/held footprint areas                                                                             | `buildingOccupancy`, `listStorageBuildings`; recommendations, for zones whose storage condition mismatches (only the unmeasured count matters there) |
+| `storageZoneOccupancyEntries`   | Per zone: held placements (index order) as the fields readers use, plus pallet facts with stack facts (version 2)                         | `recommend`, `recommendMove`, `recommendationZone`, `getStorageBuildingInventory`                                                                    |
+| `storageZoneSurfaces`           | Per zone: the zone's fields, whether it and its location are usable, its ACTIVE positions with whether each position's location is usable | `recommend`, `recommendMove`, `recommendationZone`                                                                                                   |
+| `storageZoneOccupancyReadiness` | Per warehouse: `ready`, `version`, `runId`, the legacy writer and layout generations the rows are in step with                            | all of the above                                                                                                                                     |
+
+### Entries rows (version 2)
+
+- **Placements** are stored as the fields readers use (`HeldPlacement`: identity,
+  status, position code, geometry, support ids, `updatedAt`, location-only
+  assignment). The zone, and the warehouse and building unless a malformed
+  placement names others, come from the row. Version 1 stored whole document
+  copies; the projection roughly halves every entries row, every reader of it, and
+  every reservation, cancellation or move that rewrites it.
+- **Pallet facts** omit the row's warehouse and carry **stack facts**: whether the
+  pallet has a RESERVED/IN_TRANSIT move (`activeMove`) and which pallets its held
+  placements carry (`stackedPalletIds`). Recommendations validate every pallet-top
+  support with them instead of four index ranges per supporting pallet. Move writes
+  touch their pallet and placement writes touch the pallet they rest on, so both are
+  maintained with the facts. `stackUnknown` marks facts not computed (a mutation
+  rebuilding a zone of more than 50 new pallets); readers query those. Mutations
+  (`reserve`, `confirmStored`, moves) never use them.
+- Readers use only current-version rows. Older rows send that zone to its
+  placements, and the next write or the rebuild replaces them.
+
+### Zone surfaces
+
+- The recommendation list reads, per zone that can match the product's storage
+  condition, one surface row and one entries row: no zone, position or location
+  document. The surface index (`warehouseId`, `buildingActive`, `eligible`,
+  `conditionKey`) gives exactly the zones of ACTIVE buildings, usable, with an
+  unconditioned, `ANY` or matching condition. Mismatched zones contribute only a
+  reason, and reasons are shown only when nothing fits, so they are read (from the
+  same index) only then. Floors, buildings and reserved blocks are still read once
+  each and checked as before.
+- **Maintenance:** the tracked-write flush (`trackSurfaceWrites`) rebuilds the row
+  of every zone a mutation wrote (zones, positions, the zones and positions of
+  written locations, every zone of a building whose status changed), writing only
+  when the row changed. Rows are stamped with the occupancy run; rows of other runs
+  (zones deleted by code that does not maintain them) are ignored.
+- **Budget and deferral:** a mutation rebuilds at most 60 zones / ~1,200 documents,
+  and writes at most 300 locations, of which at most 50 belong to zones it did not
+  otherwise rebuild. Beyond that (activating a building of thousands of positions)
+  it does not rebuild anything: it marks the readiness stale and schedules a
+  restarted backfill. Readers use the layout documents meanwhile (exact).
+- **Readiness and rollback guard:** readers use surface rows only while the
+  occupancy rows are trusted **and** `layoutGeneration` equals the warehouse's
+  `storageCatalogueSignals.generation`. Every tracked layout write (buildings,
+  floors, zones, positions) bumps that signal, in this code and in code that predates
+  surfaces; this code also advances `layoutGeneration` in the same transaction.
+  After a layout write by code that does not maintain surfaces, the two differ,
+  recommendations read the layout, and the hourly sweep restarts the backfill.
+  Caveat: older code's location-only writes do not bump the signal; no current
+  mutation writes locations without also writing a zone, position or building.
 
 ## Correctness model
 
@@ -35,16 +86,21 @@ reading every held placement and its pallet on every execution and re-run:
   `finishedGoodsSummaryReadiness.generation` on every write; current code never does.
   The backfill records that value, and readers distrust the rows if it moved, so a
   rollback followed by a roll-forward cannot serve rows that missed writes.
-- **Raw writers invalidate.** Staging seeds that insert placements with `ctx.db` call
-  `invalidateZoneOccupancy`, which also poisons a running backfill (`stale`); only a
-  restarted backfill makes the warehouse ready again. The e2e reset deletes all
-  three tables' rows for its warehouses.
+- **Raw writers invalidate.** Staging seeds that insert placements, zones,
+  positions or locations with `ctx.db` call `invalidateZoneOccupancy`, which also
+  poisons a running backfill (`stale`); only a restarted backfill makes the
+  warehouse ready again. The e2e reset deletes all four tables' rows for its
+  warehouses.
 - Mutations (`reserve`, `confirmStored`, moves, scanning) still validate against
-  authoritative placement reads. Derived rows never authorize a placement.
+  authoritative placement, layout and stack reads. Derived rows never authorize a
+  placement.
 
 ## Rollout
 
-1. Deploy. New tables start empty; readers keep the original path.
+1. Deploy. New tables start empty; readers keep the original path. A deploy that
+   changes `ZONE_OCCUPANCY_VERSION` (2: projected entries, stack facts, zone
+   surfaces) makes every warehouse not ready until the sweep's backfill rebuilds
+   it; readers use the original path meanwhile.
 2. The hourly `storageLayouts/zoneOccupancyBackfill:sweep` cron starts a chained,
    resumable backfill for every warehouse that is not ready (new, invalidated, or
    after a rollback). To run it immediately for one warehouse:
@@ -62,7 +118,8 @@ reading every held placement and its pallet on every execution and re-run:
 
    `ready: true, buildingReady: false` means a cross-building placement or an
    overflowed zone keeps building readers on the original path; recommendations
-   still use the rows.
+   still use the rows. The backfill rebuilds each zone's surface row too, and on
+   finishing records the layout generation.
 
 3. To stop using the rows without a deploy: `storageLayouts/zoneOccupancyBackfill:invalidate`
    (the next sweep rebuilds them).
@@ -72,9 +129,13 @@ reading every held placement and its pallet on every execution and re-run:
    npx convex run storageLayouts/zoneOccupancyBackfill:health '{"warehouseId":"<id>"}'
    ```
 
-   It lists overflowed zones and zones holding another building's placements.
+   It lists overflowed zones and zones holding another building's placements, and
+   `surfacesReady` with the recorded and current layout generations (different:
+   a layout write by code that does not maintain surfaces, or a deferred one; the
+   sweep rebuilds).
 
-Measured on the local large-tenant fixture (`docs/reviews/convex-performance-2026-11-04/evidence/iter2.md`):
+Measured on the local large-tenant fixture (`docs/reviews/convex-performance-2026-11-04/evidence/iter2.md`,
+before entries projection and zone surfaces):
 `recommend` 2,886 → 686 docs, `getStorageBuildingInventory` 1,829 → 34,
 `buildingOccupancy` 917 → 20; one placement write re-reads 6,092 → 1,692 docs
 across open subscriptions.
@@ -90,8 +151,10 @@ zone never re-runs that preview. Both run the same per-zone evaluation
 (`zoneRecommendation`), so `{ ...listed, ...zone }` is exactly the original
 candidate (parity: `tests/integration/storage-query-scale.integration.test.ts`).
 Without `view`, both return the original full payload for tabs loaded before
-this change. The list still reads every active zone it ranks, so a held
-placement write in any of them re-runs it.
+this change. With zone surfaces, the list reads only zones whose condition can
+match the product, so a held placement write in a mismatched zone no longer
+re-runs it; a write in a zone it shows still does (that zone's candidates
+changed). Layout writes re-run it (it reads the layout generation).
 
 ## Maintained catalogue totals
 
