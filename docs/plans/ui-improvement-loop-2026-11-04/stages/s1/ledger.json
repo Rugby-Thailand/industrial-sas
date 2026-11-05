@@ -2027,6 +2027,354 @@
         }
       ],
       "checkpoint": "continue: search-results 8 from Opus"
+    },
+    {
+      "loop": 15,
+      "commit": "3fc47de9",
+      "scores": {
+        "sol": {
+          "min": 9,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        },
+        "opus": {
+          "min": 9,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        }
+      },
+      "fixed": ["S1-L14-opus-10", "S1-L14-opus-11"],
+      "note": "Both independent auditors score all 11 Stage 1 screens 9/10 on 3fc47de9. The approved bilingual EMP alias and exact AI-provider disclosure remain verified. Full pnpm check passes all 5179 tests with one worker after load-sensitive failures, without code or test changes. Production build, 46 captures and 12 browser cases pass. Stop UI polish at the frozen gate; retain lower-severity findings and uncovered states for later work. This is the Stage 1 review checkpoint, not a claim that later stages or field testing are complete.",
+      "checks": {
+        "targeted": "200 Search tests passed across 7 files",
+        "navigation": "68 fixtures and contract passed; reviewed inline span/option targets unchanged",
+        "format": "passed",
+        "typecheck": "passed",
+        "lint": "passed",
+        "build": "production webpack build passed",
+        "detector": "no findings on edited SearchDialog target",
+        "captures": "46/46 captured; no horizontal overflow or serious/critical axe violations",
+        "runtimeQA": "12/12 passed: Back/Close, locale, keyboard, bilingual EMP task visibility, retry stability and outage recovery",
+        "console": "Only intended 404 responses and injected query failures in error-state captures; no unexpected errors",
+        "fullCheck": "pnpm check passed with VITEST_MAX_WORKERS=1: 68 navigation fixtures, format, typecheck (1092 files), normal ESLint, and all 5179 tests across 384 files including accessibility. No timeouts or assertions were changed."
+      },
+      "remainingFindings": [
+        {
+          "auditor": "sol",
+          "severity": "P2",
+          "type": "ui",
+          "title": "The continuation chevron looks like a control but cannot be activated",
+          "evidence": "shell-drawer__th-mobile-light.png and shell-drawer__en-mobile-dark.png: isolated, divider-bounded down-chevron immediately above the account footer, while further destinations remain below the viewport. src/components/shell/SidebarNavigation.tsx:163–174 confirms an aria-hidden div with pointer-events-none.",
+          "fix": "Replace the lone chevron with a localized “Scroll for more destinations” cue using existing text-xs/text-muted tokens, or make it an existing Button with a 48px target that scrolls the navigation region.",
+          "benchmark": "",
+          "id": "S1-L15-sol-01"
+        },
+        {
+          "auditor": "sol",
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Phone layout with the software keyboard remains unverified",
+          "evidence": "search-empty__th-mobile-light.png, search-empty__en-mobile-dark.png and search-empty--recents__th-mobile-light.png show the focused input without a software keyboard; runtime-qa.json records 390px navigation checks but no keyboard-open viewport check.",
+          "fix": "Add Thai and English phone verification with the software keyboard open, including typing and scrolling through results; confirm the existing Dialog and SearchResultsViewport keep the input, Close control and selected result reachable.",
+          "benchmark": "",
+          "id": "S1-L15-sol-02"
+        },
+        {
+          "auditor": "sol",
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Recovery destination lacks end-to-end evidence",
+          "evidence": "The four not-found captures show the recovery link. src/app/[locale]/not-found.test.tsx:64 checks its href using mocked navigation; runtime-qa.json contains no not-found recovery case.",
+          "fix": "Record activating the existing recovery link as warehouse and HR members, confirming a permitted destination in the selected locale.",
+          "benchmark": "",
+          "id": "S1-L15-sol-03"
+        },
+        {
+          "auditor": "sol",
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Successful retry recovery is not demonstrated",
+          "evidence": "route-error--retrying__en-desktop-dark.png shows pending feedback. runtime-qa.json verifies retry settling back to the error with stable action placement, but contains no successful retry case.",
+          "fix": "Remove the simulated read failure, activate the existing Try again control, and record the product page returning at the same locale and URL without a stranded busy state.",
+          "benchmark": "",
+          "id": "S1-L15-sol-04"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Dark-mode active sidebar row drops the accent used by every other selected control",
+          "evidence": "shell-page__en-desktop-dark.png: sidebar 'Finished goods' row (y≈258) is a neutral grey fill with near-white text, while the selected 'Products' tab (y≈228) and the pressed table-view toggle (x≈1398,y≈280) use the violet/blue accent. In light mode (shell-page__th-desktop-light.png) the sidebar row and tab share the blue accent. Token: src/app/globals.css:384-385 (dark --sidebar-accent oklch(0.32 0 0), --sidebar-accent-foreground oklch(0.92 0.04 272)).",
+          "fix": "Set the dark --sidebar-accent-foreground to the same accent text token the selected tab uses, so the current page reads as selected with the same colour language in both themes; keep the existing fill and border.",
+          "benchmark": "",
+          "id": "S1-L15-opus-01"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Desktop header repeats the warehouse already shown in the sidebar selector beside it",
+          "evidence": "shell-page__th-desktop-light.png: header subtitle 'LOCAL-DEMO · คลังทดสอบ Local Demo' (x≈316,y≈40) sits about 230 px from the sidebar combobox showing the same warehouse (x≈16–270,y≈98); WorkspaceContextBar.tsx:61-76 renders HeaderWarehouse regardless of sidebar state.",
+          "fix": "Keep HeaderWarehouse for the phone header and the collapsed rail, where it is the only visible warehouse cue, and hide it while the expanded sidebar shows the combobox (for example with the sidebar's data-state=expanded group selector).",
+          "benchmark": "",
+          "id": "S1-L15-opus-02"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "On the Thai phone header, the 'English' label takes the width the organisation name needs",
+          "evidence": "shell-page__th-mobile-light.png header: the organisation name truncates to 'Industrial SAS Loc…' next to the ~95 px 'English' button, while the EN capture (shell-page__en-mobile-dark.png) shows 'Industrial SAS Local …' next to 'ไทย'; LocaleSwitcher.tsx:48 uses px-2 ghost text at every width.",
+          "fix": "Below sm, show a compact language label such as 'EN' / 'ไทย' (the sr-only 'switch to' name stays the same) so the organisation name gets the space back; keep the full name at sm and up.",
+          "benchmark": "",
+          "id": "S1-L15-opus-03"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "The 'more below' chevron looks like a tappable expand control but does nothing",
+          "evidence": "shell-drawer__th-mobile-light.png and shell-drawer__en-mobile-dark.png, bottom of the menu (y≈1510–1560 in 2× pixels): a chevron sits in its own strip between two divider lines, directly above the account row, while Payslips and HR administration are hidden below the fold. SidebarNavigation.tsx:163-175 makes it pointer-events-none and aria-hidden.",
+          "fix": "Replace the bordered strip with a bottom fade on the scroll area (or make the chevron a real button that scrolls the next hidden row into view), so a gloved tap on it does something or it no longer looks like a control.",
+          "benchmark": "",
+          "id": "S1-L15-opus-04"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Dark drawer's active row is neutral grey, unlike the accent-coloured active row in light mode",
+          "evidence": "shell-drawer__en-mobile-dark.png 'Finished goods' row (y≈576) is a grey fill with white text and icon; shell-drawer__th-mobile-light.png shows the same row in blue. Token: src/app/globals.css:385.",
+          "fix": "Use the shared selected-accent text token for --sidebar-accent-foreground in dark mode (same fix as shell-page).",
+          "benchmark": "",
+          "id": "S1-L15-opus-05"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Warehouse selector truncates the warehouse name, which is the part that tells warehouses apart",
+          "evidence": "shell-drawer__th-mobile-light.png combobox (y≈232): 'LOCAL-DEMO · คลังทดสอบ Local …' in a single line inside a ~260 CSS px field.",
+          "fix": "Let the selected value wrap to two lines inside the existing min-h-touch trigger (code on the first line, name on the second), matching how the menu options list code and name.",
+          "benchmark": "",
+          "id": "S1-L15-opus-06"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Warehouse-switcher icon and the 'Buildings & spots' icon are both building glyphs in the same unlabeled rail",
+          "evidence": "shell-rail__th-desktop-light.png and shell-rail__en-desktop-dark.png: rail top button (x≈32,y≈88, lucide Warehouse, WorkspaceContextBar.tsx:130-133) and the 'อาคารและจุดจัดเก็บ / Buildings & spots' link (y≈376) are both small building outlines; with no labels in the rail they are told apart only by tooltip.",
+          "fix": "Render the collapsed warehouse button as the warehouse-code chip (for example the first characters of 'LOCAL-DEMO' in a size-12 rounded tile) or give it the selector's chevron, so it reads as a switcher rather than a page link.",
+          "benchmark": "",
+          "id": "S1-L15-opus-07"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "Rail tooltips, hover and keyboard focus are not captured",
+          "evidence": "Only static rail captures (shell-rail__*.png); the icon-only rail depends on tooltips for sighted users. The aria snapshot (shell-rail__th-desktop-light.aria.yml) confirms each link and button has a name.",
+          "fix": "Add a capture with a rail item hovered or keyboard-focused showing its tooltip in th and en.",
+          "benchmark": "",
+          "id": "S1-L15-opus-08"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Language button has no visible button affordance and reads as muted text",
+          "evidence": "locale-switch__th-mobile-light.png and locale-switch__en-mobile-dark.png header: 'ไทย' / 'English' is plain muted text with no icon, border or fill, next to icon buttons; LocaleSwitcher.tsx:42-48 (variant ghost, text-muted). On the dark phone header the grey 'English' is the lowest-contrast control in the bar.",
+          "fix": "Add the lucide Languages (or Globe) icon before the language name in the existing ghost Button and use text-text instead of text-muted, so it reads as a control at the same weight as the search and theme buttons.",
+          "benchmark": "",
+          "id": "S1-L15-opus-09"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "Only the after-switch state is captured",
+          "evidence": "locale-switch__*.png all show the page after the language changed (URLs /en/… and /th/…); there is no capture of the button before the press, its pending state (LocaleSwitcher.tsx:45 pending={isPending}), or where focus lands after the switch.",
+          "fix": "Capture the header before the press and during the pending transition, and record the focused element after the new locale renders.",
+          "benchmark": "",
+          "id": "S1-L15-opus-10"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Recent items carry no time cue, so they look the same as the Go to shortcuts",
+          "evidence": "search-empty--recents__th-mobile-light.png and search-empty--recents__en-desktop-dark.png, 'ล่าสุด / Recent' group: 'วันหยุดบริษัท / Company holidays' and 'พนักงาน / Employees' rows show only the module label (บุคลากร / People), exactly like the 'ไปที่ / Go to' rows below them; src/components/shell/search/recent.ts stores the entries",
+          "fix": "Add a short relative time (for example 'เมื่อวาน / Yesterday') in the existing text-xs text-muted aside slot of recent rows, or prefix the module label with it, keeping one line per row",
+          "benchmark": "Notion search: recently visited pages are listed with timestamps on open",
+          "id": "S1-L15-opus-11"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Thai placeholder says 'เมนู' (menu) while the result groups and English say pages",
+          "evidence": "search-empty__th-mobile-light.png input placeholder 'ค้นหาเมนูหรือพนักงาน' vs search-results--mixed__th-mobile-light.png group 'หน้าและส่วนงาน' and English placeholder 'Search pages or employees' (search-empty__en-mobile-dark.png)",
+          "fix": "Use one term in messages/th.json Search.placeholderPeople/trigger, e.g. 'ค้นหาหน้าหรือพนักงาน', to match the 'หน้าและส่วนงาน' group label and the English copy",
+          "benchmark": "",
+          "id": "S1-L15-opus-12"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "On desktop, single-line rows in typed results are taller than the same rows in the empty state, so the list rhythm is uneven",
+          "evidence": "search-results--mixed__en-desktop-dark.png: 'Employees', 'Review an employee's day' and 'Add employee' rows are about 48 px each, while the same kind of page row in search-empty__en-desktop-dark.png is 36 px. SearchDialog.tsx:896-901: the non-compact typed row uses 'grid content-center gap-0.5' with min-h-touch and no dense:min-h-control/dense:py-1.5 variant, unlike the compact and ASK rows",
+          "fix": "Give the non-compact typed row the same 'dense:min-h-control dense:py-1.5' pair used by the compact and ASK rows in SearchDialog.tsx:898-900, so single-line typed rows match the empty-state height on desktop and keep min-h-touch on phone",
+          "benchmark": "Raycast and Linear: result rows keep one height per row type across the empty and typed states",
+          "id": "S1-L15-opus-13"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "The AI row's detail text is larger than the record metadata, so it competes with the real result",
+          "evidence": "search-results__th-mobile-light.png and search-results__en-mobile-dark.png: the AI row detail runs to 3–4 lines of text-sm below the single employee result, whose code line is text-xs; SearchDialog.tsx:925 ('col-span-2 text-sm leading-5 ... text-muted') vs the record detail at SearchDialog.tsx:980 ('text-xs ... text-muted')",
+          "fix": "Keep the D14 scope sentence and D16 disclosure text unchanged but render them at text-xs (with a Thai-safe leading-5) like the other row details, so the AI row reads as a secondary option after the typed results",
+          "benchmark": "Notion: 'Search all sources with AI' is a single compact labelled row under the keyword results",
+          "id": "S1-L15-opus-14"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "Zero-result, AI pending/answer and query-failure states are not in this group",
+          "evidence": "Only populated captures (search-results__*, search-results--mixed__*) are attached; runtime-qa.json reports 'Retry after simulated query failure settles back to the error' as passing but without a screenshot in this group",
+          "fix": "Attach th/en, 390/1440 captures of a zero-result query (AI row first, per D14), the AI pending row with Cancel, an AI answer, and the query-failure error with Retry",
+          "benchmark": "Raycast: fallback commands that reuse the query when nothing matches",
+          "id": "S1-L15-opus-15"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "The no-match message, the Go to heading and the Go to rows start at three slightly different left edges",
+          "evidence": "search-no-match__th-desktop-light.png and search-no-match__en-desktop-dark.png: the no-match text and the 'ไปที่ / Go to' heading start at x≈409, the option labels at x≈413, and the AI row title at x≈441 (after its icon). search-no-match__th-mobile-light.png shows the same thing at 2×: x≈42 for the heading and x≈50 for the rows",
+          "fix": "Give the status message, the group heading and the option rows the same inline padding token in SearchDialog/results.tsx, so heading and row text share one left edge. Only the AI row's icon should indent its text",
+          "benchmark": "",
+          "id": "S1-L15-opus-16"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "Keyboard and focus contract on the no-match list is not shown in a capture",
+          "evidence": "Static captures only. runtime-qa.json reports that Escape clears then closes, that Arrow navigation reaches the AI row, and that focus is restored on Close, all passing at 390 and 1440",
+          "fix": "No UI change. Keep the runtime cases in the stage-gate interactive QA (D9)",
+          "benchmark": "GitHub command palette / Raycast: arrows, Enter, Esc clears then closes",
+          "id": "S1-L15-opus-17"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P2",
+          "type": "ui",
+          "title": "The pending label calls the search text a 'request' (คำขอ), the same word the app uses for HR requests",
+          "evidence": "search-ai-running__th-mobile-light.png and th-desktop-light.png, pending row: 'AI กำลังตีความคำขอ…'. The scope sentence directly below lists 'คำขอ' as an HR domain ('เวลา การลา คำขอ และพนักงาน'), and the Go to list on the no-match screen has 'คำขอของฉัน'. English has the same collision: 'AI is reading your request…' next to 'requests' in the scope and 'My requests'. messages/th.json Search.aiRunning",
+          "fix": "Name the thing the user typed, using the dialog's own term 'คำค้น' (already used in aiPrivacy and clear). For example: 'AI กำลังหาหน้าที่ตรงกับคำค้น…' / 'AI is finding pages for your search…'. Update Search.aiRunning in th.json and en.json",
+          "benchmark": "",
+          "id": "S1-L15-opus-18"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "The pending row's Cancel button has a generic accessible name",
+          "evidence": "search-ai-running__en-desktop-dark.aria.yml: button \"Cancel\", a sibling of the dialog's button \"Close search\". th: button \"ยกเลิก\"",
+          "fix": "Keep the visible 'ยกเลิก / Cancel' text, and give the button aria-label 'ยกเลิกการค้นหาด้วย AI / Cancel AI search' (or aria-describedby pointing at the pending status), so a screen-reader user can tell it apart from Close",
+          "benchmark": "",
+          "id": "S1-L15-opus-19"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Settled AI outcomes (destination proposal, AI error/timeout, cancelled) are not in this group",
+          "evidence": "Only the held pending state is captured (images #5–#8). messages/th.json Search.aiOpening, aiNoMatch and aiError.* define the settled states, but no capture shows them",
+          "fix": "Capture the AI result row with its destination and source page, AI_TIMEOUT/AI_UNAVAILABLE, and the state after Cancel, in th and en on 390 and 1440",
+          "benchmark": "Notion: AI search results cite the pages they used",
+          "id": "S1-L15-opus-20"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "What Esc does while AI is pending is not evidenced",
+          "evidence": "search-ai-running__en-desktop-dark.png footer reads '↑↓ to choose · Esc to clear' while the request runs. Whether Esc cancels the request, clears the text, or both cannot be seen in a static capture (D9)",
+          "fix": "Add a runtime case: Esc during a pending AI request cancels it (or clears the text and cancels it), and the footer hint matches",
+          "benchmark": "Raycast: Esc clears, then closes",
+          "id": "S1-L15-opus-21"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "The phone drawer during an outage and the earlier animated-placeholder phase are not captured",
+          "evidence": "Images #9–#12 show only the sustained-outage state. On phone the 'เปิดเมนู' drawer contents are not shown (desktop shows 'ยังโหลดเมนูไม่ได้ / Menu not loaded'). The initial placeholder phase described in decisions.md (loop 12/13) is not shown either",
+          "fix": "Capture the open drawer at 390 during the outage, and the first-second placeholder phase, in th and en",
+          "benchmark": "",
+          "id": "S1-L15-opus-22"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "coverage",
+          "title": "Search opened during an outage is not evidenced",
+          "evidence": "shell-loading__th-desktop-light.png sidebar: 'ค้นหาเมนู… ⌘K' stays enabled while the menu is not loaded, and the phone header keeps its search button (shell-loading__th-mobile-light.aria.yml: button \"ค้นหาเมนู\"). No capture shows what the dialog lists when permissions are unknown",
+          "fix": "Capture the search dialog opened during the outage. Confirm that it gives the same quiet unavailable message instead of an empty or misleading list",
+          "benchmark": "",
+          "id": "S1-L15-opus-23"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "Thai summary breaks inside the phrase อีกครั้ง on the phone",
+          "evidence": "not-found__th-mobile-light.png, summary paragraph: line 1 ends \"ตรวจลิงก์อีก\" and line 2 starts \"ครั้ง\"; copy from messages/th.json NotFound.body, rendered by PageHeader summary in src/app/[locale]/not-found.tsx",
+          "fix": "Keep the phrase together, e.g. wrap \"อีกครั้ง\" in a whitespace-nowrap span (next-intl rich text) or put a word-joiner between อีก and ครั้ง in NotFound.body, so the line breaks before อีกครั้ง instead of inside it",
+          "benchmark": "",
+          "id": "S1-L15-opus-24"
+        },
+        {
+          "auditor": "opus",
+          "severity": "P3",
+          "type": "ui",
+          "title": "The primary Retry label sits about 12 px right of centre in the idle state",
+          "evidence": "route-error__th-mobile-light.png and route-error__en-mobile-dark.png: in the blue button, \"ลองใหม่\" / \"Try again\" sits right of the button's centre line; same on route-error__th-desktop-light.png and route-error__en-desktop-dark.png. Cause: PageFailure.tsx:84-87 keeps the invisible Spinner (size-4 plus gap-2) in the layout while idle",
+          "fix": "Keep the stable width but centre the idle label. Overlay the Spinner absolutely in the button's left padding (relative button, absolute left-3 spinner), or reserve matching invisible space on the right, so the label's position does not depend on the hidden spinner",
+          "benchmark": "",
+          "id": "S1-L15-opus-25"
+        }
+      ],
+      "checkpoint": "Stage 1 passed: both minimum scores 9; final build, runtime and full check verified"
     }
   ]
 }

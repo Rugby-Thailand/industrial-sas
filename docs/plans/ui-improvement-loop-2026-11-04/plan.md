@@ -4,6 +4,16 @@ Date: 2026-11-04 · Status: in progress (Stages 1–4 approved for this run) · 
 
 Runner update (2026-11-05, product owner): use **Codex and Kiro CLI only** because the direct Claude quota is exhausted. Codex orchestrates and runs gpt-6.1-sol audits; Opus 5.5 runs only through Kiro CLI. Do not launch Claude Code or direct Claude-provider agents. Preserve the existing independent audits and scoring gates. The verified Kiro executable is `/Users/macbook/.local/bin/kiro-cli`; the older `/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli-chat` path is absent.
 
+## Stage 1 checkpoint — passed, 2026-11-05
+
+Loop 15 on source commit `3fc47de9` passes the frozen dual gate: **gpt-6.1-sol and Opus 5.5 each score all 11 screens 9/10** (minimum 9, median 9). Opus ran through Kiro CLI only. The final source includes the owner-approved bilingual `EMP` task matching and AI-provider disclosure.
+
+Verification: production build; 46 captures (Thai/light and English/dark at phone and desktop sizes, with viewport-specific drawer/rail); 12 browser runtime cases; and full `pnpm check` with all 5,179 tests in 384 files, navigation fixtures, formatting, typecheck and ESLint. The final check ran with one worker after timing failures under shared-machine load, with no test or timeout changes; attempts are retained in the provenance. Physical phone keyboards and all settled AI outcomes remain coverage limits, not claims of completed field testing.
+
+[Annotated gallery and score timeline](stages/s1/index.html) · [Sol audit](stages/s1/audits/loop-15-audit-sol.json) · [Opus audit](stages/s1/audits/loop-15-audit-opus.json) · [Verification provenance](stages/s1/audits/loop-15-provenance.json).
+
+Stop at the Stage 1 review checkpoint under the stage-done rule. No stage PR has been opened or pushed; later stages have not passed this gate.
+
 ## Goal
 
 Raise every Yongkit screen to **9/10**, measured against comparable products, in two phases per stage:
