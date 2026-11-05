@@ -100,7 +100,9 @@ jobs:
   test:
     name: Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Large Convex search-parity fixtures exceed 15 minutes on shared runners.
+    # Keep the entire suite in the merge gate, with time for all continuations.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
