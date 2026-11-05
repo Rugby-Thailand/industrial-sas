@@ -13,6 +13,7 @@ import {
   type Destination,
   type ListedCandidate,
   type PalletDetail,
+  type ZonePreview,
 } from "@/lib/convex/finishedGoodsApi";
 import { PalletScene, type PalletPlacement } from "./PalletScene";
 import {
@@ -136,28 +137,41 @@ export function DestinationSummary({
 export function ZonePlacementEditor({
   candidate,
   destinations,
+  openingZones,
   unavailable,
   ...editor
 }: Omit<Parameters<typeof PlacementEditor>[0], "candidate" | "destinations"> & {
   candidate: ListedCandidate;
   /** The listed candidates; the editor reads those of the same zone. */
   destinations: readonly ListedCandidate[];
+  /** Zone previews the list already carries (the zones a screen opens on). */
+  openingZones?: readonly ZonePreview[] | undefined;
   /** Shown if the zone no longer offers this candidate. */
   unavailable: ReactNode;
 }) {
-  const outcome = useQuery(fgRefs.recommendationZone, {
-    warehouseId: editor.warehouseId,
-    palletId: editor.detail.pallet._id,
-    zoneId: candidate.zoneId,
-  });
-  if (!outcome) return <Loading />;
-  if (!outcome.ok)
+  const carried = openingZones?.find(
+    (zone) => zone.zoneId === candidate.zoneId,
+  );
+  const outcome = useQuery(
+    fgRefs.recommendationZone,
+    carried
+      ? "skip"
+      : {
+          warehouseId: editor.warehouseId,
+          palletId: editor.detail.pallet._id,
+          zoneId: candidate.zoneId,
+        },
+  );
+  let zone: ZonePreview | null;
+  if (carried) zone = carried;
+  else if (!outcome) return <Loading />;
+  else if (!outcome.ok)
     return (
       <LedgerPanelStatus
         state={{ kind: "DENIED", requestId: outcome.requestId }}
       />
     );
-  const zone = outcome.value;
+  else zone = outcome.value;
   if (!zone) return <>{unavailable}</>;
   const full: Candidate = { ...candidate, ...zone };
   return (

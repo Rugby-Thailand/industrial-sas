@@ -133,8 +133,24 @@ async function expectSplitParity(
     expect(zone, item.zoneId).not.toBeNull();
     return { ...item, ...zone };
   };
+  // The zones a screen opens on ride along with the list, exactly as the
+  // zone query would return them.
+  const { openingZones, ...rest } = list.value as RecommendationPayload & {
+    openingZones?: { zoneId: string }[];
+  };
+  expect(openingZones).toBeDefined();
+  for (const opening of openingZones!)
+    expect(opening).toEqual(zones.get(opening.zoneId)!.value);
+  const opened = [
+    list.value.candidates[0],
+    list.value.candidates.find((c) => !c.supportPalletId),
+    list.value.previewCandidates?.[0],
+  ].flatMap((c) => (c ? [c.zoneId] : []));
+  expect(openingZones!.map((zone) => zone.zoneId)).toEqual([
+    ...new Set(opened),
+  ]);
   expect({
-    ...list.value,
+    ...rest,
     candidates: list.value.candidates.map(assemble),
     ...(list.value.previewCandidates
       ? { previewCandidates: list.value.previewCandidates.map(assemble) }

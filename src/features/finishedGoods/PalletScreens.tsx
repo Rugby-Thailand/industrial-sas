@@ -835,6 +835,9 @@ function Recommendations({
             detail={detail}
             candidate={current}
             destinations={list.candidates}
+            openingZones={
+              "openingZones" in list ? list.openingZones : undefined
+            }
             unavailable={previousLocationUnavailable}
           />
         </div>

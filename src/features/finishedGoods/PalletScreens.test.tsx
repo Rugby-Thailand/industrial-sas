@@ -718,6 +718,33 @@ describe("exact storage recommendations", () => {
       screen.queryByRole("button", { name: "Reserve this position" }),
     ).not.toBeInTheDocument();
   });
+  it("opens on the zone the list carries without a second round trip", () => {
+    mocks.query.mockImplementation((name) =>
+      name.endsWith(":getPallet")
+        ? querySuccess(currentDetail)
+        : name.endsWith(":recommendationZone")
+          ? undefined
+          : querySuccess({
+              candidates: [listedCandidate(finishedGoodDestination)],
+              reasons: [],
+              openingZones: [zonePreview(finishedGoodDestination)],
+            }),
+    );
+    renderPallet("storage");
+    expect(
+      screen
+        .queryAllByRole("status")
+        .some((status) => /Loading/.test(status.textContent ?? "")),
+    ).toBe(false);
+    expect(
+      screen.getByRole("button", { name: "Reserve this position" }),
+    ).toBeEnabled();
+    expect(
+      mocks.query.mock.calls.filter(([name]) =>
+        name.endsWith(":recommendationZone"),
+      ),
+    ).toHaveLength(0);
+  });
   it("recovers an empty location search without losing the edited position", () => {
     renderPallet("storage");
     number("X (m)", "0.7");

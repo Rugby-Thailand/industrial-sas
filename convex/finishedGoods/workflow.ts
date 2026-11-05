@@ -1323,12 +1323,24 @@ function listView<
     reasons: string[];
   },
 >(result: Result) {
+  // The zones a screen opens on (first candidate, first one without stacking,
+  // first inspect-only area) ride along, so the first preview needs no second
+  // round trip. Every other zone loads through recommendationZone.
+  const openingZones = new Map<string, ZonePreview>();
+  for (const candidate of [
+    result.candidates[0],
+    result.candidates.find((c) => !c.supportPalletId),
+    result.previewCandidates?.[0],
+  ])
+    if (candidate && !openingZones.has(candidate.zoneId))
+      openingZones.set(candidate.zoneId, zonePreview(candidate) as ZonePreview);
   return {
     candidates: result.candidates.map((c) => listed(c)),
     ...(result.previewCandidates
       ? { previewCandidates: result.previewCandidates.map((c) => listed(c)) }
       : {}),
     reasons: result.reasons,
+    openingZones: [...openingZones.values()],
   };
 }
 const recommendationArgs = {

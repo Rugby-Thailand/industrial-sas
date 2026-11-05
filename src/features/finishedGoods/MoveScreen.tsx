@@ -287,6 +287,11 @@ function MoveSelection({
             detail={detail}
             candidate={current}
             destinations={candidates}
+            openingZones={
+              outcome?.ok && "openingZones" in outcome.value
+                ? outcome.value.openingZones
+                : undefined
+            }
             moving
             onReserved={onReserved}
             unavailable={previousLocationUnavailable}
