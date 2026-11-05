@@ -302,8 +302,16 @@ async function profileFlows(target) {
 async function profileFanout(target, scenarios) {
   const { logs } = target;
   const client = wsClient(target.deployment, clerk);
-  // Only what the current client subscribes to: legacy endpoints have no live caller.
-  const subscribed = scenarios.filter((scenario) => !scenario.legacy);
+  // Only what each target's own client subscribes to: legacy endpoints have no
+  // live caller, and main's client sends `baseArgs` where its screens differ.
+  const subscribed = scenarios
+    .filter((scenario) => !scenario.legacy && scenario.subscribe !== false)
+    .map((scenario) =>
+      target.name === "base" && scenario.baseArgs !== undefined
+        ? scenario.baseArgs && { ...scenario, args: scenario.baseArgs }
+        : { ...scenario },
+    )
+    .filter(Boolean);
   // Progressive queries stay subscribed with their final settled arguments,
   // as useCatalogueSync/useHrPagedQuery leave them.
   // A chain must end in a terminal answer (ready, done, not_ready, refusal);
@@ -610,6 +618,17 @@ async function contend(target, name, fn, argsFor, workers) {
     failed: outcomes.filter(
       (outcome) => outcome.error || refusal(outcome.value),
     ).length,
+    failures: [
+      ...new Set(
+        outcomes
+          .map((outcome) =>
+            outcome.error
+              ? String(outcome.error).slice(0, 120)
+              : refusal(outcome.value),
+          )
+          .filter(Boolean),
+      ),
+    ],
     overlapping,
     executions: entries.length,
     occRetries: entries.filter((entry) => entry.occInfo || entry.willRetry)
@@ -636,6 +655,7 @@ async function repeated(rounds, run) {
     occRetries: results.reduce((sum, r) => sum + r.occRetries, 0),
     retriesByRound: results.map((r) => r.occRetries),
     failed: results.reduce((sum, r) => sum + r.failed, 0),
+    failures: [...new Set(results.flatMap((r) => r.failures))],
     overlapping: results.every((r) => r.overlapping),
     occInfo: results.flatMap((r) => r.occInfo).slice(0, 3),
     rttMsP50: p50(results.map((r) => r.rttMsP50)),
@@ -682,9 +702,7 @@ async function profileContention(target, workers = 8) {
   );
   // Different products: only warehouse-wide rows (sequence, totals shards,
   // change shards) can conflict.
-  const products = [
-    ...new Set(ids.contentionPallets.map((pallet) => pallet.productId)),
-  ];
+  const products = ids.crossProductIds;
   const crossProduct = await repeated(rounds, (round) =>
     contend(
       target,

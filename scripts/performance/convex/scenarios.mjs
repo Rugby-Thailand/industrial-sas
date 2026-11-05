@@ -96,6 +96,11 @@ export function discover(fixture) {
         !row.packingBatchId &&
         !row.preparationBatchId,
     )[2]?._id,
+    // Active products (drafts refuse new pallets) for the cross-product burst.
+    crossProductIds: products
+      .filter((row) => row.status === "ACTIVE")
+      .slice(0, 8)
+      .map((row) => row._id),
     // Distinct awaiting pallets for concurrent, conflict-free measurement edits.
     contentionPallets: pallets
       .filter(
@@ -266,7 +271,13 @@ export function queryScenarios(ids) {
       ],
       ["finishedGoods/workflow:recommendMove", ids.storedPalletId],
     ].flatMap(([fn, palletId]) => [
-      q("fg-pallet", fn, { ...w, palletId, view: "list" }, { label: "list" }),
+      q(
+        "fg-pallet",
+        fn,
+        { ...w, palletId, view: "list" },
+        // main's client subscribes to the full payload.
+        { label: "list", baseArgs: { ...w, palletId } },
+      ),
       q(
         "fg-pallet",
         fn,
@@ -279,6 +290,8 @@ export function queryScenarios(ids) {
         { ...w, palletId },
         {
           label: fn.endsWith("Move") ? "move: viewed zone" : "viewed zone",
+          // main has no zone query: nothing to subscribe to there.
+          baseArgs: null,
           // Resolved once against the restored snapshot (same ids on every
           // target), with the argument shape every target accepts.
           resolveArgs: async (query) => ({
@@ -430,19 +443,20 @@ export function queryScenarios(ids) {
       { versionId: ids.versionId, pageSize: 20 },
       { settle: true },
     ),
-    // Older clients (and main) send no page size.
+    // Older clients (and main) send no page size; no current screen does.
     q(
       "hr-admin",
       "hr/roster:roster",
       { warehouseId: ids.warehouseId, month },
-      { label: "no page size" },
+      { label: "no page size", subscribe: false },
     ),
-    // The current client pages employees (20 per page) and settles scans.
+    // The current client pages employees (20 per page) and settles scans;
+    // main's client sends no page size.
     q(
       "hr-admin",
       "hr/roster:roster",
       { warehouseId: ids.warehouseId, month, pageSize: 20 },
-      { settle: true },
+      { settle: true, baseArgs: { warehouseId: ids.warehouseId, month } },
     ),
     q("hr-admin", "hr/roster:shifts", { warehouseId: ids.warehouseId }),
     q("hr-admin", "hr/payslips:list", {}),
