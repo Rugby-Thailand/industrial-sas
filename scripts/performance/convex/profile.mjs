@@ -63,29 +63,33 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * have it (it predates that store). Any other failure stops the profile: a
  * derived store that silently failed to build would profile the fallback.
  */
-function convexRun(root, fn, args) {
+const setupClients = new Map();
+async function convexRun(root, fn, args) {
+  let client = setupClients.get(root);
+  if (!client) {
+    const deployment = loadDeployment(root);
+    client = httpClient(deployment);
+    client.setAdminAuth(deployment.adminKey);
+    setupClients.set(root, client);
+  }
   try {
-    return JSON.parse(
-      execFileSync(
-        "pnpm",
-        ["exec", "convex", "run", fn, JSON.stringify(args)],
-        { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-      ),
-    );
+    // Same admin-authenticated transport as Convex CLI's runFunctionAndLog,
+    // without starting pnpm and the CLI again for every backfill page.
+    return await client.function(fn, undefined, args);
   } catch (error) {
-    const output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+    const output = String(error);
     if (/Could not find (public )?function/i.test(output)) return null;
     throw Error(`${root}: ${fn} failed: ${output.slice(0, 600)}`);
   }
 }
 
 /** Backfill derived stores after a restore, on targets that have them. */
-function rebuildDerived(root, warehouseId) {
+async function rebuildDerived(root, warehouseId) {
   const run = (args) =>
     convexRun(root, "storageLayouts/zoneOccupancyBackfill:run", args);
-  let result = run({ warehouseId, restart: true, batchSize: 25 });
+  let result = await run({ warehouseId, restart: true, batchSize: 25 });
   while (result && !result.isDone)
-    result = run({
+    result = await run({
       warehouseId,
       cursor: result.continueCursor,
       runId: result.runId,
@@ -94,7 +98,7 @@ function rebuildDerived(root, warehouseId) {
   // The hourly sweep may start its own run on the freshly restored data and
   // supersede this one: wait for that run to finish instead.
   for (let attempt = 0; result?.superseded && attempt < 120; attempt++) {
-    const health = convexRun(
+    const health = await convexRun(
       root,
       "storageLayouts/zoneOccupancyBackfill:health",
       {
@@ -102,14 +106,14 @@ function rebuildDerived(root, warehouseId) {
       },
     );
     if (health?.ready) result = { ...result, ready: true };
-    else Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5_000);
+    else await sleep(5_000);
     if (result.ready) break;
   }
   if (result && !result.ready)
     throw Error(
       `${root}: zone occupancy backfill finished without readiness (${JSON.stringify(result)})`,
     );
-  convexRun(root, "finishedGoods/totalsBackfill:run", { warehouseId });
+  await convexRun(root, "finishedGoods/totalsBackfill:run", { warehouseId });
   // Derived substring-search indexes (convex/lib/jobScanSearch.ts, locationSearch.ts).
   for (const kind of ["jobScans", "locations"]) {
     const page = (args) =>
@@ -122,9 +126,16 @@ function rebuildDerived(root, warehouseId) {
     // A sweep may supersede this run on the restored data: build again.
     let built;
     for (let attempt = 0; attempt < 3; attempt++) {
-      built = page({ restart: true });
-      while (built && !built.isDone)
-        built = page({ cursor: built.continueCursor, runId: built.runId });
+      built = await page({ restart: true });
+      let pages = 1;
+      while (built && !built.isDone) {
+        built = await page({
+          cursor: built.continueCursor,
+          runId: built.runId,
+        });
+        if (++pages % 25 === 0)
+          console.log(`${root}: ${kind} backfill ${pages} pages`);
+      }
       if (!built || built.ready) break;
     }
     if (built && !built.ready)
@@ -140,11 +151,11 @@ function rebuildDerived(root, warehouseId) {
       warehouseId,
       kind,
     });
-  if (reconcile("locations")) {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 31_000);
+  if (await reconcile("locations")) {
+    await sleep(31_000);
     for (const kind of ["jobScans", "locations"])
       for (let step = 0; step < 1_000; step++)
-        if (reconcile(kind)?.status !== "continuing") break;
+        if ((await reconcile(kind))?.status !== "continuing") break;
   }
 }
 /** A mutation that returned a refusal value instead of throwing. */
@@ -156,7 +167,8 @@ const refusal = (value) =>
         value?.value?.written === false
       ? (value.value.error?.code ?? value.value.code ?? "NOT_WRITTEN")
       : undefined;
-const targets = targetSpecs.map(({ name, root }) => {
+const targets = [];
+for (const { name, root } of targetSpecs) {
   if (restore)
     // Identical starting data for every compared run (writes and audit rows drift).
     execFileSync(
@@ -165,15 +177,15 @@ const targets = targetSpecs.map(({ name, root }) => {
       { cwd: root, stdio: "ignore" },
     );
   const deployment = loadDeployment(root);
-  if (restore) rebuildDerived(root, deployment.fixture.warehouseId);
-  return {
+  if (restore) await rebuildDerived(root, deployment.fixture.warehouseId);
+  targets.push({
     name,
     root,
     deployment,
     http: httpClient(deployment),
     logs: startLogCollector(deployment),
-  };
-});
+  });
+}
 const ids = discover(targets[0].deployment.fixture);
 
 /** Execute one function as the seeded user with a fresh (uncached) identity. */
