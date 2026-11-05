@@ -80,7 +80,17 @@ one-second execution limit. No parity result was produced. `47366fcc` adds
 `--search-backfill-batch-size` (default 25, matching the production default).
 The retry uses 10 rows per setup transaction on identical restored dataset-L
 snapshots. This changes setup workload, not the timed search scenarios.
-The retry and its subsequent 300-needle parity traversal are still pending.
+The CLI-per-page retry was stopped deliberately after more than 11 minutes
+of setup. Each page spawned pnpm and the CLI again on the heavily loaded
+machine; no parity result had been produced.
+
+`ccaa15cc` reuses the same admin-authenticated `ConvexHttpClient.function`
+transport used by the installed CLI (`convex/src/cli/lib/run.ts`). A real
+read-only occupancy health call verified that transport on the local backend.
+Setup remains sequential; each page retains its own backend transaction,
+batch size, run ownership and readiness checks. Syntax, formatting and focused
+ESLint pass. The new run restores both datasets again, logs page progress,
+and then starts the same 300-needle comparison. Its final result remains pending.
 
 ESLint passed before the follow-up. Formatting and focused ESLint passed for
 the roster repair. Full ESLint and `pnpm exec tsc --noEmit -p
