@@ -20,6 +20,7 @@ import {
 import {
   health as zoneOccupancyHealth,
   invalidate as invalidateZoneOccupancyMutation,
+  recheckOverflow,
   recheckZone,
   run as backfillZoneOccupancy,
   sweep as sweepZoneOccupancy,
@@ -1370,12 +1371,15 @@ describe("derived zone occupancy", () => {
     );
     expect(before.overflowedZoneIds).toHaveLength(1);
     await run(sweepZoneOccupancy, {});
-    const scheduled = await seed.world.t.run((ctx) =>
-      ctx.db.system.query("_scheduled_functions").collect(),
-    );
-    expect(
-      scheduled.filter((job) => job.name.includes("recheckZone")),
-    ).toHaveLength(1);
+    const jobs = async (name: string) =>
+      (
+        await seed.world.t.run((ctx) =>
+          ctx.db.system.query("_scheduled_functions").collect(),
+        )
+      ).filter((job) => job.name.includes(name));
+    expect(await jobs("recheckOverflow")).toHaveLength(1);
+    await run(recheckOverflow, { warehouseId: seed.warehouseId });
+    expect(await jobs("recheckZone")).toHaveLength(1);
     expect(
       await run(recheckZone, { zoneId: before.overflowedZoneIds[0] }),
     ).toEqual({ complete: true });
@@ -1387,6 +1391,64 @@ describe("derived zone occupancy", () => {
     const { raw, derived } = await expectOccupancyParity(seed, upper);
     expect(derived.docs.occupancy).toBeLessThan(raw.docs.occupancy);
   }, 60000);
+
+  it("re-checks every overflowed zone each sweep, not only the first page", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 11);
+    await addPallets(seed, 3);
+    await linkPlacements(seed);
+    expect((await backfillOccupancy(seed)).ready).toBe(true);
+    // Eleven zones marked overflowed: more than one page of the walk.
+    const zones = await seed.world.t.run(async (ctx) => {
+      const zones = await ctx.db.query("storageZones").collect();
+      for (const zone of zones) {
+        const row = await ctx.db
+          .query("storageZoneOccupancy")
+          .withIndex("by_orgId_zoneId", (q) =>
+            q.eq("orgId", zone.orgId).eq("zoneId", zone._id),
+          )
+          .unique();
+        if (row) await ctx.db.patch(row._id, { complete: false });
+        else
+          await ctx.db.insert("storageZoneOccupancy", {
+            orgId: zone.orgId,
+            warehouseId: zone.warehouseId,
+            buildingId: zone.buildingId,
+            zoneId: zone._id,
+            version: 1,
+            complete: false,
+            held: 0,
+            unmeasured: 0,
+            buildingMismatch: false,
+            storedFootprintAreaSqMm: 0,
+            heldFootprintAreaSqMm: 0,
+          });
+      }
+      return zones.map((zone) => zone._id as string);
+    });
+    expect(zones.length).toBeGreaterThan(10);
+    const walk = (args: Record<string, unknown>) =>
+      seed.world.t.run((ctx) =>
+        (
+          recheckOverflow as unknown as {
+            _handler(
+              ctx: GenericMutationCtx<DataModel>,
+              args: unknown,
+            ): Promise<{ isDone: boolean; continueCursor: string }>;
+          }
+        )._handler(ctx, { warehouseId: seed.warehouseId, ...args }),
+      );
+    let page = await walk({});
+    while (!page.isDone) page = await walk({ cursor: page.continueCursor });
+    const rechecked = (
+      await seed.world.t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect(),
+      )
+    )
+      .filter((job) => job.name.includes("recheckZone"))
+      .map((job) => (job.args[0] as { zoneId: string }).zoneId);
+    expect(new Set(rechecked)).toEqual(new Set(zones));
+  });
 
   it("stops a backfill page at its read budget and resumes the same page", async () => {
     const seed = await scaleWorld();

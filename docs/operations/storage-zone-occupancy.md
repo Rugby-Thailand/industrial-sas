@@ -20,9 +20,10 @@ reading every held placement and its pallet on every execution and re-run:
 - **Overflowed zones** (more than `MAX_ZONE_OCCUPANCY_ENTRIES` held placements) keep a
   marker row only (`complete: false`): writes do no per-write work for them,
   recommendations read them directly, and building-scoped readers fall back for the
-  warehouse. The hourly sweep re-checks each overflowed zone of a ready warehouse in its
-  own transaction (`recheckZone`), so a zone that drops back under the cap serves
-  building readers again within the hour.
+  warehouse. Each hourly sweep walks every overflowed zone of a ready warehouse
+  (`recheckOverflow`, ten per page) and re-checks each in its own transaction
+  (`recheckZone`), so a zone that drops back under the cap serves building readers
+  again after the next sweep.
 - **Two readiness scopes.** Zone-scoped readers (recommendations) need `ready`, not
   `stale`, the current `version`, and an unchanged legacy writer generation.
   Building-scoped readers (`buildingOccupancy`, building inventory) additionally need

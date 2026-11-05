@@ -27,8 +27,8 @@ import {
  * dense zones stops early and resumes at the same page, skipping zones done.
  */
 const REBUILD_READ_BUDGET = 4_000;
-/** Overflowed zones re-checked per warehouse per sweep (one per transaction). */
-const OVERFLOW_RECHECKS_PER_SWEEP = 10;
+/** Overflowed zones scheduled per page of a warehouse's re-check walk. */
+const OVERFLOW_RECHECK_PAGE = 10;
 
 type Resume = { resume: string | null; done: string[] };
 /** A mid-page continuation, or null for a plain Convex page cursor. */
@@ -265,20 +265,17 @@ export const sweep = internalMutation({
         (row.summaryGeneration ?? 0) === (legacy?.generation ?? 0)
       ) {
         // Writes skip overflowed zones, so only a re-check notices one that
-        // fell back under the cap and can serve building readers again.
+        // fell back under the cap and can serve building readers again. Every
+        // overflowed zone is re-checked each sweep, so none can starve.
         const db = createTenantDocumentAccess(
           { orgId: warehouse.orgId, requestId: "storage-zone-occupancy-sweep" },
           createMutationTenantStorage(ctx, "storage-zone-occupancy-sweep"),
         );
-        for (const zone of await overflowedZones(
-          db,
-          warehouse._id,
-          OVERFLOW_RECHECKS_PER_SWEEP,
-        ))
+        if ((await overflowedZones(db, warehouse._id, 1)).length)
           await ctx.scheduler.runAfter(
             0,
-            internal.storageLayouts.zoneOccupancyBackfill.recheckZone,
-            { zoneId: zone.zoneId },
+            internal.storageLayouts.zoneOccupancyBackfill.recheckOverflow,
+            { warehouseId: warehouse._id },
           );
         continue;
       }
@@ -290,6 +287,55 @@ export const sweep = internalMutation({
       started++;
     }
     return { started, isDone: page.isDone };
+  },
+});
+
+/**
+ * Walk a warehouse's overflowed zones one page per transaction, scheduling a
+ * re-check of each in its own transaction (scheduled by the sweep).
+ */
+export const recheckOverflow = internalMutation({
+  args: {
+    warehouseId: v.id("warehouses"),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.object({
+    scheduled: v.number(),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const warehouse = await ctx.db.get(args.warehouseId);
+    if (!warehouse) throw new Error("Warehouse not found");
+    const page = await ctx.db
+      .query("storageZoneOccupancy")
+      .withIndex("by_orgId_warehouseId_complete", (q) =>
+        q
+          .eq("orgId", warehouse.orgId)
+          .eq("warehouseId", args.warehouseId)
+          .eq("complete", false),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: OVERFLOW_RECHECK_PAGE,
+      });
+    for (const zone of page.page)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storageLayouts.zoneOccupancyBackfill.recheckZone,
+        { zoneId: zone.zoneId },
+      );
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storageLayouts.zoneOccupancyBackfill.recheckOverflow,
+        { warehouseId: args.warehouseId, cursor: page.continueCursor },
+      );
+    return {
+      scheduled: page.page.length,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
   },
 });
 

@@ -31328,6 +31328,59 @@
       }
     }
   },
+  "storageLayouts/zoneOccupancyBackfill:recheckOverflow": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        },
+        "cursor": {
+          "fieldType": {
+            "type": "union",
+            "value": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "scheduled": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "storageLayouts/zoneOccupancyBackfill:recheckZone": {
     "kind": "mutation",
     "visibility": "internal",
