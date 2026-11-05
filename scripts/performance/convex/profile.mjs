@@ -311,7 +311,17 @@ async function profileQuery(scenario) {
     const order = sample % 2 ? [...targets].reverse() : targets;
     for (const target of order) {
       const row = state.get(target.name);
-      const { windows, rtt } = await runChain(target, scenario, row);
+      // Match each version's real client arguments, as fan-out already does.
+      // Candidate-only endpoints have no baseline execution to compare.
+      if (target.name === "base" && scenario.baseArgs === null) {
+        row.resultCode = "NOT_APPLICABLE";
+        continue;
+      }
+      const targetScenario =
+        target.name === "base" && scenario.baseArgs !== undefined
+          ? { ...scenario, args: scenario.baseArgs }
+          : scenario;
+      const { windows, rtt } = await runChain(target, targetScenario, row);
       if (sample === 0) continue; // warm-up: module load / isolate start
       const entries = await completionsFor(target, scenario.fn, windows);
       if (!entries.length) continue;
