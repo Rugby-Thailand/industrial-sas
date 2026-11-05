@@ -84,8 +84,24 @@ function rebuildDerived(root, warehouseId) {
       runId: result.runId,
       batchSize: 25,
     });
+  // The hourly sweep may start its own run on the freshly restored data and
+  // supersede this one: wait for that run to finish instead.
+  for (let attempt = 0; result?.superseded && attempt < 120; attempt++) {
+    const health = convexRun(
+      root,
+      "storageLayouts/zoneOccupancyBackfill:health",
+      {
+        warehouseId,
+      },
+    );
+    if (health?.ready) result = { ...result, ready: true };
+    else Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5_000);
+    if (result.ready) break;
+  }
   if (result && !result.ready)
-    throw Error(`${root}: zone occupancy backfill finished without readiness`);
+    throw Error(
+      `${root}: zone occupancy backfill finished without readiness (${JSON.stringify(result)})`,
+    );
   convexRun(root, "finishedGoods/totalsBackfill:run", { warehouseId });
   // Derived substring-search indexes (convex/lib/jobScanSearch.ts, locationSearch.ts).
   for (const kind of ["jobScans", "locations"]) {
@@ -96,9 +112,14 @@ function rebuildDerived(root, warehouseId) {
         batchSize: 50,
         ...args,
       });
-    let built = page({ restart: true });
-    while (built && !built.isDone)
-      built = page({ cursor: built.continueCursor, runId: built.runId });
+    // A sweep may supersede this run on the restored data: build again.
+    let built;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      built = page({ restart: true });
+      while (built && !built.isDone)
+        built = page({ cursor: built.continueCursor, runId: built.runId });
+      if (!built || built.ready) break;
+    }
     if (built && !built.ready)
       throw Error(
         `${root}: ${kind} search backfill finished without readiness`,
