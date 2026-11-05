@@ -211,8 +211,11 @@ function HeaderBrand() {
         >
           {name ?? (
             <>
-              <span aria-hidden="true" className="font-normal text-muted">
-                —
+              <span
+                aria-hidden="true"
+                className="hidden font-normal text-muted sm:inline"
+              >
+                {t("organizationLabel")} —
               </span>
               <span className="sr-only">{t("namePending")}</span>
             </>

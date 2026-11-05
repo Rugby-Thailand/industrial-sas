@@ -14,6 +14,7 @@
     "connectionLostHint": "The app will keep trying to reconnect. Until then, data on this page may be out of date.",
     "reloadPage": "Reload page",
     "namePending": "Name not loaded",
+    "organizationLabel": "Organization",
     "dataPending": "Data not loaded"
   },
   "Locale": {
@@ -1458,7 +1459,7 @@
       "products-f41f9c": "Products",
       "storage-units-965913": "Storage units",
       "search-finished-goods": "Search finished goods",
-      "search-sku-name-or-storage-unit": "Search SKU, name or storage unit…",
+      "search-sku-name-or-storage-unit": "SKU, name or unit",
       "clear-search-414314": "Clear search",
       "display-layout": "Display layout",
       "card-view": "Card view",

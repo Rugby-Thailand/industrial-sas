@@ -623,6 +623,10 @@ function SearchBody({
           const ordinaryHeading = underAi && section.group === firstOrdinary;
           const heading =
             section.labelled && !(underAi && ordinaryShown.length === 1);
+          const inlineDescription =
+            heading &&
+            section.group !== "ASK" &&
+            section.description !== undefined;
           return (
             <div
               key={section.group}
@@ -655,17 +659,24 @@ function SearchBody({
               ) : null}
               {heading ? (
                 <div
-                  id={labelId}
                   role="presentation"
-                  className="px-2 pt-2 pb-1 text-xs font-semibold text-muted"
+                  className="flex flex-wrap items-baseline gap-x-2 px-2 pt-2 pb-1 text-sm leading-5 text-muted"
                 >
-                  {t(`group.${section.group}`)}
-                  {COUNTED_GROUPS.includes(section.group) ? (
-                    <GroupCount count={section.items.length} />
+                  <span id={labelId} className="font-semibold">
+                    {t(`group.${section.group}`)}
+                    {COUNTED_GROUPS.includes(section.group) ? (
+                      <GroupCount count={section.items.length} />
+                    ) : null}
+                  </span>
+                  {inlineDescription ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span id={noteId}>{section.description}</span>
+                    </>
                   ) : null}
                 </div>
               ) : null}
-              {section.description === undefined ? null : (
+              {section.description === undefined || inlineDescription ? null : (
                 <div
                   id={noteId}
                   role="presentation"

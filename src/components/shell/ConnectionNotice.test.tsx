@@ -197,6 +197,8 @@ describe("ConnectionNotice", () => {
     expect(spinning()).toHaveLength(0);
     expect(panel().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(pulsing()).toHaveLength(0);
+    expect(panel().querySelector("[data-slot=skeleton]")).not.toBeVisible();
+    expect(route().querySelector("[data-slot=skeleton]")).not.toBeVisible();
     expect(container.querySelectorAll("[data-slot=skeleton]")).toHaveLength(
       skeletons.length,
     );
@@ -212,6 +214,8 @@ describe("ConnectionNotice", () => {
     expect(route()).toHaveTextContent("กำลังโหลดหน้า…");
     expect(spinning()).toHaveLength(2);
     expect(pulsing()).toHaveLength(skeletons.length);
+    expect(panel().querySelector("[data-slot=skeleton]")).toBeVisible();
+    expect(route().querySelector("[data-slot=skeleton]")).toBeVisible();
   });
 
   it("leaves presenters outside the shell loading as usual", () => {

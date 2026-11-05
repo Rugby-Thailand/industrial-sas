@@ -1324,12 +1324,17 @@
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:clearedContext",
       "policy": "presentation",
-      "expectation": "Clearing optional search context changes inline suggestions, the inline AI progress row, its answer and guidance in the retained search dialog; the search loader owns foreground Back.",
+      "expectation": "Clearing optional search context changes inline suggestions, the inline AI progress row, its answer and guidance in the retained search dialog; the search loader owns foreground Back. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "uses": ["branch", "return"],
       "render": [
         {
           "shape": "conditional",
           "truthy": ["AiRunning"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
           "falsy": []
         },
         {
@@ -1340,6 +1345,11 @@
         {
           "shape": "conditional",
           "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
           "falsy": []
         },
         {
@@ -1355,6 +1365,11 @@
         {
           "shape": "conditional",
           "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
           "falsy": ["span"]
         },
         {
@@ -1362,14 +1377,30 @@
           "truthy": ["p[role=alert]"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:composing",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "IME composition keeps premature results, their group headings, the inline AI option and the no-match hint under the status as they were inside search, none of them choosable; it does not open a new workflow.",
+      "expectation": "IME composition keeps premature results, their group headings, the inline AI option and the no-match hint under the status as they were inside search, none of them choosable; it does not open a new workflow. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
@@ -1388,19 +1419,40 @@
         {
           "shape": "conditional",
           "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
           "falsy": ["span"]
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted recent places, places to go and AI examples (the examples group carries the AI scope as its description) as options there. Typed text shows an inline clear IconButton and, when AI is available, one inline “Ask AI where to go for …” option carrying the AI scope after the typed results, first when nothing matches; no Ask AI Button is rendered at any width. The clear button and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. An AI request replaces that option with one inline progress row with Cancel after the listbox. When nothing matches, the no-match status carries what can be searched, then the AI option, then the places-to-go group. Back dismisses the containing dialog regardless of the text.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted recent places, places to go and AI examples (the examples group carries the AI scope as its description) as options there. Typed text shows an inline clear IconButton and, when AI is available, one inline “Ask AI where to go for …” option carrying the AI scope after the typed results, first when nothing matches; no Ask AI Button is rendered at any width. The clear button and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. An AI request replaces that option with one inline progress row with Cancel after the listbox. When nothing matches, the no-match status carries what can be searched, then the AI option, then the places-to-go group. Back dismisses the containing dialog regardless of the text. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
         {
           "shape": "conditional",
           "truthy": ["AiRunning"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
           "falsy": []
         },
         {
@@ -1417,6 +1469,11 @@
           "shape": "conditional",
           "truthy": ["span"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
         },
         {
           "shape": "conditional",
@@ -1433,18 +1490,44 @@
           "truthy": ["p[role=alert]"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:unmatched",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Remembers whether the latest settled search text matched nothing, so the what-can-be-searched hint under the status and the places-to-go group after the inline AI option stay while the next text is typed and searched. All live inside the same search dialog; none is a foreground step or history entry, and Back dismisses the dialog.",
+      "expectation": "Remembers whether the latest settled search text matched nothing, so the what-can-be-searched hint under the status and the places-to-go group after the inline AI option stay while the next text is typed and searched. All live inside the same search dialog; none is a foreground step or history entry, and Back dismisses the dialog. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
         },
         {
           "shape": "conditional",
@@ -1460,6 +1543,14 @@
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
           "name": "offers the typed text to the AI when nothing matches"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
         }
       ],
       "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
@@ -1468,8 +1559,13 @@
       "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Debounced search text changes results, the group and typed-text headings with their counts, the no-match hint and where the inline AI option sits in the same dialog; it never creates a foreground predecessor.",
+      "expectation": "Debounced search text changes results, the group and typed-text headings with their counts, the no-match hint and where the inline AI option sits in the same dialog; it never creates a foreground predecessor. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["GroupCount", "div[role=presentation]"],
@@ -1488,9 +1584,25 @@
         {
           "shape": "conditional",
           "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
           "falsy": ["span"]
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/storageLayouts/AreaColorPicker.tsx#AreaColorPicker:open",

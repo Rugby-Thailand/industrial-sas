@@ -548,9 +548,12 @@ describe("selected warehouse in the header", () => {
     expect(drawer()).toBeNull();
   });
 
-  it("leaves it to the expanded sidebar and shows it again beside the collapsed rail", () => {
+  it("keeps the warehouse in the same header position with the sidebar expanded or collapsed", () => {
     const header = renderShell();
-    expect(within(header).queryByTestId("header-warehouse")).toBeNull();
+    expect(within(header).getByTestId("header-warehouse")).toHaveAttribute(
+      "title",
+      LABEL,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
     expect(within(header).getByTestId("header-warehouse")).toHaveAttribute(
       "title",

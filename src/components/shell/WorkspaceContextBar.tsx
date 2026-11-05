@@ -54,16 +54,14 @@ function useSelectedWarehouse(): WarehouseOption | undefined {
 
 /**
  * The selected warehouse as a read-only line under the header's
- * organization name, whenever the sidebar's selector is out of sight: on a
- * phone, where it lives in the drawer, and beside the collapsed rail. The
- * code alone on a phone; the name joins it where there is room.
+ * organization name, in every shell mode. The sidebar holds the switcher;
+ * this line keeps the current scope in the same place. The code alone on a
+ * phone; the name joins it where there is room.
  */
 export function HeaderWarehouse() {
   const navigation = useTranslations("Navigation");
-  const { isMobile, state } = useSidebar();
   const selected = useSelectedWarehouse();
-  if (selected === undefined || (!isMobile && state === "expanded"))
-    return null;
+  if (selected === undefined) return null;
   const label = warehouseLabel(selected);
   return (
     <p

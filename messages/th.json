@@ -14,6 +14,7 @@
     "connectionLostHint": "ระบบจะลองเชื่อมต่อใหม่ให้อัตโนมัติ ระหว่างนี้ข้อมูลบนหน้านี้อาจไม่เป็นปัจจุบัน",
     "reloadPage": "โหลดหน้าใหม่",
     "namePending": "ยังโหลดชื่อไม่ได้",
+    "organizationLabel": "องค์กร",
     "dataPending": "ยังโหลดข้อมูลไม่ได้"
   },
   "Locale": {
@@ -1458,7 +1459,7 @@
       "products-f41f9c": "รายการสินค้า",
       "storage-units-965913": "รายการหน่วยจัดเก็บ",
       "search-finished-goods": "ค้นหาสินค้าสำเร็จรูป",
-      "search-sku-name-or-storage-unit": "ค้นหารหัส ชื่อสินค้า หรือหน่วยจัดเก็บ…",
+      "search-sku-name-or-storage-unit": "รหัส ชื่อ หรือหน่วยจัดเก็บ",
       "clear-search-414314": "ล้างการค้นหา",
       "display-layout": "รูปแบบการแสดงผล",
       "card-view": "มุมมองการ์ด",

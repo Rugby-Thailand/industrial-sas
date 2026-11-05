@@ -51,7 +51,11 @@ export function LedgerPanelStatus({
           {waiting ? app("dataPending") : (label ?? t("loading"))}
         </span>
         {waiting ? null : <span className="sr-only">{t("loadingHint")}</span>}
-        <div aria-hidden="true" className="flex flex-col gap-2">
+        <div
+          hidden={waiting}
+          aria-hidden="true"
+          className="flex flex-col gap-2"
+        >
           <Skeleton className="h-6 w-1/3" />
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-full" />
