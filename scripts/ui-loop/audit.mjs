@@ -86,7 +86,7 @@ This is one image group in a full-stage audit. Other groups cover the other scre
 - Rubric (binding): ${PLAN}/rubric.md
 - Accepted decisions (do not score these down): ${PLAN}/decisions.md
 - Product context: PRODUCT.md
-- Design system: docs/plans/design-system.md
+${existsSync(join(dir, "runtime-qa.json")) ? `- Verified runtime checks (read-only evidence, not implementer intent): ${join(dir, "runtime-qa.json")}\n` : ""}- Design system: docs/plans/design-system.md
 - Source for these screens: ${spec.sources.join(", ")}. Use it to confirm a finding and to cite file:line, not to imagine UI that is not captured.
 
 ## Benchmark for this module (from docs/research/ui-competitive-benchmark-2026-11-04.md)
