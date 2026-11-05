@@ -13,7 +13,8 @@
     "connectionFirstHint": "This page can't load its data until the connection returns. The app keeps retrying automatically.",
     "connectionLostHint": "The app will keep trying to reconnect. Until then, data on this page may be out of date.",
     "reloadPage": "Reload page",
-    "waitingForConnection": "Waiting for connection…"
+    "namePending": "Name not loaded",
+    "dataPending": "Data not loaded"
   },
   "Locale": {
     "switchTo": "Switch language to"
@@ -70,7 +71,7 @@
     "handheldDelivery": "Delivery and POD",
     "productionOrders": "Production execution",
     "loadingNavigation": "Loading the menu…",
-    "waitingNavigation": "The menu appears once the server connects",
+    "waitingNavigation": "Menu not loaded",
     "loadingPage": "Loading page…",
     "sectionPlanner": "Warehouse",
     "finishedGoods": "Finished goods",

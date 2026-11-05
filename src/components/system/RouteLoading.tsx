@@ -34,7 +34,7 @@ export function RouteLoading() {
         ) : (
           <Spinner aria-hidden="true" />
         )}
-        <span>{waiting ? app("waitingForConnection") : t("loadingPage")}</span>
+        <span>{waiting ? app("dataPending") : t("loadingPage")}</span>
       </div>
       <div aria-hidden="true" className="flex flex-col gap-3">
         <Skeleton className="h-8 w-full max-w-72" />

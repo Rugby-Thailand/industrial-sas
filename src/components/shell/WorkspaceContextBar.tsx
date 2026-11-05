@@ -162,7 +162,14 @@ export function WorkspaceContextBar({
           >
             {workspace.loading ? (
               <span className="text-muted">
-                {waiting ? app("waitingForConnection") : t("loading")}
+                {waiting ? (
+                  <>
+                    <span aria-hidden="true">—</span>
+                    <span className="sr-only">{app("namePending")}</span>
+                  </>
+                ) : (
+                  t("loading")
+                )}
               </span>
             ) : workspace.organization !== undefined ? (
               // An organization member without an active warehouse they may open.

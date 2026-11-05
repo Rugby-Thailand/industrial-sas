@@ -13,7 +13,8 @@
     "connectionFirstHint": "หน้านี้ยังโหลดข้อมูลไม่ได้จนกว่าจะเชื่อมต่อได้ ระบบกำลังลองเชื่อมต่อใหม่ให้อัตโนมัติ",
     "connectionLostHint": "ระบบจะลองเชื่อมต่อใหม่ให้อัตโนมัติ ระหว่างนี้ข้อมูลบนหน้านี้อาจไม่เป็นปัจจุบัน",
     "reloadPage": "โหลดหน้าใหม่",
-    "waitingForConnection": "กำลังรอการเชื่อมต่อ…"
+    "namePending": "ยังโหลดชื่อไม่ได้",
+    "dataPending": "ยังโหลดข้อมูลไม่ได้"
   },
   "Locale": {
     "switchTo": "เปลี่ยนภาษาเป็น"
@@ -70,7 +71,7 @@
     "handheldDelivery": "ส่งมอบและ POD",
     "productionOrders": "ดำเนินงานผลิต",
     "loadingNavigation": "กำลังโหลดเมนู…",
-    "waitingNavigation": "เมนูจะแสดงเมื่อเชื่อมต่อเซิร์ฟเวอร์ได้",
+    "waitingNavigation": "ยังโหลดเมนูไม่ได้",
     "loadingPage": "กำลังโหลดหน้า…",
     "sectionPlanner": "คลังสินค้า",
     "finishedGoods": "สินค้าสำเร็จรูป",

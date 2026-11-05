@@ -190,10 +190,10 @@ describe("ConnectionNotice", () => {
     // wait for, hold still, and are not read out a second time.
     expect(screen.getAllByRole("status")).toEqual([notice()]);
     expect(panel()).not.toHaveAttribute("role");
-    expect(panel()).toHaveTextContent(/^กำลังรอการเชื่อมต่อ…$/);
+    expect(panel()).toHaveTextContent(/^ยังโหลดข้อมูลไม่ได้$/);
     expect(route()).not.toHaveAttribute("role");
     expect(route()).not.toHaveAttribute("aria-live");
-    expect(route()).toHaveTextContent(/^กำลังรอการเชื่อมต่อ…$/);
+    expect(route()).toHaveTextContent(/^ยังโหลดข้อมูลไม่ได้$/);
     expect(spinning()).toHaveLength(0);
     expect(panel().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(pulsing()).toHaveLength(0);

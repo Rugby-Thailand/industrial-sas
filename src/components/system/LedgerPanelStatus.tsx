@@ -48,7 +48,7 @@ export function LedgerPanelStatus({
           ) : (
             <Spinner aria-hidden="true" />
           )}
-          {waiting ? app("waitingForConnection") : (label ?? t("loading"))}
+          {waiting ? app("dataPending") : (label ?? t("loading"))}
         </span>
         {waiting ? null : <span className="sr-only">{t("loadingHint")}</span>}
         <div aria-hidden="true" className="flex flex-col gap-2">

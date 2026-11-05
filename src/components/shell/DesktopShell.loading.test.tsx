@@ -201,14 +201,16 @@ describe("shell connection status", () => {
     ).toEqual([within(header).getByTestId("connection-notice")]);
     expect(
       within(sidebar).getByTestId("sidebar-navigation-loading"),
-    ).toHaveTextContent("The menu appears once the server connects");
+    ).toHaveTextContent("Menu not loaded");
     expect(within(sidebar).getByTestId("sidebar-warehouse")).toHaveTextContent(
-      "Waiting for connection…",
+      "Name not loaded",
     );
+    expect(within(sidebar).getByText("Name not loaded")).toHaveClass("sr-only");
+    expect(within(header).getByText("Name not loaded")).toHaveClass("sr-only");
     expect(sidebar).not.toHaveTextContent("Loading");
     expect(within(header).queryByTestId("header-brand-loading")).toBeNull();
     expect(within(header).getByTestId("header-brand")).toHaveTextContent(
-      "Waiting for connection…",
+      "Name not loaded",
     );
   });
 });

@@ -209,7 +209,14 @@ function HeaderBrand() {
           className="truncate text-sm font-semibold text-text sm:text-base"
           title={name}
         >
-          {name ?? t("waitingForConnection")}
+          {name ?? (
+            <>
+              <span aria-hidden="true" className="font-normal text-muted">
+                —
+              </span>
+              <span className="sr-only">{t("namePending")}</span>
+            </>
+          )}
         </p>
       )}
       <HeaderWarehouse />
