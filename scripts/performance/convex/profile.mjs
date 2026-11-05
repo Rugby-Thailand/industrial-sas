@@ -33,6 +33,13 @@ const flag = (name, fallback) => {
   return index === -1 ? fallback : process.argv[index + 1];
 };
 const samples = Number(flag("samples", 7));
+const searchBackfillBatchSize = Number(flag("search-backfill-batch-size", 25));
+if (
+  !Number.isInteger(searchBackfillBatchSize) ||
+  searchBackfillBatchSize < 1 ||
+  searchBackfillBatchSize > 100
+)
+  throw Error("--search-backfill-batch-size must be an integer from 1 to 100");
 const only = flag("only", "")?.split(",").filter(Boolean);
 const skip = new Set(flag("skip", "")?.split(",").filter(Boolean));
 
@@ -109,7 +116,7 @@ function rebuildDerived(root, warehouseId) {
       convexRun(root, "finishedGoods/searchIndexBackfill:run", {
         warehouseId,
         kind,
-        batchSize: 50,
+        batchSize: searchBackfillBatchSize,
         ...args,
       });
     // A sweep may supersede this run on the restored data: build again.
