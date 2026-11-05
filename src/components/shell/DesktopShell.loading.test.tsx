@@ -79,7 +79,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
   }),
 }));
 vi.mock("@/components/shell/AccountButton", () => ({
-  AccountButton: () => null,
+  SidebarAccount: () => null,
 }));
 vi.mock("@/components/shell/HrLandingRedirect", () => ({
   HrLandingRedirect: () => null,
@@ -134,11 +134,11 @@ describe("shell while the organization loads", () => {
       "true",
     );
     expect(within(header).queryByText("Yongkit")).toBeNull();
-    expect(
-      within(sidebar).getByTestId("sidebar-organization-loading"),
-    ).toBeInTheDocument();
     // The product name stays, once, in the sidebar brand.
     expect(screen.getAllByText("Yongkit")).toHaveLength(1);
+    expect(within(sidebar).getByTestId("sidebar-brand")).toHaveTextContent(
+      "Yongkit",
+    );
   });
 
   it("names the organization as soon as any access source knows it", () => {
@@ -147,9 +147,8 @@ describe("shell while the organization loads", () => {
 
     expect(within(header).getByText("Demo Co")).toBeVisible();
     expect(within(header).queryByTestId("header-brand-loading")).toBeNull();
-    expect(
-      within(sidebar).getByTestId("sidebar-organization"),
-    ).toHaveTextContent("Demo Co");
+    // The header names the organization; the sidebar footer names the person.
+    expect(within(sidebar).queryByText("Demo Co")).toBeNull();
   });
 
   it("falls back to the product name once every source settled without an organization", () => {
@@ -202,7 +201,7 @@ describe("shell connection status", () => {
     ).toEqual([within(header).getByTestId("connection-notice")]);
     expect(
       within(sidebar).getByTestId("sidebar-navigation-loading"),
-    ).toHaveTextContent("Available work appears once connected");
+    ).toHaveTextContent("The menu appears once the server connects");
     expect(within(sidebar).getByTestId("sidebar-warehouse")).toHaveTextContent(
       "Waiting for connection…",
     );
@@ -210,8 +209,5 @@ describe("shell connection status", () => {
     expect(within(header).getByTestId("header-brand-loading")).not.toHaveClass(
       "animate-pulse",
     );
-    expect(
-      within(sidebar).getByTestId("sidebar-organization-loading"),
-    ).not.toHaveClass("animate-pulse");
   });
 });

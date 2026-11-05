@@ -145,7 +145,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
   }),
 }));
 vi.mock("@/components/shell/AccountButton", () => ({
-  AccountButton: () => null,
+  SidebarAccount: () => null,
 }));
 vi.mock("@/components/shell/HrLandingRedirect", () => ({
   HrLandingRedirect: () => null,
@@ -569,7 +569,10 @@ describe("phone drawer search", () => {
     expect(
       within(dialog).getByRole("combobox", { name: "Search" }),
     ).toHaveFocus();
-    expect(within(dialog).getByTestId("global-search-ai")).toBeInTheDocument();
+    // An empty box offers AI through its examples (D10), not a button.
+    expect(
+      within(dialog).getByTestId("global-search-group-ask"),
+    ).toBeInTheDocument();
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => expect(searchDialog()).toBeNull());
     await settle();

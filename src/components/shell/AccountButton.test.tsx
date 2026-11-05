@@ -1,0 +1,110 @@
+import { screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  configuredEnvironment,
+  renderWithIntl,
+} from "@tests/fixtures/intl-render";
+
+type ClerkUser = {
+  readonly fullName: string | null;
+  readonly primaryEmailAddress: { readonly emailAddress: string } | null;
+};
+
+const clerk = vi.hoisted(() => ({
+  isLoaded: true,
+  user: null as ClerkUser | null,
+}));
+
+vi.mock("@clerk/nextjs", () => ({
+  useUser: () => ({ isLoaded: clerk.isLoaded, user: clerk.user }),
+  // Like Clerk's trigger: a localized button around an English-named avatar.
+  UserButton: () => (
+    <button type="button" aria-label="เปิดเมนูบัญชี">
+      {/* eslint-disable-next-line @next/next/no-img-element -- Clerk's own markup */}
+      <img src="data:," alt="Local Tester's logo" title="Local Tester" />
+    </button>
+  ),
+}));
+
+import { SidebarAccount } from "./AccountButton";
+
+const KEY = "pk_test_Zm9vLWJhci0xMy5jbGVyay5hY2NvdW50cy5kZXYk";
+
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", KEY);
+  clerk.isLoaded = true;
+  clerk.user = {
+    fullName: "Local Tester",
+    primaryEmailAddress: { emailAddress: "tester@example.com" },
+  };
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+const render = (collapsed = false) =>
+  renderWithIntl(<SidebarAccount collapsed={collapsed} />, {
+    environment: configuredEnvironment,
+    workspace: false,
+  });
+
+describe("sidebar account footer", () => {
+  it("names the signed-in person beside the account menu", () => {
+    render();
+
+    const name = screen.getByTestId("sidebar-account-name");
+    expect(name).toHaveTextContent("Local Tester");
+    expect(name).toHaveClass("truncate", "text-sm", "font-medium");
+    expect(name).toHaveAttribute("title", "Local Tester");
+    expect(screen.getByRole("button", { name: "เปิดเมนูบัญชี" })).toBeVisible();
+  });
+
+  it("falls back to the primary email address when the account has no name", () => {
+    clerk.user = {
+      fullName: null,
+      primaryEmailAddress: { emailAddress: "tester@example.com" },
+    };
+    render();
+
+    expect(screen.getByTestId("sidebar-account-name")).toHaveTextContent(
+      "tester@example.com",
+    );
+  });
+
+  it("holds the name's place while the account loads", () => {
+    clerk.isLoaded = false;
+    clerk.user = null;
+    render();
+
+    expect(screen.getByTestId("sidebar-account-loading")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(screen.queryByTestId("sidebar-account-name")).toBeNull();
+  });
+
+  it("keeps the name for screen readers on the icon rail", () => {
+    render(true);
+
+    expect(screen.getByTestId("sidebar-account-name")).toHaveClass("sr-only");
+  });
+
+  it("marks the English-named avatar decorative inside the localized button", async () => {
+    render();
+
+    const button = screen.getByRole("button", { name: "เปิดเมนูบัญชี" });
+    const image = button.querySelector("img");
+    await waitFor(() => expect(image).toHaveAttribute("alt", ""));
+    // Its title alone would still name it.
+    expect(image).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(button).toHaveAccessibleName("เปิดเมนูบัญชี");
+  });
+
+  it("renders nothing without a configured identity provider", () => {
+    const { container } = renderWithIntl(<SidebarAccount collapsed={false} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+});

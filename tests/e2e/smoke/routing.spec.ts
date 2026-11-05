@@ -105,9 +105,7 @@ test.describe("public and not-found pages", () => {
       await expect(
         page.getByRole("heading", { level: 1, name: "ไม่พบหน้าที่ต้องการ" }),
       ).toBeVisible();
-      await page
-        .getByRole("link", { name: "ไปที่หน้าอาคารและจุดจัดเก็บ" })
-        .click();
+      await page.getByRole("link", { name: "ไปหน้าเริ่มต้น" }).click();
       await expect(page).toHaveURL(/\/th\/sign-in/);
     });
 

@@ -48,9 +48,9 @@ describe("locale error boundary", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "หน้าจอนี้ทำงานต่อไม่ได้",
     );
-    const start = screen.getByRole("link", {
-      name: "ไปที่หน้าอาคารและจุดจัดเก็บ",
-    });
+    // Access is unknown outside the shell, so the start page is named
+    // neutrally; the start route redirects each member by permission.
+    const start = screen.getByRole("link", { name: "ไปหน้าเริ่มต้น" });
     expect(start).toHaveAttribute("href", "/master-data/storage-layouts");
     // Retrying is the primary action; the start page is the way out.
     const again = screen.getByRole("button", { name: "ลองใหม่" });

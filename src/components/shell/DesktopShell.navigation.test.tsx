@@ -138,7 +138,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
   }),
 }));
 vi.mock("@/components/shell/AccountButton", () => ({
-  AccountButton: () => null,
+  SidebarAccount: () => null,
 }));
 vi.mock("@/components/shell/HrLandingRedirect", () => ({
   HrLandingRedirect: () => null,

@@ -82,10 +82,10 @@ export function HeaderWarehouse() {
 }
 
 /**
- * The selected warehouse, as the second line of the sidebar's compact
- * identity. Every page offers the warehouse selector when storage access
- * is available. The collapsed rail shows one warehouse icon that expands
- * the sidebar and moves focus to the warehouse it reveals.
+ * The warehouse this session works in, under its visible label in the
+ * sidebar header. Every page offers the warehouse selector when storage
+ * access is available. The collapsed rail shows one warehouse icon that
+ * expands the sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({
   collapsed = false,
@@ -135,45 +135,49 @@ export function WorkspaceContextBar({
     );
   }
 
+  const labelId = `${warehouseId}-label`;
+  const labelClassName = "mb-1 block text-xs text-muted";
   return (
     <section
-      aria-labelledby={`${warehouseId}-heading`}
+      aria-labelledby={labelId}
       tabIndex={-1}
       className="min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
       data-slot={CONTEXT_SLOT}
       data-testid="sidebar-warehouse"
       {...(selectedLabel === undefined ? {} : { title: selectedLabel })}
     >
-      <h2 id={`${warehouseId}-heading`} className="sr-only">
-        {t("warehouse")}
-      </h2>
       {!available ? (
-        <div
-          key={waiting ? "waiting" : "status"}
-          className="mt-1 flex flex-col gap-0.5 text-xs"
-          {...(workspace.loading && !waiting ? { role: "status" } : {})}
-        >
-          {workspace.loading ? (
-            <span className="text-muted">
-              {waiting ? app("waitingForConnection") : t("loading")}
-            </span>
-          ) : workspace.organization !== undefined ? (
-            // An organization member without an active warehouse they may open.
-            <>
-              <span className="font-semibold text-text">
-                {t("noWarehouses")}
+        <>
+          <p id={labelId} className={labelClassName}>
+            {t("warehouse")}
+          </p>
+          <div
+            key={waiting ? "waiting" : "status"}
+            className="flex flex-col gap-0.5 text-xs"
+            {...(workspace.loading && !waiting ? { role: "status" } : {})}
+          >
+            {workspace.loading ? (
+              <span className="text-muted">
+                {waiting ? app("waitingForConnection") : t("loading")}
               </span>
-              <span className="text-muted">{t("noWarehousesHint")}</span>
-            </>
-          ) : (
-            <>
-              <span className="font-semibold text-text">
-                {t("unavailable")}
-              </span>
-              <span className="text-muted">{t("unavailableHint")}</span>
-            </>
-          )}
-        </div>
+            ) : workspace.organization !== undefined ? (
+              // An organization member without an active warehouse they may open.
+              <>
+                <span className="font-semibold text-text">
+                  {t("noWarehouses")}
+                </span>
+                <span className="text-muted">{t("noWarehousesHint")}</span>
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-text">
+                  {t("unavailable")}
+                </span>
+                <span className="text-muted">{t("unavailableHint")}</span>
+              </>
+            )}
+          </div>
+        </>
       ) : (
         <>
           {/*
@@ -181,14 +185,10 @@ export function WorkspaceContextBar({
            * `<button>`, which is a labelable element, but only an explicit
            * `for` reaches it.
            */}
-          <label htmlFor={warehouseId} className="sr-only">
+          <label id={labelId} htmlFor={warehouseId} className={labelClassName}>
             {t("warehouse")}
           </label>
-          {/*
-           * No leading icon: beside the sidebar toggle, the
-           * narrow identity column needs its width for the warehouse label.
-           * The section title shows a truncated selection in full.
-           */}
+          {/* The section title shows a truncated selection in full. */}
           <SelectControl
             id={warehouseId}
             value={workspace.selectedWarehouseId ?? ""}

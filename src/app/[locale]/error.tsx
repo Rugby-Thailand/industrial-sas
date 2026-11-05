@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { useObservability } from "@/components/providers/ObservabilityProvider";
 import { PageFailure } from "@/components/shell/PageFailure";
-import { START_DESTINATION } from "@/components/shell/pageRecovery";
+import { START_HREF } from "@/components/shell/pageRecovery";
 import { usePathname } from "@/i18n/navigation";
 import { applicationRenderErrorEvent } from "@/lib/observability/applicationError";
 
@@ -17,14 +17,11 @@ export default function LocaleError({
   readonly retry: () => void;
 }) {
   const t = useTranslations("Error");
-  const navigation = useTranslations("Navigation");
   const observability = useObservability();
-  const pathname = usePathname();
-  // Outside the shell the start page is the one safe place, unless it failed.
-  const recovery =
-    START_DESTINATION === undefined || START_DESTINATION.href === pathname
-      ? undefined
-      : START_DESTINATION;
+  // Outside the shell the member's access is unknown, so the way out is the
+  // start route (it redirects by permission), named neutrally, unless it is
+  // the page that failed.
+  const startFailed = usePathname() === START_HREF;
 
   useEffect(() => {
     // `error` is intentionally a dependency but never part of the event: a new
@@ -39,16 +36,9 @@ export default function LocaleError({
         title={t("title")}
         cause={t("body")}
         hint={t("hint")}
-        {...(recovery === undefined
+        {...(startFailed
           ? {}
-          : {
-              recovery: {
-                href: recovery.href,
-                label: t("goTo", {
-                  destination: navigation(recovery.labelKey),
-                }),
-              },
-            })}
+          : { recovery: { href: START_HREF, label: t("goToStart") } })}
         retryLabel={t("retry")}
         onRetry={retry}
       />

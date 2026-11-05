@@ -108,11 +108,11 @@
     },
     {
       "id": "src/app/[locale]/not-found.tsx#LocaleNotFound",
-      "reason": "Unknown-route recovery uses an explicit Home link; the missing page has no meaningful synthetic Back parent."
+      "reason": "Unknown-route recovery uses an explicit, neutrally named start-page link (the start route redirects by permission); the missing page has no meaningful synthetic Back parent."
     },
     {
       "id": "src/components/shell/PageFailure.tsx#PageFailure",
-      "reason": "A page that failed to render has no meaningful synthetic Back parent; actual-origin Back remains available and an explicit link names the validated module hub or start page."
+      "reason": "A page that failed to render has no meaningful synthetic Back parent; actual-origin Back remains available. Its breadcrumb and explicit link name the nearest module hub from the member's permitted menu, or their own start page, never the failed page or a page that redirects back into it."
     }
   ],
   "infrastructure": [
@@ -941,13 +941,13 @@
       "file": "src/app/[locale]/[...rest]/page.tsx",
       "policy": "not-found",
       "targets": [],
-      "expectation": "Unknown routes render the locale not-found boundary, with an explicit safe Home/parent action."
+      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page."
     },
     {
       "file": "src/app/[locale]/error.tsx",
       "policy": "error",
       "targets": ["src/components/shell/PageFailure#PageFailure"],
-      "expectation": "Error recovery links to the validated start page, unless that page is the one that failed, and retries the failed boundary; native browser history remains available without inventing an unsafe parent.",
+      "expectation": "Error recovery links to the validated start route, named neutrally because access is unknown outside the shell, unless that page is the one that failed, and retries the failed boundary; native browser history remains available without inventing an unsafe parent.",
       "tests": ["src/app/[locale]/error.test.tsx"],
       "cases": [
         {
@@ -964,7 +964,7 @@
       "file": "src/app/[locale]/(desktop)/error.tsx",
       "policy": "error",
       "targets": ["src/components/shell/PageFailure#PageFailure"],
-      "expectation": "A page that fails inside the app shell keeps the sidebar, header and search. Recovery links to the nearest validated menu destination above the failed path, or the start page, never the failed page itself, and retries the failed boundary; native browser history remains available without inventing an unsafe parent.",
+      "expectation": "A page that fails inside the app shell keeps the sidebar, header and search. Recovery and the breadcrumb use the nearest destination above the failed path in the member's permitted menu; without one, the member's own start page; while access loads, the neutrally named start route. Never the failed page itself or a page that redirects back into it. Retry stays primary; native browser history remains available without inventing an unsafe parent.",
       "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
       "cases": [
         {
@@ -974,6 +974,18 @@
         {
           "file": "src/app/[locale]/(desktop)/error.test.tsx",
           "name": "sends a failure at %s to %s, never to the failed page itself"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "chooses the way out of %s from an HR-only member's own menu: %s"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "offers retry alone when an HR-only member's start page failed, rather than a page that redirects back to it"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "names the start page neutrally while the member's access is still loading"
         },
         {
           "file": "src/app/[locale]/(desktop)/error.test.tsx",
@@ -989,7 +1001,7 @@
         "src/components/ui/button#Button",
         "src/i18n/navigation#Link"
       ],
-      "expectation": "Unknown routes render the locale not-found boundary, with an explicit safe Home/parent action."
+      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page."
     },
     {
       "file": "src/app/[locale]/page.tsx",
@@ -1272,7 +1284,7 @@
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:clearedContext",
       "policy": "presentation",
-      "expectation": "Clearing optional search context changes inline suggestions, AI progress and guidance in the retained search dialog; the search loader owns foreground Back.",
+      "expectation": "Clearing optional search context changes inline suggestions, the inline AI progress row, its answer and guidance in the retained search dialog; the search loader owns foreground Back.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -1282,7 +1294,17 @@
         },
         {
           "shape": "conditional",
-          "truthy": ["div[role=presentation]"],
+          "truthy": ["AiRunning"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Sparkles", "p"],
           "falsy": []
         },
         {
@@ -1310,16 +1332,6 @@
         },
         {
           "shape": "early-return",
-          "truthy": [
-            "div",
-            "p[role=status]",
-            "src/components/ui/button#Button",
-            "src/components/ui/spinner#Spinner"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "early-return",
           "truthy": ["p[role=alert]"],
           "falsy": []
         }
@@ -1329,11 +1341,16 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:composing",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "IME composition hides premature results and no-match guidance inside search and holds the Ask AI Button or inline AI offer as it was; it does not open a new workflow.",
+      "expectation": "IME composition hides premature results, their group headings and no-match guidance inside search and holds the Ask AI Button (with its scope line) or inline AI offer as it was; it does not open a new workflow.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": ["div[role=presentation]"],
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Sparkles", "p"],
           "falsy": []
         },
         {
@@ -1347,6 +1364,11 @@
         {
           "shape": "conditional",
           "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
           "falsy": []
         }
       ]
@@ -1355,7 +1377,7 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted places and AI examples as options there, and an AI request shows inline progress and an aria-hidden placeholder for its choices. Typed text shows an inline clear IconButton; it and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. When nothing matches, the typed text is offered to the AI as one inline option and the Ask AI Button is not rendered while that option is shown. Back dismisses the containing dialog regardless of the text.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted recent places, places to go and AI examples (the examples group carries the AI scope as its description) as options there, with no Ask AI Button. Typed text shows the Ask AI Button with its scope line and an inline clear IconButton; it and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. An AI request shows one inline progress row with Cancel under the box (on a phone in place of the Button) and an aria-hidden placeholder for its choices. When nothing matches, the no-match status comes first, the typed text is offered to the AI as one inline option carrying the scope, then what can be searched and the places-to-go group; the Ask AI Button is not rendered while that option is shown. Back dismisses the containing dialog regardless of the text.",
       "render": [
         {
           "shape": "conditional",
@@ -1364,7 +1386,17 @@
         },
         {
           "shape": "conditional",
-          "truthy": ["div[role=presentation]"],
+          "truthy": ["AiRunning"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Sparkles", "p"],
           "falsy": []
         },
         {
@@ -1382,18 +1414,13 @@
         },
         {
           "shape": "conditional",
-          "truthy": [],
-          "falsy": ["lucide-react#X", "src/components/ui/IconButton#IconButton"]
+          "truthy": ["span"],
+          "falsy": []
         },
         {
-          "shape": "early-return",
-          "truthy": [
-            "div",
-            "p[role=status]",
-            "src/components/ui/button#Button",
-            "src/components/ui/spinner#Spinner"
-          ],
-          "falsy": []
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["lucide-react#X", "src/components/ui/IconButton#IconButton"]
         },
         {
           "shape": "early-return",
@@ -1406,11 +1433,16 @@
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:unmatched",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Remembers whether the latest settled search text matched nothing, so the inline “Ask AI where to go for …” option stays in the list, and the Ask AI Button stays out of the input row, while the next text is typed and searched. Both live inside the same search dialog; neither is a foreground step or history entry, and Back dismisses the dialog.",
+      "expectation": "Remembers whether the latest settled search text matched nothing, so the inline “Ask AI where to go for …” option (with the AI scope as its description), the what-can-be-searched guidance and the places-to-go group stay in the list, and the Ask AI Button and its scope line stay out of the input row, while the next text is typed and searched. All live inside the same search dialog; none is a foreground step or history entry, and Back dismisses the dialog.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": ["div[role=presentation]"],
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Sparkles", "p"],
           "falsy": []
         },
         {
@@ -1426,6 +1458,10 @@
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
           "name": "makes the typed-text offer the only AI action when nothing matches, and keeps it in place while typing on"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "offers the typed text to the AI when nothing matches"
         }
       ],
       "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
@@ -1434,11 +1470,16 @@
       "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Debounced search text changes results, the ordinary-results heading, no-match guidance and whether the Ask AI Button or the inline AI offer is shown in the same dialog; it never creates a foreground predecessor.",
+      "expectation": "Debounced search text changes results, the group and typed-text headings with their counts, no-match guidance and whether the Ask AI Button (with its scope line) or the inline AI offer is shown in the same dialog; it never creates a foreground predecessor.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": ["div[role=presentation]"],
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Sparkles", "p"],
           "falsy": []
         },
         {
@@ -1452,6 +1493,11 @@
         {
           "shape": "conditional",
           "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
           "falsy": []
         }
       ]

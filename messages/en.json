@@ -69,8 +69,8 @@
     "handheldLoad": "Load vehicle",
     "handheldDelivery": "Delivery and POD",
     "productionOrders": "Production execution",
-    "loadingNavigation": "Loading available work…",
-    "waitingNavigation": "Available work appears once connected",
+    "loadingNavigation": "Loading the menu…",
+    "waitingNavigation": "The menu appears once the server connects",
     "loadingPage": "Loading page…",
     "sectionPlanner": "Warehouse",
     "finishedGoods": "Finished goods",
@@ -194,8 +194,8 @@
   },
   "NotFound": {
     "title": "Page not found",
-    "body": "The link may be mistyped, or the page may have moved or been removed. Check the address, or start again from {destination}.",
-    "action": "Go to {destination}"
+    "body": "The link may be mistyped, or the page may have moved or been removed. Check the address, or go to the start page and pick from the menu.",
+    "action": "Go to start page"
   },
   "Error": {
     "title": "Something went wrong",
@@ -203,10 +203,10 @@
     "retry": "Try again",
     "hint": "The app hit a problem while showing this page. Try again, or start over from another page.",
     "pageTitle": "This page could not be opened",
-    "pageCause": "This page's data didn't load.",
-    "pageHint": "Try again, or go back to {destination}.",
-    "pageHintRetry": "Try loading this page again.",
-    "goTo": "Go to {destination}"
+    "pageCause": "Its data didn't load. This may be temporary.",
+    "pageHint": "Nothing you saved is affected. If it still won't open, tell your organization administrator.",
+    "goTo": "Go to {destination}",
+    "goToStart": "Go to start page"
   },
   "Write": {
     "required": "This field is required.",
@@ -3140,8 +3140,10 @@
     "group": {
       "AI": "AI suggestions",
       "PAGES": "Pages and sections",
-      "RECORDS": "Records",
+      "EMPLOYEES": "Employees",
+      "PERIODS": "Periods",
       "TASKS": "Tasks",
+      "RECENT": "Recent",
       "GOTO": "Go to",
       "ASK": "Ask AI where to go"
     },
@@ -3151,8 +3153,9 @@
     "noMatchHintPages": "Only page and section names can be searched. Try a shorter word.",
     "results": "{count, plural, one {# result} other {# results}}",
     "resultsLoading": "{count, plural, one {# result so far, still searching records…} other {# results so far, still searching records…}}",
-    "ordinaryResults": "{count, plural, one {# normal search result} other {# normal search results}}",
-    "ordinaryNone": "No normal search results.",
+    "ordinaryHeading": "Matches for your text",
+    "ordinaryResults": "{count, plural, one {# match for your text} other {# matches for your text}}",
+    "ordinaryNone": "No matches for your text.",
     "recordsLoading": "Searching records…",
     "recordsUnavailable": "Records could not be searched right now. Page results still work.",
     "recordsIncomplete": "Some records may not be shown. Type a full employee code or narrow the search.",
@@ -3185,7 +3188,6 @@
     "navigating": "Opening {trail}",
     "aiAsk": "Ask AI",
     "aiScope": "AI takes you to pages and forms for time, leave, requests and employees.",
-    "aiScopeStart": "Type what you need, then choose “Ask AI” to open pages and forms for time, leave, requests and employees.",
     "askQuery": "Ask AI where to go for “{query}”",
     "aiPrivacy": "Ask AI sends your typed text (including any names) and the current page type to the AI provider. No records are sent.",
     "exampleSelf": "Forgot to clock in yesterday",

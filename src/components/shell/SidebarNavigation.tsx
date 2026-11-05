@@ -8,11 +8,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
-import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
-import { useHrAccess } from "@/components/providers/HrAccessProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
-import { useGrantedPermissions } from "@/components/shell/search/GlobalSearchProvider";
 import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
 import {
   groupSidebarItems,
@@ -21,6 +17,7 @@ import {
 } from "@/components/shell/sidebarEntries";
 import { sidebarRowClassName } from "@/components/shell/sidebarRow";
 import { useContentBelow } from "@/components/shell/useContentBelow";
+import { useVisibleNavigation } from "@/components/shell/useVisibleNavigation";
 import { useConnectionStall } from "@/components/system/connectionStall";
 import {
   SidebarContent,
@@ -33,11 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { usePathname } from "@/i18n/navigation";
-import {
-  activeNavigationHref,
-  visibleDesktopNavigation,
-  type NavigationItem,
-} from "@/lib/navigation";
+import { activeNavigationHref, type NavigationItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 interface RowProps {
@@ -62,20 +55,9 @@ export function SidebarNavigation({
 }) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
-  const workspace = useWorkspace();
-  const hr = useHrAccess();
-  const usage = useAiUsageAccess();
   const labelPrefix = useId();
-  // Storage, HR and AI usage grants settle independently. A storage denial is
-  // a settled answer (an HR-only or usage-only member), not a reason to keep
-  // the menu loading.
-  const workspaceSettled =
-    workspace.permissionsReady || workspace.denied || workspace.failed;
-  const hrSettled = hr.status !== "LOADING";
-  const usageSettled = usage.status !== "LOADING";
-  const sections = visibleDesktopNavigation(useGrantedPermissions());
-  const navigationLoading =
-    !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
+  const { sections, settled } = useVisibleNavigation();
+  const navigationLoading = !settled && sections.length === 0;
   // A stalled connection is announced by the shell's notice; the menu's
   // placeholder then says when it fills, quietly and without motion.
   const waiting = useConnectionStall() !== null;
@@ -91,7 +73,7 @@ export function SidebarNavigation({
   useRevealActiveRow(
     contentRef,
     isMobile && openMobile,
-    workspaceSettled && hrSettled && usageSettled && activeHref !== undefined,
+    settled && activeHref !== undefined,
   );
   const contentBelow = useContentBelow(contentRef);
 

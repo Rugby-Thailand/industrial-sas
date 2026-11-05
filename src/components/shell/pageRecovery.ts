@@ -1,33 +1,50 @@
 import {
   activeNavigationHref,
-  DESKTOP_NAVIGATION,
   ROUTES,
   type NavigationItem,
 } from "@/lib/navigation";
 
-const MENU: readonly NavigationItem[] = DESKTOP_NAVIGATION.flatMap(
-  (section) => section.items,
-);
+/**
+ * The start route: `/[locale]` and the sign-in default open it, and members
+ * without storage access are redirected from it to their own first page.
+ */
+export const START_HREF = ROUTES.storageLayouts;
 
-/** The signed-in start page: `/[locale]` and the sign-in default open it. */
-export const START_DESTINATION = MENU.find(
-  (item) => item.href === ROUTES.storageLayouts,
-);
+export type PageRecovery =
+  /** The nearest permitted menu page above the failed one: its place and way out. */
+  | { readonly kind: "HUB"; readonly item: NavigationItem }
+  /** The page the start route opens for this member, named because they can open it. */
+  | { readonly kind: "START"; readonly item: NavigationItem }
+  /** Access is not known yet: the start route, which redirects by permission. */
+  | { readonly kind: "NEUTRAL"; readonly href: string };
 
 /**
- * Where a page that failed to load can safely send the user: the nearest menu
- * destination above it (its module hub), else the start page. Never the
- * failed page itself, so a failing hub or start page offers retry only.
+ * Where a page that failed to load can safely send the member, chosen from
+ * their own permitted menu (`visible`), so it never names a page that would
+ * redirect them back into the failure. Never the failed page itself: a
+ * failing start page offers retry only (the sidebar still lists the rest).
  */
-export function recoveryDestination(
+export function pageRecovery(
   pathname: string,
-): NavigationItem | undefined {
-  const above = MENU.filter((item) => item.href !== pathname);
-  const href = activeNavigationHref(
+  visible: readonly NavigationItem[],
+  settled: boolean,
+): PageRecovery | undefined {
+  const others = visible.filter((item) => item.href !== pathname);
+  const hubHref = activeNavigationHref(
     pathname,
-    above.map((item) => item.href),
+    others.map((item) => item.href),
   );
-  const parent = above.find((item) => item.href === href);
-  if (parent !== undefined) return parent;
-  return START_DESTINATION?.href === pathname ? undefined : START_DESTINATION;
+  const hub = others.find((item) => item.href === hubHref);
+  if (hub !== undefined) return { kind: "HUB", item: hub };
+  if (!settled)
+    return pathname === START_HREF
+      ? undefined
+      : { kind: "NEUTRAL", href: START_HREF };
+  // Where the start route lands this member: Buildings & spots with storage
+  // access, else their first HR page, else the AI usage report.
+  const start =
+    visible.find((item) => item.href === START_HREF) ?? visible.at(0);
+  return start === undefined || start.href === pathname
+    ? undefined
+    : { kind: "START", item: start };
 }

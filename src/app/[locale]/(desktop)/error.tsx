@@ -5,14 +5,17 @@ import { useTranslations } from "next-intl";
 
 import { useObservability } from "@/components/providers/ObservabilityProvider";
 import { PageFailure } from "@/components/shell/PageFailure";
-import { recoveryDestination } from "@/components/shell/pageRecovery";
+import { pageRecovery } from "@/components/shell/pageRecovery";
+import { useVisibleNavigation } from "@/components/shell/useVisibleNavigation";
 import { usePathname } from "@/i18n/navigation";
 import { applicationRenderErrorEvent } from "@/lib/observability/applicationError";
 
 /**
  * A page that fails inside the app shell keeps the sidebar, header and
- * search. Retrying comes first; its module hub is the way out. The failure is
- * not classified, so the copy names no cause (a bad link, removed data).
+ * search, and its place under the module page above it. Retrying comes
+ * first; the way out is chosen from the member's own menu, so it never names
+ * a page that would send them back here. The failure is not classified, so
+ * the copy names no cause (a bad link, removed data).
  */
 export default function DesktopPageError({
   error,
@@ -24,11 +27,23 @@ export default function DesktopPageError({
   const t = useTranslations("Error");
   const navigation = useTranslations("Navigation");
   const observability = useObservability();
-  const recovery = recoveryDestination(usePathname());
-  const hub =
+  const { sections, settled } = useVisibleNavigation();
+  const recovery = pageRecovery(
+    usePathname(),
+    sections.flatMap((section) => section.items),
+    settled,
+  );
+  const destination =
     recovery === undefined
       ? undefined
-      : { href: recovery.href, name: navigation(recovery.labelKey) };
+      : recovery.kind === "NEUTRAL"
+        ? { href: recovery.href, label: t("goToStart") }
+        : {
+            href: recovery.item.href,
+            label: t("goTo", {
+              destination: navigation(recovery.item.labelKey),
+            }),
+          };
 
   useEffect(() => {
     // `error` is intentionally a dependency but never part of the event: a new
@@ -41,19 +56,18 @@ export default function DesktopPageError({
     <PageFailure
       title={t("pageTitle")}
       cause={t("pageCause")}
-      hint={
-        hub === undefined
-          ? t("pageHintRetry")
-          : t("pageHint", { destination: hub.name })
-      }
-      {...(hub === undefined
-        ? {}
-        : {
-            recovery: {
-              href: hub.href,
-              label: t("goTo", { destination: hub.name }),
-            },
-          })}
+      hint={t("pageHint")}
+      {...(recovery?.kind === "HUB"
+        ? {
+            breadcrumbs: [
+              {
+                href: recovery.item.href,
+                label: navigation(recovery.item.labelKey),
+              },
+            ],
+          }
+        : {})}
+      {...(destination === undefined ? {} : { recovery: destination })}
       retryLabel={t("retry")}
       onRetry={retry}
     />

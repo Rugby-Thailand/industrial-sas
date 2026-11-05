@@ -3,10 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
+import type { Crumb } from "@/components/ui/PageBreadcrumbs";
 import { Link } from "@/i18n/navigation";
 
 /**
- * A page that could not render: an h1 naming what failed, what to do next,
+ * A page that could not render: its place (the module page above it, when
+ * known), an h1 naming what failed, the likely cause and what else to do,
  * then a retry (primary) and, when there is one, a safe destination
  * (secondary). Back keeps the real origin; a directly opened failure invents
  * no parent.
@@ -15,6 +17,7 @@ export function PageFailure({
   title,
   cause,
   hint,
+  breadcrumbs,
   recovery,
   retryLabel,
   onRetry,
@@ -22,13 +25,18 @@ export function PageFailure({
   readonly title: string;
   readonly cause: string;
   readonly hint: string;
+  readonly breadcrumbs?: readonly Crumb[];
   readonly recovery?: { readonly href: string; readonly label: string };
   readonly retryLabel: string;
   readonly onRetry: () => void;
 }) {
   return (
     <div data-testid="route-error" className="w-full max-w-2xl">
-      <PageHeader title={title} backFallbackHref={null} />
+      <PageHeader
+        title={title}
+        backFallbackHref={null}
+        {...(breadcrumbs === undefined ? {} : { breadcrumbs })}
+      />
       <Notice tone="danger" role="alert" title={cause} body={hint} />
       <div className="mt-4 flex flex-wrap gap-2">
         <Button type="button" onClick={onRetry} data-testid="route-error-retry">

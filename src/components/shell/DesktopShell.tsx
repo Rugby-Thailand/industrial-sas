@@ -20,7 +20,7 @@ import {
   NavigationProgressProvider,
 } from "@/components/system/NavigationProgress";
 import { SkipToContentLink } from "@/components/shell/SkipToContentLink";
-import { AccountButton } from "@/components/shell/AccountButton";
+import { SidebarAccount } from "@/components/shell/AccountButton";
 import {
   ConnectionNotice,
   ConnectionStallProvider,
@@ -45,7 +45,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
-  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
@@ -205,7 +204,6 @@ function AppSidebar({
 }) {
   const t = useTranslations("Navigation");
   const app = useTranslations("App");
-  const organizationName = useOrganizationName();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
   const drawer = useRef<SheetCompletionHandle>(null);
@@ -237,30 +235,27 @@ function AppSidebar({
       mobileTitle={t("primary")}
       mobileCloseLabel={t("closeMenu")}
     >
-      <SidebarHeader
-        className={cn("gap-6 px-4 pt-5 pb-2", collapsed && "gap-3 p-2")}
-      >
+      <SidebarHeader className={cn("gap-3 px-4 pt-3 pb-2", collapsed && "p-2")}>
+        {/* The product name on its own row, beside the toggle; the header
+            names the organization, and the warehouse has its own label. */}
         <div
           className={cn(
             "flex items-center gap-1",
             collapsed && "justify-center",
           )}
         >
-          {/* Compact identity: app name over the warehouse, beside the toggle. */}
-          <div
+          <p
             className={cn(
-              "flex min-h-touch min-w-0 flex-1 items-center gap-3 dense:min-h-control",
+              "min-w-0 flex-1 truncate text-base font-semibold",
               collapsed && "sr-only",
             )}
+            data-testid="sidebar-brand"
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{app("name")}</p>
-              {collapsed ? null : <WorkspaceContextBar />}
-            </div>
-          </div>
+            {app("name")}
+          </p>
           <NavigationDisclosure />
         </div>
-        {collapsed ? <WorkspaceContextBar collapsed /> : null}
+        <WorkspaceContextBar collapsed={collapsed} />
         <SidebarSearchTriggers
           collapsed={collapsed}
           {...(isMobile ? { onOpen: searchHandoff.request } : {})}
@@ -271,42 +266,7 @@ function AppSidebar({
         collapsed={collapsed}
         {...(isMobile ? { onNavigate: navigateFromDrawer } : {})}
       />
-      <SidebarFooter
-        className={cn(
-          "mx-4 border-t border-sidebar-border px-0 py-4",
-          collapsed && "mx-2 p-0 py-2",
-        )}
-      >
-        <div
-          className={cn(
-            "flex min-h-12 items-center gap-3",
-            collapsed && "justify-center",
-          )}
-        >
-          <div className="shrink-0" data-testid="sidebar-account">
-            <AccountButton />
-          </div>
-          {organizationName === undefined ? (
-            collapsed ? null : (
-              <Skeleton
-                aria-hidden="true"
-                // The default skeleton fill matches the sidebar surface.
-                className="h-4 w-32 bg-sidebar-border"
-                data-testid="sidebar-organization-loading"
-              />
-            )
-          ) : (
-            <span
-              className={
-                collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
-              }
-              data-testid="sidebar-organization"
-            >
-              {organizationName}
-            </span>
-          )}
-        </div>
-      </SidebarFooter>
+      <SidebarAccount collapsed={collapsed} />
     </Sidebar>
   );
 }
