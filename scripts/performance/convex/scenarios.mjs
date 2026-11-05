@@ -116,15 +116,26 @@ export function discover(fixture) {
       )
       // Flows edit the first non-batch pallets earlier in the run; skip them.
       .slice(3, 11)
-      .map(({ _id, quantity, lengthMm, widthMm, heightMm, updatedAt }) => ({
-        _id,
-        // Whole units are valid for every unit label.
-        quantity: Math.max(1, Math.round(quantity)),
-        lengthMm,
-        widthMm,
-        heightMm,
-        updatedAt,
-      })),
+      .map(
+        ({
+          _id,
+          productId,
+          quantity,
+          lengthMm,
+          widthMm,
+          heightMm,
+          updatedAt,
+        }) => ({
+          _id,
+          productId,
+          // Whole units are valid for every unit label.
+          quantity: Math.max(1, Math.round(quantity)),
+          lengthMm,
+          widthMm,
+          heightMm,
+          updatedAt,
+        }),
+      ),
     measurablePalletId: pallets.find(
       (row) =>
         row.status === "AWAITING_PLACEMENT" &&

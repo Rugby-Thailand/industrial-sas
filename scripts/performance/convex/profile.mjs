@@ -306,40 +306,53 @@ async function profileFanout(target, scenarios) {
   const subscribed = scenarios.filter((scenario) => !scenario.legacy);
   // Progressive queries stay subscribed with their final settled arguments,
   // as useCatalogueSync/useHrPagedQuery leave them.
+  // A chain must end in a terminal answer (ready, done, not_ready, refusal);
+  // anything else is a broken measurement, not a data point.
   const settledArgs = async (scenario) => {
+    if (!scenario.settle) return scenario.args;
     let args = scenario.args;
-    for (let request = 0; scenario.settle && request < 200; request++) {
-      const value = (await invoke(target, "query", scenario.fn, args)).value;
-      const result = value?.value ?? value;
-      if (result?.status !== "scanning" || !result.scanCursor) break;
+    let resets = 0;
+    for (let request = 0; request < 200; request++) {
+      const outcome = await invoke(target, "query", scenario.fn, args);
+      if (outcome.error)
+        throw Error(`${scenario.fn} failed while settling: ${outcome.error}`);
+      const result = outcome.value?.value ?? outcome.value;
+      if (result?.status === "reset") {
+        // The client restarts its chain from the base arguments.
+        if (++resets > 3) throw Error(`${scenario.fn} kept resetting`);
+        args = scenario.args;
+        continue;
+      }
+      if (result?.status !== "scanning") return args;
+      if (!result.scanCursor)
+        throw Error(`${scenario.fn} scanning without a cursor`);
       args = { ...scenario.args, scanCursor: result.scanCursor };
     }
-    return args;
+    throw Error(`${scenario.fn} did not settle within 200 requests`);
   };
   const latest = new Map();
-  const unsubscribers = [];
+  const subscriptions = new Map();
+  const subscribe = (scenario) =>
+    new Promise((resolve) => {
+      const timer = setTimeout(resolve, 10_000);
+      subscriptions.get(scenario)?.();
+      subscriptions.set(
+        scenario,
+        client.onUpdate(
+          scenario.fn,
+          scenario.subscribedArgs,
+          (value) => {
+            latest.set(scenario, value?.value ?? value);
+            clearTimeout(timer);
+            resolve();
+          },
+          () => resolve(),
+        ),
+      );
+    });
   for (const scenario of subscribed)
     scenario.subscribedArgs = await settledArgs(scenario);
-  await Promise.all(
-    subscribed.map(
-      (scenario) =>
-        new Promise((resolve) => {
-          const timer = setTimeout(resolve, 10_000);
-          unsubscribers.push(
-            client.onUpdate(
-              scenario.fn,
-              scenario.subscribedArgs,
-              (value) => {
-                latest.set(scenario, value?.value ?? value);
-                clearTimeout(timer);
-                resolve();
-              },
-              () => resolve(),
-            ),
-          );
-        }),
-    ),
-  );
+  await Promise.all(subscribed.map(subscribe));
   const syncEntries = () =>
     logs.entries.filter(
       (entry) => entry.udfType === "Query" && entry.caller !== "HttpApi",
@@ -466,22 +479,29 @@ async function profileFanout(target, scenarios) {
     const [own] = await completionsFor(target, write.fn, [outcome]);
     await quiesce();
     // A re-run that falls back to scanning/reset makes the client restart its
-    // chain: replay that chain and count it as follow-up work.
+    // chain and then subscribe to the recovered arguments: replay both and
+    // count them as follow-up work, so later writes hit the settled screen.
     const followStarted = Date.now();
     const followFns = new Set();
+    const resubscribed = [];
     for (const scenario of subscribed) {
       const now = latest.get(scenario);
       if (!scenario.settle || now === before.get(scenario)) continue;
       if (now?.status !== "scanning" && now?.status !== "reset") continue;
       followFns.add(scenario.fn);
-      await settledArgs(scenario);
+      const args = await settledArgs(scenario);
+      if (JSON.stringify(args) !== JSON.stringify(scenario.subscribedArgs)) {
+        scenario.subscribedArgs = args;
+        resubscribed.push(subscribe(scenario));
+      }
     }
+    await Promise.all(resubscribed);
     if (followFns.size) await sleep(1_500); // let the log stream catch up
     const followUps = followFns.size
       ? logs.entries.filter(
           (entry) =>
             followFns.has(entry.identifier) &&
-            entry.caller === "HttpApi" &&
+            entry.udfType === "Query" &&
             !entry.cachedResult &&
             entry.executionTimestamp * 1000 >= followStarted,
         )
@@ -492,7 +512,8 @@ async function profileFanout(target, scenarios) {
         entry.udfType === "Query" &&
         entry.caller !== "HttpApi" &&
         !entry.cachedResult &&
-        entry.executionTimestamp * 1000 >= started,
+        entry.executionTimestamp * 1000 >= started &&
+        entry.executionTimestamp * 1000 < followStarted,
     );
     const byFunction = {};
     for (const entry of reruns) {
@@ -511,6 +532,7 @@ async function profileFanout(target, scenarios) {
       writeOk: outcome.value?.ok === true && !refusal(outcome.value),
       ...(refusal(outcome.value) ? { refused: refusal(outcome.value) } : {}),
       subscriptions: subscribed.length,
+      resubscribed: resubscribed.length,
       reruns: reruns.length,
       readDocs: reruns.reduce(
         (sum, entry) => sum + entry.usageStats.databaseReadDocuments,
@@ -553,7 +575,7 @@ async function profileFanout(target, scenarios) {
         },
       );
   }
-  for (const unsubscribe of unsubscribers) unsubscribe();
+  for (const unsubscribe of subscriptions.values()) unsubscribe();
   await client.close();
   return results;
 }
@@ -601,37 +623,80 @@ async function contend(target, name, fn, argsFor, workers) {
   };
 }
 
+/** The same burst several times: one burst is a single sample of a race. */
+async function repeated(rounds, run) {
+  const results = [];
+  for (let round = 0; round < rounds; round++) results.push(await run(round));
+  const p50 = (values) =>
+    [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+  return {
+    ...results[0],
+    rounds,
+    executions: results.reduce((sum, r) => sum + r.executions, 0),
+    occRetries: results.reduce((sum, r) => sum + r.occRetries, 0),
+    retriesByRound: results.map((r) => r.occRetries),
+    failed: results.reduce((sum, r) => sum + r.failed, 0),
+    overlapping: results.every((r) => r.overlapping),
+    occInfo: results.flatMap((r) => r.occInfo).slice(0, 3),
+    rttMsP50: p50(results.map((r) => r.rttMsP50)),
+    rttMsMax: Math.max(...results.map((r) => r.rttMsMax)),
+  };
+}
+
 /** Concurrent writers in one warehouse; executions > workers means OCC retries. */
 async function profileContention(target, workers = 8) {
-  const scans = await contend(
-    target,
-    "saveJobScans",
-    "finishedGoods/jobScans:saveJobScans",
-    (index) => ({
-      warehouseId: ids.warehouseId,
-      requestId: requestId(`occ-${index}`),
-      locationText: "PERF",
-      items: [
-        {
-          factoryOrder: `FO6998${String(index).padStart(4, "0")}`,
-          productBarcodeText: `PERF-OCC-${index}`,
-          source: "MANUAL",
-          quantity: 1,
-        },
-      ],
-    }),
-    workers,
+  const rounds = 3;
+  const scans = await repeated(rounds, (round) =>
+    contend(
+      target,
+      "saveJobScans",
+      "finishedGoods/jobScans:saveJobScans",
+      (index) => ({
+        warehouseId: ids.warehouseId,
+        requestId: requestId(`occ-${index}`),
+        locationText: "PERF",
+        items: [
+          {
+            factoryOrder: `FO699${round}${String(index).padStart(4, "0")}`,
+            productBarcodeText: `PERF-OCC-${round}-${index}`,
+            source: "MANUAL",
+            quantity: 1,
+          },
+        ],
+      }),
+      workers,
+    ),
   );
-  const pallets = await contend(
-    target,
-    "createPallet (same product)",
-    "finishedGoods/workflow:createPallet",
-    (index) => ({
-      warehouseId: ids.warehouseId,
-      productId: ids.productId,
-      requestId: requestId(`occ-pallet-${index}`),
-    }),
-    workers,
+  const pallets = await repeated(rounds, (round) =>
+    contend(
+      target,
+      "createPallet (same product)",
+      "finishedGoods/workflow:createPallet",
+      (index) => ({
+        warehouseId: ids.warehouseId,
+        productId: ids.productId,
+        requestId: requestId(`occ-pallet-${round}-${index}`),
+      }),
+      workers,
+    ),
+  );
+  // Different products: only warehouse-wide rows (sequence, totals shards,
+  // change shards) can conflict.
+  const products = [
+    ...new Set(ids.contentionPallets.map((pallet) => pallet.productId)),
+  ];
+  const crossProduct = await repeated(rounds, (round) =>
+    contend(
+      target,
+      "createPallet (different products)",
+      "finishedGoods/workflow:createPallet",
+      (index) => ({
+        warehouseId: ids.warehouseId,
+        productId: products[index % products.length],
+        requestId: requestId(`occ-cross-${round}-${index}`),
+      }),
+      Math.min(workers, products.length),
+    ),
   );
   // Distinct pallets, unchanged quantities: no shared product summary or
   // counter row, so any retry comes from warehouse-wide shared documents.
@@ -655,7 +720,7 @@ async function profileContention(target, workers = 8) {
     },
     Math.min(workers, ids.contentionPallets.length),
   );
-  return [scans, pallets, measurements];
+  return [scans, pallets, crossProduct, measurements];
 }
 
 const scenarios = queryScenarios(ids).filter(

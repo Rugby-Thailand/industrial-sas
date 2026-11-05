@@ -66,7 +66,7 @@ for (const [name, data] of Object.entries(report.perTarget ?? {})) {
   for (const row of [data.contention ?? []].flat())
     lines.push(
       "",
-      `**${name}: contention** ${row.workers} concurrent ${row.name ?? "saveJobScans"} → executions ${row.executions}, OCC retries ${row.occRetries}, failures ${row.failed}, RTT p50 ${row.rttMsP50} ms / max ${row.rttMsMax} ms`,
+      `**${name}: contention** ${row.workers} concurrent ${row.name ?? "saveJobScans"}${row.rounds ? ` × ${row.rounds} rounds` : ""} → executions ${row.executions}, OCC retries ${row.occRetries}${row.retriesByRound ? ` (per round ${row.retriesByRound.join("/")})` : ""}, failures ${row.failed}, RTT p50 ${row.rttMsP50} ms / max ${row.rttMsMax} ms`,
     );
 }
 console.log(lines.join("\n"));
