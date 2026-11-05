@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
   actorId: "user-a",
   push: vi.fn(),
   replace: vi.fn(),
-  query: vi.fn<(name: string) => unknown>(),
+  query: vi.fn<(name: string, args?: unknown) => unknown>(),
   write:
     vi.fn<
       (name: string, args: unknown) => Promise<ReturnType<typeof writeSuccess>>
@@ -54,7 +54,9 @@ vi.mock("convex/react", () => ({
     (ref: Parameters<typeof getFunctionName>[0]) => (args: unknown) =>
       mocks.write(getFunctionName(ref), args),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
-    args === "skip" ? undefined : mocks.query(getFunctionName(ref)),
+    args === "skip"
+      ? undefined
+      : recommendationTestResponse(getFunctionName(ref), args, mocks.query),
 }));
 // The real camera hook runs; only its decoded-code callback is captured.
 vi.mock("./useBarcodeCamera", async (importOriginal) => {
@@ -95,7 +97,12 @@ import {
   querySuccess,
   reservedPalletDetail,
   writeSuccess as success,
+  recommendationTestResponse,
 } from "@tests/fixtures/finished-goods-ui";
+import {
+  listedCandidate,
+  zonePreview,
+} from "../../../convex/model/finishedGoods/recommendationView";
 import { MoveScreen } from "./MoveScreen";
 import { PalletScreen } from "./PalletScreens";
 
@@ -826,6 +833,40 @@ it.each(["en", "th"])(
     ).toBeVisible();
   },
 );
+
+it("ranks move destinations from the list and previews only the selected zone", () => {
+  mocks.query.mockImplementation((name, args) =>
+    name.endsWith(":getPallet")
+      ? querySuccess(currentDetail)
+      : name.endsWith(":recommendationZone")
+        ? querySuccess(
+            (args as { zoneId: string }).zoneId ===
+              finishedGoodDestination.zoneId
+              ? zonePreview(finishedGoodDestination)
+              : null,
+          )
+        : querySuccess({
+            candidates: [listedCandidate(finishedGoodDestination)],
+            reasons: [],
+          }),
+  );
+  renderMove();
+  expect(
+    mocks.query.mock.calls.find(([name]) =>
+      name.endsWith(":recommendMove"),
+    )?.[1],
+  ).toEqual({ warehouseId: "warehouse-a", palletId: "pallet-a", view: "list" });
+  expect(
+    new Set(
+      mocks.query.mock.calls
+        .filter(([name]) => name.endsWith(":recommendationZone"))
+        .map(([, args]) => (args as { zoneId: string }).zoneId),
+    ),
+  ).toEqual(new Set([finishedGoodDestination.zoneId]));
+  expect(
+    screen.getByRole("button", { name: "Reserve this position" }),
+  ).toBeVisible();
+});
 
 it("shows no suitable move destination when only invalid previews remain", () => {
   mocks.query.mockImplementation((name) =>

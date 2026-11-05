@@ -30,9 +30,13 @@ import {
 import { completeTask } from "@/lib/taskNavigation";
 import { useDraftGuard } from "@/components/providers/draftGuard";
 import { Link, useRouter } from "@/i18n/navigation";
-import { fgRefs, type PalletDetail } from "@/lib/convex/finishedGoodsApi";
 import {
-  PlacementEditor,
+  fgRefs,
+  type PalletDetail,
+  type RecommendationList,
+} from "@/lib/convex/finishedGoodsApi";
+import {
+  ZonePlacementEditor,
   DestinationSummary,
   sceneProps,
   correctionPath,
@@ -597,7 +601,9 @@ function Recommendations({
   );
   const outcome = useQuery(
     fgRefs.recommend,
-    measured ? { warehouseId, palletId: detail.pallet._id } : "skip",
+    measured
+      ? { warehouseId, palletId: detail.pallet._id, view: "list" }
+      : "skip",
   );
   const scope = useDraftKey("fg-destinations");
   const [selection, setSelection] = usePreviewState(
@@ -671,11 +677,11 @@ function Recommendations({
         </Notice>
       </>
     );
-  const validCandidates = outcome.value.candidates.filter(
+  const list: RecommendationList = outcome.value;
+  const validCandidates = list.candidates.filter(
     (c) => includeStacking || !c.supportPalletId,
   );
-  const previews =
-    "previewCandidates" in outcome.value ? outcome.value.previewCandidates : [];
+  const previews = list.previewCandidates ?? [];
   const keyOf = destinationKey;
   const candidates = [
     ...validCandidates,
@@ -686,6 +692,15 @@ function Recommendations({
   const current = selected
     ? candidates.find((c) => keyOf(c) === selected)
     : candidates[0];
+  const previousLocationUnavailable = (
+    <Notice
+      tone="warning"
+      title={tr(
+        "The previous location is no longer available. Select another destination to continue.",
+        "จุดเดิมไม่พร้อมใช้งานแล้ว เลือกปลายทางใหม่เพื่อดำเนินการต่อ",
+      )}
+    />
+  );
   const picker = (
     <DestinationPicker
       stateKey={
@@ -773,13 +788,7 @@ function Recommendations({
       ) : null}
       {!current && selected && candidates.length > 0 ? (
         <div className="space-y-4">
-          <Notice
-            tone="warning"
-            title={tr(
-              "The previous location is no longer available. Select another destination to continue.",
-              "จุดเดิมไม่พร้อมใช้งานแล้ว เลือกปลายทางใหม่เพื่อดำเนินการต่อ",
-            )}
-          />
+          {previousLocationUnavailable}
           {picker}
         </div>
       ) : !current ? (
@@ -795,7 +804,7 @@ function Recommendations({
             )}
           </p>
           <ul className="space-y-2 text-sm text-warning">
-            {recommendationReasons(outcome.value.reasons, tr).map((reason) => (
+            {recommendationReasons(list.reasons, tr).map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
           </ul>
@@ -820,13 +829,13 @@ function Recommendations({
       ) : (
         <div className="grid items-start gap-4 2xl:grid-cols-[230px_1fr]">
           {picker}
-          <PlacementEditor
-            key={keyOf(current)}
+          <ZonePlacementEditor
             onActivate={() => setSelected(keyOf(current))}
             warehouseId={warehouseId}
             detail={detail}
             candidate={current}
-            destinations={outcome.value.candidates}
+            destinations={list.candidates}
+            unavailable={previousLocationUnavailable}
           />
         </div>
       )}

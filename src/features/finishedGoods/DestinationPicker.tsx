@@ -8,11 +8,16 @@ import {
   LOCAL_PAGE_SIZES,
   PageSizeSelect,
 } from "@/components/system/PageSizeSelect";
-import type { Candidate } from "@/lib/convex/finishedGoodsApi";
+import type { ListedCandidate } from "@/lib/convex/finishedGoodsApi";
 import { mmText, useFGText } from "./shared";
 import { usePreviewState } from "./usePreviewState";
 
-export function destinationKey(candidate: Candidate) {
+export function destinationKey(
+  candidate: Pick<
+    ListedCandidate,
+    "zoneId" | "supportPalletId" | "supportPositionId"
+  >,
+) {
   const support = candidate.supportPalletId
     ? `pallet:${candidate.supportPalletId}`
     : candidate.supportPositionId
@@ -22,7 +27,7 @@ export function destinationKey(candidate: Candidate) {
 }
 
 export function filterDestinations(
-  candidates: readonly Candidate[],
+  candidates: readonly ListedCandidate[],
   search: string,
 ) {
   const needle = search.trim().toLocaleLowerCase();
@@ -52,10 +57,10 @@ export function DestinationPicker({
   context = "storage",
   stateKey,
 }: {
-  candidates: readonly Candidate[];
+  candidates: readonly ListedCandidate[];
   selected: string;
   onSelect: (key: string) => void;
-  recommended?: Candidate | undefined;
+  recommended?: ListedCandidate | undefined;
   context?: "storage" | "move";
   stateKey?: string | undefined;
 }) {

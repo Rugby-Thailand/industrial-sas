@@ -7,7 +7,9 @@ import { getFunctionName } from "convex/server";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { PalletDetail } from "@/lib/convex/finishedGoodsApi";
 
-const mocks = vi.hoisted(() => ({ query: vi.fn<(name: string) => unknown>() }));
+const mocks = vi.hoisted(() => ({
+  query: vi.fn<(name: string, args?: unknown) => unknown>(),
+}));
 vi.mock("@clerk/nextjs", async (importOriginal) => {
   const actual = await importOriginal<typeof ClerkModule>();
   return { ...actual, useAuth: () => ({ isLoaded: true, userId: "user-a" }) };
@@ -18,8 +20,8 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => {
 });
 vi.mock("convex/react", () => ({
   useMutation: () => async () => writeSuccess("pallet-a"),
-  useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
-    mocks.query(getFunctionName(ref)),
+  useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
+    recommendationTestResponse(getFunctionName(ref), args, mocks.query),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
@@ -40,6 +42,7 @@ import {
   querySuccess,
   reservedPalletDetail,
   writeSuccess,
+  recommendationTestResponse,
 } from "@tests/fixtures/finished-goods-ui";
 import { PalletScreen } from "./PalletScreens";
 

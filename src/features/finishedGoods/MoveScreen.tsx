@@ -22,11 +22,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useRouter } from "@/i18n/navigation";
-import { fgRefs, type PalletDetail } from "@/lib/convex/finishedGoodsApi";
+import {
+  fgRefs,
+  type ListedCandidate,
+  type PalletDetail,
+} from "@/lib/convex/finishedGoodsApi";
 import { DestinationScanner } from "./DestinationScanner";
 import { DestinationPicker, destinationKey } from "./DestinationPicker";
 import {
-  PlacementEditor,
+  ZonePlacementEditor,
   DestinationSummary,
   sceneProps,
 } from "./PlacementEditor";
@@ -177,6 +181,7 @@ function MoveSelection({
   const outcome = useQuery(fgRefs.recommendMove, {
     warehouseId,
     palletId: detail.pallet._id,
+    view: "list",
   });
   const pickerScope = useDraftKey("fg-move-destinations");
   const pickerKey = pickerScope
@@ -189,11 +194,21 @@ function MoveSelection({
   const setSelected = (selected: string) => setSelection({ selected });
   // Preview-only areas have no valid placement for this pallet. They must
   // never be counted or selected as available move destinations.
-  const candidates = outcome?.ok ? outcome.value.candidates : [];
+  const candidates: readonly ListedCandidate[] = outcome?.ok
+    ? outcome.value.candidates
+    : [];
   const keyOf = destinationKey;
   const current = selected
     ? candidates.find((candidate) => keyOf(candidate) === selected)
     : candidates[0];
+  const previousLocationUnavailable = (
+    <Notice
+      tone="warning"
+      title={t(
+        "copy.the-previous-location-is-no-longer-available-select-another-destination-",
+      )}
+    />
+  );
   const picker = (
     <DestinationPicker
       stateKey={pickerKey ? `${pickerKey}:search` : undefined}
@@ -246,12 +261,7 @@ function MoveSelection({
         />
       ) : !current && candidates.length > 0 ? (
         <div className="space-y-4">
-          <Notice
-            tone="warning"
-            title={t(
-              "copy.the-previous-location-is-no-longer-available-select-another-destination-",
-            )}
-          />
+          {previousLocationUnavailable}
           {picker}
         </div>
       ) : !current ? (
@@ -271,8 +281,7 @@ function MoveSelection({
       ) : (
         <div className="grid items-start gap-4 2xl:grid-cols-[230px_1fr]">
           {picker}
-          <PlacementEditor
-            key={keyOf(current)}
+          <ZonePlacementEditor
             onActivate={() => setSelected(keyOf(current))}
             warehouseId={warehouseId}
             detail={detail}
@@ -280,6 +289,7 @@ function MoveSelection({
             destinations={candidates}
             moving
             onReserved={onReserved}
+            unavailable={previousLocationUnavailable}
           />
         </div>
       )}

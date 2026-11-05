@@ -1,6 +1,8 @@
 "use client";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Check, Pencil } from "lucide-react";
+import type { ReactNode } from "react";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { completeTask } from "@/lib/taskNavigation";
@@ -9,6 +11,7 @@ import {
   fgRefs,
   type Candidate,
   type Destination,
+  type ListedCandidate,
   type PalletDetail,
 } from "@/lib/convex/finishedGoodsApi";
 import { PalletScene, type PalletPlacement } from "./PalletScene";
@@ -23,6 +26,7 @@ import {
   ErrorNotice,
   useWriteError,
   Field,
+  Loading,
   mmText,
   palletPath,
   panel,
@@ -121,6 +125,50 @@ export function DestinationSummary({
         </p>
       </details>
     </div>
+  );
+}
+/**
+ * The recommendation list (`view: "list"`) carries no per-zone geometry. Load
+ * the previewed candidate's zone only, then edit the full candidate exactly as
+ * the original payload provided it. Switching between supports of one zone
+ * reuses the same subscription; writes in other zones never re-run it.
+ */
+export function ZonePlacementEditor({
+  candidate,
+  destinations,
+  unavailable,
+  ...editor
+}: Omit<Parameters<typeof PlacementEditor>[0], "candidate" | "destinations"> & {
+  candidate: ListedCandidate;
+  /** The listed candidates; the editor reads those of the same zone. */
+  destinations: readonly ListedCandidate[];
+  /** Shown if the zone no longer offers this candidate. */
+  unavailable: ReactNode;
+}) {
+  const outcome = useQuery(fgRefs.recommendationZone, {
+    warehouseId: editor.warehouseId,
+    palletId: editor.detail.pallet._id,
+    zoneId: candidate.zoneId,
+  });
+  if (!outcome) return <Loading />;
+  if (!outcome.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    );
+  const zone = outcome.value;
+  if (!zone) return <>{unavailable}</>;
+  const full: Candidate = { ...candidate, ...zone };
+  return (
+    <PlacementEditor
+      key={destinationKey(full)}
+      {...editor}
+      candidate={full}
+      destinations={destinations
+        .filter((d) => d.zoneId === candidate.zoneId)
+        .map((d): Candidate => ({ ...d, ...zone }))}
+    />
   );
 }
 export function PlacementEditor({
