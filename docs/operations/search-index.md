@@ -180,8 +180,9 @@ collected.
    restart issues a new `runId`, and pages of any older run are refused
    (`superseded: true`). Job scans index building names first, then scans.
 
-3. Profile, then run `scripts/performance/convex/search-parity.mjs` against
-   `main` on the same data; it must report 0 mismatches.
+3. Before rollout, run the `job-scan-search-index` and `location-search-index`
+   integration suites, which compare results with authoritative scan semantics.
+   After backfill, verify representative searches against the warehouse records.
 4. To stop using an index without a deploy:
    `finishedGoods/searchIndexBackfill:invalidate '{"warehouseId":"<id>"}'`
    (optionally `"kind"`); the next sweep rebuilds it.
