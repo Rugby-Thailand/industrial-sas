@@ -20,6 +20,7 @@ import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
 import {
   TENANT_INDEX_MAX_BATCH_SIZE,
+  TENANT_INDEX_MAX_PAGE_SIZE,
   TenantDbError,
   type TenantIndexReader,
 } from "../lib/tenantDb";
@@ -765,6 +766,50 @@ export async function hasFrozenPlan(
       )
       .first()) !== null
   );
+}
+
+/**
+ * `hasFrozenPlan` for one employee over date ranges, with one bounded range
+ * read per range instead of a lookup per date. A range that fills its bound
+ * (more than two versions per date on average) falls back to point lookups
+ * for its dates after the last row read, so every answer equals
+ * `hasFrozenPlan` for any data.
+ */
+export async function frozenPlanReader(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  ranges: readonly (readonly [IsoDate, IsoDate])[],
+): Promise<(date: IsoDate) => boolean | Promise<boolean>> {
+  const frozen = new Set<string>();
+  const unread: (readonly [string, IsoDate])[] = [];
+  await Promise.all(
+    ranges.map(async ([from, to]) => {
+      const bound = Math.min(
+        TENANT_INDEX_MAX_PAGE_SIZE,
+        inclusiveDayCount(from, to) * 2,
+      );
+      const rows = await ctx.tenantDb
+        .byIndex<Doc<"hrPeriodRows">>(
+          "hrPeriodRows",
+          "by_orgId_employeeId_businessDate",
+          [{ field: "employeeId", value: employeeId }],
+          {
+            field: "businessDate",
+            lower: { value: from, inclusive: true },
+            upper: { value: to, inclusive: true },
+          },
+        )
+        .take(bound);
+      for (const row of rows) frozen.add(row.businessDate);
+      // Rows arrive in date order: only later dates can have unread rows.
+      if (rows.length === bound)
+        unread.push([rows[bound - 1]!.businessDate, to]);
+    }),
+  );
+  return (date) =>
+    frozen.has(date) ||
+    (unread.some(([after, to]) => after < date && date <= to) &&
+      hasFrozenPlan(ctx, employeeId, date));
 }
 
 /** The plan input of a stored assignment row; a CLEARED tombstone is none. */

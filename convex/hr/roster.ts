@@ -50,6 +50,7 @@ import {
   employeeRosterRowsInRange,
   employmentOf,
   fail,
+  frozenPlanReader,
   hasFrozenPlan,
   holidaysInRange,
   hrCommand,
@@ -57,6 +58,7 @@ import {
   planView,
   rosterAssignment,
   sitePeriods,
+  sitePeriodsEndingFrom,
   siteOf,
   siteScope,
   planFromStored,
@@ -65,6 +67,8 @@ import {
 } from "./shared";
 
 const ADMIN = HR_PERMISSION.adminManage;
+/** Employees of one roster page hydrated at once (each issues 4 reads). */
+const ROSTER_HYDRATE_CONCURRENCY = 10;
 type Shift = Doc<"hrShifts">;
 
 const shiftColor = v.union(
@@ -273,6 +277,37 @@ const frozenCovering = (
   );
 
 /**
+ * Site-level facts of one roster month: holidays, the shift catalogue, the
+ * dates a closed or closing period freezes, and the runs of other dates
+ * (where a frozen plan decides the lock). Only periods ending in or after
+ * the month can cover one of its dates, whatever their length or overlap.
+ */
+async function rosterSiteFacts(
+  ctx: TenantFunctionContext,
+  siteId: string,
+  dates: readonly IsoDate[],
+) {
+  const first = dates[0]!;
+  const [holidays, periods, catalogue] = await Promise.all([
+    holidaysInRange(ctx, siteId, first, dates[dates.length - 1]!),
+    sitePeriodsEndingFrom(ctx, siteId, first),
+    siteShifts(ctx, siteId),
+  ]);
+  const closed = new Set(
+    dates.filter((date) => frozenCovering(periods, date) !== undefined),
+  );
+  const open: [IsoDate, IsoDate][] = [];
+  let previous = false;
+  for (const date of dates) {
+    const isOpen = !closed.has(date);
+    if (isOpen && previous) open[open.length - 1]![1] = date;
+    else if (isOpen) open.push([date, date]);
+    previous = isOpen;
+  }
+  return { holidays, catalogue, closed, open };
+}
+
+/**
  * Dates of one employee in `[from, to]` claimed by an active leave request
  * (pending, approved or awaiting cancellation). A pending request captured
  * each date's plan at submission and approval writes that plan, so the
@@ -310,7 +345,8 @@ const includes = (value: string, search: string) =>
  * Employment in the month, search and department are matched while
  * scanning, so a filter narrows pages instead of applying after a cap. A
  * page reads only its own employees' attendance days, roster rows, leave
- * claims and frozen-plan checks; holidays, periods and the shift catalogue
+ * claims and frozen plans (one range read each, ten employees at a time);
+ * holidays, the periods that can cover the month and the shift catalogue
  * are read once per answered page.
  *
  * Callers that predate paging omit `pageSize`: they get one 50-employee page
@@ -348,32 +384,19 @@ export const roster = queryWithOrg({
         : args.departmentId;
 
     // Site-level facts, read once and only for an answered page.
-    let facts:
-      | Promise<
-          readonly [
-            ReadonlyMap<IsoDate, string>,
-            readonly Doc<"hrPeriods">[],
-            Awaited<ReturnType<typeof siteShifts>>,
-          ]
-        >
-      | undefined;
-    const siteFacts = () =>
-      (facts ??= Promise.all([
-        holidaysInRange(ctx, site._id, first, last),
-        sitePeriods(ctx, site._id),
-        siteShifts(ctx, site._id),
-      ]));
-    const departments = new Map<string, string | null>();
-    const departmentName = async (id: string | undefined) => {
+    let facts: ReturnType<typeof rosterSiteFacts> | undefined;
+    const siteFacts = () => (facts ??= rosterSiteFacts(ctx, site._id, dates));
+    const departments = new Map<string, Promise<string | null>>();
+    const departmentName = (id: string | undefined) => {
       if (id === undefined) return null;
-      if (!departments.has(id)) {
-        const row = await ctx.tenantDb.get<Doc<"hrDepartments">>(
-          "hrDepartments",
-          id,
-        );
-        departments.set(id, row?.name ?? null);
+      let name = departments.get(id);
+      if (name === undefined) {
+        name = ctx.tenantDb
+          .get<Doc<"hrDepartments">>("hrDepartments", id)
+          .then((row) => row?.name ?? null);
+        departments.set(id, name);
       }
-      return departments.get(id) ?? null;
+      return name;
     };
 
     const page = await hrScanPage(ctx, {
@@ -402,24 +425,31 @@ export const roster = queryWithOrg({
           includes(employee.displayName, search)) &&
         (departmentId === null || employee.departmentId === departmentId),
       hydrate: async (employee) => {
-        const [holidays, periods] = await siteFacts();
+        const [{ holidays, closed, open }, department] = await Promise.all([
+          siteFacts(),
+          departmentName(employee.departmentId),
+        ]);
         return await rosterRow(ctx, {
           employee,
           siteId: site._id,
           dates,
           holidays,
-          periods,
+          closed,
+          open,
           offset: clock.offset,
-          departmentName: await departmentName(employee.departmentId),
+          departmentName: department,
         });
       },
+      // Bounded, as elsewhere, so a page never issues hundreds of reads
+      // at once.
+      concurrency: ROSTER_HYDRATE_CONCURRENCY,
     });
     // Clients that predate paging cannot continue a scan (they would read
     // `employees` from a scanning answer): give them the refusal they render.
     if (legacy && page.status !== "ready")
       return { ok: false as const, code: "LIMIT_EXCEEDED" };
     if (page.status !== "ready") return { ok: true as const, ...page };
-    const [holidays, , catalogue] = await siteFacts();
+    const { holidays, catalogue } = await siteFacts();
     return {
       ok: true as const,
       today: clock.today,
@@ -450,15 +480,18 @@ async function rosterRow(
     readonly siteId: string;
     readonly dates: readonly IsoDate[];
     readonly holidays: ReadonlyMap<IsoDate, string>;
-    readonly periods: readonly Doc<"hrPeriods">[];
+    /** Dates frozen by a closed or closing period. */
+    readonly closed: ReadonlySet<IsoDate>;
+    /** The runs of the other dates, where frozen plans are read. */
+    readonly open: readonly (readonly [IsoDate, IsoDate])[];
     readonly offset: number;
     readonly departmentName: string | null;
   },
 ) {
-  const { employee, siteId, dates, holidays, periods } = input;
+  const { employee, siteId, dates, holidays, closed } = input;
   const first = dates[0]!;
   const last = dates[dates.length - 1]!;
-  const [rows, recorded, claimed] = await Promise.all([
+  const [rows, recorded, claimed, frozen] = await Promise.all([
     employeeRosterRowsInRange(ctx, employee._id, first, last),
     ctx.tenantDb
       .byIndex<Doc<"hrAttendanceDays">>(
@@ -473,6 +506,7 @@ async function rosterRow(
       )
       .all(dates.length * 2),
     leaveClaimedDates(ctx, employee._id, first, last, dates.length * 2),
+    frozenPlanReader(ctx, employee._id, input.open),
   ]);
   const days = new Map<IsoDate, Doc<"hrAttendanceDays">>();
   for (const day of recorded)
@@ -497,9 +531,9 @@ async function rosterRow(
           });
       const lock = day
         ? "RECORDED"
-        : frozenCovering(periods, date) !== undefined
+        : closed.has(date)
           ? "PERIOD_CLOSED"
-          : (await hasFrozenPlan(ctx, employee._id, date))
+          : (await frozen(date))
             ? "FROZEN"
             : claimed.has(date)
               ? "LEAVE_CLAIMED"
