@@ -492,6 +492,9 @@ export const bootstrapLocalDemo = internalMutation({
       )
       .unique();
     if (!existingDraft) {
+      // A raw building insert bypasses its building-name term (job-scan
+      // search) and the layout counter readers compare with.
+      await invalidateSearchIndex(ctx, warehouse._id);
       const draftBuildingId = await ctx.db.insert("storageBuildings", {
         orgId: organization._id,
         warehouseId: warehouse._id,
