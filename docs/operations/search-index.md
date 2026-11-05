@@ -249,3 +249,28 @@ Picker, 640 locations, every page of a 20-row search (all requests summed):
 
 Hydrating a match (location, source, area and parents) is unchanged, so
 match-heavy searches keep about four reads per match.
+
+### Write cost under the budget (iteration 8)
+
+`tests/integration/search-index-write-costs.integration.test.ts`, documents
+written through `ctx.db` by the real mutations ("derived": search tables and
+readiness rows; "base": everything else), on a 300-scan warehouse whose
+customers, parts and barcodes repeat:
+
+| Write                                       | Base | Derived                         | Deferred to re-index      |
+| ------------------------------------------- | ---: | ------------------------------- | ------------------------- |
+| 20 consecutive 50-ticket saves, each        |   53 | 1,518 → 499–500 from save 6     | 23 + 10 items (saves 1–2) |
+| 50 consecutive one-ticket corrections, each |    4 | 25–26 (36 derived reads)        | 0                         |
+| Remap of 300 tickets (selection limit)      |  303 | 200 (search rows only)          | 0                         |
+| Delete of 100 tickets                       |  103 | 1,000 (2,220 derived reads)     | 0                         |
+| FG1 import, apply (15 cells, geometry only) |   49 | 2 (readiness markers)           | 0                         |
+| FG1 import, rollback (replaces every row)   |   49 | 2 (95 derived reads)            | 0                         |
+| 100-slot rack (100 locations and positions) |  603 | 1,541 (1,539 location postings) | 64 locations              |
+
+The first saves create and promote the repeating terms; from then on a save
+costs about 10 derived writes per ticket (search row, job-number term and its
+8 trigram postings). The scheduled re-index drained every backlog (no
+unposted rows left), deleted tickets kept no postings, and every search row's
+`sourceHash` matched its scan afterwards. Reconciling the 1,000 ingested scans
+read two documents each and wrote no derived row; reconciling the rack's new
+locations compared their postings and changed none.
