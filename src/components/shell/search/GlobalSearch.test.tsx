@@ -415,8 +415,7 @@ describe("AI Search", () => {
     renderSearch();
     fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
     await screen.findByRole("dialog");
-    // The paragraph about what Ask AI sends was removed at the user's
-    // request (mobile UX-08).
+    // D16 restores a short disclosure at the AI entry, not a separate panel.
     expect(screen.queryByTestId("global-search-ai-disclosure")).toBeNull();
     expect(screen.queryByText(/No records are sent/)).toBeNull();
     // Nothing to ask about yet: the examples are the AI entry (D14).
@@ -425,11 +424,14 @@ describe("AI Search", () => {
     // not a general chatbot.
     const scope =
       "AI takes you to pages and forms for time, leave, requests and employees.";
+    const privacy =
+      "When you choose AI, your search text is sent to the AI provider to find relevant pages.";
     const examples = screen.getByRole("group", { name: "Ask AI where to go" });
     expect(
       within(examples).getByTestId("global-search-ask-scope"),
     ).toHaveTextContent(scope);
-    expect(examples).toHaveAccessibleDescription(scope);
+    expect(examples).toHaveTextContent(privacy);
+    expect(examples).toHaveAccessibleDescription(`${scope} ${privacy}`);
 
     // Two characters bring one row that asks about them, carrying the
     // scope; there is no Ask AI button at any width.
@@ -437,7 +439,10 @@ describe("AI Search", () => {
     expect(screen.queryByTestId("global-search-ai")).toBeNull();
     fireEvent.change(input(), { target: { value: "leave" } });
     expect(aiRow("leave")).toHaveAttribute("data-testid", "global-search-ai");
-    expect(aiRow("leave")).toHaveAccessibleDescription(scope);
+    expect(aiRow("leave")).toHaveAccessibleDescription(`${scope} ${privacy}`);
+    expect(
+      within(aiRow("leave")).getByTestId("global-search-ai-privacy"),
+    ).toHaveTextContent(privacy);
     expect(screen.queryByRole("button", { name: /Ask AI/ })).toBeNull();
     expect(
       screen.queryByTestId("global-search-ai-panel"),
@@ -1347,7 +1352,7 @@ describe("search guidance", () => {
     expect(input()).toHaveAttribute("aria-activedescendant", fallback.id);
     // The offer itself says what the AI is for; no separate line above.
     expect(fallback).toHaveAccessibleDescription(
-      "AI takes you to pages and forms for time, leave, requests and employees.",
+      "AI takes you to pages and forms for time, leave, requests and employees. When you choose AI, your search text is sent to the AI provider to find relevant pages.",
     );
     expect(screen.queryByTestId("global-search-ai-scope")).toBeNull();
     // Then places to go without the AI, under their own heading.

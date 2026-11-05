@@ -3196,7 +3196,7 @@
     "aiAsk": "Ask AI",
     "aiScope": "AI takes you to pages and forms for time, leave, requests and employees.",
     "askQuery": "Ask AI where to go for “{query}”",
-    "aiPrivacy": "Ask AI sends your typed text (including any names) and the current page type to the AI provider. No records are sent.",
+    "aiPrivacy": "When you choose AI, your search text is sent to the AI provider to find relevant pages.",
     "exampleSelf": "Forgot to clock in yesterday",
     "exampleReview": "Review this record's correction request",
     "exampleHoliday": "Set up holidays",

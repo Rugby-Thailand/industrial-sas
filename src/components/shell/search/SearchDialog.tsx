@@ -300,7 +300,7 @@ function SearchBody({
     group: "ASK",
     items: aiAvailable ? examples : [],
     labelled: true,
-    description: t("aiScope"),
+    description: `${t("aiScope")} ${t("aiPrivacy")}`,
   };
   // Nothing matched (held while the next text is typed): the status says
   // what can be searched, and the list offers places to go after the AI
@@ -839,7 +839,10 @@ function ResultOption({
       ? ""
       : result.trail;
   const notes = compact
-    ? [result.detail === undefined ? null : "detail"]
+    ? [
+        result.detail === undefined ? null : "detail",
+        result.id === ASK_ID ? "privacy" : null,
+      ]
     : [
         aside === "" ? null : "aside",
         result.detail ? "detail" : null,
@@ -892,6 +895,15 @@ function ResultOption({
                 {result.detail}
               </span>
             )}
+            {result.id === ASK_ID ? (
+              <span
+                id={`${id}-privacy`}
+                className="text-xs break-words text-muted"
+                data-testid="global-search-ai-privacy"
+              >
+                {t("aiPrivacy")}
+              </span>
+            ) : null}
           </span>
         </>
       ) : place ? (
