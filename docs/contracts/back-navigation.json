@@ -8641,7 +8641,7 @@
       "id": "src/features/hr/ShiftsRoster.tsx#RosterView:assignment",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "The named rosterAssign step is entered by Assign shifts and controls the inline assignment form and selectable date cells. Back/Cancel consume this entry after dirty consent; pending writes block departure. Success settles the draft and uses the live operation owner before consuming the step. Origin locale/query/hash, Forward and direct remount are covered by caller tests.",
+      "expectation": "The named rosterAssign step is entered by Assign shifts and controls the inline assignment form and selectable date cells. Back/Cancel consume this entry after dirty consent; pending writes block departure and paging; page size cannot change during assignment because it would replace the query and unmount its draft. Success settles the draft and uses the live operation owner before consuming the step. Origin locale/query/hash, Forward and direct remount are covered by caller tests.",
       "tests": ["src/features/hr/ShiftsRoster.test.tsx"],
       "cases": [
         {
@@ -8663,6 +8663,10 @@
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",
           "name": "a pending roster save blocks Back, sends the selected revisions, then consumes the assignment step"
+        },
+        {
+          "file": "src/features/hr/ShiftsRoster.test.tsx",
+          "name": "roster paging protects an assignment draft and pending save through completion"
         },
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",

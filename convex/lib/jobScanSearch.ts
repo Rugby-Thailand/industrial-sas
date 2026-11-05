@@ -114,9 +114,13 @@ async function termKey(text: string) {
 
 export interface SearchBudget {
   left: number;
+  orphanChecksLeft: number;
 }
 export const searchBudget = (): SearchBudget => ({
   left: SEARCH_WRITE_BUDGET,
+  // Linked terms consume reads without writes. Reserve foreground headroom
+  // for source validation/deletion and defer the remaining checks.
+  orphanChecksLeft: 256,
 });
 
 /** The warehouse's readiness row while the index may answer, else null. */
@@ -247,10 +251,11 @@ async function collectIfOrphaned(
   termId: string,
   budget: SearchBudget,
 ): Promise<"kept" | "deleted" | "deferred"> {
-  // No collection fits once writes exhaust this budget. Even checking each
-  // released term would spend two read calls per term on large deletes.
+  // Linked terms spend two read calls without consuming any write budget.
+  // Limit checks independently so large shared-term deletes retain headroom.
   // Deferred work rechecks linkage in its own transaction.
-  if (budget.left <= 0) return "deferred";
+  if (budget.left <= 0 || budget.orphanChecksLeft <= 0) return "deferred";
+  budget.orphanChecksLeft -= 1;
   const term = await db.get<Term>(TERMS, termId);
   if (!term || term.field >= SLOTS.length) return "kept";
   const linked = await db

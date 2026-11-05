@@ -836,7 +836,7 @@ async function profileContention(target, workers = 8) {
     },
     Math.min(workers, ids.contentionPallets.length),
   );
-  // One dense zone, distinct pallets (Sol: same-zone entries rows): each
+  // One dense zone, distinct pallets: each
   // worker reserves its own recommended position in the zone holding the
   // most placements, then the reservations are cancelled.
   const zoneOf = async (palletId) => {

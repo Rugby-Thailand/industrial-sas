@@ -157,7 +157,6 @@ import type * as staging_hrDemo from "../staging/hrDemo.js";
 import type * as staging_jobScanDemo from "../staging/jobScanDemo.js";
 import type * as staging_locationBuildingBackfill from "../staging/locationBuildingBackfill.js";
 import type * as staging_paginationDemo from "../staging/paginationDemo.js";
-import type * as staging_performanceLimits from "../staging/performanceLimits.js";
 import type * as staging_storageLayoutUiDemo from "../staging/storageLayoutUiDemo.js";
 import type * as staging_summaryBackfill from "../staging/summaryBackfill.js";
 import type * as storageLayouts_catalogue from "../storageLayouts/catalogue.js";
@@ -327,7 +326,6 @@ declare const fullApi: ApiFromModules<{
   "staging/jobScanDemo": typeof staging_jobScanDemo;
   "staging/locationBuildingBackfill": typeof staging_locationBuildingBackfill;
   "staging/paginationDemo": typeof staging_paginationDemo;
-  "staging/performanceLimits": typeof staging_performanceLimits;
   "staging/storageLayoutUiDemo": typeof staging_storageLayoutUiDemo;
   "staging/summaryBackfill": typeof staging_summaryBackfill;
   "storageLayouts/catalogue": typeof storageLayouts_catalogue;

@@ -660,3 +660,54 @@ it("roster employees page on the server and a selection survives moving between 
   );
   expect(here()).toBe("/en/hr/roster#grid");
 });
+
+it("roster paging protects an assignment draft and pending save through completion", async () => {
+  const first = { ...rosterValue(), isDone: false, continueCursor: "page-2" };
+  // Changing size would start a cold subscription and remove the grid while it loads.
+  const pages = vi.fn((args: { pageSize?: number }) =>
+    args.pageSize === 50 ? undefined : query(first),
+  );
+  state.queries.set(getFunctionName(hrRefs.roster), pages);
+  const pending = deferred();
+  const save = mutation(hrRefs.assignRoster);
+  save.mockReturnValue(pending.promise);
+  open(HrRosterScreen, "/en/hr/roster#grid");
+  const pager = screen.getByRole("navigation", {
+    name: "Roster employee pages",
+  });
+  const size = within(pager).getByRole("combobox");
+  expect(size).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Assign shifts" }));
+  const bar = await screen.findByRole("form", {
+    name: "Assign shifts to selected dates",
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-21/ }));
+  expect(size).toBeDisabled();
+  fireEvent.click(size);
+  expect(pages.mock.calls.every(([args]) => args.pageSize === 20)).toBe(true);
+  expect(within(bar).getByRole("status")).toHaveTextContent("1 date selected");
+  expect(
+    within(pager).getByRole("button", { name: "Next page" }),
+  ).toBeEnabled();
+  fireEvent.click(within(bar).getByRole("combobox"));
+  fireEvent.click(await screen.findByRole("option", { name: "OFF" }));
+  fireEvent.click(within(bar).getByRole("button", { name: "Save assignment" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(
+    within(pager).getByRole("button", { name: "Next page" }),
+  ).toBeDisabled();
+  expect(size).toBeDisabled();
+  await traverse("back");
+  expect(bar).toBeVisible();
+  expect(within(bar).getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await act(async () => pending.resolve(saved("a1")));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("form", { name: "Assign shifts to selected dates" }),
+    ).toBeNull(),
+  );
+  expect(within(pager).getByRole("combobox")).toBeEnabled();
+  await waitFor(() => expect(here()).toBe("/en/hr/roster#grid"));
+  await traverse("back");
+  await waitFor(() => expect(here()).toBe("/en/hr/today"));
+});

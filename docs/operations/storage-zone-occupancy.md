@@ -140,12 +140,6 @@ its pallet, and every zone's layout documents on every execution and re-run:
    a layout write by code that does not maintain surfaces, or a deferred one; the
    sweep rebuilds).
 
-Measured on the local large-tenant fixture (`docs/reviews/convex-performance-2026-11-04/evidence/iter2.md`,
-before entries projection and zone surfaces):
-`recommend` 2,886 → 686 docs, `getStorageBuildingInventory` 1,829 → 34,
-`buildingOccupancy` 917 → 20; one placement write re-reads 6,092 → 1,692 docs
-across open subscriptions.
-
 ## Recommendation list and zone preview
 
 Put-away and move screens call `recommend`/`recommendMove` with `view: "list"`:

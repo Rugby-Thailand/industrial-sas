@@ -13,7 +13,7 @@ n-gram, and re-check every proposed row with the predicate they always used.
 ## Why not Convex's search index
 
 It failed exact parity on 23 of 537 needles (bounded prefix expansion, Thai
-SARA AM after NFKC; `docs/reviews/convex-performance-2026-11-04/evidence/rejected-search-index.md`).
+SARA AM after NFKC).
 Grams on ordinary indexes have neither problem: grams are cut from the same
 normalized text the matcher compares (`NFKC → trim → lower` for scans,
 `NFC → upper` for locations), so a needle that occurs in a text has every one of
@@ -80,7 +80,7 @@ carried in the cursor so a traversal never changes lanes.
   locations, positions or areas with `ctx.db` call `invalidateSearchIndex`
   (which also poisons a running backfill); the e2e reset deletes all rows of the
   new tables for its warehouses. `staging/locationBuildingBackfill` only sets
-  `buildingId`, which no posting depends on. Audited (iteration 8): every raw
+  `buildingId`, which no posting depends on. The raw-writer inventory confirms: every raw
   writer of scans, buildings, locations, positions and areas under `convex/`
   is one of these; the `LOCAL-DRAFT` building of `staging/annexDemo:ensure`
   was the only one outside an invalidated branch and now invalidates too.
@@ -164,7 +164,7 @@ collected.
 ## Rollout
 
 1. Deploy. New tables start empty; readers keep the original scans. Version 2
-   (iteration 8) adds the markers: existing version-1 indexes are not current
+   adds the markers: existing version-1 indexes are not current
    and are rebuilt the same way (postings that are already right are not
    rewritten; every scan is read once).
 2. The hourly `finishedGoods/searchIndexBackfill:sweep` cron starts a chained,
@@ -200,88 +200,21 @@ Squash-merge the branch, as for the other derived stores
 (`docs/operations/storage-zone-occupancy.md`): intermediate commits of this
 branch before version 2 are not covered by the markers (see above).
 
-## Test measurements (convex-test, not the real backend)
+## Maintenance cost and deferred cleanup
 
-Documents read through `ctx.db` (including the authorization reads) for the
-first 50-row page, on the 2,200-scan generated corpus of
-`tests/integration/job-scan-search-index.integration.test.ts` (iteration-8
-run; the index path now also reads the layout counter and probes the
-watermark ranges, empty here):
+The index shifts work from searches to writes. Text diversity and bulk churn can
+create many postings; include scheduled `reindex` work when measuring total cost.
+Once the maintenance write budget is exhausted, posting and orphan work is
+scheduled separately. Source deletion remains atomic; cleanup rechecks term
+linkage before removal and preserves terms referenced by surviving scans.
 
-| Needle                 | Matches | Index path      | Scan path          |
-| ---------------------- | ------: | --------------- | ------------------ |
-| One job number         |       1 | 78 docs, 1 req  | 2,911 docs, 22 req |
-| Thai lot text (miss)   |       0 | 40 docs, 1 req  | 2,899 docs, 22 req |
-| Miss                   |       0 | 9 docs, 1 req   | 2,899 docs, 22 req |
-| Job-number fragment    |      94 | 253 docs, 1 req | 1,322 docs, 10 req |
-| Building name          |     144 | 127 docs, 1 req | 1,251 docs, 8 req  |
-| Common customer        |     482 | 222 docs, 1 req | 474 docs, 3 req    |
-| Every record ("box-0") |   2,200 | 278 docs, 1 req | 127 docs, 1 req    |
-| Two code points ("c1") |     295 | scan path       | 604 docs, 4 req    |
+Orphan checks also have an independent limit of 256 per maintenance pass. Linked
+terms spend read calls without spending the write budget, so the read-work limit
+must apply even when all terms are retained. Remaining checks continue in scheduled
+transactions. Regression tests cover 300 unique-text deletions and 300 deletions
+whose terms are still shared, including completion of scheduled cleanup. These
+fixtures do not establish every possible corpus or production throughput limit.
 
-Documents written (base → base + derived): `saveJobScans` with 1 item 4 → 60,
-with 50 items 53 → 1,534 (50 long unique texts: 1,547); a 60-ticket remap
-63 → 144; deleting 30 tickets 33 → 963. Parity: 0 mismatches over 187
-needle/filter traversals at 900 scans (iteration 8; iteration 7: 240 at 2,200
-and 264 at 900); the picker matched the keyset scan page for page in 114
-traversals over 640 locations.
-
-Writes that bypass maintenance (same file, 300 scans): a rare needle reads
-367 documents while building names come from history, 29 once reconciled. A
-reader that trusted readiness alone returned nothing for the bypassing rows.
-The picker reads its keyset scan plus 2 documents (246 → 248) until a new
-location is reconciled, then 52.
-
-Picker, 640 locations, every page of a 20-row search (all requests summed):
-
-| Needle          | Matches | Index path       | Keyset scan        |
-| --------------- | ------: | ---------------- | ------------------ |
-| `NO-SUCH-PLACE` |       0 | 25 docs, 1 req   | 1,010 docs, 2 req  |
-| `F1-L30-0123`   |       0 | 138 docs, 1 req  | 1,089 docs, 2 req  |
-| `Shelf 3`       |      18 | 289 docs, 1 req  | 1,096 docs, 2 req  |
-| `ปลายทาง`       |      63 | 566 docs, 4 req  | 1,217 docs, 4 req  |
-| `R0`            |     203 | 886 docs, 11 req | 1,286 docs, 11 req |
-
-Hydrating a match (location, source, area and parents) is unchanged, so
-match-heavy searches keep about four reads per match.
-
-### Write cost under the budget (iteration 8)
-
-`tests/integration/search-index-write-costs.integration.test.ts`, documents
-written through `ctx.db` by the real mutations ("derived": search tables and
-readiness rows; "base": everything else), on a 300-scan warehouse whose
-customers, parts and barcodes repeat:
-
-| Write                                       | Base | Derived                         | Deferred to re-index      |
-| ------------------------------------------- | ---: | ------------------------------- | ------------------------- |
-| 20 consecutive 50-ticket saves, each        |   53 | 1,518 → 499–500 from save 6     | 23 + 10 items (saves 1–2) |
-| 50 consecutive one-ticket corrections, each |    4 | 25–26 (36 derived reads)        | 0                         |
-| Remap of 300 tickets (selection limit)      |  303 | 200 (search rows only)          | 0                         |
-| Delete of 100 tickets                       |  103 | 1,000 (2,220 derived reads)     | 0                         |
-| FG1 import, apply (15 cells, geometry only) |   49 | 2 (readiness markers)           | 0                         |
-| FG1 import, rollback (replaces every row)   |   49 | 2 (95 derived reads)            | 0                         |
-| 100-slot rack (100 locations and positions) |  603 | 1,541 (1,539 location postings) | 64 locations              |
-
-The first saves create and promote the repeating terms; from then on a save
-costs about 10 derived writes per ticket (search row, job-number term and its
-8 trigram postings). The scheduled re-index drained every backlog (no
-unposted rows left), deleted tickets kept no postings, and every search row's
-`sourceHash` matched its scan afterwards. Reconciling the 1,000 ingested scans
-read two documents each and wrote no derived row; reconciling the rack's new
-locations compared their postings and changed none.
-
-### Bulk-delete cleanup (iteration 10)
-
-Once the search maintenance write budget is exhausted, orphan checks are deferred
-to scheduled `reindex` work. The source deletion remains atomic; cleanup rechecks
-term linkage before removal. Monitor scheduled function failures, backlog and
-usage: foreground completion does not mean the maintenance work has finished.
-
-One real-engine 300-id unique-text selection used 2,486 read calls, 6,223 document
-reads and 2,074 writes. Eleven subsequent transactions observed in its time window
-read 45,897 documents and wrote 15,299; these lack request-chain correlation and
-are not a guaranteed isolated total. Low-write selections with many shared terms
-remain unmeasured and can consume read calls before the write budget is exhausted.
-Add a read-call guard and measure that shape before treating the selection limit
-as safe for every input. See the
-[final audit](../reviews/convex-performance-2026-11-04/final-report.md).
+Monitor scheduled failures, backlog and function usage: foreground completion does
+not mean maintenance has finished. The write budget and orphan-check limit bound
+parts of maintenance, not the total reads or writes of the caller's transaction.

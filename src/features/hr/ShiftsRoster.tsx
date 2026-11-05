@@ -811,7 +811,12 @@ function RosterView() {
               />
             )}
           </HrPagedState>
-          <HrPager paging={paging} label={t("rosterPagination")} />
+          <HrPager
+            paging={paging}
+            label={t("rosterPagination")}
+            disabled={pending}
+            pageSizeDisabled={assigning}
+          />
         </>
       )}
     </div>
