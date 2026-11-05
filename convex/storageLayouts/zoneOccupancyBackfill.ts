@@ -15,6 +15,7 @@ import {
 import { internal } from "../_generated/api";
 import { ensureSummaryReadiness } from "../lib/finishedGoodsSummary";
 import {
+  buildingScopeClear,
   MAX_ZONE_OCCUPANCY_ENTRIES,
   overflowedZones,
   rebuildZoneOccupancy,
@@ -173,11 +174,16 @@ export const run = internalMutation({
       rebuilt++;
     }
     const pageFinished = page.page.every((zone) => done.has(zone._id));
+    // Only zones of this page can come round again from the same cursor;
+    // others (deleted, or pushed past the page end) are rebuilt again at
+    // worst, so the token never outgrows one page.
     const continueCursor = pageFinished
       ? page.continueCursor
       : JSON.stringify({
           resume: pageCursor,
-          done: [...done],
+          done: page.page
+            .filter((zone) => done.has(zone._id))
+            .map((zone) => zone._id),
         } satisfies Resume);
     const isDone = pageFinished && page.isDone;
     let ready = false;
@@ -186,8 +192,8 @@ export const run = internalMutation({
       const final = await readiness(ctx, orgId, args.warehouseId);
       // Invalidation during this run poisons it; only a restart may finish.
       ready = final !== null && final.stale !== true;
-      buildingReady =
-        ready && final!.blocked !== true && final!.overflow !== true;
+      // What building readers will actually check (not the sticky flags).
+      buildingReady = ready && (await buildingScopeClear(db, args.warehouseId));
       if (final && ready)
         await ctx.db.patch(final._id, {
           ready: true,

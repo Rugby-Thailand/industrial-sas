@@ -451,7 +451,7 @@ export async function zoneOccupancyReady(
  * change with every tracked write, so this recovers as soon as the cause is
  * gone, unlike the sticky readiness flags.
  */
-async function buildingScopeClear(
+export async function buildingScopeClear(
   db: Pick<TenantDocumentAccess, "byIndex">,
   warehouseId: string,
 ) {
