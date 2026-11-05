@@ -171,6 +171,12 @@ export function discover(fixture) {
 export function queryScenarios(ids) {
   const w = { warehouseId: ids.warehouseId };
   const month = ids.today.slice(0, 7);
+  const previousMonth = (() => {
+    const [year, value] = month.split("-").map(Number);
+    return value === 1
+      ? `${year - 1}-12`
+      : `${year}-${String(value - 1).padStart(2, "0")}`;
+  })();
   const monthStart = `${month}-01`;
   const q = (screen, fn, args, options = {}) => ({
     screen,
@@ -306,6 +312,33 @@ export function queryScenarios(ids) {
         },
       ),
     ]),
+    // A user who switched the put-away preview to another zone: subscribed,
+    // so fan-out shows whether a reservation elsewhere re-runs it.
+    q(
+      "fg-pallet",
+      "finishedGoods/workflow:recommendationZone",
+      { ...w, palletId: ids.awaitingPalletId ?? ids.reservedPalletId },
+      {
+        label: "switched zone",
+        baseArgs: null,
+        resolveArgs: async (query) => {
+          const palletId = ids.awaitingPalletId ?? ids.reservedPalletId;
+          const zones = [
+            ...new Set(
+              (
+                (
+                  await query("finishedGoods/workflow:recommend", {
+                    ...w,
+                    palletId,
+                  })
+                )?.candidates ?? []
+              ).map((candidate) => candidate.zoneId),
+            ),
+          ];
+          return { ...w, palletId, zoneId: zones.at(-1) };
+        },
+      },
+    ),
     q(
       "fg-pallet",
       "finishedGoods/workflow:stackChoices",
@@ -354,6 +387,13 @@ export function queryScenarios(ids) {
       "finishedGoods/jobScanLocations:searchPage",
       { ...w, text: "R0", pageSize: 20 },
       { settle: true },
+    ),
+    // A picker search that hits: the code of a real storage zone.
+    q(
+      "job-scan",
+      "finishedGoods/jobScanLocations:searchPage",
+      { ...w, text: ids.zoneCode ?? "R0", pageSize: 20 },
+      { settle: true, label: "hit", subscribe: false },
     ),
     q("job-scan", "finishedGoods/jobScanLocations:resolve", {
       ...w,
@@ -461,6 +501,14 @@ export function queryScenarios(ids) {
       { warehouseId: ids.warehouseId, month, pageSize: 20 },
       { settle: true, baseArgs: { warehouseId: ids.warehouseId, month } },
     ),
+    // The previous month: every weekday recorded, closed periods, frozen
+    // plans; not subscribed (the screen shows one month).
+    q(
+      "hr-admin",
+      "hr/roster:roster",
+      { warehouseId: ids.warehouseId, month: previousMonth, pageSize: 20 },
+      { settle: true, label: "previous month", subscribe: false },
+    ),
     q("hr-admin", "hr/roster:shifts", { warehouseId: ids.warehouseId }),
     q("hr-admin", "hr/payslips:list", {}),
     q("hr-admin", "hr/payslips:imports", {}),
@@ -538,6 +586,38 @@ export function mutationFlows(ids) {
           items: Array.from({ length: 50 }, (_, index) =>
             scanItem(base + index),
           ),
+        });
+      },
+    },
+    {
+      // Search postings make deletes costly: delete the 50 scans just saved.
+      name: "job-scan delete batch of 50",
+      async run(call, ctx) {
+        const base = (Date.now() % 100000) + 50_000;
+        await call("finishedGoods/jobScans:saveJobScans", {
+          ...w,
+          requestId: requestId("save50-del"),
+          locationText: "PERF",
+          items: Array.from({ length: 50 }, (_, index) =>
+            scanItem(base + index),
+          ),
+        });
+        const newest = (
+          await ctx.query("finishedGoods/jobScans:listJobScans", {
+            ...w,
+            filter: "ALL",
+            search: "",
+            pageSize: 50,
+            progressive: true,
+          })
+        ).value;
+        const ids = (newest?.items ?? []).map((item) => item.id);
+        if (ids.length !== 50)
+          return { note: `expected 50 newest scans, got ${ids.length}` };
+        await call("finishedGoods/jobScans:deleteJobScans", {
+          ...w,
+          requestId: requestId("del50"),
+          ids,
         });
       },
     },
