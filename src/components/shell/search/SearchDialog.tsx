@@ -323,7 +323,7 @@ function SearchBody({
           const items = ordinary.filter((result) => result.group === group);
           const sharedAction =
             RECORD_GROUPS.includes(group) &&
-            items.length > 1 &&
+            items.length > 0 &&
             items.every((item) => item.action === items[0]?.action)
               ? items[0]?.action
               : undefined;
@@ -894,9 +894,11 @@ function ResultOption({
       onClick={disabled ? undefined : onChoose}
       className={cn(
         "min-h-touch cursor-pointer rounded-lg px-3 py-2 text-left",
-        compact
-          ? "flex items-center gap-3 dense:min-h-control dense:py-1.5"
-          : "grid content-center gap-0.5",
+        result.group === "ASK"
+          ? "grid grid-cols-[1rem_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 dense:min-h-control dense:py-1.5"
+          : compact
+            ? "flex items-center gap-3 dense:min-h-control dense:py-1.5"
+            : "grid content-center gap-0.5",
         active
           ? "bg-accent-surface shadow-[inset_3px_0_0_var(--color-link)]"
           : "hover:bg-raised",
@@ -916,28 +918,27 @@ function ResultOption({
               result.id === ASK_ID && "mt-1",
             )}
           />
-          <span className="grid min-w-0 flex-1 gap-0.5">
-            <span id={`${id}-title`} className="break-words text-text">
-              {result.title}
-            </span>
-            {result.detail === undefined ? null : (
-              <span
-                id={`${id}-detail`}
-                className="text-sm leading-5 break-words text-muted"
-              >
-                {result.detail}
-              </span>
-            )}
-            {result.id === ASK_ID ? (
-              <span
-                id={`${id}-privacy`}
-                className="text-sm leading-5 break-words text-muted"
-                data-testid="global-search-ai-privacy"
-              >
-                {t("aiPrivacy")}
-              </span>
-            ) : null}
+          <span id={`${id}-title`} className="min-w-0 break-words text-text">
+            {result.title}
           </span>
+          {result.detail !== undefined || result.id === ASK_ID ? (
+            <span className="col-span-2 text-sm leading-5 break-words text-muted">
+              {result.detail === undefined ? null : (
+                <span id={`${id}-detail`}>{result.detail}</span>
+              )}
+              {result.id === ASK_ID ? (
+                <>
+                  {" "}
+                  <span
+                    id={`${id}-privacy`}
+                    data-testid="global-search-ai-privacy"
+                  >
+                    {t("aiPrivacy")}
+                  </span>
+                </>
+              ) : null}
+            </span>
+          ) : null}
         </>
       ) : place ? (
         <>
