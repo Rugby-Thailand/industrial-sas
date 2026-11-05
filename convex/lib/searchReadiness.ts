@@ -16,17 +16,22 @@ import type { TenantDocumentAccess } from "./tenantDb";
  *   same transaction). A difference means a layout write that did not
  *   maintain the index: readers stop trusting building names (job scans) or
  *   the whole location index until it is repaired.
- * - `watermark`: rows written at or after it may be unindexed. Readers of
- *   job scans merge every scan with `updatedAt` or `_creationTime` at or after
- *   it as a candidate; the picker uses its scan while any location was
- *   created at or after it. The reconcile job re-indexes what changed and
- *   advances the watermark to at most `now - RECONCILE_MARGIN_MS`, so a write
- *   still in flight when it ran is never skipped.
+ * - `watermark` (on `searchIndexReconcile`, which readers never read): rows
+ *   written at or after it may be unindexed. The reconcile job, started every
+ *   minute, re-indexes job scans whose search row no longer matches their
+ *   fields and locations created since, then advances the watermark to at
+ *   most `now - RECONCILE_MARGIN_MS`, so a write still in flight when it ran
+ *   is never skipped.
+ *
+ * Guarantee: results equal the scan's for every write by code that maintains
+ * the index, and readers fall back at once after a layout write that did
+ * not. A job scan or location written by code that does not maintain the
+ * index (a rollback to `main`) is findable again once reconcile has run,
+ * within about two minutes; `invalidate` makes readers fall back at once.
  */
 export type SearchKind = "jobScans" | "locations";
 export type SearchReadiness = Doc<"searchIndexReadiness">;
 export type CurrentSearchReadiness = SearchReadiness & {
-  watermark: number;
   layoutGeneration: number;
 };
 
@@ -35,8 +40,6 @@ export type CurrentSearchReadiness = SearchReadiness & {
  * the reconcile ran has committed before the watermark passes its time.
  */
 export const RECONCILE_MARGIN_MS = 30_000;
-/** Unreconciled scans one search merges; more answers from history. */
-export const RECENT_LIMIT = 99;
 
 /** Tables whose tracked writes bump `storageCatalogueSignals`. */
 export const LAYOUT_TABLES: ReadonlySet<string> = new Set([
@@ -63,7 +66,7 @@ export async function searchIndexReadiness(
     .unique();
 }
 
-/** Built, not invalidated, at `version`, with both markers. */
+/** Built, not invalidated, at `version`, with the layout marker. */
 export function currentSearchReadiness(
   row: SearchReadiness | null,
   version: number,
@@ -72,7 +75,6 @@ export function currentSearchReadiness(
     row?.ready === true &&
     row.stale !== true &&
     row.version === version &&
-    row.watermark !== undefined &&
     row.layoutGeneration !== undefined
   );
 }

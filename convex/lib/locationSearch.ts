@@ -27,8 +27,7 @@ import {
  *
  * Writers keep postings exact in their own transaction (tracked tenant
  * writes); readers use them only while the warehouse's readiness row is
- * current, no layout write bypassed them, and no location was created since
- * the watermark (`convex/lib/searchReadiness.ts`).
+ * current and no layout write bypassed them (`convex/lib/searchReadiness.ts`).
  */
 /** 2: readiness carries the layout generation and watermark. */
 export const LOCATION_SEARCH_VERSION = 2;
@@ -54,10 +53,8 @@ export function indexableLocationNeedle(needle: string) {
 }
 
 /**
- * The postings may answer: built, and nothing written since that could lack
- * them. A layout write that did not maintain them moves the layout counter
- * without this index; a location created since the watermark may have no
- * postings until the reconcile job has looked at it.
+ * The postings may answer: built, and no layout write bypassed them (such a
+ * write moves the layout counter without this index).
  */
 export async function locationSearchReady(
   db: Pick<TenantDocumentAccess, "byIndex">,
@@ -65,21 +62,9 @@ export async function locationSearchReady(
 ) {
   const row = await searchIndexReadiness(db, warehouseId, "locations");
   if (!currentSearchReadiness(row, LOCATION_SEARCH_VERSION)) return false;
-  const [generation, created] = await Promise.all([
-    layoutGeneration(db, warehouseId),
-    db
-      .byIndex<Doc<"locations">>(
-        "locations",
-        "by_orgId_warehouseId",
-        [{ field: "warehouseId", value: warehouseId }],
-        {
-          field: "_creationTime",
-          lower: { value: row.watermark, inclusive: true },
-        },
-      )
-      .first(),
-  ]);
-  return generation === row.layoutGeneration && created === null;
+  // Locations written by code that does not maintain the postings are
+  // repaired by `reconcile`; readers pay only for the layout check.
+  return (await layoutGeneration(db, warehouseId)) === row.layoutGeneration;
 }
 
 /** Raw code/label texts the picker compares for this location row, if any. */

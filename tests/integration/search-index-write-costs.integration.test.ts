@@ -279,8 +279,18 @@ async function reconcile(
     }),
   )) as { status: string; checked: number; reindexed: number };
   await drainScheduled(world);
-  const state = await readiness(world, warehouseId, kind);
-  expect(state.row.reconcile).toBeUndefined();
+  const progress = await world.t.run((ctx) =>
+    ctx.db
+      .query("searchIndexReconcile")
+      .withIndex("by_orgId_warehouseId_kind", (q) =>
+        q
+          .eq("orgId", world.orgA)
+          .eq("warehouseId", warehouseId)
+          .eq("kind", kind),
+      )
+      .unique(),
+  );
+  expect(progress?.reconcile).toBeUndefined();
   return { first, derivedBefore, derivedAfter: await derivedCounts(world) };
 }
 

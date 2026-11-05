@@ -91,9 +91,9 @@ carried in the cursor so a traversal never changes lanes.
 
 Code without this maintenance can run after a build: `main`, or any commit
 before the index existed, deployed in a rollback and then rolled forward. Its
-writes leave no postings, and readiness alone cannot see them. Two markers on
-the readiness row (`convex/lib/searchReadiness.ts`) make them visible, and a
-reconcile job repairs them without an operator.
+writes leave no postings, and readiness alone cannot see them. A layout marker
+on the readiness row makes the layout ones visible at once, and a reconcile
+job repairs every kind without an operator (`convex/lib/searchReadiness.ts`).
 
 - **Layout counter.** Every tracked layout write (buildings, floors, areas,
   positions) bumps the warehouse's `storageCatalogueSignals.generation` once,
@@ -102,27 +102,24 @@ reconcile job repairs them without an operator.
   search write tracker reads the counter before the write and after the
   finished-goods flush, and follows only when it moved by exactly one (this
   transaction was its only writer). A difference means a layout write that
-  did not maintain the index.
-- **Watermark.** Rows written at or after `watermark` may lack postings.
-  Readers look them up by time: scans by `updatedAt` and by `_creationTime`
-  (new indexes `finishedGoodsJobScans.by_orgId_warehouseId_updatedAt` and
-  `by_orgId_warehouseId`), locations and buildings by `_creationTime`
+  did not maintain the index. Readers compare the two (one extra read, which
+  changes only on layout writes): job-scan search then answers from history
+  (same engine, same cursors) and the picker uses its keyset scan.
+- **Watermark.** Rows written at or after the watermark may lack postings.
+  It lives on `searchIndexReconcile`, which readers never read, so advancing
+  it re-runs no search. Reconcile finds rows by time: scans by `updatedAt` and
+  by `_creationTime` (indexes `finishedGoodsJobScans.by_orgId_warehouseId_updatedAt`
+  and `by_orgId_warehouseId`), locations and buildings by `_creationTime`
   (`by_orgId_warehouseId`).
 
-| Readers see                                           | Job-scan search                                                | Picker      |
-| ----------------------------------------------------- | -------------------------------------------------------------- | ----------- |
-| layout counter ≠ `layoutGeneration`                   | history merge (same engine, same cursors)                      | keyset scan |
-| a building created at or after the watermark          | history merge                                                  | —           |
-| scans with `updatedAt` or `_creationTime` ≥ watermark | merged as candidates (up to 99 per index; more: history merge) | —           |
-| a location created at or after the watermark          | —                                                              | keyset scan |
-
-Every candidate is still re-read and re-matched, so merging extra scans costs
-reads, never results.
+Readers do not merge recent rows themselves: that would make every search pay
+for writes by maintained code too, and send searches to history after any
+burst of saves.
 
 **Repair.** `finishedGoods/searchIndexBackfill:reconcileSweep` runs every
 minute. For each built index with something to do it schedules `reconcile`;
-idle indexes cost their readiness row, the counter and one empty index probe
-per phase, and write nothing.
+idle indexes cost their readiness and reconcile rows, the counter and one
+empty index probe per phase, and write nothing.
 
 - Counter differs: job scans re-derive every building name of the warehouse
   in one transaction (≤ 100 buildings; more restarts the build); the picker
@@ -134,32 +131,27 @@ per phase, and write nothing.
   per phase run in one transaction; larger windows run one page per
   transaction, chained, under a fixed window. The watermark moves to the
   window's end only when every phase is done.
-- A build (`run` with `restart`) sets both markers when it starts: the
-  current counter, and `watermark = start − 30 s`.
+- A build (`run` with `restart`) records the current counter and sets
+  `watermark = start − 30 s`.
 
 **Guarantee.** While an index is current, a search returns exactly the rows,
-in exactly the order, of the scan it replaces, provided every write since the
-build is one of:
+in exactly the order, of the scan it replaces, for every write through this
+branch's tracked tenant writer (every tenant mutation; derived rows are
+written in the same transaction), and for every layout write by any code's
+tracked writer (readers fall back at once). After a rollback-and-forward, a
+job scan or location that the old code inserted or changed is missing from
+search results until the next reconcile has looked at it: within about two
+minutes (the cron runs every minute; rows become eligible 30 s after they
+were written). Deletes by any code are harmless (postings only propose rows).
+To make readers fall back at once instead, call `invalidate` after the
+roll-forward (rollout, step 5).
 
-1. a write through this branch's tracked tenant writer (every tenant
-   mutation; derived rows written in the same transaction);
-2. an insert by any code, raw or tracked (scans, locations, buildings): its
-   `_creationTime` stays at or after the watermark until a reconcile has
-   looked at the row;
-3. a job-scan patch by any code that sets `updatedAt` to its clock or later
-   (`main`'s corrections and remaps write `max(now, before + 1)`);
-4. a layout write through any code's tracked tenant writer (`main` and every
-   commit that has `storageCatalogueSignals`), including importer rollbacks
-   that put old `updatedAt` values back;
-5. a delete by any code (postings only propose rows; a deleted row is never
-   returned);
-
-and no transaction lives longer than the 30 s margin (Convex mutations are
+The 30 s margin assumes no transaction lives longer (Convex mutations are
 limited to seconds): the watermark only moves to 30 s before the reconcile
-that verified the rows, so a write whose clock reading is older has
-committed before that reconcile read the window.
+that verified the rows, so a write whose clock reading is older has committed
+before that reconcile read the window.
 
-Not covered, and needing `invalidate` after it runs: a raw `ctx.db` patch by
+Not covered by reconcile, and needing `invalidate`: a raw `ctx.db` patch by
 old code that changes searchable fields of an existing scan, location or
 layout row without moving `updatedAt` or the counter, and a rollback to a
 commit of this branch before version 2 (it maintains postings but neither
@@ -194,9 +186,12 @@ collected.
    `finishedGoods/searchIndexBackfill:invalidate '{"warehouseId":"<id>"}'`
    (optionally `"kind"`); the next sweep rebuilds it.
 
-5. After a rollback to `main` and back, nothing is needed: within a minute
-   of the roll-forward the reconcile cron repairs what `main` wrote, and
-   readers stay exact meanwhile (previous section). To force it:
+5. After a rollback to `main` and back: within about two minutes of the
+   roll-forward the reconcile cron repairs what `main` wrote; until then,
+   scans and locations `main` wrote may be missing from search results
+   (previous section). For exact results at once, run `invalidate` for the
+   warehouse (readers use the original scans until the sweep rebuilds), or
+   run reconcile immediately:
    `finishedGoods/searchIndexBackfill:reconcile '{"warehouseId":"<id>","kind":"jobScans"}'`.
 
 ## Release constraint

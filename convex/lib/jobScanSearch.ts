@@ -20,7 +20,6 @@ import { catalogueScope } from "./cataloguePagination";
 import {
   currentSearchReadiness,
   layoutGeneration,
-  RECENT_LIMIT,
   searchIndexReadiness,
   type CurrentSearchReadiness,
 } from "./searchReadiness";
@@ -44,8 +43,8 @@ import {
  * building, found the same way, streamed through the rows' building index.
  * Writers keep the invariant in their own transaction (`indexJobScans`);
  * readers use the index only while the warehouse's readiness row is current,
- * merge every scan written since its watermark (writers that did not keep
- * the invariant), and answer from history while building names may be stale
+ * and answer from history while building names may be stale. Rows written by
+ * code that does not keep the invariant are repaired by `reconcile`
  * (`convex/lib/searchReadiness.ts`).
  */
 /** 2: search rows carry `sourceHash`; readiness carries the reconcile markers. */
@@ -664,15 +663,6 @@ interface CandidateStream {
   fill(): Promise<number>;
 }
 
-/** Candidates already in hand (scans written since the watermark). */
-class ListStream implements CandidateStream {
-  readonly done = true;
-  constructor(readonly buffer: { key: Key; scan: Scan }[]) {}
-  async fill() {
-    return 0;
-  }
-}
-
 class Stream<T> implements CandidateStream {
   buffer: { key: Key; scan?: Scan }[] = [];
   done = false;
@@ -876,48 +866,14 @@ export async function searchJobScans<Row>(
   };
   const wh = { field: "warehouseId", value: warehouseId } as const;
 
-  // Rows the index may lack: scans changed or created since the watermark
-  // (any writer), and building names after a layout write that did not
-  // maintain them or a building created since. Building names, or too many
-  // scans: answer from history instead (same order, same cursors).
-  const since = {
-    lower: { value: options.readiness.watermark, inclusive: true },
-  };
-  const [generation, building, changed, created] = await Promise.all([
-    layoutGeneration(db, warehouseId),
-    db
-      .byIndex("storageBuildings", "by_orgId_warehouseId", [wh], {
-        field: TENANT_INDEX_TIEBREAKER,
-        ...since,
-      })
-      .first(),
-    db
-      .byIndex<Scan>(
-        "finishedGoodsJobScans",
-        "by_orgId_warehouseId_updatedAt",
-        [wh],
-        {
-          field: "updatedAt",
-          ...since,
-        },
-      )
-      .take(RECENT_LIMIT + 1),
-    db
-      .byIndex<Scan>("finishedGoodsJobScans", "by_orgId_warehouseId", [wh], {
-        field: TENANT_INDEX_TIEBREAKER,
-        ...since,
-      })
-      .take(RECENT_LIMIT + 1),
-  ]);
-  work += 1 + (building ? 1 : 0) + changed.length + created.length;
-  const recent = new Map(
-    [...changed, ...created].map((scan) => [scan._id as string, scan]),
-  );
-  let exhaustive =
-    generation !== options.readiness.layoutGeneration ||
-    building !== null ||
-    changed.length > RECENT_LIMIT ||
-    created.length > RECENT_LIMIT;
+  // A layout write that did not maintain the index moved the layout counter
+  // without it: building names come from history then (same order, same
+  // cursors). Job scans written by code that does not maintain the index are
+  // re-indexed by `reconcile` (lib/searchReadiness.ts); readers do not pay
+  // for that guard on every search.
+  const generation = await layoutGeneration(db, warehouseId);
+  work += 1;
+  let exhaustive = generation !== options.readiness.layoutGeneration;
 
   // Shared terms containing the needle: through their rarest gram.
   const probes = probeGrams(needle, 3, MAX_PROBES);
@@ -1063,15 +1019,6 @@ export async function searchJobScans<Row>(
         },
         perTerm,
       );
-    // Scans written since the watermark, wherever their postings stand.
-    streams.push(
-      new ListStream(
-        [...recent.values()]
-          .map((scan) => ({ key: scanKey(scan), scan }))
-          .filter(({ key }) => !start || order(key, start) > 0)
-          .sort((a, b) => order(a.key, b.key)),
-      ),
-    );
   }
 
   // Merge newest first; equal keys are one scan proposed by several streams.

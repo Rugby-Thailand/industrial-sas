@@ -63,7 +63,7 @@ async function site(
           ...db,
           byIndex: ((...args: Parameters<typeof db.byIndex>) => {
             const reader = db.byIndex(...args);
-            const count = <R extends unknown[]>(p: Promise<R>) =>
+            const count = <R extends readonly unknown[]>(p: Promise<R>) =>
               p.then((value) => {
                 counted.rows += value.length;
                 return value;

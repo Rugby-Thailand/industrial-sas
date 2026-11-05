@@ -546,7 +546,21 @@ async function markers(fixture: Fixture) {
           .eq("warehouseId", fixture.warehouseId),
       )
       .unique();
-    return { row: row!, generation: signal?.generation ?? 0 };
+    // Reconcile progress lives apart from readiness: readers never read it.
+    const progress = await ctx.db
+      .query("searchIndexReconcile")
+      .withIndex("by_orgId_warehouseId_kind", (q) =>
+        q
+          .eq("orgId", fixture.world.orgA)
+          .eq("warehouseId", fixture.warehouseId)
+          .eq("kind", "jobScans"),
+      )
+      .unique();
+    return {
+      row: row!,
+      progress: progress!,
+      generation: signal?.generation ?? 0,
+    };
   });
 }
 
@@ -1097,7 +1111,7 @@ describe("index-backed job-scan search", () => {
     );
   });
 
-  it("stays exact through writes that bypass maintenance, then reconciles them", async () => {
+  it("falls back after layout writes that bypass maintenance, and reconciles bypassing writes", async () => {
     const fixture = await setup(300);
     await runBackfill(fixture);
     const { world, warehouseId } = fixture;
@@ -1308,15 +1322,14 @@ describe("index-backed job-scan search", () => {
         .v ?? "jss1",
     ).toBe("jss1");
     const unrepaired = await rare();
-    // Control: a reader that trusted readiness alone (iteration 7) would miss
-    // them. Pretend the markers cover everything, then put them back.
+    // The accepted window: had no layout write bypassed the index, a reader
+    // would not see scans written by code that does not maintain it until
+    // reconcile has run (lib/searchReadiness.ts). Pretend the layout marker
+    // is current, then put it back.
     const trusted = await markers(fixture);
     const pretend = (fields: Record<string, unknown>) =>
       world.t.run((ctx) => ctx.db.patch(trusted.row._id, fields));
-    await pretend({
-      watermark: Date.now() + 3_600_000,
-      layoutGeneration: trusted.generation,
-    });
+    await pretend({ layoutGeneration: trusted.generation });
     for (const raw of ["legacy-new", "legacy-old", "legacy-fix", "seed annex"])
       expect(
         (
@@ -1324,10 +1337,7 @@ describe("index-backed job-scan search", () => {
         ).pages.flat(),
         raw,
       ).toEqual([]);
-    await pretend({
-      watermark: trusted.row.watermark,
-      layoutGeneration: trusted.row.layoutGeneration,
-    });
+    await pretend({ layoutGeneration: trusted.row.layoutGeneration });
 
     // The reconcile job re-derives building names (the renamed and the
     // seeded one) and re-indexes the three scans whose search rows were
@@ -1337,8 +1347,8 @@ describe("index-backed job-scan search", () => {
     expect(repaired).toMatchObject({ status: "done", reindexed: 3 });
     const after = await markers(fixture);
     expect(after.row.layoutGeneration).toBe(after.generation);
-    expect(after.row.watermark).toBeGreaterThan(now);
-    expect(after.row.reconcile).toBeUndefined();
+    expect(after.progress.watermark).toBeGreaterThan(now);
+    expect(after.progress.reconcile).toBeUndefined();
     await checkAll();
     const reconciled = await rare();
     console.log("LEGACY READS", JSON.stringify({ unrepaired, reconciled }));

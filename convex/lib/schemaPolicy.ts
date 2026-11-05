@@ -50,6 +50,7 @@ export const TENANT_TABLES = [
   "finishedGoodsJobScanGrams",
   "locationSearchGrams",
   "searchIndexReadiness",
+  "searchIndexReconcile",
   "finishedGoodsCounters",
   "finishedGoodsMoves",
   "hrEmployees",

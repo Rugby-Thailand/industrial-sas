@@ -563,7 +563,7 @@ describe("index-backed location picker search", () => {
       expect(indexed.pages, text).toEqual(scanned.pages);
     }
   });
-  it("skips the postings while writes that bypassed them may exist, then reconciles them", async () => {
+  it("skips the postings after a layout write that bypassed them, and reconciles bypassing writes", async () => {
     const fixture = await setup(160);
     await runBackfill(fixture);
     const { world, warehouseId } = fixture;
@@ -630,12 +630,12 @@ describe("index-backed location picker search", () => {
         });
     });
     // Unrepaired: the keyset scan answers (same pages; its reads plus the
-    // layout counter and the fresh location the readiness check found).
+    // layout counter the readiness check compares).
     const legacy = ["LEG-NAMED", "ชั้นลับ", "OLDLABEL", "ป้ายเก่า"];
     for (const text of legacy) {
       const read = await compare(text);
       expect(read.matches, text).toBeGreaterThan(0);
-      expect(read.docs, text).toBe(read.scanDocs + 2);
+      expect(read.docs, text).toBe(read.scanDocs + 1);
     }
     // The counter moved without the index: postings are rebuilt (a restarted
     // build, which also covers the inserted registration).
@@ -648,12 +648,17 @@ describe("index-backed location picker search", () => {
       expect(read.docs, text).toBeLessThan(read.scanDocs);
     }
 
-    // A creation alone (no layout write): skipped until reconciled, then the
-    // reconcile job posts it in place without a rebuild.
+    // A creation alone by code without the index (no layout write): the
+    // accepted window (lib/searchReadiness.ts). Readers keep the postings, so
+    // the location is not proposed until reconcile (every minute) has posted
+    // it in place, without a rebuild.
     await insertLegacy("LEG-NAMED-02", "ชั้นลับใหม่");
-    const pending = await compare("ชั้นลับใหม่");
-    expect(pending.matches).toBe(1);
-    expect(pending.docs).toBe(pending.scanDocs + 2);
+    const pending = await traverse(world, {
+      warehouseId,
+      text: "ชั้นลับใหม่",
+      pageSize: 20,
+    });
+    expect(pending.pages.flatMap((page) => page.items)).toEqual([]);
     expect(await reconcileNow(fixture)).toMatchObject({
       status: "done",
       checked: 1,
@@ -661,6 +666,9 @@ describe("index-backed location picker search", () => {
     const posted = await compare("ชั้นลับใหม่");
     expect(posted.matches).toBe(1);
     expect(posted.docs).toBeLessThan(posted.scanDocs);
-    console.log("LEGACY PICKER READS", JSON.stringify({ pending, posted }));
+    console.log(
+      "LEGACY PICKER READS",
+      JSON.stringify({ pending: docsRead(pending.stats), posted }),
+    );
   });
 });

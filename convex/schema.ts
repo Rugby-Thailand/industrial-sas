@@ -1378,8 +1378,19 @@ const schema = defineSchema({
        * accounts for; only maintained layout writes move it along.
        */
       layoutGeneration: v.optional(v.number()),
+    }),
+  ).index("by_orgId_warehouseId_kind", byOrg("warehouseId", "kind")),
+  /**
+   * Reconcile progress of one search index (lib/searchReadiness.ts). Kept
+   * apart from the readiness row on purpose: readers never read it, so
+   * advancing the watermark re-runs no search subscription.
+   */
+  searchIndexReconcile: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      kind: v.union(v.literal("jobScans"), v.literal("locations")),
       /** Rows written at or after this time may be unindexed (see reconcile). */
-      watermark: v.optional(v.number()),
+      watermark: v.number(),
       /** An unfinished reconcile pass over [watermark, upper). */
       reconcile: v.optional(
         v.object({

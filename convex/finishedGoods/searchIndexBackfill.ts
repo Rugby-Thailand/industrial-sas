@@ -63,6 +63,30 @@ async function readiness(
     .unique();
 }
 
+/** Reconcile progress of one index (never read by search readers). */
+async function reconcileProgress(
+  ctx: MutationCtx,
+  orgId: Id<"organizations">,
+  warehouseId: Id<"warehouses">,
+  which: Kind,
+) {
+  const row = await ctx.db
+    .query("searchIndexReconcile")
+    .withIndex("by_orgId_warehouseId_kind", (q) =>
+      q.eq("orgId", orgId).eq("warehouseId", warehouseId).eq("kind", which),
+    )
+    .unique();
+  if (row) return row;
+  // Unknown progress: reconcile everything (safe, paged).
+  const id = await ctx.db.insert("searchIndexReconcile", {
+    orgId,
+    warehouseId,
+    kind: which,
+    watermark: 0,
+  });
+  return (await ctx.db.get(id))!;
+}
+
 const current = (
   row: Doc<"searchIndexReadiness"> | null,
   which: Kind,
@@ -183,14 +207,23 @@ export const run = internalMutation({
         stale: false,
         version: VERSION[args.kind],
         runId,
-        // Maintained layout writes carry this along from here on. Rows
-        // written from here on (less the in-flight margin) may escape the
-        // pages below: readers treat them as unindexed until reconciled.
+        // Maintained layout writes carry this along from here on.
         layoutGeneration: await layoutGeneration(db, args.warehouseId),
-        watermark: Date.now() - RECONCILE_MARGIN_MS,
       };
-      if (state)
-        await ctx.db.patch(state._id, { ...fields, reconcile: undefined });
+      // Rows written from here on (less the in-flight margin) by code that
+      // does not maintain the index may escape the pages below: reconcile
+      // looks at them.
+      const progress = await reconcileProgress(
+        ctx,
+        orgId,
+        args.warehouseId,
+        args.kind,
+      );
+      await ctx.db.patch(progress._id, {
+        watermark: Date.now() - RECONCILE_MARGIN_MS,
+        reconcile: undefined,
+      });
+      if (state) await ctx.db.patch(state._id, fields);
       else
         await ctx.db.insert("searchIndexReadiness", {
           orgId,
@@ -488,6 +521,12 @@ export const reconcile = internalMutation({
     const orgId = warehouse.orgId;
     const state = await readiness(ctx, orgId, args.warehouseId, args.kind);
     if (!current(state, args.kind)) return result("skipped");
+    const progress = await reconcileProgress(
+      ctx,
+      orgId,
+      args.warehouseId,
+      args.kind,
+    );
     const db = tenantDb(ctx, orgId);
     const budget = searchBudget();
     const later = { scans: [] as string[], terms: [] as string[] };
@@ -506,8 +545,13 @@ export const reconcile = internalMutation({
     // re-derive names when a pass starts; the pass only covers buildings
     // created before its window's end, which all exist by then.
     const built =
-      args.kind === "jobScans" && !state.reconcile && !args.continuation
-        ? await createdBuilding(ctx, orgId, args.warehouseId, state.watermark)
+      args.kind === "jobScans" && !progress.reconcile && !args.continuation
+        ? await createdBuilding(
+            ctx,
+            orgId,
+            args.warehouseId,
+            progress.watermark,
+          )
         : null;
     if (state.layoutGeneration !== generation || built) {
       const deferred =
@@ -571,10 +615,10 @@ export const reconcile = internalMutation({
     };
     const now = Date.now();
     const phases = PHASES[args.kind];
-    let pass = state.reconcile;
+    let pass = progress.reconcile;
     if (!pass) {
       const upper = now - RECONCILE_MARGIN_MS;
-      if (args.continuation || upper <= state.watermark) {
+      if (args.continuation || upper <= progress.watermark) {
         await schedule();
         return result("idle");
       }
@@ -587,7 +631,7 @@ export const reconcile = internalMutation({
             args.warehouseId,
             args.kind,
             phase,
-            state.watermark,
+            progress.watermark,
             upper,
           );
           return rows.scans
@@ -601,7 +645,7 @@ export const reconcile = internalMutation({
         );
         await reconcileRows([...unique.values()]);
         await schedule();
-        await ctx.db.patch(state._id, { watermark: upper });
+        await ctx.db.patch(progress._id, { watermark: upper });
         return result("done", checked, reindexed);
       }
       pass = { upper, phase: phases[0]!, cursor: null, at: now };
@@ -613,7 +657,7 @@ export const reconcile = internalMutation({
       args.warehouseId,
       args.kind,
       pass.phase,
-      state.watermark,
+      progress.watermark,
       pass.upper,
     );
     const page = rows.scans
@@ -634,13 +678,13 @@ export const reconcile = internalMutation({
         ? { ...pass, phase: nextPhase, cursor: null, at: now }
         : null;
     if (!next) {
-      await ctx.db.patch(state._id, {
+      await ctx.db.patch(progress._id, {
         watermark: pass.upper,
         reconcile: undefined,
       });
       return result("done", checked, reindexed);
     }
-    await ctx.db.patch(state._id, { reconcile: next });
+    await ctx.db.patch(progress._id, { reconcile: next });
     await ctx.scheduler.runAfter(
       0,
       internal.finishedGoods.searchIndexBackfill.reconcile,
@@ -675,6 +719,12 @@ export const reconcileSweep = internalMutation({
     let scheduled = 0;
     for (const row of page.page) {
       if (!current(row, row.kind)) continue;
+      const progress = await reconcileProgress(
+        ctx,
+        row.orgId,
+        row.warehouseId,
+        row.kind,
+      );
       let generation = generations.get(row.warehouseId);
       if (!generation)
         generations.set(
@@ -686,19 +736,19 @@ export const reconcileSweep = internalMutation({
         );
       let due =
         (await generation) !== row.layoutGeneration ||
-        (row.reconcile !== undefined &&
-          row.reconcile.at < now - RECONCILE_STALL_MS);
-      if (!due && !row.reconcile && upper > row.watermark)
+        (progress.reconcile !== undefined &&
+          progress.reconcile.at < now - RECONCILE_STALL_MS);
+      if (!due && !progress.reconcile && upper > progress.watermark)
         due =
           row.kind === "jobScans" &&
           (await createdBuilding(
             ctx,
             row.orgId,
             row.warehouseId,
-            row.watermark,
+            progress.watermark,
             upper,
           )) !== null;
-      if (!due && !row.reconcile && upper > row.watermark)
+      if (!due && !progress.reconcile && upper > progress.watermark)
         for (const phase of PHASES[row.kind]) {
           const rows = windowRows(
             ctx,
@@ -706,7 +756,7 @@ export const reconcileSweep = internalMutation({
             row.warehouseId,
             row.kind,
             phase,
-            row.watermark,
+            progress.watermark,
             upper,
           );
           if (await (rows.scans ?? rows.locations).first()) {
