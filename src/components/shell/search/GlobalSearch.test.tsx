@@ -839,6 +839,35 @@ const flush = async (ms = 0) => {
 };
 
 describe("record results lifecycle", () => {
+  it("preserves match rank and code order after merging overlapping review and admin hits", async () => {
+    const first = hit("e1", "EMP-DEMO-001", "First", "CODE_PREFIX");
+    const second = hit("e2", "EMP-DEMO-002", "Second", "CODE_PREFIX");
+    const third = hit("e3", "EMP-DEMO-003", "Third", "CODE_PREFIX");
+    const exactName = hit("e4", "ZZZ-004", "EMP", "NAME");
+    state.queries.set(ref(hrRefs.searchReviewEmployees), () =>
+      found(second, third),
+    );
+    state.queries.set(ref(hrRefs.searchAdminEmployees), () =>
+      found(exactName, first, second, third),
+    );
+    renderSearch();
+    fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+    await screen.findByRole("dialog");
+    await type("EMP");
+    const employees = within(
+      screen.getByRole("group", { name: "Employees" }),
+    ).getAllByRole("option");
+    expect(
+      employees.map((row) => row.querySelector('[id$="-title"]')?.textContent),
+    ).toEqual(["EMP", "First", "Second", "Third"]);
+    fireEvent.click(employees[1]!);
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith(
+        "/hr/employees?employee=e1&mode=edit&focus=details",
+      ),
+    );
+  });
+
   it("settles when every render returns a fresh but identical outcome", async () => {
     // A new object per call, like a protected query re-delivering the same
     // answer: publication must be idempotent, not loop.

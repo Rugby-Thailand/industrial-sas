@@ -669,7 +669,7 @@ function SearchBody({
                 <div
                   id={noteId}
                   role="presentation"
-                  className="px-2 pb-1 text-xs text-muted"
+                  className="px-2 pb-1 text-sm leading-5 text-muted"
                   data-testid={
                     section.group === "ASK"
                       ? "global-search-ask-scope"
@@ -912,7 +912,7 @@ function ResultOption({
             {result.detail === undefined ? null : (
               <span
                 id={`${id}-detail`}
-                className="text-xs break-words text-muted"
+                className="text-sm leading-5 break-words text-muted"
               >
                 {result.detail}
               </span>
@@ -920,7 +920,7 @@ function ResultOption({
             {result.id === ASK_ID ? (
               <span
                 id={`${id}-privacy`}
-                className="text-xs break-words text-muted"
+                className="text-sm leading-5 break-words text-muted"
                 data-testid="global-search-ai-privacy"
               >
                 {t("aiPrivacy")}
@@ -1016,7 +1016,7 @@ function AiRunning({ onCancel }: { readonly onCancel: () => void }) {
         <p role="status" className="text-sm text-text">
           {t("aiRunning")}
         </p>
-        <p className="text-xs text-muted">{t("aiScope")}</p>
+        <p className="text-sm leading-5 text-muted">{t("aiScope")}</p>
       </div>
       <Button type="button" size="sm" variant="outline" onClick={onCancel}>
         {t("aiCancel")}

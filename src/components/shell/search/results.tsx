@@ -35,7 +35,10 @@ import {
   type PeriodHit,
 } from "@/lib/search/resolveIntent";
 
-import { normalizeSearchText } from "../../../../convex/model/search/text";
+import {
+  EMPLOYEE_MATCH_RANK,
+  normalizeSearchText,
+} from "../../../../convex/model/search/text";
 
 /**
  * RECENT, GOTO and ASK fill the list before anything is typed (GOTO returns
@@ -436,18 +439,22 @@ function RecordQueries({
       (canReview && lookup !== null && review === undefined) ||
       (canAdmin && lookup !== null && admin === undefined) ||
       (canClose && from !== null && periods === undefined);
-    const reviewItems: readonly EmployeeHit[] =
-      review?.ok === true ? review.value.items : [];
-    const adminItems: readonly EmployeeHit[] =
-      admin?.ok === true ? admin.value.items : [];
-    const employees = new Map<string, EmployeeHit>();
+    const reviewItems = review?.ok === true ? review.value.items : [];
+    const adminItems = admin?.ok === true ? admin.value.items : [];
+    const employees = new Map<string, (typeof reviewItems)[number]>();
     for (const employee of [...reviewItems, ...adminItems])
       if (!employees.has(employee.id)) employees.set(employee.id, employee);
     const reviewable = new Set(reviewItems.map((employee) => employee.id));
     const editable = new Set(adminItems.map((employee) => employee.id));
     const choices: Choice[] = [];
     const needsDate: SearchResult[] = [];
-    for (const employee of employees.values()) {
+    // Merging permission scopes must preserve the queries' relevance order.
+    const rankedEmployees = [...employees.values()].sort(
+      (a, b) =>
+        EMPLOYEE_MATCH_RANK[a.match] - EMPLOYEE_MATCH_RANK[b.match] ||
+        a.code.localeCompare(b.code),
+    );
+    for (const employee of rankedEmployees) {
       if (reviewable.has(employee.id) && dayDate !== null)
         choices.push({
           kind: "EMPLOYEE",
