@@ -1406,6 +1406,210 @@
         }
       ],
       "checkpoint": "continue to loop 12; Sol 9 on all screens, Opus 9 except shell-loading at 8"
+    },
+    {
+      "loop": 12,
+      "commit": "1b027e40",
+      "scores": {
+        "sol": {
+          "min": 9,
+          "median": 9,
+          "screens": {
+            "shell-page": 9,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 9,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 9,
+            "not-found": 9,
+            "route-error": 9
+          }
+        },
+        "opus": {
+          "min": 8,
+          "median": 9,
+          "screens": {
+            "shell-page": 8,
+            "shell-drawer": 9,
+            "shell-rail": 9,
+            "locale-switch": 9,
+            "search-empty": 9,
+            "search-results": 8,
+            "search-no-match": 9,
+            "search-ai-running": 9,
+            "shell-loading": 8,
+            "not-found": 9,
+            "route-error": 9
+          }
+        }
+      },
+      "fixed": ["S1-L11-opus-16", "S1-L11-opus-17"],
+      "note": "Full pnpm check passes (5178 tests). The repeated connection sentence is removed, but Opus identifies ambiguity in the unlabelled header dash and visible skeleton bars during stalled loading. It also flags the shared employee action placement and expanded-header warehouse context; continue with these findings. The English task-alias parity finding was classified as behavior in loops 9–11 but UI in loop 12; raw classification and score are preserved, and the concrete product preference is now asked of the owner.",
+      "checks": {
+        "fullCheck": "pnpm check passed: 68 navigation fixtures, format, typecheck (1092 files), normal ESLint, and 5178 tests across 384 files including accessibility",
+        "build": "production webpack build passed",
+        "detector": "no findings on edited targets",
+        "runtimeQA": "10/10 cases passed, including desktop/phone outage reload recovery and restored organization/data"
+      },
+      "remainingFindings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The current warehouse appears in a different place in each shell mode",
+          "evidence": "shell-page__th-desktop-light.png and shell-page__en-desktop-dark.png header (y 0-52): with the sidebar expanded, the header shows only the organisation name, and the warehouse sits in the sidebar select. shell-rail__th-desktop-light.png header shows 'LOCAL-DEMO · คลังทดสอบ Local Demo' under the organisation. shell-page__th-mobile-light.png header shows 'LOCAL-DEMO' only. docs/plans/design-system.md:23 says the header carries the warehouse.",
+          "fix": "Render the same WorkspaceContextBar warehouse line (code · name, truncated) under the organisation name in the desktop header in every mode, as rail mode already does. Keep the sidebar select as the switcher, so the header gives the same context and keeps the same height in both sidebar states.",
+          "benchmark": "GitHub command palette / Vercel: current scope (team or repository) is always shown in the same top-left position",
+          "id": "S1-L12-opus-01"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Page search placeholder is hard-cut mid-syllable at 390 px",
+          "evidence": "shell-page__th-mobile-light.png search box (y 772-866): 'ค้นหารหัส ชื่อสินค้า หรือหน่' is cut through the glyph with no ellipsis. shell-page__en-mobile-dark.png shows 'Search SKU, name or stc' cut the same way. The accessible name is 'ค้นหาสินค้าสำเร็จรูป', so only the visible hint is affected. This belongs to the Finished goods page inside the shell.",
+          "fix": "At narrow widths use a shorter placeholder that fits, for example 'รหัส ชื่อ หรือหน่วยจัดเก็บ' / 'SKU, name or unit', or add text-overflow: ellipsis to the input placeholder.",
+          "benchmark": "Raycast: the placeholder says what can be searched and fits the bar",
+          "id": "S1-L12-opus-02"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "In dark mode the drawer barely separates from the dimmed page",
+          "evidence": "shell-drawer__en-mobile-dark.png: the drawer panel and the scrimmed page behind it (x 585-780) are both near-black. Only a hairline border at x≈585 marks the edge, and the page content behind is almost invisible. In shell-drawer__th-mobile-light.png the grey scrim separates canvas from overlay clearly. design-system.md:29 requires canvas → card → overlay layering.",
+          "fix": "In dark mode, give the Sheet panel the raised sidebar surface (bg-sidebar on an elevated dark token, lighter than the canvas) and add the shared overlay shadow on its edge, so the overlay reads above the scrim as it does in light mode.",
+          "benchmark": "",
+          "id": "S1-L12-opus-03"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Header grows and content shifts when the sidebar collapses",
+          "evidence": "shell-rail__th-desktop-light.png header border at y≈56 with a second warehouse line. shell-page__th-desktop-light.png header border at y≈52 with one line. The page title moves from y 92 to y 96 when toggling.",
+          "fix": "Show the warehouse line in both states (see the shell-page finding), or reserve the second line, so the header height stays fixed.",
+          "benchmark": "",
+          "id": "S1-L12-opus-04"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "English sidebar search hint drops the verb that Thai has",
+          "evidence": "locale-switch__th-desktop-light.png sidebar search reads 'Pages or employees…'. locale-switch__en-desktop-dark.png Thai reads 'ค้นหาเมนูหรือพนักงาน…' ('Search menus or employees'). The header button's accessible name is 'ค้นหาเมนูหรือพนักงาน'.",
+          "fix": "Use 'Search pages or employees…' (messages/en.json placeholderPeople already holds this wording) for the sidebar trigger label, so both locales name the action.",
+          "benchmark": "",
+          "id": "S1-L12-opus-06"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Recent items carry no time cue, so they read the same as the fixed Go to shortcuts",
+          "evidence": "search-empty--recents__th-mobile-light.png, ล่าสุด group (วันหยุดบริษัท, พนักงาน) uses the same row style and right-hand section tag (บุคลากร) as the ไปที่ rows below; same in search-empty--recents__en-desktop-dark.png Recent group",
+          "fix": "Put a short relative time (for example “เมื่อวาน” / “Yesterday”) in the muted right-hand slot of Recent rows, or next to the section tag, in the existing text-xs text-muted style",
+          "benchmark": "Notion search: recently visited pages listed with timestamps on open",
+          "id": "S1-L12-opus-07"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "AI disclosure wraps on the phone so หน้าที่ / เกี่ยวข้อง split across lines",
+          "evidence": "search-empty__th-mobile-light.png, ให้ AI พาไป description, line 2 ends “เพื่อหาหน้าที่” and line 3 is “เกี่ยวข้อง”; the break falls at a word boundary but reads as หน้าที่ (duty) rather than หน้า + ที่เกี่ยวข้อง",
+          "fix": "Insert a zero-width break or wrap “หน้าที่เกี่ยวข้อง” in a nowrap span in messages/th.json so the phrase stays together",
+          "benchmark": "",
+          "id": "S1-L12-opus-08"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The shared employee action floats between the group heading and the rows, looking like a row that cannot be selected",
+          "evidence": "search-results--mixed__th-mobile-light.png, พนักงาน (4) group: “เปิดฟอร์มข้อมูลพนักงาน” sits on its own line at text-sm, larger than the code lines below it; search-results--mixed__en-desktop-dark.png “Open the employee form” under Employees (4). With one result (search-results__th-mobile-light.png) the same text is the row's third line instead. SearchDialog.tsx:667-679 (section.description rendered as px-2 text-sm block)",
+          "fix": "Render the shared action inline in the heading as text-xs text-muted (for example “พนักงาน (4) · เปิดฟอร์มข้อมูลพนักงาน”), or keep it per row as in the single-result case, so the grouping reads the same at every count",
+          "benchmark": "Linear search: results grouped under a single compact type heading",
+          "id": "S1-L12-opus-09"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The Thai locale returns fewer task matches than English for the same query",
+          "evidence": "search-results--mixed__th-mobile-light.png, งานที่ทำได้ shows only เพิ่มพนักงาน for “EMP”; search-results--mixed__en-desktop-dark.png Tasks (2) shows Review an employee's day and Add employee. messages/th.json:98 taskReviewDay “ตรวจวันของพนักงาน” has no matching English alias while เพิ่มพนักงาน matches “add employee”",
+          "fix": "Give every task the same English keyword aliases in both locales (taskReviewDay should also match “review employee day”), so Thai users get the full English match set",
+          "benchmark": "",
+          "id": "S1-L12-opus-10"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Phone AI fallback row has four lines of equal-weight grey detail, so the scope sentence and the disclosure read as one block",
+          "evidence": "search-no-match__th-mobile-light.png, AI row y≈370–610 (2x px): the scope sentence 'AI ช่วยพาไปหน้าหรือฟอร์ม…และ / พนักงาน' and the disclosure 'เมื่อเลือก AI คำค้นจะถูกส่ง…/เกี่ยวข้อง' use the same size, colour and leading with no gap; the same happens in search-no-match__en-mobile-dark.png y≈480–630",
+          "fix": "Keep both texts (D14/D16), but render the disclosure as a separate line in the smaller caption style (text-xs, muted-foreground) with a 4 px top gap, or prefix it with a small info icon, so the scope sentence stays the row's detail and the disclosure reads as a footnote",
+          "benchmark": "Notion search: 'Search all sources with AI' is a single labelled row with short detail",
+          "id": "S1-L12-opus-12"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Fallback 'Go to' list is a fixed module menu with no recent pages, so the no-match state offers the same six links regardless of the user's history",
+          "evidence": "search-no-match__th-desktop-light.png and search-no-match__en-desktop-dark.png, 'ไปที่ / Go to' group y≈367–590: Scan job tickets, Scanned records, Buildings & spots, Today, Attendance history, My requests, labelled only by module; src/components/shell/search/recent.ts exists but no recent group or timestamp is shown here",
+          "fix": "When recent pages exist, show a 'เปิดล่าสุด / Recently opened' group (from recent.ts) above the module shortcuts, with the same row component and the module label on the right",
+          "benchmark": "Raycast/Notion: empty and fallback states lead with recent or favourite items",
+          "id": "S1-L12-opus-13"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The only keyword result above the pending AI row is the page the user is already on",
+          "evidence": "search-ai-running__th-mobile-light.png y≈340–400 'สินค้าสำเร็จรูป · หน้านี้' and search-ai-running__en-desktop-dark.png y≈255–290 'Finished goods · This page': the first row and initial selection target is the current route, which is a no-op destination while the user is waiting for AI",
+          "fix": "Keep the current page in results but sort it after other matches, or render it with the muted 'หน้านี้ / This page' style and skip it as the default arrow target so ↓ lands on the AI pending row's Cancel or the next real destination",
+          "benchmark": "GitHub command palette: current location is shown as scope, not offered as a result to navigate to",
+          "id": "S1-L12-opus-14"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Page card says 'Data not loaded' but still shows skeleton bars, which tells the user something is still loading",
+          "evidence": "shell-loading__en-mobile-dark.png card y≈620–990 and shell-loading__th-desktop-light.png card y≈272–456: header 'ยังโหลดข้อมูลไม่ได้ / Data not loaded' sits above four grey placeholder bars; src/components/system/RouteLoading.tsx:37-39 renders the waiting label above the aria-hidden skeleton stack",
+          "fix": "When `waiting` is true, replace the skeleton stack in RouteLoading with the shared empty-state layout (cloud-off icon, 'ยังโหลดข้อมูลไม่ได้' heading, one short line pointing to the banner's Reload), or reduce it to one static, lighter outline so it does not read as active loading",
+          "benchmark": "",
+          "id": "S1-L12-opus-16"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Lone dash in the header and under 'Current warehouse' reads as a stray glyph or a minimise control",
+          "evidence": "shell-loading__th-mobile-light.png header x≈135–160, y≈64: a bare '—' immediately right of the hamburger with no label; shell-loading__en-desktop-dark.png header x≈316 y≈25 and sidebar 'Current warehouse' → '—' y≈87",
+          "fix": "Keep the quiet unknown value (loop-12 resolution), but give the header slot its visible slot label in muted text as the sidebar does (for example 'องค์กร —' on desktop), and on phone either hide the slot while unknown or show it in the same muted style as the sidebar value so it is not mistaken for a button",
+          "benchmark": "",
+          "id": "S1-L12-opus-17"
+        },
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Thai body text on phone breaks the phrase อีกครั้ง across lines",
+          "evidence": "not-found__th-mobile-light.png, body paragraph: line 1 ends 'ตรวจลิงก์อีก', line 2 starts 'ครั้ง หรือไปหน้าเริ่มต้น…'; messages/th.json NotFound.body",
+          "fix": "Keep the phrase together, for example by wrapping 'อีกครั้ง' in a span with whitespace-nowrap, or insert a zero-width space only at intended break points in the NotFound.body string",
+          "benchmark": "",
+          "id": "S1-L12-opus-18"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "Idle Retry label sits visibly right of centre because an invisible spinner slot is reserved",
+          "evidence": "route-error__th-mobile-light.png: the ลองใหม่ button spans x≈24–312 (2× px) but its label is centred near x≈192, not 168. route-error__en-mobile-dark.png: 'Try again' is offset the same way. route-error__th-desktop-light.png: label centre ≈392 against a button centre ≈380. PageFailure.tsx:86-89 renders <Spinner className='invisible'> before the label in the idle state",
+          "fix": "Keep the button width stable without reserving the spinner slot in the idle state: put the Spinner inside the inline-grid overlay (grid-area 1/1) next to the retrying text only, or position it absolutely within the button. The idle label then centres like the outline 'ไปที่หน้าสินค้าสำเร็จรูป' button next to it",
+          "benchmark": "",
+          "id": "S1-L12-opus-19"
+        },
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "The page-and-time detail beside the reference has no label and reads like product metadata",
+          "evidence": "route-error__th-desktop-light.png, the reference row: 'รหัสอ้างอิง J6MRVW  คัดลอก  สินค้าสำเร็จรูป · 5 พ.ย. 2569 21:48' runs on as one line. route-error__th-mobile-light.png: the same text sits alone on its own line under the reference. FailureReference.tsx:85-91 renders `${page} · ${time}` with no label",
+          "fix": "Label the detail, for example 'เกิดที่หน้าสินค้าสำเร็จรูป · 5 พ.ย. 2569 21:48' / 'On Finished goods · Nov 5, 2026, 9:48 PM' (new Error message keys). On desktop, put it on its own line under the reference chip and Copy button so it does not continue the button row",
+          "benchmark": "",
+          "id": "S1-L12-opus-20"
+        }
+      ],
+      "checkpoint": "continue to loop 13; Sol 9 on all screens, Opus 8 on shell-page, search-results and shell-loading"
     }
   ]
 }
