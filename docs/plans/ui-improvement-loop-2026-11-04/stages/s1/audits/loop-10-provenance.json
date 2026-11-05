@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "e9b6935e",
+  "auditHarnessCommit": "4e1ae6e3",
+  "buildId": "i47rT6QzOxGZ6pB-Ok5a9",
+  "models": {
+    "sol": "gpt-6.1-sol via Codex CLI",
+    "opus": "claude-opus-5.5 via Kiro CLI"
+  },
+  "captures": {
+    "total": 46,
+    "failed": 0,
+    "overflow": 0,
+    "seriousOrCriticalAxe": 0
+  },
+  "checks": {
+    "targetedTests": "139 tests across 8 files; final overflow regression passed",
+    "a11y": "20 tests / 5 files passed",
+    "navigation": "68 fixtures; 59 routes, 296 state owners, 26 actions",
+    "typecheck": "1092 files passed; final build TypeScript passed",
+    "lint": "normal ESLint passed",
+    "build": "production webpack build passed",
+    "runtimeQA": "7/7 navigation/keyboard cases plus verified repeated-failure retry settlement and stable control positions",
+    "detector": "no findings on edited targets"
+  },
+  "captureNotes": [
+    "All screenshots freshly captured against final loop-10 build.",
+    "Final-option geometry controls continuation cue, excluding trailing group padding. Superseded first confirmation retained under superseded-cue.",
+    "AI request held by harness without contacting provider. Retry feedback timer held for screenshot/aria snapshot and resumed for axe and settlement verification.",
+    "Supplemental recents use representative stored destination keys; mixed results search the existing fixture with EMP. No records changed."
+  ],
+  "limitations": [
+    "Full repository test suite not run; prior unrelated ICU placeholder-parity test failure remains outside this loop.",
+    "Browser keyboard checks use Playwright key events, not a physical phone software keyboard.",
+    "Retry after an error that persists is verified; recovery after removing the fault is not established here."
+  ]
+}

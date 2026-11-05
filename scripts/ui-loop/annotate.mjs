@@ -28,6 +28,7 @@ const { values: args } = parseArgs({
     stage: { type: "string" },
     loop: { type: "string" },
     before: { type: "string" },
+    only: { type: "string" },
     title: { type: "string", default: "" },
     "gallery-only": { type: "boolean", default: false },
   },
@@ -101,7 +102,7 @@ const STYLE = `
   .ids { color: #5b6473; font-size: 13px; }
 `;
 
-function compose(screen, vp, beforeImg, after, items, sc) {
+function compose(screen, vp, beforeImg, after, items, sc, capture) {
   const scale = vp === "mobile" ? 1 : 0.5;
   const w = (vp === "mobile" ? 390 : 1440) * scale;
   const h = (vp === "mobile" ? 844 : 900) * scale;
@@ -136,7 +137,7 @@ function compose(screen, vp, beforeImg, after, items, sc) {
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><style>${STYLE}</style></head><body><div class="sheet" id="sheet">
     <h1>${esc(screen.title)}</h1>
-    <div class="meta">Stage ${N} · loop ${args.before} → ${args.loop}${args.title ? ` · ${esc(args.title)}` : ""} · ${vp === "mobile" ? "Phone 390 × 844" : "Desktop 1440 × 900 (shown at 50%)"} · Thai, light</div>
+    <div class="meta">Stage ${N} · loop ${args.before} → ${args.loop}${args.title ? ` · ${esc(args.title)}` : ""} · ${vp === "mobile" ? "Phone 390 × 844" : "Desktop 1440 × 900 (shown at 50%)"} · ${capture.url?.startsWith("/en/") ? "English" : "Thai"}, ${esc(capture.theme)}</div>
     <div>${scoreLine}</div>
     <div class="cols" style="margin-top:14px">
       <div class="col"><h2>Before · loop ${args.before}</h2><div class="frame" style="width:${w}px;height:${h}px"><img src="${beforeImg}" width="${w}" height="${h}"></div></div>
@@ -204,7 +205,10 @@ if (!args["gallery-only"]) {
   const browser = await chromium.launch();
   const page = await browser.newPage({ deviceScaleFactor: 1.5 });
   let written = 0;
-  for (const r of captures.results.filter((r) => r.boxes?.length)) {
+  for (const r of captures.results.filter(
+    (r) =>
+      r.boxes?.length && (!args.only || args.only.split(",").includes(r.name)),
+  )) {
     const screen = spec.screens.find((s) => s.id === r.screen);
     const beforePng = join(beforeDir, `${r.name}.png`);
     if (!screen || !existsSync(beforePng)) continue;
@@ -243,6 +247,7 @@ if (!args["gallery-only"]) {
       `file://${join(afterDir, `${r.name}.png`)}`,
       items,
       sc,
+      r,
     );
     const tmp = join(afterDir, `annotate-${r.name}.html`);
     writeFileSync(tmp, html);
