@@ -12,10 +12,15 @@ import {
   getStorageBuildingInventory,
 } from "../../convex/storageLayouts/catalogue";
 import {
+  health as zoneOccupancyHealth,
   invalidate as invalidateZoneOccupancyMutation,
+  recheckZone,
   run as backfillZoneOccupancy,
   sweep as sweepZoneOccupancy,
 } from "../../convex/storageLayouts/zoneOccupancyBackfill";
+import { trackFinishedGoodsWrites } from "../../convex/lib/finishedGoodsSummary";
+import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
+import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
 import { MAX_ZONE_OCCUPANCY_ENTRIES } from "../../convex/lib/zoneOccupancy";
 import {
   createStorageBuilding,
@@ -996,8 +1001,9 @@ describe("derived zone occupancy", () => {
     );
     expect(summary).toMatchObject({ complete: false });
     const { raw, derived } = await expectOccupancyParity(seed, upper);
-    // An overflowed zone sends building readers to the authoritative path.
-    expect(derived.docs.occupancy).toBe(raw.docs.occupancy);
+    // An overflowed zone sends building readers to the authoritative path
+    // (plus the one zone row that shows why).
+    expect(derived.docs.occupancy).toBe(raw.docs.occupancy + 1);
     const readiness = await seed.world.t.run(
       async (ctx) =>
         (await ctx.db.query("storageZoneOccupancyReadiness").collect())[0]!,
@@ -1085,8 +1091,9 @@ describe("derived zone occupancy", () => {
     expect(readiness).toMatchObject({ ready: true, blocked: true });
     const { raw, derived } = await expectOccupancyParity(seed, upper);
     expect(derived.docs.recommendation).toBeLessThan(raw.docs.recommendation);
-    // Building readers take the authoritative path in both modes.
-    expect(derived.docs.occupancy).toBe(raw.docs.occupancy);
+    // Building readers take the authoritative path in both modes (plus the
+    // one zone row that shows why).
+    expect(derived.docs.occupancy).toBe(raw.docs.occupancy + 1);
   });
 
   it("distrusts rows after writes by code that does not maintain them", async () => {
@@ -1124,6 +1131,146 @@ describe("derived zone occupancy", () => {
     expect((await occupancyReaders(seed, upper)).docs.recommendation).toBe(
       ready.docs.recommendation,
     );
+  });
+
+  it("serves building readers again once a cross-building placement is gone, without a restart", async () => {
+    const seed = await scaleWorld();
+    await addPallets(seed, 3);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    const placement = await seed.world.t.run(async (ctx) => {
+      const otherBuilding = await ctx.db.insert("storageBuildings", {
+        ...fields(seed.building),
+        code: "OTHER",
+      });
+      const placement = (
+        await ctx.db.query("finishedGoodsPlacements").collect()
+      )[0]!;
+      await ctx.db.patch(placement._id, { buildingId: otherBuilding });
+      return placement;
+    });
+    expect(await backfillOccupancy(seed)).toMatchObject({
+      buildingReady: false,
+    });
+    const blocked = await expectOccupancyParity(seed, upper);
+    expect(blocked.derived.docs.occupancy).toBe(blocked.raw.docs.occupancy + 1);
+    // A tracked write puts the placement back in its zone's building.
+    await seed.world.t.run(async (ctx) => {
+      const writes = trackFinishedGoodsWrites(
+        createTenantDocumentAccess(
+          { orgId: seed.world.orgA, requestId: "repair" },
+          createMutationTenantStorage(ctx, "repair"),
+        ),
+      );
+      await writes.db.patch("finishedGoodsPlacements", placement._id, {
+        buildingId: placement.buildingId,
+      });
+      await writes.flush();
+    });
+    const healed = await expectOccupancyParity(seed, upper);
+    expect(healed.derived.docs.occupancy).toBeLessThan(
+      healed.raw.docs.occupancy,
+    );
+    expect(healed.derived.docs.inventory).toBeLessThan(
+      healed.raw.docs.inventory,
+    );
+  });
+
+  it("re-checks overflowed zones hourly and serves building readers once under the cap", async () => {
+    const seed = await scaleWorld();
+    await addPallets(seed, MAX_ZONE_OCCUPANCY_ENTRIES + 1);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    expect(await backfillOccupancy(seed)).toMatchObject({
+      ready: true,
+      buildingReady: false,
+    });
+    // Release one hold with a tracked write: overflowed zones get no per-write
+    // work, so the zone stays a marker until it is re-checked.
+    await seed.world.t.run(async (ctx) => {
+      const writes = trackFinishedGoodsWrites(
+        createTenantDocumentAccess(
+          { orgId: seed.world.orgA, requestId: "release" },
+          createMutationTenantStorage(ctx, "release"),
+        ),
+      );
+      const placement = (
+        await ctx.db.query("finishedGoodsPlacements").collect()
+      )[0]!;
+      await writes.db.patch("finishedGoodsPlacements", placement._id, {
+        status: "RELEASED",
+      });
+      await writes.flush();
+    });
+    const run = <T>(fn: unknown, args: unknown) =>
+      seed.world.t.run(
+        (ctx) =>
+          (
+            fn as {
+              _handler(
+                ctx: GenericMutationCtx<DataModel>,
+                args: unknown,
+              ): Promise<T>;
+            }
+          )._handler(ctx, args) as Promise<T>,
+      );
+    const before = await run<{ overflowedZoneIds: string[] }>(
+      zoneOccupancyHealth,
+      { warehouseId: seed.warehouseId },
+    );
+    expect(before.overflowedZoneIds).toHaveLength(1);
+    await run(sweepZoneOccupancy, {});
+    const scheduled = await seed.world.t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect(),
+    );
+    expect(
+      scheduled.filter((job) => job.name.includes("recheckZone")),
+    ).toHaveLength(1);
+    expect(
+      await run(recheckZone, { zoneId: before.overflowedZoneIds[0] }),
+    ).toEqual({ complete: true });
+    expect(
+      await run<{ overflowedZoneIds: string[] }>(zoneOccupancyHealth, {
+        warehouseId: seed.warehouseId,
+      }),
+    ).toMatchObject({ ready: true, overflowedZoneIds: [] });
+    const { raw, derived } = await expectOccupancyParity(seed, upper);
+    expect(derived.docs.occupancy).toBeLessThan(raw.docs.occupancy);
+  }, 60000);
+
+  it("stops a backfill page at its read budget and resumes the same page", async () => {
+    const seed = await scaleWorld();
+    await addZones(seed, 4);
+    await addPallets(seed, 6);
+    await linkPlacements(seed);
+    const upper = await measuredPallet(seed, "PAL-UPPER");
+    let result = await backfillStep(seed, { restart: true, budget: 1 });
+    let steps = 1;
+    let rebuilt = (result as unknown as { rebuilt: number }).rebuilt;
+    while (!result.isDone) {
+      expect((result as unknown as { rebuilt: number }).rebuilt).toBe(1);
+      result = await backfillStep(seed, {
+        cursor: result.continueCursor,
+        runId: result.runId,
+        budget: 1,
+      });
+      rebuilt += (result as unknown as { rebuilt: number }).rebuilt;
+      steps++;
+    }
+    const zones = await seed.world.t.run((ctx) =>
+      ctx.db.query("storageZones").collect(),
+    );
+    // One zone per transaction, each zone exactly once.
+    expect(rebuilt).toBe(zones.length);
+    expect(steps).toBeGreaterThanOrEqual(zones.length);
+    expect(result).toMatchObject({ ready: true, buildingReady: true });
+    await expectOccupancyParity(seed, upper);
+    await expect(
+      backfillStep(seed, {
+        cursor: '{"resume":null,"done":[1]}',
+        runId: result.runId,
+      }),
+    ).rejects.toThrow("Invalid backfill cursor");
   });
 
   it("does no full-range work when writing into an overflowed zone", async () => {

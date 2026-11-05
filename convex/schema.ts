@@ -1064,7 +1064,13 @@ const schema = defineSchema({
   )
     .index("by_orgId_zoneId", byOrg("zoneId"))
     .index("by_orgId_buildingId", byOrg("buildingId"))
-    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    // Exact, self-healing building readiness: is any zone overflowed or mixed?
+    .index("by_orgId_warehouseId_complete", byOrg("warehouseId", "complete"))
+    .index(
+      "by_orgId_warehouseId_buildingMismatch",
+      byOrg("warehouseId", "buildingMismatch"),
+    ),
   /** Held placements of one zone in by_orgId_zoneId_status order, plus pallet facts. */
   storageZoneOccupancyEntries: defineTable(
     tenantFields({

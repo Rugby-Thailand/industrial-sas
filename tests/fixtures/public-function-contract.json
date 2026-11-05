@@ -30878,6 +30878,25 @@
       ]
     }
   },
+  "storageLayouts/zoneOccupancyBackfill:health": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "storageLayouts/zoneOccupancyBackfill:invalidate": {
     "kind": "mutation",
     "visibility": "internal",
@@ -30897,6 +30916,33 @@
       "type": "object",
       "value": {
         "ready": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "storageLayouts/zoneOccupancyBackfill:recheckZone": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "zoneId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "storageZones"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "complete": {
           "fieldType": {
             "type": "boolean"
           },
@@ -30953,6 +30999,12 @@
         "runId": {
           "fieldType": {
             "type": "string"
+          },
+          "optional": true
+        },
+        "budget": {
+          "fieldType": {
+            "type": "number"
           },
           "optional": true
         }

@@ -244,19 +244,40 @@ async function factsFor(
   return facts;
 }
 
-/** Rebuild one zone from its authoritative ranges (first touch, backfill). */
+/**
+ * Rebuild one zone from its authoritative ranges (first touch, backfill,
+ * overflow re-check). Returns an upper bound on the documents it read.
+ */
 export async function rebuildZoneOccupancy(
   db: TenantDocumentAccess,
   zone: Zone,
 ) {
   const held = await heldPlacementsOfZone(db, zone._id);
-  await write(
-    db,
-    zone,
-    held,
-    await factsFor(db, held),
-    await rowsOf(db, zone._id),
-  );
+  const facts = await factsFor(db, held);
+  await write(db, zone, held, facts, await rowsOf(db, zone._id));
+  // An overflowed zone may have read up to cap+1 rows per status.
+  const placements = held.complete
+    ? held.placements.length
+    : HELD.length * (MAX_ZONE_OCCUPANCY_ENTRIES + 1);
+  return placements + facts.size + 2;
+}
+
+/** Overflowed zones of a warehouse, for the bounded hourly re-check. */
+export async function overflowedZones(
+  db: Pick<TenantDocumentAccess, "byIndex">,
+  warehouseId: string,
+  limit: number,
+) {
+  return db
+    .byIndex<ZoneOccupancySummary>(
+      "storageZoneOccupancy",
+      "by_orgId_warehouseId_complete",
+      [
+        { field: "warehouseId", value: warehouseId },
+        { field: "complete", value: false },
+      ],
+    )
+    .take(limit);
 }
 
 /**
@@ -363,7 +384,11 @@ async function readinessRow(
     .unique();
 }
 
-/** A cross-building placement (blocked) or an overflowed zone was written. */
+/**
+ * A cross-building placement (blocked) or an overflowed zone was written.
+ * Current readers check the zone rows themselves (buildingScopeClear); the
+ * sticky flag remains for code that predates that check.
+ */
 async function flagReadiness(
   db: TenantDocumentAccess,
   warehouseId: string,
@@ -417,8 +442,33 @@ export async function zoneOccupancyReady(
     row.stale !== true &&
     row.version === ZONE_OCCUPANCY_VERSION &&
     (row.summaryGeneration ?? 0) === generation &&
-    (scope === "zone" || (row.blocked !== true && row.overflow !== true))
+    (scope === "zone" || (await buildingScopeClear(db, warehouseId)))
   );
+}
+
+/**
+ * No zone row is overflowed or holds a placement of another building. Rows
+ * change with every tracked write, so this recovers as soon as the cause is
+ * gone, unlike the sticky readiness flags.
+ */
+async function buildingScopeClear(
+  db: Pick<TenantDocumentAccess, "byIndex">,
+  warehouseId: string,
+) {
+  const [overflowed, mixed] = await Promise.all([
+    overflowedZones(db, warehouseId, 1),
+    db
+      .byIndex<ZoneOccupancySummary>(
+        "storageZoneOccupancy",
+        "by_orgId_warehouseId_buildingMismatch",
+        [
+          { field: "warehouseId", value: warehouseId },
+          { field: "buildingMismatch", value: true },
+        ],
+      )
+      .take(1),
+  ]);
+  return overflowed.length === 0 && mixed.length === 0;
 }
 
 /** Held placements and pallet facts for one zone, or null to read it directly. */

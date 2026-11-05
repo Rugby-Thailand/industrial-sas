@@ -6,15 +6,49 @@
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { internalMutation } from "../_generated/server";
+import { internalMutation, internalQuery } from "../_generated/server";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
-import { createMutationTenantStorage } from "../lib/tenantStorage";
+import {
+  createMutationTenantStorage,
+  createQueryTenantStorage,
+} from "../lib/tenantStorage";
 import { internal } from "../_generated/api";
 import { ensureSummaryReadiness } from "../lib/finishedGoodsSummary";
 import {
+  MAX_ZONE_OCCUPANCY_ENTRIES,
+  overflowedZones,
   rebuildZoneOccupancy,
   ZONE_OCCUPANCY_VERSION,
 } from "../lib/zoneOccupancy";
+
+/**
+ * Documents one backfill transaction may read rebuilding zones. A zone near
+ * the entry cap reads ~1,000 placements and up to 500 pallets, so a page of
+ * dense zones stops early and resumes at the same page, skipping zones done.
+ */
+const REBUILD_READ_BUDGET = 4_000;
+/** Overflowed zones re-checked per warehouse per sweep (one per transaction). */
+const OVERFLOW_RECHECKS_PER_SWEEP = 10;
+
+type Resume = { resume: string | null; done: string[] };
+/** A mid-page continuation, or null for a plain Convex page cursor. */
+function decodeResume(cursor: string | null | undefined): Resume | null {
+  if (!cursor?.startsWith("{")) return null;
+  try {
+    const value = JSON.parse(cursor) as Partial<Resume>;
+    if (
+      value &&
+      (value.resume === null || typeof value.resume === "string") &&
+      Array.isArray(value.done) &&
+      value.done.length <= 50 &&
+      value.done.every((id) => typeof id === "string")
+    )
+      return { resume: value.resume, done: value.done };
+  } catch {
+    // Not a resume token.
+  }
+  throw new Error("Invalid backfill cursor");
+}
 
 async function readiness(
   ctx: MutationCtx,
@@ -52,6 +86,8 @@ export const run = internalMutation({
     chain: v.optional(v.boolean()),
     /** The run a continuation belongs to (returned by its first page). */
     runId: v.optional(v.string()),
+    /** Documents one transaction may read rebuilding zones. */
+    budget: v.optional(v.number()),
   },
   returns: v.object({
     runId: v.string(),
@@ -69,6 +105,9 @@ export const run = internalMutation({
     const batchSize = args.batchSize ?? 20;
     if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50)
       throw new Error("batchSize must be an integer from 1 to 50");
+    const budget = args.budget ?? REBUILD_READ_BUDGET;
+    if (!Number.isInteger(budget) || budget < 1 || budget > 16_000)
+      throw new Error("budget must be an integer from 1 to 16000");
     const warehouse = await ctx.db.get(args.warehouseId);
     if (!warehouse) throw new Error("Warehouse not found");
     const orgId = warehouse.orgId;
@@ -110,26 +149,47 @@ export const run = internalMutation({
           runId,
         });
     }
+    const resume = starting ? null : decodeResume(args.cursor);
+    const pageCursor = starting
+      ? null
+      : resume
+        ? resume.resume
+        : (args.cursor ?? null);
     const page = await ctx.db
       .query("storageZones")
       .withIndex("by_orgId_warehouseId_code", (q) =>
         q.eq("orgId", orgId).eq("warehouseId", args.warehouseId),
       )
-      .paginate({
-        cursor: starting ? null : (args.cursor ?? null),
-        numItems: batchSize,
-      });
-    for (const zone of page.page) await rebuildZoneOccupancy(db, zone);
+      .paginate({ cursor: pageCursor, numItems: batchSize });
+    const done = new Set(resume?.done ?? []);
+    let spent = 0;
+    let rebuilt = 0;
+    // Always rebuild at least one zone, so every transaction makes progress.
+    for (const zone of page.page) {
+      if (done.has(zone._id)) continue;
+      if (rebuilt > 0 && spent >= budget) break;
+      spent += await rebuildZoneOccupancy(db, zone);
+      done.add(zone._id);
+      rebuilt++;
+    }
+    const pageFinished = page.page.every((zone) => done.has(zone._id));
+    const continueCursor = pageFinished
+      ? page.continueCursor
+      : JSON.stringify({
+          resume: pageCursor,
+          done: [...done],
+        } satisfies Resume);
+    const isDone = pageFinished && page.isDone;
     let ready = false;
     let buildingReady = false;
-    if (page.isDone) {
-      const done = await readiness(ctx, orgId, args.warehouseId);
+    if (isDone) {
+      const final = await readiness(ctx, orgId, args.warehouseId);
       // Invalidation during this run poisons it; only a restart may finish.
-      ready = done !== null && done.stale !== true;
+      ready = final !== null && final.stale !== true;
       buildingReady =
-        ready && done!.blocked !== true && done!.overflow !== true;
-      if (done && ready)
-        await ctx.db.patch(done._id, {
+        ready && final!.blocked !== true && final!.overflow !== true;
+      if (final && ready)
+        await ctx.db.patch(final._id, {
           ready: true,
           version: ZONE_OCCUPANCY_VERSION,
           // Writes by code that does not maintain these rows move this value.
@@ -143,20 +203,21 @@ export const run = internalMutation({
         internal.storageLayouts.zoneOccupancyBackfill.run,
         {
           warehouseId: args.warehouseId,
-          cursor: page.continueCursor,
+          cursor: continueCursor,
           batchSize,
           chain: true,
           runId,
+          ...(args.budget === undefined ? {} : { budget }),
         },
       );
     return {
       runId,
       superseded: false,
-      rebuilt: page.page.length,
-      isDone: page.isDone,
+      rebuilt,
+      isDone,
       ready,
       buildingReady,
-      continueCursor: page.continueCursor,
+      continueCursor,
     };
   },
 });
@@ -202,8 +263,25 @@ export const sweep = internalMutation({
         row.stale !== true &&
         row.version === ZONE_OCCUPANCY_VERSION &&
         (row.summaryGeneration ?? 0) === (legacy?.generation ?? 0)
-      )
+      ) {
+        // Writes skip overflowed zones, so only a re-check notices one that
+        // fell back under the cap and can serve building readers again.
+        const db = createTenantDocumentAccess(
+          { orgId: warehouse.orgId, requestId: "storage-zone-occupancy-sweep" },
+          createMutationTenantStorage(ctx, "storage-zone-occupancy-sweep"),
+        );
+        for (const zone of await overflowedZones(
+          db,
+          warehouse._id,
+          OVERFLOW_RECHECKS_PER_SWEEP,
+        ))
+          await ctx.scheduler.runAfter(
+            0,
+            internal.storageLayouts.zoneOccupancyBackfill.recheckZone,
+            { zoneId: zone.zoneId },
+          );
         continue;
+      }
       await ctx.scheduler.runAfter(
         0,
         internal.storageLayouts.zoneOccupancyBackfill.run,
@@ -212,5 +290,75 @@ export const sweep = internalMutation({
       started++;
     }
     return { started, isDone: page.isDone };
+  },
+});
+
+/** Rebuild one overflowed zone of a ready warehouse (scheduled by the sweep). */
+export const recheckZone = internalMutation({
+  args: { zoneId: v.id("storageZones") },
+  returns: v.object({ complete: v.boolean() }),
+  handler: async (ctx, args) => {
+    const zone = await ctx.db.get(args.zoneId);
+    if (!zone) return { complete: true };
+    const state = await readiness(ctx, zone.orgId, zone.warehouseId);
+    // A running backfill rebuilds every zone itself.
+    if (!state?.ready || state.stale === true) return { complete: false };
+    const requestId = "storage-zone-occupancy-recheck";
+    const db = createTenantDocumentAccess(
+      { orgId: zone.orgId, requestId },
+      createMutationTenantStorage(ctx, requestId),
+    );
+    await rebuildZoneOccupancy(db, zone);
+    const [summary] = await db
+      .byIndex<Doc<"storageZoneOccupancy">>(
+        "storageZoneOccupancy",
+        "by_orgId_zoneId",
+        [{ field: "zoneId", value: zone._id }],
+      )
+      .take(1);
+    return { complete: summary?.complete !== false };
+  },
+});
+
+/** Operator view of one warehouse's derived occupancy (see the runbook). */
+export const health = internalQuery({
+  args: { warehouseId: v.id("warehouses") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const warehouse = await ctx.db.get(args.warehouseId);
+    if (!warehouse) throw new Error("Warehouse not found");
+    const requestId = "storage-zone-occupancy-health";
+    const db = createTenantDocumentAccess(
+      { orgId: warehouse.orgId, requestId },
+      createQueryTenantStorage(ctx, requestId),
+    );
+    const row = await ctx.db
+      .query("storageZoneOccupancyReadiness")
+      .withIndex("by_orgId_warehouseId", (q) =>
+        q.eq("orgId", warehouse.orgId).eq("warehouseId", args.warehouseId),
+      )
+      .unique();
+    const overflowed = await overflowedZones(db, args.warehouseId, 100);
+    const mixed = await db
+      .byIndex<Doc<"storageZoneOccupancy">>(
+        "storageZoneOccupancy",
+        "by_orgId_warehouseId_buildingMismatch",
+        [
+          { field: "warehouseId", value: args.warehouseId },
+          { field: "buildingMismatch", value: true },
+        ],
+      )
+      .take(100);
+    return {
+      ready: row?.ready === true && row.stale !== true,
+      version: row?.version ?? null,
+      currentVersion: ZONE_OCCUPANCY_VERSION,
+      runId: row?.runId ?? null,
+      /** Zones above the entry cap (first 100); building readers fall back. */
+      overflowedZoneIds: overflowed.map((zone) => zone.zoneId),
+      overflowCap: MAX_ZONE_OCCUPANCY_ENTRIES,
+      /** Zones holding a placement of another building (first 100). */
+      mixedBuildingZoneIds: mixed.map((zone) => zone.zoneId),
+    };
   },
 });
