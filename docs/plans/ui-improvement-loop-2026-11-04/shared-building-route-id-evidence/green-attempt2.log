@@ -1,0 +1,10 @@
+Stage 1 queued for one bounded heavy phase
+Stage 1 acquired heavy slot
+
+ RUN  v4.1.11 /Users/macbook/Development/industrial-sas-ui-loop
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  23:55:35
+   Duration  390ms (transform 208ms, setup 0ms, import 135ms, tests 169ms, environment 0ms)

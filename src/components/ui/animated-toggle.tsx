@@ -101,7 +101,7 @@ const AnimatedToggle = ({
       aria-checked={checked}
       aria-label={label}
       className={cn(
-        "relative inline-flex shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors after:absolute after:inset-x-0 after:top-1/2 after:h-12 after:min-w-12 after:-translate-y-1/2",
+        "relative inline-flex shrink-0 cursor-pointer items-center rounded-full p-0.5 inset-ring inset-ring-border-strong transition-colors after:absolute after:inset-x-0 after:top-1/2 after:h-12 after:min-w-12 after:-translate-y-1/2",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none",
         checked ? "bg-primary" : "bg-muted-foreground/30",
         disabled && "cursor-not-allowed opacity-50",
@@ -125,7 +125,8 @@ const AnimatedToggle = ({
               }
         }
         className={cn(
-          "pointer-events-none flex items-center justify-center rounded-full border border-border bg-background shadow-sm",
+          "pointer-events-none flex items-center justify-center rounded-full border border-border shadow-sm",
+          checked ? "bg-primary-foreground" : "bg-foreground",
           sizeConfig.thumb,
         )}
         initial={false}
@@ -143,7 +144,8 @@ const AnimatedToggle = ({
                   : { opacity: 1, scale: 1, rotate: 0 }
               }
               className={cn(
-                "flex items-center justify-center text-muted-foreground",
+                "flex items-center justify-center",
+                checked ? "text-primary" : "text-background",
                 sizeConfig.icon,
               )}
               exit={

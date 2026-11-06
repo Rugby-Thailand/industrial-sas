@@ -1,0 +1,6 @@
+
+> yongkit@0.0.0 typecheck /Users/macbook/Development/industrial-sas-ui-loop
+> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty
+
+/Users/macbook/.bun/bin/bun: Bun 1.3.14 found; 1.4.3 is required; embedded TypeScript undefined found; 7.0.2 is required. Install the pin: node scripts/ci/install-bun-checker.mjs
+ ELIFECYCLE  Command failed with exit code 1.

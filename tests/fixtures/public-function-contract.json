@@ -27434,8 +27434,7 @@
         },
         "buildingId": {
           "fieldType": {
-            "type": "id",
-            "tableName": "storageBuildings"
+            "type": "string"
           },
           "optional": false
         }
@@ -27539,8 +27538,7 @@
         },
         "buildingId": {
           "fieldType": {
-            "type": "id",
-            "tableName": "storageBuildings"
+            "type": "string"
           },
           "optional": false
         }
@@ -27644,8 +27642,7 @@
         },
         "buildingId": {
           "fieldType": {
-            "type": "id",
-            "tableName": "storageBuildings"
+            "type": "string"
           },
           "optional": false
         }
@@ -27749,8 +27746,7 @@
         },
         "buildingId": {
           "fieldType": {
-            "type": "id",
-            "tableName": "storageBuildings"
+            "type": "string"
           },
           "optional": false
         }

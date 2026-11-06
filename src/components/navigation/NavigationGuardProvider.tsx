@@ -196,14 +196,15 @@ export function NavigationGuardProvider({
           ) : null}
           <DialogFooter>
             <Button
-              variant="ghost"
+              variant="outline"
               disabled={keepDisabled}
               onClick={() => machine.keep()}
             >
               {labels.keep}
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
+              className="text-danger"
               disabled={disabled}
               onClick={() => machine.discard()}
             >

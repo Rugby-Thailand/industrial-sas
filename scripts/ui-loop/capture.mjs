@@ -6,6 +6,10 @@
 //
 //   node scripts/ui-loop/capture.mjs --stage 1 --loop 0 [--locales th,en]
 //     [--themes light,dark] [--only id,id] [--out dir]
+//     [--capture-pair-module scripts/ui-loop/<stage>/capture-pair.mjs]
+// A pair adapter exports capturePair({page, screen, locale, name, out,
+// screenshotOptions}); it owns PNG/ARIA persistence and may return receipt
+// metadata. Throwing fails the capture; there is no unvalidated fallback.
 //
 // Scan screens (Stage 2) may also set, per screen:
 //   camera: "deny" | "unavailable" | "<y4m/mjpeg path>"  getUserMedia rejects
@@ -29,7 +33,7 @@ import {
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 process.chdir(root);
@@ -47,9 +51,18 @@ const { values: args } = parseArgs({
     only: { type: "string" },
     out: { type: "string" },
     "changes-from": { type: "string" },
+    "capture-pair-module": { type: "string" },
   },
 });
 if (!args.stage) throw Error("--stage is required");
+// A stage may validate and persist a consistent PNG/ARIA pair. Resolve the
+// optional local adapter before creating browsers or authentication sessions.
+const capturePair = args["capture-pair-module"]
+  ? (await import(pathToFileURL(resolve(args["capture-pair-module"])).href))
+      .capturePair
+  : undefined;
+if (args["capture-pair-module"] && typeof capturePair !== "function")
+  throw Error("Capture pair module must export a capturePair function");
 
 // UI_LOOP_BASE_URL points captures at the production loop server (next start).
 const base = process.env.UI_LOOP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL;
@@ -325,15 +338,27 @@ async function captureOne(browser, auth, screen, locale, theme, vpName) {
       );
     // Capture the requested state, not the incidental hover left by a setup click.
     await page.mouse.move(0, 0);
-    await page.screenshot({
+    const screenshotOptions = {
       path: join(out, `${name}.png`),
       fullPage: screen.fullPage ?? false,
       animations: "disabled",
-    });
-    writeFileSync(
-      join(out, `${name}.aria.yml`),
-      await page.locator("body").ariaSnapshot(),
-    );
+    };
+    if (capturePair) {
+      result.capturePair = await capturePair({
+        page,
+        screen,
+        locale,
+        name,
+        out,
+        screenshotOptions,
+      });
+    } else {
+      await page.screenshot(screenshotOptions);
+      writeFileSync(
+        join(out, `${name}.aria.yml`),
+        await page.locator("body").ariaSnapshot(),
+      );
+    }
     await page.addScriptTag({ content: axeSource });
     const axe = await page.evaluate(() =>
       window.axe.run(document, {

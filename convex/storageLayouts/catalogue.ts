@@ -523,7 +523,9 @@ export const buildingOccupancy = queryWithOrg({
 
 function storageBuildingQuery(includeInventory: boolean) {
   return queryWithOrg({
-    args: buildingArgs,
+    // Route text must reach the tenant accessor, which normalizes malformed
+    // and foreign-table IDs to the same not-found result as absent buildings.
+    args: { ...buildingArgs, buildingId: v.string() },
     returns: v.any(),
     permissionCode: "masterData.storageLayout.read",
     target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
@@ -628,7 +630,7 @@ async function derivedBuildingPlacements(
 }
 
 export const getStorageBuildingInventory = queryWithOrg({
-  args: buildingArgs,
+  args: { ...buildingArgs, buildingId: v.string() },
   returns: v.any(),
   permissionCode: "masterData.storageLayout.read",
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },

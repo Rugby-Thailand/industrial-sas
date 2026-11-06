@@ -1,0 +1,40 @@
+{
+  "sourceBase": "0586ada6",
+  "newPublicBoundaryCases": 3,
+  "existingCasesPassed": 38,
+  "typecheckFiles": 1203,
+  "deployed": false,
+  "logs": [
+    {
+      "file": "red.log",
+      "sha256": "3c3b97459c08404b6eaa243ae6a0ced19390fde6e1dc516f9a481c4486fe24cc",
+      "originalLogSha256": "aacf6a7a835c7f284ab4cc0c88216289bad505d1ee71957cdcedbcbe93a67fdd"
+    },
+    {
+      "file": "green.log",
+      "sha256": "4a5c8c42749b53ab5b5bf0ebef615c6eb736a6a42478e49b703f4d2a9f37a8c6",
+      "originalLogSha256": "16174b693c52ac961c7600081fc3a33fa82e7c1c9aeec26c6d4ec12caa00af79"
+    },
+    {
+      "file": "green-attempt2.log",
+      "sha256": "8dcf953ffaba2ac4c4de0c9fc981cc514690efeca6ae42dc9c1b02dfbe001fd2",
+      "originalLogSha256": "b89881d11b2ef23f1bc7037be1bdecdd5538f315553d0c9cd3006ce91eef72cd"
+    },
+    {
+      "file": "types.log",
+      "sha256": "31c2fb8eba5c9b0fe9022583adace0657d69cfaca5180075c9859b7ab400402f",
+      "originalLogSha256": "31c2fb8eba5c9b0fe9022583adace0657d69cfaca5180075c9859b7ab400402f"
+    },
+    {
+      "file": "types-attempt2.log",
+      "sha256": "62154fed8cea78c6ae9ccc7c260695ab23fb459cab55a9035904041ce8d48362",
+      "originalLogSha256": "62154fed8cea78c6ae9ccc7c260695ab23fb459cab55a9035904041ce8d48362"
+    }
+  ],
+  "limitations": [
+    "No live backend deployment or browser not-found proof yet.",
+    "Initial green attempt used an incorrect anonymous-error assertion; corrected to the existing public ANONYMOUS rejection.",
+    "Initial typecheck stopped before checking because global Bun was not the pinned version."
+  ],
+  "archiveNormalization": "Only trailing whitespace at end of logs removed; original temporary log hashes retained."
+}
