@@ -1,0 +1,540 @@
+{
+  "passed": true,
+  "source": "real AnimatedToggle and globals.css via Vite; before component copied from dbf419a8",
+  "results": [
+    {
+      "theme": "light",
+      "beforeThumbContrast": 1.6157512325788266,
+      "afterThumbContrast": 10.036165932805714,
+      "boundaryContrast": 3.9494396480491156,
+      "geometryUnchanged": true
+    },
+    {
+      "theme": "dark",
+      "beforeThumbContrast": 1.6409255870758115,
+      "afterThumbContrast": 10.931308995042468,
+      "boundaryContrast": 5.6910116432201034,
+      "geometryUnchanged": true
+    },
+    {
+      "theme": "light",
+      "nativeSpaceEnter": true,
+      "disabled": true,
+      "focusShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgb(255, 255, 255) 0px 0px 0px 2px, rgb(29, 78, 216) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    },
+    {
+      "theme": "dark",
+      "nativeSpaceEnter": true,
+      "disabled": true,
+      "focusShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, oklch(0 0 0) 0px 0px 0px 2px, rgb(169, 186, 255) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  ],
+  "measurements": [
+    {
+      "label": "light before draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "oklab(0.445528 -0.00822476 -0.0365182 / 0.3)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 1.6157512325788266,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "none",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light before active",
+      "checked": "true",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "rgb(29, 78, 216)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 6.701618401398807,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "none",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light sm draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 36,
+      "height": 20,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "oklab(0.445528 -0.00822476 -0.0365182 / 0.3)",
+        "thumb": "rgb(23, 33, 47)"
+      },
+      "thumbContrast": 10.036165932805714,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light sm active",
+      "checked": "true",
+      "disabled": false,
+      "width": 36,
+      "height": 20,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 16, 0)",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "rgb(29, 78, 216)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 6.701618401398807,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light md draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "oklab(0.445528 -0.00822476 -0.0365182 / 0.3)",
+        "thumb": "rgb(23, 33, 47)"
+      },
+      "thumbContrast": 10.036165932805714,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light md active",
+      "checked": "true",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "rgb(29, 78, 216)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 6.701618401398807,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light lg draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 52,
+      "height": 28,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "oklab(0.445528 -0.00822476 -0.0365182 / 0.3)",
+        "thumb": "rgb(23, 33, 47)"
+      },
+      "thumbContrast": 10.036165932805714,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light lg active",
+      "checked": "true",
+      "disabled": false,
+      "width": 52,
+      "height": 28,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 24, 0)",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "rgb(29, 78, 216)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 6.701618401398807,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light disabled draft",
+      "checked": "false",
+      "disabled": true,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "oklab(0.445528 -0.00822476 -0.0365182 / 0.3)",
+        "thumb": "rgb(23, 33, 47)"
+      },
+      "thumbContrast": 10.036165932805714,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light disabled active",
+      "checked": "true",
+      "disabled": true,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "rgb(29, 78, 216)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 6.701618401398807,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "light icon draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "oklab(0.445528 -0.00822476 -0.0365182 / 0.3)",
+        "thumb": "rgb(23, 33, 47)"
+      },
+      "thumbContrast": 10.036165932805714,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": 16.21594747629646
+    },
+    {
+      "label": "light icon active",
+      "checked": "true",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "rgb(255, 255, 255)",
+        "track": "rgb(29, 78, 216)",
+        "thumb": "rgb(255, 255, 255)"
+      },
+      "thumbContrast": 6.701618401398807,
+      "boundaryContrast": 3.9494396480491156,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(128, 128, 128) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": 6.701618401398807
+    },
+    {
+      "label": "dark before draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklab(0.72 0 0 / 0.3)",
+        "thumb": "oklch(0 0 0)"
+      },
+      "thumbContrast": 1.6409255870758115,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "none",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark before active",
+      "checked": "true",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklch(0.46 0.22 266)",
+        "thumb": "oklch(0 0 0)"
+      },
+      "thumbContrast": 2.748360436233607,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "none",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark sm draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 36,
+      "height": 20,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklab(0.72 0 0 / 0.3)",
+        "thumb": "oklch(0.946 0 0)"
+      },
+      "thumbContrast": 10.931308995042468,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark sm active",
+      "checked": "true",
+      "disabled": false,
+      "width": 36,
+      "height": 20,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 16, 0)",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklch(0.46 0.22 266)",
+        "thumb": "oklch(0.985 0 0)"
+      },
+      "thumbContrast": 7.320534381057287,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark md draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklab(0.72 0 0 / 0.3)",
+        "thumb": "oklch(0.946 0 0)"
+      },
+      "thumbContrast": 10.931308995042468,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark md active",
+      "checked": "true",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklch(0.46 0.22 266)",
+        "thumb": "oklch(0.985 0 0)"
+      },
+      "thumbContrast": 7.320534381057287,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark lg draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 52,
+      "height": 28,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklab(0.72 0 0 / 0.3)",
+        "thumb": "oklch(0.946 0 0)"
+      },
+      "thumbContrast": 10.931308995042468,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark lg active",
+      "checked": "true",
+      "disabled": false,
+      "width": 52,
+      "height": 28,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 24, 0)",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklch(0.46 0.22 266)",
+        "thumb": "oklch(0.985 0 0)"
+      },
+      "thumbContrast": 7.320534381057287,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark disabled draft",
+      "checked": "false",
+      "disabled": true,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklab(0.72 0 0 / 0.3)",
+        "thumb": "oklch(0.946 0 0)"
+      },
+      "thumbContrast": 10.931308995042468,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark disabled active",
+      "checked": "true",
+      "disabled": true,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklch(0.46 0.22 266)",
+        "thumb": "oklch(0.985 0 0)"
+      },
+      "thumbContrast": 7.320534381057287,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": null
+    },
+    {
+      "label": "dark icon draft",
+      "checked": "false",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "none",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklab(0.72 0 0 / 0.3)",
+        "thumb": "oklch(0.946 0 0)"
+      },
+      "thumbContrast": 10.931308995042468,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": 17.937464630197162
+    },
+    {
+      "label": "dark icon active",
+      "checked": "true",
+      "disabled": false,
+      "width": 44,
+      "height": 24,
+      "padding": "2px",
+      "hitHeight": "48px",
+      "hitMinWidth": "48px",
+      "thumbTransform": "matrix(1, 0, 0, 1, 20, 0)",
+      "colors": {
+        "canvas": "oklch(0 0 0)",
+        "track": "oklch(0.46 0.22 266)",
+        "thumb": "oklch(0.985 0 0)"
+      },
+      "thumbContrast": 7.320534381057287,
+      "boundaryContrast": 5.6910116432201034,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(133, 133, 133) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+      "focusVisible": false,
+      "iconContrast": 7.320534381057287
+    }
+  ],
+  "errors": [],
+  "limits": "Isolated component; full catalogue integration checked by Stage4 next loop. No auth or backend."
+}
