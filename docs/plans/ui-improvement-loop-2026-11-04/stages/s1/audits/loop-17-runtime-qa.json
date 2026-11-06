@@ -1,0 +1,83 @@
+[
+  {
+    "suite": "runtime-qa",
+    "width": 1440,
+    "case": "explicit Close restores focus; next native Back restores exact origin query/hash",
+    "pass": true
+  },
+  {
+    "suite": "runtime-qa",
+    "width": 1440,
+    "case": "native Back dismisses Search before leaving page",
+    "pass": true
+  },
+  {
+    "suite": "runtime-qa",
+    "width": 390,
+    "case": "explicit Close restores focus; next native Back restores exact origin query/hash",
+    "pass": true
+  },
+  {
+    "suite": "runtime-qa",
+    "width": 390,
+    "case": "native Back dismisses Search before leaving page",
+    "pass": true
+  },
+  {
+    "suite": "runtime-qa",
+    "case": "collapsed rail survives refresh and locale change preserving query/hash",
+    "pass": true
+  },
+  {
+    "suite": "runtime-qa",
+    "width": 1440,
+    "case": "Employee prefix results preserve code order; Arrow navigation reveals final AI result; continuation cue clears at end; Escape clears then closes",
+    "pass": true
+  },
+  {
+    "suite": "runtime-qa",
+    "width": 390,
+    "case": "Employee prefix results preserve code order; Arrow navigation reveals final AI result; continuation cue clears at end; Escape clears then closes",
+    "pass": true
+  },
+  {
+    "suite": "outage-qa",
+    "width": 390,
+    "locale": "en",
+    "case": "Outage uses quiet accessible names and stops animation; Reload restores data and organization while preserving query/hash",
+    "pass": true
+  },
+  {
+    "suite": "outage-qa",
+    "width": 1440,
+    "locale": "th",
+    "case": "Outage uses quiet accessible names and stops animation; Reload restores data and organization while preserving query/hash",
+    "pass": true
+  },
+  {
+    "suite": "hr-context-qa",
+    "locale": "th",
+    "width": 390,
+    "case": "HR header/sidebar/drawer exclude storage warehouse; Back restores exact origin and selected warehouse",
+    "pass": true
+  },
+  {
+    "suite": "hr-context-qa",
+    "locale": "en",
+    "width": 1440,
+    "case": "HR header/sidebar/drawer exclude storage warehouse; Back restores exact origin and selected warehouse",
+    "pass": true
+  },
+  {
+    "suite": "alias-qa",
+    "locale": "th",
+    "case": "EMP finds the review-day task with the localized label",
+    "pass": true
+  },
+  {
+    "suite": "alias-qa",
+    "locale": "en",
+    "case": "EMP finds the review-day task with the localized label",
+    "pass": true
+  }
+]

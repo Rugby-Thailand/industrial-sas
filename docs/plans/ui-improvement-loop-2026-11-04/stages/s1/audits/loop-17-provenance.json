@@ -1,0 +1,200 @@
+{
+  "sourceCommit": "c2c8067240baa5415b6a3fb59215ff5348cc9124",
+  "build": {
+    "sourceCommit": "9af8f445ee1c1b22faff93ea058a949d9b1857ff",
+    "phase": "production-build",
+    "renderer": "Turbopack",
+    "startedAt": 1793954274.1523788,
+    "exitCode": 0,
+    "tsconfigRestored": true,
+    "finishedAt": 1793954320.5955782
+  },
+  "buildSourceDifference": {
+    "file": "src/features/hr/HrOrgSettings.test.tsx",
+    "kind": "test-only synchronization repair; no production source difference"
+  },
+  "models": {
+    "sol": "gpt-6.1-sol through Codex CLI",
+    "opus": "claude-opus-5.5 through Kiro CLI only"
+  },
+  "auditGroups": {
+    "sol": [
+      {
+        "group": 1,
+        "receiptSha256": "eaee4d73ab721d904b1c90001e5556e76938bfab1859ef19b498f68bb0e484c5",
+        "rawSha256": "29100816c2b2c4a83de6b222b644ee86f038305656d6fe2fda1c46f9217fb974",
+        "imageCount": 10,
+        "exitCode": 0
+      },
+      {
+        "group": 2,
+        "receiptSha256": "4a1f45a89d13e43b283b2e2686546fe5c48c3a4a48106a83a3b1c66311f6a317",
+        "rawSha256": "2c9bdea95a29e9e1435e26f45a553f32e996ddda08a69a411acc6c907f13b158",
+        "imageCount": 10,
+        "exitCode": 0
+      },
+      {
+        "group": 3,
+        "receiptSha256": "296ee135687c1df27b70f4ba97469f9d714b4692ee63c9a8061bb5fa19a0f71d",
+        "rawSha256": "44148ad10d9502e5ad180210706d4e325915cea9f5a6f7e1dbc54333427bdb2e",
+        "imageCount": 10,
+        "exitCode": 0
+      },
+      {
+        "group": 4,
+        "receiptSha256": "62c91eb68341eec74d6a9d5624c404c159d25934e203fb9450043909e1c0eea7",
+        "rawSha256": "388c1eec740b24fd518a79ba9e42fb37893543689667ce6cd32fa4245d765a9e",
+        "imageCount": 12,
+        "exitCode": 0
+      },
+      {
+        "group": 5,
+        "receiptSha256": "efe68a488993db2033fe8f1e0f32ae758e722ec5aa10e1ecc030988228dffa7f",
+        "rawSha256": "1119e0736c552040064c4cca7f49dca1b74d20e2908b2c6e7a18597d43ff1cfc",
+        "imageCount": 6,
+        "exitCode": 0
+      }
+    ],
+    "opus": [
+      {
+        "group": 1,
+        "receiptSha256": "2844cf033bf9e5c1b0ddda663527a4efd31e7f6bb258bb4277f0779bbaf5ada5",
+        "rawSha256": "065ede61223b571e22a467d58ac3aaee951c727e7aa06ac1f19131aba3f9cdcd",
+        "imageCount": 10,
+        "exitCode": 0
+      },
+      {
+        "group": 2,
+        "receiptSha256": "fb20458dd23d60b15687f56f2d039089643e4d24dcfe98086ff7c95244e354c5",
+        "rawSha256": "967998d3fa19f4ee89c490885eb1d2f1cc9d483222d684005f8f77e3103fde9c",
+        "imageCount": 10,
+        "exitCode": 0
+      },
+      {
+        "group": 3,
+        "receiptSha256": "85b898010e958b07ac0a80b59a480674573dc51326bacdb546adebed8540e638",
+        "rawSha256": "418f6ac34bade3dfa3ba73d2ba22ea3e3fd453899868bdfc8804192f420e369c",
+        "imageCount": 10,
+        "exitCode": 0
+      },
+      {
+        "group": 4,
+        "receiptSha256": "5775fcf0a294c25bc0a92b0c2fff31fc7b606fc760a63a02fdd0e8ae35bf095d",
+        "rawSha256": "064d3701a5a71992935935266092ca62bf17651a7718c7bf8c472a2ac7ba2114",
+        "imageCount": 12,
+        "exitCode": 0
+      },
+      {
+        "group": 5,
+        "receiptSha256": "dc777fa4331735466854ab9322eaa2d8c574c16912dfd1527d0cb12991754e13",
+        "rawSha256": "6228cf0d094dcbfea219fd356e9d1930f35caeb0928b056895ba3326fc0ddca2",
+        "imageCount": 6,
+        "exitCode": 0
+      }
+    ]
+  },
+  "checks": {
+    "captures": {
+      "buildSource": "9af8f445ee1c1b22faff93ea058a949d9b1857ff",
+      "captures": 48,
+      "unexpectedIssues": [],
+      "expectedConsoleEvents": [
+        {
+          "capture": "not-found__th-mobile-light",
+          "kind": "intentional 404"
+        },
+        {
+          "capture": "not-found__th-desktop-light",
+          "kind": "intentional 404"
+        },
+        {
+          "capture": "not-found__en-mobile-dark",
+          "kind": "intentional 404"
+        },
+        {
+          "capture": "not-found__en-desktop-dark",
+          "kind": "intentional 404"
+        },
+        {
+          "capture": "route-error__th-mobile-light",
+          "kind": "injected query failure"
+        },
+        {
+          "capture": "route-error__th-desktop-light",
+          "kind": "injected query failure"
+        },
+        {
+          "capture": "route-error__en-mobile-dark",
+          "kind": "injected query failure"
+        },
+        {
+          "capture": "route-error__en-desktop-dark",
+          "kind": "injected query failure"
+        },
+        {
+          "capture": "route-error--copied__th-mobile-light",
+          "kind": "injected query failure"
+        },
+        {
+          "capture": "route-error--retrying__en-desktop-dark",
+          "kind": "injected query failure"
+        },
+        {
+          "capture": "route-error--retrying__en-desktop-dark",
+          "kind": "injected query failure"
+        }
+      ]
+    },
+    "runtime": {
+      "checks": 13,
+      "passed": 13
+    },
+    "ci": {
+      "head": "c2c8067240baa5415b6a3fb59215ff5348cc9124",
+      "passed": [
+        "Analyze (javascript-typescript)",
+        "Validate (static)",
+        "Analyze (actions)",
+        "Validate (contracts)",
+        "Tests (1/3)",
+        "Tests (2/3)",
+        "Tests (3/3)",
+        "Browser (smoke)",
+        "Browser (navigation)",
+        "Browser (workspace-1)",
+        "Browser (workspace-2)",
+        "Dependency review",
+        "check",
+        "CodeQL"
+      ],
+      "skippedReleaseJobs": ["Staging release", "Production release"]
+    },
+    "local": "Production build, targeted tests, navigation gate, normal ESLint, pinned Bun typecheck passed; broad local full check aborted under load and is not a pass. Complete current CI supplies integrated test validation."
+  },
+  "auditResult": {
+    "sol": {
+      "minimum": 9,
+      "median": 9,
+      "screens": 11
+    },
+    "opus": {
+      "minimum": 9,
+      "median": 9,
+      "screens": 11
+    }
+  },
+  "limitations": [
+    "Admin fixture persona only; no warehouse-worker persona claim.",
+    "Emulated desktop/phone viewports and keyboard events; no physical mobile keyboard or device-camera proof.",
+    "AI request held by harness; no live AI-provider outcome claim.",
+    "Retry is verified against a persistent injected failure; successful fault-removal recovery and clipboard permission matrix are not established.",
+    "HR account capture contains a transient name-without-trigger gap. Four later full-navigation probes reached a working trigger; original finding and pixels remain retained.",
+    "Retrying screenshot and ARIA snapshot were sampled at adjacent states; they do not establish simultaneous busy-state accessibility."
+  ],
+  "attempts": [
+    "Loop16 interrupted after partial audits by shared navigation repair; no complete gate claimed.",
+    "Loop17 Sol group3 interrupted with null exit and no raw result; archived unchanged before a successful same-source retry.",
+    "Current CI first failed an unchanged backend fixture timeout; narrow and full-file local runs passed unchanged, then failed CI jobs reran successfully.",
+    "T3 restart stopped runtime servers after captures. Existing database recovered without deploy/reseed; capture provenance remains the original backend instance."
+  ]
+}

@@ -10,15 +10,15 @@ The owner now authorizes sub-agents to work on multiple parts concurrently and t
 
 The coordinator integrates shared files and merges stages sequentially after updating against current main, resolving review findings, and passing required checks. Run only one heavyweight build, full test suite, browser capture or audit batch at a time on the shared machine. Detailed ownership and resource rules are in [parallel execution](parallel-execution.md).
 
-## Stage 1 checkpoint — passed, 2026-11-05
+## Stage 1 checkpoint — integrated source passes, 2026-11-06
 
-Loop 15 on source commit `3fc47de9` passes the frozen dual gate: **gpt-6.1-sol and Opus 5.5 each score all 11 screens 9/10** (minimum 9, median 9). Opus ran through Kiro CLI only. The final source includes the owner-approved bilingual `EMP` task matching and AI-provider disclosure.
+Loop 17 on source commit `c2c8067` passes the frozen dual gate: **gpt-6.1-sol and Opus 5.5 each score all 11 screens 9/10** (minimum 9, median 9). All ten independent audit groups exited successfully; Opus ran only through Kiro CLI. This source integrates current main, preserves bilingual `EMP` matching and the approved AI-provider disclosure, repairs retained-workflow Forward, and gives non-saveable dirty dialogs an accurate title.
 
-Verification: production build; 46 captures (Thai/light and English/dark at phone and desktop sizes, with viewport-specific drawer/rail); 12 browser runtime cases; and full `pnpm check` with all 5,179 tests in 384 files, navigation fixtures, formatting, typecheck and ESLint. The final check ran with one worker after timing failures under shared-machine load, with no test or timeout changes; attempts are retained in the provenance. Physical phone keyboards and all settled AI outcomes remain coverage limits, not claims of completed field testing.
+Verification: production build; 48 captures (Thai/light and English/dark, phone and desktop); 11 runtime checks plus two bilingual alias checks; and every current CI static/contract, test shard, browser lane and CodeQL check passed. The production build is `9af8f445`; `c2c8067` differs only in the recorded HR test synchronization repair. The aborted broad local checks and earlier CI timeout remain documented as failed/incomplete attempts. Physical phone keyboards, settled live AI outcomes and the complete recovery/clipboard matrix remain coverage limits. The captured transient HR account-control gap and other polish findings remain visible in the audits.
 
-[Annotated gallery and score timeline](stages/s1/index.html) · [Sol audit](stages/s1/audits/loop-15-audit-sol.json) · [Opus audit](stages/s1/audits/loop-15-audit-opus.json) · [Verification provenance](stages/s1/audits/loop-15-provenance.json).
+[Annotated gallery and score timeline](stages/s1/index.html) · [Sol audit](stages/s1/audits/loop-17-audit-sol.json) · [Opus audit](stages/s1/audits/loop-17-audit-opus.json) · [Verification provenance](stages/s1/audits/loop-17-provenance.json).
 
-Stop at the Stage 1 review checkpoint under the stage-done rule. No stage PR has been opened or pushed; later stages have not passed this gate.
+[PR #126](https://github.com/Rugby-Thailand/industrial-sas/pull/126) carries Stage 1 and the coordinator-owned shared navigation repairs. Merge is authorized once final PR checks pass. Stages 2–4 continue in isolated worktrees and have not passed their complete dual gates. Historical loop 15 evidence remains available; loop 16 was superseded before complete audits and is not a stage pass.
 
 ## Goal
 

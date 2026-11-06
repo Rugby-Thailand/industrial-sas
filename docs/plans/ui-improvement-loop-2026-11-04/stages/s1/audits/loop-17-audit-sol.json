@@ -1,0 +1,286 @@
+{
+  "auditor": "gpt-6.1-sol",
+  "stage": 1,
+  "loop": "17",
+  "capturedAt": "2026-11-06T08:48:07.843Z",
+  "screens": [
+    {
+      "id": "shell-page",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 8,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 8,
+        "consistency": 8
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "ui",
+          "title": "HR footer shows the account identity without its account control",
+          "evidence": "shell-page--hr__en-desktop-dark.png, bottom-left footer: the avatar/control is absent and only the account name remains. Its accessibility snapshot contains account text but no account-menu button, unlike shell-page__en-desktop-dark.png. src/components/shell/AccountButton.tsx:60 renders UserButton independently of the resolved name at line 72.",
+          "fix": "Keep SidebarAccount's existing labelled UserButton available across HR navigation. While its trigger is unavailable, preserve the avatar slot with Skeleton and show a localized loading or unavailable status instead of silently presenting a text-only footer.",
+          "benchmark": "",
+          "id": "S1-L17-sol-01"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The HR footer consistently exposes the same accessible account control as the warehouse shell, with explicit feedback while it becomes available.",
+      "average": 8.6,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-drawer",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "The captured drawer already meets 9: readable destinations, clear selection, generous touch targets, and a visible continuation cue.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-rail",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "The captured rail already meets 9, with clear selection, retained warehouse context, accessible icon names, and tooltip support.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "locale-switch",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "The captured populated state already meets 9; no material visual correction is required.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-empty",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Phone software-keyboard layout remains unverified",
+          "evidence": "search-empty__th-mobile-light.png, search-empty__en-mobile-dark.png and search-empty--recents__th-mobile-light.png show the focused input without a software keyboard; runtime-qa.json contains no keyboard-open viewport check.",
+          "fix": "Verify the existing SearchDialog and SearchResultsViewport with Thai and English phone keyboards open, including scrolling to the final AI example and keeping the input and Close control reachable; record the result.",
+          "benchmark": "",
+          "id": "S1-L17-sol-02"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured empty state already meets 9; keyboard-open verification remains a coverage item without reducing these scores.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-results",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Phone search layout with the software keyboard remains unverified",
+          "evidence": "search-results__th-mobile-light.png, search-results__en-mobile-dark.png and search-results--mixed__th-mobile-light.png show focused search without a software keyboard. runtime-qa.json verifies navigation and selection at 390px, but contains no software-keyboard check.",
+          "fix": "Provide phone evidence with the software keyboard open for populated, mixed and no-match queries; verify that the input, Close control and selected result remain reachable and SearchResultsViewport scrolls within the reduced visible area.",
+          "benchmark": "",
+          "id": "S1-L17-sol-03"
+        }
+      ],
+      "bestReference": "Linear",
+      "reachesNineIf": "The captured states already reach 9; software-keyboard evidence would complete the remaining mobile coverage.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-no-match",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "The captured state already reaches 9, with a clear explanation, useful retry guidance and a fallback that reuses the query.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-ai-running",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Pending-request cancellation outcome is unverified",
+          "evidence": "search-ai-running__th-mobile-light.png and search-ai-running__en-desktop-dark.png show an explicit Cancel control, but the response is held by the harness. runtime-qa.json verifies Search closure and keyboard navigation, without reporting cancellation or late-response handling.",
+          "fix": "Add runtime evidence at 390px and 1440px showing Cancel preserves the query, ends the pending presentation, and prevents a late response from navigating; also exercise Close and Back during the request.",
+          "benchmark": "",
+          "id": "S1-L17-sol-04"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured running state already meets 9; cancellation and late-response evidence would complete verification.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-loading",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Connection recovery outcomes are unverified",
+          "evidence": "shell-loading__th-mobile-light.png and shell-loading__en-desktop-dark.png clearly explain the outage, promise automatic retry, and offer Reload page. The supplied runtime-qa.json contains no reconnect or reload recovery case; src/components/shell/ConnectionNotice.tsx:99 renders the guarded reload action.",
+          "fix": "Record runtime checks restoring the backend after this captured outage and invoking Reload page, confirming that the notice clears and the menu, organization context, and page data recover in both viewport sizes.",
+          "benchmark": "",
+          "id": "S1-L17-sol-05"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured outage state already meets 9; automatic and manual recovery remain to be demonstrated.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "not-found",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Start-page recovery outcome is unverified",
+          "evidence": "not-found__th-mobile-light.png and not-found__en-desktop-dark.png show one clearly labelled recovery action. The accessibility snapshot identifies its destination as /en/master-data/storage-layouts, matching src/app/[locale]/not-found.tsx:44; runtime-qa.json does not report exercising this recovery link.",
+          "fix": "Exercise the existing start-page link for representative warehouse and HR permissions, confirming a permitted destination and preserved locale without a redirect loop.",
+          "benchmark": "",
+          "id": "S1-L17-sol-06"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured not-found state already meets 9; the permission-aware recovery outcome needs runtime evidence.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "route-error",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Recovery outcomes lack runtime verification",
+          "evidence": "runtime-qa.json covers search and sidebar interactions, with no route-error recovery cases. route-error--retrying__en-desktop-dark.png shows the spinner and 'Trying again…', but its accessibility snapshot contains 'Try again' and an empty status, so it does not verify the captured busy state. The copied screenshot confirms visual feedback, not clipboard contents.",
+          "fix": "Add runtime evidence for successful and repeated failed retries, busy-state announcement and duplicate-click protection, copied reference contents, and header/native Back plus the recovery link preserving the appropriate locale and workflow origin. Capture the accessibility tree during the retry state.",
+          "benchmark": "",
+          "id": "S1-L17-sol-07"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured presentation already reaches 9; runtime recovery evidence would close the remaining coverage gap.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    }
+  ],
+  "missing": [],
+  "stageScore": 9,
+  "stageMedian": 9,
+  "notes": [
+    "Inspected all ten images as pixels, accounting for the phone captures' 2× density. No visible Thai clipping or page-wide overflow was found; both themes retain readable text and distinguishable selection. The account-control inconsistency is filed on shell-page, where it appears. The seven supplied runtime checks pass, including Search dismissal/focus restoration, origin preservation, rail persistence, and keyboard result navigation. Search-dialog visuals and other states belong to other image groups and were not inferred absent or scored here. No supplied image was inaccessible.",
+    "Inspected all ten images as pixels. Language buttons correctly name the destination language: ไทย on the English page and English on the Thai page. Search has clear grouping, useful shortcuts and recents, distinct AI examples, readable Thai, visible focus and adequate phone targets. Supplied runtime checks verify Close/focus return, Back dismissal, query/hash preservation and Escape clearing before closing. No material visual defects were found in these captured states; other image groups were not assessed.",
+    "Inspected all ten images as pixels in the requested order. No concrete UI defect warrants a deduction: Thai marks are unclipped, mixed-language rows fit, selection combines a surface with an edge marker, and both themes preserve readable hierarchy. The mixed desktop list explicitly signals additional results; supplied runtime evidence verifies revealing the final AI row and clearing that cue. Runtime evidence also supports Close/focus restoration, native Back and Escape handling at both widths. Software-keyboard behavior was not inspected and is recorded as coverage without reducing captured-state dimensions. Accepted search scope, AI-row placement and disclosure decisions were not penalized.",
+    "Inspected all 12 images as pixels in the supplied order, accounting for the phone captures’ 2× density. No concrete visual defects warrant deductions: Thai marks remain intact, mobile controls are comfortably sized, themes retain readable contrast, and recovery actions are clear. Shared language and theme controls remain consistent across outage and not-found screens. Coverage findings do not reduce captured-state dimensions. No live interactions were performed; supplied runtime checks establish Search Back, Close, focus return, and keyboard behavior, but not the specific transitions listed above.",
+    "Inspected all six images as pixels in the supplied order. Thai marks and wrapping remain readable; mobile recovery controls are 48 CSS px tall; both themes preserve clear hierarchy and semantic error styling. Copied confirmation uses text and a checkmark, while retry feedback preserves action placement. No material shared-shell inconsistency is visible. Supplied axe results report no violations. Missing interaction evidence did not reduce dimension scores."
+  ]
+}

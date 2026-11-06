@@ -43,6 +43,30 @@
       Score = lowest screen score (min) / median, per auditor. Gate: every
       screen ≥ 9 with gpt-6.1-sol, then with both auditors.
     </p>
+    <section id="integration-hr-context">
+      <h2>Loop 17: HR context integration</h2>
+      <p>
+        Current HR shell omits the warehouse selector and warehouse header line.
+        These are new integration captures; no pre-integration HR screenshot is
+        available, so no before/after improvement is implied. The transient
+        account-trigger gap visible in the desktop capture remains recorded in
+        the audit.
+      </p>
+      <div class="grid">
+        <a href="captures/loop-17-shell-page--hr__th-mobile-light.png"
+          ><img
+            loading="lazy"
+            src="captures/loop-17-shell-page--hr__th-mobile-light.png"
+            alt="Thai phone HR shell with no warehouse context controls"
+            style="max-width: 390px" /></a
+        ><a href="captures/loop-17-shell-page--hr__en-desktop-dark.png"
+          ><img
+            loading="lazy"
+            src="captures/loop-17-shell-page--hr__en-desktop-dark.png"
+            alt="English desktop HR shell with no warehouse context controls"
+        /></a>
+      </div>
+    </section>
     <table>
       <thead>
         <tr>
@@ -262,8 +286,51 @@
             complete.
           </td>
         </tr>
+        <tr>
+          <td>16</td>
+          <td><code>1c3fba35</code></td>
+          <td>– / –</td>
+          <td>– / –</td>
+          <td>0</td>
+          <td>
+            Integrated-main validation: 48 captures and recorded runtime pass;
+            first three screens scored 9 from both auditors. Superseded by the
+            shared Forward/dialog-title changes before complete audits. No
+            full-stage score or gate.
+          </td>
+        </tr>
+        <tr>
+          <td>17</td>
+          <td><code>c2c80672</code></td>
+          <td>9 / 9</td>
+          <td>9 / 9</td>
+          <td>3</td>
+          <td>
+            Current integrated application: all11screens≥9 from independent Sol
+            and Kiro Opus;48captures and13runtime/aliaschecks pass; all current
+            CI checks green. Test-only follow-up bound explicitly
+            to9af8production build. See provenance for failed attempts and
+            coverage limits.
+          </td>
+        </tr>
       </tbody>
     </table>
+    <section>
+      <h2>Loop 17</h2>
+      <div class="grid">
+        <a href="annotated/loop-17-search-results--mixed__en-desktop-dark.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-17-search-results--mixed__en-desktop-dark.jpg"
+            alt="loop-17-search-results--mixed__en-desktop-dark.jpg" /></a
+        ><a href="annotated/loop-17-search-results--mixed__th-mobile-light.jpg"
+          ><img
+            loading="lazy"
+            src="annotated/loop-17-search-results--mixed__th-mobile-light.jpg"
+            alt="loop-17-search-results--mixed__th-mobile-light.jpg"
+        /></a>
+      </div>
+    </section>
     <section>
       <h2>Loop 15</h2>
       <div class="grid">
