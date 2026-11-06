@@ -47,6 +47,7 @@ function Editor({
   pending = false,
   saveable = true,
   saveBlockedReason,
+  discardDescription,
   destination = "/en/finished-goods",
   name = "Switch floor",
   onControl,
@@ -55,6 +56,7 @@ function Editor({
   pending?: boolean;
   saveable?: boolean;
   saveBlockedReason?: string;
+  discardDescription?: string;
   destination?: string;
   name?: string;
   onControl?: (control: NavigationDraftControl) => void;
@@ -65,6 +67,7 @@ function Editor({
     discard,
     ...(saveable ? { save } : {}),
     ...(saveBlockedReason ? { saveBlockedReason } : {}),
+    ...(discardDescription !== undefined ? { discardDescription } : {}),
   });
   onControl?.(guard);
   return (
@@ -103,6 +106,129 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("single navigation guard owner", () => {
+  it("updates the sole no-save draft description without adding history or changing Keep", () => {
+    const view = render(
+      owned(<Editor saveable={false} discardDescription="1 selected photo" />),
+    );
+    fireEvent.click(screen.getByText("Switch floor"));
+    const push = vi.spyOn(window.history, "pushState");
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "1 selected photo",
+    );
+    view.rerender(
+      owned(<Editor saveable={false} discardDescription="2 selected photos" />),
+    );
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "2 selected photos",
+    );
+    expect(push).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Save and continue" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(discard).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "   "])(
+    "restores generic no-save copy when the caller description becomes %j",
+    (description) => {
+      const view = render(
+        owned(<Editor saveable={false} discardDescription="Selected photos" />),
+      );
+      fireEvent.click(screen.getByText("Switch floor"));
+      view.rerender(
+        owned(<Editor saveable={false} discardDescription={description} />),
+      );
+      expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+        "You have unsaved changes. Discard them to continue, or keep editing.",
+      );
+    },
+  );
+
+  it("does not invalidate an approved discard when only its description changes", () => {
+    const view = render(
+      owned(<Editor saveable={false} discardDescription="Selected photos" />),
+    );
+    fireEvent.click(screen.getByText("Switch floor"));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(discard).toHaveBeenCalledOnce();
+    expect(transition).not.toHaveBeenCalled();
+    view.rerender(
+      owned(
+        <Editor saveable={false} discardDescription="Selected draft photos" />,
+      ),
+    );
+    finishRemoval();
+    expect(transition).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("uses generic descriptions for multiple dirty drafts and a saveable sole draft", () => {
+    const editors = (secondDirty: boolean, firstSaveable: boolean) =>
+      owned(
+        <>
+          <Editor
+            name="First"
+            saveable={firstSaveable}
+            discardDescription="First draft only"
+          />
+          <Editor
+            name="Second"
+            dirty={secondDirty}
+            saveable={false}
+            discardDescription="Second draft only"
+          />
+        </>,
+      );
+    const view = render(editors(true, false));
+    fireEvent.click(screen.getByText("First"));
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "You have unsaved changes. Discard them to continue, or keep editing.",
+    );
+    view.rerender(editors(false, false));
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "First draft only",
+    );
+    view.rerender(editors(false, true));
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "You have unsaved changes. Save them, discard them, or keep editing.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Save and continue" }),
+    ).toBeEnabled();
+  });
+
+  it("keeps pending protection and buffer removal with a caller description", () => {
+    const view = render(
+      owned(
+        <Editor
+          pending
+          saveable={false}
+          discardDescription="Selected photos"
+        />,
+      ),
+    );
+    fireEvent.click(screen.getByText("Switch floor"));
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "Selected photos",
+    );
+    expect(
+      screen.getByRole("button", { name: "Discard changes" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(discard).not.toHaveBeenCalled();
+    expect(transition).not.toHaveBeenCalled();
+    view.rerender(
+      owned(<Editor saveable={false} discardDescription="Selected photos" />),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(discard).toHaveBeenCalledOnce();
+    expect(transition).not.toHaveBeenCalled();
+    finishRemoval();
+    expect(transition).toHaveBeenCalledOnce();
+  });
+
   it("allows clean transitions without prompting or adding a history entry", () => {
     const push = vi.spyOn(window.history, "pushState");
     render(owned(<Editor dirty={false} />));

@@ -74,6 +74,8 @@ function allFindings() {
       /^audit-.*\.json$/.test(f),
     )) {
       const a = JSON.parse(readFileSync(join(base, d, f), "utf8"));
+      // Audit-prefixed provenance receipts do not contain scored screens.
+      if (!Array.isArray(a?.screens)) continue;
       for (const s of a.screens)
         for (const x of s.findings) map.set(x.id, { ...x, auditor: a.auditor });
     }

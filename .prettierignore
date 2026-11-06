@@ -62,3 +62,8 @@ docs/reviews/design-sheet-system-adoption-2026-10-11/
 # Vendored browser bundles used only by the standalone onboarding preview.
 /docs/previews/line-hr-onboarding-2026-10-13/assets/html-to-image.js
 /docs/previews/line-hr-onboarding-2026-10-13/assets/qrcode.js
+
+# Immutable generated Stage4 audit/runtime receipts; byte hashes remain authoritative.
+/docs/plans/ui-improvement-loop-2026-11-04/stages/s4/evidence/**/*.json
+# Preserve byte-exact browser ARIA captures and their frozen artifact hashes.
+/docs/plans/ui-improvement-loop-2026-11-04/stages/s4/evidence/loop-3/frozen-runtime/*.aria.yml

@@ -32,6 +32,8 @@ export interface DraftRegistration {
   readonly save?: () => Promise<boolean>;
   /** Shown instead of allowing Save (e.g. an unfinished nested editor). */
   readonly saveBlockedReason?: string;
+  /** Localized plain text for this draft; shown only for a sole no-save draft. */
+  readonly discardDescription?: string;
 }
 
 export interface NavigationDraftControl {
@@ -87,7 +89,7 @@ export function useNavigationDraft(
     () => latest.current.save?.() ?? Promise.resolve(false),
     [],
   );
-  const { dirty, pending, saveBlockedReason } = entry;
+  const { dirty, pending, saveBlockedReason, discardDescription } = entry;
   const saveable = entry.save !== undefined;
   useLayoutEffect(() => {
     if (owner === null) {
@@ -111,6 +113,7 @@ export function useNavigationDraft(
       discard,
       ...(saveable ? { save } : {}),
       ...(saveBlockedReason ? { saveBlockedReason } : {}),
+      ...(discardDescription ? { discardDescription } : {}),
     });
   }, [
     owner,
@@ -121,6 +124,7 @@ export function useNavigationDraft(
     save,
     saveable,
     saveBlockedReason,
+    discardDescription,
     entry.workflowScope,
     foregroundScope,
   ]);
