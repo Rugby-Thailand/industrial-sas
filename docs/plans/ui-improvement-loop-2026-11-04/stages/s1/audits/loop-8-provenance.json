@@ -1,0 +1,86 @@
+{
+  "baseCommit": "3f191cc4827bc346f0784680e109445c822ccfdf",
+  "workingTreeSourceSha256": {
+    "docs/contracts/back-navigation.json": "738b49b714562b60975c521b361db4b5d372a0ecb13517998b40266c3c74baef",
+    "messages/en.json": "a9a559559fe33fe926762eb55152c192116cc12d566503ed59aa4b2122193795",
+    "messages/th.json": "5ae02f1c96193d99b4b7b3cee4c71a26ec6e56d5584dd515cb11d33c635a5352",
+    "src/app/[locale]/(desktop)/error.test.tsx": "0452a9861cd0c5f9d60b7f506ecb764bfb590fc079ac9247f6e787d8e3a9ab65",
+    "src/app/[locale]/(desktop)/error.tsx": "5eecf5da0de0655f9b75c4e0bc2c710eea7545d154cb27d8f6e33a5d88588efe",
+    "src/app/[locale]/(desktop)/layout.tsx": "d6056d81d32ec9a6eb5ddfa3947994d20f34850bfe51df05d6ea16ec7a2bc2ff",
+    "src/app/[locale]/layout.tsx": "b46e5a24408040009d17f38252f49b7506778a36b7e1127cfa374791eb85749e",
+    "src/app/[locale]/not-found.tsx": "1eb263535292889f96d84029b4dac9610943008aff4cec1642f922b819c9938c",
+    "src/app/globals.css": "9a28eed7a891602cb90308b4c10b8e9012c2b29175c4a99da8a49ecc74e4e180",
+    "src/components/shell/AccountButton.test.tsx": "cef2f10a551892447fe0d15b5f4cbb9ac8579a0ac9ec9954d0ca9c35a4611600",
+    "src/components/shell/AccountButton.tsx": "4e9ee451a2fdc4389c9e4364c190aa3c7d336c41d6c8444e30d6a353b275d82c",
+    "src/components/shell/DesktopShell.navigation.test.tsx": "2090a15a3dcd584c9f166cc4dff2f33d7c0711e5738fa141b6c255d41cb60a32",
+    "src/components/shell/DesktopShell.test.tsx": "422e34d91f08a90988a0c4f52744638fc342a7119347de1f8b4eaa2027612254",
+    "src/components/shell/DesktopShell.tsx": "62b5f85a4b5155da8202bd8761194a0566b5db46cb3ddec4d028b3dce591acda",
+    "src/components/shell/PageFailure.tsx": "44d5ccf67227a0d9b07fff6ad810f5e1bfae40d29f38a5a4a362da5dfc94da08",
+    "src/components/shell/ShellControls.test.tsx": "904c351974277ccd743a3e5280a0e9bad53dd88361a7ff54762c1b04f3ac8be2",
+    "src/components/shell/SidebarNavigation.tsx": "acf38c22198f1d7d3261eb3bdaa54f24ee05d87dee1194a86a10992c1bddd504",
+    "src/components/shell/WorkspaceContextBar.tsx": "cf5d2f4edc0de1fa5c63322f0da17bf6d70f4fa7f0170cdc8dae3280483d291d",
+    "src/components/shell/search/GlobalSearch.test.tsx": "a0f289e3780956c67593e513fd4dfd65110612f9d6b4ef9acfc89e5ce4cbb2bb",
+    "src/components/shell/search/GlobalSearchProvider.tsx": "2dda4f2a1d2ecac4151c70189aebd8ca7deb0dbb8bad0881425d72f920dff708",
+    "src/components/shell/search/SearchDialog.tsx": "be13f35cdb3120424efa55c3d0da55fa95817b2732e8cad2ca888f6ddf7cf6b0",
+    "src/components/shell/search/SearchTriggers.test.tsx": "2f9a9881ad8b7f83fa89751bd01a83dfd8c8f9ebb13ccb8be0a0c62ce58fdfe9",
+    "src/components/shell/search/SearchTriggers.tsx": "27050254ce053bb1abec0274286b90cf3db64d2781599d2529308f34701d55fa",
+    "src/components/shell/search/results.tsx": "3b5a77ed1c121f0ebb619d7aa6816cdee153f0ad9b5821e7a7ca3b0e28f4b03e",
+    "src/components/shell/useContentBelow.test.tsx": "f6f093429b6224c7c2a10d3f16a4db9dd4b151e25935db70ab75fb853fff7104",
+    "src/components/shell/useContentBelow.ts": "6eb3ca70eca8a3ce7c11084eeb6ca8305c8b2a762191ee6cbe7b76699a8bc04d",
+    "src/components/ui/sidebar.tsx": "b8cbbcb0845de904baebbdfbdb263e1721c7632ee32a82f7dc0816d3cac07835",
+    "src/lib/observability/applicationError.ts": "0dce1e5d31c5c56a515b5dd71dbfcee5176c06f5ee89bb68706e759b1438d850",
+    "src/lib/observability/dimensions.ts": "d93db290c562e907e14711663e8bd6f02ada98e605f95b3ff2373c455c83122d",
+    "src/lib/observability/event.test.ts": "835c0e33f1c35d4f549e0a263c1848994855a4dc9808f7a1a82e24d814b9fccd",
+    "src/app/[locale]/(desktop)/layout.test.tsx": "6cfa10ef93e459b56b11384b5c76c02e35bed9d30bf0be19ffd30c3a9b58a9e4",
+    "src/app/[locale]/not-found.test.tsx": "fac34c3f9c606c8bbab4c6645e01a19e23c09e1e3e1f92d1c5bd1053d0c59a50",
+    "src/components/shell/FailureReference.tsx": "2ecfc14926a8acaaed960bdda3a1faa8f8605053d4a943062835d5261f38c439",
+    "src/components/ui/sidebarState.ts": "48cedbbb84ad05fb92f3fa58ed697d433da4d75eb1c7ff9a436a3b120d4035c2"
+  },
+  "auditRunners": {
+    "sol": "Codex CLI gpt-6.1-sol",
+    "opus": "Kiro CLI claude-opus-5.5"
+  },
+  "typecheck": "Bun 1.4.3 / TypeScript 7.0.2 passed",
+  "knownPreexistingFailure": "src/i18n/messages.test.ts ICU regex mistakes plural text for placeholders at unchanged JobScan.saveBlockedTickets",
+  "capture": {
+    "total": 40,
+    "failed": 0,
+    "overflow": 0,
+    "seriousAxe": 0,
+    "consoleErrors": "Expected only: 4 HTTP 404s on not-found; 4 deliberately injected Convex read failures on route-error"
+  },
+  "runtimeChecks": [
+    {
+      "width": 1440,
+      "case": "explicit Close restores focus; next native Back restores exact origin query/hash",
+      "pass": true
+    },
+    {
+      "width": 1440,
+      "case": "native Back dismisses Search before leaving page",
+      "pass": true
+    },
+    {
+      "width": 390,
+      "case": "explicit Close restores focus; next native Back restores exact origin query/hash",
+      "pass": true
+    },
+    {
+      "width": 390,
+      "case": "native Back dismisses Search before leaving page",
+      "pass": true
+    },
+    {
+      "case": "collapsed rail survives refresh and locale change preserving query/hash",
+      "pass": true
+    }
+  ],
+  "evidenceCorrection": {
+    "screen": "search-ai-running",
+    "why": "The live response completed before capture, closing the dialog.",
+    "how": "Hold /api/ai/search in Playwright and assert global-search-ai-running after settling; never alter product UI.",
+    "preservedOriginalEvidence": "superseded-ai-evidence/",
+    "rescoring": "Only corrected AI-running replaces the initial judgment; all unchanged screens retain their first blind judgment.",
+    "solGroupRetry": "Initial corrected 12-image group timed out after 30 minutes; retry only 4 AI-running images."
+  }
+}

@@ -34,3 +34,14 @@ export const containsNormalized = (haystack: string, needle: string) => {
   const target = normalizeSearchText(needle);
   return target.length > 0 && normalizeSearchText(haystack).includes(target);
 };
+
+/** Existing employee search relevance order, shared by queries and merged UI results. */
+export const EMPLOYEE_MATCH_RANK = {
+  CODE: 0,
+  NAME: 1,
+  NAME_PREFIX: 2,
+  CODE_PREFIX: 3,
+  PARTIAL: 4,
+} as const;
+
+export type EmployeeMatch = keyof typeof EMPLOYEE_MATCH_RANK;

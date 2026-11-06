@@ -122,7 +122,7 @@ test("dirty employee Back offers Keep and Discard without losing retained values
   await name.fill("Unsaved local browser draft");
   await page.goBack();
   const dialog = page.getByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: /Keep|Stay|Continue/ }).click();

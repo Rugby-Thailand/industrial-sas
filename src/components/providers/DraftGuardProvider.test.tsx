@@ -78,7 +78,9 @@ describe("HR draft guard", () => {
     fireEvent.change(input, { target: { value: "Forgot to clock out" } });
     const action = vi.fn();
     act(() => guardedNavigate(action));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog", {
+      name: "Discard changes?",
+    });
     expect(dialog).toHaveTextContent("not sent");
     // HR requests are sent from their own form, never from this prompt.
     expect(
@@ -122,6 +124,9 @@ describe("HR draft guard", () => {
     });
     act(() => guardedNavigate(action));
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(
+      screen.getByRole("dialog", { name: "Discard changes?" }),
+    ).toBeInTheDocument();
     // Two dirty drafts: saving one would silently lose the other.
     expect(
       screen.queryByRole("button", { name: "Save and continue" }),

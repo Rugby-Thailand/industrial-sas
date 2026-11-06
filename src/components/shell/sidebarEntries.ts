@@ -1,20 +1,14 @@
 import {
-  Bell,
   Boxes,
   Building2,
-  CalendarCheck,
   CalendarDays,
-  CalendarRange,
   ChartNoAxesCombined,
   ClipboardList,
   Clock,
-  FileText,
-  FileUp,
-  History,
   Megaphone,
+  ReceiptText,
+  Send,
   Settings,
-  UserRound,
-  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,27 +18,19 @@ import { ROUTES, type NavigationItem } from "@/lib/navigation";
 // Sidebar presentation only: icons, submenu grouping and nested labels. The
 // navigation registry, search and permission checks stay in `@/lib/navigation`.
 
+/**
+ * Icons of the destinations that sit directly in a section. Submenu members
+ * render without an icon (their submenu carries one), so they need none. On
+ * the icon rail an icon is all that tells two rows apart, so no two visible
+ * rows share one.
+ */
 const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
-  [ROUTES.aiUsage]: ChartNoAxesCombined,
-  [ROUTES.storageLayouts]: Building2,
+  [ROUTES.finishedGoods]: Boxes,
   [ROUTES.jobScan]: ScanIcon,
   [ROUTES.jobScanRecords]: ClipboardList,
-  [ROUTES.hrToday]: Clock,
-  [ROUTES.hrTime]: History,
-  [ROUTES.hrRequests]: ClipboardList,
-  [ROUTES.hrHolidays]: CalendarDays,
-  [ROUTES.hrLeave]: CalendarDays,
-  [ROUTES.hrLeaveReview]: CalendarCheck,
-  [ROUTES.hrAnnouncements]: Megaphone,
-  [ROUTES.hrAnnouncementsManage]: Megaphone,
-  [ROUTES.hrNotifications]: Bell,
-  [ROUTES.hrPayslips]: FileText,
-  [ROUTES.hrPayslipImport]: FileUp,
-  [ROUTES.hrProfile]: UserRound,
-  [ROUTES.hrReview]: CalendarCheck,
-  [ROUTES.hrEmployees]: UsersRound,
-  [ROUTES.hrPeriods]: CalendarRange,
-  [ROUTES.hrSettings]: Settings,
+  [ROUTES.storageLayouts]: Building2,
+  [ROUTES.hrRequests]: Send,
+  [ROUTES.aiUsage]: ChartNoAxesCombined,
 });
 
 /** Inside a submenu the parent names the area, so some children read shorter. */
@@ -87,7 +73,7 @@ const SIDEBAR_SUBMENUS: readonly {
   },
   {
     labelKey: "hrPayslips",
-    Icon: FileText,
+    Icon: ReceiptText,
     hrefs: [ROUTES.hrPayslips, ROUTES.hrPayslipImport],
   },
   {

@@ -26,6 +26,8 @@ import { normalizeEmployeeCode } from "../model/hr/employee";
 import { MAX_EXACT_CODES, readReferences } from "../model/search/references";
 import {
   EMPLOYEE_CODE,
+  EMPLOYEE_MATCH_RANK as RANK,
+  type EmployeeMatch,
   MAX_SEARCH_TEXT,
   normalizeSearchText,
 } from "../model/search/text";
@@ -47,14 +49,7 @@ export const MAX_SEARCH_RESULTS = 8;
 export const MAX_NAME_SCAN = 400;
 const MIN_NAME_LENGTH = 2;
 
-type Match = "CODE" | "NAME" | "NAME_PREFIX" | "CODE_PREFIX" | "PARTIAL";
-const RANK: Readonly<Record<Match, number>> = {
-  CODE: 0,
-  NAME: 1,
-  NAME_PREFIX: 2,
-  CODE_PREFIX: 3,
-  PARTIAL: 4,
-};
+type Match = EmployeeMatch;
 
 export interface EmployeeHit {
   readonly id: string;

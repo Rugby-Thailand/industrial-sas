@@ -183,7 +183,7 @@ describe("foreground activation and draft ownership", () => {
   it("discarding the foreground preserves the other dirty editor that remains mounted", async () => {
     await reverseOpen({ firstDraft: "abandon A", secondDraft: "retain B" });
     await nativeBack();
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+    await screen.findByRole("dialog", { name: "Discard changes?" });
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     await waitFor(() =>
       expect(screen.queryByTestId("first-overlay")).not.toBeInTheDocument(),
@@ -252,7 +252,7 @@ describe("foreground activation and draft ownership", () => {
     );
     expect(
       screen.queryByRole("dialog", {
-        name: /Save changes before leaving|Leave without sending/,
+        name: "Discard changes?",
       }),
     ).not.toBeInTheDocument();
     expect(
@@ -269,7 +269,7 @@ describe("foreground activation and draft ownership", () => {
     await reverseOpen({ firstDraft: "unsent foreground" });
     await nativeBack();
     await screen.findByRole("dialog", {
-      name: /Save changes before leaving|Leave without sending/,
+      name: "Discard changes?",
     });
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     await waitFor(() =>
@@ -374,7 +374,7 @@ it("actual nested lazy portal review dismisses while retaining dirty parent edit
     "keep this floor",
   );
   await nativeBack();
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByRole("textbox", { name: "Plan draft" })).toHaveValue(
     "keep this floor",

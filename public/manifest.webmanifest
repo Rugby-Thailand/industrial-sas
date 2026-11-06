@@ -1,7 +1,7 @@
 {
-  "name": "Storage Planner",
-  "short_name": "Planner",
-  "description": "Building and storage spot planner",
+  "name": "โยงกิจ",
+  "short_name": "โยงกิจ",
+  "description": "ระบบบริหารจัดการอุตสาหกรรม",
   "lang": "th",
   "dir": "ltr",
   "start_url": "/th/dashboard",

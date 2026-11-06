@@ -213,7 +213,7 @@ async function openEditor() {
   await screen.findByTestId("hr-employee-profile");
 }
 const leavePrompt = () =>
-  screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  screen.findByRole("dialog", { name: "Discard changes?" });
 
 it("employee profile Edit -> explicit Cancel -> next Back closes the editor to the filtered list", async () => {
   screenAt();
@@ -260,7 +260,7 @@ it("a dirty personal-details draft asks before Cancel or native Back discard it,
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull(),
   );
   expect(screen.getByLabelText("Nickname")).toHaveValue("Sak");
@@ -653,7 +653,7 @@ it.each(editors)(
     await traverse("back");
     expect(screen.getByRole("dialog", { name: editor.title })).toBeVisible();
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull();
     expect(save.mock.calls[0]![0]).toMatchObject({
       expectedVersion: editor.expectedVersion,
@@ -699,7 +699,7 @@ it("a refreshed dirty personal session survives loading and header Back, then ex
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull(),
   );
   expect(screen.getByLabelText("Nickname")).toHaveValue("Keep this draft");
@@ -1009,7 +1009,7 @@ it("independent reinstatement refusal can return to inactive employment assignme
   );
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
   const confirm = await screen.findByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   fireEvent.click(
     within(confirm).getByRole("button", { name: "Discard changes" }),
@@ -1059,9 +1059,7 @@ it("independent successful personal foreground completion preserves a dirty empl
       screen.queryByRole("dialog", { name: "Personal details" }),
     ).toBeNull(),
   );
-  expect(
-    screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
-  ).toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Discard changes?" })).toBeNull();
   expect(screen.getByLabelText(/^Display name/)).toHaveValue(
     "Unsaved employment name",
   );
@@ -1070,7 +1068,7 @@ it("independent successful personal foreground completion preserves a dirty empl
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull(),
   );
   expect(screen.getByLabelText(/^Display name/)).toHaveValue(

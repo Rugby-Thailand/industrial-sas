@@ -426,7 +426,7 @@ describe("live eligibility changes retain HR drafts", () => {
       const leave = vi.fn();
       act(() => guardedNavigate(leave));
       expect(
-        screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+        screen.getByRole("dialog", { name: "Discard changes?" }),
       ).toBeVisible();
       expect(leave).not.toHaveBeenCalled();
     },

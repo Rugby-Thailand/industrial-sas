@@ -1982,7 +1982,7 @@ it("guards a merged product draft when browser storage fails during conflict res
   const leave = vi.fn();
   act(() => guardedNavigate(leave));
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByRole("textbox", { name: "Product name" })).toHaveValue(

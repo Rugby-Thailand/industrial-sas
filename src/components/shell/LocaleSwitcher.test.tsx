@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fireEvent, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 
+import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { useDraftGuard } from "@/components/providers/draftGuard";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
-import { chooseOption, openSelect } from "@tests/fixtures/select-control";
 
 const { replace, pathname } = vi.hoisted(() => ({
   replace: vi.fn(),
@@ -17,6 +18,11 @@ vi.mock("@/i18n/navigation", () => ({
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
+const SWITCH = {
+  th: "เปลี่ยนภาษาเป็น English",
+  en: "Switch language to ไทย",
+} as const;
+
 describe("LocaleSwitcher navigation", () => {
   const originalUrl = window.location.href;
 
@@ -24,27 +30,17 @@ describe("LocaleSwitcher navigation", () => {
   afterEach(() => window.history.replaceState(null, "", originalUrl));
 
   it.each([
-    {
-      locale: "th" as const,
-      next: "en",
-      label: "ภาษา",
-      option: "อังกฤษ",
-    },
-    {
-      locale: "en" as const,
-      next: "th",
-      label: "Language",
-      option: "Thai",
-    },
+    { locale: "th" as const, next: "en" },
+    { locale: "en" as const, next: "th" },
   ])(
     "preserves the pallet resume URL when switching $locale to $next",
-    ({ locale, next, label, option }) => {
+    ({ locale, next }) => {
       const suffix =
         "?resumePalletId=pallet-123&filter=awaiting%20measurement&tag=a&tag=b#measurement";
       window.history.replaceState(null, "", `/${locale}${pathname}${suffix}`);
       renderWithIntl(<LocaleSwitcher />, { locale, workspace: false });
 
-      chooseOption(label, option);
+      fireEvent.click(screen.getByRole("button", { name: SWITCH[locale] }));
 
       expect(replace).toHaveBeenCalledExactlyOnceWith(`${pathname}${suffix}`, {
         locale: next,
@@ -56,7 +52,7 @@ describe("LocaleSwitcher navigation", () => {
     window.history.replaceState(null, "", `/en${pathname}`);
     renderWithIntl(<LocaleSwitcher />, { locale: "en", workspace: false });
 
-    chooseOption("Language", "Thai");
+    fireEvent.click(screen.getByRole("button", { name: SWITCH.en }));
 
     expect(replace).toHaveBeenCalledExactlyOnceWith(pathname, { locale: "th" });
   });
@@ -67,37 +63,59 @@ describe("LocaleSwitcher navigation", () => {
     const suffix = "?resumePalletId=newly-created-pallet#measure";
     window.history.replaceState(null, "", `/en${pathname}${suffix}`);
 
-    chooseOption("Language", "Thai");
+    fireEvent.click(screen.getByRole("button", { name: SWITCH.en }));
 
     expect(replace).toHaveBeenCalledExactlyOnceWith(`${pathname}${suffix}`, {
       locale: "th",
     });
   });
 
-  it("pairs each language with its hidden flag and keeps names, check and typeahead on the language", async () => {
-    window.history.replaceState(null, "", `/en${pathname}`);
-    renderWithIntl(<LocaleSwitcher />, { locale: "en", workspace: false });
+  it.each([
+    { locale: "th" as const, shown: "English", lang: "en" },
+    { locale: "en" as const, shown: "ไทย", lang: "th" },
+  ])(
+    "names the other language in that language on $locale pages, with no popup",
+    ({ locale, shown, lang }) => {
+      renderWithIntl(<LocaleSwitcher />, { locale, workspace: false });
 
-    const menu = openSelect("Language");
-    const thai = within(menu).getByRole("option", { name: "Thai" });
-    const english = within(menu).getByRole("option", { name: "English" });
-    for (const [option, flag] of [
-      [thai, "🇹🇭"],
-      [english, "🇬🇧"],
-    ] as const) {
-      const shown = within(option).getByText(flag);
-      expect(shown).toHaveAttribute("aria-hidden", "true");
+      const button = screen.getByRole("button", { name: SWITCH[locale] });
+      expect(screen.getByText(shown)).toHaveAttribute("lang", lang);
+      expect(button).toContainElement(screen.getByText(shown));
+      expect(button).toHaveAttribute("data-testid", "locale-select");
+      expect(button).not.toHaveAttribute("aria-haspopup");
+      expect(button).not.toHaveAttribute("aria-expanded");
+      expect(screen.queryByRole("combobox")).toBeNull();
+    },
+  );
+
+  it("asks before a language switch discards unsaved work", () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    window.history.replaceState(null, "", `/th${pathname}`);
+    function UnsavedDraft() {
+      useDraftGuard(true, () => undefined);
+      return null;
     }
-    // The active language keeps its check mark.
-    expect(english).toHaveAttribute("data-state", "checked");
-    expect(english.querySelector("svg")).not.toBeNull();
-    expect(thai).toHaveAttribute("data-state", "unchecked");
-    expect(thai.querySelector("svg")).toBeNull();
+    renderWithIntl(
+      <NavigationGuardProvider>
+        <UnsavedDraft />
+        <LocaleSwitcher />
+      </NavigationGuardProvider>,
+      { locale: "th", workspace: false },
+    );
 
-    // Typeahead matches the language name, not the flag before it.
-    fireEvent.keyDown(menu, { key: "t" });
-    await waitFor(() => expect(thai).toHaveFocus());
-    fireEvent.keyDown(thai, { key: "Enter" });
-    expect(replace).toHaveBeenCalledExactlyOnceWith(pathname, { locale: "th" });
+    fireEvent.click(screen.getByRole("button", { name: SWITCH.th }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(replace).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "ละทิ้งการเปลี่ยนแปลง" }),
+    );
+    act(() => {
+      window.dispatchEvent(
+        new PopStateEvent("popstate", { state: window.history.state }),
+      );
+    });
+
+    expect(replace).toHaveBeenCalledExactlyOnceWith(pathname, { locale: "en" });
+    vi.mocked(window.history.back).mockRestore();
   });
 });

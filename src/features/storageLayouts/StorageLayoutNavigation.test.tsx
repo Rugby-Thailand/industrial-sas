@@ -127,9 +127,9 @@ const guarded = (ui: ReactNode) =>
     preserveProviders: true,
   });
 const prompt = () =>
-  screen.findByRole("dialog", {
-    name: /Save changes before leaving|Leave without sending/,
-  });
+  screen.findByRole("dialog", { name: "Save changes before leaving?" });
+const discardPrompt = () =>
+  screen.findByRole("dialog", { name: "Discard changes?" });
 
 const building: StorageBuildingRow = {
   buildingId: "pd",
@@ -256,8 +256,9 @@ describe("floor editor workflow step", () => {
     await waitFor(() => expect(params().get("editing")).toBe("1"));
     const length = window.history.length;
     await nativeBack();
+    await waitFor(() => expect(params().get("editing")).toBeNull());
     await nativeForward();
-    expect(params().get("editing")).toBe("1");
+    await waitFor(() => expect(params().get("editing")).toBe("1"));
     expect(
       screen.getByRole("button", { name: "Edit floor 1" }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -482,7 +483,7 @@ describe("storage spot editor foregrounds", () => {
       expect(screen.queryByTestId("layout-blocked-impact")).toBeNull(),
     );
     expect(
-      screen.queryByRole("dialog", { name: /Save changes before leaving/ }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull();
     expect(
       screen.getByRole("dialog", { name: "Edit storage spot" }),
@@ -502,7 +503,7 @@ describe("storage spot editor foregrounds", () => {
       target: { value: "Unsent name" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await prompt();
+    await discardPrompt();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
@@ -514,7 +515,7 @@ describe("storage spot editor foregrounds", () => {
         screen.getByRole("dialog", { name: "Edit storage spot" }),
       ).getByRole("button", { name: "Cancel" }),
     );
-    await prompt();
+    await discardPrompt();
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     await waitFor(() =>
       expect(
@@ -863,7 +864,7 @@ describe("registered location layout completion", () => {
     await screen.findByRole("dialog", { name: "Complete layout · DOCK SHELF" });
     fill("Width (m)", "1.2");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    await prompt();
+    await discardPrompt();
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(href()).toBe(BUILDING_URL));
@@ -1095,7 +1096,7 @@ describe("storage foreground caller regressions", () => {
       target: { value: "Unsent lift core" },
     });
     await nativeBack();
-    const guard = await prompt();
+    const guard = await discardPrompt();
     fireEvent.click(
       within(guard).getByRole("button", { name: "Keep editing" }),
     );
@@ -1125,7 +1126,7 @@ describe("storage foreground caller regressions", () => {
     });
     await nativeBack();
     fireEvent.click(
-      within(await prompt()).getByRole("button", { name: /Discard/ }),
+      within(await discardPrompt()).getByRole("button", { name: /Discard/ }),
     );
     await waitFor(() =>
       expect(
@@ -1241,7 +1242,7 @@ describe("live completion owners", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(href()).toBe(BUILDING_URL));
     expect(
-      screen.queryByRole("dialog", { name: /Save changes before leaving/ }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull();
     await nativeBack();
     expect(href()).toBe(ORIGIN);
@@ -1281,7 +1282,7 @@ describe("live completion owners", () => {
     await finish();
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(
-      screen.queryByRole("dialog", { name: /Save changes before leaving/ }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull();
     expect(
       screen.getByRole("dialog", { name: "Edit storage spot" }),

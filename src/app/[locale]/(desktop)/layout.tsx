@@ -1,11 +1,15 @@
 import { setRequestLocale } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { ReactNode } from "react";
 
 import { OrganizationRequired } from "@/components/auth/OrganizationRequired";
 import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { DesktopShell } from "@/components/shell/DesktopShell";
+import {
+  SIDEBAR_COOKIE_NAME,
+  sidebarOpenFromCookie,
+} from "@/components/ui/sidebarState";
 import { readAppAccess } from "@/lib/auth/appAccess";
 import { plannerReturnPath, RETURN_PATH_HEADER } from "@/lib/auth/returnPath";
 
@@ -29,9 +33,13 @@ export default async function DesktopLayout({
     );
   }
   if (access === "ORGANIZATION_REQUIRED") return <OrganizationRequired />;
+  // The member's last sidebar choice, so the first render already matches it.
+  const sidebarOpen = sidebarOpenFromCookie(
+    (await cookies()).get(SIDEBAR_COOKIE_NAME)?.value,
+  );
   return (
     <WorkspaceAccessBoundary>
-      <DesktopShell>{children}</DesktopShell>
+      <DesktopShell defaultOpen={sidebarOpen}>{children}</DesktopShell>
     </WorkspaceAccessBoundary>
   );
 }

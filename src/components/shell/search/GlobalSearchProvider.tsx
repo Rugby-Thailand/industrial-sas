@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
 import {
   createContext,
@@ -27,6 +28,8 @@ import { guardedNavigate } from "@/lib/navigationGuard";
 import type { PageSearchContext } from "@/lib/search/resolveIntent";
 
 import { PageContextSetter } from "./pageContext";
+import { recentStorageKey, rememberRecent } from "./recent";
+import { searchesPeople } from "./results";
 import { SearchDialog } from "./SearchDialog";
 
 export type SearchMode = "SEARCH" | "AI";
@@ -35,6 +38,8 @@ interface SearchControls {
   readonly open: (mode: SearchMode) => void;
   /** AI Search is an HR capability; storage-only members never see it. */
   readonly aiAvailable: boolean;
+  /** Search finds employees too; the triggers and placeholder say so. */
+  readonly canSearchPeople: boolean;
 }
 
 const SearchControlsContext = createContext<SearchControls | null>(null);
@@ -76,6 +81,8 @@ export function GlobalSearchProvider({
   // Lives with the provider, so a choice survives the dialog body unmounting.
   const completion = useRef<DialogCompletionHandle>(null);
   const hr = useHrAccess();
+  const { userId, orgId } = useAuth();
+  const recentKey = recentStorageKey(userId, orgId);
   const granted = useGrantedPermissions();
   const [state, setState] = useState<{ open: boolean; mode: SearchMode }>({
     open: false,
@@ -130,16 +137,22 @@ export function GlobalSearchProvider({
           current.open ? { ...current, open: false } : current,
         );
         guardedNavigate(() => {
+          // Only a destination actually opened is offered as recent.
+          rememberRecent(recentKey, target);
           setAnnouncement(t("navigating", { trail }));
           router.push(href);
         });
       });
       return true;
     },
-    [granted, router, t],
+    [granted, recentKey, router, t],
   );
 
-  const controls = useMemo(() => ({ open, aiAvailable }), [aiAvailable, open]);
+  const canSearchPeople = searchesPeople(granted);
+  const controls = useMemo(
+    () => ({ open, aiAvailable, canSearchPeople }),
+    [aiAvailable, canSearchPeople, open],
+  );
   return (
     <SearchControlsContext.Provider value={controls}>
       <PageContextSetter.Provider value={setPageContext}>

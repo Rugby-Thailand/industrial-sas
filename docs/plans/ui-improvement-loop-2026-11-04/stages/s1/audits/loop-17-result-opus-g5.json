@@ -1,0 +1,37 @@
+{
+  "auditor": "opus",
+  "group": 5,
+  "sourceCommit": "c2c8067240baa5415b6a3fb59215ff5348cc9124",
+  "appBuildSource": "9af8f445ee1c1b22faff93ea058a949d9b1857ff",
+  "testOnlySourceDifferences": ["src/features/hr/HrOrgSettings.test.tsx"],
+  "promptSha256": "2c917d0a9a76c5bfe35ce4390c9adcf9180a5abc1e8e1fa22af18dc01bfd5830",
+  "images": [
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/route-error__th-mobile-light.png",
+      "sha256": "d7f33085aaa44e0ffd7097375c732a343d7c8eceba547a984657bce2d77a72b1"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/route-error__th-desktop-light.png",
+      "sha256": "1809dce74cc3253dd2e98dbf96f880e90002963580d5a5fabadd9511dc37f3a3"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/route-error__en-mobile-dark.png",
+      "sha256": "ff2a6d1cd1a034de7c11ec205dd8d6611b9915445475baccdda9a72e577d1908"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/route-error__en-desktop-dark.png",
+      "sha256": "8e0cffa7f6f1a040d140e4b3d0186b2bde4fb44aa6837bf66646c349761ebddd"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/route-error--copied__th-mobile-light.png",
+      "sha256": "483dc17f1b70b4757fb6f84ba5791cc7f9677ee0323bc7265f9fc991055e3afe"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/route-error--retrying__en-desktop-dark.png",
+      "sha256": "c16efd8126c158b0ebd87989f32c66c3bfc54b31902fe5193371f04c497ae4eb"
+    }
+  ],
+  "startedAt": "2026-11-06T12:44:05.601Z",
+  "exitCode": 0,
+  "finishedAt": "2026-11-06T12:46:52.327Z"
+}

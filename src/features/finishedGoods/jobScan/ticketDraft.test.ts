@@ -8,6 +8,8 @@ import {
   toPayload,
   ticketBarcodeError,
   applyImageBarcodes,
+  describeIntake,
+  undoIntake,
 } from "./ticketDraft";
 
 it("pairs a photographed FOM JOB number with its product barcode", () => {
@@ -209,5 +211,58 @@ describe("written ticket report", () => {
       key: row.key,
       field: "productBarcodeText",
     });
+  });
+});
+
+describe("undo of the latest scan", () => {
+  it("removes a ticket the scan started and clears a code it put into an older ticket", () => {
+    const older = {
+      ...newTicket("AI", { productBarcodeText: "OLD-SKU" }),
+      aiFields: [],
+    };
+    const first = applyBarcode([older], "FO11111111");
+    const filled = describeIntake([older], first.tickets, first.written!);
+    expect(filled).toMatchObject({
+      created: false,
+      codes: { factoryOrder: "FO11111111" },
+    });
+    expect(undoIntake(first.tickets, filled)).toEqual([older]);
+
+    const second = applyBarcode(first.tickets, "FO22222222");
+    const started = describeIntake(
+      first.tickets,
+      second.tickets,
+      second.written!,
+    );
+    expect(started.created).toBe(true);
+    expect(undoIntake(second.tickets, started)).toEqual(first.tickets);
+  });
+
+  it("clears only the codes an image pair added, keeping an existing matching Job No.", () => {
+    const ticket = newTicket("MANUAL", { factoryOrder: "FO33333333" });
+    const next = applyImageBarcodes([ticket], ["PRODUCT-4", "FO33333333"]);
+    const intake = describeIntake([ticket], next.tickets, next.written!);
+    expect(intake.codes).toEqual({ productBarcodeText: "PRODUCT-4" });
+    expect(undoIntake(next.tickets, intake)).toEqual([ticket]);
+  });
+
+  it("keeps a started ticket that gained another value, and refuses a changed or removed ticket", () => {
+    const next = applyBarcode([], "FO44444444");
+    const intake = describeIntake([], next.tickets, next.written!);
+    const typed = [
+      {
+        ...next.tickets[0]!,
+        values: { ...next.tickets[0]!.values, partName: "Bracket" },
+      },
+    ];
+    expect(undoIntake(typed, intake)?.[0]!.values).toEqual({
+      partName: "Bracket",
+    });
+
+    const edited = [
+      { ...next.tickets[0]!, values: { factoryOrder: "FO55555555" } },
+    ];
+    expect(undoIntake(edited, intake)).toBeUndefined();
+    expect(undoIntake([], intake)).toBeUndefined();
   });
 });

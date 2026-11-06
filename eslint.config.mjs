@@ -21,6 +21,7 @@ export default tseslint.config(
       "scripts/navigation-guard-preview/.next/**",
       "scripts/navigation-guard-preview/next-env.d.ts",
       ".next-preview/**",
+      ".next-loop/**",
       // The dedicated Playwright build directories (see playwright.config.ts).
       ".next-e2e/**",
       ".next-e2e-preview/**",

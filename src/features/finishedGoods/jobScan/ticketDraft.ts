@@ -145,6 +145,54 @@ export function mergeExtracted(
 /** The ticket an intake wrote; absent when the intake changed nothing. */
 export type TicketWrite = { key: string; field: TicketCodeField };
 
+/** One barcode-panel intake, with exactly what is needed to revert it. */
+export type TicketIntake = TicketWrite & {
+  /** Codes this intake put into previously empty fields. */
+  codes: Partial<Record<TicketCodeField, string>>;
+  /** The intake started this ticket. */
+  created: boolean;
+};
+
+export function describeIntake(
+  before: readonly TicketDraft[],
+  after: readonly TicketDraft[],
+  written: TicketWrite,
+): TicketIntake {
+  const previous = before.find((ticket) => ticket.key === written.key);
+  const ticket = after.find((row) => row.key === written.key);
+  const codes: TicketIntake["codes"] = {};
+  for (const field of REQUIRED_FIELDS) {
+    const value = ticket?.values[field]?.trim();
+    if (value && !previous?.values[field]?.trim()) codes[field] = value;
+  }
+  return { ...written, codes, created: !previous };
+}
+
+/**
+ * Reverts one intake: clears its codes, and removes the ticket when the intake
+ * started it and nothing else was added. Returns undefined when the codes are
+ * no longer in place, so a changed ticket is never altered.
+ */
+export function undoIntake(
+  tickets: readonly TicketDraft[],
+  intake: TicketIntake,
+): TicketDraft[] | undefined {
+  const ticket = tickets.find((row) => row.key === intake.key);
+  const fields = Object.keys(intake.codes) as TicketCodeField[];
+  if (
+    !ticket ||
+    ticket.status !== "ready" ||
+    !fields.length ||
+    fields.some((field) => ticket.values[field]?.trim() !== intake.codes[field])
+  )
+    return undefined;
+  const values = { ...ticket.values };
+  for (const field of fields) delete values[field];
+  if (intake.created && !Object.values(values).some((value) => value?.trim()))
+    return tickets.filter((row) => row !== ticket);
+  return tickets.map((row) => (row === ticket ? { ...row, values } : row));
+}
+
 /** Puts a scanned code into the newest ticket still missing that field, else starts a new ticket. */
 export function applyBarcode(
   tickets: TicketDraft[],

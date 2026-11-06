@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 
 import {
@@ -47,13 +47,30 @@ export function EnvironmentAwareWorkspaceProvider({
   );
 }
 
+const subscribe = () => () => {};
+/**
+ * The theme script runs only from the server's HTML, before first paint. React
+ * never executes a script it renders on the client (for example when a
+ * language switch remounts this provider), so that copy is an inert data block.
+ */
+const INERT_SCRIPT = { type: "text/plain" } as const;
+const clientScriptProps = () => INERT_SCRIPT;
+const serverScriptProps = () => undefined;
+
 export function AppProviders({ children }: { readonly children: ReactNode }) {
+  // Hydration uses the server value, so the server's script is adopted as is.
+  const scriptProps = useSyncExternalStore(
+    subscribe,
+    clientScriptProps,
+    serverScriptProps,
+  );
   return (
     <ThemeProvider
       attribute="class"
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
+      {...(scriptProps === undefined ? {} : { scriptProps })}
     >
       <EnvironmentProvider>
         <ObservabilityProvider>

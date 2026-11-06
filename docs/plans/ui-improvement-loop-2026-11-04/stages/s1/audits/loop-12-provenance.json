@@ -1,0 +1,31 @@
+{
+  "sourceCommit": "1b027e40",
+  "buildId": "E-HaaWSSeShlAkMDNG4sF",
+  "models": {
+    "sol": "gpt-6.1-sol via Codex CLI",
+    "opus": "claude-opus-5.5 via Kiro CLI"
+  },
+  "checks": {
+    "fullCheck": "pnpm check passed: 68 navigation fixtures, format, typecheck (1092 files), normal ESLint, and 5178 tests across 384 files including accessibility",
+    "build": "production webpack build passed",
+    "detector": "no findings on edited targets",
+    "runtimeQA": "10/10 cases passed, including desktop/phone outage reload recovery and restored organization/data"
+  },
+  "captureNotes": [
+    "AI request held by harness without contacting provider.",
+    "Supplemental recents use representative stored destination keys; mixed results search the existing fixture with EMP. No records changed.",
+    "Employee ordering uses the existing server relevance rank then code after permission-scope merge. No query or alias policy changed.",
+    "The banner explains the outage once; unavailable names use accessible static dashes and the menu/page use local data-status labels. Connection timing and recovery behavior remain unchanged.",
+    "Local services were restored after the session pause; supplemental captures use the same source commit and production build ID as the 40 base views."
+  ],
+  "limitations": [
+    "Browser keyboard checks use Playwright key events, not a physical phone software keyboard.",
+    "Retry after an error that persists is verified; recovery after removing the fault is not established here."
+  ],
+  "captures": {
+    "total": 46,
+    "failed": 0,
+    "overflow": 0,
+    "seriousOrCriticalAxe": 0
+  }
+}

@@ -9,7 +9,8 @@
 @custom-variant dense (@media (width >= 48rem) and (pointer: fine));
 
 @theme inline {
-  --font-sans: var(--font-geist), "Noto Sans Thai", sans-serif;
+  --font-sans:
+    var(--font-geist), var(--font-noto-sans-thai, "Noto Sans Thai"), sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 
   --color-canvas: var(--token-canvas);
@@ -227,7 +228,8 @@
   --sidebar-accent-foreground: #1d4ed8;
   --sidebar-border: oklch(0.92 0 0);
   --sidebar-ring: oklch(0.46 0.22 266);
-  --font-sans: var(--font-geist), "Noto Sans Thai", sans-serif;
+  --font-sans:
+    var(--font-geist), var(--font-noto-sans-thai, "Noto Sans Thai"), sans-serif;
   --font-serif: Noto Serif Georgian, ui-serif, serif;
   --font-mono: var(--font-geist-mono), monospace;
   --shadow-color: oklch(0.2571 0.1161 272.24);
@@ -383,7 +385,8 @@ body {
   --sidebar-accent-foreground: oklch(0.92 0.04 272);
   --sidebar-border: oklch(0.26 0 0);
   --sidebar-ring: #a9baff;
-  --font-sans: var(--font-geist), "Noto Sans Thai", sans-serif;
+  --font-sans:
+    var(--font-geist), var(--font-noto-sans-thai, "Noto Sans Thai"), sans-serif;
   --font-serif: Noto Serif Georgian, ui-serif, serif;
   --font-mono: var(--font-geist-mono), monospace;
   --shadow-color: oklch(0.2571 0.1161 272.24);

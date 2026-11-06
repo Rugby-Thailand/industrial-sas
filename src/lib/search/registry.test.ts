@@ -17,6 +17,7 @@ import {
 } from "../navigation";
 import { matchDestinations } from "./matchDestinations";
 import { recordQuery } from "./recordQuery";
+import { messagesFor } from "@/i18n/messages";
 
 const params = (query: string) => new URLSearchParams(query);
 const label = (destination: { labelKey: string }) => destination.labelKey;
@@ -181,6 +182,37 @@ describe("menu matching", () => {
     expect(keys("CSV")).toContain("hr.task.exportPeriod");
     expect(keys("เข้างาน")).toContain("hr.task.clock");
     expect(keys("สแกนใบงาน")[0]).toBe("planner.jobScan");
+  });
+
+  it("finds the same EMP tasks in Thai and English while preserving permissions", () => {
+    const taskKeys = (locale: string, granted: readonly string[] = all) => {
+      const labels: Readonly<Record<string, string>> =
+        messagesFor(locale).Navigation;
+      return matchDestinations(
+        "EMP",
+        granted,
+        (destination) => labels[destination.labelKey] ?? destination.labelKey,
+      )
+        .filter(({ destination }) => destination.kind === "TASK")
+        .map(({ destination }) => destination.key)
+        .sort();
+    };
+    expect(taskKeys("th")).toEqual(taskKeys("en"));
+    for (const locale of ["th", "en"]) {
+      expect(taskKeys(locale)).toContain("hr.task.reviewDay");
+      expect(taskKeys(locale, [HR_PERMISSION.selfAccess])).not.toContain(
+        "hr.task.reviewDay",
+      );
+    }
+  });
+
+  it("identifies the alias behind a match without changing its rank", () => {
+    const [match] = matchDestinations("holiday", all, () => "Unrelated title");
+    expect(match?.matchedAlias).toBe("holiday");
+    expect(match?.destination.key).toBe("hr.settings.holidays");
+    expect(
+      matchDestinations("holiday", all, () => "holiday")[0]?.matchedAlias,
+    ).toBeUndefined();
   });
 
   it("hides destinations without permission", () => {

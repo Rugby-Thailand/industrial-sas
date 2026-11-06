@@ -472,6 +472,7 @@ export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
       "ตรวจคำขอแก้เวลา",
       "รับรองวัน",
       "review day",
+      "review employee day",
       "review request",
     ],
     permissionCodes: [HR_CODES.review],

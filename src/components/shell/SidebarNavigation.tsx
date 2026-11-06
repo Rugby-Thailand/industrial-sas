@@ -1,13 +1,14 @@
 import { Spinner } from "@/components/ui/spinner";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CloudOff,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
-import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
-import { useHrAccess } from "@/components/providers/HrAccessProvider";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
-import { useGrantedPermissions } from "@/components/shell/search/GlobalSearchProvider";
 import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
 import {
   groupSidebarItems,
@@ -15,6 +16,9 @@ import {
   type SidebarEntry,
 } from "@/components/shell/sidebarEntries";
 import { sidebarRowClassName } from "@/components/shell/sidebarRow";
+import { useContentBelow } from "@/components/shell/useContentBelow";
+import { useVisibleNavigation } from "@/components/shell/useVisibleNavigation";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import {
   SidebarContent,
   SidebarGroup,
@@ -26,12 +30,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { usePathname } from "@/i18n/navigation";
-import {
-  activeNavigationHref,
-  visibleDesktopNavigation,
-  type NavigationItem,
-} from "@/lib/navigation";
+import { activeNavigationHref, type NavigationItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+
+/** Every destination row and submenu toggle, nested rows included. */
+const MENU_ROW_SELECTOR = "[data-sidebar=menu-item]";
 
 interface RowProps {
   readonly activeHref: string | undefined;
@@ -55,20 +58,12 @@ export function SidebarNavigation({
 }) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
-  const workspace = useWorkspace();
-  const hr = useHrAccess();
-  const usage = useAiUsageAccess();
   const labelPrefix = useId();
-  // Storage, HR and AI usage grants settle independently. A storage denial is
-  // a settled answer (an HR-only or usage-only member), not a reason to keep
-  // the menu loading.
-  const workspaceSettled =
-    workspace.permissionsReady || workspace.denied || workspace.failed;
-  const hrSettled = hr.status !== "LOADING";
-  const usageSettled = usage.status !== "LOADING";
-  const sections = visibleDesktopNavigation(useGrantedPermissions());
-  const navigationLoading =
-    !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
+  const { sections, settled } = useVisibleNavigation();
+  const navigationLoading = !settled && sections.length === 0;
+  // A stalled connection is announced by the shell's notice; the menu's
+  // placeholder then says when it fills, quietly and without motion.
+  const waiting = useConnectionStall() !== null;
   const activeHref = activeNavigationHref(
     pathname,
     sections.flatMap((section) => section.items.map((item) => item.href)),
@@ -81,33 +76,42 @@ export function SidebarNavigation({
   useRevealActiveRow(
     contentRef,
     isMobile && openMobile,
-    workspaceSettled && hrSettled && usageSettled && activeHref !== undefined,
+    settled && activeHref !== undefined,
   );
+  // Measured against the last destination row, not the padded list box.
+  const contentBelow = useContentBelow(contentRef, MENU_ROW_SELECTOR);
 
   return (
     <nav
       id={id}
       aria-label={t("primary")}
-      className="flex min-h-0 flex-1 flex-col"
+      className="relative flex min-h-0 flex-1 flex-col"
     >
       <SidebarContent
         ref={contentRef}
-        className={cn("gap-6 px-4 py-4", collapsed && "px-2")}
+        // The overflow strip below supplies the rest of the bottom gap.
+        className={cn("gap-6 px-4 pt-4 pb-2", collapsed && "px-2 pb-4")}
       >
         {navigationLoading ? (
           <p
-            role="status"
+            key={waiting ? "waiting" : "loading"}
+            {...(waiting ? {} : { role: "status" })}
             className={
               collapsed
                 ? "flex justify-center px-2 py-4 text-muted"
                 : "px-3 py-4 text-sm text-muted"
             }
+            data-testid="sidebar-navigation-loading"
           >
             {collapsed ? (
-              <Spinner aria-hidden="true" className="size-4" />
+              waiting ? (
+                <CloudOff aria-hidden="true" className="size-4" />
+              ) : (
+                <Spinner aria-hidden="true" className="size-4" />
+              )
             ) : null}
             <span className={collapsed ? "sr-only" : undefined}>
-              {t("loadingNavigation")}
+              {t(waiting ? "waitingNavigation" : "loadingNavigation")}
             </span>
           </p>
         ) : null}
@@ -152,6 +156,24 @@ export function SidebarNavigation({
           );
         })}
       </SidebarContent>
+      {collapsed ? null : (
+        // More destinations below: an edge line and a chevron in their own
+        // reserved strip under the list. Nothing covers a row, so every label
+        // keeps its full contrast and every row stays tappable.
+        <div
+          aria-hidden="true"
+          data-testid="sidebar-overflow-cue"
+          data-visible={contentBelow}
+          className={cn(
+            "pointer-events-none mx-4 flex h-6 shrink-0 items-center justify-center border-t text-muted transition-[border-color,opacity] duration-200 motion-reduce:transition-none",
+            contentBelow
+              ? "border-sidebar-border opacity-100"
+              : "border-transparent opacity-0",
+          )}
+        >
+          <ChevronDown className="size-4" />
+        </div>
+      )}
     </nav>
   );
 }

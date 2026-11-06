@@ -1,3 +1,8 @@
+import {
+  parse,
+  TYPE,
+  type MessageFormatElement,
+} from "@formatjs/icu-messageformat-parser";
 import { describe, expect, it } from "vitest";
 
 import { ALL_CATALOGUES, messagesFor } from "./messages";
@@ -23,12 +28,43 @@ function flatten(value: Json, prefix = ""): ReadonlyMap<string, string> {
   return entries;
 }
 
-const PLACEHOLDER = /\{(\w+)[^}]*\}/g;
+/** Compare required inputs, not how often a locale uses them or its plural prose. */
+function placeholdersOf(message: string): readonly string[] {
+  const names = new Set<string>();
+  const visit = (elements: readonly MessageFormatElement[]) => {
+    for (const element of elements) {
+      if (element.type === TYPE.literal || element.type === TYPE.pound)
+        continue;
+      names.add(element.value);
+      if (element.type === TYPE.select || element.type === TYPE.plural)
+        for (const option of Object.values(element.options))
+          visit(option.value);
+      if (element.type === TYPE.tag) visit(element.children);
+    }
+  };
+  visit(parse(message));
+  return [...names].sort((left, right) => left.localeCompare(right));
+}
 
-const placeholdersOf = (message: string): readonly string[] =>
-  [...message.matchAll(PLACEHOLDER)]
-    .map((match) => match[1] ?? "")
-    .sort((left, right) => left.localeCompare(right));
+describe("ICU placeholder comparison", () => {
+  it("ignores plural prose and repeated uses of the same argument", () => {
+    expect(
+      placeholdersOf(
+        "{count, plural, one {Ticket} other {Tickets}} {numbers} {count, plural, one {needs} other {need}} a barcode.",
+      ),
+    ).toEqual(["count", "numbers"]);
+  });
+  it("retains required arguments nested inside select and plural branches", () => {
+    expect(
+      placeholdersOf(
+        "{kind, select, one {{count, plural, one {{name}} other {# for {name}}}} other {<strong>{fallback}</strong>}}",
+      ),
+    ).toEqual(["count", "fallback", "kind", "name", "strong"]);
+  });
+  it("rejects malformed ICU syntax instead of silently accepting a partial match", () => {
+    expect(() => placeholdersOf("{count, plural, one {Ticket}")).toThrow();
+  });
+});
 
 const FLATTENED = new Map(
   LOCALES.map((locale) => [

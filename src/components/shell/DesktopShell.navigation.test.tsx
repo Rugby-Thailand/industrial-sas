@@ -93,7 +93,15 @@ vi.mock("@/i18n/navigation", () => ({
 vi.mock("convex/react", () => ({
   useQuery: () => undefined,
   useAction: () => vi.fn(),
-  useConvex: () => ({ query: vi.fn() }),
+  useConvex: () => ({
+    query: vi.fn(),
+    connectionState: () => ({
+      isWebSocketConnected: true,
+      hasEverConnected: true,
+      connectionCount: 1,
+    }),
+    subscribeToConnectionState: () => () => undefined,
+  }),
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
@@ -134,7 +142,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
   }),
 }));
 vi.mock("@/components/shell/AccountButton", () => ({
-  AccountButton: () => null,
+  SidebarAccount: () => null,
 }));
 vi.mock("@/components/shell/HrLandingRedirect", () => ({
   HrLandingRedirect: () => null,
@@ -489,7 +497,7 @@ it("mobile sidebar keeps the draft after cancelling and reaches the chosen desti
   });
   fireEvent.click(todayLink(drawer));
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(route.push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -530,7 +538,7 @@ it("mobile sidebar cannot leave while a scan write is pending", async () => {
   );
   fireEvent.click(todayLink(drawer));
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Discard changes" }),
@@ -706,7 +714,8 @@ async function chooseTodayFromSearch(beforeChoose?: () => void) {
   fireEvent.keyDown(window, { key: "k", metaKey: true });
   const input = await screen.findByRole("combobox", { name: "Search" });
   fireEvent.change(input, { target: { value: "Today" } });
-  await screen.findByRole("option", { name: /Today/ });
+  // The result itself, not the AI row that repeats the typed text.
+  await screen.findByRole("option", { name: "Today" });
   beforeChoose?.();
   fireEvent.keyDown(screen.getByRole("combobox", { name: "Search" }), {
     key: "Enter",
@@ -745,7 +754,7 @@ it("mobile Search preserves a cancelled draft and consumes its dialog before the
   );
   await chooseTodayFromSearch();
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(route.push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -785,7 +794,7 @@ it("mobile Search cannot discard a pending scan write or leave its page", async 
     ),
   );
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Discard changes" }),
@@ -796,6 +805,49 @@ it("mobile Search cannot discard a pending scan write or leave its page", async 
   expect(
     screen.queryByRole("combobox", { name: "Search" }),
   ).toBeInTheDocument();
+});
+
+it("mobile header Search closes on Back, returns focus to its button, and the next Back leaves the page", async () => {
+  const previous = "/en/hr/profile?tab=personal#details";
+  const origin = "/en/finished-goods/scan?location=wh-1#scanner";
+  window.history.replaceState(
+    { __NA: true, appNavigationIndex: 0 },
+    "",
+    previous,
+  );
+  window.history.pushState({ __NA: true, appNavigationIndex: 1 }, "", origin);
+  renderWithIntl(
+    <DesktopShell>
+      <Destination />
+    </DesktopShell>,
+    { locale: "en" },
+  );
+  const search = within(screen.getByRole("banner")).getByRole("button", {
+    name: "Search pages or employees",
+  });
+  fireEvent.click(search);
+  const input = await screen.findByRole("combobox", { name: "Search" });
+  await waitFor(() => expect(input).toHaveFocus());
+  expect(
+    [...new URLSearchParams(window.location.search).keys()].some((key) =>
+      key.startsWith("overlay"),
+    ),
+  ).toBe(true);
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  expect(
+    window.location.pathname + window.location.search + window.location.hash,
+  ).toBe(origin);
+  await waitFor(() => expect(search).toHaveFocus());
+  act(() => window.history.back());
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(previous),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 it("mobile drawer Search waits for its native Back before opening the search dialog", async () => {
@@ -816,7 +868,9 @@ it("mobile drawer Search waits for its native Back before opening the search dia
     .mockImplementationOnce(() => {});
   try {
     fireEvent.click(
-      within(drawer).getByRole("button", { name: /^Search pages and records/ }),
+      within(drawer).getByRole("button", {
+        name: /^Search pages or employees/,
+      }),
     );
     expect(back).toHaveBeenCalledOnce();
     // Close focus and animations may finish while the browser has not popped.
@@ -835,7 +889,8 @@ it("mobile drawer Search waits for its native Back before opening the search dia
     screen.queryByRole("dialog", { name: "Primary navigation" }),
   ).toBeNull();
   fireEvent.change(input, { target: { value: "Today" } });
-  await screen.findByRole("option", { name: /Today/ });
+  // The result itself, not the AI row that repeats the typed text.
+  await screen.findByRole("option", { name: "Today" });
   fireEvent.keyDown(input, { key: "Enter" });
   await settleDestination();
   expect(window.location.pathname).toBe("/en/hr/today");
@@ -882,7 +937,9 @@ it("mobile drawer Search waits for its exit animation and keeps search input foc
       ...new URLSearchParams(window.location.search).keys(),
     ].find((key) => key.startsWith("overlay"))!;
     fireEvent.click(
-      within(drawer).getByRole("button", { name: /^Search pages and records/ }),
+      within(drawer).getByRole("button", {
+        name: /^Search pages or employees/,
+      }),
     );
     await waitFor(() => expect(drawer).toHaveAttribute("data-state", "closed"));
     await waitFor(() =>

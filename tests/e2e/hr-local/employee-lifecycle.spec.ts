@@ -183,7 +183,7 @@ test("employee reinstatement refuses missing assignments in genuine backend and 
   expect(lifecycle.events).toHaveLength(1);
   await page.goBack();
   await page
-    .getByRole("dialog", { name: "Save changes before leaving?" })
+    .getByRole("dialog", { name: "Discard changes?" })
     .getByRole("button", { name: "Discard changes", exact: true })
     .click();
   await page.reload();

@@ -68,7 +68,7 @@ async function save(dialog: Locator) {
 async function discard(page: Page, dialog: Locator) {
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   const guard = page.getByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   if (await guard.isVisible())
     await guard
@@ -205,7 +205,7 @@ test("employee dirty personal draft survives independent subscription refresh an
   ).toBe("Independent committed value");
   await page.goBack();
   const guard = page.getByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   await guard
     .getByRole("button", { name: "Keep editing", exact: true })

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_Thai } from "next/font/google";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import {
   getMessages,
@@ -24,6 +24,17 @@ const geist = Geist({
 const geistMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
+  display: "swap",
+});
+/*
+ * Thai is the primary language, so Thai text gets its own web face instead of
+ * whatever the device has (a missing or condensed fallback broke words apart).
+ * It follows Geist in `--font-sans`: Latin stays Geist, and the Thai subset's
+ * unicode-range covers only Thai. One variable file serves every weight.
+ */
+const notoSansThai = Noto_Sans_Thai({
+  subsets: ["thai"],
+  variable: "--font-noto-sans-thai",
   display: "swap",
 });
 
@@ -73,7 +84,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${geist.variable} ${geistMono.variable}`}
+      className={`${geist.variable} ${geistMono.variable} ${notoSansThai.variable}`}
       suppressHydrationWarning
     >
       <body className="bg-canvas text-text antialiased">

@@ -6,6 +6,7 @@ import { useId } from "react";
 import { flushSync } from "react-dom";
 
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { SelectControl } from "@/components/ui/SelectControl";
 import {
   SidebarMenu,
@@ -13,7 +14,10 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { warehouseLabel } from "@/lib/workspace/workspace";
+import {
+  warehouseLabel,
+  type WarehouseOption,
+} from "@/lib/workspace/workspace";
 
 const CONTEXT_SLOT = "workspace-context";
 
@@ -32,11 +36,55 @@ function focusExpandedWarehouse() {
 }
 
 /**
- * The selected warehouse, as the second line of the sidebar's compact
- * identity. Every non-HR page offers the warehouse selector when storage
- * access is available; HR pages choose their workplace in-page, so the shell
- * omits it there (`DesktopShell`). The collapsed rail shows one warehouse icon that expands
- * the sidebar and moves focus to the warehouse it reveals.
+ * The warehouse this session works in. Undefined for HR-only members, an
+ * organization without an open warehouse, or before one is chosen.
+ */
+function useSelectedWarehouse(): WarehouseOption | undefined {
+  const workspace = useWorkspace();
+  if (
+    workspace.denied ||
+    !workspace.selectable ||
+    workspace.organization === undefined
+  )
+    return undefined;
+  return workspace.warehouses.find(
+    (warehouse) => warehouse.id === workspace.selectedWarehouseId,
+  );
+}
+
+/**
+ * The selected warehouse as a read-only line under the header's
+ * organization name, in every shell mode. The sidebar holds the switcher;
+ * this line keeps the current scope in the same place. The code alone on a
+ * phone; the name joins it where there is room.
+ */
+export function HeaderWarehouse() {
+  const navigation = useTranslations("Navigation");
+  const selected = useSelectedWarehouse();
+  if (selected === undefined) return null;
+  const label = warehouseLabel(selected);
+  return (
+    <p
+      className="flex min-w-0 items-center gap-1 text-xs text-muted"
+      title={label}
+      data-testid="header-warehouse"
+    >
+      <WarehouseIcon aria-hidden="true" className="size-3 shrink-0" />
+      <span className="sr-only">{`${navigation("currentWarehouse")}: ${label}`}</span>
+      <span aria-hidden="true" className="truncate">
+        {selected.code}
+        <span className="hidden sm:inline">{` · ${selected.name}`}</span>
+      </span>
+    </p>
+  );
+}
+
+/**
+ * The warehouse this session works in, under its visible label ("Current
+ * warehouse", distinct from the Warehouse module heading) in the sidebar
+ * header. Non-HR pages offer it when storage access is available;
+ * HR pages choose their own workplace and omit storage context. The collapsed rail shows one warehouse icon that expands the
+ * sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({
   collapsed = false,
@@ -44,17 +92,20 @@ export function WorkspaceContextBar({
   readonly collapsed?: boolean;
 }) {
   const t = useTranslations("Workspace");
+  const app = useTranslations("App");
+  const navigation = useTranslations("Navigation");
+  // "Current warehouse", not the "Warehouse" module heading below it.
+  const fieldLabel = navigation("currentWarehouse");
   const workspace = useWorkspace();
   const { setOpen } = useSidebar();
   const warehouseId = useId();
+  // Loading behind a stalled connection waits quietly: the shell's notice
+  // is the announcement.
+  const stall = useConnectionStall();
+  const waiting = workspace.loading && stall !== null;
   const available =
     workspace.selectable && workspace.organization !== undefined;
-  const selected = available
-    ? workspace.warehouses.find(
-        (warehouse) => warehouse.id === workspace.selectedWarehouseId,
-      )
-    : undefined;
-
+  const selected = useSelectedWarehouse();
   const selectedLabel = selected ? warehouseLabel(selected) : undefined;
 
   // HR-only members have organization context, but no warehouse access.
@@ -63,8 +114,8 @@ export function WorkspaceContextBar({
   if (collapsed) {
     const label =
       selectedLabel === undefined
-        ? t("warehouse")
-        : `${t("warehouse")}: ${selectedLabel}`;
+        ? fieldLabel
+        : `${fieldLabel}: ${selectedLabel}`;
     return (
       <SidebarMenu className="pt-2">
         <SidebarMenuItem>
@@ -86,42 +137,56 @@ export function WorkspaceContextBar({
     );
   }
 
+  const labelId = `${warehouseId}-label`;
+  const labelClassName = "mb-1 block text-xs text-muted";
   return (
     <section
-      aria-labelledby={`${warehouseId}-heading`}
+      aria-labelledby={labelId}
       tabIndex={-1}
       className="min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
       data-slot={CONTEXT_SLOT}
       data-testid="sidebar-warehouse"
       {...(selectedLabel === undefined ? {} : { title: selectedLabel })}
     >
-      <h2 id={`${warehouseId}-heading`} className="sr-only">
-        {t("warehouse")}
-      </h2>
       {!available ? (
-        <div
-          className="mt-1 flex flex-col gap-0.5 text-xs"
-          {...(workspace.loading ? { role: "status" } : {})}
-        >
-          {workspace.loading ? (
-            <span className="text-muted">{t("loading")}</span>
-          ) : workspace.organization !== undefined ? (
-            // An organization member without an active warehouse they may open.
-            <>
-              <span className="font-semibold text-text">
-                {t("noWarehouses")}
+        <>
+          <p id={labelId} className={labelClassName}>
+            {fieldLabel}
+          </p>
+          <div
+            key={waiting ? "waiting" : "status"}
+            className="flex flex-col gap-0.5 text-xs"
+            {...(workspace.loading && !waiting ? { role: "status" } : {})}
+          >
+            {workspace.loading ? (
+              <span className="text-muted">
+                {waiting ? (
+                  <>
+                    <span aria-hidden="true">—</span>
+                    <span className="sr-only">{app("namePending")}</span>
+                  </>
+                ) : (
+                  t("loading")
+                )}
               </span>
-              <span className="text-muted">{t("noWarehousesHint")}</span>
-            </>
-          ) : (
-            <>
-              <span className="font-semibold text-text">
-                {t("unavailable")}
-              </span>
-              <span className="text-muted">{t("unavailableHint")}</span>
-            </>
-          )}
-        </div>
+            ) : workspace.organization !== undefined ? (
+              // An organization member without an active warehouse they may open.
+              <>
+                <span className="font-semibold text-text">
+                  {t("noWarehouses")}
+                </span>
+                <span className="text-muted">{t("noWarehousesHint")}</span>
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-text">
+                  {t("unavailable")}
+                </span>
+                <span className="text-muted">{t("unavailableHint")}</span>
+              </>
+            )}
+          </div>
+        </>
       ) : (
         <>
           {/*
@@ -129,14 +194,10 @@ export function WorkspaceContextBar({
            * `<button>`, which is a labelable element, but only an explicit
            * `for` reaches it.
            */}
-          <label htmlFor={warehouseId} className="sr-only">
-            {t("warehouse")}
+          <label id={labelId} htmlFor={warehouseId} className={labelClassName}>
+            {fieldLabel}
           </label>
-          {/*
-           * No leading icon: beside the sidebar toggle, the
-           * narrow identity column needs its width for the warehouse label.
-           * The section title shows a truncated selection in full.
-           */}
+          {/* The section title shows a truncated selection in full. */}
           <SelectControl
             id={warehouseId}
             value={workspace.selectedWarehouseId ?? ""}

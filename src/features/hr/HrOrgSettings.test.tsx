@@ -247,18 +247,18 @@ it("a dirty branch draft asks before Cancel or native Back discard it, and Keep 
     target: { value: "Rayong" },
   });
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull(),
   );
   expect(screen.getByLabelText(field("Branch name"))).toHaveValue("Rayong");
   fireEvent.click(
     within(await branchDialog()).getByRole("button", { name: "Cancel" }),
   );
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
@@ -535,7 +535,7 @@ it("company profile guards unsaved edits and maps a refused tax ID to its field"
   ).toBeGreaterThan(0);
 
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() => expect(here()).toBe("/en/hr/today"));
 });
@@ -737,18 +737,18 @@ it("a dirty department draft asks before native Back discards it, and Discard co
     target: { value: "Logistics" },
   });
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull(),
   );
   expect(screen.getByLabelText(field("Department name"))).toHaveValue(
     "Logistics",
   );
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
@@ -839,7 +839,7 @@ it("logo intent pins the observed revision before file reading and query refresh
   ).toBeVisible();
   expect(screen.getByText("Selected file: my-selected.png")).toBeVisible();
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
@@ -1009,7 +1009,7 @@ it("a stale selected logo survives nested branch Cancel; discarding the file the
   expect(screen.getByText("Selected file: retained.png")).toBeVisible();
   await traverse("back");
   const guard = await screen.findByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   fireEvent.click(
     within(guard).getByRole("button", { name: "Discard changes" }),
@@ -1017,6 +1017,10 @@ it("a stale selected logo survives nested branch Cancel; discarding the file the
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
+  // Discard approves the native Back that opened the guard. Wait for its
+  // destination, not the transient restored settings URL while it completes.
+  await waitFor(() => expect(here()).toBe("/th/hr/today?keep=origin#source"));
+  await traverse("forward");
   await waitFor(() =>
     expect(here()).toBe("/th/hr/settings?section=company&keep=settings#logo"),
   );

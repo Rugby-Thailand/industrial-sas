@@ -12,9 +12,17 @@ Warehouse workers scan Thai factory job tickets and location labels and record s
 
 ## Product Purpose
 
-The authenticated storage planner and HR attendance application records operational work. AI usage reporting makes the actual provider spend visible without adding work to ticket scanning.
+โยงกิจ (Yongkit, pronounced “โยง-กิด”) is industrial management software that brings warehouse operations and HR into one workspace. The authenticated application records storage, finished-goods, job-ticket, attendance, and leave workflows. AI usage reporting makes the actual provider spend visible without adding work to ticket scanning.
 
 ## Capabilities and Constraints
+
+### Product naming
+
+The approved product name is **โยงกิจ** in Thai and **Yongkit** in English, pronounced **โยง-กิด**. Use the same name for the short app label. The Thai descriptor is **ระบบบริหารจัดการอุตสาหกรรม**; the English descriptor is **Industrial management software**. Page-title copy uses `{page} · {brand}` in the page's language. Keep customer organization names separate from the product brand.
+
+Use one product brand with descriptive module names: **คลังสินค้า / Warehouse**, **บุคลากร / People**, and **ผู้ดูแลองค์กร / Administration**. Production, purchasing, sales, and accounting are future expansion areas, not claims of currently available modules. Do not describe the current product as a complete ERP suite.
+
+### Implementation constraints
 
 Use Next.js, Convex, Clerk, Thai and English, and the incumbent application components. Usage belongs to the organization and authorized actor. Track provider calls independently of ticket saving. Report job-ticket scans, location-label scans, and AI Search separately. Distinguish unknown costs from zero. Report actual USD and estimated THB separately. The user chose this month as the default reporting period.
 

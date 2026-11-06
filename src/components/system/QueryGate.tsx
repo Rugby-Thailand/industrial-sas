@@ -9,17 +9,28 @@ import type { ReadScope } from "@/lib/convex/ledgerState";
 import { warehouseLabel } from "@/lib/workspace/workspace";
 import { LedgerPanelStatus } from "./LedgerPanelStatus";
 
-/** Readiness is resolved once by WorkspaceProvider, before mounting feature queries. */
+/**
+ * Readiness is resolved once by WorkspaceProvider, before mounting feature
+ * queries. The page's header belongs outside the gate, so the page keeps its
+ * h1 and Back while it waits; `loadingLabel` names what is loading.
+ */
 export function QueryGate({
   scope,
+  loadingLabel,
   children,
 }: {
   readonly scope: ReadScope;
+  readonly loadingLabel?: string;
   readonly children: (warehouseId: string, preview: false) => ReactNode;
 }): ReactNode {
   const workspace = useWorkspace();
   if (workspace.readiness.kind !== "READY_TO_QUERY") {
-    return <LedgerPanelStatus state={workspace.readiness} />;
+    return (
+      <LedgerPanelStatus
+        state={workspace.readiness}
+        {...(loadingLabel === undefined ? {} : { label: loadingLabel })}
+      />
+    );
   }
   if (scope === "ORG") return <>{children("", false)}</>;
   if (workspace.selectedWarehouseId === undefined) {

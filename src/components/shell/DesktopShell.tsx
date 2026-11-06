@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { PanelLeft, X } from "lucide-react";
+import { Menu, PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
@@ -20,21 +20,32 @@ import {
   NavigationProgressProvider,
 } from "@/components/system/NavigationProgress";
 import { SkipToContentLink } from "@/components/shell/SkipToContentLink";
-import { AccountButton } from "@/components/shell/AccountButton";
+import { SidebarAccount } from "@/components/shell/AccountButton";
+import {
+  ConnectionNotice,
+  ConnectionStallProvider,
+} from "@/components/shell/ConnectionNotice";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
-import { SidebarSearchTriggers } from "@/components/shell/search/SearchTriggers";
+import {
+  HeaderSearchTrigger,
+  SidebarSearchTriggers,
+} from "@/components/shell/search/SearchTriggers";
 import { SidebarNavigation } from "@/components/shell/SidebarNavigation";
 import { useDrawerSearchHandoff } from "@/components/shell/useDrawerSearchHandoff";
 import { useOrganizationName } from "@/components/shell/useOrganizationName";
-import { WorkspaceContextBar } from "@/components/shell/WorkspaceContextBar";
+import {
+  HeaderWarehouse,
+  WorkspaceContextBar,
+} from "@/components/shell/WorkspaceContextBar";
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { Button } from "@/components/ui/button";
 import type { SheetCompletionHandle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Sidebar,
-  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
@@ -48,7 +59,18 @@ import { cn } from "@/lib/utils";
 const MAIN_ID = "main-content";
 const NAV_ID = "primary-navigation";
 
-export function DesktopShell({ children }: { readonly children: ReactNode }) {
+export function DesktopShell({
+  children,
+  defaultOpen = true,
+}: {
+  readonly children: ReactNode;
+  /**
+   * Whether the desktop sidebar starts expanded: the member's last choice,
+   * read from the sidebar's cookie by the server layout, so the icon rail
+   * survives a reload or a language switch. Phones always start closed.
+   */
+  readonly defaultOpen?: boolean;
+}) {
   const t = useTranslations("Navigation");
   const pathname = usePathname();
   const usageReport = pathname === ROUTES.aiUsage;
@@ -58,45 +80,51 @@ export function DesktopShell({ children }: { readonly children: ReactNode }) {
       <NavigationProgressProvider>
         <NavigationGuardProvider>
           <GlobalSearchProvider>
-            <SidebarProvider
-              defaultOpen
-              className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
-              style={
-                {
-                  "--sidebar-width-icon": "4rem",
-                  "--sidebar-width": "18rem",
-                } as CSSProperties
-              }
-            >
-              <SkipToContentLink targetId={MAIN_ID}>
-                {t("skipToContent")}
-              </SkipToContentLink>
-              <HrLandingRedirect />
-              <AppSidebar menuOpener={menuOpener} />
-              <SidebarInset className="min-w-0 overflow-hidden">
-                <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <MobileNavigationDisclosure menuOpener={menuOpener} />
-                    <HeaderBrand />
-                    <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-                      <LocaleSwitcher />
-                      <ThemeToggle />
+            {/* One stall answer for the notice and every loading presenter,
+                including the phone drawer's portal. */}
+            <ConnectionStallProvider>
+              <SidebarProvider
+                defaultOpen={defaultOpen}
+                className="relative h-dvh min-h-0 w-full overflow-hidden bg-canvas text-text"
+                style={
+                  {
+                    "--sidebar-width-icon": "4rem",
+                    "--sidebar-width": "18rem",
+                  } as CSSProperties
+                }
+              >
+                <SkipToContentLink targetId={MAIN_ID}>
+                  {t("skipToContent")}
+                </SkipToContentLink>
+                <HrLandingRedirect />
+                <AppSidebar menuOpener={menuOpener} />
+                <SidebarInset className="min-w-0 overflow-hidden">
+                  <header className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:px-6">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <MobileNavigationDisclosure menuOpener={menuOpener} />
+                      <HeaderBrand />
+                      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                        <HeaderSearchTrigger />
+                        <LocaleSwitcher />
+                        <ThemeToggle />
+                      </div>
                     </div>
-                  </div>
-                </header>
-                <main
-                  id={MAIN_ID}
-                  tabIndex={-1}
-                  className={
-                    usageReport
-                      ? "min-w-0 flex-1 overflow-auto bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
-                      : "min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
-                  }
-                >
-                  <NavigationContent>{children}</NavigationContent>
-                </main>
-              </SidebarInset>
-            </SidebarProvider>
+                    <ConnectionNotice />
+                  </header>
+                  <main
+                    id={MAIN_ID}
+                    tabIndex={-1}
+                    className={
+                      usageReport
+                        ? "min-w-0 flex-1 overflow-auto bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
+                        : "min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
+                    }
+                  >
+                    <NavigationContent>{children}</NavigationContent>
+                  </main>
+                </SidebarInset>
+              </SidebarProvider>
+            </ConnectionStallProvider>
           </GlobalSearchProvider>
         </NavigationGuardProvider>
       </NavigationProgressProvider>
@@ -137,35 +165,66 @@ function NavigationDisclosure({
       variant="ghost"
       size="icon"
       data-slot="sidebar-trigger"
+      className="aria-expanded:bg-transparent"
       onClick={toggleSidebar}
       aria-label={label}
       title={label}
       aria-expanded={expanded}
       {...(!isMobile || openMobile ? { "aria-controls": NAV_ID } : {})}
     >
-      {isMobile && openMobile ? (
-        <X aria-hidden="true" />
+      {/* A phone opens a drawer menu; the desktop toggle collapses a panel. */}
+      {isMobile ? (
+        openMobile ? (
+          <X aria-hidden="true" data-testid="menu-close-icon" />
+        ) : (
+          <Menu aria-hidden="true" data-testid="menu-open-icon" />
+        )
       ) : (
-        <PanelLeft aria-hidden="true" />
+        <PanelLeft aria-hidden="true" data-testid="sidebar-toggle-icon" />
       )}
     </Button>
   );
 }
 
 /**
- * The organization this session works in, as the header's brand. Warehouse
- * context lives in the sidebar, so a phone header never carries it.
+ * The organization this session works in, as the header's brand. Until it
+ * resolves, a placeholder holds its place rather than repeating the product
+ * name the sidebar already shows. The selected warehouse joins it as a
+ * second line while the sidebar's selector is out of sight.
  */
 function HeaderBrand() {
   const name = useOrganizationName();
+  const storageContext = !isHrPath(usePathname());
+  const waiting = useConnectionStall() !== null;
+  const t = useTranslations("App");
   return (
-    <p
-      className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-text sm:text-base"
-      title={name}
-      data-testid="header-brand"
-    >
-      {name}
-    </p>
+    <div className="min-w-0 flex-1 px-1" data-testid="header-brand">
+      {name === undefined && !waiting ? (
+        <Skeleton
+          aria-hidden="true"
+          className="h-5 w-40 max-w-full"
+          data-testid="header-brand-loading"
+        />
+      ) : (
+        <p
+          className="truncate text-sm font-semibold text-text sm:text-base"
+          title={name}
+        >
+          {name ?? (
+            <>
+              <span
+                aria-hidden="true"
+                className="hidden font-normal text-muted sm:inline"
+              >
+                {t("organizationLabel")} —
+              </span>
+              <span className="sr-only">{t("namePending")}</span>
+            </>
+          )}
+        </p>
+      )}
+      {storageContext ? <HeaderWarehouse /> : null}
+    </div>
   );
 }
 
@@ -176,7 +235,6 @@ function AppSidebar({
 }) {
   const t = useTranslations("Navigation");
   const app = useTranslations("App");
-  const organizationName = useOrganizationName();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
   // The storage warehouse selection does not scope HR: each HR page picks
@@ -211,28 +269,27 @@ function AppSidebar({
       mobileTitle={t("primary")}
       mobileCloseLabel={t("closeMenu")}
     >
-      <SidebarHeader
-        className={cn("gap-6 px-4 pt-5 pb-2", collapsed && "gap-3 p-2")}
-      >
-        <div className="flex items-center gap-1">
-          {/*
-           * Compact identity: app name over the storage warehouse (outside
-           * HR), beside the toggle.
-           */}
-          <div
+      <SidebarHeader className={cn("gap-3 px-4 pt-3 pb-2", collapsed && "p-2")}>
+        {/* The product name on its own row, beside the toggle; the header
+            names the organization, and the warehouse has its own label. */}
+        <div
+          className={cn(
+            "flex items-center gap-1",
+            collapsed && "justify-center",
+          )}
+        >
+          <p
             className={cn(
-              "flex min-h-touch min-w-0 flex-1 items-center gap-3 dense:min-h-control",
+              "min-w-0 flex-1 truncate text-base font-semibold",
               collapsed && "sr-only",
             )}
+            data-testid="sidebar-brand"
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{app("name")}</p>
-              {collapsed || !storageContext ? null : <WorkspaceContextBar />}
-            </div>
-          </div>
+            {app("name")}
+          </p>
           <NavigationDisclosure />
         </div>
-        {collapsed && storageContext ? <WorkspaceContextBar collapsed /> : null}
+        {storageContext ? <WorkspaceContextBar collapsed={collapsed} /> : null}
         <SidebarSearchTriggers
           collapsed={collapsed}
           {...(isMobile ? { onOpen: searchHandoff.request } : {})}
@@ -243,25 +300,7 @@ function AppSidebar({
         collapsed={collapsed}
         {...(isMobile ? { onNavigate: navigateFromDrawer } : {})}
       />
-      <SidebarFooter
-        className={cn(
-          "mx-4 border-t border-sidebar-border px-0 py-4",
-          collapsed && "mx-2 p-0 py-2",
-        )}
-      >
-        <div className="flex min-h-12 items-center gap-3">
-          <div className="shrink-0">
-            <AccountButton />
-          </div>
-          <span
-            className={
-              collapsed ? "sr-only" : "min-w-0 truncate text-sm font-medium"
-            }
-          >
-            {organizationName}
-          </span>
-        </div>
-      </SidebarFooter>
+      <SidebarAccount collapsed={collapsed} />
     </Sidebar>
   );
 }

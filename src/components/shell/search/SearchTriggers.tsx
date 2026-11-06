@@ -5,11 +5,14 @@ import { useTranslations } from "next-intl";
 import { useSyncExternalStore } from "react";
 
 import { sidebarRowClassName } from "@/components/shell/sidebarRow";
+import { Button } from "@/components/ui/button";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 import { useSearchControls, type SearchMode } from "./GlobalSearchProvider";
 
@@ -26,7 +29,41 @@ function useShortcutLabel(): string {
   );
 }
 
-/** One sidebar entry for page, record and AI search. */
+/**
+ * Search one tap away in the phone header; desktop keeps the sidebar entry.
+ * The button takes focus before the dialog opens (iOS does not focus a
+ * tapped button), so closing the dialog returns focus here.
+ */
+export function HeaderSearchTrigger() {
+  const t = useTranslations("Search");
+  const controls = useSearchControls();
+  const { isMobile } = useSidebar();
+  if (!isMobile || controls === null) return null;
+  // Says what search finds, like the dialog's placeholder.
+  const label = t(
+    controls.canSearchPeople ? "triggerLabelPeople" : "triggerLabel",
+  );
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label={label}
+      aria-haspopup="dialog"
+      title={label}
+      onClick={(event) => {
+        event.currentTarget.focus();
+        controls.open("SEARCH");
+      }}
+      className="shrink-0 text-muted hover:text-text"
+      data-testid="header-search"
+    >
+      <Search aria-hidden="true" className="size-[1.125rem]" />
+    </Button>
+  );
+}
+
+/** One sidebar entry for page, employee and AI search. */
 export function SidebarSearchTriggers({
   collapsed,
   onOpen,
@@ -37,9 +74,18 @@ export function SidebarSearchTriggers({
   const t = useTranslations("Search");
   const controls = useSearchControls();
   const shortcut = useShortcutLabel();
+  // The phone drawer and touch screens have no keyboard to press it with.
+  const { isMobile } = useSidebar();
+  const coarse = useMediaQuery("(pointer: coarse)");
+  const showShortcut = !isMobile && !coarse;
   if (controls === null) return null;
   const open = onOpen ?? controls.open;
-  const searchLabel = t("triggerLabel", { shortcut });
+  // Says what search finds, like the dialog's placeholder.
+  const people = controls.canSearchPeople;
+  const label = t(people ? "triggerLabelPeople" : "triggerLabel");
+  const searchLabel = showShortcut
+    ? t("triggerShortcut", { label, shortcut })
+    : label;
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -51,15 +97,15 @@ export function SidebarSearchTriggers({
           {...(collapsed ? { tooltip: searchLabel } : {})}
           className={sidebarRowClassName(
             collapsed,
-            "border border-sidebar-border/60 bg-raised text-muted",
+            "border border-input bg-surface text-muted",
           )}
           data-testid="sidebar-search"
         >
           <Search aria-hidden="true" className="size-4" />
           <span className={collapsed ? "sr-only" : "flex-1 truncate"}>
-            {t("trigger")}
+            {t(people ? "triggerPeople" : "trigger")}
           </span>
-          {collapsed ? null : (
+          {collapsed || !showShortcut ? null : (
             <kbd className="rounded border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 text-xs text-sidebar-accent-foreground">
               {shortcut}
             </kbd>

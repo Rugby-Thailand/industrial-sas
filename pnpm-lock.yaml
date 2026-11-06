@@ -28,6 +28,9 @@ importers:
       '@clerk/backend':
         specifier: 3.16.4
         version: 3.16.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@clerk/localizations':
+        specifier: 4.15.1
+        version: 4.15.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@clerk/nextjs':
         specifier: 7.7.4
         version: 7.7.4(next@16.4.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -125,6 +128,9 @@ importers:
       '@edge-runtime/vm':
         specifier: 5.0.0
         version: 5.0.0
+      '@formatjs/icu-messageformat-parser':
+        specifier: 3.5.16
+        version: 3.5.16
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1
@@ -393,6 +399,10 @@ packages:
 
   '@clerk/backend@3.16.4':
     resolution: {integrity: sha512-7A9YlBLesYgKFn4DcaCq64Ggezmbzx+xYdWsiQLrMQV+U4Bm9LtDdyaNirQ0SStSsZy6PzL8RHw5zMmmEt0zMA==}
+    engines: {node: '>=20.9.0'}
+
+  '@clerk/localizations@4.15.1':
+    resolution: {integrity: sha512-dmQPgb67cHzVQBZI7LXGr/AnYvbbG20Kd2hd+KpppWMUiwDnu6pTJEFUH7L9ySbeOOJNQk+vMr0IDi5qvdE4XA==}
     engines: {node: '>=20.9.0'}
 
   '@clerk/nextjs@7.7.4':
@@ -6069,6 +6079,13 @@ snapshots:
       '@clerk/shared': 4.28.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       standardwebhooks: 1.0.0
       tslib: 2.8.1
+    transitivePeerDependencies:
+      - react
+      - react-dom
+
+  '@clerk/localizations@4.15.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@clerk/shared': 4.28.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     transitivePeerDependencies:
       - react
       - react-dom

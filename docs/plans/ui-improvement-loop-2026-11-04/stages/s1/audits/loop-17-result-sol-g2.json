@@ -1,0 +1,53 @@
+{
+  "auditor": "sol",
+  "group": 2,
+  "sourceCommit": "c2c8067240baa5415b6a3fb59215ff5348cc9124",
+  "appBuildSource": "9af8f445ee1c1b22faff93ea058a949d9b1857ff",
+  "testOnlySourceDifferences": ["src/features/hr/HrOrgSettings.test.tsx"],
+  "promptSha256": "055bce55a227f895001492b830e4350bef8e5b14a6fe5124cbc0284211c87c8d",
+  "images": [
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/locale-switch__th-mobile-light.png",
+      "sha256": "63a32b3477f1555ee041f33fbea8400a39452135409932acea75064e4f3df89a"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/locale-switch__th-desktop-light.png",
+      "sha256": "95c52b5b9bf61e581f5187ea614aeaef06ac4683a049758b757f042bae00db64"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/locale-switch__en-mobile-dark.png",
+      "sha256": "769a3221ed97723827e44f7c1e966503f8c097bb83a7058dd9c06109e77aede4"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/locale-switch__en-desktop-dark.png",
+      "sha256": "e809063186d87836237b5b45585179a9f63699dae01a6d3462bd0feff19ae9e6"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/search-empty__th-mobile-light.png",
+      "sha256": "335ebc97e0202466c4a2cf8f102200e262109ec746b9a44b5f1c3e902ea21376"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/search-empty__th-desktop-light.png",
+      "sha256": "8ec4cbabefb79bb7c87d799bb13f2e62703470c7a0b3a54674f6007d7a823473"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/search-empty__en-mobile-dark.png",
+      "sha256": "b611e6f2187b5bae528db3a26d0025da45f9d7d54fd06e9f9810b6b7c84c6f55"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/search-empty__en-desktop-dark.png",
+      "sha256": "ad100fc4a741301449b2290fa086d8f46724888917d2d41c89eec2fa32de3dca"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/search-empty--recents__th-mobile-light.png",
+      "sha256": "1cc03c60041c684aae4de002e9e35e5ad9a96e99bcef26fa0f34b2fdada82a25"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/search-empty--recents__en-desktop-dark.png",
+      "sha256": "7231f4b094f8bbd3dfc1dec2258bd343579f0f6dc71c4d78088efc4cac1b4060"
+    }
+  ],
+  "startedAt": "2026-11-06T09:27:34.578Z",
+  "exitCode": 0,
+  "finishedAt": "2026-11-06T09:29:18.777Z"
+}

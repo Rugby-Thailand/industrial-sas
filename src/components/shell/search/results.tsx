@@ -18,6 +18,8 @@ import { formatBusinessDate } from "@/features/hr/format";
 import { hrRefs } from "@/lib/convex/hrApi";
 import {
   HR_CODES,
+  STATIC_DESTINATIONS,
+  activeNavigationHref,
   destinationTrail,
   hasNavigationPermission,
   type DestinationTarget,
@@ -33,9 +35,25 @@ import {
   type PeriodHit,
 } from "@/lib/search/resolveIntent";
 
-import { normalizeSearchText } from "../../../../convex/model/search/text";
+import {
+  EMPLOYEE_MATCH_RANK,
+  normalizeSearchText,
+} from "../../../../convex/model/search/text";
 
-export type ResultGroup = "AI" | "PAGES" | "RECORDS" | "TASKS";
+/**
+ * RECENT, GOTO and ASK fill the list before anything is typed (GOTO returns
+ * when nothing matches, and ASK then offers the typed text to the AI); the
+ * rest answer a query. Records are grouped by what they are.
+ */
+export type ResultGroup =
+  | "AI"
+  | "PAGES"
+  | "EMPLOYEES"
+  | "PERIODS"
+  | "TASKS"
+  | "RECENT"
+  | "GOTO"
+  | "ASK";
 
 export interface SearchResult {
   readonly id: string;
@@ -53,6 +71,19 @@ export interface SearchResult {
   /** Null: shown for orientation, needs more input (`hint`) to open. */
   readonly target: DestinationTarget | null;
   readonly hint?: string;
+  /** Choosing it asks the AI this text instead of opening a target. */
+  readonly ask?: string;
+  /** The page already open: marked "This page" where its trail would be. */
+  readonly current?: boolean;
+}
+
+/** Whether search finds employees too, or only pages (the placeholder scope). */
+export function searchesPeople(granted: readonly string[]): boolean {
+  return hasNavigationPermission(
+    [HR_CODES.review, HR_CODES.admin],
+    granted,
+    "ANY",
+  );
 }
 
 /** Label helpers shared by normal results and AI choices. */
@@ -61,8 +92,9 @@ export function useResultLabels() {
   const t = useTranslations("Search");
   const locale = useLocale();
   return useMemo(() => {
-    const trailOf = (key: StaticDestinationKey) =>
+    const trailOf = (key: StaticDestinationKey, depth?: number) =>
       destinationTrail(key)
+        .slice(0, depth)
         .map((labelKey) => nav(labelKey))
         .join(" › ");
     const date = (value: string) =>
@@ -155,7 +187,8 @@ export function useResultLabels() {
             id,
             group,
             title: nav(destinationTrail(key).at(-1)!),
-            trail: trailOf(key),
+            // Where it sits, without repeating the title.
+            trail: trailOf(key, -1),
             target: choice.target,
           };
         }
@@ -190,11 +223,87 @@ export function useResultLabels() {
 }
 
 const SCHEDULE_WORDS = ["ตารางงาน", "กะ", "schedule", "shift"];
+/** Places offered before anything is typed, recent ones included. */
+const PLACE_LIMIT = 6;
+const RECENT_LIMIT = 3;
 
-/** Pages, sections and tasks from the registry, plus date-only self tasks. */
+/**
+ * Places the member may open, offered before anything is typed: up to three
+ * recent destinations, then menu pages (the current module's first, in menu
+ * order) to make six, never the page already shown or a place twice. Without
+ * recents (and when nothing matches) `shortcuts` holds the six menu pages.
+ */
+export function usePlaceResults(
+  granted: readonly string[],
+  pathname: string,
+  recentKeys: readonly StaticDestinationKey[],
+): {
+  readonly recent: readonly SearchResult[];
+  readonly goTo: readonly SearchResult[];
+  readonly shortcuts: readonly SearchResult[];
+} {
+  const labels = useResultLabels();
+  return useMemo(() => {
+    const permitted = (destination: StaticDestination) =>
+      hasNavigationPermission(
+        destination.permissionCodes,
+        granted,
+        destination.permissionMode ?? "ALL",
+      );
+    const menu = STATIC_DESTINATIONS.filter(
+      (destination) => destination.menu === true && permitted(destination),
+    );
+    const activeHref = activeNavigationHref(
+      pathname,
+      menu.map((destination) => destination.href),
+    );
+    const current = menu.find(
+      (destination) => destination.href === activeHref,
+    )?.module;
+    const ordered = [
+      ...menu.filter((destination) => destination.module === current),
+      ...menu.filter((destination) => destination.module !== current),
+    ].filter((destination) => destination.href !== pathname);
+    const recent = recentKeys
+      .map((key) =>
+        STATIC_DESTINATIONS.find((destination) => destination.key === key),
+      )
+      .filter(
+        (destination): destination is StaticDestination =>
+          destination !== undefined &&
+          destination.href !== pathname &&
+          permitted(destination),
+      )
+      .slice(0, RECENT_LIMIT);
+    const place =
+      (group: "RECENT" | "GOTO") =>
+      (destination: StaticDestination): SearchResult => ({
+        id: `${group.toLowerCase()}-${destination.key}`,
+        group,
+        title: labels.label(destination),
+        // Where it sits: the module (and parent page), without itself.
+        trail: labels.trailOf(destination.key, -1),
+        target: { key: destination.key },
+      });
+    return {
+      recent: recent.map(place("RECENT")),
+      goTo: ordered
+        .filter((destination) => !recent.includes(destination))
+        .slice(0, PLACE_LIMIT - recent.length)
+        .map(place("GOTO")),
+      shortcuts: ordered.slice(0, PLACE_LIMIT).map(place("GOTO")),
+    };
+  }, [granted, labels, pathname, recentKeys]);
+}
+
+/**
+ * Pages, sections and tasks from the registry, plus date-only self tasks.
+ * One that opens the page already shown (`pathname`) is marked as such.
+ */
 export function useStaticResults(
   query: string,
   granted: readonly string[],
+  pathname: string,
 ): readonly SearchResult[] {
   const t = useTranslations("Search");
   const labels = useResultLabels();
@@ -204,16 +313,26 @@ export function useStaticResults(
       0,
       12,
     );
-    const results: SearchResult[] = matches.map(({ destination }) => ({
-      id: `static-${destination.key}`,
-      group: destination.kind === "TASK" ? "TASKS" : "PAGES",
-      title: labels.label(destination),
-      trail: labels.trailOf(destination.key),
-      ...(destination.kind === "SECTION"
-        ? { action: t("actionOpenSection") }
-        : {}),
-      target: { key: destination.key },
-    }));
+    const results: SearchResult[] = matches.map(
+      ({ destination, matchedAlias }) => ({
+        id: `static-${destination.key}`,
+        group: destination.kind === "TASK" ? "TASKS" : "PAGES",
+        title: labels.label(destination),
+        ...(matchedAlias === undefined ||
+        normalizeSearchText(labels.label(destination)).includes(
+          normalizeSearchText(matchedAlias),
+        )
+          ? {}
+          : { detail: t("matchedAlias", { alias: matchedAlias }) }),
+        // Where it sits, without repeating the title.
+        trail: labels.trailOf(destination.key, -1),
+        ...(destination.kind === "SECTION"
+          ? { action: t("actionOpenSection") }
+          : {}),
+        ...(destination.href === pathname ? { current: true } : {}),
+        target: { key: destination.key },
+      }),
+    );
     // "ลืมลงเวลาเมื่อวาน": a correction task with an explicit date opens the
     // member's OWN day. A query that also names someone ("ลืมลงเวลา EMP-002
     // เมื่อวาน", "…สมชาย…") is about that person, so no own-day link.
@@ -236,7 +355,7 @@ export function useStaticResults(
         id: "task-self-day",
         group: "TASKS",
         title: t("actionCorrectDay", { date: labels.date(day.date) }),
-        trail: labels.trailOf("hr.task.correction"),
+        trail: labels.trailOf("hr.task.correction", -1),
         detail: [t("ownTask"), day.inferredYear ? t("inferredYear") : null]
           .filter(Boolean)
           .join(" · "),
@@ -244,7 +363,7 @@ export function useStaticResults(
         target: { key: "hr.selfDay", date: day.date, focus: "correction" },
       });
     return results;
-  }, [granted, hr.employee, hr.today, labels, query, t]);
+  }, [granted, hr.employee, hr.today, labels, pathname, query, t]);
 }
 
 export interface RecordState {
@@ -320,18 +439,22 @@ function RecordQueries({
       (canReview && lookup !== null && review === undefined) ||
       (canAdmin && lookup !== null && admin === undefined) ||
       (canClose && from !== null && periods === undefined);
-    const reviewItems: readonly EmployeeHit[] =
-      review?.ok === true ? review.value.items : [];
-    const adminItems: readonly EmployeeHit[] =
-      admin?.ok === true ? admin.value.items : [];
-    const employees = new Map<string, EmployeeHit>();
+    const reviewItems = review?.ok === true ? review.value.items : [];
+    const adminItems = admin?.ok === true ? admin.value.items : [];
+    const employees = new Map<string, (typeof reviewItems)[number]>();
     for (const employee of [...reviewItems, ...adminItems])
       if (!employees.has(employee.id)) employees.set(employee.id, employee);
     const reviewable = new Set(reviewItems.map((employee) => employee.id));
     const editable = new Set(adminItems.map((employee) => employee.id));
     const choices: Choice[] = [];
     const needsDate: SearchResult[] = [];
-    for (const employee of employees.values()) {
+    // Merging permission scopes must preserve the queries' relevance order.
+    const rankedEmployees = [...employees.values()].sort(
+      (a, b) =>
+        EMPLOYEE_MATCH_RANK[a.match] - EMPLOYEE_MATCH_RANK[b.match] ||
+        a.code.localeCompare(b.code),
+    );
+    for (const employee of rankedEmployees) {
       if (reviewable.has(employee.id) && dayDate !== null)
         choices.push({
           kind: "EMPLOYEE",
@@ -357,7 +480,7 @@ function RecordQueries({
       else if (dayDate === null)
         needsDate.push({
           id: `record-needs-date-${employee.id}`,
-          group: "RECORDS",
+          group: "EMPLOYEES",
           title: employee.name,
           trail: labels.trailOf("hr.review"),
           detail: labels.employeeDetail(employee),
@@ -373,7 +496,7 @@ function RecordQueries({
       if (typeof version === "string") {
         unavailable.push({
           id: `record-period-version-${period.id}`,
-          group: "RECORDS",
+          group: "PERIODS",
           title: labels.range(period.startDate, period.endDate),
           trail: labels.trailOf("hr.periods"),
           detail: labels.periodDetail(period),
@@ -398,7 +521,11 @@ function RecordQueries({
     }
     const results = [
       ...choices.map((choice, index) => {
-        const result = labels.choiceResult(choice, "RECORDS", index);
+        const result = labels.choiceResult(
+          choice,
+          choice.kind === "PERIOD" ? "PERIODS" : "EMPLOYEES",
+          index,
+        );
         return dayInferred && result.target?.key === "hr.reviewDay"
           ? { ...result, detail: `${result.detail} · ${t("inferredYear")}` }
           : result;

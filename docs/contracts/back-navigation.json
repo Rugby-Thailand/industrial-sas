@@ -73,8 +73,8 @@
       "reason": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available."
     },
     {
-      "id": "src/features/finishedGoods/FinishedGoodsCatalogue.tsx#Catalogue",
-      "reason": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available."
+      "id": "src/features/finishedGoods/FinishedGoodsCatalogue.tsx#FinishedGoodsCatalogue",
+      "reason": "A direct module hub has no synthetic parent; actual-origin and foreground Back remain available. The header renders outside the warehouse gate so it stays while the catalogue loads."
     },
     {
       "id": "src/components/auth/OrganizationRequired.tsx#OrganizationRequired",
@@ -110,7 +110,11 @@
     },
     {
       "id": "src/app/[locale]/not-found.tsx#LocaleNotFound",
-      "reason": "Unknown-route recovery uses an explicit Home link; the missing page has no meaningful synthetic Back parent."
+      "reason": "Unknown-route recovery uses an explicit, neutrally named start-page link (the start route redirects by permission); the missing page has no meaningful synthetic Back parent."
+    },
+    {
+      "id": "src/components/shell/PageFailure.tsx#PageFailure",
+      "reason": "A page that failed to render has no meaningful synthetic Back parent; actual-origin Back remains available. Its breadcrumb and explicit link name the nearest module hub from the member's permitted menu, or their own start page, never the failed page or a page that redirects back into it."
     }
   ],
   "infrastructure": [
@@ -272,16 +276,28 @@
         "removeBuffer",
         "requestTransition",
         "onPopState",
-        "skipOrphanBase"
+        "skipOrphanBase",
+        "noteOrphan"
       ],
       "capabilities": ["history-traversal", "history-write"],
       "reason": "These exact machine functions restore intercepted navigation, remove its one consent buffer, and reconcile its orphan provenance; unrelated UI callbacks have no native traversal authority.",
-      "expectation": "Native Back restores dirty work before consent, and explicit discard consumes only the machine buffer before the intended destination.",
-      "tests": ["src/components/navigation/NavigationGuardProvider.test.tsx"],
+      "expectation": "Native Back restores dirty work before consent; retained workflow Back preserves Forward by anchoring its existing entry. Pending writes still block traversal. Explicit discard consumes only a duplicate machine buffer, or clears an anchor in place, before the intended destination.",
+      "tests": [
+        "src/components/navigation/NavigationGuardProvider.test.tsx",
+        "src/components/navigation/NavigationGuardProvider.workflow.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/components/navigation/NavigationGuardProvider.test.tsx",
           "name": "preserves an actual browser history Back/keep/Back/discard sequence"
+        },
+        {
+          "file": "src/components/navigation/NavigationGuardProvider.workflow.test.tsx",
+          "name": "keeps Forward and dirty protection after a retained workflow owner remount"
+        },
+        {
+          "file": "src/components/navigation/NavigationGuardProvider.workflow.test.tsx",
+          "name": "blocks Forward while a retained write is pending and restores it after Keep and completion"
         }
       ]
     },
@@ -364,11 +380,18 @@
         "src/features/finishedGoods/FinishedGoodsCatalogue#FinishedGoodsCatalogue"
       ],
       "expectation": "A module hub preserves actual-origin and foreground Back; direct entry has no synthetic parent or self-navigation.",
-      "tests": ["src/lib/FinishedGoodsBackPolicy.test.tsx"],
+      "tests": [
+        "src/lib/FinishedGoodsBackPolicy.test.tsx",
+        "src/features/finishedGoods/HubLoadingHeader.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/lib/FinishedGoodsBackPolicy.test.tsx",
           "name": "actual finished-goods catalogue is a direct-entry hub while its projections load"
+        },
+        {
+          "file": "src/features/finishedGoods/HubLoadingHeader.test.tsx",
+          "name": "the finished-goods hub keeps its header without Back while %s loads"
         }
       ]
     },
@@ -541,11 +564,18 @@
         "src/features/finishedGoods/jobScan/JobScanRecords#JobScanRecordsScreen"
       ],
       "expectation": "Assignment Back restores retained records before page departure; direct records links use the job scanning parent, and actual origins retain locale/query/hash.",
-      "tests": ["src/features/finishedGoods/jobScan/JobScanRecords.test.tsx"],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
+        "src/features/finishedGoods/HubLoadingHeader.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanRecords.test.tsx",
           "name": "native Back closes Location assignment and retains the selected records"
+        },
+        {
+          "file": "src/features/finishedGoods/HubLoadingHeader.test.tsx",
+          "name": "scanned records keep their header and parent Back while %s loads"
         }
       ]
     },
@@ -925,25 +955,87 @@
       "file": "src/app/[locale]/[...rest]/page.tsx",
       "policy": "not-found",
       "targets": [],
-      "expectation": "Unknown routes render the locale not-found boundary, with an explicit safe Home/parent action."
+      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page."
     },
     {
       "file": "src/app/[locale]/error.tsx",
       "policy": "error",
+      "targets": ["src/components/shell/PageFailure#PageFailure"],
+      "expectation": "Error recovery links to the validated start route, named neutrally because access is unknown outside the shell, unless that page is the one that failed, and retries the failed boundary; native browser history remains available without inventing an unsafe parent.",
+      "tests": ["src/app/[locale]/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/error.test.tsx",
+          "name": "renders Thai recovery copy, retries, and reports no error text"
+        },
+        {
+          "file": "src/app/[locale]/error.test.tsx",
+          "name": "offers retry alone when the start page itself failed"
+        }
+      ]
+    },
+    {
+      "file": "src/app/[locale]/(desktop)/error.tsx",
+      "policy": "error",
       "targets": [
-        "src/components/ui/Notice#Notice",
-        "src/components/ui/button#Button"
+        "src/components/shell/FailureReference#FailureReference",
+        "src/components/shell/PageFailure#PageFailure"
       ],
-      "expectation": "Error recovery retries the failed boundary; native browser history remains available without inventing an unsafe parent."
+      "expectation": "A page that fails inside the app shell keeps the sidebar, header and search. Recovery and the breadcrumb use the nearest destination above the failed path in the member's permitted menu; without one, the member's own start page; while access loads, the neutrally named start route. Never the failed page itself or a page that redirects back into it. Retry stays primary; native browser history remains available without inventing an unsafe parent. Under the actions, a copyable reference (Next's digest, else a generated ID) with the page and time opens nothing and adds no history entry.",
+      "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "gives a reference to quote with the page and time, and records the same reference with the route pattern"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "names the failed page, retries first and offers its module hub second"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "sends a failure at %s to %s, never to the failed page itself"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "chooses the way out of %s from an HR-only member's own menu: %s"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "offers retry alone when an HR-only member's start page failed, rather than a page that redirects back to it"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "names the start page neutrally while the member's access is still loading"
+        },
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "offers retry as the only action when the start page itself failed"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/not-found.tsx",
       "policy": "not-found",
       "targets": [
+        "src/components/shell/LocaleSwitcher#LocaleSwitcher",
         "src/components/ui/PageHeader#PageHeader",
+        "src/components/ui/theme-toggle#ThemeToggle",
+        "src/components/ui/button#Button",
         "src/i18n/navigation#Link"
       ],
-      "expectation": "Unknown routes render the locale not-found boundary, with an explicit safe Home/parent action."
+      "expectation": "Unknown routes render the locale not-found boundary under the product wordmark, with one explicit safe action to the start route, named neutrally as the start page. The wordmark's language button replaces the entry with the same path, query and hash in the other locale, adding no history entry. The header theme toggle is a visual preference and creates no history entry.",
+      "tests": ["src/app/[locale]/not-found.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/not-found.test.tsx",
+          "name": "asks a %s reader to check the link and offers the start page"
+        },
+        {
+          "file": "src/app/[locale]/not-found.test.tsx",
+          "name": "opens the same address in the other language from a %s page"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/page.tsx",
@@ -1247,7 +1339,7 @@
       "cases": [
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
-          "name": "moves with arrows, ignores Enter while an IME composes, and returns focus on Escape"
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
         },
         {
           "file": "src/components/shell/DesktopShell.navigation.test.tsx",
@@ -1260,18 +1352,62 @@
         {
           "file": "src/components/shell/DesktopShell.navigation.test.tsx",
           "name": "mobile Search cannot discard a pending scan write or leave its page"
+        },
+        {
+          "file": "src/components/shell/DesktopShell.navigation.test.tsx",
+          "name": "mobile header Search closes on Back, returns focus to its button, and the next Back leaves the page"
+        }
+      ]
+    },
+    {
+      "id": "src/components/shell/search/SearchResultsViewport.tsx#SearchResultsViewport:moreBelow",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Measured list overflow shows an aria-hidden paragraph with a down-chevron below the same Search listbox. Scrolling, resizing or replacing results removes it when no rows remain below. The cue is not a foreground view or navigation action; Back still dismisses the owning Search dialog.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#ChevronDown", "p"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/components/shell/search/SearchResultsViewport.test.tsx"],
+      "cases": [
+        {
+          "file": "src/components/shell/search/SearchResultsViewport.test.tsx",
+          "name": "shows a continuation cue only while results remain below, without adding a history step"
         }
       ]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:clearedContext",
       "policy": "presentation",
-      "expectation": "Clearing optional search context changes inline suggestions and guidance in the retained search dialog; the search loader owns foreground Back.",
+      "expectation": "Clearing optional search context changes inline suggestions, the inline AI progress row, its answer and guidance in the retained search dialog; the search loader owns foreground Back. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "uses": ["branch", "return"],
       "render": [
         {
           "shape": "conditional",
+          "truthy": ["AiRunning"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
           "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
           "falsy": []
         },
         {
@@ -1285,47 +1421,101 @@
           ]
         },
         {
-          "shape": "early-return",
-          "truthy": [
-            "div[role=status]",
-            "span",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
         },
         {
           "shape": "early-return",
           "truthy": ["p[role=alert]"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:composing",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "IME composition hides premature results inside search; it does not open a new workflow.",
+      "expectation": "IME composition keeps premature results, their group headings, the inline AI option and the no-match hint under the status as they were inside search, none of them choosable; it does not open a new workflow. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["p"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:query",
       "policy": "presentation",
       "uses": ["branch", "return"],
-      "expectation": "Search text filters results inside the same active search surface; Back dismisses the containing dialog.",
+      "expectation": "Search text filters results inside the same active search surface; an empty box lists permitted recent places, places to go and AI examples (the examples group carries the AI scope as its description) as options there. Typed text shows an inline clear IconButton and, when AI is available, one inline “Ask AI where to go for …” option carrying the AI scope after the typed results, first when nothing matches; no Ask AI Button is rendered at any width. The clear button and the Escape key empty the text in place (focus stays in the box), and Escape on an empty box dismisses through the shared Dialog. Clearing is not a foreground step and creates no history entry. An AI request replaces that option with one inline progress row with Cancel after the listbox. When nothing matches, the no-match status carries what can be searched, then the AI option, then the places-to-go group. Back dismisses the containing dialog regardless of the text. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
         {
           "shape": "conditional",
-          "truthy": [
-            "div[role=group]",
-            "span",
-            "src/components/ui/button#Button"
-          ],
+          "truthy": ["AiRunning"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
           "falsy": []
         },
         {
@@ -1334,33 +1524,143 @@
           "falsy": []
         },
         {
-          "shape": "early-return",
-          "truthy": [
-            "div[role=status]",
-            "span",
-            "src/components/ui/button#Button"
-          ],
+          "shape": "conditional",
+          "truthy": ["span"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["lucide-react#X", "src/components/ui/IconButton#IconButton"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
         },
         {
           "shape": "early-return",
           "truthy": ["p[role=alert]"],
           "falsy": []
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
+    },
+    {
+      "id": "src/components/shell/search/SearchDialog.tsx#SearchBody:unmatched",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "Remembers whether the latest settled search text matched nothing, so the what-can-be-searched hint under the status and the places-to-go group after the inline AI option stay while the next text is typed and searched. All live inside the same search dialog; none is a foreground step or history entry, and Back dismisses the dialog. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
+        }
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "offers AI as one row after the typed results, first when nothing matches, and keeps it in place while typing on"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "offers the typed text to the AI when nothing matches"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/shell/search/SearchDialog.tsx#useSettledText:settled",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Debounced search text changes results in the same dialog; it never creates a foreground predecessor.",
+      "expectation": "Debounced search text changes results, the group and typed-text headings with their counts, the no-match hint and where the inline AI option sits in the same dialog; it never creates a foreground predecessor. Group headings may include a shared record-action span beside their label/count; the AI scope remains a separate presentation description. These inline text targets do not own focus, history, or a foreground step.",
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["GroupCount", "div[role=presentation]"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["p"],
           "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["div[role=presentation]"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [],
+          "falsy": ["span"]
         }
-      ]
+      ],
+      "cases": [
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "preserves match rank and code order after merging overlapping review and admin hits"
+        },
+        {
+          "file": "src/components/shell/search/GlobalSearch.test.tsx",
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
+        }
+      ],
+      "tests": ["src/components/shell/search/GlobalSearch.test.tsx"]
     },
     {
       "id": "src/components/storageLayouts/AreaColorPicker.tsx#AreaColorPicker:open",
@@ -2569,7 +2869,10 @@
       "policy": "workflow",
       "integration": "useWorkflowStep",
       "expectation": "Back restores the predecessor owned by JobScanWorkflow.locationStep, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
@@ -2578,6 +2881,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "Forward restores unsent Photo AI photos after Back returns to the location question"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "real guard retains tickets through camera Back, workflow Back and Forward before protecting departure"
         }
       ]
     },
@@ -2585,7 +2892,7 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:panel",
       "policy": "workflow",
       "integration": "useWorkflowStep",
-      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection. Manual cross-module presentation audit: JobScanWorkflow:lastWrite passes through ScanProgress:written to src/features/finishedGoods/jobScan/ScanProgress#ScanProgress, an inline div[role=status] above the barcode camera. Waiting/latest text uses p; required-field progress uses p/span and lucide-react#Check or lucide-react#Circle; incomplete count uses p. Both waiting and latest branches keep this same status surface, create no foreground or Back entry, and reset when the panel changes. The static gate does not follow this imported-component prop flow.",
+      "expectation": "Back restores the predecessor owned by JobScanWorkflow.panel, preserving route intent and retained drafts; pending writes remain protected. The pressed Scan code or Photo AI mode is the panel's single explicit close, consumes its acquisition entry before the next Back and releases the camera while retaining the photo collection. Manual cross-module presentation audit: JobScanWorkflow:lastWrite passes through ScanProgress:written to src/features/finishedGoods/jobScan/ScanProgress#ScanProgress, an inline div[role=status] above the barcode camera. Waiting/latest text uses p; required-field progress uses p/span and lucide-react#Check or lucide-react#Circle; incomplete count uses p. Beside that status region, outside the live region, the latest branch adds an inline src/components/ui/button#Button with lucide-react#Undo2 that reverts only that one intake in place: the camera, panel and its Back entry stay unchanged, the undone code is ignored until a different code is written, and any later ticket change clears the undo. Both waiting and latest branches keep this same status surface, create no foreground or Back entry, and reset when the panel changes. The static gate does not follow this imported-component prop flow.",
       "tests": [
         "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
         "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
@@ -2610,6 +2917,34 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
           "name": "shows above the camera which ticket each scan filled, even an older one, and keeps its result visible while the camera is paused"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "undoes the latest scan with the camera still open, skips the undone code until another is written, and the next Back still closes the scanner"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "offers no undo after a ticket is changed by hand, so a typed edit is never reverted"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:reviewedDuplicates",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "The duplicate-review checkbox fingerprint only decides whether the save blocker still names the repeated tickets. While unreviewed, an inline link Button scrolls to and focuses the review checkbox on the same page; it creates no foreground, URL or Back entry, and ticking the checkbox removes it.",
+      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+          "name": "requires duplicate review before saving repeated photographed physical units, naming them with a jump to the review"
+        }
+      ],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
         }
       ]
     },
@@ -2644,7 +2979,16 @@
       "id": "src/features/finishedGoods/jobScan/JobScanScreen.tsx#JobScanWorkflow:tickets",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Retained ticket rows drive inline item fields, duplicate status and the selected scanner input. Actual Location and acquisition transitions retain these rows through their separate workflow/disclosure owners.",
+      "expectation": "Retained ticket rows drive inline item fields, duplicate status and the selected scanner input. Actual Location and acquisition transitions retain these rows through their separate workflow/disclosure owners. The save blocker derived from the rows names the incomplete, invalid-quantity or repeated tickets; its inline link Button only scrolls to and focuses the first affected TicketCard row or the duplicate-review checkbox on the same page, creating no foreground, URL or Back entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "names the incomplete tickets in the save blocker and jumps to the first one"
+        }
+      ],
       "render": [
         {
           "shape": "and",
@@ -2663,6 +3007,11 @@
             "span",
             "src/components/ui/CheckboxControl#CheckboxControl"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         },
         {
@@ -5639,6 +5988,26 @@
       ]
     },
     {
+      "id": "src/components/shell/FailureReference.tsx#FailureReference:copied",
+      "policy": "presentation",
+      "expectation": "Copying the failure reference briefly relabels the same Copy button and announces it in a polite status; nothing opens and no history entry is added.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Check"],
+          "falsy": ["lucide-react#Copy"]
+        }
+      ],
+      "tests": ["src/app/[locale]/(desktop)/error.test.tsx"],
+      "cases": [
+        {
+          "file": "src/app/[locale]/(desktop)/error.test.tsx",
+          "name": "copies the reference, page and time as one line and says so"
+        }
+      ]
+    },
+    {
       "id": "src/components/shell/SidebarNavigation.tsx#NavigationSubmenu:expanded",
       "policy": "presentation",
       "expectation": "The sidebar submenu expands its same menu links in place; link intent owns route history.",
@@ -6620,7 +6989,7 @@
       "cases": [
         {
           "file": "src/components/shell/search/GlobalSearch.test.tsx",
-          "name": "moves with arrows, ignores Enter while an IME composes, and returns focus on Escape"
+          "name": "moves with arrows, ignores keys while an IME composes, clears on Escape and returns focus on the next Escape"
         },
         {
           "file": "src/components/shell/DesktopShell.navigation.test.tsx",
@@ -8804,6 +9173,10 @@
         {
           "file": "src/components/shell/LocaleSwitcher.test.tsx",
           "name": "preserves the pallet resume URL when switching $locale to $next"
+        },
+        {
+          "file": "src/components/shell/LocaleSwitcher.test.tsx",
+          "name": "asks before a language switch discards unsaved work"
         }
       ]
     },

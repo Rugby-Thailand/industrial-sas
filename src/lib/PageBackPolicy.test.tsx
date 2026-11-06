@@ -247,7 +247,7 @@ describe("module Back policy at actual callers", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(
-      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.getByRole("dialog", { name: "Discard changes?" }),
     ).toBeVisible();
     expect(router.replace).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));

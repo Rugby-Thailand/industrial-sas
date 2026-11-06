@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Thai Property AI",
+  title: "Privacy Policy · Yongkit",
   description:
-    "Privacy Policy for the Thai Property AI warehouse and storage planning application.",
+    "Privacy Policy for the Yongkit warehouse and storage planning application.",
   robots: { index: true, follow: true },
 };
 
@@ -20,8 +20,9 @@ export default async function Page({
       <h1>Privacy Policy</h1>
       <p>Last updated: September 21, 2026</p>
       <p>
-        Thai Property AI provides the warehouse and storage planning application
-        at <a href="https://app.thaipropertyai.com">app.thaipropertyai.com</a>.
+        Thai Property AI provides Yongkit, the warehouse and storage planning
+        application at{" "}
+        <a href="https://app.thaipropertyai.com">app.thaipropertyai.com</a>.
         This policy explains how information is handled when you sign in and use
         the application. For privacy questions or requests, contact{" "}
         <a href="mailto:rugbykritsakorn@gmail.com">rugbykritsakorn@gmail.com</a>

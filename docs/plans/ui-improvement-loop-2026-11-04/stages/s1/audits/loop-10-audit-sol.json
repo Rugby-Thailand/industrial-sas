@@ -1,0 +1,245 @@
+{
+  "auditor": "gpt-6.1-sol",
+  "stage": 1,
+  "loop": "10",
+  "capturedAt": "2026-11-05T13:57:03.581Z",
+  "screens": [
+    {
+      "id": "shell-page",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured shell: workspace context, navigation, search, language, and appearance controls are clear and appropriately sized.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-drawer",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9: labelled destination groups, a distinct current page, generous touch targets, and a visible continuation cue support the captured navigation task.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-rail",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9: aligned 48 px navigation targets preserve workspace context and active-page visibility while releasing width for content.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "locale-switch",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9: both switch directions produce coherent translated chrome, correct locale URLs, and readable layouts across the captured sizes and themes.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "search-empty",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "Already reaches 9: relevant shortcuts, distinct recents, clear AI examples, and accessible mobile targets make the captured state ready to ship.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-results",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "Already reaches 9: grouped results, highlighted matches, clear record-opening descriptions, and an explicit continuation cue support efficient selection.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-no-match",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "Raycast",
+      "reachesNineIf": "Already reaches 9 for this captured state: clear no-match guidance, a query-preserving fallback, and readable alternative destinations.",
+      "average": 9,
+      "cap": 10,
+      "score": 9
+    },
+    {
+      "id": "search-ai-running",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9 for the captured pending state: the request remains visible, progress is named, and Cancel is accessible and adequately sized.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "shell-loading",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P3",
+          "type": "ui",
+          "title": "Mobile header truncates the connection label",
+          "evidence": "shell-loading__th-mobile-light.png and shell-loading__en-mobile-dark.png, top header: the waiting label ends in an ellipsis. src/components/shell/DesktopShell.tsx:209 applies truncate to this fallback.",
+          "fix": "Use a shorter localized connection label in HeaderBrand at phone widths, retaining the full explanation and existing recovery Button in ConnectionNotice.",
+          "benchmark": "",
+          "id": "S1-L10-sol-01"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "Already reaches 9; shortening the mobile header status would remove the remaining polish issue.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "not-found",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Start-page recovery outcome is unverified",
+          "evidence": "not-found__th-mobile-light.aria.yml exposes the recovery link to /th/master-data/storage-layouts; runtime-qa.json contains no check activating this link and verifying its final destination.",
+          "fix": "Add runtime checks activating the existing recovery link for warehouse and HR members in both locales; verify that each reaches an authorized destination.",
+          "benchmark": "",
+          "id": "S1-L10-sol-02"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured state already reaches 9; verify the permission-directed recovery outcome to complete its evidence.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    },
+    {
+      "id": "route-error",
+      "dimensions": {
+        "taskFocus": 9,
+        "hierarchy": 9,
+        "feedback": 9,
+        "ergonomics": 9,
+        "language": 9,
+        "accessibility": 9,
+        "consistency": 9
+      },
+      "findings": [
+        {
+          "severity": "P2",
+          "type": "coverage",
+          "title": "Successful retry recovery is unverified",
+          "evidence": "route-error--retrying__en-desktop-dark.png shows pending feedback; runtime-qa.json verifies that retry settles back to the error with stable action placement, but contains no successful-recovery case.",
+          "fix": "Add a runtime case that clears the simulated read failure, activates the existing Try again button, and verifies that product content replaces the boundary at the same locale and URL.",
+          "benchmark": "",
+          "id": "S1-L10-sol-03"
+        }
+      ],
+      "bestReference": "",
+      "reachesNineIf": "The captured error, copied, and retrying states already reach 9; verify successful retry recovery to complete their evidence.",
+      "average": 9,
+      "cap": 9,
+      "score": 9
+    }
+  ],
+  "missing": [],
+  "stageScore": 9,
+  "stageMedian": 9,
+  "notes": [
+    "No substantiated UI defect in this group. Ratings concern the cross-cutting shell, navigation, and language controls; Finished goods business content is contextual. Mobile dimensions were assessed in CSS pixels, accounting for 2× captures. Accessible names, drawer semantics, rail tooltips, and active-page semantics are supported by snapshots and source. All supplied captures report no overflow, console errors, or axe violations. Runtime evidence confirms Search Close/focus return and native Back at both widths, plus rail persistence across refresh and locale changes with query/hash preservation. Unshown Search/AI and recovery screens are left to their audit groups, with no deductions here. No benchmark product is named because the supplied comparisons principally concern the open search experience.",
+    "No substantiated P0–P2 defects in these captures. Both states preserve readable Thai, English parity, visible selection, and consistent light/dark treatment. Source confirms 48px mobile targets and labelled combobox/listbox semantics. Runtime evidence verifies Back dismissal, focus return, Escape clearing then closing, and keyboard access to results below the fold. Accepted scope and AI disclosure decisions are respected; unshown states do not reduce these scores.",
+    "No P0–P2 defects found in these captured states. Thai marks and mixed-language queries remain readable; mobile controls preserve 48px targets. The accepted AI row, disclosure, HR scope, and unavailable warehouse-code lookup were not penalized. Provided axe and overflow checks are clean. Runtime evidence verifies Search dismissal, focus restoration, exact-origin Back navigation, and Escape handling; unshown interactions did not reduce captured-state scores.",
+    "No concrete UI defects found in this group. Both screens provide clear recovery actions, readable Thai and English, appropriate mobile targets, and consistent theme styling. Copy confirmation includes a live status announcement; retry preserves adjacent action placement. Supplied axe results are clean and captures report zero overflow. Coverage findings do not reduce dimension scores under D9. Search screens belong to other image groups."
+  ]
+}

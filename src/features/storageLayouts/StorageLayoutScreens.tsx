@@ -149,8 +149,13 @@ import {
   type CatalogueFilters,
 } from "./StorageLocationCatalogue";
 
-function LoadingCard() {
-  return <LedgerPanelStatus state={{ kind: "LOADING" }} />;
+function LoadingCard({ label }: { readonly label?: string }) {
+  return (
+    <LedgerPanelStatus
+      state={{ kind: "LOADING" }}
+      {...(label === undefined ? {} : { label })}
+    />
+  );
 }
 
 function QueryFailure() {
@@ -223,8 +228,9 @@ function BuildingUnavailable({
 }
 
 export function StorageBuildingCatalogue() {
+  const t = useTranslations("StorageLayouts");
   return (
-    <QueryGate scope="WAREHOUSE">
+    <QueryGate scope="WAREHOUSE" loadingLabel={t("loadingBuildings")}>
       {(warehouseId) => (
         <StorageLocationCatalogue key={warehouseId} warehouseId={warehouseId}>
           {(filters) => (
@@ -291,7 +297,7 @@ function CatalogueContent({
       {outcome && (!outcome.ok || outcome.value.status === "reset") ? (
         <QueryFailure />
       ) : !ready ? (
-        <LoadingCard />
+        <LoadingCard label={t("loadingBuildings")} />
       ) : buildings.length === 0 ? (
         settled.trim() === "" && status === "ALL" ? (
           // A warehouse without buildings: first-use guidance, not a mismatch.

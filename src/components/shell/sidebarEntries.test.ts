@@ -1,7 +1,11 @@
 import { Boxes, Building2, CalendarDays } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
-import { ROUTES, type NavigationItem } from "@/lib/navigation";
+import {
+  DESKTOP_NAVIGATION,
+  ROUTES,
+  type NavigationItem,
+} from "@/lib/navigation";
 
 import { groupSidebarItems, navigationLabelKey } from "./sidebarEntries";
 
@@ -51,6 +55,16 @@ describe("sidebar entries", () => {
     expect(navigationLabelKey(leave, false)).toBe("hrLeave");
     const review = item(ROUTES.hrLeaveReview, "hrLeaveReview");
     expect(navigationLabelKey(review, true)).toBe("hrLeaveReview");
+  });
+
+  it("gives every row a member with every grant sees its own icon", () => {
+    const rows = DESKTOP_NAVIGATION.flatMap((section) =>
+      groupSidebarItems(section.items),
+    );
+    const icons = rows.map((entry) => entry.Icon);
+    // On the icon rail the icon is all that tells two rows apart.
+    expect(new Set(icons).size).toBe(icons.length);
+    expect(rows.length).toBeGreaterThan(8);
   });
 
   it("falls back to a generic icon for unmapped destinations", () => {

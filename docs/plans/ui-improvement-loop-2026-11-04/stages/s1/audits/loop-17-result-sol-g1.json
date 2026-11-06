@@ -1,0 +1,53 @@
+{
+  "auditor": "sol",
+  "group": 1,
+  "sourceCommit": "c2c8067240baa5415b6a3fb59215ff5348cc9124",
+  "appBuildSource": "9af8f445ee1c1b22faff93ea058a949d9b1857ff",
+  "testOnlySourceDifferences": ["src/features/hr/HrOrgSettings.test.tsx"],
+  "promptSha256": "0c6520dbbe502282c81eca119052e36211868aafbe5ff9a7e42784f46310fcd4",
+  "images": [
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-page__th-mobile-light.png",
+      "sha256": "5c1b6198be348f2f903f9a0508f8719f4d4ef6d988dcd93c09b0a1a19c6b50ef"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-page__th-desktop-light.png",
+      "sha256": "1d801342ecc71291af615f8103ca30e4ca6173b5f5460c355185e529c788056f"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-page__en-mobile-dark.png",
+      "sha256": "21b8c2bf17b13ab12080e421b9ddfbdbe035c80ff631fda19ef9bccb0e3fcb23"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-page__en-desktop-dark.png",
+      "sha256": "02614ecf08248e763f690327b2cca97187ed5c41c9b635e58034f0ceb03483b4"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-page--hr__th-mobile-light.png",
+      "sha256": "923b85314d52ab088e40509382e1f764fdca434e039f11173430239e656cdfc8"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-page--hr__en-desktop-dark.png",
+      "sha256": "233d4bcd7fe48fb91154d645abde4112b976e4560b3a49588ec66a986e2b5d30"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-drawer__th-mobile-light.png",
+      "sha256": "8277345ce020163d66fabf6e33e71873147b6d7071a8d9aa037ace49c1e22496"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-drawer__en-mobile-dark.png",
+      "sha256": "2aa31c35a0efddb65bdaa6c4ee3d371c2120f348548947783fc1390e9fd441ce"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-rail__th-desktop-light.png",
+      "sha256": "a4c9a3cc5251e9f1197ffdc89e84865dad029f8c731f62959bdc029c84c02765"
+    },
+    {
+      "path": "/Users/macbook/Development/industrial-sas-ui-loop/output/ui-loop/s1/loop-17/shell-rail__en-desktop-dark.png",
+      "sha256": "ec93e0286b659ba36bbe1f7a100021a92d71d4e1b36c45a5823d80a19ca95375"
+    }
+  ],
+  "startedAt": "2026-11-06T09:19:06.011Z",
+  "exitCode": 0,
+  "finishedAt": "2026-11-06T09:21:37.473Z"
+}

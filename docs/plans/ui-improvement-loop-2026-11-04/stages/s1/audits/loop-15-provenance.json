@@ -1,0 +1,59 @@
+{
+  "sourceCommit": "3fc47de9",
+  "buildId": "FbWql8NDrJpmp9kLgAKIz",
+  "models": {
+    "sol": "gpt-6.1-sol via Codex CLI",
+    "opus": "claude-opus-5.5 via Kiro CLI"
+  },
+  "checks": {
+    "targeted": "200 Search tests passed across 7 files",
+    "navigation": "68 fixtures and contract passed; reviewed inline span/option targets unchanged",
+    "format": "passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "build": "production webpack build passed",
+    "detector": "no findings on edited SearchDialog target",
+    "captures": "46/46 captured; no horizontal overflow or serious/critical axe violations",
+    "runtimeQA": "12/12 passed: Back/Close, locale, keyboard, bilingual EMP task visibility, retry stability and outage recovery",
+    "console": "Only intended 404 responses and injected query failures in error-state captures; no unexpected errors",
+    "fullCheck": "pnpm check passed with VITEST_MAX_WORKERS=1: 68 navigation fixtures, format, typecheck (1092 files), normal ESLint, and all 5179 tests across 384 files including accessibility. No timeouts or assertions were changed."
+  },
+  "captureNotes": [
+    "AI request held by harness without contacting provider.",
+    "Supplemental recents use representative stored destination keys; mixed results search the existing fixture with EMP. No records changed.",
+    "Product owner approved EMP finding the review-day task in Thai and English. Only the shared review employee day alias was added; permission, relevance, employee/date and route behavior remain unchanged.",
+    "AI detail and disclosure now flow as one full-width paragraph at the existing readable 14 px type size. Shared record actions stay in the group heading for every result count. No copy, permission, route or AI dispatch behavior changed."
+  ],
+  "limitations": [
+    "Browser keyboard checks use Playwright key events, not a physical phone software keyboard.",
+    "Retry after an error that persists is verified; recovery after removing the fault is not established here."
+  ],
+  "verificationAttempts": [
+    {
+      "log": "/tmp/ui-l15-full-check.log",
+      "result": "5178/5179 passed; one Packing Back timing assertion failed while build/capture work overlapped. Isolated recheck passed all 8 cases."
+    },
+    {
+      "log": "/tmp/ui-l15-full-recheck.log",
+      "result": "5171/5179 passed; 8 timeout failures in 3 CI tooling integration files during heavy shared-machine load (observed load average approximately 24). Packing Back passed."
+    },
+    {
+      "log": "/tmp/ui-l15-serial-check.log",
+      "result": "Full pnpm check passed with one test worker: 5179/5179 in 384 files, 521.85 s. No code or test changes between attempts."
+    }
+  ],
+  "auditResult": {
+    "sol": {
+      "minimum": 9,
+      "median": 9,
+      "screens": 11
+    },
+    "opus": {
+      "minimum": 9,
+      "median": 9,
+      "screens": 11
+    },
+    "status": "Stage 1 dual gate passed",
+    "sourceCommit": "3fc47de9"
+  }
+}

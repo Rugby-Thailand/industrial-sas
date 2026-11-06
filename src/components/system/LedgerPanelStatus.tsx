@@ -1,6 +1,10 @@
+"use client";
+
+import { CloudOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import { useConnectionStall } from "@/components/system/connectionStall";
 import { Notice } from "@/components/ui/Notice";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -15,26 +19,43 @@ export type LedgerFailureState = Exclude<
 export function LedgerPanelStatus({
   state,
   action,
+  label,
 }: {
   readonly state: LedgerFailureState;
 
   readonly action?: ReactNode;
+  /** Names what is loading, e.g. "กำลังโหลดสินค้าสำเร็จรูป…". */
+  readonly label?: string;
 }) {
   const t = useTranslations("Panel");
+  const app = useTranslations("App");
+  const waiting = useConnectionStall() !== null;
 
   if (state.kind === "LOADING") {
+    // While the shell says the server can't be reached, the panel waits
+    // without motion and leaves the announcement to that notice. A new
+    // element rather than a changed one, so the switch is not read out.
     return (
       <div
-        role="status"
+        key={waiting ? "waiting" : "loading"}
+        {...(waiting ? { "data-waiting": "connection" } : { role: "status" })}
         data-testid="panel-LOADING"
         className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-muted">
-          <Spinner aria-hidden="true" />
-          {t("loading")}
+          {waiting ? (
+            <CloudOff aria-hidden="true" className="size-4 shrink-0" />
+          ) : (
+            <Spinner aria-hidden="true" />
+          )}
+          {waiting ? app("dataPending") : (label ?? t("loading"))}
         </span>
-        <span className="sr-only">{t("loadingHint")}</span>
-        <div aria-hidden="true" className="flex flex-col gap-2">
+        {waiting ? null : <span className="sr-only">{t("loadingHint")}</span>}
+        <div
+          hidden={waiting}
+          aria-hidden="true"
+          className="flex flex-col gap-2"
+        >
           <Skeleton className="h-6 w-1/3" />
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-full" />

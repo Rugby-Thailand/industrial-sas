@@ -43,27 +43,67 @@ import {
   ViewOnlyNotice,
 } from "./shared";
 
+/** The header stays in place while the session and warehouse load. */
 export function FinishedGoodsCatalogue() {
+  const { t } = useFGText();
+  const canManage = useCanManage();
   const viewScope = useDraftKey("fg-catalogue");
-  if (!viewScope) return <Loading />;
+  const loadingLabel = t("copy.loading-finished-goods");
   return (
-    <QueryGate scope="WAREHOUSE">
-      {(warehouseId) => (
-        <Catalogue
-          key={`${viewScope}:${warehouseId}`}
-          warehouseId={warehouseId}
-          viewKey={`${viewScope}:${warehouseId}`}
-        />
+    <>
+      <Heading
+        backFallbackHref={null}
+        title={t("copy.finished-goods")}
+        helpText={t(
+          "copy.prepare-goods-scan-packages-and-confirm-their-storage-location",
+        )}
+      >
+        {canManage && (
+          <IconButton
+            asChild
+            variant="outline"
+            label={t("copy.scan-packages-27bf0c")}
+            tooltip={t("copy.scan-packages-27bf0c")}
+          >
+            <Link href={packageScanPath()}>
+              <ScanIcon className="size-5" aria-hidden="true" />
+            </Link>
+          </IconButton>
+        )}
+        {canManage && (
+          <Button asChild>
+            <Link href={`${FG_PATH}/new`}>
+              <Plus className="size-4" aria-hidden="true" />
+              {t("copy.add-finished-good")}
+            </Link>
+          </Button>
+        )}
+      </Heading>
+      {viewScope ? (
+        <QueryGate scope="WAREHOUSE" loadingLabel={loadingLabel}>
+          {(warehouseId) => (
+            <Catalogue
+              key={`${viewScope}:${warehouseId}`}
+              warehouseId={warehouseId}
+              viewKey={`${viewScope}:${warehouseId}`}
+              loadingLabel={loadingLabel}
+            />
+          )}
+        </QueryGate>
+      ) : (
+        <Loading label={loadingLabel} />
       )}
-    </QueryGate>
+    </>
   );
 }
 function Catalogue({
   warehouseId,
   viewKey,
+  loadingLabel,
 }: {
   warehouseId: string;
   viewKey: string;
+  loadingLabel: string;
 }) {
   const { t, tr, locale } = useFGText();
   const canManage = useCanManage();
@@ -147,34 +187,6 @@ function Catalogue({
   const filtered = Boolean(search.trim()) || hasFilters(filters, tab);
   return (
     <>
-      <Heading
-        backFallbackHref={null}
-        title={t("copy.finished-goods")}
-        helpText={t(
-          "copy.prepare-goods-scan-packages-and-confirm-their-storage-location",
-        )}
-      >
-        {canManage && (
-          <IconButton
-            asChild
-            variant="outline"
-            label={t("copy.scan-packages-27bf0c")}
-            tooltip={t("copy.scan-packages-27bf0c")}
-          >
-            <Link href={packageScanPath()}>
-              <ScanIcon className="size-5" aria-hidden="true" />
-            </Link>
-          </IconButton>
-        )}
-        {canManage && (
-          <Button asChild>
-            <Link href={`${FG_PATH}/new`}>
-              <Plus className="size-4" aria-hidden="true" />
-              {t("copy.add-finished-good")}
-            </Link>
-          </Button>
-        )}
-      </Heading>
       {!canManage && (
         <div className="mb-5">
           <ViewOnlyNotice />
@@ -308,7 +320,7 @@ function Catalogue({
       {outcome?.ok && outcome.value.status === "not_ready" ? (
         <SummaryPreparation warehouseId={warehouseId} />
       ) : loading ? (
-        <Loading />
+        <Loading label={loadingLabel} />
       ) : outcome && (!outcome.ok || outcome.value.status === "reset") ? (
         <div className="space-y-2">
           <ErrorNotice

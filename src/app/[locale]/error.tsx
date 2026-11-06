@@ -4,19 +4,24 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 
 import { useObservability } from "@/components/providers/ObservabilityProvider";
-import { Button } from "@/components/ui/button";
-import { Notice } from "@/components/ui/Notice";
+import { PageFailure } from "@/components/shell/PageFailure";
+import { START_HREF } from "@/components/shell/pageRecovery";
+import { usePathname } from "@/i18n/navigation";
 import { applicationRenderErrorEvent } from "@/lib/observability/applicationError";
 
 export default function LocaleError({
   error,
-  reset,
+  retry,
 }: {
   readonly error: Error & { readonly digest?: string };
-  readonly reset: () => void;
+  readonly retry: () => void;
 }) {
   const t = useTranslations("Error");
   const observability = useObservability();
+  // Outside the shell the member's access is unknown, so the way out is the
+  // start route (it redirects by permission), named neutrally, unless it is
+  // the page that failed.
+  const startFailed = usePathname() === START_HREF;
 
   useEffect(() => {
     // `error` is intentionally a dependency but never part of the event: a new
@@ -27,17 +32,16 @@ export default function LocaleError({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center p-6">
-      <Notice
-        tone="danger"
-        role="alert"
+      <PageFailure
         title={t("title")}
-        body={t("body")}
-        testId="route-error"
-      >
-        <Button type="button" onClick={reset}>
-          {t("retry")}
-        </Button>
-      </Notice>
+        cause={t("body")}
+        hint={t("hint")}
+        {...(startFailed
+          ? {}
+          : { recovery: { href: START_HREF, label: t("goToStart") } })}
+        retryLabel={t("retry")}
+        onRetry={retry}
+      />
     </main>
   );
 }

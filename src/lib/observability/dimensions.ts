@@ -97,10 +97,32 @@ export function normalizeRoute(value: unknown): string | undefined {
   return route || "root";
 }
 
+/**
+ * Next's server error digest: an unsigned 32-bit string hash (never a leading
+ * zero, so never a Thai phone number), optionally with Next's own error code.
+ */
+const NEXT_ERROR_DIGEST = /^[1-9]\d{0,9}(?:@E\d{1,5})?$/;
+/** The app's own six characters, from an alphabet without 0/O or 1/I/L. */
+const GENERATED_REFERENCE = /^[2-9A-HJKMNP-Z]{6}$/;
+export const GENERATED_REFERENCE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+/**
+ * A failure reference a member can quote: Next's digest of a server error, or
+ * an opaque ID the error boundary generated. Neither shape can carry a name,
+ * a code typed by a person, or a record ID.
+ */
+export function isFailureReference(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (NEXT_ERROR_DIGEST.test(value) || GENERATED_REFERENCE.test(value))
+  );
+}
+
 export const OBSERVABILITY_DIMENSIONS: Readonly<Record<string, DimensionRule>> =
   Object.freeze({
     // Error boundaries (`applicationError.ts`).
     boundary: oneOf("locale", "global"),
+    reference: (value) => (isFailureReference(value) ? value : undefined),
     // Web vitals (`webVitals.ts`). The per-page-load metric `id` is excluded.
     metric: oneOf("TTFB", "FCP", "LCP", "FID", "CLS", "INP"),
     value: finiteNumber,
@@ -115,7 +137,8 @@ export const OBSERVABILITY_DIMENSIONS: Readonly<Record<string, DimensionRule>> =
       "back-forward-cache",
       "restore",
     ),
-    // Workspace query failures (`WorkspaceAccessBoundary`).
+    // Workspace query failures (`WorkspaceAccessBoundary`) and the shell's
+    // page failure boundary.
     route: normalizeRoute,
     // Warehouse references are deliberately omitted: a lexical shape cannot
     // establish that an arbitrary value is an opaque ID rather than content.

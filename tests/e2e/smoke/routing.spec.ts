@@ -76,7 +76,7 @@ test.describe("locale routing", () => {
 
 test.describe("public and not-found pages", () => {
   for (const [path, heading] of [
-    ["/en/about", "Warehouse and storage planning"],
+    ["/en/about", "Industrial management software"],
     ["/th/privacy", null],
     ["/en/terms", null],
   ] as const) {
@@ -105,7 +105,7 @@ test.describe("public and not-found pages", () => {
       await expect(
         page.getByRole("heading", { level: 1, name: "ไม่พบหน้าที่ต้องการ" }),
       ).toBeVisible();
-      await page.getByRole("link", { name: "กลับไปแดชบอร์ด" }).click();
+      await page.getByRole("link", { name: "ไปหน้าเริ่มต้น" }).click();
       await expect(page).toHaveURL(/\/th\/sign-in/);
     });
 

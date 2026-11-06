@@ -581,75 +581,82 @@ describe("index-backed job-scan search", () => {
   // convex-test evaluates every index read by iterating all documents, so the
   // exhaustive sweep uses a 900-scan corpus; the 2,200-scan corpus below
   // measures reads and re-checks parity for the needles it measures.
-  it("answers every needle and filter exactly like the scan, page by page", async () => {
-    const fixture = await setup(900);
-    const built = await runBackfill(fixture);
-    expect(built.ready).toBe(true);
-    // SEARCH_PARITY_NEEDLES raises the random sample (reported runs: 110).
-    const needles = needlesFor(
-      fixture,
-      Number(process.env["SEARCH_PARITY_NEEDLES"] ?? 70),
-    );
-    const data = await snapshot(fixture);
-    let compared = 0;
-    let mismatches = 0;
-    for (const raw of needles) {
-      const needle = normalizeJobScanSearch(raw);
-      for (const filter of ["ALL", "MAPPED", "UNMAPPED"] as const) {
-        if (filter !== "ALL" && random() < 0.6) continue;
-        const truth = truthOf(data, needle, filter);
-        // Very common needles: one filter, large pages (boundaries still checked).
-        if (filter !== "ALL" && truth.length > 600) continue;
-        const pageSize = truth.length > 300 ? 100 : 20;
-        const indexed = await traverse(fixture, {
-          search: raw,
-          filter,
-          pageSize,
-        });
-        compared++;
-        const same =
-          JSON.stringify(indexed.pages.flat()) === JSON.stringify(truth) &&
-          JSON.stringify(filled(indexed.pages)) ===
-            JSON.stringify(chunk(truth, pageSize));
-        if (!same) {
-          mismatches++;
-          console.log("MISMATCH", JSON.stringify(raw), filter, {
-            indexed: indexed.pages.flat().length,
-            truth: truth.length,
+  it(
+    "answers every needle and filter exactly like the scan, page by page",
+    async () => {
+      const fixture = await setup(900);
+      const built = await runBackfill(fixture);
+      expect(built.ready).toBe(true);
+      // SEARCH_PARITY_NEEDLES raises the random sample (reported runs: 110).
+      const needles = needlesFor(
+        fixture,
+        Number(process.env["SEARCH_PARITY_NEEDLES"] ?? 70),
+      );
+      const data = await snapshot(fixture);
+      let compared = 0;
+      let mismatches = 0;
+      for (const raw of needles) {
+        const needle = normalizeJobScanSearch(raw);
+        for (const filter of ["ALL", "MAPPED", "UNMAPPED"] as const) {
+          if (filter !== "ALL" && random() < 0.6) continue;
+          const truth = truthOf(data, needle, filter);
+          // Very common needles: one filter, large pages (boundaries still checked).
+          if (filter !== "ALL" && truth.length > 600) continue;
+          const pageSize = truth.length > 300 ? 100 : 20;
+          const indexed = await traverse(fixture, {
+            search: raw,
+            filter,
+            pageSize,
           });
+          compared++;
+          const same =
+            JSON.stringify(indexed.pages.flat()) === JSON.stringify(truth) &&
+            JSON.stringify(filled(indexed.pages)) ===
+              JSON.stringify(chunk(truth, pageSize));
+          if (!same) {
+            mismatches++;
+            console.log("MISMATCH", JSON.stringify(raw), filter, {
+              indexed: indexed.pages.flat().length,
+              truth: truth.length,
+            });
+          }
         }
       }
-    }
-    console.log(
-      "PARITY",
-      JSON.stringify({ needles: needles.length, compared, mismatches }),
-    );
-    expect(mismatches).toBe(0);
+      console.log(
+        "PARITY",
+        JSON.stringify({ needles: needles.length, compared, mismatches }),
+      );
+      expect(mismatches).toBe(0);
 
-    // The unindexed scan, run on the same data, returns the same pages.
-    const sample = needles.filter(
-      (raw, index) =>
-        index % 10 === 0 &&
-        truthOf(data, normalizeJobScanSearch(raw), "ALL").length < 300,
-    );
-    for (const raw of sample) {
-      const needle = normalizeJobScanSearch(raw);
-      await setReady(fixture, false);
-      const old = await traverse(fixture, {
-        search: raw,
-        filter: "ALL",
-        pageSize: 50,
-      });
-      await setReady(fixture, true);
-      const indexed = await traverse(fixture, {
-        search: raw,
-        filter: "ALL",
-        pageSize: 50,
-      });
-      expect(filled(indexed.pages), raw).toEqual(filled(old.pages));
-      expect(indexed.pages.flat()).toEqual(truthOf(data, needle, "ALL"));
-    }
-  });
+      // The unindexed scan, run on the same data, returns the same pages.
+      const sample = needles.filter(
+        (raw, index) =>
+          index % 10 === 0 &&
+          truthOf(data, normalizeJobScanSearch(raw), "ALL").length < 300,
+      );
+      for (const raw of sample) {
+        const needle = normalizeJobScanSearch(raw);
+        await setReady(fixture, false);
+        const old = await traverse(fixture, {
+          search: raw,
+          filter: "ALL",
+          pageSize: 50,
+        });
+        await setReady(fixture, true);
+        const indexed = await traverse(fixture, {
+          search: raw,
+          filter: "ALL",
+          pageSize: 50,
+        });
+        expect(filled(indexed.pages), raw).toEqual(filled(old.pages));
+        expect(indexed.pages.flat()).toEqual(truthOf(data, needle, "ALL"));
+      }
+      // CI's convex-test index emulation completed 187 comparisons without a
+      // mismatch but needed 642.7 s. This is an emulator wall-clock allowance;
+      // the corpus, parity assertions and measured read budgets stay unchanged.
+    },
+    Number(process.env["SEARCH_INDEX_TEST_TIMEOUT_MS"] ?? 900_000),
+  );
 
   it("reads in proportion to matches for rare needles, not to history", async () => {
     const fixture = await setup(2_200);
