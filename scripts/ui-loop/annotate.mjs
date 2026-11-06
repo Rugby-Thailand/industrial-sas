@@ -106,12 +106,16 @@ function compose(screen, vp, beforeImg, after, items, sc, capture) {
   const scale = vp === "mobile" ? 1 : 0.5;
   const w = (vp === "mobile" ? 390 : 1440) * scale;
   const h = (vp === "mobile" ? 844 : 900) * scale;
+  const isVisible = (box) =>
+    Boolean(box) &&
+    box.y * scale <= h &&
+    box.x * scale <= w &&
+    (box.y + box.height) * scale >= 0;
   const markers = items
     .map((it, i) => {
-      if (!it.box) return "";
+      if (!isVisible(it.box)) return "";
       const { x, y, width, height } = it.box;
       const [bx, by, bw, bh] = [x, y, width, height].map((v) => v * scale);
-      if (by > h || bx > w || by + bh < 0) return "";
       const cx = Math.min(Math.max(bx + bw, 14), w - 14);
       const cy = Math.min(Math.max(by, 14), h - 14);
       return `<rect x="${bx - 2}" y="${by - 2}" width="${bw + 4}" height="${bh + 4}" rx="6" fill="none" stroke="#e8590c" stroke-width="3"/>
@@ -128,7 +132,7 @@ function compose(screen, vp, beforeImg, after, items, sc, capture) {
     .join("");
   const legend = items
     .map((it, i) => {
-      const visible = Boolean(it.box) && it.box.y * scale < h;
+      const visible = isVisible(it.box);
       return `<li><span class="n${visible ? "" : " off"}">${i + 1}</span><div>
         <div class="what">${esc(it.summary)}${visible ? "" : " <span class='ids'>(not visible in this capture)</span>"}</div>
         <div class="why">Why: ${esc(it.why)}</div>
