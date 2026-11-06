@@ -497,7 +497,7 @@ it("mobile sidebar keeps the draft after cancelling and reaches the chosen desti
   });
   fireEvent.click(todayLink(drawer));
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(route.push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -538,7 +538,7 @@ it("mobile sidebar cannot leave while a scan write is pending", async () => {
   );
   fireEvent.click(todayLink(drawer));
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Discard changes" }),
@@ -754,7 +754,7 @@ it("mobile Search preserves a cancelled draft and consumes its dialog before the
   );
   await chooseTodayFromSearch();
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(route.push).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -794,7 +794,7 @@ it("mobile Search cannot discard a pending scan write or leave its page", async 
     ),
   );
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Discard changes" }),

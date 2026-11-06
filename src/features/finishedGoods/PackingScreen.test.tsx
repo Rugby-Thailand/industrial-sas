@@ -1054,7 +1054,7 @@ it("guards an unsent packing draft when browser storage cannot retain it", () =>
   const leave = vi.fn();
   act(() => guardedNavigate(leave));
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(

@@ -979,11 +979,11 @@ it("native Back retains dirty batch corrections when leaving is canceled", async
       target: { value: "0.8" },
     });
     act(() => window.history.back());
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+    await screen.findByRole("dialog", { name: "Discard changes?" });
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+        screen.queryByRole("dialog", { name: "Discard changes?" }),
       ).toBeNull(),
     );
     expect(screen.getByLabelText("Length (m) · 1")).toHaveValue(0.8);
@@ -992,7 +992,7 @@ it("native Back retains dirty batch corrections when leaving is canceled", async
     );
     expect(mocks.close).not.toHaveBeenCalled();
     act(() => window.history.back());
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+    await screen.findByRole("dialog", { name: "Discard changes?" });
     expect(mocks.write).not.toHaveBeenCalled();
   } finally {
     view.unmount();

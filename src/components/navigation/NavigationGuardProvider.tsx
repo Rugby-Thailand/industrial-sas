@@ -168,7 +168,9 @@ export function NavigationGuardProvider({
           showCloseButton={!keepDisabled}
         >
           <DialogHeader>
-            <DialogTitle>{labels.title}</DialogTitle>
+            <DialogTitle>
+              {summary.saveable ? labels.title : labels.titleNoSave}
+            </DialogTitle>
             <DialogDescription>
               {summary.saveable ? labels.description : labels.descriptionNoSave}
             </DialogDescription>
@@ -1172,6 +1174,7 @@ function guardLabels(thai: boolean) {
     title: thai
       ? "บันทึกการเปลี่ยนแปลงก่อนออก?"
       : "Save changes before leaving?",
+    titleNoSave: thai ? "ละทิ้งการเปลี่ยนแปลง?" : "Discard changes?",
     description: thai
       ? "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก เลือกบันทึก ละทิ้ง หรือแก้ไขต่อ"
       : "You have unsaved changes. Save them, discard them, or keep editing.",

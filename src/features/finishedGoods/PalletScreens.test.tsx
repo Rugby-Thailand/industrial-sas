@@ -1782,14 +1782,14 @@ it("measurement native Back retains the dirty draft and discard restores the act
   number("Length (m)", "1.3");
   await palletBack();
   expect(
-    await screen.findByRole("dialog", { name: "Save changes before leaving?" }),
+    await screen.findByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(screen.getByRole("spinbutton", { name: "Length (m)" })).toHaveValue(
     1.3,
   );
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() =>
     expect(

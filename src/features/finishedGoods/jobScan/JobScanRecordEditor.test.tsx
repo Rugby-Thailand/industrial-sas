@@ -131,7 +131,7 @@ it("guards dirty ticket Cancel and keeps the correction when dismissal is cancel
   fireEvent.click(screen.getAllByRole("button", { name: "Cancel" }).at(-1)!);
   await waitFor(() =>
     expect(
-      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.getByRole("dialog", { name: "Discard changes?" }),
     ).toBeVisible(),
   );
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));

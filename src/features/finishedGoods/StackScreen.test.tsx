@@ -464,7 +464,7 @@ it("guards unsent stack limits and clears the guard after values are reverted", 
   const leave = vi.fn();
   act(() => guardedNavigate(leave));
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(checkbox.checked).toBe(!initial);

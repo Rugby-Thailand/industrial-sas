@@ -214,7 +214,7 @@ describe("WorkspaceContextBar in the sidebar", () => {
     };
     await choose();
     expect(
-      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.getByRole("dialog", { name: "Discard changes?" }),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(committed).not.toHaveBeenCalled();

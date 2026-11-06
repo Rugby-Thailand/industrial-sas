@@ -109,7 +109,7 @@ test("Phase1 company profile and bank accounts persist and dirty header Back pro
   await form.getByLabel(/^Company name( \*)?$/).fill("Unsaved company draft");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   const guard = page.getByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   await guard
     .getByRole("button", { name: "Keep editing", exact: true })
@@ -237,7 +237,7 @@ test("Phase1 branch Cancel then next Back and nested dirty dismissal preserve or
   await name.fill("Unsaved branch draft");
   await page.goBack();
   const guard = page.getByRole("dialog", {
-    name: "Save changes before leaving?",
+    name: "Discard changes?",
   });
   await guard
     .getByRole("button", { name: "Keep editing", exact: true })

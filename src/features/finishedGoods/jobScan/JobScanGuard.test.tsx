@@ -114,7 +114,7 @@ it("keeps captured tickets on Keep editing and on a browser Back", () => {
   const leave = vi.fn();
   act(() => guardedNavigate(leave));
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   // Saving needs the scan form's own checks; the prompt never sends tickets.
   expect(

@@ -222,7 +222,7 @@ it("a dirty shift draft asks before native Back discards it, and Discard consume
     target: { value: "NIGHT" },
   });
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
@@ -333,16 +333,16 @@ it("a selected roster draft asks before native Back discards it and survives a r
     screen.getByRole("button", { name: /Somchai, 2026-10-21/ }),
   ).toHaveAttribute("aria-pressed", "true");
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).toBeNull(),
   );
   expect(within(bar).getByRole("status")).toHaveTextContent("1 date selected");
   fireEvent.click(within(bar).getByRole("button", { name: "Cancel" }));
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() => expect(here()).toBe("/en/hr/roster#grid"));
   await traverse("back");
@@ -472,7 +472,7 @@ it("a second roster draft after a successful save still asks before Back discard
   await screen.findByRole("form", { name: "Assign shifts to selected dates" });
   fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-22/ }));
   await traverse("back");
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
@@ -516,7 +516,7 @@ it("header Back asks before discarding a roster selection, then the next Back re
   await screen.findByRole("form", { name: "Assign shifts to selected dates" });
   fireEvent.click(screen.getByRole("button", { name: /Somchai, 2026-10-21/ }));
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() => expect(here()).toBe("/en/hr/roster?keep=1#grid"));
   fireEvent.click(screen.getByRole("button", { name: "Back" }));

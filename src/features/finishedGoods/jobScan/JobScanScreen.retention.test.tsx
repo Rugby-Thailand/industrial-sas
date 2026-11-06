@@ -221,7 +221,7 @@ it("asks before leaving with collected photos that were not sent to AI, and Keep
   const leave = vi.fn();
   act(() => guardedNavigate(leave));
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(leave).not.toHaveBeenCalled();
@@ -301,7 +301,7 @@ it("keeps unsent tickets in their warehouse when another tab switches warehouse 
   typeTicket();
   otherTab("warehouse-b");
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   expect(readStoredWarehouse()).toBe("warehouse-a");
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -323,7 +323,7 @@ it("protects a photo-only collection from a cross-tab warehouse switch", () => {
   collectPhotos(1);
   otherTab("warehouse-b");
   expect(
-    screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    screen.getByRole("dialog", { name: "Discard changes?" }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(readStoredWarehouse()).toBe("warehouse-a");

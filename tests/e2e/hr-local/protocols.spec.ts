@@ -174,7 +174,7 @@ test("protocol two real logo editors fence stale file remove and ABA then persis
     await expect(input).toBeDisabled();
     await page.goBack();
     const guard = page.getByRole("dialog", {
-      name: "Save changes before leaving?",
+      name: "Discard changes?",
     });
     await expect(page.getByTestId("navigation-guard-pending")).toBeVisible();
     await expect(

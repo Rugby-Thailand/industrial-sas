@@ -2941,7 +2941,7 @@ describe("mobile storage workspace", () => {
       ).getByRole("button", { name: "Edit Occupied FG" }),
     );
     const prompt = await screen.findByRole("dialog", {
-      name: "Save changes before leaving?",
+      name: "Discard changes?",
     });
     expect(
       within(prompt).getByRole("button", { name: "Discard changes" }),

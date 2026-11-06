@@ -977,7 +977,7 @@ it.each(["remove", "archive"])(
       ).not.toBeInTheDocument(),
     );
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Building name" })).toHaveValue(
       "PD",
@@ -1075,7 +1075,7 @@ it.each(["spot", "position"])(
       ).not.toBeInTheDocument(),
     );
     expect(
-      screen.queryByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.queryByRole("dialog", { name: "Discard changes?" }),
     ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
@@ -1462,7 +1462,7 @@ it.each(["pending", "uncertain retry"])(
     }
     expect(
       await screen.findByRole("dialog", {
-        name: "Save changes before leaving?",
+        name: "Discard changes?",
       }),
     ).toBeVisible();
     expect(onCompleted).not.toHaveBeenCalled();

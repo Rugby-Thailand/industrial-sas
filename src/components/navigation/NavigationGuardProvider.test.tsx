@@ -115,6 +115,9 @@ describe("single navigation guard owner", () => {
   it("keeps the draft and cancels a requested transition", () => {
     render(owned(<Editor />));
     fireEvent.click(screen.getByText("Switch floor"));
+    expect(
+      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(discard).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
@@ -409,10 +412,10 @@ describe("single navigation guard owner", () => {
 
   it("provides the same decisions in Thai and disables them during an external save", () => {
     routing.locale = "th";
-    render(owned(<Editor dirty={false} pending />));
+    const view = render(owned(<Editor dirty={false} pending />));
     fireEvent.click(screen.getByText("Switch floor"));
     expect(
-      screen.getByRole("dialog", { name: "บันทึกการเปลี่ยนแปลงก่อนออก?" }),
+      screen.getByRole("dialog", { name: "ละทิ้งการเปลี่ยนแปลง?" }),
     ).toBeInTheDocument();
     // Nothing is dirty, so there is nothing to save.
     expect(
@@ -422,6 +425,27 @@ describe("single navigation guard owner", () => {
       screen.getByRole("button", { name: "ละทิ้งการเปลี่ยนแปลง" }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "แก้ไขต่อ" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "แก้ไขต่อ" }));
+    view.rerender(owned(<Editor />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    expect(
+      screen.getByRole("dialog", { name: "บันทึกการเปลี่ยนแปลงก่อนออก?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "บันทึกและดำเนินการต่อ" }),
+    ).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "แก้ไขต่อ" }));
+    view.rerender(owned(<Editor saveable={false} />));
+    fireEvent.click(screen.getByText("Switch floor"));
+    expect(
+      screen.getByRole("dialog", { name: "ละทิ้งการเปลี่ยนแปลง?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "บันทึกและดำเนินการต่อ" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "ละทิ้งการเปลี่ยนแปลง" }),
+    ).toBeEnabled();
   });
 });
 
@@ -440,6 +464,9 @@ describe("several registered drafts", () => {
     act(() => guardedNavigate(transition));
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(
+      screen.getByRole("dialog", { name: "Discard changes?" }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: "Save and continue" }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
@@ -454,6 +481,9 @@ describe("several registered drafts", () => {
     );
     expect(push).toHaveBeenCalledOnce();
     act(() => guardedNavigate(transition));
+    expect(
+      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Save and continue" }),
     ).toBeEnabled();

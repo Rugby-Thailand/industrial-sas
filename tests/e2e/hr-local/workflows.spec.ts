@@ -137,7 +137,7 @@ test("offline pending employee save blocks Back until the real backend settles",
     ).toBeDisabled();
     await page.goBack();
     const dialog = page.getByRole("dialog", {
-      name: "Save changes before leaving?",
+      name: "Discard changes?",
     });
     await expect(page.getByTestId("navigation-guard-pending")).toBeVisible();
     await expect(

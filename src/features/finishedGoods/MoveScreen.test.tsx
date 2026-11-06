@@ -1004,7 +1004,7 @@ describe("native move pending departure", () => {
       "/en/finished-goods/pallets/pallet-a/move",
     );
     expect(
-      screen.getByRole("dialog", { name: "Save changes before leaving?" }),
+      screen.getByRole("dialog", { name: "Discard changes?" }),
     ).toBeVisible();
   });
 });
@@ -1115,7 +1115,7 @@ it("explicit issue Close protects its unsent description and discarding consumes
   fireEvent.click(
     within(dialog).getAllByRole("button", { name: "Close" }).at(-1)!,
   );
-  await screen.findByRole("dialog", { name: "Save changes before leaving?" });
+  await screen.findByRole("dialog", { name: "Discard changes?" });
   fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
   expect(
     screen.getByRole("textbox", { name: "Describe the issue" }),
