@@ -10,6 +10,7 @@ const endpoints = [
   "getStorageBuilding",
   "getStorageBuildingLayout",
   "getStorageBuildingInventory",
+  "getStorageBuildingReview",
 ];
 
 describe("building route IDs at the public query boundary", () => {
