@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
 import {
-  lstatSync,
+  closeSync,
+  constants,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -105,8 +107,18 @@ syncBuiltinESMExports();
   const result = probe.run(hook);
   expect(result.status, result.stderr).toBe(0);
   expect(readFileSync(external, "utf8")).toBe("leave this file unchanged");
-  expect(lstatSync(probe.ledger).isSymbolicLink()).toBe(false);
-  const ledger = JSON.parse(readFileSync(probe.ledger, "utf8"));
+  // Opening without following links verifies the published entry and reads
+  // that same file, without a separate pathname check/use race.
+  const descriptor = openSync(
+    probe.ledger,
+    constants.O_RDONLY | constants.O_NOFOLLOW,
+  );
+  let ledger;
+  try {
+    ledger = JSON.parse(readFileSync(descriptor, "utf8"));
+  } finally {
+    closeSync(descriptor);
+  }
   expect(ledger.loops).toHaveLength(2);
   expect(ledger.loops[0]).toEqual({ loop: 0, note: "keep" });
   expect(ledger.loops[1].scores.sol.min).toBe(9);

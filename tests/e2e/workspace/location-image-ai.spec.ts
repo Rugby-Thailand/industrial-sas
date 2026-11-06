@@ -111,6 +111,12 @@ test("Job location rereads the same photo once through its centred overlay", asy
     name: "Read this photo again with AI",
     exact: true,
   });
+  // The photo renders before its automatic read effect starts. Wait for the
+  // first result before testing clicks on the settled retry state.
+  await expect
+    .poll(() => page.evaluate(() => window.locationAiCompleted))
+    .toBe(1);
+  expect(await page.evaluate(() => window.locationAiRequests.length)).toBe(1);
   await expect(retry).toBeVisible();
   const photo = page.getByRole("img", { name: "Location label photo" });
   const imageBox = (await photo.boundingBox())!;
