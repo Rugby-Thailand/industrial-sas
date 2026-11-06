@@ -1,0 +1,52 @@
+{
+  "change": "Optional plain-string description for sole dirty no-save registration; metadata only",
+  "checks": {
+    "guardTests": {
+      "passed": 97,
+      "files": 4
+    },
+    "navigation": 0,
+    "normalFullEslint": 0,
+    "pinnedBunTypecheck": 0,
+    "changedFileFormatting": 0
+  },
+  "retainedFailures": {
+    "initialTests": "3 stale-description failures, subsequently corrected",
+    "initialTypecheck": "Global Bun 1.3.14 rejected before code checking; pinned Bun 1.4.3 retry passed"
+  },
+  "logs": [
+    {
+      "path": "output/ui-loop/shared-guard-description/attempt-1/tests.log",
+      "sha256": "c5d06a3a031003d06a2035d03dd11843adf96d4ae0fa4a37d520e2d2744d5d6e"
+    },
+    {
+      "path": "output/ui-loop/shared-guard-description/attempt-2/tests.log",
+      "sha256": "3117fb7cc2a7926d3be931097b6f1755c6817ad49a6e7e5cd36d7d2e65c4565a"
+    },
+    {
+      "path": "output/ui-loop/shared-guard-description/attempt-2/navigation.log",
+      "sha256": "bfe15f2e4c14d1034c108632bc427e22dbd93a7628f87b1228d26028d5776c65"
+    },
+    {
+      "path": "output/ui-loop/shared-guard-description/attempt-2/lint.log",
+      "sha256": "ddb4a2e77cd041bff894e9c190bd960f57ad8a08eca0f73543661124a649cab2"
+    },
+    {
+      "path": "output/ui-loop/shared-guard-description/attempt-2/types.log",
+      "sha256": "31c2fb8eba5c9b0fe9022583adace0657d69cfaca5180075c9859b7ab400402f"
+    },
+    {
+      "path": "output/ui-loop/shared-guard-description/types-pinned.log",
+      "sha256": "b6c690e22f967b7220c4d93b6db29f04a00566756e4cccf556ecc03f562e830a"
+    }
+  ],
+  "productionSourceHashes": {
+    "src/components/navigation/navigationDraft.ts": "7bd2e70e5346459500357fe3434a419549497ccf7e3803779dacf7b4d188bb6b",
+    "src/components/navigation/NavigationGuardProvider.tsx": "32fd29acd693545dfa9ab3d28efd6763602dff1c8ddde5fbe9047574c224744f"
+  },
+  "limits": [
+    "No production caller adopted in this commit",
+    "Caller browser and visual evidence required on integrated source",
+    "No frozen audit score inherited"
+  ]
+}

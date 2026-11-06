@@ -49,19 +49,29 @@ interface Summary {
   /** Exactly one dirty entry, and it can save. */
   readonly saveable: boolean;
   readonly saveBlockedReason?: string;
+  readonly discardDescription?: string;
 }
 
 const EMPTY_SUMMARY: Summary = { pending: false, saveable: false };
 
-function summarize(entries: ReadonlyMap<string, DraftRegistration>): Summary {
+function summarize(
+  entries: ReadonlyMap<string, DraftRegistration>,
+  descriptions: ReadonlyMap<string, string>,
+): Summary {
   const values = [...entries.values()];
-  const dirty = values.filter((entry) => entry.dirty);
-  const sole = dirty.length === 1 ? dirty[0] : undefined;
+  const dirty = [...entries].filter(([, entry]) => entry.dirty);
+  const soleId = dirty.length === 1 ? dirty[0]?.[0] : undefined;
+  const sole = soleId === undefined ? undefined : entries.get(soleId);
+  const description =
+    soleId === undefined ? undefined : descriptions.get(soleId);
   return {
     pending: values.some((entry) => entry.pending),
     saveable: sole?.save !== undefined,
     ...(sole?.save !== undefined && sole.saveBlockedReason
       ? { saveBlockedReason: sole.saveBlockedReason }
+      : {}),
+    ...(sole?.save === undefined && description?.trim()
+      ? { discardDescription: description }
       : {}),
   };
 }
@@ -69,7 +79,8 @@ function summarize(entries: ReadonlyMap<string, DraftRegistration>): Summary {
 const sameSummary = (a: Summary, b: Summary) =>
   a.pending === b.pending &&
   a.saveable === b.saveable &&
-  a.saveBlockedReason === b.saveBlockedReason;
+  a.saveBlockedReason === b.saveBlockedReason &&
+  a.discardDescription === b.discardDescription;
 
 const guarded = (entry: DraftRegistration) => entry.dirty || entry.pending;
 
@@ -172,7 +183,9 @@ export function NavigationGuardProvider({
               {summary.saveable ? labels.title : labels.titleNoSave}
             </DialogTitle>
             <DialogDescription>
-              {summary.saveable ? labels.description : labels.descriptionNoSave}
+              {summary.saveable
+                ? labels.description
+                : (summary.discardDescription ?? labels.descriptionNoSave)}
             </DialogDescription>
           </DialogHeader>
           {summary.pending ? (
@@ -310,6 +323,9 @@ interface OwnedBuffer {
 
 function createGuardMachine(deps: MachineDeps) {
   const entries = new Map<string, DraftRegistration>();
+  // Presentation updates must not replace an approval's registration identity
+  // or re-arm history when the guarded work itself has not changed.
+  const descriptions = new Map<string, string>();
   /** Settled entries ignore stale dirty reports until they report clean. */
   const settled = new Set<string>();
   /** The open prompt's request; only the owner may continue it. */
@@ -404,7 +420,7 @@ function createGuardMachine(deps: MachineDeps) {
     else window.removeEventListener("beforeunload", onBeforeUnload);
   }
   const publish = () => {
-    deps.onSummary(summarize(selectedEntries(intent?.options)));
+    deps.onSummary(summarize(selectedEntries(intent?.options), descriptions));
     syncUnloadListener();
   };
 
@@ -652,6 +668,10 @@ function createGuardMachine(deps: MachineDeps) {
       settled.delete(id);
     }
     const before = entries.get(id);
+    const description = entry?.discardDescription ?? "";
+    const descriptionChanged = descriptions.get(id) !== description;
+    if (entry !== null && guarded(entry)) descriptions.set(id, description);
+    else descriptions.delete(id);
     if (attempt?.id === id) {
       // The attempt saves what its registration held when it began. A clean
       // report followed by guarded work, or turning dirty again while only
@@ -675,8 +695,10 @@ function createGuardMachine(deps: MachineDeps) {
         before.saveBlockedReason === entry.saveBlockedReason &&
         before.workflowScope === entry.workflowScope &&
         before.foregroundScope === entry.foregroundScope
-      )
+      ) {
+        if (descriptionChanged) publish();
         return;
+      }
       entries.set(id, entry);
     }
     sync();
@@ -685,6 +707,7 @@ function createGuardMachine(deps: MachineDeps) {
   function settle(id: string, then?: Transition, foregroundScope?: string) {
     settled.add(id);
     entries.delete(id);
+    descriptions.delete(id);
     publish();
     if (active()) {
       if (then)
