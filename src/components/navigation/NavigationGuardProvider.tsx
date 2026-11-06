@@ -20,6 +20,7 @@ import {
   subscribeHistoryWrites,
 } from "@/lib/browser/appHistory";
 import { browserQueryEvent } from "@/lib/browser/history";
+import { hasWorkflowController } from "@/lib/browser/workflowControllers";
 import {
   announceNavigationIntent,
   announceNavigationBlocked,
@@ -248,6 +249,19 @@ function newBufferMarker(): string {
     : `${Date.now().toString(36)}-${++markerCounter}`;
 }
 
+/** An anchor marks an existing entry; unlike a buffer it has no duplicate base. */
+const ANCHOR_PREFIX = "retained-workflow:";
+function anchorScope(marker: unknown): string | undefined {
+  if (typeof marker !== "string" || !marker.startsWith(ANCHOR_PREFIX)) return;
+  const [encodedScope] = marker.slice(ANCHOR_PREFIX.length).split(":");
+  if (!encodedScope) return;
+  try {
+    return decodeURIComponent(encodedScope);
+  } catch {
+    return;
+  }
+}
+
 interface MachineDeps {
   readonly onSummary: (summary: Summary) => void;
   readonly onPrompt: (open: boolean) => void;
@@ -281,12 +295,14 @@ interface Approval {
 
 const NOTHING_COVERED: ReadonlyMap<string, DraftRegistration> = new Map();
 
-/** The same-URL history entry this owner pushed or adopted for its page. */
+/** A duplicate buffer, or an existing entry anchoring retained workflow work. */
 interface OwnedBuffer {
   readonly marker: string;
   readonly href: string;
   /** The guarded page's committed app depth (its buffer adds none). */
   readonly index: number | undefined;
+  /** Present only when guarding an existing retained-workflow entry. */
+  readonly retainedScope: string | undefined;
 }
 
 function createGuardMachine(deps: MachineDeps) {
@@ -298,7 +314,7 @@ function createGuardMachine(deps: MachineDeps) {
   let attempt: SaveAttempt | null = null;
   let buffer: OwnedBuffer | null = null;
   let restoring = false;
-  let rearmAfterTraversal = false;
+  let rearmAfterTraversal: string | undefined;
   let afterRestore: (() => void) | undefined;
   /** Bounded re-aims when a restoration lands beside the buffer. */
   let restoreCorrections = 0;
@@ -350,6 +366,13 @@ function createGuardMachine(deps: MachineDeps) {
   function noteOrphan() {
     const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     const index = appHistoryIndex();
+    if (anchorScope(marker) !== undefined) {
+      const state = { ...window.history.state };
+      delete state[GUARD_HISTORY_KEY];
+      withOwnWrite(() => window.history.replaceState(state, ""));
+      orphan = null;
+      return;
+    }
     orphan =
       buffer === null &&
       typeof marker === "string" &&
@@ -391,31 +414,46 @@ function createGuardMachine(deps: MachineDeps) {
     }
   }
 
-  function arm() {
+  function arm(retainedScope = rearmAfterTraversal) {
     if (!connected || buffer !== null || removing || !active()) return;
-    // A same-URL buffer left by a previous owner or document (remount,
-    // reload) already duplicates this page: reuse it rather than stacking a
-    // second dead Back step.
+    rearmAfterTraversal = undefined;
+    // Reuse a previous owner's buffer or anchor on remount/reload. Its marker
+    // records whether removal consumes a duplicate or clears metadata in place.
     const existing: unknown = window.history.state?.[GUARD_HISTORY_KEY];
     orphan = null;
     if (typeof existing === "string" && !abandonedMarkers.has(existing)) {
       buffer = {
         marker: existing,
+        retainedScope: anchorScope(existing),
         href: window.location.href,
         index: appHistoryIndex(),
       };
       return;
     }
-    const id = newBufferMarker();
-    withOwnWrite(() =>
-      window.history.pushState(
-        { ...window.history.state, [GUARD_HISTORY_KEY]: id },
-        "",
-        window.location.href,
-      ),
-    );
+    const scope = appHistoryIndex() === undefined ? undefined : retainedScope;
+    const id =
+      scope === undefined
+        ? newBufferMarker()
+        : `${ANCHOR_PREFIX}${encodeURIComponent(scope)}:${newBufferMarker()}`;
+    if (scope !== undefined) {
+      // Replacing metadata retains every Forward entry after workflow Back.
+      withOwnWrite(() =>
+        window.history.replaceState(
+          { ...window.history.state, [GUARD_HISTORY_KEY]: id },
+          "",
+        ),
+      );
+    } else
+      withOwnWrite(() =>
+        window.history.pushState(
+          { ...window.history.state, [GUARD_HISTORY_KEY]: id },
+          "",
+          window.location.href,
+        ),
+      );
     buffer = {
       marker: id,
+      retainedScope: scope,
       href: window.location.href,
       index: appHistoryIndex(),
     };
@@ -425,13 +463,15 @@ function createGuardMachine(deps: MachineDeps) {
    * Native steps from the current entry back to the buffer, or undefined
    * when committed depth is unknown. Each committed app depth below the page
    * is one entry; the page's own unmarked entry shares the buffer's depth
-   * and sits directly beneath it.
+   * and sits directly beneath it. An existing-entry anchor adds no such step.
    */
   function stepsToBuffer(): number | undefined {
     const at = appHistoryIndex();
     const index = buffer?.index;
     if (at === undefined || index === undefined) return undefined;
-    return at <= index ? index - at + 1 : index - at;
+    return (
+      index - at + (at <= index && buffer?.retainedScope === undefined ? 1 : 0)
+    );
   }
 
   function traverse(delta: number) {
@@ -445,15 +485,15 @@ function createGuardMachine(deps: MachineDeps) {
    * chose (e.g. an earlier page from the Back menu), measured from wherever
    * buffer removal left history. Unknown depth falls back to one Back.
    */
-  function traverseTo(target: number | undefined) {
+  function traverseTo(target: number | undefined, removedSteps = 1) {
     const at = appHistoryIndex();
     if (target === undefined || at === undefined) {
       window.history.back();
       return;
     }
     const delta = target - at;
-    // Forward entries begin with the removed buffer, which is skipped.
-    traverse(delta > 0 ? delta + 1 : delta);
+    // Skip an extra removed buffer only; clearing an anchor adds no step.
+    traverse(delta > 0 ? delta + removedSteps : delta);
   }
 
   function finishRemoval(): Approval | undefined {
@@ -518,6 +558,13 @@ function createGuardMachine(deps: MachineDeps) {
     }
     const state = { ...window.history.state };
     delete state[GUARD_HISTORY_KEY];
+    if (buffer.retainedScope !== undefined) {
+      // This is the real page, not an extra entry above it.
+      withOwnWrite(() => window.history.replaceState(state, ""));
+      const next = finishRemoval();
+      if (next !== undefined && !continueApproved(next)) arm();
+      return;
+    }
     restoredLocation = { url: window.location.href, state };
     removing = true;
     window.history.back();
@@ -557,12 +604,12 @@ function createGuardMachine(deps: MachineDeps) {
       }
       if (!options.entry) {
         proceed(() => {
-          rearmAfterTraversal = true;
+          rearmAfterTraversal = options.preserveDraftScope;
           action();
         }, new Map(entries));
         return;
       }
-      if (options.entry && onBuffer()) {
+      if (options.entry && onBuffer() && buffer?.retainedScope === undefined) {
         options.entry.claim = () => {
           if (!onBuffer()) return false;
           const state = { ...window.history.state };
@@ -671,7 +718,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (current.options?.preserveDraftScope) {
       setIntent(null);
       proceed(() => {
-        rearmAfterTraversal = true;
+        rearmAfterTraversal = current.options?.preserveDraftScope;
         current.action();
       }, covered);
     } else proceed(current.action, covered);
@@ -786,9 +833,10 @@ function createGuardMachine(deps: MachineDeps) {
     if (buffer === null || !active()) {
       if (buffer === null) {
         skipOrphanBase(event);
-        if (rearmAfterTraversal) {
-          rearmAfterTraversal = false;
-          if (active()) queueMicrotask(() => arm());
+        if (rearmAfterTraversal !== undefined) {
+          const scope = rearmAfterTraversal;
+          rearmAfterTraversal = undefined;
+          if (active()) arm(scope);
         }
       }
       return;
@@ -797,11 +845,49 @@ function createGuardMachine(deps: MachineDeps) {
     // pages away), then restore the buffer without unmounting the editor.
     const landed = appHistoryIndex();
     const index = buffer.index;
+    const scope = buffer.retainedScope;
+    const removedSteps = scope === undefined ? 1 : 0;
+    if (
+      scope !== undefined &&
+      index !== undefined &&
+      landed !== undefined &&
+      samePage(window.location.href, buffer.href)
+    ) {
+      const marker: unknown = window.history.state?.[GUARD_HISTORY_KEY];
+      const duplicateAhead =
+        landed === index &&
+        typeof marker === "string" &&
+        marker !== buffer.marker &&
+        anchorScope(marker) === undefined &&
+        !abandonedMarkers.has(marker);
+      const query = new URLSearchParams(window.location.search);
+      const retainedForward =
+        landed > index &&
+        selectedEntries({ preserveDraftScope: scope }).size === 0 &&
+        [...query.keys()].some((key) => {
+          const originIndex: unknown =
+            window.history.state?.[`${key}OriginIndex`];
+          return (
+            query.get(key) === "1" &&
+            hasWorkflowController(key) &&
+            window.history.state?.[`${key}Origin`] === scope &&
+            typeof originIndex === "number" &&
+            Number.isSafeInteger(originIndex) &&
+            originIndex >= 0 &&
+            originIndex <= index
+          );
+        });
+      if (duplicateAhead || retainedForward) {
+        buffer = null;
+        arm(scope);
+        return;
+      }
+    }
     const target =
       landed === undefined || index === undefined
         ? undefined
         : // Leaving the buffer onto its own unmarked page is one page Back.
-          landed === index
+          landed === index && removedSteps === 1
           ? index - 1
           : landed;
     // From the overtaken buffer's base, that buffer is the next entry; the
@@ -817,13 +903,20 @@ function createGuardMachine(deps: MachineDeps) {
     restoring = true;
     restoreCorrections = 0;
     traverse(steps ?? 1);
-    if (landed === index && hasBackWithinPage()) {
+    if (
+      (landed === index ||
+        (scope !== undefined &&
+          landed !== undefined &&
+          index !== undefined &&
+          landed < index)) &&
+      hasBackWithinPage()
+    ) {
       afterRestore = () => {
         if (!connected) return;
         if (backWithinPage()) announceNavigationBlocked();
-        else requestTransition(() => traverseTo(target));
+        else requestTransition(() => traverseTo(target, removedSteps));
       };
-    } else requestTransition(() => traverseTo(target));
+    } else requestTransition(() => traverseTo(target, removedSteps));
   }
 
   /**

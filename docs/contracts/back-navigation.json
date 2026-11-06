@@ -276,16 +276,28 @@
         "removeBuffer",
         "requestTransition",
         "onPopState",
-        "skipOrphanBase"
+        "skipOrphanBase",
+        "noteOrphan"
       ],
       "capabilities": ["history-traversal", "history-write"],
       "reason": "These exact machine functions restore intercepted navigation, remove its one consent buffer, and reconcile its orphan provenance; unrelated UI callbacks have no native traversal authority.",
-      "expectation": "Native Back restores dirty work before consent, and explicit discard consumes only the machine buffer before the intended destination.",
-      "tests": ["src/components/navigation/NavigationGuardProvider.test.tsx"],
+      "expectation": "Native Back restores dirty work before consent; retained workflow Back preserves Forward by anchoring its existing entry. Pending writes still block traversal. Explicit discard consumes only a duplicate machine buffer, or clears an anchor in place, before the intended destination.",
+      "tests": [
+        "src/components/navigation/NavigationGuardProvider.test.tsx",
+        "src/components/navigation/NavigationGuardProvider.workflow.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/components/navigation/NavigationGuardProvider.test.tsx",
           "name": "preserves an actual browser history Back/keep/Back/discard sequence"
+        },
+        {
+          "file": "src/components/navigation/NavigationGuardProvider.workflow.test.tsx",
+          "name": "keeps Forward and dirty protection after a retained workflow owner remount"
+        },
+        {
+          "file": "src/components/navigation/NavigationGuardProvider.workflow.test.tsx",
+          "name": "blocks Forward while a retained write is pending and restores it after Keep and completion"
         }
       ]
     },
@@ -2857,7 +2869,10 @@
       "policy": "workflow",
       "integration": "useWorkflowStep",
       "expectation": "Back restores the predecessor owned by JobScanWorkflow.locationStep, preserving route intent and retained drafts; pending writes remain protected.",
-      "tests": ["src/features/finishedGoods/jobScan/JobScanScreen.test.tsx"],
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
+        "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx"
+      ],
       "cases": [
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
@@ -2866,6 +2881,10 @@
         {
           "file": "src/features/finishedGoods/jobScan/JobScanScreen.test.tsx",
           "name": "Forward restores unsent Photo AI photos after Back returns to the location question"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanScreen.retention.test.tsx",
+          "name": "real guard retains tickets through camera Back, workflow Back and Forward before protecting departure"
         }
       ]
     },

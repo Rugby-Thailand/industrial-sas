@@ -9,6 +9,7 @@ import { useHrListCriteria } from "@/features/hr/HrListCriteria";
 import { Link, useRouter } from "@/i18n/navigation";
 import { updateBrowserQuery } from "@/lib/browser/history";
 import { StorageFixture } from "./storageFixture";
+import { WorkflowFixture } from "./workflowFixture";
 import { PageBackButton } from "@/components/ui/PageBackButton";
 
 export function Fixture({ screen }: { readonly screen: string }) {
@@ -95,6 +96,7 @@ export function Fixture({ screen }: { readonly screen: string }) {
         <Link href="/editor?floor=1&view=storage&q=initial#section">
           Open editor
         </Link>
+        <Link href="/workflow?qa=draft#tickets">Open retained workflow</Link>
         <Link href="/previous">Previous page</Link>
       </nav>
       <div ref={workspaceRef}>
@@ -106,6 +108,7 @@ export function Fixture({ screen }: { readonly screen: string }) {
       <p data-testid="discards">{discards}</p>
       <p data-testid="draft-b">{draftB}</p>
       {screen === "storage" ? <StorageFixture /> : null}
+      {screen === "workflow" ? <WorkflowFixture /> : null}
       {screen === "editor" ? (
         <>
           <label>

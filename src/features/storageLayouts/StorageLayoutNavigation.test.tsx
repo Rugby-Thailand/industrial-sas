@@ -256,8 +256,9 @@ describe("floor editor workflow step", () => {
     await waitFor(() => expect(params().get("editing")).toBe("1"));
     const length = window.history.length;
     await nativeBack();
+    await waitFor(() => expect(params().get("editing")).toBeNull());
     await nativeForward();
-    expect(params().get("editing")).toBe("1");
+    await waitFor(() => expect(params().get("editing")).toBe("1"));
     expect(
       screen.getByRole("button", { name: "Edit floor 1" }),
     ).toHaveAttribute("aria-pressed", "true");

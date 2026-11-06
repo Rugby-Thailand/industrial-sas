@@ -518,3 +518,40 @@ it("names the incomplete tickets in the save blocker and jumps to the first one"
   });
   preference.mockRestore();
 });
+
+it("real guard retains tickets through camera Back, workflow Back and Forward before protecting departure", async () => {
+  start();
+  typeTicket();
+  fireEvent.click(screen.getByRole("button", { name: "Scan code" }));
+  act(() => window.history.back());
+  await waitFor(() => expect(window.location.search).not.toContain("overlay"));
+  act(() => window.history.back());
+  await screen.findByRole("button", { name: "Choose dock in warehouse-a" });
+  expect(window.location.search + window.location.hash).toBe(
+    "?source=qa#tickets",
+  );
+  act(() => window.history.forward());
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
+      "FO69070073",
+    ),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  act(() => window.history.back());
+  await screen.findByRole("button", { name: "Choose dock in warehouse-a" });
+  act(() => window.history.back());
+  await screen.findByRole("dialog");
+  await waitFor(() =>
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe("/th/finished-goods/scan?source=qa#tickets"),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  act(() => window.history.forward());
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
+      "FO69070073",
+    ),
+  );
+  expect(mocks.save).not.toHaveBeenCalled();
+});
