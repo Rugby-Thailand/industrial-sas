@@ -81,7 +81,9 @@ describe("HR draft guard", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "Discard changes?",
     });
-    expect(dialog).toHaveTextContent("not sent");
+    expect(dialog).toHaveAccessibleDescription(
+      "You have unsaved changes. Discard them to continue, or keep editing.",
+    );
     // HR requests are sent from their own form, never from this prompt.
     expect(
       screen.queryByRole("button", { name: "Save and continue" }),

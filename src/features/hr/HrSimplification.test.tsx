@@ -265,7 +265,9 @@ describe("review decision flow", () => {
     // The unsent text still holds navigation with the history collapsed.
     const leave = vi.fn();
     act(() => guardedNavigate(leave));
-    expect(await screen.findByRole("dialog")).toHaveTextContent("not sent");
+    expect(await screen.findByRole("dialog")).toHaveAccessibleDescription(
+      "You have unsaved changes. Discard them to continue, or keep editing.",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(leave).not.toHaveBeenCalled();
     expect(field).toHaveValue("No");
@@ -613,7 +615,9 @@ describe("period next action", () => {
 
     const leave = vi.fn();
     act(() => guardedNavigate(leave));
-    expect(await screen.findByRole("dialog")).toHaveTextContent("not sent");
+    expect(await screen.findByRole("dialog")).toHaveAccessibleDescription(
+      "You have unsaved changes. Discard them to continue, or keep editing.",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(leave).not.toHaveBeenCalled();
     fireEvent.click(toggle);

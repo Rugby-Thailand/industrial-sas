@@ -354,7 +354,9 @@ describe("older closed versions stay selectable (HR-042)", () => {
       { target: { value: "3" } },
     );
     fireEvent.click(screen.getByRole("button", { name: "Open version" }));
-    expect(await screen.findByRole("dialog")).toHaveTextContent("not sent");
+    expect(await screen.findByRole("dialog")).toHaveAccessibleDescription(
+      "You have unsaved changes. Discard them to continue, or keep editing.",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(reason).toHaveValue("Late leave form");
   });
