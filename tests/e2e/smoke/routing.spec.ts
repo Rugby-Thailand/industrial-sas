@@ -76,7 +76,7 @@ test.describe("locale routing", () => {
 
 test.describe("public and not-found pages", () => {
   for (const [path, heading] of [
-    ["/en/about", "Warehouse and storage planning"],
+    ["/en/about", "Industrial management software"],
     ["/th/privacy", null],
     ["/en/terms", null],
   ] as const) {

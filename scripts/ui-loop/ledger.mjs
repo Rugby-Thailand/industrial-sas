@@ -7,8 +7,14 @@
 // else audit-sol-a.json; audit-opus.json). --entry merges extra fields such as
 // fixed, rejected, deferred, behaviour, checks and note.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import {
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 const { values: args } = parseArgs({
@@ -20,15 +26,24 @@ const { values: args } = parseArgs({
   },
 });
 const path = `docs/plans/ui-improvement-loop-2026-11-04/stages/s${args.stage}/ledger.json`;
-const ledger = existsSync(path)
-  ? JSON.parse(readFileSync(path, "utf8"))
-  : { stage: Number(args.stage), loops: [] };
+function readOptionalJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+const ledger = readOptionalJson(path) ?? {
+  stage: Number(args.stage),
+  loops: [],
+};
 const dir = resolve(`output/ui-loop/s${args.stage}/loop-${args.loop}`);
 const audit = (names) => {
   for (const n of names) {
     const p = join(dir, n);
-    if (!existsSync(p)) continue;
-    const a = JSON.parse(readFileSync(p, "utf8"));
+    const a = readOptionalJson(p);
+    if (a === undefined) continue;
     return {
       min: a.stageScore,
       median: a.stageMedian,
@@ -56,10 +71,21 @@ const entry = {
 ledger.loops = [...ledger.loops.filter((l) => l.loop !== loop), entry].sort(
   (a, b) => a.loop - b.loop,
 );
-writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`);
-execFileSync("pnpm", ["exec", "prettier", "--write", path], {
-  stdio: "ignore",
-});
+// Format an owned sibling file, then replace the directory entry atomically.
+// A substituted ledger path must never redirect the write to another file.
+const temporaryDirectory = mkdtempSync(join(dirname(path), ".ledger-"));
+try {
+  const temporaryFile = join(temporaryDirectory, "ledger.json");
+  writeFileSync(temporaryFile, `${JSON.stringify(ledger, null, 2)}\n`, {
+    flag: "wx",
+  });
+  execFileSync("pnpm", ["exec", "prettier", "--write", temporaryFile], {
+    stdio: "ignore",
+  });
+  renameSync(temporaryFile, path);
+} finally {
+  rmSync(temporaryDirectory, { recursive: true, force: true });
+}
 console.log(
   `loop ${loop}: sol ${entry.scores.sol?.min ?? "–"}/${entry.scores.sol?.median ?? "–"}, opus ${entry.scores.opus?.min ?? "–"}/${entry.scores.opus?.median ?? "–"} → ${path}`,
 );
