@@ -224,7 +224,19 @@ if (!args["gallery-only"]) {
           .filter((f) => /^changes(-.*)?\.json$/.test(f))
           .flatMap((f) => JSON.parse(readFileSync(join(d, f), "utf8"))),
       );
-    const items = r.boxes.map((b) => {
+    // Cumulative change loops can record the same element more than once.
+    const uniqueBoxes = r.boxes.filter(
+      (box, index, boxes) =>
+        !box.box ||
+        boxes.findIndex(
+          (other) =>
+            other.locator === box.locator &&
+            ["x", "y", "width", "height"].every(
+              (key) => other.box?.[key] === box.box?.[key],
+            ),
+        ) === index,
+    );
+    const items = uniqueBoxes.map((b) => {
       const c = changes.find(
         (c) => c.screen === r.screen && c.locator === b.locator,
       );
