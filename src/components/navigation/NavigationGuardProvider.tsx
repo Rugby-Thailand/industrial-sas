@@ -1180,8 +1180,8 @@ function guardLabels(thai: boolean) {
       ? "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก เลือกบันทึก ละทิ้ง หรือแก้ไขต่อ"
       : "You have unsaved changes. Save them, discard them, or keep editing.",
     descriptionNoSave: thai
-      ? "มีข้อมูลที่กรอกไว้แต่ยังไม่ได้ส่ง เลือกละทิ้งเพื่อไปต่อ หรือกลับไปแก้ไขต่อ"
-      : "You have entered details that were not sent. Discard them to continue, or keep editing.",
+      ? "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก เลือกละทิ้งเพื่อไปต่อ หรือกลับไปแก้ไขต่อ"
+      : "You have unsaved changes. Discard them to continue, or keep editing.",
     save: thai ? "บันทึกและดำเนินการต่อ" : "Save and continue",
     discard: thai ? "ละทิ้งการเปลี่ยนแปลง" : "Discard changes",
     keep: thai ? "แก้ไขต่อ" : "Keep editing",
