@@ -1,0 +1,8 @@
+
+> yongkit@0.0.0 typecheck /Users/macbook/Development/industrial-sas-ui-loop
+> node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty
+
+Bun checker 1.4.3 (TypeScript 7.0.2)
+Generating route types...
+✓ Types generated successfully
+✓ No type errors in 1,203 files [1465.75ms]
