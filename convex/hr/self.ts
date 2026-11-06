@@ -31,9 +31,10 @@ import {
 } from "../model/hr/schedule";
 import { buildDayDetail, correctionView, latestCorrection } from "./dayDetail";
 import {
-  closedPeriodCovering,
+  periodLockCode,
   dayOf,
   employeeDaysInRange,
+  employeeRosterInRange,
   employmentOf,
   ensureDay,
   fail,
@@ -567,8 +568,12 @@ export const clockIn = mutationWithOrg({
           case "NONWORKING":
             break;
         }
-        if (await closedPeriodCovering(ctx, employee.warehouseId, state.date))
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          state.date,
+        );
+        if (periodLock !== null) return fail(periodLock);
         const day = await ensureDay(ctx, employee, state.date, clock.offset);
         if (day.approvedLeaveRequestId !== undefined)
           return fail("HR_DAY_ON_APPROVED_LEAVE");
@@ -621,14 +626,12 @@ export const clockOut = mutationWithOrg({
           return fail("HR_CLOCK_DAY_CHANGED");
         if (state.day.approvedLeaveRequestId !== undefined)
           return fail("HR_DAY_ON_APPROVED_LEAVE");
-        if (
-          await closedPeriodCovering(
-            ctx,
-            employee.warehouseId,
-            state.day.businessDate,
-          )
-        )
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          state.day.businessDate,
+        );
+        if (periodLock !== null) return fail(periodLock);
         return await recordClock(
           ctx,
           employee,
@@ -665,9 +668,12 @@ export const history = queryWithOrg({
     const to = compareDates(args.to, clock.today) > 0 ? clock.today : args.to;
     // One date-range read each for the days and the site's holidays; the
     // holidays matter only for dates without a recorded day.
-    const [recorded, siteHolidays] = await Promise.all([
+    const [recorded, siteHolidays, roster] = await Promise.all([
       employeeDaysInRange(ctx, employee._id, args.from, to),
       holidaysInRange(ctx, employee.warehouseId, args.from, to),
+      compareDates(args.from, to) > 0
+        ? new Map()
+        : employeeRosterInRange(ctx, employee, args.from, to),
     ]);
     const holidays = new Map<IsoDate, string>();
     for (const [date, name] of siteHolidays)
@@ -699,6 +705,7 @@ export const history = queryWithOrg({
             offsetMinutes: clock.offset,
             now: clock.now,
             holidayName: (date) => holidays.get(date),
+            assignment: (_id, date) => roster.get(date),
             recorded: (_id, date) => {
               const day = recorded.get(date);
               return day ? recordedDay(day) : undefined;
@@ -742,11 +749,19 @@ export const dayDetail = queryWithOrg({
       return { ok: false as const, code: "DATE_INVALID" };
     const employee = await linkedEmployee(ctx);
     if (employee === null) return { ok: false as const, code: "HR_NOT_LINKED" };
+    const detail = await buildDayDetail(
+      ctx,
+      employee,
+      args.businessDate,
+      clock,
+    );
+    if (detail === null)
+      return { ok: false as const, code: "HR_OUTSIDE_EMPLOYMENT" };
     return {
       ok: true as const,
       timezone: clock.timezone,
       today: clock.today,
-      detail: await buildDayDetail(ctx, employee, args.businessDate, clock),
+      detail,
     };
   },
 });
@@ -816,8 +831,12 @@ export const submitCorrection = mutationWithOrg({
           return fail("HR_OUTSIDE_EMPLOYMENT", "businessDate");
         const reason = normalizeReason(args.reason);
         if (reason === null) return fail("REASON_REQUIRED", "reason");
-        if (await closedPeriodCovering(ctx, employee.warehouseId, date))
-          return fail("HR_PERIOD_CLOSED");
+        const periodLock = await periodLockCode(
+          ctx,
+          employee.warehouseId,
+          date,
+        );
+        if (periodLock !== null) return fail(periodLock);
 
         const existing = await dayOf(ctx, employee._id, date);
         if (existing?.approvedLeaveRequestId !== undefined)

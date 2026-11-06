@@ -1,3 +1,5 @@
+import { invalidateZoneOccupancy } from "../storageLayouts/zoneOccupancyBackfill";
+import { invalidateSearchIndex } from "../finishedGoods/searchIndexBackfill";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { v } from "convex/values";
 
@@ -369,6 +371,10 @@ export const bootstrapLocalDemo = internalMutation({
       .unique();
     let created = false;
     if (!building) {
+      // Raw building/location writes bypass tracked search and zone surface
+      // maintenance.
+      await invalidateSearchIndex(ctx, warehouse._id);
+      await invalidateZoneOccupancy(ctx, warehouse._id);
       const grossAreaSqMm = 30_000 * 20_000;
       const buildingId = await ctx.db.insert("storageBuildings", {
         orgId: organization._id,
@@ -488,6 +494,9 @@ export const bootstrapLocalDemo = internalMutation({
       )
       .unique();
     if (!existingDraft) {
+      // A raw building insert bypasses its building-name term (job-scan
+      // search) and the layout counter readers compare with.
+      await invalidateSearchIndex(ctx, warehouse._id);
       const draftBuildingId = await ctx.db.insert("storageBuildings", {
         orgId: organization._id,
         warehouseId: warehouse._id,
@@ -561,6 +570,10 @@ export const configure = internalMutation({
       .unique();
     if (!building)
       throw new Error("DEMO-ANNEX was not found in this warehouse");
+    // Raw location/zone writes bypass tracked search and zone surface
+    // maintenance.
+    await invalidateSearchIndex(ctx, warehouse._id);
+    await invalidateZoneOccupancy(ctx, warehouse._id);
 
     const floors = await ctx.db
       .query("storageFloors")
@@ -829,6 +842,8 @@ export const seedWorkflowScenarios = internalMutation({
     reusedPallets: v.number(),
   }),
   handler: async (ctx, args) => {
+    // Raw placement writes bypass tracked occupancy maintenance.
+    await invalidateZoneOccupancy(ctx, args.warehouseId);
     assertLocalSeedEnvironment();
     assertConfirmation(args.confirmation);
     const [warehouse, actor] = await Promise.all([
@@ -1206,6 +1221,8 @@ export const seedPalletBatch = internalMutation({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
+    // Raw placement writes bypass tracked occupancy maintenance.
+    await invalidateZoneOccupancy(ctx, args.warehouseId);
     assertConfirmation(args.confirmation);
     if (
       !Number.isInteger(args.startIndex) ||

@@ -1,5 +1,7 @@
 # Barcode HTML preview
 
+> Retired on 2026-11-03: the standalone demo has been removed. This document records its original plan or verification; production scanning and the maintained benchmark tools remain.
+
 Date: 2026-10-10. Scope: isolated interactive HTML preview for the existing location and Job scan pages.
 
 Preserve the current warehouse shell, Thai/English controls, light/dark themes, location-first sequence, ticket identity fields, field scan dialogs, and sticky save action. Add independent image and camera acquisition. Barcode decoding fills identities only; quantity, dates, and handwriting remain manual.

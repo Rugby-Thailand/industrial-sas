@@ -2,7 +2,11 @@ import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { byOrg, tenantFields } from "../../lib/tenantTable";
 
-/** Original small source PDFs stay in private tenant records. No public URL. */
+/**
+ * Original source PDFs stay in private tenant records with no public URL.
+ * Statement rows hold only metadata; bytes live in `hrPayslipPayloads`, which
+ * only the ticketed document command and deliberate integrity checks read.
+ */
 export const hrPayslipTables = {
   hrPayslipImports: defineTable(
     tenantFields({
@@ -43,7 +47,14 @@ export const hrPayslipTables = {
       gross: v.number(),
       deductions: v.number(),
       net: v.number(),
-      sourceBase64: v.string(),
+      /** Private payload holding the original bytes (immutable once written). */
+      payloadId: v.optional(v.id("hrPayslipPayloads")),
+      /**
+       * Deprecated inline bytes of rows written before the payload split.
+       * Only `hr/payslipMigration:migrateInlinePayloads` reads it; remove the
+       * field once that migration reports completion in every deployment.
+       */
+      sourceBase64: v.optional(v.string()),
       sourceHash: v.string(),
       version: v.number(),
       publishedAt: v.optional(v.number()),
@@ -53,6 +64,18 @@ export const hrPayslipTables = {
   )
     .index("by_orgId_importId", byOrg("importId"))
     .index("by_orgId_employeeId_from", byOrg("employeeId", "from")),
+  /** Immutable original bytes of one statement; never listed or subscribed. */
+  hrPayslipPayloads: defineTable(
+    tenantFields({
+      importId: v.id("hrPayslipImports"),
+      employeeId: v.id("hrEmployees"),
+      sourceBase64: v.string(),
+      /** SHA-256 of the decoded bytes; equals the owning row's sourceHash. */
+      sourceHash: v.string(),
+      byteLength: v.number(),
+      createdAt: v.number(),
+    }),
+  ).index("by_orgId_importId", byOrg("importId")),
   hrPayslipTickets: defineTable(
     tenantFields({
       rowId: v.id("hrPayslipRows"),
@@ -63,5 +86,7 @@ export const hrPayslipTables = {
       issuedAt: v.number(),
       expiresAt: v.number(),
     }),
-  ).index("by_orgId_userId", byOrg("userId")),
+  )
+    .index("by_orgId_userId", byOrg("userId"))
+    .index("by_orgId_expiresAt", byOrg("expiresAt")),
 };

@@ -1,6 +1,7 @@
 import type { FunctionReturnType } from "convex/server";
 import type { TenantFunctionOutcome } from "../../convex/lib/tenantFunctions";
 import type { refusal, written } from "../../convex/lib/writeEnvelope";
+import { zonePreview } from "../../convex/model/finishedGoods/recommendationView";
 import type {
   Product,
   Pallet,
@@ -197,3 +198,45 @@ export const finishedGoodsWorkspace: WorkspaceContextValue = {
   ],
   selectWarehouse: () => {},
 };
+
+/**
+ * Serve `recommendationZone` for screen tests. A test that mocks it explicitly
+ * (a zone preview, null, a denial or loading) gets that; otherwise, as the
+ * server does, the zone preview fields of any candidate of that zone in the
+ * mocked recommendation (null when none). Other queries pass through.
+ */
+export function recommendationTestResponse(
+  name: string,
+  args: unknown,
+  query: (name: string, args?: unknown) => unknown,
+) {
+  if (!name.endsWith(":recommendationZone")) return query(name, args);
+  const explicit = query(name, args) as
+    { ok?: boolean; value?: unknown } | undefined;
+  if (
+    !explicit ||
+    !explicit.ok ||
+    explicit.value === null ||
+    (typeof explicit.value === "object" && !("candidates" in explicit.value))
+  )
+    return explicit;
+  const { zoneId } = args as { zoneId: string };
+  for (const source of [":recommend", ":recommendMove"]) {
+    const outcome = query(`finishedGoods/workflow${source}`) as
+      | {
+          ok?: boolean;
+          value?: {
+            candidates?: readonly { zoneId: string }[];
+            previewCandidates?: readonly { zoneId: string }[];
+          };
+        }
+      | undefined;
+    if (!outcome?.ok) continue;
+    const found = [
+      ...(outcome.value?.candidates ?? []),
+      ...(outcome.value?.previewCandidates ?? []),
+    ].find((candidate) => candidate.zoneId === zoneId);
+    if (found) return querySuccess(zonePreview(found));
+  }
+  return querySuccess(null);
+}

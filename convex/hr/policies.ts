@@ -18,10 +18,13 @@ import {
   policyConfigValidator,
   thailandDefaults,
   validatePolicy,
+  validatePolicyCapability,
   type PolicyCapability,
 } from "../model/hr/policy";
-import { validateSchedule } from "../model/hr/schedule";
+import { WORK_RULES_EXECUTION } from "../model/hr/workRules";
+import { isEmployedOn, validateSchedule } from "../model/hr/schedule";
 import {
+  employmentOf,
   fail,
   hrCommand,
   siteAllowed,
@@ -177,8 +180,7 @@ async function readiness(
   for (const employee of rows) {
     if (
       employee.status !== "ACTIVE" ||
-      employee.employmentStartDate > effectiveDate ||
-      (employee.employmentEndDate && employee.employmentEndDate < effectiveDate)
+      !isEmployedOn(employmentOf(employee), effectiveDate)
     )
       continue;
     sites.add(employee.warehouseId);
@@ -282,6 +284,10 @@ export const current = queryWithOrg({
       draft,
       active: await activePolicy(ctx, args.capability, clock.today),
       sources: POLICY_SOURCES,
+      // Stored work rules are inert; say so with every read.
+      ...(args.capability === "LEAVE"
+        ? { workRulesExecution: WORK_RULES_EXECUTION }
+        : {}),
       ...(await readiness(
         ctx,
         args.capability,
@@ -329,6 +335,11 @@ export const saveDraft = mutationWithOrg({
           return fail("POLICY_STALE");
         const versions = await policyVersions(ctx, args.capability);
         if (!versions) return fail("POLICY_VERSION_LIMIT");
+        const capabilityError = validatePolicyCapability(
+          args.capability,
+          args.config,
+        );
+        if (capabilityError) return fail("POLICY_INVALID", capabilityError);
         for (const previous of versions.length ? versions : [undefined]) {
           const error = validatePolicy(args.config, previous?.config);
           if (error) return fail("POLICY_INVALID", error);
@@ -352,6 +363,13 @@ export const saveDraft = mutationWithOrg({
           changes: [
             { field: "version", to: String(fields.version) },
             { field: "capability", to: args.capability },
+            {
+              field: "workRules",
+              to:
+                args.config.workRules === undefined
+                  ? "NONE"
+                  : "STORED_INACTIVE",
+            },
           ],
         };
       },
@@ -402,6 +420,11 @@ export const activate = mutationWithOrg({
           )
         )
           return fail("POLICY_EFFECTIVE_DATE_CONFLICT");
+        const capabilityError = validatePolicyCapability(
+          args.capability,
+          draft.config,
+        );
+        if (capabilityError) return fail("POLICY_INVALID", capabilityError);
         for (const previous of versions.length ? versions : [undefined]) {
           const error = validatePolicy(draft.config, previous?.config);
           if (error) return fail("POLICY_INVALID", error);
@@ -439,6 +462,15 @@ export const activate = mutationWithOrg({
       },
     }),
 });
+// Exhaustive, so a new ledger kind cannot silently bypass the opening guard.
+const LEDGER_ACTIVITY_KINDS = Object.keys({
+  RESERVE: true,
+  RELEASE: true,
+  CONSUME: true,
+  RESTORE: true,
+  CARRYOVER: true,
+  POLICY_GRANT: true,
+} satisfies Record<Exclude<Doc<"hrLeaveLedger">["kind"], "OPENING">, true>);
 export const reconcileOpening = mutationWithOrg({
   args: {
     requestId: v.string(),
@@ -491,10 +523,7 @@ export const reconcileOpening = mutationWithOrg({
           !(await siteAllowed(ctx, await siteScope(ctx), employee.warehouseId))
         )
           return fail("NOT_FOUND");
-        if (
-          args.asOf < employee.employmentStartDate ||
-          (employee.employmentEndDate && args.asOf > employee.employmentEndDate)
-        )
+        if (!isEmployedOn(employmentOf(employee), args.asOf))
           return fail("HR_OUTSIDE_EMPLOYMENT");
         const source = args.sourceReference.trim();
         if (source.length < 3 || source.length > 300)
@@ -546,19 +575,22 @@ export const reconcileOpening = mutationWithOrg({
         const stored = await leaveAccount(ctx, employee, args.type, args.asOf);
         if ((stored?.version ?? 0) !== args.expectedVersion)
           return fail("OPENING_STALE");
-        // Once requests have charged an account, a migration cannot replace it.
-        if (stored) {
-          const entries = await ctx.tenantDb
-            .byIndex<Doc<"hrLeaveLedger">>(
-              "hrLeaveLedger",
-              "by_orgId_accountId",
-              [{ field: "accountId", value: stored._id }],
+        // Once anything but an opening has touched an account, however many
+        // openings precede it, a migration cannot replace it.
+        if (stored)
+          for (const kind of LEDGER_ACTIVITY_KINDS)
+            if (
+              await ctx.tenantDb
+                .byIndex("hrLeaveLedger", "by_orgId_accountId_kind", [
+                  { field: "accountId", value: stored._id },
+                  { field: "kind", value: kind },
+                ])
+                .first()
             )
-            .take(2);
-          if (entries.some((entry) => entry.kind !== "OPENING"))
-            return fail("OPENING_ALREADY_IN_USE");
-        }
-        if (stored && (await activePolicy(ctx, "LEAVE", args.asOf)))
+              return fail("OPENING_ALREADY_IN_USE");
+        // Lock by the account's period, not the caller's asOf, so a backdated
+        // asOf cannot reopen an account an active policy already governs.
+        if (stored && (await activePolicy(ctx, "LEAVE", period.end)))
           return fail("OPENING_ACTIVE_POLICY_LOCKED");
         const fields = {
           employeeId: employee._id,

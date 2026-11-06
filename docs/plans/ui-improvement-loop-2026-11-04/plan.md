@@ -4,6 +4,12 @@ Date: 2026-11-04 · Status: in progress (Stages 1–4 approved for this run) · 
 
 Runner update (2026-11-05, product owner): use **Codex and Kiro CLI only** because the direct Claude quota is exhausted. Codex orchestrates and runs gpt-6.1-sol audits; Opus 5.5 runs only through Kiro CLI. Do not launch Claude Code or direct Claude-provider agents. Preserve the existing independent audits and scoring gates. The verified Kiro executable is `/Users/macbook/.local/bin/kiro-cli`; the older `/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli-chat` path is absent.
 
+## Parallel execution and merge authorization — 2026-11-06
+
+The owner now authorizes sub-agents to work on multiple parts concurrently and to merge once tests and quality gates pass. This supersedes the sequential-stage and approval-before-PR/merge instructions below for approved Stages 1–4. Use Codex implementation agents in isolated worktrees for Stage 2 scanning, Stage 3 warehouse records and Stage 4 storage layouts; Opus audits still run only through Kiro CLI. Keep each stage’s blind dual-model minimum of 9/10, annotated evidence and navigation contract.
+
+The coordinator integrates shared files and merges stages sequentially after updating against current main, resolving review findings, and passing required checks. Run only one heavyweight build, full test suite, browser capture or audit batch at a time on the shared machine. Detailed ownership and resource rules are in [parallel execution](parallel-execution.md).
+
 ## Stage 1 checkpoint — passed, 2026-11-05
 
 Loop 15 on source commit `3fc47de9` passes the frozen dual gate: **gpt-6.1-sol and Opus 5.5 each score all 11 screens 9/10** (minimum 9, median 9). Opus ran through Kiro CLI only. The final source includes the owner-approved bilingual `EMP` task matching and AI-provider disclosure.

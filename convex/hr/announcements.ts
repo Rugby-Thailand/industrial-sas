@@ -9,10 +9,12 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { isEmployedOn } from "../model/hr/schedule";
 import { announcementAudienceValidator } from "../model/hr/announcementsSchema";
 import { activePolicy } from "./policies";
 import { deliverNotification, completeRows500 } from "./notifications";
 import {
+  employmentOf,
   fail,
   hrCommand,
   siteAllowed,
@@ -382,9 +384,7 @@ export async function publishAnnouncement(
   const recipients = employees.filter(
     (employee) =>
       employee.status === "ACTIVE" &&
-      employee.employmentStartDate <= clock.today &&
-      (!employee.employmentEndDate ||
-        employee.employmentEndDate >= clock.today),
+      isEmployedOn(employmentOf(employee), clock.today),
   );
   if (!recipients.length) return fail("ANNOUNCEMENT_AUDIENCE_EMPTY");
   const version = row.version + 1;

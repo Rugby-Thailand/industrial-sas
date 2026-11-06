@@ -68,3 +68,45 @@ it("continues scans and recovers an empty last page only once per criteria", () 
   });
   expect(paging.previous).toHaveBeenCalledTimes(1);
 });
+
+it("renews reset recovery after a ready result or a criteria change, not partial progress", () => {
+  const { continuation, paging } = setup();
+  type Props = { outcome: CatalogueOutcome; key: string };
+  const { rerender } = renderHook(
+    ({ outcome, key }: Props) =>
+      useCatalogueSync({ outcome, continuation, paging, resetKey: key }),
+    {
+      initialProps: {
+        key: "criteria-a",
+        outcome: { ok: true, value: { status: "reset" } },
+      } as Props,
+    },
+  );
+  expect(paging.reset).toHaveBeenCalledTimes(1);
+  rerender({
+    key: "criteria-a",
+    outcome: {
+      ok: true,
+      value: { status: "scanning", scanCursor: "progress" },
+    },
+  });
+  rerender({
+    key: "criteria-a",
+    outcome: { ok: true, value: { status: "reset" } },
+  });
+  expect(paging.reset).toHaveBeenCalledTimes(1);
+  rerender({
+    key: "criteria-a",
+    outcome: { ok: true, value: { status: "ready" } },
+  });
+  rerender({
+    key: "criteria-a",
+    outcome: { ok: true, value: { status: "reset" } },
+  });
+  expect(paging.reset).toHaveBeenCalledTimes(2);
+  rerender({
+    key: "criteria-b",
+    outcome: { ok: true, value: { status: "reset" } },
+  });
+  expect(paging.reset).toHaveBeenCalledTimes(3);
+});

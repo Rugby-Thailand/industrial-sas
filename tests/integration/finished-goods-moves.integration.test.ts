@@ -1,3 +1,4 @@
+import { page as auditDuplicates } from "../../convex/operations/duplicateAudit";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
@@ -213,6 +214,17 @@ async function storedWorld() {
 async function preparedWorld() {
   const world = await storedWorld();
   const moveId = id(await call(world, workflow.reserveMove, world.prepare));
+  const indexed = await world.t.run(async (ctx) => {
+    const move = (await ctx.db.get(moveId as Id<"finishedGoodsMoves">))!;
+    const source = (await ctx.db.get(move.sourcePlacementId))!;
+    const target = (await ctx.db.get(move.targetPlacementId))!;
+    return { move, source, target };
+  });
+  expect(indexed.move).toMatchObject({
+    sourceBuildingId: indexed.source.buildingId,
+    targetBuildingId: indexed.target.buildingId,
+    buildingIndexVersion: 1,
+  });
   const args = { ...world.base, moveId };
   return { ...world, moveId, args };
 }
@@ -237,6 +249,58 @@ async function placementState(
   }));
 }
 describe("stored pallet moves", () => {
+  it("does not classify a move's stored source and reserved destination as duplicate holds", async () => {
+    const world = await preparedWorld();
+    const placements = await world.t.run((ctx) =>
+      ctx.db.query("finishedGoodsPlacements").collect(),
+    );
+    expect(
+      placements
+        .filter((p) => p.palletId === world.palletId)
+        .map((p) => p.status)
+        .sort(),
+    ).toEqual(["RESERVED", "STORED"]);
+    const audit = () =>
+      world.t.run((ctx) =>
+        (
+          auditDuplicates as unknown as {
+            _handler: (
+              ctx: GenericMutationCtx<DataModel>,
+              args: unknown,
+            ) => Promise<{ findings: unknown[] }>;
+          }
+        )._handler(ctx, {
+          orgId: world.orgA,
+          contract: "finishedGoodsPlacements.palletId+status",
+          limit: 50,
+        }),
+      );
+    expect((await audit()).findings).toEqual([]);
+    await world.t.run(async (ctx) => {
+      const reserved = placements.find((row) => row.status === "RESERVED")!;
+      const { _id, _creationTime, ...fields } = reserved;
+      void _id;
+      void _creationTime;
+      // Repeated released rows are history, even for the same pallet.
+      await ctx.db.insert("finishedGoodsPlacements", {
+        ...fields,
+        status: "RELEASED",
+      });
+      await ctx.db.insert("finishedGoodsPlacements", {
+        ...fields,
+        status: "RELEASED",
+      });
+    });
+    expect((await audit()).findings).toEqual([]);
+    await world.t.run(async (ctx) => {
+      const reserved = placements.find((row) => row.status === "RESERVED")!;
+      const { _id, _creationTime, ...fields } = reserved;
+      void _id;
+      void _creationTime;
+      await ctx.db.insert("finishedGoodsPlacements", fields);
+    });
+    expect((await audit()).findings).toHaveLength(2);
+  });
   it("acknowledges pickup and placement without codes, preserves quantity and records the method", async () => {
     const w = await preparedWorld();
     const ack = {
@@ -682,6 +746,13 @@ describe("stored pallet moves", () => {
       original.move?.targetPlacementId,
     );
     expect(changed.source?.status).toBe("STORED");
+    expect(changed.move).toMatchObject({
+      sourceBuildingId: changed.source!.buildingId,
+      targetBuildingId: (await w.t.run((ctx) =>
+        ctx.db.get(changed.move!.targetPlacementId),
+      ))!.buildingId,
+      buildingIndexVersion: 1,
+    });
     expect(
       (await w.t.run((ctx) => ctx.db.get(original.move!.targetPlacementId)))
         ?.status,

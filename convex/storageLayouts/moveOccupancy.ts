@@ -51,3 +51,65 @@ export async function readMoveOccupancy(
   }
   return result;
 }
+
+/**
+ * Only building-local moves participate once all active legacy rows have been
+ * indexed. Empty legacy ranges stay stable when unrelated indexed moves change.
+ * Until then, preserve the original per-pallet lookup rather than omit holds.
+ */
+export async function readBuildingMoveOccupancy(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  buildingId: string,
+  palletIds: readonly string[],
+): Promise<ReadonlyMap<string, MoveOccupancy>> {
+  if (!palletIds.length) return new Map();
+  for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
+    const legacy = await ctx.tenantDb
+      .byIndex<Doc<"finishedGoodsMoves">>(
+        "finishedGoodsMoves",
+        "by_orgId_warehouseId_buildingIndexVersion_status",
+        [
+          { field: "warehouseId", value: warehouseId },
+          { field: "buildingIndexVersion", value: undefined, missing: true },
+          { field: "status", value: status },
+        ],
+      )
+      .first();
+    if (legacy) return readMoveOccupancy(ctx, warehouseId, palletIds);
+  }
+  const groups = await Promise.all(
+    (["sourceBuildingId", "targetBuildingId"] as const).flatMap((field) =>
+      (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
+        ctx.tenantDb
+          .byIndex<Doc<"finishedGoodsMoves">>(
+            "finishedGoodsMoves",
+            `by_orgId_${field}_status`,
+            [
+              { field, value: buildingId },
+              { field: "status", value: status },
+            ],
+          )
+          .all(10_000),
+      ),
+    ),
+  );
+  const pallets = new Set(palletIds);
+  const result = new Map<string, MoveOccupancy>();
+  for (const move of groups.flat()) {
+    if (move.warehouseId !== warehouseId || !pallets.has(move.palletId))
+      continue;
+    if (move.status !== "RESERVED" && move.status !== "IN_TRANSIT") continue;
+    result.set(move.sourcePlacementId, {
+      moveId: move._id,
+      moveState: move.status,
+      moveRole: "SOURCE",
+    });
+    result.set(move.targetPlacementId, {
+      moveId: move._id,
+      moveState: move.status,
+      moveRole: "TARGET",
+    });
+  }
+  return result;
+}

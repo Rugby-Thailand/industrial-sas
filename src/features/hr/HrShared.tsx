@@ -205,8 +205,16 @@ export function WriteFeedback({
         <Notice
           tone="neutral"
           role="status"
-          title={t(state.applied ? "recoveredSaved" : "recoveredUnsent")}
-          body={t("recoveredHint")}
+          title={t(
+            state.status === "COMMITTED"
+              ? "recoveredSaved"
+              : "recoveredUnknown",
+          )}
+          body={t(
+            state.status === "COMMITTED"
+              ? "recoveredHint"
+              : "recoveredFencedHint",
+          )}
         />
       );
     case "UNCERTAIN":

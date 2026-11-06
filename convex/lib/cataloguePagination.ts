@@ -72,7 +72,14 @@ export async function paginatedScan<
     pageSize: number;
     cursor?: string | undefined;
     scanCursor?: string | undefined;
-    generation?: number;
+    /**
+     * Continuation token. A reader is called only when this request resumes a
+     * scan, returns scan state, or (with bindContinuation) pages a sort, so a
+     * first page answered in one request does not depend on it reactively.
+     */
+    generation?: number | (() => Promise<number>);
+    /** Reset sorted continuation pages when the token has moved. */
+    bindContinuation?: boolean;
     read: (
       rawCursor?: string,
       endCursor?: string,
@@ -86,6 +93,11 @@ export async function paginatedScan<
   },
 ): Promise<CataloguePage<R>> {
   if (![20, 50, 100].includes(options.pageSize)) return resetCataloguePage();
+  const token = options.generation;
+  let tokenValue: Promise<number | undefined> | undefined;
+  const generation = () =>
+    (tokenValue ??=
+      typeof token === "function" ? token() : Promise.resolve(token));
   const scope = catalogueScope(ctx, [options.scope, options.pageSize]);
   const base = options.cursor
     ? decodeCatalogueCursor<State>(options.cursor, scope)
@@ -116,7 +128,13 @@ export async function paginatedScan<
     !valid(resumed)
   )
     return resetCataloguePage();
-  const state: State = (resumed && resumed.generation === options.generation
+  if (
+    options.bindContinuation &&
+    base &&
+    base.generation !== (await generation())
+  )
+    return resetCataloguePage();
+  const state: State = (resumed && resumed.generation === (await generation())
     ? resumed
     : null) ?? {
     scope,
@@ -126,7 +144,6 @@ export async function paginatedScan<
     anchor: base?.anchor,
     ids: [],
     scanned: 0,
-    generation: options.generation,
   };
   if (
     !Array.isArray(state.ids) ||
@@ -176,6 +193,7 @@ export async function paginatedScan<
       scanned: state.scanned,
       scanCursor: JSON.stringify({
         ...state,
+        generation: await generation(),
         end: chunk.splitCursor,
         pending: [
           { raw: chunk.splitCursor, end: chunk.continueCursor },
@@ -239,7 +257,7 @@ export async function paginatedScan<
         scanned,
         anchor: state.anchor,
         more,
-        generation: options.generation,
+        generation: await generation(),
       }),
     };
   const isDone = options.compare ? !more : exhausted;
@@ -254,6 +272,9 @@ export async function paginatedScan<
           scope,
           ids: [],
           scanned: 0,
+          ...(options.bindContinuation
+            ? { generation: await generation() }
+            : {}),
           ...(options.compare
             ? { anchor: selected.at(-1)?._id }
             : {

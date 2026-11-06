@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -8,6 +9,8 @@ import {
 } from "@/components/providers/WorkspaceProvider";
 import { useCan } from "@/hooks/useCan";
 import { WAREHOUSE_STORAGE_KEY } from "@/lib/workspace/warehouseStore";
+import { pickMessages, ROUTE_NAMESPACES } from "@/i18n/clientMessages";
+import { messagesFor } from "@/i18n/messages";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { QueryGate } from "./QueryGate";
 
@@ -146,6 +149,37 @@ const twoWarehouses = {
     ],
   },
 };
+
+it.each(["en", "th"] as const)(
+  "translates the warehouse gate inside storage route message providers (%s)",
+  (locale) => {
+    mocks.query.mockReturnValue({ status: "success", data: twoWarehouses });
+    const catalogue = messagesFor(locale);
+    for (const scope of [
+      "(desktop)/finished-goods",
+      "(desktop)/master-data",
+    ] as const) {
+      const onError = vi.fn();
+      const view = renderWithIntl(
+        <NextIntlClientProvider
+          locale={locale}
+          messages={pickMessages(catalogue, ROUTE_NAMESPACES[scope])}
+          onError={onError}
+        >
+          <WorkspaceProvider>
+            <Content />
+          </WorkspaceProvider>
+        </NextIntlClientProvider>,
+        { locale, workspace: false },
+      );
+      expect(
+        screen.getByRole("combobox", { name: catalogue.Workspace.warehouse }),
+      ).toHaveTextContent(catalogue.Workspace.selectWarehouse);
+      expect(onError).not.toHaveBeenCalled();
+      view.unmount();
+    }
+  },
+);
 
 it.each([
   ["en", "Warehouse", "No warehouse selected"],

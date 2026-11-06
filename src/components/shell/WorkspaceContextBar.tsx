@@ -82,8 +82,8 @@ export function HeaderWarehouse() {
 /**
  * The warehouse this session works in, under its visible label ("Current
  * warehouse", distinct from the Warehouse module heading) in the sidebar
- * header. Every page offers the warehouse selector when storage access is
- * available. The collapsed rail shows one warehouse icon that expands the
+ * header. Non-HR pages offer it when storage access is available;
+ * HR pages choose their own workplace and omit storage context. The collapsed rail shows one warehouse icon that expands the
  * sidebar and moves focus to the warehouse it reveals.
  */
 export function WorkspaceContextBar({

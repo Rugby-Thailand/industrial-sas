@@ -32,16 +32,38 @@ export const TENANT_TABLES = [
   "finishedGoodsProductSummaries",
   "finishedGoodsUnitContributions",
   "finishedGoodsSummaryReadiness",
+  "finishedGoodsChangeShards",
+  "finishedGoodsWarehouseTotals",
   "storageCatalogueSignals",
   "finishedGoodsBatches",
   "finishedGoodsBatchRevisions",
   "finishedGoodsPallets",
   "finishedGoodsPlacements",
+  "storageZoneOccupancy",
+  "storageZoneOccupancyEntries",
+  "storageZoneOccupancyReadiness",
+  "storageZoneSurfaces",
   "finishedGoodsScanAssignments",
   "finishedGoodsJobScans",
+  "finishedGoodsJobScanSearchRows",
+  "finishedGoodsJobScanTerms",
+  "finishedGoodsJobScanTermGrams",
+  "finishedGoodsJobScanGrams",
+  "locationSearchGrams",
+  "searchIndexReadiness",
+  "searchIndexReconcile",
   "finishedGoodsCounters",
   "finishedGoodsMoves",
   "hrEmployees",
+  "hrCompanyProfiles",
+  "hrCompanyLogos",
+  "hrBranches",
+  "hrDepartments",
+  "hrPositions",
+  "hrPositionLevels",
+  "hrEmployeeProfiles",
+  "hrEmployeePayments",
+  "hrEmploymentEvents",
   "hrShortcutPreferences",
   "hrPolicyDrafts",
   "hrPolicyVersions",
@@ -56,8 +78,11 @@ export const TENANT_TABLES = [
   "hrNotificationBatches",
   "hrPayslipImports",
   "hrPayslipRows",
+  "hrPayslipPayloads",
   "hrPayslipTickets",
   "hrHolidays",
+  "hrShifts",
+  "hrRosterAssignments",
   "hrAttendanceDays",
   "hrAttendanceEvents",
   "hrCorrectionRequests",
@@ -127,7 +152,9 @@ export function fieldWords(fieldPath: string): readonly string[] {
 
 export type UniquenessCondition =
   | { readonly kind: "always" }
-  | { readonly kind: "whenPresent"; readonly fields: readonly string[] };
+  | { readonly kind: "whenPresent"; readonly fields: readonly string[] }
+  | { readonly kind: "nonEmpty"; readonly field: string }
+  | { readonly kind: "activePlacement" };
 
 export const ALWAYS: UniquenessCondition = Object.freeze({
   kind: "always",
@@ -148,6 +175,22 @@ export function uniquenessIndexName(key: readonly string[]): string {
 }
 
 export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
+  { table: "hrCompanyProfiles", key: ["orgId"], condition: ALWAYS },
+  { table: "hrCompanyLogos", key: ["orgId"], condition: ALWAYS },
+  { table: "hrBranches", key: ["orgId", "revenueBranchNo"], condition: ALWAYS },
+  { table: "hrDepartments", key: ["orgId", "nameKey"], condition: ALWAYS },
+  { table: "hrPositions", key: ["orgId", "nameKey"], condition: ALWAYS },
+  { table: "hrPositionLevels", key: ["orgId", "nameKey"], condition: ALWAYS },
+  {
+    table: "hrEmployeeProfiles",
+    key: ["orgId", "employeeId"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrEmployeePayments",
+    key: ["orgId", "employeeId"],
+    condition: ALWAYS,
+  },
   {
     table: "hrLeaveRequestRevisions",
     key: ["orgId", "leaveRequestId", "version"],
@@ -179,6 +222,16 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     key: ["orgId", "employeeId", "eventKey"],
     condition: ALWAYS,
   },
+  {
+    table: "hrShifts",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrRosterAssignments",
+    key: ["orgId", "employeeId", "businessDate"],
+    condition: ALWAYS,
+  },
 
   {
     table: "aiUsageEvents",
@@ -208,13 +261,46 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   },
   {
     table: "finishedGoodsPlacements",
-    key: ["orgId", "warehouseId", "positionCode"],
-    condition: ALWAYS,
+    // Position codes identify a location group and are intentionally shared.
+    // Moves legitimately retain a STORED source and RESERVED destination.
+    // Only one hold per pallet/status is live; RELEASED rows are history.
+    key: ["orgId", "palletId", "status"],
+    condition: { kind: "activePlacement" },
   },
   {
     table: "finishedGoodsCounters",
     key: ["orgId", "warehouseId"],
     condition: ALWAYS,
+  },
+  {
+    table: "finishedGoodsProducts",
+    key: ["orgId", "warehouseId", "sku"],
+    condition: { kind: "nonEmpty", field: "sku" },
+  },
+  {
+    table: "storageBuildings",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storageZones",
+    key: ["orgId", "warehouseId", "code"],
+    condition: ALWAYS,
+  },
+  {
+    table: "storageFloors",
+    key: ["orgId", "buildingId", "floorNumber"],
+    condition: ALWAYS,
+  },
+  {
+    table: "hrPeriodRows",
+    key: ["orgId", "versionId", "employeeId", "businessDate"],
+    condition: ALWAYS,
+  },
+  {
+    table: "finishedGoodsPlacements",
+    key: ["orgId", "assignmentId", "sequence"],
+    condition: whenPresent("assignmentId", "sequence"),
   },
   { table: "organizations", key: ["clerkOrganizationId"], condition: ALWAYS },
   { table: "users", key: ["clerkUserId"], condition: ALWAYS },
@@ -310,6 +396,7 @@ export type LookupContract = {
 };
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
+  { table: "hrDepartments", key: ["orgId", "managerEmployeeId"] },
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "storagePositions", key: ["orgId", "zoneId", "status"] },
   { table: "hrEmployees", key: ["orgId", "warehouseId"] },

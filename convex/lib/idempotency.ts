@@ -14,6 +14,7 @@ export interface IdempotencyRecord {
   readonly orgId: TenantOrgId;
   readonly operation: string;
   readonly requestId: string;
+  readonly expiresAt: number;
   readonly status: "IN_PROGRESS" | "SUCCEEDED" | "FAILED";
   readonly requestHash: string;
   readonly resultRef?: string;
@@ -80,7 +81,9 @@ export async function checkIdempotency(
     )
     .unique();
 
-  if (existing === null) return ok(Object.freeze({ kind: "FRESH" as const }));
+  // At the boundary the key may be reused, independently of sweep timing.
+  if (existing === null || existing.expiresAt <= Date.now())
+    return ok(Object.freeze({ kind: "FRESH" as const }));
 
   if (existing.requestHash !== requestHash) {
     return fail({ code: "REQUEST_ARGUMENT_CONFLICT", requestId });
@@ -107,6 +110,21 @@ export interface IdempotencyWriteInput {
 export async function writeIdempotencyRecord(
   input: IdempotencyWriteInput,
 ): Promise<void> {
+  const previous = await input.tenantDb
+    .byIndex<IdempotencyRecord>(
+      "idempotencyRecords",
+      "by_orgId_operation_requestId",
+      [
+        { field: "operation", value: input.operation },
+        { field: "requestId", value: input.requestId },
+      ],
+    )
+    .unique();
+  if (previous) {
+    if (previous.expiresAt > input.now)
+      throw new Error("Live idempotency key cannot be overwritten");
+    await input.tenantDb.delete("idempotencyRecords", previous._id);
+  }
   await input.tenantDb.insert("idempotencyRecords", {
     operation: input.operation,
     requestId: input.requestId,

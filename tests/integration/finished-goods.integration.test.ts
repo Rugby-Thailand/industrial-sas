@@ -1,3 +1,4 @@
+import { measured } from "../fixtures/query-read-stats";
 import { currentStorageRevision } from "../fixtures/storage-record-revision";
 import type { Id } from "../../convex/_generated/dataModel";
 import { readCurrent } from "../../convex/workspace/current";
@@ -49,8 +50,11 @@ function id(result: Record<string, unknown>): string {
 function error(result: Record<string, unknown>, code: string) {
   expect(value(result)).toMatchObject({ written: false, error: { code } });
 }
-async function setup(roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN") {
-  const world = await createConvexTenantWorld();
+async function setup(
+  roleA: "ORG_ADMIN" | "SUPERVISOR" = "ORG_ADMIN",
+  transactionLimits = false,
+) {
+  const world = await createConvexTenantWorld({}, { transactionLimits });
   await seedConvexAuthorization(world, { roleA });
   const warehouseId = world.warehouses.alphaA;
   const location = await world.t.run(async (ctx) => {
@@ -331,6 +335,106 @@ describe("finished goods workflow", () => {
       expect(state.placements).toEqual([
         expect.objectContaining({ status: "RESERVED" }),
       ]);
+  });
+  it("changes requirements with more than 10000 unrelated warehouse pallets", async () => {
+    const world = await setup("ORG_ADMIN", true);
+    const { productId, palletId } = await measuredPallet(world);
+    const other = await measuredPallet(world, "unrelated");
+    for (let start = 0; start < 10001; start += 200) {
+      await world.t.run(async (ctx) => {
+        const template = await ctx.db.get(
+          ctx.db.normalizeId("finishedGoodsPallets", other.palletId)!,
+        );
+        const { _id, _creationTime, ...row } = template!;
+        void _id;
+        void _creationTime;
+        for (let i = start; i < Math.min(start + 200, 10001); i++) {
+          await ctx.db.insert("finishedGoodsPallets", {
+            ...row,
+            code: `UNRELATED-${i}`,
+          });
+        }
+      });
+    }
+    const product = await world.t.run((ctx) =>
+      ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+    );
+    const result = await measured<{ written: boolean }>(
+      world,
+      workflow.saveProduct,
+      {
+        ...fields,
+        sku: "FG-1",
+        warehouseId: world.warehouseId,
+        productId,
+        expectedUpdatedAt: product!.updatedAt,
+        requestId: "large-warehouse-requirement",
+        storageCondition: "COLD",
+      },
+    );
+    expect(result.value.written).toBe(true);
+    expect(result.stats.ranges.finishedGoodsPallets).toBe(2);
+    expect(result.stats.rangeDocs.finishedGoodsPallets ?? 0).toBe(0);
+    expect(palletId).toBeTruthy();
+  });
+  it("serializes a product requirement edit against concurrent occupancy", async () => {
+    const world = await setup();
+    const { productId, palletId } = await measuredPallet(world);
+    const product = await world.t.run((ctx) =>
+      ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+    );
+    const results = await Promise.all([
+      reserve(world, palletId, "concurrent-requirement-reserve"),
+      call(world, workflow.saveProduct, {
+        ...fields,
+        sku: "FG-1",
+        warehouseId: world.warehouseId,
+        productId,
+        expectedUpdatedAt: product!.updatedAt,
+        requestId: "concurrent-requirement-edit",
+        storageCondition: "COLD",
+      }),
+    ]);
+    expect(results.map(value).filter((r) => r.written === true)).toHaveLength(
+      1,
+    );
+    const current = await world.t.run(async (ctx) => ({
+      product: await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsProducts", productId)!,
+      ),
+      pallet: await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsPallets", palletId)!,
+      ),
+    }));
+    if (current.pallet!.status === "RESERVED")
+      expect(current.product!.storageCondition).toBe("Dry");
+    else expect(current.product!.storageCondition).toBe("COLD");
+  });
+  it("allocates distinct warehouse identities under eight concurrent unit writers", async () => {
+    const world = await setup();
+    const { productId } = await measuredPallet(world);
+    const outcomes = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        call(world, workflow.createPallet, {
+          warehouseId: world.warehouseId,
+          productId,
+          requestId: `counter-load-${i}`,
+          quantity: 1,
+        }),
+      ),
+    );
+    expect(
+      outcomes.map(value).filter((row) => row.written === true),
+    ).toHaveLength(8);
+    const pallets = await world.t.run((ctx) =>
+      ctx.db.query("finishedGoodsPallets").collect(),
+    );
+    expect(new Set(pallets.map((row) => row.code)).size).toBe(9);
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("finishedGoodsCounters").collect(),
+      ),
+    ).toHaveLength(1);
   });
   it.each(["RESERVED", "STORED"] as const)(
     "protects product storage requirements for %s pallets but allows equivalent text and descriptive edits",
@@ -780,6 +884,50 @@ describe("finished goods workflow", () => {
         warehouseId: world.warehouses.bravoA,
         productId,
         requestId: "wrong-warehouse",
+      }),
+      "NOT_FOUND",
+    );
+    const edit = {
+      ...fields,
+      productId,
+      requestId: "wrong-warehouse-condition",
+      storageCondition: "COLD",
+      expectedUpdatedAt: (await world.t.run((ctx) =>
+        ctx.db.get(ctx.db.normalizeId("finishedGoodsProducts", productId)!),
+      ))!.updatedAt,
+    };
+    error(
+      await call(world, workflow.saveProduct, {
+        ...edit,
+        warehouseId: world.warehouses.bravoA,
+      }),
+      "NOT_FOUND",
+    );
+    await expect(
+      call(world, workflow.saveProduct, {
+        ...edit,
+        warehouseId: world.warehouses.alphaB,
+      }),
+    ).rejects.toThrow("WAREHOUSE_UNKNOWN");
+    const foreignProductId = await world.t.run(async (ctx) => {
+      const source = await ctx.db.get(
+        ctx.db.normalizeId("finishedGoodsProducts", productId)!,
+      );
+      const { _id, _creationTime, ...product } = source!;
+      void _id;
+      void _creationTime;
+      return ctx.db.insert("finishedGoodsProducts", {
+        ...product,
+        orgId: world.orgB,
+        warehouseId: world.warehouses.alphaB,
+      });
+    });
+    error(
+      await call(world, workflow.saveProduct, {
+        ...edit,
+        warehouseId: world.warehouseId,
+        productId: foreignProductId,
+        requestId: "foreign-product-condition",
       }),
       "NOT_FOUND",
     );

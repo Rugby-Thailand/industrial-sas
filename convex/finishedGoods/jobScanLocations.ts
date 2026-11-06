@@ -1,8 +1,19 @@
 import {
   keysetScan,
   prefixSegments,
+  resetKeysetPage,
+  type KeysetPage,
   type KeysetSegment,
+  type KeysetWork,
 } from "../lib/keysetScan";
+import {
+  indexableLocationNeedle,
+  locationMatchText,
+  locationSearchReady,
+  normalizeLocationSearch,
+  unpostedLocation,
+} from "../lib/locationSearch";
+import { gramsOf, UNPOSTED_GRAM } from "../lib/textGrams";
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -298,12 +309,9 @@ async function lookupJobLocation(
   return { ok: true as const, location: locationFromLayout(resolved) };
 }
 
-/** Case-insensitive search text with the same normalization as registered codes. */
-export function normalizeLocationSearch(raw: string) {
-  return raw.trim().normalize("NFC").toUpperCase();
-}
+export { normalizeLocationSearch };
 const containsNeedle = (needle: string) => (text: string) =>
-  text.normalize("NFC").toUpperCase().includes(needle);
+  locationMatchText(text).includes(needle);
 
 const ACTIVE_BY_CODE = "by_orgId_warehouseId_status_code";
 const ACTIVE_BY_BUILDING = "by_orgId_warehouseId_status_buildingId_code";
@@ -346,6 +354,29 @@ function pickerSegments(
         keyField: "code",
       };
   if (!needle) return [{ ...base, dense: true, phase: "browse" }];
+  const split = prefixSegments(base, needle);
+  return [split.prefix, ...split.rest];
+}
+
+/**
+ * The same phases over the bigram postings of `gram` (plus locations whose
+ * postings are deferred), in the same location-code order. A building filter
+ * is applied by the evaluator, against the same rows the index ranges admit.
+ */
+function postingSegments(
+  warehouseId: Id<"warehouses">,
+  needle: string,
+  gram: string,
+): KeysetSegment[] {
+  const base = {
+    table: "locationSearchGrams" as const,
+    index: "by_orgId_warehouseId_gram_code",
+    equalities: [gram, UNPOSTED_GRAM].map((value) => [
+      { field: "warehouseId", value: warehouseId },
+      { field: "gram", value },
+    ]),
+    keyField: "code",
+  };
   const split = prefixSegments(base, needle);
   return [split.prefix, ...split.rest];
 }
@@ -701,50 +732,30 @@ export const searchPage = queryWithOrg({
       return readyItems(found ? [found] : []);
     }
     const matches = containsNeedle(needle);
-    const result = await keysetScan(ctx, {
-      scope: {
-        entity: "job-scan-locations",
-        warehouseId: args.warehouseId,
-        needle,
-        buildingId: args.buildingId ?? null,
-      },
-      pageSize: args.pageSize,
-      cursor: args.cursor,
-      scanCursor: args.scanCursor,
-      segments: pickerSegments(args.warehouseId, needle, args.buildingId),
-      maxWork: 800,
-      // A ready page with `isDone` means no later row matches, so the client
-      // may treat it as search exhaustion (for example before offering to
-      // register typed text). `ready` alone only completes this page.
-      lookahead: true,
-      get: (id) => reader.location(id),
-      evaluate: async (row, work) => {
-        if (row.warehouseId !== args.warehouseId || row.status !== "ACTIVE")
+    const evaluateRow = async (row: Doc<"locations">, work: KeysetWork) => {
+      if (row.warehouseId !== args.warehouseId || row.status !== "ACTIVE")
+        return null;
+      if (row.locationType === "NAMED_STORAGE") {
+        if (needle && ![row.code, row.label ?? row.code].some(matches))
           return null;
-        if (row.locationType === "NAMED_STORAGE") {
-          if (needle && ![row.code, row.label ?? row.code].some(matches))
-            return null;
-          if (args.buildingId && row.buildingId !== args.buildingId)
-            return null;
-          work.reads += 1;
-          return reader.named(row);
-        }
-        // Match on the position/area text and building before reading parents.
-        const found = await reader.physicalSource(row);
+        if (args.buildingId && row.buildingId !== args.buildingId) return null;
         work.reads += 1;
-        if (!found) return null;
-        const { source } = found;
-        if (needle && ![source.code, source.label].some(matches)) return null;
-        if (args.buildingId && source.buildingId !== args.buildingId)
-          return null;
-        const zone = await found.zone();
-        work.reads += 2;
-        return zone
-          ? inBuilding(await reader.layout(zone, found.position))
-          : null;
-      },
-    });
-    return {
+        return reader.named(row);
+      }
+      // Match on the position/area text and building before reading parents.
+      const found = await reader.physicalSource(row);
+      work.reads += 1;
+      if (!found) return null;
+      const { source } = found;
+      if (needle && ![source.code, source.label].some(matches)) return null;
+      if (args.buildingId && source.buildingId !== args.buildingId) return null;
+      const zone = await found.zone();
+      work.reads += 2;
+      return zone
+        ? inBuilding(await reader.layout(zone, found.position))
+        : null;
+    };
+    const respond = (result: KeysetPage<JobScanLocation>) => ({
       ...result,
       page: result.page.map((location) => ({
         _id: location.locationId,
@@ -752,6 +763,172 @@ export const searchPage = queryWithOrg({
       })),
       items: result.page,
       searching: result.status === "scanning",
+    });
+    const common = {
+      pageSize: args.pageSize,
+      maxWork: 800,
+      // A ready page with `isDone` means no later row matches, so the client
+      // may treat it as search exhaustion (for example before offering to
+      // register typed text). `ready` alone only completes this page.
+      lookahead: true,
     };
+    if (
+      needle &&
+      indexableLocationNeedle(needle) &&
+      (await locationSearchReady(ctx.tenantDb, args.warehouseId))
+    ) {
+      // Walk only locations sharing the needle's rarest bigram (any of them
+      // is a complete filter), in the same order and phases as below. The
+      // gram stays fixed for a traversal: it is carried in its cursors.
+      const grams = gramsOf(needle, 2);
+      const carried = [args.scanCursor, args.cursor].map(unwrapCursor);
+      const gram =
+        carried.find((item) => item && grams.includes(item.gram))?.gram ??
+        (await rarestLocationGram(ctx, args.warehouseId, grams));
+      if (carried.some((item) => item && item.gram !== gram))
+        return respond(resetKeysetPage());
+      const inner = (value: string | undefined) =>
+        value === undefined
+          ? undefined
+          : (unwrapCursor(value)?.cursor ?? value);
+      const unposted = new Map<string, Promise<boolean>>();
+      const result = await keysetScan<
+        Doc<"locationSearchGrams">,
+        JobScanLocation
+      >(ctx, {
+        ...common,
+        scope: {
+          entity: "job-scan-locations:grams",
+          warehouseId: args.warehouseId,
+          needle,
+          buildingId: args.buildingId ?? null,
+          gram,
+        },
+        cursor: inner(args.cursor),
+        scanCursor: inner(args.scanCursor),
+        segments: postingSegments(args.warehouseId, needle, gram),
+        get: (id) =>
+          ctx.tenantDb.get<Doc<"locationSearchGrams">>(
+            "locationSearchGrams",
+            id,
+          ),
+        evaluate: async (posting, work) => {
+          if (
+            posting.warehouseId !== args.warehouseId ||
+            !posting.texts.some((text) => text.includes(needle))
+          )
+            return null;
+          // A location with an unposted row is represented by that row only.
+          if (posting.gram !== UNPOSTED_GRAM) {
+            let superseded = unposted.get(posting.locationId);
+            if (!superseded) {
+              superseded = unpostedLocation(
+                ctx.tenantDb,
+                posting.locationId,
+              ).then(Boolean);
+              unposted.set(posting.locationId, superseded);
+              work.reads += 1;
+            }
+            if (await superseded) return null;
+          }
+          const row = await reader.location(posting.locationId);
+          work.reads += 1;
+          // Rows outside the scanned index ranges never matched before
+          // either: other statuses, and other buildings under a filter
+          // (rows still missing `buildingId` are in the filtered range).
+          if (
+            !row ||
+            row.code !== posting.code ||
+            row.status !== "ACTIVE" ||
+            (args.buildingId &&
+              row.buildingId !== undefined &&
+              row.buildingId !== args.buildingId)
+          )
+            return null;
+          return evaluateRow(row, work);
+        },
+      });
+      return respond({
+        ...result,
+        continueCursor: wrapCursor(gram, result.continueCursor),
+        ...(result.scanCursor !== undefined
+          ? { scanCursor: wrapCursor(gram, result.scanCursor) }
+          : {}),
+      });
+    }
+    const result = await keysetScan(ctx, {
+      ...common,
+      scope: {
+        entity: "job-scan-locations",
+        warehouseId: args.warehouseId,
+        needle,
+        buildingId: args.buildingId ?? null,
+      },
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      segments: pickerSegments(args.warehouseId, needle, args.buildingId),
+      get: (id) => reader.location(id),
+      evaluate: evaluateRow,
+    });
+    return respond(result);
   },
 });
+
+/** Cursors of the posting path carry their bigram; other cursors pass through. */
+function wrapCursor(gram: string, cursor: string) {
+  return cursor ? JSON.stringify({ lsg: 1, gram, cursor }) : cursor;
+}
+function unwrapCursor(value: string | undefined) {
+  if (!value || value.length > 65_536) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      (parsed as { lsg?: unknown }).lsg === 1 &&
+      typeof (parsed as { gram?: unknown }).gram === "string" &&
+      typeof (parsed as { cursor?: unknown }).cursor === "string"
+    )
+      return parsed as { gram: string; cursor: string };
+  } catch {
+    // Not a posting-path cursor.
+  }
+  return null;
+}
+
+/** The bigram with the fewest postings (probed in parallel, bounded). */
+async function rarestLocationGram(
+  ctx: TenantFunctionContext,
+  warehouseId: Id<"warehouses">,
+  grams: readonly string[],
+) {
+  if (grams.length === 1) return grams[0]!;
+  const probes = spread(grams, 6);
+  const counts = await Promise.all(
+    probes.map(
+      async (gram) =>
+        (
+          await ctx.tenantDb
+            .byIndex("locationSearchGrams", "by_orgId_warehouseId_gram_code", [
+              { field: "warehouseId", value: warehouseId },
+              { field: "gram", value: gram },
+            ])
+            .take(16)
+        ).length,
+    ),
+  );
+  // Ties (typically all saturated) prefer later grams: code families share
+  // prefixes, so suffixes tend to be rarer.
+  let best = 0;
+  for (let index = 1; index < probes.length; index++)
+    if (counts[index]! <= counts[best]!) best = index;
+  return probes[best]!;
+}
+function spread<T>(items: readonly T[], limit: number) {
+  if (items.length <= limit) return [...items];
+  return Array.from(
+    { length: limit },
+    (_, index) =>
+      items[Math.round((index * (items.length - 1)) / (limit - 1))]!,
+  );
+}

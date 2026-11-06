@@ -1,6 +1,7 @@
 import { createPermissionGrants } from "./navigationGrants";
 import { createAiUsagePort, type AiUsagePort } from "./aiUsage";
 import { trackFinishedGoodsWrites } from "./finishedGoodsSummary";
+import { trackSearchIndexWrites } from "./searchIndexWrites";
 import {
   actionGeneric,
   internalMutationGeneric,
@@ -487,9 +488,20 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
     );
 
     const summaryWrites = audit
-      ? trackFinishedGoodsWrites(sourceDb)
+      ? trackFinishedGoodsWrites(
+          sourceDb,
+          "scheduler" in rawContext ? rawContext.scheduler : undefined,
+        )
       : undefined;
-    const tenantDb = summaryWrites?.db ?? sourceDb;
+    const searchWrites = summaryWrites
+      ? trackSearchIndexWrites(
+          summaryWrites.db,
+          sourceDb,
+          resolved.context.organization._id,
+          "scheduler" in rawContext ? rawContext.scheduler : undefined,
+        )
+      : undefined;
+    const tenantDb = searchWrites?.db ?? sourceDb;
 
     const authorizationLookups = createConvexAuthorizationLookups(
       rawContext,
@@ -538,6 +550,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
 
     const value = (await handler(narrowed, ...args)) as Awaited<ReturnValue>;
     await summaryWrites?.flush();
+    await searchWrites?.flush();
     return Object.freeze({ ok: true as const, requestId, value });
   } catch (error) {
     if (error instanceof SafeTenantFunctionFailure) {

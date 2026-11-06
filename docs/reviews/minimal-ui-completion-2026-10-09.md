@@ -6,7 +6,7 @@ The `12-units-created` screen now presents the success icon beside the quantity,
 
 The enclosing padded card and oversized outlined action buttons were removed. The completion section measures **125 px high on desktop** and **245 px on mobile** for the two-unit example. All five mobile actions retain **44 px** touch targets. English has zero document/main horizontal overflow at 1440 × 1000, 390 × 844 and 320 × 844. Thai also has zero overflow at 320 px, with desktop and 390 px layouts visually checked below. Readable helper text uses the muted foreground token in both themes. [Actual DOM measurements](assets/minimal-ui-2026-10-09/completion-metrics.json).
 
-Chrome captured the real production build using local demo records. The captures below contain **13 desktop/mobile pairs plus two narrow-mobile checks**. These screenshots were used for state 12 at this stage. The [standalone gallery](minimal-ui-gallery-2026-10-08.html) and [main walkthrough](minimal-ui-walkthrough-2026-10-08.md) now use the later hierarchy screenshots; all older screenshots are retained as before evidence.
+Chrome captured the real production build using local demo records. The captures below contain **13 desktop/mobile pairs plus two narrow-mobile checks**. These screenshots were used for state 12 at this stage. The [main walkthrough](minimal-ui-walkthrough-2026-10-08.md) now uses the later hierarchy screenshots; all older screenshots are retained as before evidence.
 
 ## Before and after
 

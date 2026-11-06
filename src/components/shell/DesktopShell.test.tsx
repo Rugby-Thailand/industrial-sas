@@ -263,12 +263,12 @@ describe("sidebar hierarchy", () => {
     [false, "/finished-goods/scan"],
     [false, "/finished-goods/products/product-1"],
     [false, "/master-data/storage-layouts/building-1"],
-    [false, "/hr/today"],
+    [false, "/setup"],
     [true, "/finished-goods"],
     [true, "/finished-goods/scan"],
     [true, "/finished-goods/products/product-1"],
     [true, "/master-data/storage-layouts/building-1"],
-    [true, "/hr/today"],
+    [true, "/setup"],
   ])(
     "can choose a warehouse without leaving the page (mobile=%s, route=%s)",
     async (mobile, pathname) => {
@@ -478,6 +478,52 @@ describe("sidebar hierarchy", () => {
     fireEvent.click(toggle);
     expect(within(people).getByRole("list", { name: "Leave" })).toBe(leave);
     expect(within(leave!).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it.each([
+    [false, "/hr"],
+    [false, "/hr/today"],
+    [false, "/hr/employees"],
+    [false, "/hr/leave/review"],
+    [true, "/hr/roster"],
+    [true, "/hr/settings"],
+  ])(
+    "omits the storage warehouse context on HR pages, which pick their own workplace (mobile=%s, route=%s)",
+    async (mobile, pathname) => {
+      state.mobile = mobile;
+      state.pathname = pathname;
+      const header = renderShell();
+      if (mobile) await openDrawer(header);
+      expect(screen.queryByTestId("sidebar-warehouse")).toBeNull();
+      expect(screen.queryByTestId("header-warehouse")).toBeNull();
+      expect(screen.queryByRole("combobox", { name: "Warehouse" })).toBeNull();
+      expect(screen.getByText("Yongkit")).toBeInTheDocument();
+      expect(state.selectWarehouse).not.toHaveBeenCalled();
+    },
+  );
+
+  it("drops the collapsed warehouse rail on HR pages and restores the stored selection outside HR", () => {
+    state.pathname = "/hr/periods";
+    const view = renderWithIntl(shell(), {
+      locale: "en",
+      preserveProviders: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(screen.queryByTestId("sidebar-warehouse-rail")).toBeNull();
+    // A sibling route that only shares the prefix is not HR.
+    state.pathname = "/hr-archive";
+    view.rerender(shell());
+    expect(screen.getByTestId("sidebar-warehouse-rail")).toHaveAccessibleName(
+      "Current warehouse: WH-1 · Main warehouse",
+    );
+    state.pathname = "/finished-goods";
+    view.rerender(shell());
+    fireEvent.click(screen.getByTestId("sidebar-warehouse-rail"));
+    expect(screen.getByTestId("warehouse-select")).toHaveFocus();
+    expect(screen.getByTestId("warehouse-select")).toHaveTextContent(
+      "WH-1 · Main warehouse",
+    );
+    expect(state.selectWarehouse).not.toHaveBeenCalled();
   });
 
   it("hands focus to the warehouse selector when the rail warehouse expands the sidebar", () => {

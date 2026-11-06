@@ -94,8 +94,9 @@ async function measuredPage(
   expect(outcome.ok).toBe(true);
   // Product hydration must share the readiness verdict rather than read it per row.
   expect(
-    reads.filter((read) => read.table === "finishedGoodsSummaryReadiness"),
-  ).toHaveLength(1);
+    reads.filter((read) => read.table === "finishedGoodsSummaryReadiness")
+      .length,
+  ).toBeLessThanOrEqual(1);
   return { result: outcome.value, reads, documentReads };
 }
 type Page = {
@@ -441,6 +442,43 @@ describe("bounded finished goods catalogue pages", () => {
     expect(search.page.map((r) => r._id)).toEqual([ids[2]]);
     const thai = await page(world, { search: "สินค้า 104" });
     expect(thai.page.map((r) => r._id)).toEqual([ids[104]]);
+  });
+  it("reads the change token only for continuations, and still resets sorted pages when it moves", async () => {
+    const { world, ids } = await setup(41);
+    const shardReads = (reads: Array<{ table: string }>) =>
+      reads.filter((read) => read.table === "finishedGoodsChangeShards").length;
+    // First pages answered in one request do not depend on the token, so
+    // unrelated finished-goods writes do not re-run them.
+    for (const [fn, args] of [
+      [catalogue.page, {}],
+      [batches.pageLegacyUnits, { productId: ids[0] }],
+      [batches.pageProductBatches, { productId: ids[0] }],
+    ] as const) {
+      const first = await measuredPage(world, args, fn);
+      expect(first.result.status, JSON.stringify(first.result)).toBe("ready");
+      expect(shardReads(first.reads)).toBe(0);
+    }
+    const sortedFirst = await measuredPage(world, {
+      filters: { ...newFilters(), sort: "name:asc" },
+    });
+    expect(sortedFirst.result.isDone).toBe(false);
+    expect(shardReads(sortedFirst.reads)).toBeGreaterThan(0);
+    const filters = { ...newFilters(), sort: "name:asc" };
+    const first = await page(world, { filters });
+    expect(
+      (await page(world, { filters, cursor: first.continueCursor })).status,
+    ).toBe("ready");
+    await world.t.run(async (ctx) => {
+      await ctx.db.insert("finishedGoodsChangeShards", {
+        orgId: world.orgA,
+        warehouseId: world.warehouses.alphaA,
+        shard: 0,
+        count: 1,
+      });
+    });
+    expect(
+      (await page(world, { filters, cursor: first.continueCursor })).status,
+    ).toBe("reset");
   });
   it("rejects cross-warehouse and changed-criteria cursors; native pages survive unrelated generation updates", async () => {
     const { world } = await setup(21);

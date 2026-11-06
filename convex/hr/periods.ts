@@ -1,38 +1,47 @@
 /**
- * Attendance periods: draft review, close (freeze), revision and CSV export.
+ * Attendance periods: draft review, revision and CSV export. Closing is a
+ * staged build in `periodClose.ts`.
  *
- * A close recomputes every row from authoritative data inside the mutation,
- * requires the fingerprint the reviewer saw, and writes an immutable version
- * with its rows. Exports read only those frozen rows, so a later punch,
- * correction, holiday or schedule edit cannot change a closed version.
+ * A close recomputes every row from authoritative data, publishes only a
+ * complete version (matching the fingerprint the reviewer saw) and writes an
+ * immutable version with its rows. Exports read only those frozen rows, so a
+ * later punch, correction, holiday or schedule edit cannot change a closed
+ * version. Every read here is bounded: rosters beyond the complete-preview
+ * size and large frozen versions are read a page at a time.
  */
 import { v } from "convex/values";
 
-import type { Doc, Id } from "../_generated/dataModel";
-import { sha256Hex } from "../lib/idempotency";
+import type { Doc } from "../_generated/dataModel";
 import { HR_PERMISSION } from "../lib/permissions";
 import {
   mutationWithOrg,
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { timezoneOffsetMinutes, type IsoDate } from "../model/hr/calendar";
 import {
-  datesInRange,
-  timezoneOffsetMinutes,
-  type IsoDate,
-} from "../model/hr/calendar";
-import { attendanceCsvFileName, renderAttendanceCsv } from "../model/hr/csv";
+  attendanceCsvFileName,
+  renderAttendanceCsvPart,
+} from "../model/hr/csv";
 import { normalizeReason } from "../model/hr/employee";
 import {
-  MAX_PERIOD_EMPLOYEES,
+  MAX_PREVIEW_EMPLOYEES,
   buildPeriodRows,
   closeBlocker,
-  periodFingerprintText,
   periodTotals,
   rangesOverlap,
   validatePeriodRange,
   type PeriodRow,
 } from "../model/hr/period";
+import { beginCloseCommand } from "./periodClose";
+import {
+  draftFingerprint,
+  liveRows,
+  periodEmployee,
+  periodRosterOf,
+  published,
+  scopedPeriod,
+} from "./periodData";
 import {
   HR_MAX_CHUNK,
   hrListInput,
@@ -41,78 +50,39 @@ import {
   type HrLane,
 } from "./pagination";
 import {
-  employmentOf,
+  employedInRange,
+  employeeDaysInRange,
   fail,
+  holidaysInRange,
   hrCommand,
-  loadSiteDays,
   orgClock,
   planFromStored,
   planView,
   recordedDay,
-  siteEmployeesInRange,
+  rosterAssignment,
   siteOf,
   siteAllowed,
   sitePeriods,
+  sitePeriodsEndingFrom,
   siteResolver,
   siteScope,
   scopedSitesAnyStatus,
-  storedPlan,
-  type OrgClock,
+  type Employee,
 } from "./shared";
 
 const CLOSE = HR_PERMISSION.periodClose;
 const EXPORT = HR_PERMISSION.periodExport;
-const MAX_VERSION_ROWS = MAX_PERIOD_EMPLOYEES * 31;
+/** Frozen rows a closed preview shows at once; larger versions are paged. */
+export const MAX_PREVIEW_ROWS = MAX_PREVIEW_EMPLOYEES * 31;
+/** Frozen rows one export part renders at most (whole employees only). */
+export const EXPORT_PART_ROWS = 2000;
+const EXPORT_SLICE_ROWS = 100;
 const MAX_VERSIONS = 50;
 export const MAX_PERIOD_LIST = 200;
 
 type Period = Doc<"hrPeriods">;
 type Version = Doc<"hrPeriodVersions">;
-
-async function liveRows(
-  ctx: TenantFunctionContext,
-  period: Pick<Period, "warehouseId" | "startDate" | "endDate">,
-  clock: OrgClock,
-): Promise<readonly PeriodRow[] | null> {
-  const employees = await siteEmployeesInRange(
-    ctx,
-    period.warehouseId,
-    period.startDate,
-    period.endDate,
-    MAX_PERIOD_EMPLOYEES,
-  );
-  if (employees === null) return null;
-  const { days, holidays } = await loadSiteDays(
-    ctx,
-    period.warehouseId,
-    datesInRange(period.startDate, period.endDate),
-  );
-  return buildPeriodRows({
-    startDate: period.startDate,
-    endDate: period.endDate,
-    employees: employees.map((employee) => ({
-      id: employee._id,
-      code: employee.code,
-      name: employee.displayName,
-      employment: employmentOf(employee),
-      schedule: employee.schedule,
-    })),
-    offsetMinutes: clock.offset,
-    now: clock.now,
-    holidayName: (date) => holidays.get(date),
-    recorded: (id, date) => {
-      const day = days.get(`${id}:${date}`);
-      return day ? recordedDay(day) : undefined;
-    },
-    pending: (id, date) =>
-      days.get(`${id}:${date}`)?.pendingCorrectionId !== undefined,
-  });
-}
-
-const fingerprintOf = async (period: Period, rows: readonly PeriodRow[]) =>
-  await sha256Hex(
-    `${period._id}:${period.draftVersion}:${periodFingerprintText(rows)}`,
-  );
+type FrozenRow = Doc<"hrPeriodRows">;
 
 /** The newest versions, newest first, for the version selector (bounded). */
 async function recentVersions(
@@ -138,12 +108,13 @@ async function versionNumbered(
   version: number,
 ): Promise<Version | null> {
   if (!Number.isSafeInteger(version) || version < 1) return null;
-  return await ctx.tenantDb
+  const found = await ctx.tenantDb
     .byIndex<Version>("hrPeriodVersions", "by_orgId_periodId_version", [
       { field: "periodId", value: periodId },
       { field: "version", value: version },
     ])
     .unique();
+  return published(found) ? found : null;
 }
 
 const versionSummary = (version: Version) => ({
@@ -207,7 +178,9 @@ export const listPage = queryWithOrg({
     ...hrPageArgs,
     // A string, so a stale or edited URL answers SITE_UNAVAILABLE.
     warehouseId: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("DRAFT"), v.literal("CLOSED"))),
+    status: v.optional(
+      v.union(v.literal("DRAFT"), v.literal("CLOSING"), v.literal("CLOSED")),
+    ),
   },
   returns: v.any(),
   permissionCode: CLOSE,
@@ -276,14 +249,6 @@ export const listPage = queryWithOrg({
   },
 });
 
-async function scopedPeriod(ctx: TenantFunctionContext, periodId: string) {
-  const period = await ctx.tenantDb.get<Period>("hrPeriods", periodId);
-  if (period === null) return null;
-  return (await siteAllowed(ctx, await siteScope(ctx), period.warehouseId))
-    ? period
-    : null;
-}
-
 /**
  * Every closed version of one period, newest first, a page at a time, so
  * versions older than the selector's newest `MAX_VERSIONS` stay
@@ -314,7 +279,8 @@ export const versionsPage = queryWithOrg({
           order: "desc",
         },
       ],
-      match: (version: Version) => version.periodId === period._id,
+      match: (version: Version) =>
+        version.periodId === period._id && published(version),
       hydrate: async (version) => versionSummary(version),
     });
     return { ok: true as const, ...page };
@@ -336,6 +302,74 @@ const rowView = (row: {
   readonly disposition: string | null;
   readonly correctionReason?: string | undefined;
 }) => row;
+
+const draftRowView = (row: PeriodRow) =>
+  rowView({
+    employeeId: row.employeeId,
+    employeeCode: row.employeeCode,
+    employeeName: row.employeeName,
+    businessDate: row.businessDate,
+    plan: planView(row.plan),
+    actualStartAt: row.actualStartAt,
+    actualEndAt: row.actualEndAt,
+    workedMinutes: row.workedMinutes,
+    outsideShiftMinutes: row.outsideShiftMinutes,
+    status: row.status,
+    issue: row.issue,
+    disposition: row.disposition,
+    correctionReason: row.correctionReason,
+  });
+
+const frozenRowView = (row: FrozenRow) =>
+  rowView({
+    employeeId: row.employeeId,
+    employeeCode: row.employeeCode,
+    employeeName: row.employeeName,
+    businessDate: row.businessDate,
+    plan: planView(planFromStored(row.plan)),
+    actualStartAt: row.actualStartAt,
+    actualEndAt: row.actualEndAt,
+    workedMinutes: row.workedMinutes,
+    outsideShiftMinutes: row.outsideShiftMinutes,
+    status: "READY",
+    disposition: row.disposition,
+    correctionReason: row.correctionReason,
+  });
+
+const failureView = (period: Period) =>
+  period.closeFailure === undefined
+    ? {}
+    : {
+        closeFailure: {
+          code: period.closeFailure.code,
+          ...(period.closeFailure.employeeId === undefined
+            ? {}
+            : { employeeId: period.closeFailure.employeeId }),
+          ...(period.closeFailure.businessDate === undefined
+            ? {}
+            : { businessDate: period.closeFailure.businessDate }),
+        },
+      };
+
+/** Progress of a CLOSING period's staged build (no rows). */
+export function closingView(version: Version | null) {
+  const build = version?.build;
+  if (version === null || build === undefined)
+    return { kind: "CLOSING" as const, state: "UNAVAILABLE" as const };
+  return {
+    kind: "CLOSING" as const,
+    state: build.state,
+    versionId: version._id,
+    version: version.version,
+    step: build.step,
+    employees: version.totals.employees,
+    days: version.totals.days,
+    ...(build.state === "READY"
+      ? { totals: version.totals, fingerprint: version.fingerprint }
+      : {}),
+    ...(build.failure === undefined ? {} : { failure: build.failure }),
+  };
+}
 
 export const preview = queryWithOrg({
   args: {
@@ -392,7 +426,9 @@ export const preview = queryWithOrg({
         (await versionNumbered(ctx, period._id, period.latestClosedVersion));
       if (version === null)
         return { ok: false as const, code: "VERSION_NOT_FOUND" };
-      const rows = await frozenRows(ctx, version._id);
+      // A large version is read a page at a time (`versionRowsPage`).
+      const paged = version.totals.days > MAX_PREVIEW_ROWS;
+      const rows = paged ? [] : await frozenRows(ctx, version._id);
       return {
         ok: true as const,
         // A closed version shows the identity and timezone it was frozen with.
@@ -410,25 +446,27 @@ export const preview = queryWithOrg({
           version: version.version,
           closedAt: version.closedAt,
           totals: version.totals,
-          rows: rows.map((row) =>
-            rowView({
-              employeeId: row.employeeId,
-              employeeCode: row.employeeCode,
-              employeeName: row.employeeName,
-              businessDate: row.businessDate,
-              plan: planView(planFromStored(row.plan)),
-              actualStartAt: row.actualStartAt,
-              actualEndAt: row.actualEndAt,
-              workedMinutes: row.workedMinutes,
-              outsideShiftMinutes: row.outsideShiftMinutes,
-              status: "READY",
-              disposition: row.disposition,
-              correctionReason: row.correctionReason,
-            }),
-          ),
+          rowsPaged: paged,
+          rows: rows.map(frozenRowView),
         },
       };
     }
+
+    if (period.status === "CLOSING")
+      return {
+        ok: true as const,
+        period: header,
+        versions: versions.map(versionSummary),
+        versionsComplete,
+        view: closingView(
+          period.closingVersionId === undefined
+            ? null
+            : await ctx.tenantDb.get<Version>(
+                "hrPeriodVersions",
+                period.closingVersionId,
+              ),
+        ),
+      };
 
     const clock = legacyClock ?? orgClock(ctx);
     if (clock === null)
@@ -440,19 +478,26 @@ export const preview = queryWithOrg({
         view: { kind: "TIMEZONE_UNSUPPORTED" as const },
       };
     const draftHeader = { ...header, today: clock.today };
-    const rows = await liveRows(ctx, period, clock);
-    if (rows === null)
+    const live = await liveRows(ctx, period, clock);
+    // A larger roster is reviewed a page at a time (`draftEmployeesPage`);
+    // its readiness and totals are established by the staged close.
+    if (live === null)
       return {
         ok: true as const,
         period: draftHeader,
         versions: versions.map(versionSummary),
         versionsComplete,
-        view: { kind: "LIMIT" as const },
+        view: {
+          kind: "PAGED" as const,
+          blocker:
+            period.endDate < clock.today ? null : "PERIOD_INCLUDES_FUTURE",
+          ...failureView(period),
+        },
       };
     const blocker = closeBlocker({
       endDate: period.endDate,
       today: clock.today,
-      rows,
+      rows: live.rows,
     });
     return {
       ok: true as const,
@@ -461,47 +506,175 @@ export const preview = queryWithOrg({
       versionsComplete,
       view: {
         kind: "DRAFT" as const,
-        totals: periodTotals(rows),
+        totals: periodTotals(live.rows),
         blocker,
-        fingerprint: await fingerprintOf(period, rows),
-        rows: rows.map((row) =>
-          rowView({
-            employeeId: row.employeeId,
-            employeeCode: row.employeeCode,
-            employeeName: row.employeeName,
-            businessDate: row.businessDate,
-            plan: planView(row.plan),
-            actualStartAt: row.actualStartAt,
-            actualEndAt: row.actualEndAt,
-            workedMinutes: row.workedMinutes,
-            outsideShiftMinutes: row.outsideShiftMinutes,
-            status: row.status,
-            issue: row.issue,
-            disposition: row.disposition,
-            correctionReason: row.correctionReason,
-          }),
-        ),
+        fingerprint: await draftFingerprint(period, live.byEmployee),
+        ...failureView(period),
+        rows: live.rows.map(draftRowView),
       },
     };
   },
 });
 
+/** A small published version's frozen rows in export order. */
 async function frozenRows(ctx: TenantFunctionContext, versionId: string) {
-  const rows = await ctx.tenantDb
-    .byIndex<Doc<"hrPeriodRows">>("hrPeriodRows", "by_orgId_versionId", [
-      { field: "versionId", value: versionId },
-    ])
-    .all(MAX_VERSION_ROWS);
-  return [...rows].sort((a, b) =>
-    a.employeeCode === b.employeeCode
-      ? a.businessDate < b.businessDate
-        ? -1
-        : 1
-      : a.employeeCode < b.employeeCode
-        ? -1
-        : 1,
-  );
+  return await ctx.tenantDb
+    .byIndex<FrozenRow>(
+      "hrPeriodRows",
+      "by_orgId_versionId_employeeCode_businessDate",
+      [{ field: "versionId", value: versionId }],
+    )
+    .all(MAX_PREVIEW_ROWS);
 }
+
+/**
+ * A large draft's employees, a page at a time in roster order, each with its
+ * live rows (one bounded day read per employee).
+ */
+export const draftEmployeesPage = queryWithOrg({
+  args: { ...hrPageArgs, periodId: v.string() },
+  returns: v.any(),
+  permissionCode: CLOSE,
+  target: { table: "hrPeriods" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const period = await scopedPeriod(ctx, args.periodId);
+    if (period === null) return { ok: false as const, code: "NOT_FOUND" };
+    if (period.status !== "DRAFT")
+      return { ok: false as const, code: "PERIOD_NOT_DRAFT" };
+    const clock = orgClock(ctx);
+    if (clock === null)
+      return { ok: false as const, code: "TIMEZONE_UNSUPPORTED" };
+    let holidays: ReadonlyMap<IsoDate, string> | null = null;
+    const page = await hrScanPage(ctx, {
+      surface: "period-draft-employees",
+      criteria: { periodId: period._id, draftVersion: period.draftVersion },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrEmployees",
+      lanes: [
+        {
+          key: period.warehouseId,
+          index: "by_orgId_warehouseId_code",
+          equality: [{ field: "warehouseId", value: period.warehouseId }],
+          order: "asc",
+        },
+      ],
+      peekLanes: 0,
+      match: (employee: Employee) =>
+        employee.warehouseId === period.warehouseId &&
+        employedInRange(employee, period.startDate, period.endDate),
+      hydrate: async (employee) => {
+        holidays ??= await holidaysInRange(
+          ctx,
+          period.warehouseId,
+          period.startDate,
+          period.endDate,
+        );
+        const [days, roster] = await Promise.all([
+          employeeDaysInRange(
+            ctx,
+            employee._id,
+            period.startDate,
+            period.endDate,
+          ),
+          periodRosterOf(ctx, employee._id, period),
+        ]);
+        const known = holidays;
+        const rows = buildPeriodRows({
+          assignment: (_id, date) => rosterAssignment(roster.get(date)),
+          startDate: period.startDate,
+          endDate: period.endDate,
+          employees: [periodEmployee(employee)],
+          offsetMinutes: clock.offset,
+          now: clock.now,
+          holidayName: (date) => known.get(date),
+          recorded: (_id, date) => {
+            const day = days.get(date);
+            return day ? recordedDay(day) : undefined;
+          },
+          pending: (_id, date) =>
+            days.get(date)?.pendingCorrectionId !== undefined,
+        });
+        return {
+          employeeId: employee._id,
+          code: employee.code,
+          name: employee.displayName,
+          totals: periodTotals(rows),
+          rows: rows.map(draftRowView),
+        };
+      },
+    });
+    return { ok: true as const, ...page };
+  },
+});
+
+/** A published version's frozen rows, a page at a time in export order. */
+export const versionRowsPage = queryWithOrg({
+  args: { ...hrPageArgs, versionId: v.string() },
+  returns: v.any(),
+  permissionCode: CLOSE,
+  target: { table: "hrPeriodVersions" },
+  handler: async (ctx, args) => {
+    const input = hrListInput(args);
+    if (!input.ok) return input;
+    const version = await scopedVersion(ctx, args.versionId);
+    if (version === null) return { ok: false as const, code: "NOT_FOUND" };
+    const page = await hrScanPage(ctx, {
+      surface: "period-version-rows",
+      criteria: { versionId: version._id },
+      pageSize: input.pageSize,
+      cursor: args.cursor,
+      scanCursor: args.scanCursor,
+      table: "hrPeriodRows",
+      lanes: [
+        {
+          key: version._id,
+          index: "by_orgId_versionId_employeeCode_businessDate",
+          equality: [{ field: "versionId", value: version._id }],
+          order: "asc",
+        },
+      ],
+      match: (row: FrozenRow) => row.versionId === version._id,
+      hydrate: async (row) => frozenRowView(row),
+    });
+    return { ok: true as const, ...page };
+  },
+});
+
+/** A published version the actor may read (current site scope). */
+async function scopedVersion(ctx: TenantFunctionContext, versionId: string) {
+  const version = await ctx.tenantDb.get<Version>(
+    "hrPeriodVersions",
+    versionId,
+  );
+  if (!published(version)) return null;
+  return (await siteAllowed(ctx, await siteScope(ctx), version.warehouseId))
+    ? version
+    : null;
+}
+
+/**
+ * Deprecated one-step close of a completely previewed draft, kept so tabs
+ * opened before the staged close keep working during a rollout. It runs the
+ * staged begin with the reviewed fingerprint, which checks, builds and
+ * publishes up to `MAX_PREVIEW_EMPLOYEES` in this one transaction. Remove it
+ * (contract step) once no deployed client calls `hr/periods:close`; see
+ * docs/operations/hr-period-staged-close.md.
+ */
+export const close = mutationWithOrg({
+  args: {
+    requestId: v.string(),
+    periodId: v.id("hrPeriods"),
+    expectedFingerprint: v.string(),
+  },
+  returns: v.any(),
+  permissionCode: CLOSE,
+  target: { table: "hrPeriods", id: (args) => args.periodId },
+  handler: async (ctx, args) => beginCloseCommand(ctx, args),
+});
 
 export const create = mutationWithOrg({
   args: {
@@ -536,19 +709,16 @@ export const create = mutationWithOrg({
             "endDate",
             "reason" in range.error ? range.error.reason : undefined,
           );
-        // Legacy imports may violate both period length and non-overlap bounds.
-        const existing = await sitePeriods(ctx, site._id);
-        if (existing.some((period) => rangesOverlap(period, args)))
-          return fail("PERIOD_OVERLAP");
-        const employees = await siteEmployeesInRange(
+        // Legacy imports may violate both period length and non-overlap
+        // bounds: every period ending on or after the start is examined.
+        const existing = await sitePeriodsEndingFrom(
           ctx,
           site._id,
           args.startDate,
-          args.endDate,
-          MAX_PERIOD_EMPLOYEES,
         );
-        if (employees === null)
-          return fail("PERIOD_TOO_LARGE", "warehouseId", "EMPLOYEES");
+        if (existing.some((period) => rangesOverlap(period, args)))
+          return fail("PERIOD_OVERLAP");
+        // Any roster size: large periods are previewed and closed in pages.
         const now = Date.now();
         const id = await ctx.tenantDb.insert("hrPeriods", {
           warehouseId: site._id,
@@ -567,129 +737,6 @@ export const create = mutationWithOrg({
           changes: [
             { field: "startDate", to: args.startDate },
             { field: "endDate", to: args.endDate },
-          ],
-        };
-      },
-    }),
-});
-
-export const close = mutationWithOrg({
-  args: {
-    requestId: v.string(),
-    periodId: v.id("hrPeriods"),
-    expectedFingerprint: v.string(),
-  },
-  returns: v.any(),
-  permissionCode: CLOSE,
-  target: { table: "hrPeriods", id: (args) => args.periodId },
-  handler: async (ctx, args) =>
-    hrCommand(ctx, {
-      operation: "hr.period.closeVersion",
-      requestId: args.requestId,
-      payload: {
-        periodId: args.periodId,
-        expectedFingerprint: args.expectedFingerprint,
-      },
-      table: "hrPeriodVersions",
-      replay: async (id) => {
-        if ((await scopedPeriod(ctx, args.periodId)) === null)
-          return fail("NOT_FOUND", "periodId");
-        const version = await ctx.tenantDb.get<Version>("hrPeriodVersions", id);
-        return version === null ? null : { version: version.version };
-      },
-      run: async () => {
-        const clock = orgClock(ctx);
-        if (clock === null) return fail("TIMEZONE_UNSUPPORTED");
-        const period = await scopedPeriod(ctx, args.periodId);
-        if (period === null) return fail("NOT_FOUND", "periodId");
-        if (period.status !== "DRAFT") return fail("PERIOD_ALREADY_CLOSED");
-        const site = await ctx.tenantDb.get<Doc<"warehouses">>(
-          "warehouses",
-          period.warehouseId,
-        );
-        if (site === null) return fail("SITE_UNAVAILABLE");
-        // Authoritative recomputation: the preview is never trusted.
-        const rows = await liveRows(ctx, period, clock);
-        if (rows === null)
-          return fail("PERIOD_TOO_LARGE", "periodId", "EMPLOYEES");
-        const blocker = closeBlocker({
-          endDate: period.endDate,
-          today: clock.today,
-          rows,
-        });
-        if (blocker !== null) return fail(blocker);
-        if ((await fingerprintOf(period, rows)) !== args.expectedFingerprint)
-          return fail("PERIOD_STALE");
-        const totals = periodTotals(rows);
-        const versionId = (await ctx.tenantDb.insert("hrPeriodVersions", {
-          periodId: period._id,
-          warehouseId: period.warehouseId,
-          version: period.draftVersion,
-          startDate: period.startDate,
-          endDate: period.endDate,
-          timezone: clock.timezone,
-          siteCode: site.code,
-          siteName: site.name,
-          ...(period.revisionReason === undefined
-            ? {}
-            : { revisionReason: period.revisionReason }),
-          fingerprint: args.expectedFingerprint,
-          totals: {
-            employees: totals.employees,
-            days: totals.days,
-            workedMinutes: totals.workedMinutes,
-            outsideShiftMinutes: totals.outsideShiftMinutes,
-            absentDays: totals.absentDays,
-            leaveDays: totals.leaveDays,
-            nonworkingDays: totals.nonworkingDays,
-          },
-          closedByUserId: ctx.tenant.actor._id,
-          closedAt: clock.now,
-        })) as Id<"hrPeriodVersions">;
-        for (const row of rows) {
-          await ctx.tenantDb.insert("hrPeriodRows", {
-            versionId,
-            employeeId: row.employeeId as Id<"hrEmployees">,
-            employeeCode: row.employeeCode,
-            employeeName: row.employeeName,
-            businessDate: row.businessDate,
-            plan: storedPlan(row.plan),
-            originalCaptured: true,
-            ...(row.originalStartAt === undefined
-              ? {}
-              : { originalStartAt: row.originalStartAt }),
-            ...(row.originalEndAt === undefined
-              ? {}
-              : { originalEndAt: row.originalEndAt }),
-            ...(row.actualStartAt === undefined
-              ? {}
-              : { actualStartAt: row.actualStartAt }),
-            ...(row.actualEndAt === undefined
-              ? {}
-              : { actualEndAt: row.actualEndAt }),
-            workedMinutes: row.workedMinutes,
-            outsideShiftMinutes: row.outsideShiftMinutes,
-            disposition: row.disposition ?? "NONWORKING",
-            ...(row.correctionReason === undefined
-              ? {}
-              : { correctionReason: row.correctionReason }),
-          });
-        }
-        await ctx.tenantDb.patch("hrPeriods", period._id, {
-          status: "CLOSED",
-          latestClosedVersion: period.draftVersion,
-          updatedAt: clock.now,
-          updatedByUserId: ctx.tenant.actor._id,
-        });
-        return {
-          documentId: versionId,
-          warehouseId: period.warehouseId,
-          extra: { version: period.draftVersion },
-          changes: [
-            { field: "periodId", to: period._id },
-            { field: "version", to: String(period.draftVersion) },
-            { field: "rows", to: String(rows.length) },
-            { field: "workedMinutes", to: String(totals.workedMinutes) },
           ],
         };
       },
@@ -740,8 +787,52 @@ export const startRevision = mutationWithOrg({
     }),
 });
 
-async function csvOf(ctx: TenantFunctionContext, version: Version) {
-  const rows = await frozenRows(ctx, version._id);
+/**
+ * One bounded part of a version's CSV, in export order: whole employees
+ * after the `cursor` employee code, at most `EXPORT_PART_ROWS` rows.
+ */
+async function csvPart(
+  ctx: TenantFunctionContext,
+  version: Version,
+  cursor: string | null,
+) {
+  // Tenant index reads return at most 100 rows: read whole employees in
+  // bounded slices until the part is full or the version is exhausted.
+  const rows: FrozenRow[] = [];
+  let after = cursor;
+  let isDone = false;
+  while (rows.length + EXPORT_SLICE_ROWS <= EXPORT_PART_ROWS) {
+    const slice = await ctx.tenantDb
+      .byIndex<FrozenRow>(
+        "hrPeriodRows",
+        "by_orgId_versionId_employeeCode_businessDate",
+        [{ field: "versionId", value: version._id }],
+        after === null
+          ? undefined
+          : {
+              field: "employeeCode",
+              lower: { value: after, inclusive: false },
+            },
+      )
+      .take(EXPORT_SLICE_ROWS);
+    if (slice.length < EXPORT_SLICE_ROWS) {
+      rows.push(...slice);
+      isDone = true;
+      break;
+    }
+    // A part never splits an employee (at most 31 rows each).
+    const lastCode = slice[slice.length - 1]!.employeeCode;
+    const whole = slice.filter((row) => row.employeeCode !== lastCode);
+    if (whole.length === 0)
+      throw new Error("Frozen rows of one employee exceed an export slice");
+    rows.push(...whole);
+    after = whole[whole.length - 1]!.employeeCode;
+  }
+  const page = {
+    page: rows,
+    isDone,
+    continueCursor: after ?? "",
+  };
   const meta = {
     periodId: version.periodId,
     version: version.version,
@@ -752,9 +843,9 @@ async function csvOf(ctx: TenantFunctionContext, version: Version) {
   };
   return {
     fileName: attendanceCsvFileName(meta),
-    content: renderAttendanceCsv(
+    content: renderAttendanceCsvPart(
       meta,
-      rows.map((row) => ({
+      page.page.map((row) => ({
         employeeCode: row.employeeCode,
         employeeName: row.employeeName,
         businessDate: row.businessDate,
@@ -767,44 +858,50 @@ async function csvOf(ctx: TenantFunctionContext, version: Version) {
         disposition: row.disposition,
         correctionReason: row.correctionReason,
       })),
+      cursor === null,
     ),
-    rowCount: rows.length,
+    rowCount: page.page.length,
+    totalRows: version.totals.days,
+    isDone: page.isDone,
+    ...(page.isDone ? {} : { continueCursor: page.continueCursor }),
   };
 }
 
-/** A mutation, not a query, so every download is recorded in audit. */
+/**
+ * A mutation, not a query, so every download is recorded in audit. A large
+ * version is delivered in parts: each call returns `EXPORT_PART_ROWS` rows
+ * and the cursor of the next part; the client joins them in order.
+ */
 export const exportCsv = mutationWithOrg({
-  args: { requestId: v.string(), versionId: v.id("hrPeriodVersions") },
+  args: {
+    requestId: v.string(),
+    versionId: v.id("hrPeriodVersions"),
+    cursor: v.optional(v.string()),
+  },
   returns: v.any(),
   permissionCode: EXPORT,
   target: { table: "hrPeriodVersions", id: (args) => args.versionId },
   handler: async (ctx, args) => {
-    const load = async () => {
-      const version = await ctx.tenantDb.get<Version>(
-        "hrPeriodVersions",
-        args.versionId,
-      );
-      if (version === null) return null;
-      return (await siteAllowed(ctx, await siteScope(ctx), version.warehouseId))
-        ? version
-        : null;
-    };
+    const cursor = args.cursor ?? null;
     return hrCommand(ctx, {
       operation: "hr.period.exportVersion",
       requestId: args.requestId,
-      payload: { versionId: args.versionId },
+      payload: {
+        versionId: args.versionId,
+        ...(cursor === null ? {} : { cursor }),
+      },
       table: "hrPeriodVersions",
       // A replay re-checks current scope; revoked access gets no content.
       replay: async () => {
-        const version = await load();
+        const version = await scopedVersion(ctx, args.versionId);
         return version === null
           ? fail("NOT_FOUND", "versionId")
-          : await csvOf(ctx, version);
+          : await csvPart(ctx, version, cursor);
       },
       run: async () => {
-        const version = await load();
+        const version = await scopedVersion(ctx, args.versionId);
         if (version === null) return fail("NOT_FOUND", "versionId");
-        const csv = await csvOf(ctx, version);
+        const csv = await csvPart(ctx, version, cursor);
         return {
           documentId: version._id,
           warehouseId: version.warehouseId,
@@ -813,6 +910,7 @@ export const exportCsv = mutationWithOrg({
             { field: "version", to: String(version.version) },
             { field: "rows", to: String(csv.rowCount) },
             { field: "fileName", to: csv.fileName },
+            ...(cursor === null ? [] : [{ field: "part", to: "continued" }]),
           ],
         };
       },

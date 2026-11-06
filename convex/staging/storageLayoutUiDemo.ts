@@ -1,3 +1,5 @@
+import { invalidateZoneOccupancy } from "../storageLayouts/zoneOccupancyBackfill";
+import { invalidateSearchIndex } from "../finishedGoods/searchIndexBackfill";
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
@@ -10,6 +12,10 @@ export const seed = internalMutation({
     confirmation: v.literal("LOCAL_STORAGE_LAYOUT_UI_B_V1"),
   },
   handler: async (ctx, args) => {
+    // Raw placement writes bypass tracked occupancy maintenance.
+    await invalidateZoneOccupancy(ctx, args.warehouseId);
+    // Raw building/location writes bypass tracked search maintenance.
+    await invalidateSearchIndex(ctx, args.warehouseId);
     const url = process.env.CONVEX_CLOUD_URL ?? process.env.CONVEX_URL ?? "";
     if (
       process.env.ALLOW_LOCAL_TEST_SEED !== "true" ||

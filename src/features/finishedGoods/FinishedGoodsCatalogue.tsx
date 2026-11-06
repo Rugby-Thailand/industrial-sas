@@ -2,7 +2,6 @@
 import { packageScanPath } from "@/lib/navigation";
 
 import { useQuery } from "convex/react";
-import { useEffect, useRef } from "react";
 import { Box, LayoutGrid, List, Plus } from "lucide-react";
 import { SummaryPreparation } from "./SummaryPreparation";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -108,7 +107,6 @@ function Catalogue({
 }) {
   const { t, tr, locale } = useFGText();
   const canManage = useCanManage();
-  const summaryResetAttempt = useRef<string | null>(null);
   const { state, update: updateState } = useCatalogueState(viewKey);
   const { tab, search, layout } = state;
   const mobile = useIsMobile();
@@ -149,27 +147,26 @@ function Catalogue({
     warehouseId,
     ...(summaryScan.cursor ? { scanCursor: summaryScan.cursor } : {}),
   });
-  useCatalogueSync({
+  const listRecovery = useCatalogueSync({
     outcome,
     continuation: scan,
     paging,
-    resetKey: requestKey,
+    resetKey: JSON.stringify({
+      viewKey,
+      tab,
+      search: settledSearch,
+      filters,
+      locale,
+      pageSize: paging.pageSize,
+    }),
+    maxAutomaticResets: 3,
   });
-  useEffect(() => {
-    if (summaryOutcome?.ok && summaryOutcome.value.status === "scanning")
-      summaryScan.advance(summaryOutcome.value.scanCursor);
-    if (
-      summaryOutcome?.ok &&
-      summaryOutcome.value.status === "reset" &&
-      summaryScan.cursor &&
-      summaryResetAttempt.current !== viewKey
-    ) {
-      summaryResetAttempt.current = viewKey;
-      summaryScan.advance();
-    }
-    if (summaryOutcome?.ok && summaryOutcome.value.status === "ready")
-      summaryResetAttempt.current = null;
-  }, [summaryOutcome, summaryScan, viewKey]);
+  const summaryRecovery = useCatalogueSync({
+    outcome: summaryOutcome,
+    continuation: summaryScan,
+    resetKey: viewKey,
+    maxAutomaticResets: 3,
+  });
   const ready = outcome?.ok && outcome.value.status === "ready";
   const products = ready ? outcome.value.products : [];
   const pallets = ready ? outcome.value.pallets : [];
@@ -202,11 +199,18 @@ function Catalogue({
         )}
       {summaryOutcome &&
         (!summaryOutcome.ok || summaryOutcome.value.status === "reset") && (
-          <ErrorNotice
-            message={t(
-              "copy.warehouse-totals-could-not-be-loaded-refresh-to-try-again",
+          <div className="mb-4 space-y-2">
+            <ErrorNotice
+              message={t(
+                "copy.warehouse-totals-could-not-be-loaded-refresh-to-try-again",
+              )}
+            />
+            {summaryOutcome.ok && summaryScan.cursor && (
+              <Button variant="outline" onClick={summaryRecovery.retry}>
+                {t("copy.try-again")}
+              </Button>
             )}
-          />
+          </div>
         )}
       <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 border-b border-border pb-3 lg:grid-cols-4">
         {[
@@ -318,9 +322,16 @@ function Catalogue({
       ) : loading ? (
         <Loading label={loadingLabel} />
       ) : outcome && (!outcome.ok || outcome.value.status === "reset") ? (
-        <ErrorNotice
-          message={t("copy.records-could-not-be-loaded-please-try-again")}
-        />
+        <div className="space-y-2">
+          <ErrorNotice
+            message={t("copy.records-could-not-be-loaded-please-try-again")}
+          />
+          {outcome.ok && (paging.cursor || scan.cursor) && (
+            <Button variant="outline" onClick={listRecovery.retry}>
+              {t("copy.try-again")}
+            </Button>
+          )}
+        </div>
       ) : (tab === "products" ? shownProducts.length : shownPallets.length) ===
         0 ? (
         <div className={`${panel} py-6 text-center`}>

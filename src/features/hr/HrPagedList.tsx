@@ -296,9 +296,13 @@ export function useHrPagedQuery<Ref extends PageQuery>(
 export function HrPager({
   paging,
   label,
+  disabled = false,
+  pageSizeDisabled = false,
 }: {
   readonly paging: HrPaging;
   readonly label: string;
+  readonly disabled?: boolean;
+  readonly pageSizeDisabled?: boolean;
 }) {
   const t = useTranslations("Hr.pager");
   // A single complete page needs no controls.
@@ -316,7 +320,7 @@ export function HrPager({
           value={paging.pageSize}
           sizes={HR_PAGE_SIZES}
           onValueChange={paging.setPageSize}
-          disabled={paging.loading}
+          disabled={paging.loading || disabled || pageSizeDisabled}
         />
       }
       status={t(
@@ -329,8 +333,8 @@ export function HrPager({
       )}
       previousLabel={t("previous")}
       nextLabel={t("next")}
-      canPrevious={paging.canPrevious}
-      canNext={paging.canNext}
+      canPrevious={paging.canPrevious && !disabled}
+      canNext={paging.canNext && !disabled}
       loading={paging.loading}
       onPrevious={paging.previous}
       onNext={paging.next}
@@ -339,7 +343,7 @@ export function HrPager({
           <Button
             type="button"
             variant="outline"
-            disabled={paging.loading}
+            disabled={paging.loading || disabled}
             onClick={paging.first}
           >
             {t("first")}

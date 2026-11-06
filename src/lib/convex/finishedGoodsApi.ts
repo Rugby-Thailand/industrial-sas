@@ -44,7 +44,7 @@ export const fgRefs = Object.freeze({
   saveBatchDraft: clientRef(api.finishedGoods.batches.saveBatchDraft),
   commitBatch: clientRef(api.finishedGoods.batches.commitBatch),
   getBatch: clientRef(api.finishedGoods.batches.getBatch),
-  listProductBatches: clientRef(api.finishedGoods.batches.listProductBatches),
+  pageBatchRevisions: clientRef(api.finishedGoods.batches.pageBatchRevisions),
   cancelLegacyUnit: clientRef(api.finishedGoods.batches.cancelLegacyUnit),
   stackOptions: clientRef(api.finishedGoods.workflow.stackOptions),
   stackPreview: clientRef(api.finishedGoods.workflow.stackPreview),
@@ -56,6 +56,7 @@ export const fgRefs = Object.freeze({
   palletMoveHistory: clientRef(api.finishedGoods.history.palletMoveHistory),
   recommend: clientRef(api.finishedGoods.workflow.recommend),
   recommendMove: clientRef(api.finishedGoods.workflow.recommendMove),
+  recommendationZone: clientRef(api.finishedGoods.workflow.recommendationZone),
   reserveMove: clientRef(api.finishedGoods.workflow.reserveMove),
   startMove: clientRef(api.finishedGoods.workflow.startMove),
   verifyMoveDestination: clientRef(
@@ -80,7 +81,19 @@ export type PalletDetail = NonNullable<RefValue<typeof fgRefs.getPallet>>;
 export type Pallet = PalletDetail["pallet"];
 export type Placement = NonNullable<PalletDetail["placement"]>;
 export type Destination = NonNullable<PalletDetail["destination"]>;
-export type Candidate = RefValue<typeof fgRefs.recommend>["candidates"][number];
+/**
+ * `recommend`/`recommendMove` results. Clients pass `view: "list"`, which omits
+ * the per-zone preview fields from every candidate; the full result (no
+ * `view`) is a subtype, so both read as this type.
+ */
+export type RecommendationList = RefValue<typeof fgRefs.recommend>;
+export type ListedCandidate = RecommendationList["candidates"][number];
+/** The preview fields every candidate of one zone shares (`recommendationZone`). */
+export type ZonePreview = NonNullable<
+  RefValue<typeof fgRefs.recommendationZone>
+>;
+/** A full candidate: `{ ...listed, ...zonePreview }`, as the editor previews it. */
+export type Candidate = Destination;
 export type FinishedGoodsList = RefValue<typeof fgRefs.list>;
 
 export type BatchDetail = NonNullable<RefValue<typeof fgRefs.getBatch>>;

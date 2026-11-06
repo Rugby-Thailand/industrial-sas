@@ -28,6 +28,14 @@ import {
 
 import { jobLocationReader } from "./jobScanLocations";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
+import {
+  indexableNeedle,
+  jobScanNameMatches,
+  jobScanSearchIndex,
+  jobScanTextMatches,
+  normalizeJobScanSearch,
+  searchJobScans,
+} from "../lib/jobScanSearch";
 import { diffFields } from "../lib/masterDataStore";
 const batchFormat = v.union(
   v.literal("PALLET"),
@@ -672,8 +680,41 @@ export const listJobScans = queryWithOrg({
         floor: floor?.warehouseId === args.warehouseId ? floor : null,
       };
     };
-    // No index answers arbitrary substrings, so text search inspects history in
-    // bounded chunks with a stable cursor instead of re-reading all of it.
+    const accept = async (scan: Doc<"finishedGoodsJobScans">) => {
+      if (
+        scan.warehouseId !== args.warehouseId ||
+        (args.filter !== "ALL" && scan.mapped !== (args.filter === "MAPPED"))
+      )
+        return false;
+      if (!needle) return true;
+      if (jobScanTextMatches(scan, needle)) return true;
+      const { building } = await parents(scan);
+      return Boolean(building && jobScanNameMatches(building.name, needle));
+    };
+    const hydrate = (records: Doc<"finishedGoodsJobScans">[]) =>
+      Promise.all(records.map(view));
+    // Needles of 3+ code points: trigram postings propose candidates in
+    // newest-first order; each is re-read and matched by `accept`, exactly as
+    // the scan below would. Unready warehouses and short needles keep it.
+    const index =
+      needle && indexableNeedle(needle)
+        ? await jobScanSearchIndex(ctx.tenantDb, args.warehouseId)
+        : null;
+    if (index)
+      return searchJobScans(ctx, {
+        warehouseId: args.warehouseId,
+        readiness: index,
+        filter: args.filter,
+        needle,
+        pageSize,
+        cursor: args.cursor,
+        scanCursor: args.scanCursor,
+        progressive: args.progressive === true,
+        accept,
+        hydrate,
+      });
+    // Otherwise text search inspects history in bounded chunks with a stable
+    // cursor instead of re-reading all of it.
     return boundedRecordPage(ctx, {
       scope: ["finishedGoodsJobScans", args.warehouseId, args.filter, needle],
       pageSize,
@@ -696,18 +737,8 @@ export const listJobScans = queryWithOrg({
         );
         return scan ?? null;
       },
-      accept: async (scan) => {
-        if (
-          scan.warehouseId !== args.warehouseId ||
-          (args.filter !== "ALL" && scan.mapped !== (args.filter === "MAPPED"))
-        )
-          return false;
-        if (!needle) return true;
-        if (jobScanTextMatches(scan, needle)) return true;
-        const { building } = await parents(scan);
-        return Boolean(building && contains(building.name, needle));
-      },
-      hydrate: (records) => Promise.all(records.map(view)),
+      accept,
+      hydrate,
     });
     async function view(scan: Doc<"finishedGoodsJobScans">) {
       const { building, floor } = await parents(scan);
@@ -739,34 +770,4 @@ export const listJobScans = queryWithOrg({
   },
 });
 
-/** Case-, width- and composition-insensitive comparison text. */
-export function normalizeJobScanSearch(value: string) {
-  return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
-}
-function contains(value: string | undefined, needle: string) {
-  return value !== undefined && normalizeJobScanSearch(value).includes(needle);
-}
-/** Every job and location field shown on a saved record row. */
-export function jobScanTextMatches(
-  scan: Pick<
-    Doc<"finishedGoodsJobScans">,
-    | "factoryOrder"
-    | "productBarcodeText"
-    | "partName"
-    | "customer"
-    | "locationText"
-    | "locationCode"
-    | "locationName"
-  >,
-  needle: string,
-) {
-  return [
-    scan.factoryOrder,
-    scan.productBarcodeText,
-    scan.partName,
-    scan.customer,
-    scan.locationText,
-    scan.locationCode,
-    scan.locationName,
-  ].some((value) => contains(value, needle));
-}
+export { normalizeJobScanSearch, jobScanTextMatches };

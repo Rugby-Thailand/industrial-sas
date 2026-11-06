@@ -3,7 +3,10 @@ import {
   paginatedScan,
   remainingScanCapacity,
 } from "../lib/cataloguePagination";
-import { summaryReadiness } from "../lib/finishedGoodsSummary";
+import {
+  finishedGoodsGeneration,
+  summaryReadiness,
+} from "../lib/finishedGoodsSummary";
 import { v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
@@ -26,8 +29,8 @@ import {
   nextCode,
   palletOf,
   productOf,
-  rows,
   stamp,
+  firstActiveMove,
 } from "./workflow";
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
@@ -76,72 +79,68 @@ async function batchOf(
   );
   return batch?.warehouseId === warehouseId ? batch : null;
 }
-async function unitsOf(
+export async function currentBatchUnits(
   ctx: TenantFunctionContext,
   batchId: Id<"finishedGoodsBatches">,
 ) {
-  return (
-    await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
+  // A batch creates at most 50 current units. Retired replacements belong to
+  // immutable revision history and must not enlarge the current-state read.
+  return ctx.tenantDb
+    .byIndex<Doc<"finishedGoodsPallets">>(
       "finishedGoodsPallets",
-      "by_orgId_preparationBatchId",
-      [{ field: "preparationBatchId", value: batchId }],
+      "by_orgId_preparationBatchId_retiredAt",
+      [
+        { field: "preparationBatchId", value: batchId },
+        { field: "retiredAt", value: undefined, missing: true },
+      ],
     )
-  ).filter((p) => !p.retiredAt);
-}
-async function withMove(
-  ctx: TenantFunctionContext,
-  unit: Doc<"finishedGoodsPallets">,
-) {
-  const moves = await rows<Doc<"finishedGoodsMoves">>(
-    ctx,
-    "finishedGoodsMoves",
-    "by_orgId_palletId",
-    [{ field: "palletId", value: unit._id }],
-  );
-  const move = moves.find(
-    (m) => m.status === "RESERVED" || m.status === "IN_TRANSIT",
-  );
-  return {
-    ...unit,
-    ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
-  };
+    .all(MAX_FG_PACKAGES);
 }
 /** Every physical hold is inspected independently of the convenience pallet status. */
-async function editableUnits(
+async function editableUnit(
   ctx: TenantFunctionContext,
-  units: Doc<"finishedGoodsPallets">[],
+  unit: Doc<"finishedGoodsPallets">,
+  activeMove?: Doc<"finishedGoodsMoves"> | null,
 ) {
-  for (const unit of units) {
-    if (unit.status === "RESERVED" || unit.status === "STORED") return false;
-    for (const status of ["RESERVED", "STORED"] as const) {
-      for (const field of ["supportPalletId", "palletId"] as const) {
-        const placement = await ctx.tenantDb
-          .byIndex<Doc<"finishedGoodsPlacements">>(
-            "finishedGoodsPlacements",
-            `by_orgId_${field}_status`,
-            [
-              { field, value: unit._id },
-              { field: "status", value: status },
-            ],
-          )
-          .first();
-        if (placement) return false;
-      }
-    }
-    for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
-      const move = await ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsMoves">>(
-          "finishedGoodsMoves",
-          "by_orgId_palletId_status",
+  if (unit.status === "RESERVED" || unit.status === "STORED") return false;
+  for (const status of ["RESERVED", "STORED"] as const) {
+    for (const field of ["supportPalletId", "palletId"] as const) {
+      const placement = await ctx.tenantDb
+        .byIndex<Doc<"finishedGoodsPlacements">>(
+          "finishedGoodsPlacements",
+          `by_orgId_${field}_status`,
           [
-            { field: "palletId", value: unit._id },
+            { field, value: unit._id },
             { field: "status", value: status },
           ],
         )
         .first();
-      if (move) return false;
+      if (placement) return false;
     }
+  }
+  // Detail already selects a move for display. Mutations keep their early exits.
+  if (activeMove !== undefined) return activeMove === null;
+  for (const status of ["RESERVED", "IN_TRANSIT"] as const) {
+    const move = await ctx.tenantDb
+      .byIndex<Doc<"finishedGoodsMoves">>(
+        "finishedGoodsMoves",
+        "by_orgId_palletId_status",
+        [
+          { field: "palletId", value: unit._id },
+          { field: "status", value: status },
+        ],
+      )
+      .first();
+    if (move) return false;
+  }
+  return true;
+}
+async function editableUnits(
+  ctx: TenantFunctionContext,
+  units: readonly Doc<"finishedGoodsPallets">[],
+) {
+  for (const unit of units) {
+    if (!(await editableUnit(ctx, unit))) return false;
   }
   return true;
 }
@@ -149,24 +148,21 @@ async function detail(
   ctx: TenantFunctionContext,
   batch: Doc<"finishedGoodsBatches">,
 ) {
-  const units = await unitsOf(ctx, batch._id);
-  const history = await rows<Doc<"finishedGoodsBatchRevisions">>(
-    ctx,
-    "finishedGoodsBatchRevisions",
-    "by_orgId_batchId_revision",
-    [{ field: "batchId", value: batch._id }],
-  );
+  const units = await currentBatchUnits(ctx, batch._id);
   const managedUnits = await Promise.all(
-    units.map(async (unit) => ({
-      ...(await withMove(ctx, unit)),
-      editable: await editableUnits(ctx, [unit]),
-    })),
+    units.map(async (unit) => {
+      const move = await firstActiveMove(ctx, unit._id);
+      return {
+        ...unit,
+        ...(move ? { moveStatus: move.status, activeMoveId: move._id } : {}),
+        editable: await editableUnit(ctx, unit, move ?? null),
+      };
+    }),
   );
   const editable = managedUnits.every((unit) => unit.editable);
   return {
     batch,
     units: managedUnits,
-    history: history.sort((a, b) => b.revision - a.revision),
     editable,
     ...(!editable ? { blockedReason: "BATCH_NOT_EDITABLE" } : {}),
   };
@@ -256,7 +252,7 @@ async function save(
         );
         if (invalid) return failure(invalid);
       }
-      const oldUnits = before ? await unitsOf(ctx, before._id) : [];
+      const oldUnits = before ? await currentBatchUnits(ctx, before._id) : [];
       if (before?.status === "CREATED") {
         if (
           quantityToMinor(args.totalQuantity!, product.unit) !==
@@ -380,47 +376,33 @@ export const getBatch = queryWithOrg({
     return { ...(await detail(ctx, batch)), product };
   },
 });
-export const listProductBatches = queryWithOrg({
+/** Immutable revision rows are fetched only when history is opened. */
+export const pageBatchRevisions = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
-    productId: v.id("finishedGoodsProducts"),
+    batchId: v.id("finishedGoodsBatches"),
+    pageSize: v.number(),
+    cursor: v.optional(v.string()),
   },
   returns: v.any(),
   permissionCode: READ,
-  target: { table: "finishedGoodsBatches" },
+  target: { table: "finishedGoodsBatchRevisions" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    if (!(await productOf(ctx, args))) return { batches: [], legacyUnits: [] };
-    const batches = await rows<Doc<"finishedGoodsBatches">>(
-      ctx,
-      "finishedGoodsBatches",
-      "by_orgId_productId",
-      [{ field: "productId", value: args.productId }],
-    );
-    const units = await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
-      "finishedGoodsPallets",
-      "by_orgId_productId",
-      [{ field: "productId", value: args.productId }],
-    );
-    return {
-      batches: await Promise.all(
-        batches
-          .filter((b) => b.warehouseId === args.warehouseId)
-          .sort((a, b) => b.updatedAt - a.updatedAt)
-          .map((b) => detail(ctx, b)),
-      ),
-      legacyUnits: await Promise.all(
-        units
-          .filter(
-            (p) =>
-              p.warehouseId === args.warehouseId &&
-              !p.preparationBatchId &&
-              !p.retiredAt,
-          )
-          .map((unit) => withMove(ctx, unit)),
-      ),
-    };
+    if (
+      !Number.isInteger(args.pageSize) ||
+      args.pageSize < 1 ||
+      args.pageSize > 25
+    )
+      throw new Error("Invalid history page size");
+    if (!(await batchOf(ctx, args.warehouseId, args.batchId))) return null;
+    return ctx.tenantDb
+      .byIndex<Doc<"finishedGoodsBatchRevisions">>(
+        "finishedGoodsBatchRevisions",
+        "by_orgId_batchId_revision",
+        [{ field: "batchId", value: args.batchId }],
+      )
+      .page({ limit: args.pageSize, cursor: args.cursor, order: "desc" });
   },
 });
 export const cancelLegacyUnit = mutationWithOrg({
@@ -469,8 +451,13 @@ export const pageProductBatches = queryWithOrg({
   target: { table: "finishedGoodsBatches" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const generation =
-      (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ?? 0;
+    const generation = async () =>
+      finishedGoodsGeneration(
+        ctx.tenantDb,
+        args.warehouseId,
+        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
+          0,
+      );
     return paginatedScan(ctx, {
       scope: ["batches", args.warehouseId, args.productId],
       generation,
@@ -516,8 +503,13 @@ export const pageLegacyUnits = queryWithOrg({
   target: { table: "finishedGoodsPallets" },
   warehouseId: (a) => a.warehouseId,
   handler: async (ctx, args) => {
-    const generation =
-      (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ?? 0;
+    const generation = async () =>
+      finishedGoodsGeneration(
+        ctx.tenantDb,
+        args.warehouseId,
+        (await summaryReadiness(ctx.tenantDb, args.warehouseId))?.generation ??
+          0,
+      );
     return paginatedScan(ctx, {
       scope: ["legacy-units", args.warehouseId, args.productId],
       generation,

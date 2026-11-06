@@ -20,6 +20,7 @@ import { HR_PERMISSION, HR_PERMISSION_CODES } from "../lib/permissions";
 import type { TenantTableName } from "../lib/schemaPolicy";
 import {
   TENANT_INDEX_MAX_BATCH_SIZE,
+  TENANT_INDEX_MAX_PAGE_SIZE,
   TenantDbError,
   type TenantIndexReader,
 } from "../lib/tenantDb";
@@ -33,7 +34,13 @@ import {
   type IsoDate,
 } from "../model/hr/calendar";
 import { type RecordedDay } from "../model/hr/period";
-import { planFor, type DayPlan, type Schedule } from "../model/hr/schedule";
+import { rosterPlanFor, type RosterAssignment } from "../model/hr/roster";
+import {
+  isEmployedInRange,
+  type DayPlan,
+  type RosterProvenance,
+  type Schedule,
+} from "../model/hr/schedule";
 import { staticLanes, type HrLane, type HrLaneSource } from "./pagination";
 
 export type Employee = Doc<"hrEmployees">;
@@ -625,6 +632,7 @@ export const scheduleOf = (employee: Employee): Schedule | undefined =>
 export const employmentOf = (employee: Employee) => ({
   startDate: employee.employmentStartDate,
   endDate: employee.employmentEndDate,
+  intervals: employee.employmentIntervals,
 });
 
 export async function holidayName(
@@ -671,6 +679,23 @@ export async function openDays(
   return [...days].sort((a, b) => compareDates(b.businessDate, a.businessDate));
 }
 
+const storedRoster = (roster: RosterProvenance | undefined) =>
+  roster === undefined
+    ? {}
+    : {
+        roster: {
+          kind: roster.kind,
+          revision: roster.revision,
+          ...(roster.shiftId === undefined ? {} : { shiftId: roster.shiftId }),
+          ...(roster.shiftCode === undefined
+            ? {}
+            : { shiftCode: roster.shiftCode }),
+          ...(roster.shiftVersion === undefined
+            ? {}
+            : { shiftVersion: roster.shiftVersion }),
+        },
+      };
+
 export function storedPlan(plan: DayPlan): StoredPlan {
   return plan.kind === "SCHEDULED"
     ? {
@@ -681,6 +706,7 @@ export function storedPlan(plan: DayPlan): StoredPlan {
         endTime: plan.endTime,
         endsNextDay: plan.endsNextDay,
         breakMinutes: plan.breakMinutes,
+        ...storedRoster(plan.roster),
       }
     : {
         kind: "NONWORKING",
@@ -689,6 +715,7 @@ export function storedPlan(plan: DayPlan): StoredPlan {
         ...(plan.holidayName === undefined
           ? {}
           : { holidayName: plan.holidayName }),
+        ...storedRoster(plan.roster),
       };
 }
 
@@ -706,6 +733,7 @@ export function planFromStored(plan: StoredPlan): DayPlan {
       endTime: plan.endTime ?? "",
       endsNextDay: plan.endsNextDay ?? false,
       breakMinutes: plan.breakMinutes,
+      ...storedRoster(plan.roster),
     };
   return {
     kind: "NONWORKING",
@@ -714,20 +742,231 @@ export function planFromStored(plan: StoredPlan): DayPlan {
       ? {}
       : { holidayName: plan.holidayName }),
     breakMinutes: 0,
+    ...storedRoster(plan.roster),
   };
 }
 
-/** The current plan for a date that has no recorded day yet. */
+export type RosterRow = Doc<"hrRosterAssignments">;
+
+/** Once frozen, an employee/date cannot use ordinary roster recalculation. */
+export async function hasFrozenPlan(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  date: IsoDate,
+): Promise<boolean> {
+  return (
+    (await ctx.tenantDb
+      .byIndex<Doc<"hrPeriodRows">>(
+        "hrPeriodRows",
+        "by_orgId_employeeId_businessDate",
+        [
+          { field: "employeeId", value: employeeId },
+          { field: "businessDate", value: date },
+        ],
+      )
+      .first()) !== null
+  );
+}
+
+/**
+ * `hasFrozenPlan` for one employee over date ranges, with one bounded range
+ * read per range instead of a lookup per date. A range that fills its bound
+ * (more than two versions per date on average) falls back to point lookups
+ * for its dates after the last row read, so every answer equals
+ * `hasFrozenPlan` for any data.
+ */
+export async function frozenPlanReader(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  ranges: readonly (readonly [IsoDate, IsoDate])[],
+): Promise<(date: IsoDate) => boolean | Promise<boolean>> {
+  const frozen = new Set<string>();
+  const unread: (readonly [string, IsoDate])[] = [];
+  await Promise.all(
+    ranges.map(async ([from, to]) => {
+      const bound = Math.min(
+        TENANT_INDEX_MAX_PAGE_SIZE,
+        inclusiveDayCount(from, to) * 2,
+      );
+      const rows = await ctx.tenantDb
+        .byIndex<Doc<"hrPeriodRows">>(
+          "hrPeriodRows",
+          "by_orgId_employeeId_businessDate",
+          [{ field: "employeeId", value: employeeId }],
+          {
+            field: "businessDate",
+            lower: { value: from, inclusive: true },
+            upper: { value: to, inclusive: true },
+          },
+        )
+        .take(bound);
+      for (const row of rows) frozen.add(row.businessDate);
+      // Rows arrive in date order: only later dates can have unread rows.
+      if (rows.length === bound)
+        unread.push([rows[bound - 1]!.businessDate, to]);
+    }),
+  );
+  return (date) =>
+    frozen.has(date) ||
+    (unread.some(([after, to]) => after < date && date <= to) &&
+      hasFrozenPlan(ctx, employeeId, date));
+}
+
+/** The plan input of a stored assignment row; a CLEARED tombstone is none. */
+export function rosterAssignment(
+  row: RosterRow | null | undefined,
+): RosterAssignment | undefined {
+  if (row === null || row === undefined || row.kind === "CLEARED")
+    return undefined;
+  if (row.kind === "OFF") return { kind: "OFF", revision: row.revision };
+  if (row.shift === undefined) return undefined;
+  return {
+    kind: "SHIFT",
+    revision: row.revision,
+    shiftId: row.shift.shiftId,
+    shiftCode: row.shift.code,
+    shiftVersion: row.shift.version,
+    times: {
+      startTime: row.shift.startTime,
+      endTime: row.shift.endTime,
+      endsNextDay: row.shift.endsNextDay,
+      breakMinutes: row.shift.breakMinutes,
+    },
+  };
+}
+
+export async function rosterRowOf(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  date: IsoDate,
+): Promise<RosterRow | null> {
+  return await ctx.tenantDb
+    .byIndex<RosterRow>(
+      "hrRosterAssignments",
+      "by_orgId_employeeId_businessDate",
+      [
+        { field: "employeeId", value: employeeId },
+        { field: "businessDate", value: date },
+      ],
+    )
+    .unique();
+}
+
+/**
+ * A site's roster rows in `[from, to]`, keyed `employeeId:date`, in one
+ * checked range read; fails rather than truncates beyond the bound.
+ */
+export async function siteRosterInRange(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<string, RosterRow>> {
+  const rows = new Map<string, RosterRow>();
+  if (inclusiveDayCount(from, to) < 1) return rows;
+  const found = await ctx.tenantDb
+    .byIndex<RosterRow>(
+      "hrRosterAssignments",
+      "by_orgId_warehouseId_businessDate",
+      [{ field: "warehouseId", value: warehouseId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(TENANT_INDEX_MAX_BATCH_SIZE);
+  for (const row of found) {
+    const key = `${row.employeeId}:${row.businessDate}`;
+    if (rows.has(key))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    rows.set(key, row);
+  }
+  return rows;
+}
+
+/** Raw revisions follow the employee/date key even after a site transfer. */
+export async function employeeRosterRowsInRange(
+  ctx: TenantFunctionContext,
+  employeeId: string,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, RosterRow>> {
+  const assignments = new Map<IsoDate, RosterRow>();
+  const count = inclusiveDayCount(from, to);
+  if (count < 1) return assignments;
+  const rows = await ctx.tenantDb
+    .byIndex<RosterRow>(
+      "hrRosterAssignments",
+      "by_orgId_employeeId_businessDate",
+      [{ field: "employeeId", value: employeeId }],
+      {
+        field: "businessDate",
+        lower: { value: from, inclusive: true },
+        upper: { value: to, inclusive: true },
+      },
+    )
+    .all(Math.min(count * 2, TENANT_INDEX_MAX_BATCH_SIZE));
+  for (const row of rows) {
+    if (assignments.has(row.businessDate))
+      throw new TenantDbError("INVALID_INDEX_RESULT", ctx.requestId);
+    assignments.set(row.businessDate, row);
+  }
+  return assignments;
+}
+
+/** One employee's live roster assignments in `[from, to]` by date (own site only). */
+export async function employeeRosterInRange(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+  from: IsoDate,
+  to: IsoDate,
+): Promise<ReadonlyMap<IsoDate, RosterAssignment>> {
+  const assignments = new Map<IsoDate, RosterAssignment>();
+  const rows = await employeeRosterRowsInRange(ctx, employee._id, from, to);
+  for (const row of rows.values()) {
+    const assignment =
+      row.warehouseId === employee.warehouseId
+        ? rosterAssignment(row)
+        : undefined;
+    if (assignment !== undefined) assignments.set(row.businessDate, assignment);
+  }
+  return assignments;
+}
+
+/**
+ * The current plan for a date that has no recorded day yet: site holiday,
+ * then the dated roster assignment (FIXED shift snapshot or explicit OFF),
+ * then the weekly schedule fallback.
+ *
+ * Employee-eligibility seam: this resolves a plan for whichever employee
+ * the caller already selected. It deliberately does not decide whether the
+ * employee is employed/eligible on `date`; callers keep their existing
+ * eligibility checks (employment window, lifecycle/offboarding). The
+ * employee-lifecycle lane's chronology/eligibility helper should be applied
+ * by those callers, not here, so plan resolution and eligibility stay
+ * separately testable. A roster row only exists for dates the roster
+ * command accepted under `rosterCellEligible` (convex/hr/roster.ts).
+ */
 export async function livePlan(
   ctx: TenantFunctionContext,
   employee: Employee,
   date: IsoDate,
   offset: number,
 ): Promise<DayPlan> {
-  return planFor({
+  const [holiday, row] = await Promise.all([
+    holidayName(ctx, employee.warehouseId, date),
+    rosterRowOf(ctx, employee._id, date),
+  ]);
+  return rosterPlanFor({
     date,
     schedule: scheduleOf(employee),
-    holidayName: await holidayName(ctx, employee.warehouseId, date),
+    // A row from another site (moved employee) never applies here.
+    assignment:
+      row !== null && row.warehouseId === employee.warehouseId
+        ? rosterAssignment(row)
+        : undefined,
+    holidayName: holiday,
     offsetMinutes: offset,
   });
 }
@@ -905,10 +1144,7 @@ export const employedInRange = (
   employee: Employee,
   startDate: IsoDate,
   endDate: IsoDate,
-) =>
-  compareDates(employee.employmentStartDate, endDate) <= 0 &&
-  (employee.employmentEndDate === undefined ||
-    compareDates(startDate, employee.employmentEndDate) <= 0);
+) => isEmployedInRange(employmentOf(employee), startDate, endDate);
 
 export interface EmployeeScanBudget {
   remaining: number;
@@ -938,23 +1174,90 @@ export async function employeesInRange(
   }
 }
 
+/**
+ * `employeesInRange` over one site, read in code-ordered chunks so that a site
+ * with more than `limit` employed rows is refused (null) as soon as the
+ * `limit + 1`-th is seen, instead of after reading the whole workforce. The
+ * answer equals `employeesInRange` on the complete site range: the employed
+ * rows in index order, or null when there are more than `limit` of them or
+ * more rows than the budget allows.
+ */
 export async function siteEmployeesInRange(
   ctx: TenantFunctionContext,
   warehouseId: string,
   startDate: IsoDate,
   endDate: IsoDate,
   limit: number,
-  budget?: EmployeeScanBudget,
+  budget: EmployeeScanBudget = { remaining: MAX_HR_EMPLOYEE_SCAN },
 ): Promise<readonly Employee[] | null> {
-  return await employeesInRange(
-    ctx.tenantDb.byIndex<Employee>("hrEmployees", "by_orgId_warehouseId_code", [
-      { field: "warehouseId", value: warehouseId },
-    ]),
-    startDate,
-    endDate,
-    limit,
-    budget,
-  );
+  const site = [{ field: "warehouseId", value: warehouseId }] as const;
+  const whole = () =>
+    employeesInRange(
+      ctx.tenantDb.byIndex<Employee>(
+        "hrEmployees",
+        "by_orgId_warehouseId_code",
+        [...site],
+      ),
+      startDate,
+      endDate,
+      limit,
+      budget,
+    );
+  const employed: Employee[] = [];
+  // Rows already read at the current lower bound's code (ties share a code).
+  let after: { code: string; ids: Set<string> } | undefined;
+  let consumed = 0;
+  for (;;) {
+    const seen = after?.ids.size ?? 0;
+    const want = Math.min(
+      TENANT_INDEX_MAX_PAGE_SIZE,
+      seen + budget.remaining - consumed + 1,
+    );
+    // So many rows share one code that a chunk cannot move past them.
+    if (want <= seen) return await whole();
+    const rows = await ctx.tenantDb
+      .byIndex<Employee>(
+        "hrEmployees",
+        "by_orgId_warehouseId_code",
+        [...site],
+        after
+          ? {
+              field: "code",
+              lower: { value: after.code, inclusive: true },
+            }
+          : undefined,
+      )
+      .take(want);
+    const fresh = after
+      ? rows.filter(
+          (row) => !(row.code === after!.code && after!.ids.has(row._id)),
+        )
+      : rows;
+    if (consumed + fresh.length > budget.remaining) {
+      budget.remaining = 0;
+      return null;
+    }
+    consumed += fresh.length;
+    for (const row of fresh)
+      if (employedInRange(row, startDate, endDate)) employed.push(row);
+    if (employed.length > limit) {
+      budget.remaining -= consumed;
+      return null;
+    }
+    if (rows.length < want) {
+      budget.remaining -= consumed;
+      return employed;
+    }
+    if (!fresh.length) return await whole();
+    const last = fresh.at(-1)!;
+    after = {
+      code: last.code,
+      ids: new Set([
+        ...(after?.code === last.code ? after.ids : []),
+        ...fresh.filter((row) => row.code === last.code).map((row) => row._id),
+      ]),
+    };
+  }
 }
 
 export async function sitePeriods(
@@ -968,22 +1271,139 @@ export async function sitePeriods(
     .all(MAX_SITE_PERIODS);
 }
 
-/** A closed period covering this site date, which no normal write may change. */
+/**
+ * Site periods that end on or after `date`, one checked index range. Legacy
+ * imports may violate period length and non-overlap invariants, so callers
+ * filter starts themselves; reading every period ending later is exact for
+ * any data, and fails (never truncates) beyond `MAX_SITE_PERIODS`.
+ */
+export async function sitePeriodsEndingFrom(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<readonly Doc<"hrPeriods">[]> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrPeriods">>(
+      "hrPeriods",
+      "by_orgId_warehouseId_endDate",
+      [{ field: "warehouseId", value: warehouseId }],
+      { field: "endDate", lower: { value: date, inclusive: true } },
+    )
+    .all(MAX_SITE_PERIODS);
+}
+
+/**
+ * A closed or closing period covering this site date, which no normal write
+ * may change. A CLOSING period is frozen too: its staged close reads a
+ * consistent snapshot. Writers refuse with `periodLockCode`.
+ */
 export async function closedPeriodCovering(
   ctx: TenantFunctionContext,
   warehouseId: string,
   date: IsoDate,
 ): Promise<Doc<"hrPeriods"> | null> {
-  // Legacy imports may violate both range length and non-overlap invariants.
-  const periods = await sitePeriods(ctx, warehouseId);
+  return periodCovering(
+    await sitePeriodsEndingFrom(ctx, warehouseId, date),
+    date,
+  );
+}
+
+function periodCovering(periods: readonly Doc<"hrPeriods">[], date: IsoDate) {
   return (
     periods.find(
       (period) =>
-        period.status === "CLOSED" &&
+        period.status !== "DRAFT" &&
         compareDates(period.startDate, date) <= 0 &&
         compareDates(date, period.endDate) <= 0,
     ) ?? null
   );
+}
+
+/** Holiday edits may change closed history's source calendar, but never a
+ * live staged close. Legacy overlapping CLOSED rows must not hide its lock.
+ */
+export async function closingPeriodCovering(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<Doc<"hrPeriods"> | null> {
+  const periods = await sitePeriodsEndingFrom(ctx, warehouseId, date);
+  return (
+    periods.find(
+      (period) =>
+        period.status === "CLOSING" &&
+        compareDates(period.startDate, date) <= 0 &&
+        compareDates(date, period.endDate) <= 0,
+    ) ?? null
+  );
+}
+
+/** The refusal code for a write on a frozen site date, or null when open. */
+export async function periodLockCode(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  date: IsoDate,
+): Promise<"HR_PERIOD_CLOSED" | "HR_PERIOD_CLOSING" | null> {
+  const period = await closedPeriodCovering(ctx, warehouseId, date);
+  if (period === null) return null;
+  return period.status === "CLOSING" ? "HR_PERIOD_CLOSING" : "HR_PERIOD_CLOSED";
+}
+
+/**
+ * Reuse one end-date-bounded read while checking a command's dates in their
+ * original order. Load lazily so an earlier employment/attendance refusal still
+ * wins. If an unsorted request's combined range exceeds the existing cap,
+ * fall back to per-date reads so a later first date can still refuse before
+ * reaching the oversized earlier history. Keep this reader local to an
+ * execution that does not change periods.
+ */
+export function periodLockReader(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+  dates: readonly IsoDate[],
+) {
+  const from = dates.reduce<IsoDate | undefined>(
+    (earliest, date) =>
+      earliest === undefined || date < earliest ? date : earliest,
+    undefined,
+  );
+  let periods: Promise<readonly Doc<"hrPeriods">[] | null> | undefined;
+  return async (
+    date: IsoDate,
+  ): Promise<"HR_PERIOD_CLOSED" | "HR_PERIOD_CLOSING" | null> => {
+    periods ??= sitePeriodsEndingFrom(ctx, warehouseId, from ?? date).catch(
+      (error: unknown) => {
+        if (
+          from !== undefined &&
+          from < date &&
+          error instanceof TenantDbError &&
+          error.code === "CAPACITY_DATA_LIMIT"
+        )
+          return null;
+        throw error;
+      },
+    );
+    const loaded = await periods;
+    if (loaded === null) return periodLockCode(ctx, warehouseId, date);
+    const period = periodCovering(loaded, date);
+    if (period === null) return null;
+    return period.status === "CLOSING"
+      ? "HR_PERIOD_CLOSING"
+      : "HR_PERIOD_CLOSED";
+  };
+}
+
+/** A site period whose staged close is in progress, if any. */
+export async function closingPeriodAt(
+  ctx: TenantFunctionContext,
+  warehouseId: string,
+): Promise<Doc<"hrPeriods"> | null> {
+  return await ctx.tenantDb
+    .byIndex<Doc<"hrPeriods">>("hrPeriods", "by_orgId_warehouseId_status", [
+      { field: "warehouseId", value: warehouseId },
+      { field: "status", value: "CLOSING" },
+    ])
+    .first();
 }
 
 /* Command envelope --------------------------------------------------------- */
@@ -993,6 +1413,22 @@ export interface AuditChange {
   readonly from?: string | undefined;
   readonly to?: string | undefined;
 }
+
+export const diff = (
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+) =>
+  Object.keys(after)
+    .filter(
+      (key) => JSON.stringify(before?.[key]) !== JSON.stringify(after[key]),
+    )
+    .map((key) => ({
+      field: key,
+      ...(before?.[key] === undefined
+        ? {}
+        : { from: JSON.stringify(before[key]) }),
+      ...(after[key] === undefined ? {} : { to: JSON.stringify(after[key]) }),
+    }));
 
 export interface CommandSuccess<Extra> {
   readonly documentId: string;
@@ -1156,6 +1592,10 @@ export async function hrCommand<Extra extends Record<string, unknown>>(
 /* Presentation ------------------------------------------------------------- */
 
 export function planView(plan: DayPlan) {
+  const shiftCode =
+    plan.roster?.shiftCode === undefined
+      ? {}
+      : { shiftCode: plan.roster.shiftCode };
   return plan.kind === "SCHEDULED"
     ? {
         kind: plan.kind,
@@ -1165,6 +1605,7 @@ export function planView(plan: DayPlan) {
         endTime: plan.endTime,
         endsNextDay: plan.endsNextDay,
         breakMinutes: plan.breakMinutes,
+        ...shiftCode,
       }
     : {
         kind: plan.kind,
@@ -1186,4 +1627,30 @@ export async function memberName(
   const name = await ctx.members.displayName(userId);
   cache.set(userId, name);
   return name;
+}
+
+/** Authoritative event bounds, read in the same transaction as employee writes. */
+export async function employmentDateBounds(
+  ctx: TenantFunctionContext,
+  employee: Employee,
+) {
+  const events = () =>
+    ctx.tenantDb.byIndex<Doc<"hrEmploymentEvents">>(
+      "hrEmploymentEvents",
+      "by_orgId_employeeId_effectiveDate",
+      [{ field: "employeeId", value: employee._id }],
+    );
+  const [first, last] = await Promise.all([
+    events().take(1, "asc"),
+    events().take(1, "desc"),
+  ]);
+  const dates = [
+    first[0]?.effectiveDate,
+    last[0]?.effectiveDate,
+    employee.probationConfirmedDate,
+    employee.separation?.lastWorkingDate,
+  ]
+    .filter((value): value is string => value !== undefined)
+    .sort();
+  return { first: dates[0], last: dates.at(-1) };
 }

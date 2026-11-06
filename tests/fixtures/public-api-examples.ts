@@ -24,6 +24,7 @@ export type PublicApiWorld = ConvexTenantWorld & {
   readonly palletId: Id<"finishedGoodsPallets">;
   readonly buildingId: Id<"storageBuildings">;
   readonly historicalLocationId: Id<"locations">;
+  readonly periodId: Id<"hrPeriods">;
 };
 
 export function allowedValue(outcome: unknown): unknown {
@@ -140,6 +141,22 @@ export async function createPublicApiWorld(
   );
   if (buildingId === null)
     throw new Error("Registered building write returned the wrong table ID.");
+  // A past attendance period with no employees: closing it is refused.
+  const periodId = await world.t.run((ctx) =>
+    ctx.db.insert("hrPeriods", {
+      orgId: world.orgA,
+      warehouseId,
+      startDate: "2020-01-01",
+      endDate: "2020-01-07",
+      status: "DRAFT",
+      draftVersion: 1,
+      latestClosedVersion: 0,
+      createdAt: 1,
+      createdByUserId: world.userA,
+      updatedAt: 1,
+      updatedByUserId: world.userA,
+    }),
+  );
   const historicalLocationId = await world.t.run((ctx) =>
     ctx.db.insert("locations", {
       orgId: world.orgA,
@@ -169,6 +186,7 @@ export async function createPublicApiWorld(
     palletId,
     buildingId,
     historicalLocationId,
+    periodId,
   };
 }
 
@@ -218,6 +236,11 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   })),
   example("hr/periods:list", "query", () => ({})),
   example("hr/periods:listPage", "query", () => ({ pageSize: 20 })),
+  example("hr/periodClose:begin", "mutation", (world) => ({
+    requestId: "public-period-close",
+    periodId: world.periodId,
+    expectedFingerprint: "not-reviewed",
+  })),
   example("hr/review:queue", "query", () => ({
     from: "2026-10-01",
     to: "2026-10-01",
@@ -243,6 +266,13 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("hr/announcements:self", "query", () => ({})),
   example("hr/notifications:list", "query", () => ({})),
   example("hr/payslips:list", "query", () => ({})),
+  example("hr/org:getCompanyProfile", "query", () => ({})),
+  example("hr/roster:shifts", "query", (world) => ({
+    warehouseId: world.warehouses.alphaA,
+  })),
+  example("hr/employeeProfile:employeeLifecycle", "query", () => ({
+    employeeId: "missing",
+  })),
   example("hr/selfPeriods:list", "query", () => ({})),
   example("finishedGoods/batches:getBatch", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,

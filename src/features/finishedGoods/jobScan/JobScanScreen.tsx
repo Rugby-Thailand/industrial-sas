@@ -597,7 +597,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   }
   function jumpTo(selector: string, block: ScrollLogicalPosition) {
     const target = document.querySelector<HTMLElement>(selector);
-    target?.scrollIntoView({ behavior: "smooth", block });
+    target?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+      block,
+    });
     target?.focus({ preventScroll: true });
   }
 

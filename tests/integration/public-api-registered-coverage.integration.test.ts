@@ -86,7 +86,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(35);
+    expect(coveredModules).toHaveLength(39);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +107,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 40 representative functions, not every public export
+    // The inventory covers 44 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(40);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(44);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -198,13 +198,21 @@ describe("representative registered payloads and safe HR capability gates", () =
         isDone: true,
         selected: null,
       },
-      "hr/periods:list": { items: [], complete: true },
+      "hr/periods:list": {
+        items: [{ id: world.periodId, status: "DRAFT" }],
+        complete: true,
+      },
       "hr/periods:listPage": {
         ok: true,
         status: "ready",
-        page: [],
+        page: [{ id: world.periodId, status: "DRAFT" }],
         isDone: true,
         sitesComplete: true,
+      },
+      // A past period with no one employed: refused before any write.
+      "hr/periodClose:begin": {
+        written: false,
+        error: { code: "PERIOD_EMPTY" },
       },
       "hr/review:queue": { ok: true, complete: true, items: [] },
       "hr/review:queuePage": {
@@ -231,12 +239,14 @@ describe("representative registered payloads and safe HR capability gates", () =
       "hr/announcements:self": { ok: false, code: "HR_NOT_LINKED" },
       "hr/notifications:list": { ok: false, code: "HR_NOT_LINKED" },
       "hr/payslips:list": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/org:getCompanyProfile": { profile: null },
+      "hr/roster:shifts": { ok: true, complete: true, items: [] },
+      "hr/employeeProfile:employeeLifecycle": { ok: false, code: "NOT_FOUND" },
       "hr/selfPeriods:list": { ok: false, code: "HR_NOT_LINKED" },
       "finishedGoods/batches:getBatch": {
         batch: { _id: world.batchId, status: "DRAFT", revision: 1 },
         product: { _id: world.productId, sku: "PUBLIC-1" },
         units: [],
-        history: expect.any(Array),
         editable: true,
       },
       "finishedGoods/batchManagement:get": {
@@ -362,6 +372,27 @@ describe("representative registered payloads and safe HR capability gates", () =
       checked.push(example.name);
     }
     expect(checked.sort()).toEqual(Object.keys(expected).sort());
+    const actor = world.t.withIdentity(PUBLIC_API_ACTOR);
+    // The reviewed no-active-client migration moves immutable history out of
+    // current detail. Exercise both registered endpoints, not a mock adapter.
+    const detail = allowedValue(
+      await actor.query(api.finishedGoods.batches.getBatch, {
+        warehouseId: world.warehouses.alphaA,
+        batchId: world.batchId,
+      }),
+    );
+    expect(detail).not.toHaveProperty("history");
+    const revisions = allowedValue(
+      await actor.query(api.finishedGoods.batches.pageBatchRevisions, {
+        warehouseId: world.warehouses.alphaA,
+        batchId: world.batchId,
+        pageSize: 20,
+      }),
+    );
+    expect(revisions).toMatchObject({
+      page: [{ batchId: world.batchId, revision: 1 }],
+      isDone: true,
+    });
     expect(transport).not.toHaveBeenCalled();
   });
 

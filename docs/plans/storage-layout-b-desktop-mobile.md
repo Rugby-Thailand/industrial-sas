@@ -10,7 +10,7 @@ Status: Production frontend implementation B แล้วเสร็จ; tests/
 
 Feedback ในภาพระบุว่าแถบเลือกชั้นและการ์ดชั้นกว้างเกินไป. จึงลด rail จาก 190px เป็น 128px (ประมาณ 33%) และลด padding/thumbnail ของการ์ด. ไม่ลดขนาดจุดบนแผนผังเพื่อชดเชยพื้นที่ rail.
 
-Prototype ที่ใช้อ้างอิง: `src/components/storageLayouts/_prototype/index.html`, เปิด `http://127.0.0.1:3188/?variant=B`. B เป็นค่าเริ่มต้น; A/C เก็บไว้เปรียบเทียบ. ข้อมูลทั้งหมดเป็นตัวอย่าง. หน้า production ใช้ React components และข้อมูลจริงแล้ว; prototype เก็บเป็น design reference และไม่มี variants/switcher ในหน้าจริง.
+The standalone prototype was retired during repository cleanup on 2026-11-03. The [historical source](https://github.com/Rugby-Thailand/industrial-sas/tree/e37b600929a91cac0c5b3fa465098a902f7b50f4/src/components/storageLayouts/_prototype) and the selected design captures below preserve the reference; production uses React components and real data.
 
 ## Desktop และ tablet
 
@@ -139,10 +139,10 @@ Prototype เป็นหลักฐาน design ที่แก้ได้�
 
 ## ภาพ design และผลตรวจ prototype
 
-- [Desktop B](../../src/components/storageLayouts/_prototype/assets/b-desktop.png)
-- [Mobile — แผนผัง](../../src/components/storageLayouts/_prototype/assets/b-mobile-map.png)
-- [Mobile — รายการ](../../src/components/storageLayouts/_prototype/assets/b-mobile-list.png)
-- [Mobile — รายละเอียดจากด้านล่าง](../../src/components/storageLayouts/_prototype/assets/b-mobile-detail.png)
+- [Desktop B](assets/storage-layout-b/b-desktop.png)
+- [Mobile — แผนผัง](assets/storage-layout-b/b-mobile-map.png)
+- [Mobile — รายการ](assets/storage-layout-b/b-mobile-list.png)
+- [Mobile — รายละเอียดจากด้านล่าง](assets/storage-layout-b/b-mobile-detail.png)
 
 ตรวจ prototype ใน Chromium วันที่ 2026-09-30:
 

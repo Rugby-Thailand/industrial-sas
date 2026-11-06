@@ -485,6 +485,8 @@ describe("product search batches bounded unit probes", () => {
 
   it("splits probe work by its row budget without skipping products", async () => {
     // 30 products × 45 raw rows: a full chunk of probes would read 1,350 rows.
+    // Allow fixture construction on shared CI workers; the assertions below
+    // still enforce the document and continuation budgets.
     const products: ProductSpec[] = Array.from({ length: 30 }, (_, i) => ({
       name: `Medium ${i}`,
       units: units(45, i === 29 ? { 44: { lot: "deep-needle" } } : {}),
@@ -495,7 +497,7 @@ describe("product search batches bounded unit probes", () => {
     expectBoundedRequests(result.log);
     expect(result.log.length).toBeGreaterThan(2);
     expect(result.log.length).toBeLessThanOrEqual(4);
-  });
+  }, 30_000);
 
   it("settles the audit's 105-product lot search in a few requests", async () => {
     const products: ProductSpec[] = Array.from({ length: 105 }, (_, i) => ({

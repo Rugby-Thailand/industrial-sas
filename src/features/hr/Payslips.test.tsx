@@ -331,6 +331,56 @@ it("downloads the original verified PDF bytes and revokes its local URL", async 
   expect(revoke).toHaveBeenCalledWith("blob:private");
   click.mockRestore();
 });
+it("shows the employer block from the company profile after a verified download", async () => {
+  const bytes = new TextEncoder().encode("%PDF-original");
+  vi.stubGlobal("URL", {
+    createObjectURL: vi.fn(() => "blob:private"),
+    revokeObjectURL: vi.fn(),
+  });
+  const click = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => {});
+  const document = {
+    written: true,
+    base64: btoa("%PDF-original"),
+    sha256: await pdfHash(bytes),
+    expiresAt: Date.now() + 10000,
+    fileName: "statement.pdf",
+    policyVersionId: "policy-1",
+    employer: {
+      name: "Siam Industrial",
+      taxId: "0105500000001",
+      address: "1 Silom Road",
+      subDistrict: "Silom",
+      district: "Bang Rak",
+      province: "Bangkok",
+      postcode: "10500",
+      addressEn: "1 Silom Road, Bang Rak, Bangkok 10500",
+      primaryBankAccount: { bankName: "KBank", accountNo: "123-4-56789-0" },
+    },
+  };
+  state.httpMutation.mockImplementation((name: string) =>
+    envelope(
+      name.endsWith(":ticket")
+        ? { written: true, documentId: "ticket-1" }
+        : document,
+    ),
+  );
+  render(<HrPayslipsScreen />);
+  expect(screen.queryByRole("region", { name: "Employer" })).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Verify and download PDF" }),
+  );
+  const employer = await screen.findByRole("region", { name: "Employer" });
+  expect(employer).toHaveTextContent("Siam Industrial");
+  expect(employer).toHaveTextContent("0105500000001");
+  expect(employer).toHaveTextContent(
+    "1 Silom Road Silom Bang Rak Bangkok 10500",
+  );
+  expect(employer).toHaveTextContent("1 Silom Road, Bang Rak, Bangkok 10500");
+  expect(click).toHaveBeenCalledTimes(1);
+  click.mockRestore();
+});
 const file = (name: string, text: string): File =>
   ({
     name,
@@ -681,4 +731,31 @@ it("refuses a selection that excludes every original row", async () => {
       { rowNumber: 2, reason: "Missing payroll approval" },
     ]),
   ).rejects.toThrow("CSV_EXCLUSIONS_INVALID");
+});
+
+it("keeps employee pagination usable through an empty unpublished page and restores it with Previous", () => {
+  state.query.mockImplementation((name, args: { cursor?: string }) => {
+    if (name !== "hr/payslips:list") return envelope(list());
+    return envelope(
+      args.cursor === "after-unpublished"
+        ? list()
+        : {
+            ...list(),
+            items: [],
+            isDone: false,
+            continueCursor: "after-unpublished",
+          },
+    );
+  });
+  render(<HrPayslipsScreen />);
+  const next = screen.getByRole("button", { name: "Next page" });
+  expect(next).toBeEnabled();
+  expect(screen.queryByText("Amounts hidden")).not.toBeInTheDocument();
+  fireEvent.click(next);
+  expect(screen.getByText("Amounts hidden")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(screen.queryByText("Amounts hidden")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
 });

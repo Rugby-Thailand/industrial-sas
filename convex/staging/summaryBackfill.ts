@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
@@ -27,7 +28,15 @@ export const run = internalMutation({
           generation: (state.generation ?? 0) + 1,
         });
     }
-    return backfillProductSummaries(db, args.warehouseId);
+    const result = await backfillProductSummaries(db, args.warehouseId);
+    // Totals depend on ready summaries: build them now, not at the next sweep.
+    if (result.ready && result.scanned > 0)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.finishedGoods.totalsBackfill.run,
+        { warehouseId: args.warehouseId },
+      );
+    return result;
   },
 });
 

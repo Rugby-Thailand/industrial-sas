@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { ROUTES } from "@/lib/navigation";
+import { ROUTES, isHrPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const MAIN_ID = "main-content";
@@ -194,6 +194,7 @@ function NavigationDisclosure({
  */
 function HeaderBrand() {
   const name = useOrganizationName();
+  const storageContext = !isHrPath(usePathname());
   const waiting = useConnectionStall() !== null;
   const t = useTranslations("App");
   return (
@@ -222,7 +223,7 @@ function HeaderBrand() {
           )}
         </p>
       )}
-      <HeaderWarehouse />
+      {storageContext ? <HeaderWarehouse /> : null}
     </div>
   );
 }
@@ -236,6 +237,9 @@ function AppSidebar({
   const app = useTranslations("App");
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = !isMobile && state === "collapsed";
+  // The storage warehouse selection does not scope HR: each HR page picks
+  // its own workplace. Keep the sidebar from implying otherwise there.
+  const storageContext = !isHrPath(usePathname());
   const drawer = useRef<SheetCompletionHandle>(null);
   const searchHandoff = useDrawerSearchHandoff(menuOpener, drawer);
   // This router outlives the drawer's links, which unmount as it closes.
@@ -285,7 +289,7 @@ function AppSidebar({
           </p>
           <NavigationDisclosure />
         </div>
-        <WorkspaceContextBar collapsed={collapsed} />
+        {storageContext ? <WorkspaceContextBar collapsed={collapsed} /> : null}
         <SidebarSearchTriggers
           collapsed={collapsed}
           {...(isMobile ? { onOpen: searchHandoff.request } : {})}

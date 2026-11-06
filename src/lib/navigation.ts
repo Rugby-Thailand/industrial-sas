@@ -32,6 +32,14 @@ export interface NavigationSection {
   readonly items: readonly NavigationItem[];
 }
 
+/** The HR module root; every HR page lives under it. */
+export const HR_ROOT = "/hr";
+
+/** A locale-free pathname at or below the HR module root. */
+export function isHrPath(pathname: string): boolean {
+  return pathname === HR_ROOT || pathname.startsWith(`${HR_ROOT}/`);
+}
+
 export const ROUTES = Object.freeze({
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
@@ -58,6 +66,8 @@ export const ROUTES = Object.freeze({
   hrEmployees: "/hr/employees",
   hrPeriods: "/hr/periods",
   hrSettings: "/hr/settings",
+  hrShifts: "/hr/shifts",
+  hrRoster: "/hr/roster",
 });
 
 export const PLANNER_PATHS: readonly string[] = Object.freeze([
@@ -722,6 +732,9 @@ export const FOCUS_TARGET_IDS = Object.freeze({
   holidays: "hr-settings-holidays",
   access: "hr-settings-access",
   policy: "hr-settings-policy",
+  company: "hr-settings-company",
+  branches: "hr-settings-branches",
+  organization: "hr-settings-organization",
 } as const);
 export type FocusKey = keyof typeof FOCUS_TARGET_IDS;
 
@@ -896,12 +909,25 @@ export function readPeriodUrl(params: ParamReader): PeriodUrlState {
   };
 }
 
+/**
+ * Settings panels reachable by `?section=`. The organization panels are
+ * deep-linkable but not (yet) search intents, so they extend the AI-search
+ * section list here rather than in the shared search contract.
+ */
+export const HR_SETTINGS_PANELS = [
+  ...SETTINGS_SECTIONS,
+  "company",
+  "branches",
+  "organization",
+] as const;
+export type HrSettingsPanel = (typeof HR_SETTINGS_PANELS)[number];
+
 export function readSettingsSection(
   params: ParamReader,
-): SettingsSection | null {
+): HrSettingsPanel | null {
   const section = params.get("section");
-  return (SETTINGS_SECTIONS as readonly string[]).includes(section ?? "")
-    ? (section as SettingsSection)
+  return (HR_SETTINGS_PANELS as readonly string[]).includes(section ?? "")
+    ? (section as HrSettingsPanel)
     : null;
 }
 

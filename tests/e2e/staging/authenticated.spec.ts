@@ -4,6 +4,7 @@ import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import type { Page } from "@playwright/test";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
+import { verifyBatchHistory } from "./database-history";
 
 import { expect, test } from "../support/release-fixtures";
 import {
@@ -162,6 +163,66 @@ test("edits a layout, places and moves a pallet, and shows the result", async ({
   await page.goto(`/th/master-data/storage-layouts/${result.buildingId}`);
   await expect(page.getByText(result.buildingName).first()).toBeVisible();
   await expect(page.getByText(result.targetZoneCode).first()).toBeAttached();
+});
+
+test("pages all batch revisions on desktop and mobile and preserves Close, Back and remount behavior", async ({
+  page,
+}) => {
+  const state = await signIn(page);
+  const execute = await convexAs(page);
+  expect(completedFlow).toBeDefined();
+  const detail = (await execute("query", "finishedGoods/workflow:getPallet", {
+    warehouseId: state.runWarehouseId,
+    palletId: completedFlow!.palletId,
+  })) as { ok: boolean; value: { product: { _id: string; name: string } } };
+  expect(detail.ok).toBe(true);
+  const product = detail.value.product;
+  const lot = `HISTORY-${state.runId}`;
+  let batch: { batchId: string; revision: number } | undefined;
+  for (let i = 0; i < 22; i++) {
+    const result = (await execute(
+      "mutation",
+      i === 21
+        ? "finishedGoods/batches:commitBatch"
+        : "finishedGoods/batches:saveBatchDraft",
+      {
+        warehouseId: state.runWarehouseId,
+        productId: product._id,
+        requestId: `history-${state.runId}-${i}`,
+        lot,
+        totalQuantity: 10,
+        storageFormat: "PALLET",
+        ...(batch
+          ? { batchId: batch.batchId, expectedRevision: batch.revision }
+          : {}),
+        packages: [
+          {
+            quantity: 10,
+            lengthMm: 1000,
+            widthMm: 1000,
+            heightMm: 1000,
+            dimensionsChecked: true,
+          },
+        ],
+      },
+    )) as {
+      ok: boolean;
+      value: { written: boolean; batchId: string; revision: number };
+    };
+    expect(result.ok).toBe(true);
+    expect(result.value.written).toBe(true);
+    batch = result.value;
+  }
+  await verifyBatchHistory(
+    page,
+    {
+      productId: product._id,
+      productName: product.name,
+      batchId: batch!.batchId,
+      lot,
+    },
+    new URL(page.url()).origin,
+  );
 });
 
 test("is denied in the forbidden warehouse and the other tenant", async ({

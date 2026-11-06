@@ -2,7 +2,7 @@
 
 78 actions and states, each captured at desktop **1440 × 1000** and mobile **390 × 844** CSS viewports: **156 screenshots**. These are screenshots of the running application.
 
-Use the [interactive gallery](minimal-ui-gallery-2026-10-08.html) to search and compare. Its screenshots are embedded, so the HTML works offline without a separate assets folder. Expand the actions below in GitHub. [Implementation and UX expectations](../plans/minimal-ui-2026-10-08.md) · [Audit and validation](minimal-ui-audit-2026-10-08.md).
+Expand the actions below in GitHub to compare the original screenshots. The duplicate standalone gallery was removed during repository cleanup; all unique screenshot bytes are retained. [Implementation and UX expectations](../plans/minimal-ui-2026-10-08.md) · [Audit and validation](minimal-ui-audit-2026-10-08.md).
 
 Writes used local `QA-` records. Physical movement was simulated through explicit confirmations. The first packing batch supplied the units for storage/move/stack; the refreshed packing walkthrough created a second QA batch. The two walkthrough scan tickets were deleted after their assignment/deletion checks. No production deployment was used.
 
@@ -82,7 +82,7 @@ Camera hardware and an actual phone software keyboard were not exercised; the mo
 
 | Desktop                                                                                      | Mobile                                                                                     |
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| ![Desktop — 70-draft-continued](assets/minimal-ui-2026-10-08/70-draft-continued-desktop.png) | ![Mobile — 70-draft-continued](assets/minimal-ui-2026-10-08/70-draft-continued-mobile.png) |
+| ![Desktop — 70-draft-continued](assets/minimal-ui-2026-10-08/06-product-entered-desktop.png) | ![Mobile — 70-draft-continued](assets/minimal-ui-2026-10-08/06-product-entered-mobile.png) |
 
 </details>
 
@@ -237,9 +237,9 @@ Camera hardware and an actual phone software keyboard were not exercised; the mo
 <details>
 <summary>79-map-fit: Fit resets the camera to the floor proportions.</summary>
 
-| Desktop                                                                      | Mobile                                                                     |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| ![Desktop — 79-map-fit](assets/minimal-ui-2026-10-08/79-map-fit-desktop.png) | ![Mobile — 79-map-fit](assets/minimal-ui-2026-10-08/79-map-fit-mobile.png) |
+| Desktop                                                                     | Mobile                                                                     |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| ![Desktop — 79-map-fit](assets/minimal-ui-2026-10-08/77-map-3d-desktop.png) | ![Mobile — 79-map-fit](assets/minimal-ui-2026-10-08/79-map-fit-mobile.png) |
 
 </details>
 
@@ -567,9 +567,9 @@ Camera hardware and an actual phone software keyboard were not exercised; the mo
 <details>
 <summary>74-record-delete-cancelled: Cancel deletion: both QA tickets remain visible.</summary>
 
-| Desktop                                                                                                      | Mobile                                                                                                     |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| ![Desktop — 74-record-delete-cancelled](assets/minimal-ui-2026-10-08/74-record-delete-cancelled-desktop.png) | ![Mobile — 74-record-delete-cancelled](assets/minimal-ui-2026-10-08/74-record-delete-cancelled-mobile.png) |
+| Desktop                                                                                                      | Mobile                                                                                              |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| ![Desktop — 74-record-delete-cancelled](assets/minimal-ui-2026-10-08/74-record-delete-cancelled-desktop.png) | ![Mobile — 74-record-delete-cancelled](assets/minimal-ui-2026-10-08/52-records-assigned-mobile.png) |
 
 </details>
 

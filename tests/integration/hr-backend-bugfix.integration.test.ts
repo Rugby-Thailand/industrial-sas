@@ -400,7 +400,7 @@ describe("HR employment-range bounds", () => {
     expect(result.value.items).toHaveLength(1);
   });
 
-  it("still refuses periods over 50 employed people and over 31 days", async () => {
+  it("creates periods over 50 employed people and still refuses over 31 days", async () => {
     const w = await world();
     await w.t.run(async (ctx) => {
       for (let index = 0; index < 51; index += 1) {
@@ -423,13 +423,7 @@ describe("HR employment-range bounds", () => {
         startDate: DATE,
         endDate: DATE,
       }),
-    ).toMatchObject({
-      ok: true,
-      value: {
-        written: false,
-        error: { code: "PERIOD_TOO_LARGE", reason: "EMPLOYEES" },
-      },
-    });
+    ).toMatchObject({ ok: true, value: { written: true } });
     expect(
       await actor(w).mutation(api.hr.periods.create, {
         requestId: "over-day-bound",
@@ -447,6 +441,8 @@ describe("HR employment-range bounds", () => {
     const w = await world();
     await employee(w, false);
     await formerWorkers(w, 10_000);
+    // Creating a period reads no roster: its preview and staged close page
+    // the whole directory instead of refusing or omitting anyone.
     expect(
       await actor(w).mutation(api.hr.periods.create, {
         requestId: "incomplete-directory",
@@ -454,13 +450,7 @@ describe("HR employment-range bounds", () => {
         startDate: DATE,
         endDate: DATE,
       }),
-    ).toMatchObject({
-      ok: true,
-      value: {
-        written: false,
-        error: { code: "PERIOD_TOO_LARGE", reason: "EMPLOYEES" },
-      },
-    });
+    ).toMatchObject({ ok: true, value: { written: true } });
     expect(
       await actor(w).query(api.hr.review.queue, { from: DATE, to: DATE }),
     ).toMatchObject({ ok: true, value: { ok: false, code: "LIMIT_EXCEEDED" } });

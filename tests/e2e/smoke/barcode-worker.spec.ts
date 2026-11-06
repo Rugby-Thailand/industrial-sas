@@ -62,16 +62,24 @@ for (const fixture of cases) {
         source.includes("OffscreenCanvas") && source.includes('error:"PIXELS"'),
     );
     expect(workerModule, "built barcode worker module").toBeDefined();
-    const runtime = sources.find(
-      ({ source }) =>
-        source.includes("otherChunks:") &&
-        source.includes(`static/chunks/${workerModule!.name}`),
-    );
-    const bootstrap = sources.find(({ source }) =>
-      source.includes("Missing worker bootstrap config"),
-    );
-    expect(runtime, "Next worker runtime").toBeDefined();
-    expect(bootstrap, "Next worker entrypoint").toBeDefined();
+    // Read the complete list emitted for this worker's factory. Next 16.4
+    // separates runtime registration from the runtime implementation, so
+    // `otherChunks` alone omits a required script and leaves messages unhandled.
+    const entry = sources
+      .flatMap(({ source }) =>
+        [
+          ...source.matchAll(
+            /\.f\("(static\/chunks\/turbopack-worker-[^"]+\.js)",(\[[^\]]*\])\)/g,
+          ),
+        ].map((match) => ({
+          bootstrap: match[1]!,
+          chunks: JSON.parse(match[2]!) as string[],
+        })),
+      )
+      .find(({ chunks }) =>
+        chunks.includes(`static/chunks/${workerModule!.name}`),
+      );
+    expect(entry, "compiled barcode worker factory").toBeDefined();
 
     await page.goto("/en/sign-in");
     const result = await page.evaluate(
@@ -79,9 +87,7 @@ for (const fixture of cases) {
         const params = encodeURIComponent(
           JSON.stringify([chunks, "", "/_next/", "", ""]),
         );
-        const worker = new Worker(
-          `/_next/static/chunks/${bootstrap}?params=${params}`,
-        );
+        const worker = new Worker(`/_next/${bootstrap}?params=${params}`);
         const file = new File(
           [Uint8Array.from(atob(png), (char) => char.charCodeAt(0))],
           "demo-product.png",
@@ -115,13 +121,9 @@ for (const fixture of cases) {
         target: fixture.target,
         crop: fixture.crop,
         type: fixture.type,
-        bootstrap: bootstrap!.name,
-        chunks: [
-          ...(JSON.parse(
-            runtime!.source.match(/otherChunks:(\[[^\]]*\])/)![1]!,
-          ) as string[]),
-          `static/chunks/${runtime!.name}`,
-        ].map((path) => `/_next/${path}`),
+        bootstrap: entry!.bootstrap,
+        // Match the emitted worker factory's reversal before bootstrap loading.
+        chunks: entry!.chunks.map((path) => `/_next/${path}`).reverse(),
       },
     );
     expect(result).toMatchObject({

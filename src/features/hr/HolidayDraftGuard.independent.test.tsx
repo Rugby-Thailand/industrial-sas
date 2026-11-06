@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
+import type { ComponentProps } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -33,6 +34,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/i18n/navigation", () => ({
+  Link: (props: ComponentProps<"a">) => <a {...props} />,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
