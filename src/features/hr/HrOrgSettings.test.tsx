@@ -1017,6 +1017,10 @@ it("a stale selected logo survives nested branch Cancel; discarding the file the
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
+  // Discard approves the native Back that opened the guard. Wait for its
+  // destination, not the transient restored settings URL while it completes.
+  await waitFor(() => expect(here()).toBe("/th/hr/today?keep=origin#source"));
+  await traverse("forward");
   await waitFor(() =>
     expect(here()).toBe("/th/hr/settings?section=company&keep=settings#logo"),
   );

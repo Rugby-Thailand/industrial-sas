@@ -30,3 +30,11 @@ The shared navigation change does not establish the UI score gate. Stage 1 loop 
 Stage 4 finding S4-L0-sol-08 identified a title promising Save when that action was unavailable. The title now follows the same `summary.saveable` condition as the description: saveable work retains its existing title, while non-saveable work says “ละทิ้งการเปลี่ยนแปลง?” / “Discard changes?”. Actions, descriptions, and pending protection are unchanged.
 
 Exact title expectations were updated in existing callers, with English and Thai assertions for both branches. The focused AST-derived selection passed 63 parameterized cases from 56 literal titles across 22 unit files (684 unrelated cases skipped), one worker, 66.53 seconds. Changed-file lint/format and final normal ESLint/typecheck passed. Six HR browser-selector files were updated to the new accessible title but were not executed locally; CI and the stage runtime runs remain required. The earlier broad title-test attempt was aborted under unrelated machine load and is retained as incomplete, not a pass. No test timeouts were increased.
+
+## HR caller CI synchronization
+
+CI on `9af8f445` passed both CodeQL analyses and every browser lane, but the first test shard failed one existing HR settings navigation case. The same file reproduced locally: 24 passed and one failed. Running only the preceding case and the failing case also reproduced it; running the failing case alone passed because it had no earlier history entry.
+
+The history trace showed that Discard correctly approved the pending native Back. The test observed the transient restored settings URL before that traversal finished and issued an extra Back, which overshot the intended origin. It now waits for the exact origin after Discard, goes Forward, verifies that the selected file is absent, and then verifies Back to the same locale/query/hash origin. All original assertions remain, with four lines adding synchronization and Forward coverage. There are no production or timeout changes.
+
+The minimal pair passed 2/2 after the change, the full file passed 25/25, and changed-file ESLint/Prettier/diff checks passed. Original failures and the focused history trace are retained under the shared-navigation evidence directory. Current-source UI captures remain built from `9af8f445`; this test-only follow-up does not alter that application build.
