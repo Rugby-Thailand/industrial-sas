@@ -106,17 +106,6 @@ export function parseTimeInput(value: string): number | null {
   return match === null ? null : Number(match[1]) * 60 + Number(match[2]);
 }
 
-/** Minutes after midnight in `timeZone` for an instant, with its date. */
-export function localTimeOf(
-  instant: number,
-  timeZone: string,
-): { readonly date: string; readonly value: string } {
-  return {
-    date: businessDateIn(instant, timeZone),
-    value: formatTime(instant, "en", timeZone),
-  };
-}
-
 function narrowWeekday(isoWeekday: number, locale: string): string {
   return new Intl.DateTimeFormat(intlLocale(locale), {
     weekday: locale === "th" ? "narrow" : "short",

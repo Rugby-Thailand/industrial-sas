@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ObservabilityProvider } from "@/components/providers/ObservabilityProvider";
+import { useObservability } from "@/components/providers/ObservabilityProvider";
 import type { ObservabilityEvent } from "@/lib/observability/event";
 import type { ObservabilityPort } from "@/lib/observability/port";
 import { WEB_VITAL_CODE } from "@/lib/observability/webVitals";
@@ -28,6 +28,10 @@ vi.mock("next/web-vitals", () => ({
   },
 }));
 
+vi.mock("@/components/providers/ObservabilityProvider", () => ({
+  useObservability: vi.fn(),
+}));
+
 const recordingPort = (): ObservabilityPort & {
   readonly events: ObservabilityEvent[];
 } => {
@@ -45,12 +49,9 @@ describe("WebVitals", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_786_414_500_000);
     const port = recordingPort();
+    vi.mocked(useObservability).mockReturnValue(port);
 
-    render(
-      <ObservabilityProvider port={port}>
-        <WebVitals />
-      </ObservabilityProvider>,
-    );
+    render(<WebVitals />);
 
     hook.callbacks[0]?.({
       name: "INP",
@@ -81,18 +82,11 @@ describe("WebVitals", () => {
 
   it("keeps the callback stable across parent re-renders", () => {
     const port = recordingPort();
-    const view = render(
-      <ObservabilityProvider port={port}>
-        <WebVitals />
-      </ObservabilityProvider>,
-    );
+    vi.mocked(useObservability).mockReturnValue(port);
+    const view = render(<WebVitals />);
 
     const first = hook.callbacks.at(-1);
-    view.rerender(
-      <ObservabilityProvider port={port}>
-        <WebVitals />
-      </ObservabilityProvider>,
-    );
+    view.rerender(<WebVitals />);
 
     expect(hook.callbacks.at(-1)).toBe(first);
   });

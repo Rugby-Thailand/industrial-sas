@@ -4,7 +4,7 @@ import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import type { StorageStackPlacementRow } from "@/lib/convex/storageLayoutApi";
 import { placementStatusKey } from "@/lib/storageLayouts/storageKit";
 
-export function placementStatusTone(
+function placementStatusTone(
   placement: Pick<
     StorageStackPlacementRow,
     "moveRole" | "moveState" | "status"

@@ -3,18 +3,11 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 
-import {
-  AiUsageAccessProvider,
-  UnavailableAiUsageAccessProvider,
-} from "./AiUsageAccessProvider";
+import { AiUsageAccessProvider } from "./AiUsageAccessProvider";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { EnvironmentProvider, useAppEnvironment } from "./EnvironmentProvider";
 import { IdentityProvider } from "./IdentityProvider";
-import {
-  HrAccessProvider,
-  UnavailableHrAccessProvider,
-} from "./HrAccessProvider";
-import { ObservabilityProvider } from "./ObservabilityProvider";
+import { HrAccessProvider } from "./HrAccessProvider";
 import {
   UnavailableWorkspaceProvider,
   WorkspaceProvider,
@@ -38,11 +31,7 @@ export function EnvironmentAwareWorkspaceProvider({
         environment.backendConfigured ? "SIGN_IN_REQUIRED" : "BACKEND_MISSING"
       }
     >
-      <UnavailableHrAccessProvider>
-        <UnavailableAiUsageAccessProvider>
-          {children}
-        </UnavailableAiUsageAccessProvider>
-      </UnavailableHrAccessProvider>
+      {children}
     </UnavailableWorkspaceProvider>
   );
 }
@@ -73,15 +62,13 @@ export function AppProviders({ children }: { readonly children: ReactNode }) {
       {...(scriptProps === undefined ? {} : { scriptProps })}
     >
       <EnvironmentProvider>
-        <ObservabilityProvider>
-          <IdentityProvider>
-            <ConvexClientProvider>
-              <EnvironmentAwareWorkspaceProvider>
-                {children}
-              </EnvironmentAwareWorkspaceProvider>
-            </ConvexClientProvider>
-          </IdentityProvider>
-        </ObservabilityProvider>
+        <IdentityProvider>
+          <ConvexClientProvider>
+            <EnvironmentAwareWorkspaceProvider>
+              {children}
+            </EnvironmentAwareWorkspaceProvider>
+          </ConvexClientProvider>
+        </IdentityProvider>
       </EnvironmentProvider>
     </ThemeProvider>
   );
