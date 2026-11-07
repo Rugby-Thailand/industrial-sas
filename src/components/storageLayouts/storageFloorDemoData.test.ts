@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { floorMapDemo } from "./storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 import {
   occupiedStorageFootprintAreaSqMm,
   storagePlacementBoxes,

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { floorMapDemo } from "@/components/storageLayouts/storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 import { useFloorSelection } from "./useFloorSelection";
 
 vi.mock("@/i18n/navigation", () => ({
