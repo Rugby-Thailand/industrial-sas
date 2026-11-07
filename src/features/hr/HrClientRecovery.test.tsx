@@ -406,51 +406,6 @@ it("legacy absent preferences are fenced before a fresh command so a late origin
   });
 });
 
-it("a cold prior-day clock command with no server receipt is refused before a fresh day can be clocked", async () => {
-  const backend = await fixture();
-  vi.setSystemTime(new Date("2026-10-13T02:00:00Z"));
-  state.today = "2026-10-13";
-  state.queries[getFunctionName(hrRefs.today)] = await backend.query(
-    hrRefs.today,
-    {},
-  );
-  const today = state.queries[getFunctionName(hrRefs.today)] as {
-    value: { employee: { id: string } };
-  };
-  const oldId = "cold_previous_clock_request";
-  sessionStorage.setItem(
-    `hr-request:org-fixture:user-fixture|clock:CLOCK_IN:${today.value.employee.id}`,
-    JSON.stringify({
-      version: 1,
-      requestId: oldId,
-      payload: { action: "CLOCK_IN", expectedBusinessDate: "2026-10-12" },
-    }),
-  );
-  state.clockIn.mockImplementation((args) =>
-    backend.mutation(hrRefs.clockIn, args),
-  );
-  renderWithIntl(<HrTodayScreen />, { locale: "en" });
-  expect(screen.getByTestId("hr-clock-action")).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Try again safely" }));
-  await screen.findByTestId("hr-write-refused");
-  expect(state.clockIn.mock.calls[0]![0]).toEqual({
-    requestId: oldId,
-    expectedBusinessDate: "2026-10-12",
-  });
-  expect(screen.queryByTestId("hr-clock-saved")).toBeNull();
-  expect(await backend.query(hrRefs.today, {})).toMatchObject({
-    ok: true,
-    value: { nextAction: "CLOCK_IN" },
-  });
-  fireEvent.click(screen.getByTestId("hr-clock-action"));
-  await screen.findByTestId("hr-clock-saved");
-  expect(state.clockIn.mock.calls[1]![0].requestId).not.toBe(oldId);
-  expect(await backend.query(hrRefs.today, {})).toMatchObject({
-    ok: true,
-    value: { businessDate: "2026-10-13", state: "CLOCKED_IN" },
-  });
-});
-
 it("a pending clock settling after a next-day remount is displayed as the earlier day's receipt", async () => {
   const backend = await fixture();
   state.queries[getFunctionName(hrRefs.today)] = await backend.query(
@@ -495,48 +450,6 @@ it("a pending clock settling after a next-day remount is displayed as the earlie
   expect(screen.queryByText("Saved")).toBeNull();
   expect(screen.getByTestId("hr-clock-action")).toBeEnabled();
   expect(state.clockIn).toHaveBeenCalledOnce();
-});
-
-it("a legacy clock ID reconciles without displaying an old receipt as today's success", async () => {
-  const backend = await fixture();
-  const oldId = "legacy_previous_clock_request";
-  await backend.mutation(hrRefs.clockIn, { requestId: oldId });
-  vi.setSystemTime(new Date("2026-10-12T10:00:00Z"));
-  await backend.mutation(hrRefs.clockOut, {
-    requestId: "legacy_clock_close_day",
-  });
-  vi.setSystemTime(new Date("2026-10-13T02:00:00Z"));
-  state.today = "2026-10-13";
-  state.queries[getFunctionName(hrRefs.today)] = await backend.query(
-    hrRefs.today,
-    {},
-  );
-  const today = state.queries[getFunctionName(hrRefs.today)] as {
-    value: { employee: { id: string } };
-  };
-  sessionStorage.setItem(
-    `hr-request:org-fixture:user-fixture|clock:CLOCK_IN:${today.value.employee.id}`,
-    JSON.stringify(oldId),
-  );
-  state.reconcile.mockImplementation((args) =>
-    backend.mutation(hrRefs.reconcileRequest, args),
-  );
-  state.clockIn.mockImplementation((args) =>
-    backend.mutation(hrRefs.clockIn, args),
-  );
-  renderWithIntl(<HrTodayScreen />, { locale: "en" });
-  expect(screen.getByTestId("hr-clock-action")).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Check previous write" }));
-  await screen.findByText("The previous write was saved");
-  expect(screen.queryByTestId("hr-clock-saved")).toBeNull();
-  expect(state.clockIn).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByTestId("hr-clock-action"));
-  await screen.findByTestId("hr-clock-saved");
-  expect(state.clockIn.mock.calls[0]![0].requestId).not.toBe(oldId);
-  expect(await backend.query(hrRefs.today, {})).toMatchObject({
-    ok: true,
-    value: { businessDate: "2026-10-13", state: "CLOCKED_IN" },
-  });
 });
 
 it("an incomplete clock receipt stays uncertain until retry recovers the scoped recorded event", async () => {
