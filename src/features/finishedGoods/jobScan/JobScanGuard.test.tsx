@@ -1,3 +1,8 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComponentProps, ReactNode } from "react";
@@ -25,7 +30,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: mocks.push, back: vi.fn(), replace: mocks.push }),
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.save,
+  useMutation: getTestMutation,
   useAction: () => vi.fn(),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
@@ -63,6 +68,8 @@ vi.mock("./PhotoCapture", () => ({
 const PAGE = "/en/finished-goods/scan";
 let back: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
+  registerTestMutation(fgRefs.saveJobScans, mocks.save);
+
   mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
   mocks.push.mockReset();
   window.history.replaceState({ __NA: true }, "", PAGE);

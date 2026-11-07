@@ -1,4 +1,9 @@
 import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import {
   act,
   fireEvent,
   screen,
@@ -48,7 +53,7 @@ vi.mock("convex/react", () => ({
       },
     },
   }),
-  useMutation: () => mocks.save,
+  useMutation: getTestMutation,
   useAction: () => vi.fn(),
 }));
 vi.mock("@/i18n/navigation", () => ({
@@ -117,6 +122,8 @@ vi.mock("../barcodeImage", async (original) => ({
 
 let release: () => void;
 beforeEach(() => {
+  registerTestMutation(fgRefs.saveJobScans, mocks.save);
+
   localStorage.clear();
   sessionStorage.clear();
   localStorage.setItem(WAREHOUSE_STORAGE_KEY, "warehouse-a");

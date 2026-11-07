@@ -2,22 +2,24 @@ import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
 import { toHaveNoViolations } from "jest-axe";
-import { afterEach, expect, vi } from "vitest";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 import type * as ConvexReact from "convex/react";
+import {
+  resetTestMutations,
+  takeUnexpectedTestMutations,
+} from "./tests/fixtures/convex-mutation";
 
 vi.mock("convex/react", async (importOriginal) => {
   const actual = await importOriginal<typeof ConvexReact>();
   const { getFunctionName } = await import("convex/server");
   const { resolveTestQuery } = await import("./tests/fixtures/convex-query");
 
+  const { getTestMutation } = await import("./tests/fixtures/convex-mutation");
+
   return {
     ...actual,
     useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }),
-    useMutation: () => async () => ({
-      ok: true,
-      requestId: "test_request",
-      value: { written: true, documentId: "test_document", replayed: false },
-    }),
+    useMutation: getTestMutation,
     useQuery: (
       reference: Parameters<typeof getFunctionName>[0],
       args: Record<string, unknown> | "skip" = {},
@@ -49,6 +51,7 @@ vi.mock("convex/react", async (importOriginal) => {
 });
 
 expect.extend(toHaveNoViolations);
+beforeEach(resetTestMutations);
 
 /**
  * Testing Library only auto-registers its cleanup when `afterEach` is a global.
@@ -58,6 +61,13 @@ expect.extend(toHaveNoViolations);
  */
 afterEach(() => {
   cleanup();
+  // A component may swallow a rejected write as a lost response, so an
+  // unregistered mutation has to fail the test here, not only reject.
+  const unexpected = takeUnexpectedTestMutations();
+  if (unexpected.length > 0)
+    throw new Error(
+      `Unexpected test mutation: ${unexpected.join(", ")}. Register the writes this test expects with registerTestMutation.`,
+    );
 });
 
 /*

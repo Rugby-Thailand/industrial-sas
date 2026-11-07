@@ -1,3 +1,8 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type * as ClerkModule from "@clerk/nextjs";
@@ -65,10 +70,7 @@ const mocks = vi.hoisted(() => ({
 const originalRecords = [...mocks.records];
 
 vi.mock("convex/react", () => ({
-  useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref).endsWith(":deleteJobScans")
-      ? mocks.deleteScans
-      : mocks.assign,
+  useMutation: getTestMutation,
   useConvex: () => ({ query: mocks.resolveLocation }),
   useQuery: (
     ref: Parameters<typeof getFunctionName>[0],
@@ -132,6 +134,9 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 beforeEach(() => {
+  registerTestMutation(fgRefs.assignJobScanLocation, mocks.assign);
+  registerTestMutation(fgRefs.deleteJobScans, mocks.deleteScans);
+
   vi.clearAllMocks();
   clearCursorPositions();
   mocks.canManage = true;
