@@ -6,7 +6,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { fg1ApprovedPlan } from "../../../convex/model/storageLayout/fg1ApprovedPlan";
 import { FloorMapDrawing } from "./FloorMapDrawing";
 import { PLAN_CELL_LABEL } from "./planCellLabelLayout";
-import { floorMapDemo } from "./storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 
 let resize: ResizeObserverCallback;
 let observer: ResizeObserver;

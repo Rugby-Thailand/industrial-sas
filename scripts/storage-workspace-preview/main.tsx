@@ -7,7 +7,7 @@ import {
 } from "@/components/storageLayouts/FloorMap";
 import { WorkspaceFloorSelector } from "@/features/storageLayouts/WorkspaceFloorSelector";
 import { EnvironmentProvider } from "@/components/providers/EnvironmentProvider";
-import { floorMapDemo } from "@/components/storageLayouts/storageFloorDemoData";
+import { floorMapDemo } from "../../tests/fixtures/storage-floor-demo-data";
 import type { StorageFloorRow } from "@/lib/convex/storageLayoutApi";
 import { fg1ApprovedPlan } from "../../convex/model/storageLayout/fg1ApprovedPlan";
 import { pdApprovedPlan } from "../../convex/model/storageLayout/pdApprovedPlan";

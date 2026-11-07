@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorMapDemo } from "@/components/storageLayouts/storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 import type {
   LocationOnlyPlacementRow,
   StorageZoneRow,
