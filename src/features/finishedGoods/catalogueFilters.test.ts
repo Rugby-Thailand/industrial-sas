@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { createRowComparator } from "../../../convex/finishedGoods/catalogueFilters";
+import {
+  createRowComparator,
+  matchesRow,
+} from "../../../convex/finishedGoods/catalogueFilters";
 import {
   finishedGoodsList,
   finishedGoodProduct,
-  finishedGoodPallet,
 } from "@tests/fixtures/finished-goods-ui";
+import { catalogueRows } from "@tests/fixtures/paginationTestAdapter";
 import {
-  catalogueRows,
   clearColumn,
-  filterRows,
   filtersValid,
   newCatalogueState,
   newFilters,
@@ -17,7 +18,117 @@ import {
   type CatalogueFilters,
 } from "./catalogueFilters";
 
-const data = {
+const serverRow = {
+  id: "unit",
+  name: "Box",
+  sku: "FG-001",
+  code: "P-001",
+  search: "Box FG-001 P-001",
+  quantity: 50,
+  unit: "pieces",
+  format: "BOX",
+  formats: ["BOX"],
+  progress: [],
+  status: "STORED",
+  lot: "",
+  measured: false,
+  length: undefined,
+  width: undefined,
+  height: undefined,
+  stored: 0,
+  awaitingStorage: 0,
+  awaitingMeasurement: 0,
+  moving: 0,
+  updatedAt: 0,
+};
+
+describe("server catalogue sorting", () => {
+  it.each(["en", "th"])(
+    "keeps numeric text and stable ties in %s",
+    (locale) => {
+      const compare = createRowComparator("name:asc", locale);
+      const prefix = locale === "th" ? "กล่อง" : "Box";
+      const sample = [
+        { ...serverRow, id: "unit-10", name: `${prefix} 2` },
+        { ...serverRow, id: "unit-1", name: `${prefix} 10` },
+        { ...serverRow, id: "unit-2", name: `${prefix} 2` },
+      ];
+      expect(sample.sort(compare).map((row) => row.id)).toEqual([
+        "unit-2",
+        "unit-10",
+        "unit-1",
+      ]);
+    },
+  );
+  it.each(["asc", "desc"])(
+    "keeps absent dimensions last in %s order",
+    (direction) => {
+      const sample = [
+        { ...serverRow, id: "unknown", length: undefined },
+        { ...serverRow, id: "zero", length: 0 },
+        { ...serverRow, id: "measured", length: 1.2 },
+      ];
+      expect(
+        sample
+          .sort(createRowComparator(`length:${direction}`, "en"))
+          .map((row) => row.id),
+      ).toEqual(
+        direction === "asc"
+          ? ["zero", "measured", "unknown"]
+          : ["measured", "zero", "unknown"],
+      );
+    },
+  );
+  it("keeps quantity units grouped and sorts quantities within the group", () => {
+    const sample = [
+      { ...serverRow, id: "pieces", unit: "pieces", quantity: 1000 },
+      { ...serverRow, id: "kg-low", unit: "kg", quantity: 2 },
+      { ...serverRow, id: "kg-high", unit: "kg", quantity: 10 },
+    ];
+    expect(
+      sample
+        .sort(createRowComparator("quantity:desc", "en"))
+        .map((row) => row.id),
+    ).toEqual(["kg-high", "kg-low", "pieces"]);
+  });
+  it.each(["en", "th"])(
+    "keeps case- and accent-variant units in a total order in %s",
+    (locale) => {
+      const sample = [
+        { ...serverRow, id: "a", unit: "PCS", quantity: 5 },
+        { ...serverRow, id: "b", unit: "pcs", quantity: 3 },
+        { ...serverRow, id: "c", unit: "PCS", quantity: 1 },
+        { ...serverRow, id: "d", unit: "pćs", quantity: 4 },
+        { ...serverRow, id: "e", unit: "pcs", quantity: 2 },
+      ];
+      for (const direction of ["asc", "desc"]) {
+        const sort = `quantity:${direction}`;
+        const compare = createRowComparator(sort, locale);
+        const ordered = [...sample].sort(compare);
+        for (let i = 0; i < ordered.length; i++) {
+          for (let j = i + 1; j < ordered.length; j++) {
+            expect(compare(ordered[i]!, ordered[j]!)).toBeLessThan(0);
+            expect(compare(ordered[j]!, ordered[i]!)).toBeGreaterThan(0);
+          }
+        }
+      }
+    },
+  );
+  it("keeps the default newest-first order with deterministic identity ties", () => {
+    const sample = [
+      { ...serverRow, id: "b", updatedAt: 2 },
+      { ...serverRow, id: "old", updatedAt: 1 },
+      { ...serverRow, id: "a", updatedAt: 2 },
+    ];
+    expect(
+      sample.sort(createRowComparator("", "en")).map((row) => row.id),
+    ).toEqual(["a", "b", "old"]);
+  });
+});
+
+// Catalogue rows built the way the server builds them, filtered and sorted by
+// the production Convex matcher and comparator.
+const rows = catalogueRows({
   products: [
     finishedGoodProduct,
     {
@@ -70,112 +181,20 @@ const data = {
       retiredAt: 123,
     },
   ],
-};
-const rows = catalogueRows(data);
-const serverRow = { ...rows.pallets[0]!, updatedAt: 0 };
-
-describe("server catalogue sorting", () => {
-  it.each(["en", "th"])(
-    "keeps numeric text and stable ties in %s",
-    (locale) => {
-      const compare = createRowComparator("name:asc", locale);
-      const prefix = locale === "th" ? "กล่อง" : "Box";
-      const sample = [
-        { ...serverRow, id: "unit-10", name: `${prefix} 2` },
-        { ...serverRow, id: "unit-1", name: `${prefix} 10` },
-        { ...serverRow, id: "unit-2", name: `${prefix} 2` },
-      ];
-      expect(sample.sort(compare).map((row) => row.id)).toEqual([
-        "unit-2",
-        "unit-10",
-        "unit-1",
-      ]);
-    },
-  );
-  it.each(["asc", "desc"])(
-    "keeps absent dimensions last in %s order",
-    (direction) => {
-      const sample = [
-        { ...serverRow, id: "unknown", length: undefined },
-        { ...serverRow, id: "zero", length: 0 },
-        { ...serverRow, id: "measured", length: 1.2 },
-      ];
-      expect(
-        sample
-          .sort(createRowComparator(`length:${direction}`, "en"))
-          .map((row) => row.id),
-      ).toEqual(
-        direction === "asc"
-          ? ["zero", "measured", "unknown"]
-          : ["measured", "zero", "unknown"],
-      );
-    },
-  );
-  it("keeps quantity units grouped and sorts quantities within the group", () => {
-    const sample = [
-      { ...serverRow, id: "pieces", unit: "pieces", quantity: 1000 },
-      { ...serverRow, id: "kg-low", unit: "kg", quantity: 2 },
-      { ...serverRow, id: "kg-high", unit: "kg", quantity: 10 },
-    ];
-    expect(
-      sample
-        .sort(createRowComparator("quantity:desc", "en"))
-        .map((row) => row.id),
-    ).toEqual(["kg-high", "kg-low", "pieces"]);
-  });
-  it.each(["en", "th"])(
-    "keeps case- and accent-variant units in a total order shared by the client in %s",
-    (locale) => {
-      const sample = [
-        { ...serverRow, id: "a", unit: "PCS", quantity: 5 },
-        { ...serverRow, id: "b", unit: "pcs", quantity: 3 },
-        { ...serverRow, id: "c", unit: "PCS", quantity: 1 },
-        { ...serverRow, id: "d", unit: "pćs", quantity: 4 },
-        { ...serverRow, id: "e", unit: "pcs", quantity: 2 },
-      ];
-      for (const direction of ["asc", "desc"]) {
-        const sort = `quantity:${direction}`;
-        const compare = createRowComparator(sort, locale);
-        const ordered = [...sample].sort(compare);
-        for (let i = 0; i < ordered.length; i++) {
-          for (let j = i + 1; j < ordered.length; j++) {
-            expect(compare(ordered[i]!, ordered[j]!)).toBeLessThan(0);
-            expect(compare(ordered[j]!, ordered[i]!)).toBeGreaterThan(0);
-          }
-        }
-        expect(
-          filterRows(sample, { ...newFilters(), sort }, "", locale).map(
-            (row) => row.id,
-          ),
-        ).toEqual(ordered.map((row) => row.id));
-      }
-    },
-  );
-  it("keeps the default newest-first order with deterministic identity ties", () => {
-    const sample = [
-      { ...serverRow, id: "b", updatedAt: 2 },
-      { ...serverRow, id: "old", updatedAt: 1 },
-      { ...serverRow, id: "a", updatedAt: 2 },
-    ];
-    expect(
-      sample.sort(createRowComparator("", "en")).map((row) => row.id),
-    ).toEqual(["a", "b", "old"]);
-  });
 });
 const match = (
   f: Partial<CatalogueFilters>,
   tab: "products" | "pallets" = "products",
   search = "",
-) =>
-  filterRows(rows[tab], { ...newFilters(), ...f }, search, "en").map(
-    (r) => r.id,
-  );
+) => {
+  const filters = { ...newFilters(), ...f };
+  return rows[tab]
+    .filter((r) => matchesRow(r, filters, search))
+    .sort(createRowComparator(filters.sort, "en"))
+    .map((r) => r.id);
+};
 
 describe("catalogue column filtering", () => {
-  it("uses actual active quantities and ignores retired records", () => {
-    expect(rows.products[0]?.quantity).toBe(100);
-    expect(rows.pallets).toHaveLength(3);
-  });
   it("combines columns with AND and choices with OR", () => {
     expect(
       match({
@@ -301,20 +320,6 @@ describe("catalogue column filtering", () => {
     );
     expect(parsed.products).toEqual({ ...newFilters(), statuses: ["ACTIVE"] });
     expect(parsed.pallets).toEqual(newFilters());
-  });
-  it("handles completely empty warehouses", () => {
-    expect(catalogueRows({ products: [], pallets: [] })).toEqual({
-      products: [],
-      pallets: [],
-    });
-    expect(
-      catalogueRows({
-        products: [finishedGoodProduct],
-        pallets: [
-          { ...finishedGoodPallet, productName: "", sku: "", retiredAt: 123 },
-        ],
-      }).products[0]?.quantity,
-    ).toBe(0);
   });
 });
 

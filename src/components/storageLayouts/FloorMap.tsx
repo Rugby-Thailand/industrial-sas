@@ -106,8 +106,6 @@ export interface FloorMapProps {
   readonly selectedZoneId?: string | undefined;
   readonly onSelectionChange?: ((id: string | undefined) => void) | undefined;
 }
-// Compatibility export for existing consumers.
-export { matchingStorageLocations as matchingFloorZones } from "@/lib/storageLayouts/locationSelectors";
 const iconStyle =
   "size-10 bg-transparent p-0 hover:border-accent hover:bg-transparent";
 // Presentation-only preference shared by every floor and retained across visits.

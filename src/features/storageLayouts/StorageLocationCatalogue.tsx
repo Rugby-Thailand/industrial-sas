@@ -43,9 +43,6 @@ import { SelectControl } from "@/components/ui/SelectControl";
 import type { StorageLayoutStatus } from "@/lib/convex/storageLayoutApi";
 import { QrDialog } from "@/features/storageKit/QrDialog";
 
-export const locationCatalogueRef = clientRef(
-  api.storageLayouts.locationCatalogue.list,
-);
 const locationDetailRef = clientRef(
   api.storageLayouts.locationCatalogue.detail,
 );

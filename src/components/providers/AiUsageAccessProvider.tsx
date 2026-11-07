@@ -56,19 +56,6 @@ export function AiUsageAccessProvider({
   );
 }
 
-/** For environments without a configured backend or identity provider. */
-export function UnavailableAiUsageAccessProvider({
-  children,
-}: {
-  readonly children: ReactNode;
-}) {
-  return (
-    <AiUsageAccessContext.Provider value={UNAVAILABLE}>
-      {children}
-    </AiUsageAccessContext.Provider>
-  );
-}
-
 export function useAiUsageAccess(): AiUsageAccessValue {
   return useContext(AiUsageAccessContext);
 }
