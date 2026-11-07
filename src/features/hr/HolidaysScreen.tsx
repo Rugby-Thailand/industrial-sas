@@ -19,11 +19,12 @@ import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { HR_CODES, ROUTES } from "@/lib/navigation";
+import { downloadCsv } from "@/lib/csv";
 
 import { formatBusinessDate } from "./format";
 import { HrGate, HrInlineError, useHrBack } from "./HrShared";
 import { HrToolbar } from "./HrUi";
-import { downloadHolidayCsv, holidayCsv } from "./selfService";
+import { holidayCsv } from "./selfService";
 
 export function HrHolidaysScreen() {
   const t = useTranslations("Hr.holidays");
@@ -106,7 +107,7 @@ function HolidayList({
     groups.set(month, [...(groups.get(month) ?? []), holiday]);
   }
   const download = () =>
-    downloadHolidayCsv(
+    downloadCsv(
       `holidays-${result.year}.csv`,
       holidayCsv(
         [t("csvDate"), t("csvName"), t("csvSite")],

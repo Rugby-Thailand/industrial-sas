@@ -94,6 +94,7 @@ import {
   finishedGoodsWorkspace,
   finishedGoodDestination,
   finishedGoodPlacement,
+  queryDenied,
   querySuccess,
   reservedPalletDetail,
   writeSuccess as success,
@@ -193,6 +194,20 @@ function enterCode(label: string, value: string) {
   });
   fireEvent.click(screen.getByRole("button", { name: "Verify entered code" }));
 }
+it("shows the access denial for a denied pallet read instead of an unavailable record", () => {
+  mocks.query.mockImplementation((name) =>
+    name.endsWith(":getPallet")
+      ? queryDenied("req_move_denied")
+      : querySuccess({ candidates: [], reasons: [] }),
+  );
+  renderMove();
+  const alert = screen.getByRole("alert");
+  expect(alert).toHaveTextContent("Access denied");
+  expect(alert).toHaveTextContent("req_move_denied");
+  expect(
+    screen.queryByText("This record is unavailable"),
+  ).not.toBeInTheDocument();
+});
 describe("stored pallet movement", () => {
   it("clears the checkbox when a target revision changes or the screen is reopened", () => {
     currentDetail = active("IN_TRANSIT");

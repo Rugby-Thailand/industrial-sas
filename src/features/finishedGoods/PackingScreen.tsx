@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Copy } from "lucide-react";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -330,7 +331,13 @@ function ProductLoader({
 }) {
   const result = useQuery(fgRefs.getProduct, { warehouseId, productId });
   if (!result) return <Loading />;
-  if (!result.ok || !result.value) return <Missing />;
+  if (!result.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: result.requestId }}
+      />
+    );
+  if (!result.value) return <Missing />;
   return (
     <PackingForm
       scope={scope}
@@ -351,7 +358,13 @@ function BatchLoader({
 }) {
   const result = useQuery(fgRefs.getBatch, { warehouseId, batchId });
   if (!result) return <Loading />;
-  if (!result.ok || !result.value) return <Missing />;
+  if (!result.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: result.requestId }}
+      />
+    );
+  if (!result.value) return <Missing />;
   const { batch, product, editable, blockedReason } = result.value;
   return (
     <PackingForm

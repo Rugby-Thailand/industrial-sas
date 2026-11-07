@@ -4015,7 +4015,7 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:rotation",
       "policy": "presentation",
-      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view. The supporting pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice.",
+      "expectation": "Rotation is an input to the inline stacking preview and capacity feedback in the same guarded stack task, not an earlier view. The supporting pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice. A denied stacking preview shows the shared access-denied notice instead of the unavailable-record state.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -4065,6 +4065,13 @@
         },
         {
           "shape": "early-return",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
           "truthy": ["src/features/finishedGoods/shared#Loading"],
           "falsy": []
         },
@@ -4082,6 +4089,10 @@
         {
           "file": "src/features/finishedGoods/StackScreen.test.tsx",
           "name": "keeps a dirty stacking draft over live changes and reloads only after a stale refusal"
+        },
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "shows the access denial for a denied stacking preview instead of an unavailable record"
         }
       ],
       "tests": ["src/features/finishedGoods/StackScreen.test.tsx"]
@@ -4102,7 +4113,7 @@
     {
       "id": "src/features/finishedGoods/StackScreen.tsx#StackLoader:upperId",
       "policy": "presentation",
-      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure. The upper pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice.",
+      "expectation": "The chosen upper pallet identity updates inline limits, geometric preview, validation/loading and reserve controls within the same stack task; pending operation completion owns task departure. The upper pallet's inline limits form may show a stale-settings alert with an explicit load-current action in place of its error notice. A denied stacking preview shows the shared access-denied notice instead of the unavailable-record state.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -4152,6 +4163,13 @@
         },
         {
           "shape": "early-return",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
           "truthy": ["src/features/finishedGoods/shared#Loading"],
           "falsy": []
         },
@@ -4169,6 +4187,10 @@
         {
           "file": "src/features/finishedGoods/StackScreen.test.tsx",
           "name": "keeps a dirty stacking draft over live changes and reloads only after a stale refusal"
+        },
+        {
+          "file": "src/features/finishedGoods/StackScreen.test.tsx",
+          "name": "shows the access denial for a denied stacking preview instead of an unavailable record"
         }
       ],
       "tests": ["src/features/finishedGoods/StackScreen.test.tsx"]
