@@ -28,6 +28,8 @@ describe("Vercel source upload exclusions", () => {
       "release-output/backup-metadata.json",
       "data/import-staging/private.json",
       "data/private/backup.zip",
+      "docs/plans/release-notes.md",
+      "docs/references/screenshot.png",
       "output/operator.json",
       "artifacts/private.zip",
       "tmp/credential.json",

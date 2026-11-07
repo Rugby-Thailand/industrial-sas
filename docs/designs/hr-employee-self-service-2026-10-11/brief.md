@@ -2,7 +2,7 @@
 
 Plan dated 11 October 2026. Employee self-service remains the first priority. Preserve the supplied references' approachable layout, rounded grouping, labelled shortcuts, clear section headers and simple list/detail journeys. Use the existing application's colors, typography, controls and navigation shell. Four shared-component studies and ten page boards have now been generated. A standalone interactive HTML preview follows their composition using exact system tokens. The [complete design handoff](plan.md) records scope, interactions and production delivery steps; application implementation remains future work.
 
-The ten originals are in the [reference index](../../references/hr/README.md). The [delivery plan](../../plans/hr-employee-self-service-improvement-2026-10-11.md) contains detailed workflow and acceptance requirements. This brief defines the gaps and visual work to do first.
+The [reference index](../../references/hr/README.md) describes the ten originals. The [delivery plan](../../plans/hr-employee-self-service-improvement-2026-10-11.md) contains detailed workflow and acceptance requirements. This brief defines the gaps and visual work to do first.
 
 ## Features already available
 

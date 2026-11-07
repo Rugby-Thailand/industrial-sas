@@ -2,7 +2,7 @@
  * Exercises the built React islands (dist/controls.js) together with the
  * sheet's vanilla handlers in jsdom, with regression cases for every
  * reproduced audit finding (DS-A01…DS-A21). Build first:
- *   pnpm build:design-sheet && node docs/design-sheet/evidence/check-controls.cjs
+ *   pnpm exec vite build --config docs/design-sheet/vite.config.mjs && node docs/design-sheet/evidence/check-controls.cjs
  * jsdom does not lay out, paint, print or emulate devices: geometry, print
  * rendering and screen-reader output stay browser/device checks. Color/state
  * assertions read the cascade with each var() mapped to a unique sentinel

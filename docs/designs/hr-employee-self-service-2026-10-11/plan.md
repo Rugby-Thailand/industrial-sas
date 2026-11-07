@@ -7,7 +7,7 @@
 - [Interactive HTML preview](preview/index.html): run the static server below. Start at Today, then explore the sidebar. The preview toolbar changes the synthetic persona and response states. It is not an authentication mechanism.
 - [Image gallery](preview/index.html#gallery): four studies of one shared Action Card, then ten boards covering employee and companion workflows. Each board includes desktop/mobile or related states; they are not fourteen alternative visual identities.
 - [Image manifest](manifest.json) contains every exact generation prompt and selected composition. Each PNG also embeds its generation prompt. Selection was by Codex under the instruction to complete the preview; no user approval is recorded.
-- [Source references](../../references/hr/README.md): ten unmodified originals, with checksums and screen descriptions.
+- [Source references](../../references/hr/README.md): screen descriptions of the ten originals (the images were removed from the repository).
 - [Detailed gap assessment](brief.md), [original delivery requirements](../../plans/hr-employee-self-service-improvement-2026-10-11.md), [Kiro review](review/kiro-review.md) and [final preview review](review/final-review.md).
 
 From the repository root:

@@ -15,4 +15,4 @@ Suggested review path:
 
 The role/state controls are review tooling. They do not represent authentication. All data and mutations are synthetic and local; only menu preferences persist after reload. The “Start sample again” button clears those preferences too. New production HR features remain future work.
 
-Original screenshots: [reference index](../../references/hr/README.md). Exact image provenance: [manifest](manifest.json). Review evidence: [Kiro](review/kiro-review.md), [final checks](review/final-review.md), and [visual-system documentation](review/documentation-review.md).
+Original screenshot descriptions: [reference index](../../references/hr/README.md). Exact image provenance: [manifest](manifest.json). Review evidence: [Kiro](review/kiro-review.md), [final checks](review/final-review.md), and [visual-system documentation](review/documentation-review.md).
