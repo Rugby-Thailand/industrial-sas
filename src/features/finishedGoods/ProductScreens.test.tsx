@@ -6,7 +6,7 @@ import { clearCursorPositions } from "@/hooks/useCursorPagination";
 import {
   batchTestResponse,
   catalogueTestResponse,
-} from "./paginationTestAdapter";
+} from "@tests/fixtures/paginationTestAdapter";
 import { ConvexError } from "convex/values";
 import { NextIntlClientProvider } from "next-intl";
 import type * as ClerkModule from "@clerk/nextjs";
