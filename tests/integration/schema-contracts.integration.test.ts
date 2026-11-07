@@ -8,13 +8,11 @@ import {
 } from "../../convex/lib/organizationDefaults";
 import {
   BOUNDED_LOOKUP_CONTRACTS,
-  THIRD_NORMAL_FORM_CONTRACTS,
   UNIQUENESS_CONTRACTS,
   cardinalityContradictions,
   closedValueSet,
   describeSchema,
   lookupContractViolations,
-  thirdNormalFormViolations,
   uniquenessContractViolations,
 } from "../../convex/lib/schemaPolicy";
 import schema from "../../convex/schema";
@@ -77,13 +75,6 @@ describe("uniqueness and bounded-lookup contracts", () => {
       (candidate) => candidate.table === "idempotencyRecords",
     );
     expect(contract?.key).toEqual(["orgId", "operation", "requestId"]);
-  });
-});
-
-describe("third-normal-form operational relationships", () => {
-  it("declares no transitive-dependency contracts after the ERP removal, and none are violated", () => {
-    expect(THIRD_NORMAL_FORM_CONTRACTS).toEqual([]);
-    expect(thirdNormalFormViolations(facts)).toEqual([]);
   });
 });
 
