@@ -1,3 +1,8 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import {
@@ -56,7 +61,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn(), replace: mocks.replace }),
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.save,
+  useMutation: getTestMutation,
   useAction: () => mocks.extract,
 }));
 vi.mock("@/components/system/QueryGate", () => ({
@@ -161,6 +166,8 @@ vi.mock("./prepareJobTicketPhoto", async (original) => ({
 }));
 
 beforeEach(() => {
+  registerTestMutation(fgRefs.saveJobScans, mocks.save);
+
   mocks.realPhotos = false;
   window.history.replaceState({ __NA: true }, "", "/en/finished-goods/scan");
   mocks.upload.mockReset().mockResolvedValue(undefined);

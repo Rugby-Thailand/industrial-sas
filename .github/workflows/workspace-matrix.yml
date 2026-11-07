@@ -1,5 +1,5 @@
 name: Workspace matrix
-# Scheduled full storage-workspace matrix (T5/T14): widths 320/768/1024/1440
+# Scheduled full storage-workspace matrix (T5/T14): widths 320/390/768/1024/1440
 # × Thai/English × light/dark against the deterministic Vite harness, plus
 # informational full-suite Vitest coverage (T12) in a parallel job. No
 # backend, no authentication, no secrets; fixtures are synthetic. It never

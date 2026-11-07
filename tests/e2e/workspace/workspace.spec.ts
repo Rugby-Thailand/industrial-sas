@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 import { expect, expectNoAxeViolations, test } from "../support/fixtures";
 
 /**
- * Adapted from scripts/storage-workspace-preview/{verify,responsive,camera}.mjs:
+ * Maintains the former manual workspace, responsive and camera checks:
  * locator and geometry assertions instead of fixed sleeps, no video, and
  * failure-only diagnostics of synthetic fixtures. Fixture facts: floor 2 is
  * the approved PD plan (198 positions, 25 rows per page, 8 pages); floor 1 is
@@ -34,10 +34,16 @@ async function open(page: Page, query: string, ready = "[data-map-zone-id]") {
   await expect(page.locator(ready).first()).toBeVisible();
 }
 
+const mapTransform = (page: Page) =>
+  page
+    .locator('svg[aria-label="Interactive floor map"] > g')
+    .first()
+    .getAttribute("transform");
+
 const overflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 
-async function workspaceControls(page: Page) {
+async function workspaceControls(page: Page, splitLabel = "Split view") {
   // Controls follow the actual workspace width; a desktop device can still
   // have a narrow workspace after the surrounding page padding.
   const width = await page
@@ -45,7 +51,7 @@ async function workspaceControls(page: Page) {
     .evaluate((toolbar) => toolbar.parentElement!.parentElement!.clientWidth);
   const canSplit = width >= 1100;
   await expect(
-    page.getByRole("button", { name: "Split view", exact: true }),
+    page.getByRole("button", { name: splitLabel, exact: true }),
   ).toHaveCount(canSplit ? 1 : 0);
   return { canSplit, compactInspector: width < 851 };
 }
@@ -66,6 +72,7 @@ for (const { locale, theme } of matrix) {
         await page.getByRole("button", { name: "Light / dark" }).click();
         await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
       }
+      await workspaceControls(page, m.workspace.split);
       const rows = page.locator("[data-location-row]");
       await expect(rows).toHaveCount(25);
 
@@ -144,6 +151,7 @@ for (const { locale, theme } of matrix) {
       await expect(
         page.locator('[data-map-zone-id][aria-pressed="true"]'),
       ).toHaveCount(0);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(await overflow(page)).toBe(0);
     });
   });
@@ -272,6 +280,8 @@ test.describe("workspace map and table (English, desktop)", () => {
     await open(page, "fixture=empty&locale=en");
     const { canSplit } = await workspaceControls(page);
     await expect(page.locator("[data-map-zone-id]")).toHaveCount(198);
+    const fitted = await mapTransform(page);
+    expect(fitted).not.toBeNull();
     const zoom = page.getByRole("button", { name: "Zoom in", exact: true });
     while (await zoom.isEnabled()) await zoom.click();
 
@@ -380,5 +390,9 @@ test.describe("workspace map and table (English, desktop)", () => {
         })
         .toBeLessThan(0.00001);
     }
+    await page
+      .getByRole("button", { name: "Fit floor to view", exact: true })
+      .click();
+    await expect.poll(() => mapTransform(page)).toBe(fitted);
   });
 });
