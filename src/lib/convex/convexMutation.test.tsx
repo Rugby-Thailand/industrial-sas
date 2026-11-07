@@ -1,8 +1,10 @@
-import { renderHook } from "@testing-library/react";
+import { render, renderHook } from "@testing-library/react";
 import { useMutation } from "convex/react";
 import { makeFunctionReference } from "convex/server";
+import { useEffect } from "react";
 import { expect, it, vi } from "vitest";
 import {
+  finishTestMutations,
   registerTestMutation,
   takeUnexpectedTestMutations,
 } from "@tests/fixtures/convex-mutation";
@@ -39,4 +41,23 @@ it("does not retain registrations from the preceding test", async () => {
     "Unexpected test mutation: test/writes:expected",
   );
   expect(takeUnexpectedTestMutations()).toEqual(["test/writes:expected"]);
+});
+
+it("fails a swallowed write that an unmount starts a microtask later", async () => {
+  function SavesOnLeave() {
+    const save = useMutation(unexpected);
+    useEffect(
+      () => () => {
+        void Promise.resolve()
+          .then(() => save({}))
+          .catch(() => {});
+      },
+      [save],
+    );
+    return null;
+  }
+  render(<SavesOnLeave />);
+  await expect(finishTestMutations()).rejects.toThrow(
+    "Unexpected test mutation: test/writes:unexpected",
+  );
 });

@@ -1,12 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup } from "@testing-library/react";
 import { toHaveNoViolations } from "jest-axe";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import type * as ConvexReact from "convex/react";
 import {
+  finishTestMutations,
   resetTestMutations,
-  takeUnexpectedTestMutations,
 } from "./tests/fixtures/convex-mutation";
 
 vi.mock("convex/react", async (importOriginal) => {
@@ -57,18 +56,10 @@ beforeEach(resetTestMutations);
  * Testing Library only auto-registers its cleanup when `afterEach` is a global.
  * This project keeps `globals: false` and imports test APIs explicitly, so the
  * unmount has to be wired up by hand — otherwise renders accumulate in the same
- * document and queries fail with "found multiple elements".
+ * document and queries fail with "found multiple elements". The unmount runs
+ * in `finishTestMutations`, before the unregistered-write check.
  */
-afterEach(() => {
-  cleanup();
-  // A component may swallow a rejected write as a lost response, so an
-  // unregistered mutation has to fail the test here, not only reject.
-  const unexpected = takeUnexpectedTestMutations();
-  if (unexpected.length > 0)
-    throw new Error(
-      `Unexpected test mutation: ${unexpected.join(", ")}. Register the writes this test expects with registerTestMutation.`,
-    );
-});
+afterEach(finishTestMutations);
 
 /*
  * The browser APIs jsdom does not implement and Radix's portalled menus call.

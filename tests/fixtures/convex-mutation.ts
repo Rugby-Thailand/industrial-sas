@@ -15,6 +15,7 @@
  * `hrRefs` or the storage API; never add a fallback that registers whatever
  * reference the component asks for.
  */
+import { act, cleanup } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 
 type Reference = Parameters<typeof getFunctionName>[0];
@@ -59,6 +60,20 @@ export function getTestMutation(reference: Reference) {
 /** Returns and clears the unregistered writes recorded since the last reset. */
 export function takeUnexpectedTestMutations() {
   return unexpected.splice(0);
+}
+
+/**
+ * Unmounts, lets writes that unmount effects start a microtask later land, then
+ * fails on any unregistered write: a component may swallow the rejection.
+ */
+export async function finishTestMutations() {
+  cleanup();
+  await act(async () => {});
+  const names = takeUnexpectedTestMutations();
+  if (names.length > 0)
+    throw new Error(
+      `Unexpected test mutation: ${names.join(", ")}. Register the writes this test expects with registerTestMutation.`,
+    );
 }
 
 export function resetTestMutations() {
