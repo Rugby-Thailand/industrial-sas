@@ -207,7 +207,7 @@ export function NavigationGuardProvider({
               {labels.failed}
             </p>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="flex-col">
             <Button
               variant="outline"
               disabled={keepDisabled}

@@ -83,7 +83,7 @@ export function ConfirmDialog({
         </DialogHeader>
         {children}
         <ErrorNotice message={error ?? null} />
-        <DialogFooter>
+        <DialogFooter className="flex-col">
           <Button
             type="button"
             variant="outline"

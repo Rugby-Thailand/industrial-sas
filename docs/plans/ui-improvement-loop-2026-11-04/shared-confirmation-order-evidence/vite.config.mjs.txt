@@ -1,0 +1,5 @@
+import {defineConfig} from 'vite';
+import react from '@vitejs/plugin-react';
+import {resolve} from 'node:path';
+const repository=process.cwd();
+export default defineConfig({root:resolve(repository,'output/ui-loop/shared-confirmation-order'),plugins:[react()],resolve:{alias:[{find:/^@\/i18n\/navigation$/,replacement:resolve(repository,'scripts/system-audit-preview/stubs/i18n-navigation.tsx')},{find:/^next\/navigation$/,replacement:resolve(repository,'scripts/system-audit-preview/stubs/next-navigation.ts')},{find:/^@\//,replacement:resolve(repository,'src')+'/'}]},css:{postcss:repository},server:{host:'127.0.0.1',port:3321,strictPort:true,fs:{allow:[repository]}}});

@@ -1,0 +1,218 @@
+{
+  "phase": "before",
+  "results": [
+    {
+      "name": "guard-th-light-390",
+      "rectangles": [
+        {
+          "text": "แก้ไขต่อ",
+          "x": 33,
+          "y": 512.5,
+          "width": 324,
+          "height": 48
+        },
+        {
+          "text": "ละทิ้งการเปลี่ยนแปลง",
+          "x": 33,
+          "y": 456.5,
+          "width": 324,
+          "height": 48
+        }
+      ],
+      "tab": ["แก้ไขต่อ", "ละทิ้งการเปลี่ยนแปลง"],
+      "aligned": false,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "confirm-th-light-390",
+      "rectangles": [
+        {
+          "text": "ยกเลิก",
+          "x": 33,
+          "y": 502.5,
+          "width": 324,
+          "height": 48
+        },
+        {
+          "text": "ลบ",
+          "x": 33,
+          "y": 446.5,
+          "width": 324,
+          "height": 48
+        }
+      ],
+      "tab": ["ยกเลิก", "ลบ"],
+      "aligned": false,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "guard-th-light-1440",
+      "rectangles": [
+        {
+          "text": "แก้ไขต่อ",
+          "x": 797.4375,
+          "y": 480.5,
+          "width": 75.234375,
+          "height": 36
+        },
+        {
+          "text": "ละทิ้งการเปลี่ยนแปลง",
+          "x": 880.671875,
+          "y": 480.5,
+          "width": 150.328125,
+          "height": 36
+        }
+      ],
+      "tab": ["แก้ไขต่อ", "ละทิ้งการเปลี่ยนแปลง"],
+      "aligned": true,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "confirm-th-light-1440",
+      "rectangles": [
+        {
+          "text": "ยกเลิก",
+          "x": 835.390625,
+          "y": 480.5,
+          "width": 64.28125,
+          "height": 36
+        },
+        {
+          "text": "ลบ",
+          "x": 907.671875,
+          "y": 480.5,
+          "width": 43.328125,
+          "height": 36
+        }
+      ],
+      "tab": ["ยกเลิก", "ลบ"],
+      "aligned": true,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "guard-en-dark-390",
+      "rectangles": [
+        {
+          "text": "Keep editing",
+          "x": 33,
+          "y": 512.5,
+          "width": 324,
+          "height": 48
+        },
+        {
+          "text": "Discard changes",
+          "x": 33,
+          "y": 456.5,
+          "width": 324,
+          "height": 48
+        }
+      ],
+      "tab": ["Keep editing", "Discard changes"],
+      "aligned": false,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "confirm-en-dark-390",
+      "rectangles": [
+        {
+          "text": "Cancel",
+          "x": 33,
+          "y": 502.5,
+          "width": 324,
+          "height": 48
+        },
+        {
+          "text": "Delete",
+          "x": 33,
+          "y": 446.5,
+          "width": 324,
+          "height": 48
+        }
+      ],
+      "tab": ["Cancel", "Delete"],
+      "aligned": false,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "guard-en-dark-1440",
+      "rectangles": [
+        {
+          "text": "Keep editing",
+          "x": 774.1875,
+          "y": 480.5,
+          "width": 110.359375,
+          "height": 36
+        },
+        {
+          "text": "Discard changes",
+          "x": 892.546875,
+          "y": 480.5,
+          "width": 138.453125,
+          "height": 36
+        }
+      ],
+      "tab": ["Keep editing", "Discard changes"],
+      "aligned": true,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    },
+    {
+      "name": "confirm-en-dark-1440",
+      "rectangles": [
+        {
+          "text": "Cancel",
+          "x": 800.984375,
+          "y": 480.5,
+          "width": 72.328125,
+          "height": 36
+        },
+        {
+          "text": "Delete",
+          "x": 881.3125,
+          "y": 480.5,
+          "width": 69.6875,
+          "height": 36
+        }
+      ],
+      "tab": ["Cancel", "Delete"],
+      "aligned": true,
+      "overflow": 0,
+      "axe": [],
+      "unexpected": [],
+      "cancelPreserves": true,
+      "confirmInvokedOnce": true
+    }
+  ],
+  "limits": [
+    "Local real-component fixture; synthetic callbacks, no authentication/backend/business writes",
+    "Next routing stubbed; caller navigation evidence remains separate"
+  ],
+  "closed": true
+}
