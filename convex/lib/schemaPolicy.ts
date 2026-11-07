@@ -408,15 +408,6 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   { table: "hrPeriodRows", key: ["orgId", "versionId"] },
 ] as const;
 
-export type ThirdNormalFormContract = {
-  readonly table: string;
-  readonly determinant: readonly string[];
-  readonly dependentFields: readonly string[];
-};
-
-export const THIRD_NORMAL_FORM_CONTRACTS: readonly ThirdNormalFormContract[] =
-  [] as const;
-
 export type IndexFacts = {
   readonly name: string;
   readonly fields: readonly string[];
@@ -723,41 +714,6 @@ export function cardinalityContradictions(
     );
 }
 
-export function thirdNormalFormViolations(
-  allFacts: readonly TableFacts[],
-  contracts: readonly ThirdNormalFormContract[] = THIRD_NORMAL_FORM_CONTRACTS,
-): readonly string[] {
-  const byName = new Map(allFacts.map((facts) => [facts.name, facts]));
-  const problems: string[] = [];
-
-  for (const contract of contracts) {
-    const facts = byName.get(contract.table);
-    if (facts === undefined) {
-      problems.push(
-        `${contract.table}: table named by a third-normal-form contract is absent`,
-      );
-      continue;
-    }
-    for (const determinant of contract.determinant) {
-      if (!facts.fieldNames.includes(determinant)) {
-        problems.push(
-          `${contract.table}: third-normal-form determinant "${determinant}" is absent`,
-        );
-      }
-    }
-    for (const dependent of contract.dependentFields) {
-      if (facts.fieldNames.includes(dependent)) {
-        problems.push(
-          `${contract.table}.${dependent}: copied attribute is transitively determined by ` +
-            `[${contract.determinant.join(", ")}]; resolve it from the authoritative relation`,
-        );
-      }
-    }
-  }
-
-  return problems;
-}
-
 export function unclassifiedTables(
   allFacts: readonly TableFacts[],
 ): readonly string[] {
@@ -807,7 +763,6 @@ export function schemaPolicyViolations(
     ...uniquenessContractViolations(allFacts),
     ...lookupContractViolations(allFacts),
     ...cardinalityContradictions(),
-    ...thirdNormalFormViolations(allFacts),
   ];
 }
 
