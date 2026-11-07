@@ -23,7 +23,6 @@ export const ROUTE_NAMESPACES = {
     "Pagination",
     "Panel",
     "Table",
-    "Write",
     "WriteError",
   ],
   "(desktop)/finished-goods": [
@@ -34,7 +33,6 @@ export const ROUTE_NAMESPACES = {
     "Pagination",
     "Panel",
     "Table",
-    "Write",
     "WriteError",
   ],
   "(desktop)/ai-usage": ["App", "AiUsage", "Panel", "Table"],
