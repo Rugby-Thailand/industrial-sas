@@ -208,33 +208,6 @@ export function HrInitials({
   );
 }
 
-/** A section heading row with an optional action, for sections inside a page. */
-export function HrSectionHeader({
-  id,
-  title,
-  description,
-  action,
-}: {
-  readonly id?: string;
-  readonly title: ReactNode;
-  readonly description?: ReactNode;
-  readonly action?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-      <div className="min-w-0">
-        <h2 id={id} className="text-lg leading-7 font-semibold text-text">
-          {title}
-        </h2>
-        {description === undefined ? null : (
-          <p className="text-sm text-muted">{description}</p>
-        )}
-      </div>
-      {action}
-    </div>
-  );
-}
-
 /**
  * A labelled show/hide section for secondary detail. The content stays
  * mounted while closed, so a form inside keeps its typed draft and its

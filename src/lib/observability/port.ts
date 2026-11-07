@@ -13,12 +13,6 @@ export interface ObservabilityPort {
 export const OBSERVABILITY_SINKS = ["none", "console", "sentry"] as const;
 export type ObservabilitySink = (typeof OBSERVABILITY_SINKS)[number];
 
-export const isObservabilitySink = (
-  value: unknown,
-): value is ObservabilitySink =>
-  typeof value === "string" &&
-  (OBSERVABILITY_SINKS as readonly string[]).includes(value);
-
 export const nullObservabilityPort: ObservabilityPort = Object.freeze({
   record: () => undefined,
 });
