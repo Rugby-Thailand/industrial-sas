@@ -7,8 +7,6 @@ import { SelectControl } from "@/components/ui/SelectControl";
  * `paginatedScan` — the server only accepts CURSOR_PAGE_SIZES.
  */
 export const LOCAL_PAGE_SIZES = [25, 50, 100] as const;
-/** @deprecated Use LOCAL_PAGE_SIZES. Kept for existing imports. */
-export const FLOOR_PAGE_SIZES = LOCAL_PAGE_SIZES;
 /** Server cursor pagination sizes. Must match `paginatedScan` allowlist. */
 export const CURSOR_PAGE_SIZES = [20, 50, 100] as const;
 
