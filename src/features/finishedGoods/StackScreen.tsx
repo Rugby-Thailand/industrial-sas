@@ -10,6 +10,7 @@ import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useDebouncedSearch } from "@/hooks/useScanContinuation";
 import { useScanRecovery } from "@/hooks/useScanRecovery";
 import { Layers3, RotateCw, LockKeyhole, CheckCircle2 } from "lucide-react";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Notice } from "@/components/ui/Notice";
 import { Button } from "@/components/ui/button";
@@ -254,7 +255,13 @@ function StackLoader({
       </>
     );
   if (!result) return <Loading />;
-  if (!result.ok || !result.value) return <Missing />;
+  if (!result.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: result.requestId }}
+      />
+    );
+  if (!result.value) return <Missing />;
   const {
     lower,
     candidate,

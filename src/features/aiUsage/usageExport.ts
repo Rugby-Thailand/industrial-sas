@@ -9,7 +9,7 @@ import {
   type SourceState,
   type UsageEstimate,
 } from "@/lib/aiUsage/estimateSources";
-import { usageCsv } from "./csv";
+import { toCsv } from "@/lib/csv";
 import { estimateThb } from "./estimate";
 
 export const operationsRef = clientRef(api.aiUsage.reports.operations),
@@ -288,7 +288,7 @@ export async function exportUsage(
   }
   return Object.freeze({
     kind: "READY",
-    csv: usageCsv(USAGE_CSV_HEADERS, rows),
+    csv: toCsv(USAGE_CSV_HEADERS, rows),
     fileName: `ai-usage-${scope.from}-${scope.to}.csv`,
   });
 }

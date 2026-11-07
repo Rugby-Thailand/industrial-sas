@@ -6,6 +6,7 @@ import { useWorkflowStep } from "@/hooks/useWorkflowStep";
 import { guardedNavigate } from "@/lib/navigationGuard";
 import { completeTask } from "@/lib/taskNavigation";
 import { useDraftGuard } from "@/components/providers/draftGuard";
+import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
@@ -106,7 +107,13 @@ function MoveLoader({
       : undefined,
   );
   if (!outcome) return <Loading />;
-  if (!outcome.ok || !outcome.value) return <Missing />;
+  if (!outcome.ok)
+    return (
+      <LedgerPanelStatus
+        state={{ kind: "DENIED", requestId: outcome.requestId }}
+      />
+    );
+  if (!outcome.value) return <Missing />;
   const detail = outcome.value;
   if (
     detail.activeMove &&
