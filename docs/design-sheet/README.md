@@ -1,9 +1,9 @@
-# Storage Planner design sheet
+# Yongkit design sheet
 
 The approved original **no-inner-rail** composition, refined after a source-backed Kiro audit on 2026-10-11. Build the local shadcn controls, then serve [index.html](index.html):
 
 ```sh
-pnpm build:design-sheet
+pnpm exec vite build --config docs/design-sheet/vite.config.mjs
 python3 -m http.server 3211 --bind 127.0.0.1 --directory docs/design-sheet
 ```
 
@@ -23,7 +23,7 @@ After the [reviewed 2026-10-15 audit](../reviews/design-sheet-kiro-audit-2026-10
 
 In-field scanner icons have no hover fill, transition or press translation. All field icons remain centered; keyboard focus and disabled states remain visible. Try the controls under **Field hierarchy** and **Field states**, or expand the scan ticket's optional details to use its dates.
 
-`pnpm build:design-sheet` generates the ignored `dist/` assets locally (only `controls.js` and `controls.css`; the application's `public/` is not copied). Source: `controls.tsx`, `controls.css`, `ui/`, `vite.config.mjs`. No runtime CDN is required. Rebuild after editing these sources. Functional checks: `node docs/design-sheet/evidence/check-controls.cjs` runs the built islands with the sheet scripts in jsdom and writes [controls-checks.json](evidence/controls-checks.json), with regression cases for each audit finding. jsdom does not prove browser geometry, rendered print, pixels, screen readers or physical-device behavior.
+That `vite build` generates the ignored `dist/` assets locally (only `controls.js` and `controls.css`; the application's `public/` is not copied). Source: `controls.tsx`, `controls.css`, `ui/`, `vite.config.mjs`. No runtime CDN is required. Rebuild after editing these sources. Functional checks: `node docs/design-sheet/evidence/check-controls.cjs` runs the built islands with the sheet scripts in jsdom and writes [controls-checks.json](evidence/controls-checks.json), with regression cases for each audit finding. jsdom does not prove browser geometry, rendered print, pixels, screen readers or physical-device behavior.
 
 References: [shadcn Select](https://ui.shadcn.com/docs/components/radix/select), [Date Picker composition](https://ui.shadcn.com/docs/components/radix/date-picker), [Calendar](https://ui.shadcn.com/docs/components/radix/calendar).
 
