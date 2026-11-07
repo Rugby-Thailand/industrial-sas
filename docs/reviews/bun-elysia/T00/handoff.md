@@ -1,6 +1,6 @@
 # T00 handoff — baseline and pilot preservation
 
-Task: T00 of the [Bun and Elysia delivery plan](../../../plans/bun-elysia-delivery-plan-2026-10-11.md) (Phase 1). Documentation/inventory only.
+Task: T00 of the [Bun and Elysia delivery plan](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/bun-elysia-delivery-plan-2026-10-11.md) (Phase 1). Documentation/inventory only.
 
 - Implementer: Kiro CLI, `claude-opus-5.5`. The model inventory lists it; the coordinator explicitly launched `--effort high` (see implementation-prompt.txt and the recorded invocation); no alternate model was used.
 - Worktree/branch: `industrial-sas-bun-elysia-t00-20261011` on `codex/bun-elysia-t00-20261011`.
@@ -19,7 +19,7 @@ Task: T00 of the [Bun and Elysia delivery plan](../../../plans/bun-elysia-delive
 - Clean installs passed for both independently locked directories. Test discovery passed with 245 Vitest files and 11 Playwright spec files at `ca8c296`; after the fast-forward, [integration-checks.json](integration-checks.json) records 248 Vitest files / 2,965 cases and 11 Playwright spec files at `9675ae7`.
 - Both plan ledgers are updated:
   - Phase 1: the delivery plan's ledger.
-  - Phase 2: a new ledger in the [performance plan](../../../plans/performance-next-steps-2026-10-11.md).
+  - Phase 2: a new ledger in the [performance plan](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/performance-next-steps-2026-10-11.md).
 - In the Phase 2 plan, only the Elysia deferral is superseded. Phase 2 now requires a new merged and released baseline that includes Bun/Elysia and HR/Search. Evidence from `9ac5da0` stays historical.
 - Bun and Elysia are not merged or released anywhere. No Bun/Elysia PR exists.
 

@@ -10,7 +10,7 @@ a Bun runtime speedup, or production AI latency.
 
 Delivery status (T00): the implementation, benchmark scripts and tests named
 below are an uncommitted pilot in the primary workspace. They are not on
-`main`; T02 of the [delivery plan](../plans/bun-elysia-delivery-plan-2026-10-11.md)
+`main`; T02 of the [delivery plan](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/bun-elysia-delivery-plan-2026-10-11.md)
 transfers them by an explicit scoped patch.
 
 ## Implemented path
@@ -65,7 +65,7 @@ proxy and network overhead. Convex durations varied materially between paths,
 so total medians must not be attributed entirely to the authentication change.
 This is five local samples on a development server, without controlled CPU load
 or a production concurrency test. Cold starts are excluded. Raw rows are in
-[auth-comparison.json](assets/ai-search-clerk-2026-10-11/auth-comparison.json).
+[auth-comparison.json](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/assets/ai-search-clerk-2026-10-11/auth-comparison.json).
 
 An earlier cookie-only client experiment returned one authentication denial
 during refresh. The final client sends a current session bearer token alongside

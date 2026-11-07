@@ -1,6 +1,6 @@
 # HR reference images
 
-Ten employee self-service screenshots of another vendor's HR product (hrzoft) informed the [HR improvement plan](../../plans/hr-employee-self-service-improvement-2026-10-11.md). Two batches were received on 11 October 2026. This repository is public, so the images were removed from the tree on 7 November 2026. Git history keeps them; commit `4f35f6f7` still has them. The descriptions below remain so the `HRZ-` IDs cited by plans and designs stay meaningful.
+Ten employee self-service screenshots of another vendor's HR product (hrzoft) informed the [HR improvement plan](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/hr-employee-self-service-improvement-2026-10-11.md). Two batches were received on 11 October 2026. This repository is public, so the images were removed from the tree on 7 November 2026. Git history keeps them; commit `4f35f6f7` still has them. The descriptions below remain so the `HRZ-` IDs cited by plans and designs stay meaningful.
 
 ## Screenshot index
 
