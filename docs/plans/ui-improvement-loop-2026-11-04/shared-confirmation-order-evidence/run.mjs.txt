@@ -1,0 +1,43 @@
+import {createServer} from 'vite';
+import {chromium,expect} from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import {mkdir,writeFile} from 'node:fs/promises';
+const phase=process.argv[2];
+if(!['before','after'].includes(phase))throw Error('Explicit before/after required');
+const out=`output/ui-loop/shared-confirmation-order/${phase}`;await mkdir(out,{recursive:true});
+const results=[];let browser,server;let failure;
+const deadline=setTimeout(()=>{process.exitCode=1;void browser?.close();void server?.close();},180000);
+try{
+ server=await createServer({configFile:'output/ui-loop/shared-confirmation-order/vite.config.mjs'});await server.listen();
+ browser=await chromium.launch();
+ for(const [locale,theme] of [['th','light'],['en','dark']])for(const width of [390,1440])for(const kind of ['guard','confirm']){
+  const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce',serviceWorkers:'block'});
+  const unexpected=[];
+  await context.route('**/*',route=>new URL(route.request().url()).origin==='http://127.0.0.1:3321'?route.continue():route.abort());
+  try{
+   const page=await context.newPage();page.on('pageerror',e=>unexpected.push(e.message));
+   await page.goto(`http://127.0.0.1:3321/?locale=${locale}&theme=${theme}&kind=${kind}`);
+   const trigger=page.getByRole('button',{name:kind==='guard'?'Open guard':'Open confirmation',exact:true});
+   await trigger.click();const dialog=page.getByRole('dialog');await expect(dialog).toBeVisible();
+   const buttons=dialog.locator('[data-slot="dialog-footer"] button');await expect(buttons).toHaveCount(2);
+   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+   const rectangles=await buttons.evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return{text:el.textContent,x:r.x,y:r.y,width:r.width,height:r.height};}));
+   await buttons.nth(0).focus();await expect(buttons.nth(0)).toBeFocused();const tab=[await page.locator(':focus').textContent()];
+   await page.keyboard.press('Tab');await expect(buttons.nth(1)).toBeFocused();tab.push(await page.locator(':focus').textContent());
+   const aligned=width<640?rectangles[0].y<rectangles[1].y:rectangles[0].x<rectangles[1].x;
+   const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-innerWidth));
+   const axe=(await new AxeBuilder({page}).include('[role="dialog"]').analyze()).violations.map(x=>({id:x.id,impact:x.impact}));
+   const name=`${kind}-${locale}-${theme}-${width}`;await page.screenshot({path:`${out}/${name}.png`});
+   await buttons.nth(0).click();await expect(dialog).toHaveCount(0);
+   if(kind==='guard'){await expect(page.getByLabel('Draft',{exact:true})).toHaveValue('Draft value');await expect(page.getByTestId('continued')).toHaveText('0');}
+   else await expect(page.getByTestId('confirmed')).toHaveText('0');
+   await trigger.click();await expect(dialog).toBeVisible();await dialog.locator('[data-slot="dialog-footer"] button').nth(1).click();
+   if(kind==='guard'){await expect(page.getByTestId('continued')).toHaveText('1');await expect(page.getByLabel('Draft',{exact:true})).toHaveValue('');}
+   else await expect(page.getByTestId('confirmed')).toHaveText('1');
+   const result={name,rectangles,tab,aligned,overflow,axe,unexpected,cancelPreserves:true,confirmInvokedOnce:true};results.push(result);console.log(JSON.stringify(result));
+  }finally{await context.close();}
+ }
+}catch(e){failure={name:e.name,message:e.message};console.error(e);}
+finally{await browser?.close();await server?.close();clearTimeout(deadline);}
+await writeFile(`${out}/result.json`,JSON.stringify({phase,results,failure,limits:['Local real-component fixture; synthetic callbacks, no authentication/backend/business writes','Next routing stubbed; caller navigation evidence remains separate'],closed:true},null,2));
+if(failure||results.length!==8||results.some(x=>x.overflow||x.unexpected.length||x.axe.some(a=>['serious','critical'].includes(a.impact)))||(phase==='after'&&results.some(x=>!x.aligned)))process.exitCode=1;

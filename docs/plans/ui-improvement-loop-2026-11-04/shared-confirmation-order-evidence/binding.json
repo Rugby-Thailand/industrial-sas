@@ -1,0 +1,42 @@
+{
+  "base": "17de256e8dd5aa72cafaa44700f056ea3bb6e656",
+  "production": {
+    "src/components/navigation/NavigationGuardProvider.tsx": "2f6fb5ef545b14aebf0f3291c0b75ae8321daa78c92d8cd931968e94008c6f30",
+    "src/components/ui/ConfirmDialog.tsx": "bdb0e79d5b0f11b346b459a113bab908b92231d99f2e3d6da96cca303b0fb139"
+  },
+  "artifacts": {
+    "after-confirm-en-dark-390.png": "280179ab23ee63ebea20ce3bd180a12241fae869af07d219378988105b58e3d5",
+    "after-confirm-th-light-390.png": "3256880e9fa284361a5f190d0288bea1a0dc393f80cb18a5b7ed55304b2dfe0f",
+    "after-guard-en-dark-390.png": "e8a7b130eb500036c08560d7126d09fe3abf2ca4bcac84adccf0d3b0a2114377",
+    "after-guard-th-light-390.png": "a5fceb4a83572e71b059c9bc803ee4c97400f536ec609ede43db974bb5c701a8",
+    "after.json": "64c77d7fe13467f77b07cd13e6644537e07566fea53a5b321961d1d0f2121851",
+    "before-confirm-en-dark-390.png": "12f353f8af65c85748ea779ca516df9207c020e9e69655bd5c32263fc4f0a7e8",
+    "before-confirm-th-light-390.png": "4b3f8d3f1d718b49df501c5e721f747effe3d4f2f0948ef69fcd19bd03772b25",
+    "before-guard-en-dark-390.png": "53482bb4b7d5d3de2d7748ae864fdf01c482ed42482533b8e966906a926efe97",
+    "before-guard-th-light-390.png": "39b17714b615a0210b375fd4d0f8dcf3befb4fa2728a2654a4f661fc133bd03f",
+    "before.json": "9adb02070da8b803fd5f739d8b2e773358ad0f295ab62a88ae12a9ef164cbc59",
+    "checks.json": "b3551ae4ccfa89e2898b76d9cda219bbcbba41459abc348282198b4d8d7275b1",
+    "main.tsx.txt": "b96922970d248d6eb9d13cbdf97d031c6efc664fe2108a0bcaebd5b5f6ebbea3",
+    "run.mjs.txt": "481c06db31d95c678944f463fde0d3f08320000fb39052e0f01e1efd78532fd6",
+    "style.css.txt": "2fb58587513332fb397742337ee12db3151a8f31942dcab93d12fa2d51963f6f",
+    "vite.config.mjs.txt": "37c2ed3408f44df44f72f20a1674ec935207c43e56bcd7bbff8705c233db58e3"
+  },
+  "originalReports": {
+    "before": "5f68a867c522637be9f3f57f314de858e3b8b6c6a45ed1f6ed51d07e2cab1f0e",
+    "after": "cfd80eda8b297b7400af13d4bc9360dabfc808d040a17f66b72fafc04ff44159"
+  },
+  "reportCopy": "Committed JSON formatted for repository style; parsed values match original reports exactly.",
+  "browserCases": 8,
+  "originalMobileMismatches": 4,
+  "remainingMobileMismatches": 0,
+  "desktopRectanglesUnchanged": true,
+  "tabSequencesUnchanged": true,
+  "guardAndForegroundTests": 107,
+  "authCalls": 0,
+  "businessWrites": 0,
+  "limitations": [
+    "Real-component fixture with synthetic callbacks and Next routing stub",
+    "Current production caller evidence required at next stage source boundary",
+    "System fallback fonts in component fixture"
+  ]
+}

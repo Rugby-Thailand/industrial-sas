@@ -1,0 +1,54 @@
+[
+  {
+    "name": "browser",
+    "command": [
+      "node",
+      "output/ui-loop/shared-confirmation-order/run.mjs",
+      "after"
+    ],
+    "exitCode": 0,
+    "seconds": 7.457
+  },
+  {
+    "name": "guards",
+    "command": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "src/components/navigation/NavigationGuardProvider.test.tsx",
+      "src/components/navigation/NavigationGuardProvider.continuation.test.tsx",
+      "src/components/navigation/NavigationGuardProvider.regressions.test.tsx",
+      "src/components/navigation/NavigationGuardProvider.workflow.test.tsx",
+      "src/components/ui/ForegroundOrdering.test.tsx",
+      "--maxWorkers=1"
+    ],
+    "exitCode": 0,
+    "seconds": 10.624
+  },
+  {
+    "name": "navigation",
+    "command": ["pnpm", "check:navigation"],
+    "exitCode": 0,
+    "seconds": 4.704
+  },
+  {
+    "name": "lint",
+    "command": ["pnpm", "lint"],
+    "exitCode": 0,
+    "seconds": 33.467
+  },
+  {
+    "name": "format",
+    "command": [
+      "pnpm",
+      "exec",
+      "prettier",
+      "--check",
+      "src/components/navigation/NavigationGuardProvider.tsx",
+      "src/components/ui/ConfirmDialog.tsx"
+    ],
+    "exitCode": 0,
+    "seconds": 0.92
+  }
+]
