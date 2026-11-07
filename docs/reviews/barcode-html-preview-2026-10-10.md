@@ -21,6 +21,6 @@ Location mappings, preview failure states, and saves are in-memory examples. Rea
 
 Screenshots:
 
-- [Location, desktop](assets/barcode-html-preview-2026-10-10/location-desktop.png)
-- [Location, mobile](assets/barcode-html-preview-2026-10-10/location-mobile.png)
-- [Product curved-label confirmation, desktop](assets/barcode-html-preview-2026-10-10/product-review-desktop.png)
+- [Location, desktop](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/assets/barcode-html-preview-2026-10-10/location-desktop.png)
+- [Location, mobile](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/assets/barcode-html-preview-2026-10-10/location-mobile.png)
+- [Product curved-label confirmation, desktop](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/assets/barcode-html-preview-2026-10-10/product-review-desktop.png)

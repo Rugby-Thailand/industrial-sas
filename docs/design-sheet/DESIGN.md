@@ -357,11 +357,11 @@ Fresh visual layout/axe checks need a connected collaborative preview automation
 
 ## Audit fixes · 2026-10-15
 
-The [reviewed design-sheet audit](../reviews/design-sheet-kiro-audit-2026-10-15/reviewed-audit.md) (DS-A01–DS-A21) is resolved in the sheet only; [evidence/audit-fixes-2026-10-15.md](evidence/audit-fixes-2026-10-15.md) records each resolution and its check. Approved colors, type, layout, compact 32/40px fields, centered stationary field icons and color-only text-button hover/press are unchanged. No application source changed.
+The [reviewed design-sheet audit](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/design-sheet-kiro-audit-2026-10-15/reviewed-audit.md) (DS-A01–DS-A21) is resolved in the sheet only; [evidence/audit-fixes-2026-10-15.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/design-sheet/evidence/audit-fixes-2026-10-15.md) records each resolution and its check. Approved colors, type, layout, compact 32/40px fields, centered stationary field icons and color-only text-button hover/press are unchanged. No application source changed.
 
 ## Spacing fixes · 2026-10-16
 
-The [spacing audit](../reviews/design-sheet-spacing-2026-10-16/audit.md) findings G01–G08 are resolved in `review.css`, `controls.css` and minimal `review.js`/`index.html` classes; [evidence/spacing-fixes-2026-10-16.md](evidence/spacing-fixes-2026-10-16.md) maps each fix. Field heights, 2px label / 4px help / 8px sibling gaps, text and icon sizes and every audited “Keep” relationship are unchanged. No application source changed.
+The [spacing audit](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/design-sheet-spacing-2026-10-16/audit.md) findings G01–G08 are resolved in `review.css`, `controls.css` and minimal `review.js`/`index.html` classes; [evidence/spacing-fixes-2026-10-16.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/design-sheet/evidence/spacing-fixes-2026-10-16.md) maps each fix. Field heights, 2px label / 4px help / 8px sibling gaps, text and icon sizes and every audited “Keep” relationship are unchanged. No application source changed.
 
 ## Preview and application differences
 
