@@ -206,9 +206,65 @@ describe("date expressions (organization business date)", () => {
     expect(one("วันจันทร์")).toBe("UNSUPPORTED");
   });
 
+  it("reads a month-first range with a written end year like the day-first form", () => {
+    const range = (query: string) =>
+      scanDates(query, "2026-10-09").mentions.map((mention) =>
+        mention.kind === "RANGE"
+          ? [mention.from, mention.to, mention.inferredYear]
+          : mention.kind,
+      );
+    expect(range("export December 28 to January 3, 2027")).toEqual([
+      ["2026-12-28", "2027-01-03", false],
+    ]);
+    expect(range("export 28 December to 3 January 2027")).toEqual(
+      range("export December 28 to January 3, 2027"),
+    );
+  });
+
   it("does not read employee codes or plain numbers as dates", () => {
     expect(scanDates("EMP-2026-10", TODAY).mentions).toEqual([]);
     expect(one("ตรวจ EMP-DEMO-003")).toBe("NONE");
+  });
+
+  it.each([
+    "EMP-2026-10-08",
+    "EMP2026-10-08",
+    "emp_2026-10-08",
+    "emp.2026-10-08",
+  ])(
+    "keeps the ISO-shaped employee code %s out of date expressions",
+    (code) => {
+      const query = `แก้พนักงานรหัส ${code}`;
+      expect(scanDates(query, TODAY).mentions).toEqual([]);
+      expect(readReferences(query, TODAY)).toMatchObject({
+        codes: [code.toUpperCase()],
+        dates: { kind: "NONE" },
+      });
+    },
+  );
+
+  it.each(["2026-10-01-2026-10-05", "2026-10-01–2026-10-05"])(
+    "reads the compact ISO range %s",
+    (text) => {
+      expect(one(text)).toEqual({
+        kind: "RANGE",
+        from: "2026-10-01",
+        to: "2026-10-05",
+        text: "2026-10-01-2026-10-05",
+        inferredYear: false,
+      });
+      expect(readReferences(text, TODAY).codes).toEqual([]);
+    },
+  );
+
+  it("reads the date in an ISO datetime with a T separator", () => {
+    expect(one("2026-10-08T10:00")).toEqual({
+      kind: "DATE",
+      date: "2026-10-08",
+      text: "2026-10-08",
+      inferredYear: false,
+    });
+    expect(readReferences("2026-10-08T10:00", TODAY).codes).toEqual([]);
   });
 });
 

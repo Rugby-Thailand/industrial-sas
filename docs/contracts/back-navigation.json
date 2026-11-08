@@ -6029,9 +6029,75 @@
       ]
     },
     {
+      "id": "src/features/aiUsage/AiUsageScreen.tsx#UsageReport:retained",
+      "policy": "presentation",
+      "expectation": "Retains the same read-only report, recent pages, and inline expanded details while a clock-only summary reload is pending. Changing period or filters clears the retained answer; there is no foreground or workflow step to dismiss.",
+      "uses": ["branch"],
+      "tests": [
+        "src/features/aiUsage/AiUsageScreen.refresh.test.tsx",
+        "src/features/aiUsage/AiUsageScreen.clock.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.refresh.test.tsx",
+          "name": "preserves pagination and expanded details through an unchanged-range clock refresh with real Convex hooks"
+        },
+        {
+          "file": "src/features/aiUsage/AiUsageScreen.clock.test.tsx",
+          "name": "keeps recent pages already read when only the half-hour clock ticks (no new activity)"
+        }
+      ],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "p[role=status]",
+            "src/components/ui/skeleton#Skeleton"
+          ],
+          "falsy": [
+            "div",
+            "p",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/features/aiUsage/AutomaticEstimate#AutomaticEstimate",
+            "src/features/aiUsage/RecentActivity#RecentActivity",
+            "src/features/aiUsage/UsageBreakdown#UsageBreakdown",
+            "src/features/aiUsage/UsageOverview#FeatureStrip",
+            "src/features/aiUsage/UsageOverview#UsageStatement"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": [
+            "div",
+            "p",
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/features/aiUsage/AutomaticEstimate#AutomaticEstimate",
+            "src/features/aiUsage/RecentActivity#RecentActivity",
+            "src/features/aiUsage/UsageBreakdown#UsageBreakdown",
+            "src/features/aiUsage/UsageOverview#FeatureStrip",
+            "src/features/aiUsage/UsageOverview#UsageStatement"
+          ]
+        }
+      ]
+    },
+    {
       "id": "src/features/aiUsage/AiUsageScreen.tsx#UsageReport:refreshKey",
       "policy": "presentation",
-      "expectation": "Explicit refresh replaces report loading/status/data in the same read-only report; no workflow or editor opens.",
+      "expectation": "Clock refresh retains the same read-only report while its same-criteria summary reloads; initial loads and changed criteria use the audited loading/status/data branches. No workflow or editor opens.",
       "uses": ["branch"],
       "render": [
         {
