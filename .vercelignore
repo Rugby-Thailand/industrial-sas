@@ -1,5 +1,6 @@
 # Source uploads use .vercelignore, not .gitignore. Never upload local secrets,
-# authenticated browser state, reports, backups, or operator artifacts.
+# authenticated browser state, reports, backups, or operator artifacts. Docs
+# are not read by the build or runtime, so they stay out of the upload too.
 .env
 .env.*
 *.env
@@ -32,6 +33,7 @@ junit.xml
 lighthouse-report.*
 release-output/
 /data/
+/docs/
 /artifacts/
 /output/
 /tmp/

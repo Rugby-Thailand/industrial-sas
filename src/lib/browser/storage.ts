@@ -1,5 +1,5 @@
 /** Persistence mechanics only. Callers own schema validation, scope and migrations. */
-export function browserStorage(kind: "local" | "session" = "local") {
+function browserStorage(kind: "local" | "session" = "local") {
   const storage = () =>
     kind === "local" ? window.localStorage : window.sessionStorage;
   return {

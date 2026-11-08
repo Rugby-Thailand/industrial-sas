@@ -78,6 +78,7 @@ import {
   finishedGoodsWorkspace,
   finishedGoodDestination,
   measuredPalletDetail,
+  queryDenied,
   querySuccess,
   writeFailure as failure,
   writeSuccess as success,
@@ -231,6 +232,20 @@ it("shows level-limit failures and prevents confirmation", () => {
   expect(
     screen.getByRole("button", { name: "Reserve stack and verify" }),
   ).toBeDisabled();
+});
+it("shows the access denial for a denied stacking preview instead of an unavailable record", () => {
+  mocks.query.mockImplementation((name, args) =>
+    name.endsWith(":stackPreview")
+      ? queryDenied("req_stack_denied")
+      : respond(name, args),
+  );
+  mount();
+  const alert = screen.getByRole("alert");
+  expect(alert).toHaveTextContent("Access denied");
+  expect(alert).toHaveTextContent("req_stack_denied");
+  expect(
+    screen.queryByText("This record is unavailable"),
+  ).not.toBeInTheDocument();
 });
 it("shows a useful empty state", () => {
   data = { ...data, pallets: [], candidate: null };

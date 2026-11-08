@@ -1,6 +1,6 @@
 # CI/CD implementation status — 76 practice records
 
-Authority: [consolidated audit](../reviews/ci-cd-kiro-audit-2026-10-09.md).
+Authority: [consolidated audit](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/ci-cd-kiro-audit-2026-10-09.md).
 Branch `codex/ci-cd-best-practices`, baseline `cc42063`. This is a
 **pre-merge verification snapshot**, with the local results below reviewed by
 the coordinator. It does **not** say that the 76 practices are operationally

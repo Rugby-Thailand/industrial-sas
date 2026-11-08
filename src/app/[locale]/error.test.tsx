@@ -2,7 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ObservabilityProvider } from "@/components/providers/ObservabilityProvider";
+import { useObservability } from "@/components/providers/ObservabilityProvider";
 import type { ObservabilityEvent } from "@/lib/observability/event";
 import type { ObservabilityPort } from "@/lib/observability/port";
 import { APPLICATION_RENDER_ERROR_CODE } from "@/lib/observability/applicationError";
@@ -19,6 +19,10 @@ vi.mock("@/i18n/navigation", () => ({
 
 import LocaleError from "./error";
 
+vi.mock("@/components/providers/ObservabilityProvider", () => ({
+  useObservability: vi.fn(),
+}));
+
 const recordingPort = (): ObservabilityPort & {
   readonly events: ObservabilityEvent[];
 } => {
@@ -30,14 +34,11 @@ describe("locale error boundary", () => {
   it("renders Thai recovery copy, retries, and reports no error text", () => {
     navigation.pathname = "/finished-goods";
     const port = recordingPort();
+    vi.mocked(useObservability).mockReturnValue(port);
     const retry = vi.fn();
     const error = new Error("SKU BOLT-M8 failed for tenant secret");
 
-    renderWithIntl(
-      <ObservabilityProvider port={port}>
-        <LocaleError error={error} retry={retry} />
-      </ObservabilityProvider>,
-    );
+    renderWithIntl(<LocaleError error={error} retry={retry} />);
 
     expect(
       screen.getByRole("heading", {
@@ -73,12 +74,10 @@ describe("locale error boundary", () => {
 
   it("offers retry alone when the start page itself failed", () => {
     navigation.pathname = "/master-data/storage-layouts";
-    renderWithIntl(
-      <ObservabilityProvider port={recordingPort()}>
-        <LocaleError error={new Error("boom")} retry={vi.fn()} />
-      </ObservabilityProvider>,
-      { locale: "en" },
-    );
+    vi.mocked(useObservability).mockReturnValue(recordingPort());
+    renderWithIntl(<LocaleError error={new Error("boom")} retry={vi.fn()} />, {
+      locale: "en",
+    });
 
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByRole("button", { name: "Try again" })).toHaveAttribute(

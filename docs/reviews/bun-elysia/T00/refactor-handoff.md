@@ -1,6 +1,6 @@
 # T00 refactor handoff — Kiro scoped refactor
 
-Task: KIRO_REFACTOR step for T00 of the [Bun and Elysia delivery plan](../../../plans/bun-elysia-delivery-plan-2026-10-11.md), after the [Codex audits/fixes](codex-audit.md). Prompt: [refactor-prompt.txt](refactor-prompt.txt).
+Task: KIRO_REFACTOR step for T00 of the [Bun and Elysia delivery plan](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/bun-elysia-delivery-plan-2026-10-11.md), after the [Codex audits/fixes](codex-audit.md). Prompt: [refactor-prompt.txt](refactor-prompt.txt).
 
 - Model: Kiro CLI session running `claude-opus-5.5` (listed in [models-before-refactor.json](models-before-refactor.json)). The coordinator's prompt requires high effort and the session was launched by the coordinator; Kiro cannot read the effort setting from inside the session. No other model was used.
 - Worktree: `industrial-sas-bun-elysia-t00-20261011` at `9675ae7`; all T00 files remain untracked.
