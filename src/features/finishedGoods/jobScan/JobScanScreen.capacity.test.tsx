@@ -1,3 +1,8 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import type { ComponentProps, ReactNode } from "react";
 import {
   act,
@@ -62,7 +67,7 @@ vi.mock("@/lib/uploadthing", () => ({
   useUploadThing: () => ({ startUpload: vi.fn() }),
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.save,
+  useMutation: getTestMutation,
   useAction: () => vi.fn(),
 }));
 vi.mock("@/i18n/navigation", () => ({
@@ -90,6 +95,8 @@ vi.mock("./prepareJobTicketPhoto", async (original) => ({
   prepareJobTicketPhoto: () => Promise.reject(new Error("Bad test photo")),
 }));
 beforeEach(() => {
+  registerTestMutation(fgRefs.saveJobScans, mocks.save);
+
   mocks.save.mockReset();
   window.history.replaceState(
     { appNavigationIndex: 1 },

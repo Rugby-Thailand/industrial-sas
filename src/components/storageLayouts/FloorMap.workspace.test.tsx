@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { FloorMap } from "./FloorMap";
-import { floorMapDemo } from "./storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 vi.mock("@/hooks/useCanManage", () => ({ useCanManage: () => false }));
 vi.mock("@/i18n/navigation", () => ({ Link: "a" }));
 beforeEach(() => {

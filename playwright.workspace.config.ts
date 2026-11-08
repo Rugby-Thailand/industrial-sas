@@ -8,8 +8,8 @@ import { runPolicy } from "./tests/e2e/support/policy";
  * scripts/storage-workspace-preview (no Convex, no auth, no inventory writes).
  *
  * PRs run Thai/English on desktop and mobile in the dark theme. The scheduled
- * workflow sets WORKSPACE_FULL_MATRIX=1 for the 16-combination width × locale
- * × theme matrix the manual responsive script used to cover.
+ * workflow sets WORKSPACE_FULL_MATRIX=1 for the 20-combination width × locale
+ * × theme matrix, including the former manual 390px coverage.
  */
 const port = Number(process.env.WORKSPACE_PORT ?? 3190);
 const baseURL = `http://127.0.0.1:${port}`;
@@ -42,7 +42,7 @@ export default defineConfig({
   globalTimeout: 15 * 60_000,
   use: { ...policy.use, baseURL },
   projects: fullMatrix
-    ? [320, 768, 1024, 1440].map((width) => ({
+    ? [320, 390, 768, 1024, 1440].map((width) => ({
         name: `workspace-${width}`,
         use: {
           ...devices[width < 640 ? "Pixel 7" : "Desktop Chrome"],

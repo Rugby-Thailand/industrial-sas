@@ -867,20 +867,6 @@
       ]
     },
     {
-      "file": "src/app/[locale]/(desktop)/master-data/storage-layouts/demo/page.tsx",
-      "policy": "parent",
-      "parent": "/master-data/storage-layouts",
-      "targets": ["src/components/storageLayouts/FloorMapDemo#FloorMapDemo"],
-      "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
-      "tests": ["src/features/storageLayouts/StorageLayoutScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
-          "name": "renders dense demo scenarios without inventory links or writes"
-        }
-      ]
-    },
-    {
       "file": "src/app/[locale]/(desktop)/master-data/storage-layouts/new/page.tsx",
       "policy": "parent",
       "parent": "/master-data/storage-layouts",

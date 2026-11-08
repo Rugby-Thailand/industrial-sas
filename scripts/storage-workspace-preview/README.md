@@ -9,25 +9,24 @@ filters. Floor 1 uses the existing four-location demo. `?fixture=empty` removes
 PD demo inventory for profiling. `?fixture=fg1&locale=th` uses the approved FG1
 geometry with synthetic occupancy for the single-line label regressions.
 
-With the server running, run
-`node scripts/storage-workspace-preview/verify.mjs` to assert the desktop and
-mobile workflows and record WebM videos/screenshots in ignored
-`output/workspace-qa`. Playwright Chromium must be installed. The script checks
-view switching, sticky headers, paging, selection, shared search/status filters,
-empty results, 2D/3D, themes, mobile details and floor changes. The React Profiler
-is available as `window.__storageWorkspaceProfile` in this harness only.
+Run `pnpm test:e2e:workspace` for the maintained Playwright checks; it starts
+this harness automatically. Chromium must be installed
+(`pnpm exec playwright install chromium`). The suite checks view switching,
+sticky headers, paging, selection, search/status filters, empty results, 2D/3D,
+mobile details, floor changes and camera retention with one update per drag.
+The React Profiler is available as `window.__storageWorkspaceProfile` here only.
+
+`WORKSPACE_FULL_MATRIX=1 pnpm test:e2e:workspace` covers all 20 combinations of
+320/390/768/1024/1440px, Thai/English and light/dark, including single-result
+height, pagination, inline details, floor changes, overflow and axe.
+For occasional recordings, use Playwright options, for example:
+`WORKSPACE_FULL_MATRIX=1 pnpm test:e2e:workspace --project=workspace-390 --trace=on`.
+The HTML report includes failure screenshots and traces according to the shared
+Playwright policy; use its trace viewer to inspect or capture a frame.
 
 This verifies real UI components with isolated fixtures. Authenticated routes,
 live data, permission-dependent mutations and production performance need a
 separate integration check.
-
-The approved compact A regression checks are also repeatable:
-
-- `node scripts/storage-workspace-preview/responsive.mjs` checks 16 combinations
-  of 320/390/768/1440px, Thai/English and light/dark, including single-result
-  height, pagination, inline details, floor changes, overflow and axe.
-- `node scripts/storage-workspace-preview/camera.mjs` checks the physical camera
-  center across Map/Split/Table, and verifies one React update for a 50-move drag.
 
 `?locale=th` switches component translations. Browser artifacts use isolated
 fixtures; the unit/integration suites separately exercise the editor controllers

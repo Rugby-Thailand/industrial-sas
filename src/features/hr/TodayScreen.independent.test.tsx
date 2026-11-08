@@ -438,6 +438,64 @@ it("rejects a stored descriptor containing unrelated private fields", () => {
   expect(mocks.clockIn).not.toHaveBeenCalled();
 });
 
+it("ignores a pre-#94 action-scoped clock entry without writing, then clocks with a fresh request ID", async () => {
+  // Older tabs kept a bare request ID or a {version, requestId, payload}
+  // record per action under the generic HR write prefix.
+  const prefix = "hr-request:org-a:actor-a:employee-a|clock:";
+  sessionStorage.setItem(
+    `${prefix}CLOCK_IN:employee-a`,
+    JSON.stringify("legacy_clock_in_request"),
+  );
+  sessionStorage.setItem(
+    `${prefix}CLOCK_OUT:employee-a`,
+    JSON.stringify({
+      version: 1,
+      requestId: "legacy_clock_out_request",
+      payload: { action: "CLOCK_OUT", expectedBusinessDate: "2026-10-08" },
+    }),
+  );
+  const snapshot = () =>
+    Object.fromEntries(
+      Array.from({ length: sessionStorage.length }, (_, index) => {
+        const key = sessionStorage.key(index)!;
+        return [key, sessionStorage.getItem(key)];
+      }),
+    );
+  const before = snapshot();
+  mocks.clockIn.mockResolvedValue({
+    ok: true,
+    value: {
+      written: true,
+      occurredAt: base.now,
+      businessDate: base.businessDate,
+      kind: "CLOCK_IN",
+    },
+  });
+  mocks.query.mockReturnValue({
+    ok: true,
+    value: { ...base, state: "NOT_CLOCKED_IN", nextAction: "CLOCK_IN" },
+  });
+  render(<HrTodayScreen />);
+  const button = screen.getByTestId("hr-clock-action");
+  expect(button).toHaveTextContent("clockIn");
+  expect(button).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: "Retry original clock" }),
+  ).not.toBeInTheDocument();
+  expect(snapshot()).toEqual(before);
+  expect(mocks.clockIn).not.toHaveBeenCalled();
+  expect(mocks.clockOut).not.toHaveBeenCalled();
+
+  fireEvent.click(button);
+  await screen.findByTestId("hr-clock-saved");
+  expect(mocks.clockIn).toHaveBeenCalledOnce();
+  expect(mocks.clockIn.mock.calls[0]?.[0]).toEqual({
+    requestId: expect.not.stringMatching(/^legacy_/),
+    expectedBusinessDate: base.businessDate,
+  });
+  expect(mocks.clockOut).not.toHaveBeenCalled();
+});
+
 const recoveredIdentity = "org-a:actor-a:employee-a";
 const recoveredArgs = {
   requestId: "clock-request-loading-001",

@@ -1,23 +1,24 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup } from "@testing-library/react";
 import { toHaveNoViolations } from "jest-axe";
-import { afterEach, expect, vi } from "vitest";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 import type * as ConvexReact from "convex/react";
+import {
+  finishTestMutations,
+  resetTestMutations,
+} from "./tests/fixtures/convex-mutation";
 
 vi.mock("convex/react", async (importOriginal) => {
   const actual = await importOriginal<typeof ConvexReact>();
   const { getFunctionName } = await import("convex/server");
   const { resolveTestQuery } = await import("./tests/fixtures/convex-query");
 
+  const { getTestMutation } = await import("./tests/fixtures/convex-mutation");
+
   return {
     ...actual,
     useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }),
-    useMutation: () => async () => ({
-      ok: true,
-      requestId: "test_request",
-      value: { written: true, documentId: "test_document", replayed: false },
-    }),
+    useMutation: getTestMutation,
     useQuery: (
       reference: Parameters<typeof getFunctionName>[0],
       args: Record<string, unknown> | "skip" = {},
@@ -49,16 +50,16 @@ vi.mock("convex/react", async (importOriginal) => {
 });
 
 expect.extend(toHaveNoViolations);
+beforeEach(resetTestMutations);
 
 /**
  * Testing Library only auto-registers its cleanup when `afterEach` is a global.
  * This project keeps `globals: false` and imports test APIs explicitly, so the
  * unmount has to be wired up by hand — otherwise renders accumulate in the same
- * document and queries fail with "found multiple elements".
+ * document and queries fail with "found multiple elements". The unmount runs
+ * in `finishTestMutations`, before the unregistered-write check.
  */
-afterEach(() => {
-  cleanup();
-});
+afterEach(finishTestMutations);
 
 /*
  * The browser APIs jsdom does not implement and Radix's portalled menus call.

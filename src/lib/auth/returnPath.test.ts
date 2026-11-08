@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { plannerReturnPath } from "./returnPath";
 
 it("retains task IDs, filters and floor selection for sign-in", () => {
-  const path = "/th/master-data/storage-layouts/demo?floor=2&editing=1";
+  const path = "/th/master-data/storage-layouts/building-a?floor=2&editing=1";
   expect(plannerReturnPath(path, "th")).toBe(path);
   expect(plannerReturnPath("/en/finished-goods/pallets/demo/move", "en")).toBe(
     "/en/finished-goods/pallets/demo/move",

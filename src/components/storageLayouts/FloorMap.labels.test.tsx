@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { FloorMap } from "./FloorMap";
 import styles from "./FloorMap.module.css";
-import { floorMapDemo } from "./storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 import { pdApprovedPlan } from "../../../convex/model/storageLayout/pdApprovedPlan";
 import { fg1ApprovedPlan } from "../../../convex/model/storageLayout/fg1ApprovedPlan";
 

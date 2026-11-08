@@ -17,7 +17,7 @@ function entry(
     devicePixelContentBoxSize: size,
   };
 }
-import { floorMapDemo } from "./storageFloorDemoData";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
 
 let resize: ResizeObserverCallback;
 let observer: ResizeObserver;

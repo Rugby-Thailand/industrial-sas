@@ -661,7 +661,6 @@
     "mapUnitCount": "{count, plural, one {# unit} other {# units}}",
     "mapFootprint": "Floor footprint used or reserved: {percent}%",
     "mapAisles": "Aisles / unavailable storage area",
-    "mapDemoLink": "Try a populated floor with aisles",
     "areaColor": {
       "label": "Area color",
       "more": "More colors",
