@@ -182,8 +182,6 @@ export function classifyOutcome<Value>(outcome: unknown): HrWriteState<Value> {
 /** The exact registered operation whose legacy/opaque command needs recovery. */
 function operationFor(intent: string): string | undefined {
   const operations: readonly [string, string][] = [
-    ["clock:CLOCK_IN:", "hr.attendance.clockIn"],
-    ["clock:CLOCK_OUT:", "hr.attendance.clockOut"],
     ["shortcut-preferences", "hr.preferences.save"],
     ["employee:", "hr.employee.save"],
     ["employee-profile:", "hr.employee.profile.save"],
