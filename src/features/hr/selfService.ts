@@ -1,8 +1,4 @@
-/** Quotes CSV cells and neutralizes spreadsheet formulas in configured text. */
-function csvCell(value: string) {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return `"${safe.replaceAll('"', '""')}"`;
-}
+import { toCsv } from "@/lib/csv";
 
 export function holidayCsv(
   headers: readonly string[],
@@ -10,25 +6,11 @@ export function holidayCsv(
   holidays: readonly { readonly date: string; readonly name: string }[],
 ) {
   return (
-    "\uFEFF" +
-    [headers, ...holidays.map((item) => [item.date, item.name, site])]
-      .map((row) => row.map(csvCell).join(","))
-      .join("\r\n") +
-    "\r\n"
+    toCsv(
+      headers,
+      holidays.map((item) => [item.date, item.name, site]),
+    ) + "\r\n"
   );
-}
-
-export function downloadHolidayCsv(fileName: string, content: string) {
-  const url = URL.createObjectURL(
-    new Blob([content], { type: "text/csv;charset=utf-8" }),
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function monthRange(month: string, today: string) {

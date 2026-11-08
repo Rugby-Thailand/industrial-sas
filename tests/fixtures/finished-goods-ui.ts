@@ -56,6 +56,20 @@ export const querySuccess = <T>(value: T): TenantFunctionOutcome<T> => ({
   requestId: "test-query",
   value,
 });
+/** A read the server refused for this user. */
+export const queryDenied = (
+  requestId: string,
+): TenantFunctionOutcome<never> => ({
+  ok: false,
+  requestId,
+  denial: {
+    kind: "AUTHORIZATION_DENIED",
+    code: "AUTHORIZATION_DENIED",
+    requestId,
+    message:
+      "This request was denied. Quote the request ID when asking for help.",
+  },
+});
 type WriteOutcome = TenantFunctionOutcome<
   ReturnType<typeof written> | ReturnType<typeof refusal>
 >;

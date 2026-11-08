@@ -76,6 +76,7 @@ import {
 } from "./HrPagedList";
 import { HrDisclosure, HrStatStrip, HrStateChip, type HrStat } from "./HrUi";
 import { useHrWrite, type HrWriteState } from "./useHrWrite";
+import { downloadCsv } from "@/lib/csv";
 
 type Preview = Extract<RefValue<typeof hrRefs.periodPreview>, { ok: true }>;
 type Row = Extract<Preview["view"], { rows: unknown }>["rows"][number];
@@ -1153,19 +1154,6 @@ async function exportAllParts(
     ...first,
     value: { ...firstValue, content, isDone: true },
   } as ExportOutcome;
-}
-
-function downloadCsv(fileName: string, content: string) {
-  const url = URL.createObjectURL(
-    new Blob([content], { type: "text/csv;charset=utf-8" }),
-  );
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function ClosedControls({

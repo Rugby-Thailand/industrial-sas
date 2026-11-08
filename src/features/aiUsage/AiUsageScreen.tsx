@@ -22,6 +22,7 @@ import {
   summaryRef,
   type UsageFilters,
 } from "./report";
+import { downloadCsv } from "@/lib/csv";
 import { useEstimateRefresh } from "./useEstimateRefresh";
 import { UsageBreakdown } from "./UsageBreakdown";
 import { FeatureStrip, UsageStatement } from "./UsageOverview";
@@ -195,14 +196,7 @@ function UsageReport({
       return;
     }
     try {
-      const url = URL.createObjectURL(
-        new Blob([result.csv], { type: "text/csv;charset=utf-8" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = result.fileName;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadCsv(result.fileName, result.csv);
     } catch {
       setExportError(true);
     }
