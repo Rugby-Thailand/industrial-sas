@@ -105,7 +105,8 @@ function CorrectionArea({
     detail.pendingCorrectionId === undefined &&
     detail.businessDate <= today &&
     detail.status !== "UPCOMING";
-  const liveTarget = returned ? `${returned.id}:${returned.version}` : "new";
+  const latest = detail.corrections[0];
+  const liveTarget = latest ? `${latest.id}:${latest.version}` : "new";
   const [retention, setRetention] = useState<{
     mode: CorrectionRetention;
     target: string;
@@ -119,7 +120,7 @@ function CorrectionArea({
     );
   }, []);
   // Dirty/pending owners keep their mounted command. A saved receipt survives
-  // the pending subscription; a later Return starts a new resubmission.
+  // the pending subscription; a later decision starts a fresh eligible form.
   if (
     (retention.mode === "none" ||
       (retention.mode === "receipt" && available)) &&
