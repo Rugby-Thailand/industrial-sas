@@ -2,7 +2,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ObservabilityProvider } from "@/components/providers/ObservabilityProvider";
+import { useObservability } from "@/components/providers/ObservabilityProvider";
 import type { ObservabilityEvent } from "@/lib/observability/event";
 import type { ObservabilityPort } from "@/lib/observability/port";
 import { APPLICATION_RENDER_ERROR_CODE } from "@/lib/observability/applicationError";
@@ -46,6 +46,10 @@ vi.mock("@/components/providers/AiUsageAccessProvider", () => ({
 
 import DesktopPageError from "./error";
 
+vi.mock("@/components/providers/ObservabilityProvider", () => ({
+  useObservability: vi.fn(),
+}));
+
 const recordingPort = (): ObservabilityPort & {
   readonly events: ObservabilityEvent[];
 } => {
@@ -60,13 +64,9 @@ function renderError(
   ),
 ) {
   const port = recordingPort();
+  vi.mocked(useObservability).mockReturnValue(port);
   const retry = vi.fn();
-  renderWithIntl(
-    <ObservabilityProvider port={port}>
-      <DesktopPageError error={error} retry={retry} />
-    </ObservabilityProvider>,
-    { locale },
-  );
+  renderWithIntl(<DesktopPageError error={error} retry={retry} />, { locale });
   return { port, retry };
 }
 

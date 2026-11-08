@@ -1,5 +1,5 @@
 import { messagesFor } from "@/i18n/messages";
-import { batchTestResponse } from "./paginationTestAdapter";
+import { batchTestResponse } from "@tests/fixtures/paginationTestAdapter";
 import { axe } from "jest-axe";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";

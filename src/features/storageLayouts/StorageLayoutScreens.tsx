@@ -83,7 +83,16 @@ import {
 import { FloorMap } from "@/components/storageLayouts/FloorMap";
 import { StoragePlacementLayer } from "@/components/storageLayouts/StorageZoneVisualizer";
 import { QueryGate } from "@/components/system/QueryGate";
-import { DataTable } from "@/components/table/DataTable";
+import { TableScroller } from "@/components/ui/TableScroller";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
@@ -3664,6 +3673,7 @@ function ReviewContent({
   readonly buildingId: string;
 }) {
   const t = useTranslations("StorageLayouts");
+  const panel = useTranslations("Panel");
   const router = useRouter();
   const canActivate = useCan("masterData.storageLayout.activate");
   const outcome = useStorageBuilding(warehouseId, buildingId);
@@ -3792,57 +3802,87 @@ function ReviewContent({
       />
       <div className="min-w-0 space-y-4">
         <IsometricBuilding building={building} floors={floors} />
-        <DataTable<StorageFloorRow>
-          caption={t("reviewTitle")}
-          rows={floors}
-          rowKey={(floor) => floor.floorId}
-          columns={[
-            {
-              key: "floor",
-              header: t("floors"),
-              rowHeader: true,
-              monospace: false,
-              cellClassName: "font-semibold",
-              render: (floor) => t("floor", { floor: floor.floorNumber }),
-            },
-            {
-              key: "dimensions",
-              header: t("dimensions"),
-              render: (floor) =>
-                `${metres(floor.widthMm ?? building.widthMm)} × ${metres(floor.depthMm ?? building.depthMm)} m`,
-            },
-            {
-              key: "usableArea",
-              header: t("usableArea"),
-              render: (floor) => `${squareMetres(floor.usableAreaSqMm)} m²`,
-            },
-            {
-              key: "reservedArea",
-              header: t("blockedArea"),
-              render: (floor) => `${squareMetres(floor.reservedAreaSqMm)} m²`,
-            },
-            {
-              key: "storageZones",
-              header: t("storageZones"),
-              render: (floor) => floor.storageZones.length,
-            },
-            {
-              key: "actions",
-              header: t("actions"),
-              render: (floor) =>
-                building.status === "ARCHIVED" ? null : (
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link
-                      href={storageFloorPath(buildingId, floor.floorNumber)}
+        <TableScroller label={t("reviewTitle")}>
+          <Table scroll={false} className="border-collapse">
+            <TableCaption className="px-4 py-3 text-left">
+              {t("reviewTitle")}
+            </TableCaption>
+            <TableHeader>
+              <TableRow className="border-b border-border-strong text-left">
+                {[
+                  "floors",
+                  "dimensions",
+                  "usableArea",
+                  "blockedArea",
+                  "storageZones",
+                  "actions",
+                ].map((key) => (
+                  <TableHead
+                    key={key}
+                    scope="col"
+                    aria-sort="none"
+                    className="px-4 py-2 text-left font-semibold whitespace-nowrap"
+                  >
+                    {t(key)}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {floors.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <EmptyState
+                      title={panel("empty")}
+                      body={panel("emptyHint")}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                floors.map((floor) => (
+                  <TableRow
+                    key={floor.floorId}
+                    className="border-b border-border last:border-0"
+                  >
+                    <TableHead
+                      scope="row"
+                      className="px-4 py-3 text-left align-top font-normal"
                     >
-                      <Zap className="size-3.5" />
-                      {t("quickChange")}
-                    </Link>
-                  </Button>
-                ),
-            },
-          ]}
-        />
+                      {t("floor", { floor: floor.floorNumber })}
+                    </TableHead>
+                    <TableCell className="px-4 py-3 text-left align-top">
+                      {`${metres(floor.widthMm ?? building.widthMm)} × ${metres(floor.depthMm ?? building.depthMm)} m`}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-left align-top">
+                      {`${squareMetres(floor.usableAreaSqMm)} m²`}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-left align-top">
+                      {`${squareMetres(floor.reservedAreaSqMm)} m²`}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-left align-top">
+                      {floor.storageZones.length}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-left align-top">
+                      {building.status === "ARCHIVED" ? null : (
+                        <Button size="sm" variant="ghost" asChild>
+                          <Link
+                            href={storageFloorPath(
+                              buildingId,
+                              floor.floorNumber,
+                            )}
+                          >
+                            <Zap className="size-3.5" />
+                            {t("quickChange")}
+                          </Link>
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableScroller>
       </div>
       <aside className="space-y-4" aria-label={t("review")}>
         {building.status === "ARCHIVED" ? (

@@ -24,9 +24,7 @@ export interface StoragePlacementBox {
   readonly heightMm: number;
 }
 
-export function hasExactStorageCoordinates(
-  placement: StorageStackPlacementRow,
-) {
+function hasExactStorageCoordinates(placement: StorageStackPlacementRow) {
   return (
     Number.isFinite(placement.xMm) &&
     Number.isFinite(placement.yMm) &&

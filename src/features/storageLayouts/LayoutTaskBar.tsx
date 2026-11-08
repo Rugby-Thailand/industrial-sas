@@ -29,7 +29,7 @@ import { ROUTES } from "@/lib/navigation";
 type StepState = "done" | "todo" | "notNeeded";
 
 /** Business setup progress for one building, derived from saved data only. */
-export function layoutChecklist(
+function layoutChecklist(
   building: StorageBuildingRow,
   floors: readonly StorageFloorRow[],
 ): readonly { readonly key: string; readonly state: StepState }[] {
@@ -162,7 +162,7 @@ export function LayoutTaskBar({
   );
 }
 
-export function LayoutHelpDialog({
+function LayoutHelpDialog({
   building,
   floors,
 }: {

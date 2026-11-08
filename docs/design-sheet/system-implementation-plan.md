@@ -19,7 +19,7 @@
 
 ## 1. หลักฐานที่อ่านและสถานะ working tree
 
-อ่านแล้ว: `AGENTS.md`, `docs/contracts/back-navigation.md`, `docs/contracts/back-navigation.json`, `PRODUCT.md`, `docs/design-sheet/DESIGN.md`, `docs/design-sheet/README.md`, `docs/design-sheet/review.css`, `docs/design-sheet/evidence/field-ui-checks-2026-10-14.json`, `docs/plans/design-sheet-system-adoption-2026-10-11.md` (mirror อยู่ที่ `docs/design-sheet/implementation-plan.md`), `docs/plans/ui-cleanup-2026-10-13.md`, `docs/reviews/system-audit-2026-10-14/README.md` และ source/test ที่อ้างถึงด้านล่าง
+อ่านแล้ว: `AGENTS.md`, `docs/contracts/back-navigation.md`, `docs/contracts/back-navigation.json`, `PRODUCT.md`, `docs/design-sheet/DESIGN.md`, `docs/design-sheet/README.md`, `docs/design-sheet/review.css`, [docs/design-sheet/evidence/field-ui-checks-2026-10-14.json](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/design-sheet/evidence/field-ui-checks-2026-10-14.json), [docs/plans/design-sheet-system-adoption-2026-10-11.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/design-sheet-system-adoption-2026-10-11.md) (mirror อยู่ที่ `docs/design-sheet/implementation-plan.md`), [docs/plans/ui-cleanup-2026-10-13.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/ui-cleanup-2026-10-13.md), [docs/reviews/system-audit-2026-10-14/README.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/system-audit-2026-10-14/README.md) และ source/test ที่อ้างถึงด้านล่าง
 
 ใช้แผนเก่าเป็นบริบทเท่านั้น ข้อสรุปเรื่อง "มีแล้ว" หรือ "ยังไม่มี" ทุกข้อตรวจจาก source ปัจจุบัน
 
@@ -31,7 +31,7 @@
 | แผนเก่าบอกว่า "Controls are otherwise 48px, with 16px input text" | **ล้าสมัยสำหรับ field** เพราะคำสั่งวันที่ 14 ตุลาคมเปลี่ยน field เป็น 40/32 ส่วนปุ่มยังเป็น 48/36                                                                                                                                                                                   |
 | แผนเก่าบอกว่า FG retry ใช้ request ID ที่ "memory-held"           | **ไม่ครบ**: `src/hooks/useRequestIdentity.ts` เก็บใน memory และถ้ามี `scope` จะเขียน `drafts` (`browserStorage()` = localStorage) ที่ key `fg-requests:${scope}` ด้วย                                                                                                               |
 
-**Preview ไม่ใช่การนำไปใช้ใน application:** preview ที่ส่งมอบใช้ `docs/design-sheet/controls.tsx` เป็น React islands ที่ import `SelectControl`/`select` ของ app, shadcn Calendar + Popover และเวลาแบบ trigger + Popover ที่ประกอบจาก hour/minute Select โดย native sources ใน `review.js` ถูกซ่อนไว้เพื่อเชื่อม draft เท่านั้น ไม่ใช่ picker ที่ผู้ใช้โต้ตอบ งานนี้มีผลตรวจแยกใน `docs/design-sheet/evidence/shadcn-ui-checks-2026-10-14.json`; ไม่ใช้หลักฐานของ preview แทน application และยังไม่มี screenshot ใหม่ที่ตรวจด้วยสายตาสำเร็จ
+**Preview ไม่ใช่การนำไปใช้ใน application:** preview ที่ส่งมอบใช้ `docs/design-sheet/controls.tsx` เป็น React islands ที่ import `SelectControl`/`select` ของ app, shadcn Calendar + Popover และเวลาแบบ trigger + Popover ที่ประกอบจาก hour/minute Select โดย native sources ใน `review.js` ถูกซ่อนไว้เพื่อเชื่อม draft เท่านั้น ไม่ใช่ picker ที่ผู้ใช้โต้ตอบ งานนี้มีผลตรวจแยกใน [docs/design-sheet/evidence/shadcn-ui-checks-2026-10-14.json](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/design-sheet/evidence/shadcn-ui-checks-2026-10-14.json); ไม่ใช้หลักฐานของ preview แทน application และยังไม่มี screenshot ใหม่ที่ตรวจด้วยสายตาสำเร็จ
 
 `package.json` ใน working tree มี `react-day-picker@9.14.0` และ `date-fns@4.1.0` อยู่ใน **devDependencies** สำหรับ preview (ยังไม่ commit) ใน `node_modules` มีอยู่จริง และ `react-day-picker` 9.14.0 export `./buddhist` ได้ เวลาของ preview และแผนนี้**ประกอบเอง**จาก shadcn `Select` สองตัวใน `Popover`; ไม่ใช่ component TimePicker สำเร็จรูปจาก upstream
 
@@ -301,7 +301,7 @@ Evidence ใน inventory ต้องเป็นชื่อเคส `it`/`te
 - ขึ้นกับ: DS-3 (DS-6 สำหรับ HR)
 - ทำ: ตรวจทุก family ในข้อ 6 ที่ 320/390/768/1024 (สัมผัส)/1280 และ 1440 ที่ zoom 200% ทั้งไทย/อังกฤษ, light/dark, คีย์บอร์ด และข้อความยาว ใช้ fixture `pnpm dev:seed --storage-ui` / `--pagination` / `--hr` กับ deployment local ที่แยกไว้เท่านั้น (คำสั่ง seed เปลี่ยนข้อมูลทดสอบ)
 - Caller test ของ storage ที่มีอยู่: `StorageLayoutScreens.test.tsx` `keeps the zone QR scannable in compact details without child positions`, `native Back dismisses the mobile location inspector before leaving the building`; `useFloorWorkspaceView.test.tsx` (3 เคส); FG: `useCatalogueState.test.tsx` `restores actual tab and layout history and groups search typing into one Back step`, `FinishedGoodsMobileList.test.tsx`; shell: `LocaleSwitcher.test.tsx` (เช่น `switches only after Discard releases the guard, with the URL chosen from`), `c-sidebar-2.test.tsx`
-- เสร็จเมื่อ: ทุก family มีแถวหลักฐาน (route × สถานะ × ภาษา × ธีม × density) เก็บใน `docs/reviews/design-system-adoption-<date>/`; ถ้าพบ gap ให้แยกเป็น PR
+- เสร็จเมื่อ: ทุก family มีแถวหลักฐาน (route × สถานะ × ภาษา × ธีม × density) เก็บใน `output/design-system-adoption-<date>/`; ถ้าพบ gap ให้แยกเป็น PR
 
 ### DS-9 · ปิด coverage
 
