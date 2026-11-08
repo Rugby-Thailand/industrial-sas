@@ -91,12 +91,20 @@ export function useCursorPagination({
     setStored({ scope, value });
   }
   useEffect(() => {
-    const restore = () =>
+    const restore = () => {
+      const history = historyPosition(scope);
+      // The URL owner may publish restored criteria after this listener. Leave
+      // that entry intact until render can adopt its matching position.
+      if (history && history.criteria !== fingerprint) return;
       setStored({ scope, value: remembered(scope, fingerprint) });
+    };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, [scope, fingerprint]);
-  function save(next: Position) {
+  // Record even an unpaged criteria choice in its own entry. A later fresh
+  // choice must not inherit copied metadata from a filter visited earlier.
+  useEffect(() => {
+    const next = value;
     positions.delete(scope);
     positions.set(scope, next);
     while (positions.size > MAX_SCOPES)
@@ -109,6 +117,8 @@ export function useCursorPagination({
       // Retain the last-used slot for browser entries created by older clients.
       state.cataloguePagination = { scope, value: next };
     });
+  }, [scope, value]);
+  function save(next: Position) {
     setStored({ scope, value: next });
   }
   return {

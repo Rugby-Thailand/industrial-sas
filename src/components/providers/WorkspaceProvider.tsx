@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -96,6 +97,11 @@ export function WorkspaceProvider({
     readStoredWarehouse,
     serverWarehouseSnapshot,
   );
+  const [selection, setSelection] = useState<{
+    organizationId: string;
+    stored: string | null;
+    warehouseId: string;
+  }>();
   const selectWarehouse = useCallback((warehouseId: string) => {
     writeStoredWarehouse(warehouseId);
   }, []);
@@ -143,7 +149,13 @@ export function WorkspaceProvider({
     }
 
     return {
-      ...resolveWorkspace(outcome.value, stored ?? undefined),
+      ...resolveWorkspace(
+        outcome.value,
+        selection?.organizationId === outcome.value.organization.id &&
+          selection.stored === stored
+          ? selection.warehouseId
+          : (stored ?? undefined),
+      ),
       readiness: { kind: "READY_TO_QUERY" },
       loading: false,
       failed: false,
@@ -156,8 +168,25 @@ export function WorkspaceProvider({
     isAuthenticationLoading,
     queryState,
     selectWarehouse,
+    selection,
     stored,
   ]);
+
+  // Retain the authorized fallback before children see a growing warehouse list.
+  // An accepted storage change still goes through the existing departure guard.
+  if (
+    value.organization &&
+    value.selectedWarehouseId &&
+    (selection?.organizationId !== value.organization.id ||
+      selection.stored !== stored ||
+      selection.warehouseId !== value.selectedWarehouseId)
+  ) {
+    setSelection({
+      organizationId: value.organization.id,
+      stored,
+      warehouseId: value.selectedWarehouseId,
+    });
+  }
 
   return (
     <WorkspaceContext.Provider value={value}>

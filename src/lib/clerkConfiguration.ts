@@ -6,3 +6,13 @@ export function resolveClerkPublishableKey(
   const key = value?.trim();
   return key !== undefined && isPublishableKey(key) ? key : undefined;
 }
+
+export function isClerkConfigured(
+  publishableKey: string | undefined,
+  secretKey: string | undefined,
+): boolean {
+  return (
+    resolveClerkPublishableKey(publishableKey) !== undefined &&
+    Boolean(secretKey?.trim())
+  );
+}
