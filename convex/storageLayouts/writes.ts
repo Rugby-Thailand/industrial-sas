@@ -169,7 +169,7 @@ async function activeZonesForFloor(
 
 function validateFloorZones(input: {
   readonly building: BuildingDocument;
-  readonly floor: FloorDocument;
+  readonly previousFloorHeightMm: number;
   readonly floorInput: StorageFloorInput;
   readonly zones: readonly ZoneDocument[];
 }) {
@@ -187,7 +187,12 @@ function validateFloorZones(input: {
       floorWidthMm,
       floorDepthMm,
       floorHeightMm,
-      candidate: zone,
+      // Preserve legacy platform overflow on unrelated edits. The existing
+      // stack-height and planar checks still run for every zone.
+      candidate:
+        floorHeightMm === input.previousFloorHeightMm
+          ? { ...zone, baseElevationMm: 0 }
+          : zone,
       reserved: input.floorInput.reservedBlocks,
       zones: otherZones,
     });
@@ -362,7 +367,7 @@ export const updateStorageBuilding = mutationWithOrg({
       if (floorInput === undefined) return failure("NOT_FOUND");
       const zonesValid = validateFloorZones({
         building: proposedBuilding,
-        floor,
+        previousFloorHeightMm: floor.heightMm ?? building.defaultFloorHeightMm,
         floorInput,
         zones: await activeZonesForFloor(ctx, floor._id),
       });
@@ -697,7 +702,8 @@ export const saveStorageFloor = mutationWithOrg({
     const zones = await activeZonesForFloor(ctx, floorDocument._id);
     const zonesValid = validateFloorZones({
       building,
-      floor: floorDocument,
+      previousFloorHeightMm:
+        floorDocument.heightMm ?? building.defaultFloorHeightMm,
       floorInput: args.floor,
       zones,
     });
@@ -892,7 +898,9 @@ export async function assessLayoutReadiness(
         floorWidthMm,
         floorDepthMm,
         floorHeightMm,
-        candidate: zone,
+        // A platform above the ceiling is reported once, as
+        // BASE_ELEVATION_INVALID below, not also as out of bounds.
+        candidate: { ...zone, baseElevationMm: 0 },
         reserved: floorInput.reservedBlocks,
         zones: zones.filter((candidate) => candidate._id !== zone._id),
       });
