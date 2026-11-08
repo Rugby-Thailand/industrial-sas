@@ -1,3 +1,4 @@
+import { getTestMutation } from "@tests/fixtures/convex-mutation";
 import { webcrypto } from "node:crypto";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
@@ -27,7 +28,7 @@ const state = vi.hoisted(() => ({
 vi.mock("convex/react", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     state.query(getFunctionName(ref), args),
-  useMutation: () => vi.fn(),
+  useMutation: getTestMutation,
 }));
 vi.mock("convex/browser", () => ({
   ConvexHttpClient: class {

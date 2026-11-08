@@ -1,3 +1,7 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps } from "react";
@@ -14,7 +18,7 @@ vi.mock("convex/react", async () => {
   return {
     useQuery: (reference: Parameters<typeof name>[0], args: unknown) =>
       args === "skip" ? undefined : state.queries.get(name(reference)),
-    useMutation: () => state.mutate,
+    useMutation: getTestMutation,
   };
 });
 vi.mock("@/components/providers/HrAccessProvider", () => ({
@@ -101,6 +105,7 @@ function setSelf(detail: DayDetail) {
 }
 
 beforeEach(() => {
+  registerTestMutation(hrRefs.submitCorrection, state.mutate);
   state.queries.clear();
   state.mutate.mockReset();
   window.sessionStorage.clear();
