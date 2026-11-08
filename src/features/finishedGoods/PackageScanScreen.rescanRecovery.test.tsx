@@ -1,4 +1,9 @@
 import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import {
   act,
   cleanup,
   fireEvent,
@@ -49,7 +54,7 @@ vi.mock("convex/react", () => ({
     query: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
       mocks.query(getFunctionName(ref), args),
   }),
-  useMutation: () => mocks.assign,
+  useMutation: getTestMutation,
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     args === "skip"
       ? undefined
@@ -94,6 +99,7 @@ afterEach(async () => {
   });
 });
 beforeEach(() => {
+  registerTestMutation(fgRefs.confirmScanAssignment, mocks.assign);
   localStorage.clear();
   mocks.serverVersion = 20;
   window.history.replaceState(

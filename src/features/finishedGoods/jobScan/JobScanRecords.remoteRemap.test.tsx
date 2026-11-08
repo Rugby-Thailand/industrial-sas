@@ -1,3 +1,8 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 // Regression: the correction editor falls back to the click-time snapshot
 // (`records.find(...) ?? editing`) once its record leaves the visible page.
 // When the record left because another session changed it (here: mapped it,
@@ -53,8 +58,7 @@ const store = vi.hoisted(() => {
 });
 
 vi.mock("convex/react", () => ({
-  useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref).endsWith(":updateJobScan") ? store.update : vi.fn(),
+  useMutation: getTestMutation,
   useConvex: () => ({ query: vi.fn() }),
   useQuery: (
     ref: Parameters<typeof getFunctionName>[0],
@@ -105,6 +109,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 beforeEach(() => {
+  registerTestMutation(fgRefs.updateJobScan, store.update);
   clearCursorPositions();
   window.localStorage.clear();
   window.history.replaceState(null, "", "/en/finished-goods/scan/records");
