@@ -1,3 +1,4 @@
+import { getTestMutation } from "@tests/fixtures/convex-mutation";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -9,7 +10,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: "a",
   useRouter: () => ({ push: vi.fn() }),
 }));
-vi.mock("convex/react", () => ({ useMutation: () => vi.fn() }));
+vi.mock("convex/react", () => ({ useMutation: getTestMutation }));
 const text = messagesFor("en").StorageLayouts;
 beforeEach(() => window.history.replaceState(null, "", "/"));
 afterEach(cleanup);

@@ -1,4 +1,8 @@
 import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import {
   act,
   cleanup,
   fireEvent,
@@ -46,10 +50,7 @@ vi.mock("convex/react", () => ({
       };
     throw new Error("Unexpected query");
   },
-  useMutation: (ref: unknown) => async (args: Record<string, unknown>) => {
-    state.writes.push({ ref, args });
-    return { ok: true, value: { written: true } };
-  },
+  useMutation: getTestMutation,
 }));
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
   useWorkspace: () => ({
@@ -63,6 +64,15 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 beforeEach(() => {
+  for (const ref of [
+    storageLayoutRefs.activate,
+    storageLayoutRefs.returnToDraft,
+  ]) {
+    registerTestMutation(ref, async (args: Record<string, unknown>) => {
+      state.writes.push({ ref, args });
+      return { ok: true, value: { written: true } };
+    });
+  }
   state.status = "DRAFT";
   state.version = 7;
   state.writes = [];
