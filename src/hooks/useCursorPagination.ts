@@ -67,6 +67,20 @@ function remembered(scope: string, criteria: string) {
     ? saved
     : initial(criteria);
 }
+function savePosition(scope: string, next: Position) {
+  positions.delete(scope);
+  positions.set(scope, next);
+  while (positions.size > MAX_SCOPES)
+    positions.delete(positions.keys().next().value!);
+  updateHistoryMetadata((state) => {
+    state.cataloguePaginationScopes = [
+      ...historyPositions(state).filter((entry) => entry.scope !== scope),
+      { scope, value: next },
+    ].slice(-MAX_SCOPES);
+    // Retain the last-used slot for browser entries created by older clients.
+    state.cataloguePagination = { scope, value: next };
+  });
+}
 
 /** Bounded cursor history only: records always come from the authorized live query. */
 export function useCursorPagination({
@@ -101,25 +115,16 @@ export function useCursorPagination({
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, [scope, fingerprint]);
-  // Record even an unpaged criteria choice in its own entry. A later fresh
-  // choice must not inherit copied metadata from a filter visited earlier.
+  // Replace copied criteria for this scope, even for an unpaged filter choice,
+  // without adding untouched pagers mounted by an editor to its history entry.
   useEffect(() => {
-    const next = value;
-    positions.delete(scope);
-    positions.set(scope, next);
-    while (positions.size > MAX_SCOPES)
-      positions.delete(positions.keys().next().value!);
-    updateHistoryMetadata((state) => {
-      state.cataloguePaginationScopes = [
-        ...historyPositions(state).filter((entry) => entry.scope !== scope),
-        { scope, value: next },
-      ].slice(-MAX_SCOPES);
-      // Retain the last-used slot for browser entries created by older clients.
-      state.cataloguePagination = { scope, value: next };
-    });
+    const history = historyPosition(scope);
+    if (history && history.criteria !== value.criteria)
+      savePosition(scope, value);
   }, [scope, value]);
   function save(next: Position) {
     setStored({ scope, value: next });
+    savePosition(scope, next);
   }
   return {
     page: value.offset + value.index + 1,
