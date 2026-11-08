@@ -56,7 +56,7 @@ Order: shared shell first, because it appears in every screenshot. Phone-first w
 | 6   | People: administration       | `review`, `leave/review`, `leave/review/[id]`, `employees`, `periods`, `periods/[id]`, `time/periods`, `time/periods/[versionId]`, `payslips/import`, `announcements/manage`, `settings`, `customize`   | 1440 × 900       | BambooHR approvals, Gusto, Personio, HumanSoft, Prosoft (features only)      |
 | 7   | Administration and public    | `ai-usage`, `setup`, `sign-in`, `about`, `privacy`, `terms`                                                                                                                                             | both             | OpenAI usage, Anthropic Console, Vercel usage, Clerk analytics               |
 
-`storage-layouts/demo` and `[...rest]` are out of scope.
+`[...rest]` is out of scope.
 
 ## Stage 0: setup (once, before Stage 1)
 
