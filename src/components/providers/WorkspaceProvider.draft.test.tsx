@@ -1,3 +1,4 @@
+import { getTestMutation } from "@tests/fixtures/convex-mutation";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -30,7 +31,7 @@ vi.mock("convex/react", () => ({
     },
   }),
   useQuery: () => undefined,
-  useMutation: () => vi.fn(),
+  useMutation: getTestMutation,
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "user-a", orgId: "org-a" }),
