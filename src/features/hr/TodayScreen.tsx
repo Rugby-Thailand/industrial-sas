@@ -35,7 +35,6 @@ import { HrUpcomingHoliday } from "./HolidaysScreen";
 import {
   clearHrClockRecoveryExcept,
   useHrClockWrite,
-  useHrWrite,
   type HrWriteState,
   type HrClockCommand,
 } from "./useHrWrite";
@@ -124,73 +123,22 @@ function TodayView({ today }: { readonly today: TodayValue }) {
     "businessDate" in today ? today.businessDate : "",
     sendClock,
   );
-  // Older tabs used action-scoped scalar IDs. They must be reconciled rather
-  // than silently borrowed by the newer clock-only descriptor.
-  const legacy = (action: "CLOCK_IN" | "CLOCK_OUT") => ({
-    decode: (
-      value: unknown,
-    ):
-      | { action: "CLOCK_IN" | "CLOCK_OUT"; expectedBusinessDate: string }
-      | undefined => {
-      if (
-        typeof value !== "object" ||
-        value === null ||
-        !("action" in value) ||
-        value.action !== action ||
-        !("expectedBusinessDate" in value) ||
-        typeof value.expectedBusinessDate !== "string" ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(value.expectedBusinessDate)
-      )
-        return undefined;
-      return { action, expectedBusinessDate: value.expectedBusinessDate };
-    },
-    send: (
-      payload: {
-        action: "CLOCK_IN" | "CLOCK_OUT";
-        expectedBusinessDate: string;
-      },
-      requestId: string,
-    ) =>
-      sendClock({
-        kind: payload.action,
-        expectedBusinessDate: payload.expectedBusinessDate,
-        employeeId: employeeKey,
-        requestId,
-      }),
-  });
-  const entering = useHrWrite<
-    ClockResult,
-    { action: "CLOCK_IN" | "CLOCK_OUT"; expectedBusinessDate: string }
-  >(`clock:CLOCK_IN:${employeeKey}`, legacy("CLOCK_IN"));
-  const leaving = useHrWrite<
-    ClockResult,
-    { action: "CLOCK_IN" | "CLOCK_OUT"; expectedBusinessDate: string }
-  >(`clock:CLOCK_OUT:${employeeKey}`, legacy("CLOCK_OUT"));
-  const action =
-    clock.command?.kind ??
-    (entering.locked ? "CLOCK_IN" : leaving.locked ? "CLOCK_OUT" : liveAction);
-  const write =
-    clock.state.kind !== "IDLE"
-      ? clock
-      : entering.state.kind !== "IDLE"
-        ? entering
-        : leaving;
+  const action = clock.command?.kind ?? liveAction;
   // Leaving cannot cancel a clock write: hold search, AI and links until
   // the server answers, like every other HR write.
-  usePendingGuard(clock.pending || entering.pending || leaving.pending);
+  usePendingGuard(clock.pending);
   const [receipt, setReceipt] = useState<{
     readonly employee: string;
     readonly result: ClockResult;
   } | null>(null);
   // A shared command can settle after remount, without this view's submit callback.
-  const ownReceipt =
-    clock.pending || entering.pending || leaving.pending
-      ? null
-      : write.state.kind === "SAVED"
-        ? write.state.value
-        : receipt?.employee === employeeKey
-          ? receipt.result
-          : null;
+  const ownReceipt = clock.pending
+    ? null
+    : clock.state.kind === "SAVED"
+      ? clock.state.value
+      : receipt?.employee === employeeKey
+        ? receipt.result
+        : null;
   const saved =
     ownReceipt?.businessDate ===
     ("businessDate" in today ? today.businessDate : undefined)
@@ -222,13 +170,7 @@ function TodayView({ today }: { readonly today: TodayValue }) {
     );
 
   const submit = async () => {
-    if (
-      action === undefined ||
-      clock.locked ||
-      entering.locked ||
-      leaving.locked
-    )
-      return;
+    if (action === undefined || clock.locked) return;
     const command = action;
     const employee = employeeKey;
     setReceipt(null);
@@ -310,12 +252,12 @@ function TodayView({ today }: { readonly today: TodayValue }) {
               <Button
                 type="button"
                 className="min-h-14 w-full text-base sm:w-auto sm:min-w-56 md:min-h-14"
-                disabled={clock.locked || entering.locked || leaving.locked}
+                disabled={clock.locked}
                 onClick={() => void submit()}
                 data-testid="hr-clock-action"
               >
                 <Clock aria-hidden="true" className="size-5" />
-                {write.pending
+                {clock.pending
                   ? t("submitting")
                   : t(action === "CLOCK_IN" ? "clockIn" : "clockOut")}
               </Button>
@@ -335,10 +277,10 @@ function TodayView({ today }: { readonly today: TodayValue }) {
               />
             ) : (
               <WriteFeedback
-                state={write.state}
+                state={clock.state}
                 onRetry={() => {
                   const employee = employeeKey;
-                  void write.retry().then((result) => finish(employee, result));
+                  void clock.retry().then((result) => finish(employee, result));
                 }}
               />
             )}

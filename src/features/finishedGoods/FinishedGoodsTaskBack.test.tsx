@@ -21,7 +21,7 @@ import {
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { clearCursorPositions } from "@/hooks/useCursorPagination";
-import { batchTestResponse } from "./paginationTestAdapter";
+import { batchTestResponse } from "@tests/fixtures/paginationTestAdapter";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), write: vi.fn() }));
 vi.mock("@/hooks/useDraftKey", () => ({

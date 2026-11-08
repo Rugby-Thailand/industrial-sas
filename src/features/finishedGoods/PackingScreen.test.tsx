@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   batch: null as unknown,
   batchEditable: true,
+  deniedRead: undefined as string | undefined,
 }));
 vi.mock("@clerk/nextjs", async (importOriginal) => ({
   ...(await importOriginal<typeof ClerkModule>()),
@@ -47,26 +48,28 @@ vi.mock("convex/react", () => ({
   ) =>
     getFunctionName(_ref).endsWith(":replacementLabels")
       ? undefined
-      : args.batchId
-        ? querySuccess({
-            batch: mocks.batch ?? serverBatch("CREATED", 1),
-            product: {
+      : mocks.deniedRead
+        ? queryDenied(mocks.deniedRead)
+        : args.batchId
+          ? querySuccess({
+              batch: mocks.batch ?? serverBatch("CREATED", 1),
+              product: {
+                ...finishedGoodProduct,
+                status: mocks.status,
+                unit: mocks.unit,
+              },
+              units: [],
+              history: [],
+              editable: mocks.batchEditable,
+              blockedReason: mocks.batchEditable
+                ? undefined
+                : "BATCH_UNITS_RESERVED",
+            })
+          : querySuccess({
               ...finishedGoodProduct,
               status: mocks.status,
               unit: mocks.unit,
-            },
-            units: [],
-            history: [],
-            editable: mocks.batchEditable,
-            blockedReason: mocks.batchEditable
-              ? undefined
-              : "BATCH_UNITS_RESERVED",
-          })
-        : querySuccess({
-            ...finishedGoodProduct,
-            status: mocks.status,
-            unit: mocks.unit,
-          }),
+            }),
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
@@ -82,6 +85,7 @@ import { renderWithIntl } from "@tests/fixtures/intl-render";
 import {
   finishedGoodsWorkspace,
   finishedGoodProduct,
+  queryDenied,
   querySuccess,
   writeFailure,
 } from "@tests/fixtures/finished-goods-ui";
@@ -183,10 +187,29 @@ beforeEach(() => {
   mocks.unit = "pieces";
   mocks.batch = null;
   mocks.batchEditable = true;
+  mocks.deniedRead = undefined;
   mocks.save.mockReset().mockResolvedValue(success());
   mocks.commit.mockReset().mockResolvedValue(success(["unit-a", "unit-b"]));
   mocks.push.mockReset();
   mocks.replace.mockReset();
+});
+describe("packing read denial", () => {
+  it.each([
+    ["product", undefined],
+    ["batch", "batch-a"],
+  ])(
+    "shows the access denial for a denied %s read instead of an unavailable record",
+    (_read, batchId) => {
+      mocks.deniedRead = "req_packing_denied";
+      show(batchId, "en", true);
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent("Access denied");
+      expect(alert).toHaveTextContent("req_packing_denied");
+      expect(
+        screen.queryByText("This record is unavailable"),
+      ).not.toBeInTheDocument();
+    },
+  );
 });
 describe("batch packing", () => {
   it("starts without inventing a batch total from the product default", () => {

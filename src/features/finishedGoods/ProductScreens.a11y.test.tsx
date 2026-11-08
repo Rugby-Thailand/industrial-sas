@@ -1,6 +1,6 @@
 import { clearCursorPositions } from "@/hooks/useCursorPagination";
 import { getFunctionName } from "convex/server";
-import { catalogueTestResponse } from "./paginationTestAdapter";
+import { catalogueTestResponse } from "@tests/fixtures/paginationTestAdapter";
 import type * as ClerkModule from "@clerk/nextjs";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import { fireEvent, screen } from "@testing-library/react";

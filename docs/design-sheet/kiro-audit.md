@@ -2,7 +2,7 @@
 
 Date: 2026-10-11 (Asia/Bangkok). Auditor: Kiro CLI, `claude-opus-5.5`, high effort, independent of the implementer.
 
-Audited: `docs/plans/design-sheet-system-adoption-2026-10-11.md` (99 lines; byte-identical to `plan-v1.md` in this folder), checked against:
+Audited: [docs/plans/design-sheet-system-adoption-2026-10-11.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/design-sheet-system-adoption-2026-10-11.md) (99 lines; byte-identical to `plan-v1.md` in this folder), checked against:
 
 - the original no-inner-rail sheet: `docs/design-sheet/index.html`, `sheet.js`, `styles.css`, `tokens.css`, `DESIGN.md` and `README.md`, committed in `8b0ef538`;
 - application source at HEAD `733c6aca`.
@@ -94,7 +94,7 @@ Evidence from the sheet:
 Evidence of the scope collision:
 
 - The concurrent `hr-employee-self-service-improvement-2026-10-11.md` (lines 13, 43, 67) makes Today the employee home and adds shortcuts and holidays.
-- Its design brief (`docs/designs/hr-employee-self-service-2026-10-11/brief.md:58`) names `globals.css`, `Panel` and `StatusBadge` as the authorities and says the sheet must not override them.
+- Its design brief ([docs/designs/hr-employee-self-service-2026-10-11/brief.md:58](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/designs/hr-employee-self-service-2026-10-11/brief.md#L58)) names `globals.css`, `Panel` and `StatusBadge` as the authorities and says the sheet must not override them.
 - Plan Step 5 still proposes "existing attendance refinements" in `TodayScreen`, `HrShared` and `HrUi` (lines 71-73).
 
 Consequence: two plans would edit the same screen with different targets. The sheet would also leave HR with wrong state language.
@@ -371,4 +371,4 @@ The plan is sound in direction and honest about the foundations that already lan
 
 Apply the mandatory plan revisions and sheet changes S1–S10, then follow the six-step rollout.
 
-Report: `docs/reviews/design-sheet-system-adoption-2026-10-11/kiro-audit.md`
+Report: [docs/reviews/design-sheet-system-adoption-2026-10-11/kiro-audit.md](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/design-sheet-system-adoption-2026-10-11/kiro-audit.md)

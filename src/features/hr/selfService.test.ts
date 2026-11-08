@@ -11,6 +11,15 @@ it("exports every selected holiday with localized headers, safe text, and CSV qu
   );
 });
 
+it("neutralizes a holiday name that hides a formula behind leading whitespace", () => {
+  const csv = holidayCsv(["Date", "Holiday", "Workplace"], " =1+1", [
+    { date: "2026-01-01", name: ' =HYPERLINK("unsafe")' },
+  ]);
+  expect(csv).toBe(
+    '\uFEFF"Date","Holiday","Workplace"\r\n"2026-01-01","\' =HYPERLINK(""unsafe"")","\' =1+1"\r\n',
+  );
+});
+
 it("derives leap-year and month ranges while excluding future dates", () => {
   expect(monthRange("2024-02", "2026-10-12")).toEqual({
     from: "2024-02-01",

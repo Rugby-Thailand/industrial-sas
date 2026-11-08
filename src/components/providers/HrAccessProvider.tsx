@@ -94,19 +94,6 @@ export function HrAccessProvider({
   );
 }
 
-/** For environments without a configured backend or identity provider. */
-export function UnavailableHrAccessProvider({
-  children,
-}: {
-  readonly children: ReactNode;
-}) {
-  return (
-    <HrAccessContext.Provider value={UNAVAILABLE}>
-      {children}
-    </HrAccessContext.Provider>
-  );
-}
-
 export function useHrAccess(): HrAccessValue {
   return useContext(HrAccessContext);
 }

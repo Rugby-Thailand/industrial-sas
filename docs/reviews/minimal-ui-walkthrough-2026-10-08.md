@@ -2,13 +2,13 @@
 
 78 actions and states, each captured at desktop **1440 × 1000** and mobile **390 × 844** CSS viewports: **156 screenshots**. These are screenshots of the running application.
 
-Expand the actions below in GitHub to compare the original screenshots. The duplicate standalone gallery was removed during repository cleanup; all unique screenshot bytes are retained. [Implementation and UX expectations](../plans/minimal-ui-2026-10-08.md) · [Audit and validation](minimal-ui-audit-2026-10-08.md).
+Expand the actions below in GitHub to compare the original screenshots. The duplicate standalone gallery was removed during repository cleanup; all unique screenshot bytes are retained. [Implementation and UX expectations](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/minimal-ui-2026-10-08.md) · [Audit and validation](minimal-ui-audit-2026-10-08.md).
 
 Writes used local `QA-` records. Physical movement was simulated through explicit confirmations. The first packing batch supplied the units for storage/move/stack; the refreshed packing walkthrough created a second QA batch. The two walkthrough scan tickets were deleted after their assignment/deletion checks. No production deployment was used.
 
 Most screenshots were captured through T3 preview during the test/fix loop. The final catalogue, map table, Thai and dark-mode pairs use Chrome, as requested after preview failures. Screenshots record each workflow state at the time of its action; later saves naturally change totals and statuses. Earlier dev captures may include Next’s development indicator.
 
-State 12 was refreshed on 2026-10-09 with the approved compact action hierarchy. See the [hierarchy refactor and audit](minimal-ui-hierarchy-2026-10-09.md) for 17 real desktop/mobile pairs, mobile target measurements and both-size checks of every completion action. The [earlier completion follow-up](minimal-ui-completion-2026-10-09.md) retains before/after history.
+State 12 was refreshed on 2026-10-09 with the approved compact action hierarchy. See the [hierarchy refactor and audit](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/minimal-ui-hierarchy-2026-10-09.md) for 17 real desktop/mobile pairs, mobile target measurements and both-size checks of every completion action. The [earlier completion follow-up](minimal-ui-completion-2026-10-09.md) retains before/after history.
 
 Camera hardware and an actual phone software keyboard were not exercised; the mobile evidence uses a browser viewport.
 
@@ -136,9 +136,9 @@ Camera hardware and an actual phone software keyboard were not exercised; the mo
 <details>
 <summary>12-units-created: Storage units created: compact primary action, underlined unit destinations and neutral utility actions.</summary>
 
-| Desktop                                                                                            | Mobile                                                                                           |
-| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| ![Desktop — 12-units-created](assets/minimal-ui-hierarchy-2026-10-09/12-units-created-desktop.jpg) | ![Mobile — 12-units-created](assets/minimal-ui-hierarchy-2026-10-09/12-units-created-mobile.jpg) |
+| Desktop                                                                                                                                                                                             | Mobile                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Desktop — 12-units-created](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/assets/minimal-ui-hierarchy-2026-10-09/12-units-created-desktop.jpg?raw=true) | ![Mobile — 12-units-created](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/assets/minimal-ui-hierarchy-2026-10-09/12-units-created-mobile.jpg?raw=true) |
 
 </details>
 

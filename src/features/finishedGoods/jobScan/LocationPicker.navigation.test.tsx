@@ -1,4 +1,9 @@
 import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import {
   act,
   cleanup,
   fireEvent,
@@ -62,7 +67,7 @@ vi.mock("../BarcodeCameraBox", () => ({
   ),
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.create,
+  useMutation: getTestMutation,
   useConvex: () => ({ query: mocks.query, action: mocks.action }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
     if (args === "skip") return undefined;
@@ -89,6 +94,8 @@ const origin = "/th/finished-goods?search=box&tag=a&tag=b#catalogue";
 const page = "/en/finished-goods/scan?source=warehouse#location";
 let stop: (() => void) | undefined;
 beforeEach(() => {
+  registerTestMutation(fgRefs.createJobScanLocation, mocks.create);
+
   vi.clearAllMocks();
   window.localStorage.clear();
   window.history.replaceState({ appNavigationIndex: 0 }, "", origin);

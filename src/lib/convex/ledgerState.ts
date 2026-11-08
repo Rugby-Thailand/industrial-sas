@@ -54,7 +54,7 @@ export function failureCodeOf(failure: unknown): string {
     : UNKNOWN_FAILURE_CODE;
 }
 
-export const isAnonymousFailure = (failure: unknown): boolean =>
+const isAnonymousFailure = (failure: unknown): boolean =>
   failureCodeOf(failure) === "ANONYMOUS";
 
 export type LedgerGate =

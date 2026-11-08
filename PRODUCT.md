@@ -8,7 +8,13 @@ web
 
 ## Users
 
-Warehouse workers scan Thai factory job tickets and location labels and record storage information. Organization administrators review AI usage and cost across warehouses and users. HR users use AI Search for navigation.
+Members of a customer organization see only the modules, warehouses, and records their roles grant. The default roles are organization administrator, warehouse manager, supervisor, HR employee, HR supervisor, and HR administrator; one member can hold several.
+
+Warehouse managers work in their assigned warehouses. They scan Thai factory job tickets and location labels from phone photos; record finished goods, batches, packing, and pallet measurement, placement, stacking, and moves; and maintain building, floor, and storage-location plans. Supervisors view the same plans and records without changing them.
+
+Employees use the People module for their own attendance. They clock in and out, check their attendance history, request time corrections and leave, and read company holidays, announcements, notifications, and payslips. HR supervisors also review attendance and leave for their assigned direct reports. HR administrators maintain employees, shifts, rosters, holidays, HR settings and access, announcements, and payslip imports, and they close and export attendance periods. Members with HR access can use AI Search to find HR pages and tasks.
+
+Organization administrators hold every warehouse and HR permission and review AI usage and cost across warehouses and users.
 
 ## Product Purpose
 

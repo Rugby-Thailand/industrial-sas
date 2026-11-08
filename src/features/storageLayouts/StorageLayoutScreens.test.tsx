@@ -74,6 +74,8 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { floorMapDemo } from "@tests/fixtures/storage-floor-demo-data";
+import { FloorMap } from "@/components/storageLayouts/FloorMap";
 import {
   NavigationGuardProvider,
   useNavigationDraft,
@@ -366,7 +368,6 @@ describe("BuildingModelWorkspace", () => {
       screen.getByRole("complementary", { name: "Selected location" }),
     ).toBeVisible();
     expect(window.location.search).not.toContain("editZone");
-    expect(container.querySelector('a[href$="/demo"]')).toBeNull();
     rerender(
       <BuildingModelWorkspace
         building={building}
@@ -2414,21 +2415,15 @@ describe("interactive floor map", () => {
   });
 });
 
-it("renders dense demo scenarios without inventory links or writes", async () => {
-  const { FloorMapDemo } =
-    await import("@/components/storageLayouts/FloorMapDemo");
-  const { container } = renderWithIntl(<FloorMapDemo />, {
-    locale: "en",
-    workspace: false,
-  });
+it("renders dense preview floors without inventory links or writes", () => {
+  const { container, rerender } = renderWithIntl(
+    <FloorMap {...floorMapDemo(false, false)} previewOnly />,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
   fireEvent.click(screen.getByRole("button", { name: "3D view" }));
   expect(container.querySelectorAll("[data-placement-id]")).toHaveLength(62);
   expect(container.querySelectorAll("[data-unavailable-area]")).toHaveLength(3);
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: "All storage footprints full · 120 units",
-    }),
-  );
+  rerender(<FloorMap {...floorMapDemo(true, false)} previewOnly />);
   expect(container.querySelectorAll("[data-placement-id]")).toHaveLength(120);
   fireEvent.click(screen.getByRole("button", { name: "2D plan" }));
   fireEvent.click(screen.getByRole("button", { name: "Display options" }));

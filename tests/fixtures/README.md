@@ -16,6 +16,9 @@ Current checked-in fixtures:
   schema validators, index semantics, and pagination budget, offline and with no
   deployment, so the Convex storage adapter is tested against Convex rather than
   against an imitation of it
+- `storage-floor-demo-data.ts`: a synthetic 24 × 18 m floor with four storage
+  locations, aisles, and mixed or full pallet occupancy for the floor map,
+  selection, and preview-harness tests
 
 Planned contents, per `PROJECT_PLAN.md`:
 

@@ -23,10 +23,10 @@ import { Link } from "@/i18n/navigation";
 import { hrRefs } from "@/lib/convex/hrApi";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { HR_CODES, ROUTES } from "@/lib/navigation";
+import { downloadCsv } from "@/lib/csv";
 import { formatBusinessDate, formatDateTime } from "./format";
 import { Duration, HrGate, HrInlineError, TimeText } from "./HrShared";
 import { HrActionCard } from "./HrActionCard";
-import { downloadHolidayCsv } from "./selfService";
 import { HrStackFirst, useHrCursorStack } from "./HrPagedList";
 
 export function HrFrozenPeriodsScreen() {
@@ -192,7 +192,7 @@ function FrozenDetailView({
         row.disposition,
       ]),
     ];
-    downloadHolidayCsv(
+    downloadCsv(
       `attendance-${version.from}-${version.to}-v${version.revision}.csv`,
       "\uFEFF" +
         data

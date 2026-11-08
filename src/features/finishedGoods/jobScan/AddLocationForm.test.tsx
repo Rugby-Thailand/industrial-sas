@@ -1,3 +1,8 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
@@ -21,7 +26,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: (props: ComponentProps<"a">) => <a {...props} />,
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.create,
+  useMutation: getTestMutation,
   useConvex: () => ({ query: mocks.resolve }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     args === "skip"
@@ -55,6 +60,8 @@ vi.mock("convex/react", () => ({
           }),
 }));
 beforeEach(() => {
+  registerTestMutation(fgRefs.createJobScanLocation, mocks.create);
+
   mocks.create.mockReset();
   mocks.resolve.mockReset();
   mocks.noBuildings = false;

@@ -1,6 +1,6 @@
 # T01 handoff: promote the pinned Bun checker to the default typecheck
 
-Task: T01 of the [Bun and Elysia delivery plan](../../../plans/bun-elysia-delivery-plan-2026-10-11.md), Phase 1. State: **IMPLEMENTED_LOCAL**. Codex audit, Kiro refactor, final verification, PR and release are still pending.
+Task: T01 of the [Bun and Elysia delivery plan](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/bun-elysia-delivery-plan-2026-10-11.md), Phase 1. State: **IMPLEMENTED_LOCAL**. Codex audit, Kiro refactor, final verification, PR and release are still pending.
 
 - Implementer: Kiro CLI, `claude-opus-5.5`, launched by the coordinator with `--effort high` ([implementation-prompt.txt](implementation-prompt.txt), [models-before-implementation.json](models-before-implementation.json)). No other model was used.
 - Worktree and branch: `industrial-sas-bun-typecheck-pilot` on `codex/bun-checker-t01-20261011`.

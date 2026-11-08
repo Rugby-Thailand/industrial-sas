@@ -414,7 +414,7 @@
 }
 /*
  * Spacing fixes · 2026-10-16 (G01–G08 in
- * docs/reviews/design-sheet-spacing-2026-10-16/audit.md). Each relationship
+ * https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/reviews/design-sheet-spacing-2026-10-16/audit.md). Each relationship
  * has one spacing owner; field sizes, label/help gaps and text are unchanged.
  */
 /* G01: live regions stay in the DOM but take no space until they speak. */

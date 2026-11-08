@@ -39,7 +39,7 @@
 - W3C — _Understanding SC 1.4.1 Use of Color_ (Level A): https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html — สีต้องไม่ใช่วิธีเดียวที่สื่อข้อมูล
 - W3C WAI-ARIA APG — _Dialog (Modal) Pattern_: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/ — เมื่อเปิดต้องย้าย focus เข้าไปใน dialog กด Tab ให้วนอยู่ภายใน กด Escape แล้วปิด และเมื่อปิดต้องคืน focus ไปยังตัวที่เปิด
 
-**ข้อกำหนดเทียบกับค่าที่เลือก:** WCAG 2.5.8 กำหนดขั้นต่ำไว้ที่ 24×24 px ข้อเสนอนี้เลือกใช้ 36px สำหรับเดสก์ท็อปที่ใช้ pointer ละเอียด และ 44px สำหรับจอสัมผัส ตามที่แผน [storage-compact-workspace](../../../plans/storage-compact-workspace.md) อนุมัติไว้ ค่า 36/44 เป็นการตัดสินใจด้านการออกแบบ ไม่ใช่ข้อกำหนดของ WCAG
+**ข้อกำหนดเทียบกับค่าที่เลือก:** WCAG 2.5.8 กำหนดขั้นต่ำไว้ที่ 24×24 px ข้อเสนอนี้เลือกใช้ 36px สำหรับเดสก์ท็อปที่ใช้ pointer ละเอียด และ 44px สำหรับจอสัมผัส ตามที่แผน [storage-compact-workspace](https://github.com/Rugby-Thailand/industrial-sas/blob/docs-archive-2026-11/docs/plans/storage-compact-workspace.md) อนุมัติไว้ ค่า 36/44 เป็นการตัดสินใจด้านการออกแบบ ไม่ใช่ข้อกำหนดของ WCAG
 
 ## สิ่งที่หน้าจอปัจจุบันทำได้อยู่แล้ว (ห้ามหายไป)
 

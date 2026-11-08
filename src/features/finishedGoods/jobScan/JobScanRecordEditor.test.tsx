@@ -1,3 +1,7 @@
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
@@ -11,7 +15,7 @@ import { JobScanRecordEditor } from "./JobScanRecordEditor";
 import { useState } from "react";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import type { RefValue } from "@/lib/convex/clientRef";
-import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 
 const mocks = vi.hoisted(() => ({ save: vi.fn(), close: vi.fn() }));
 vi.mock("@/i18n/navigation", () => ({
@@ -19,7 +23,7 @@ vi.mock("@/i18n/navigation", () => ({
   Link: () => null,
 }));
 vi.mock("convex/react", () => ({
-  useMutation: () => mocks.save,
+  useMutation: getTestMutation,
   useQuery: () => querySuccess({ complete: true, items: [] }),
 }));
 const record: RefValue<typeof fgRefs.listJobScans>["items"][number] = {
@@ -47,6 +51,8 @@ const record: RefValue<typeof fgRefs.listJobScans>["items"][number] = {
   updatedAt: 1000,
 };
 beforeEach(() => {
+  registerTestMutation(fgRefs.updateJobScan, mocks.save);
+
   window.history.replaceState(
     { __NA: true },
     "",
