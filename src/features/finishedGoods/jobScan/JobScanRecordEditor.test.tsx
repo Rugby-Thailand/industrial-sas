@@ -17,14 +17,19 @@ import { trackAppHistory } from "@/lib/browser/appHistory";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), close: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  save: vi.fn(),
+  close: vi.fn(),
+  /** The editor's own subscription to its record's corrections and values. */
+  history: { complete: true, items: [] } as Record<string, unknown>,
+}));
 vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   Link: () => null,
 }));
 vi.mock("convex/react", () => ({
   useMutation: getTestMutation,
-  useQuery: () => querySuccess({ complete: true, items: [] }),
+  useQuery: () => querySuccess(mocks.history),
 }));
 const record: RefValue<typeof fgRefs.listJobScans>["items"][number] = {
   partName: undefined,
@@ -60,6 +65,7 @@ beforeEach(() => {
   );
   mocks.save.mockReset().mockResolvedValue(writeSuccess("scan-a"));
   mocks.close.mockReset();
+  mocks.history = { complete: true, items: [] };
 });
 function show() {
   return renderWithIntl(
@@ -81,11 +87,11 @@ it("saves only ticket fields with the reviewed version and preserves correction 
   });
   fireEvent.click(screen.getByRole("button", { name: "Save correction" }));
   await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
-  await waitFor(() =>
-    expect(
-      screen.getByRole("button", { name: "Save correction" }),
-    ).toBeEnabled(),
-  );
+  // The refusal proves a newer version even if this editor has not seen it.
+  await screen.findByRole("button", { name: "Load current ticket" });
+  expect(
+    screen.getByRole("button", { name: "Save correction" }),
+  ).toBeDisabled();
   expect(screen.getByRole("textbox", { name: "Job No." })).toHaveValue(
     "FO99999",
   );
@@ -100,8 +106,7 @@ it("saves only ticket fields with the reviewed version and preserves correction 
   expect(first.fields).not.toHaveProperty("locationId");
   expect(first.fields).not.toHaveProperty("source");
   fireEvent.click(screen.getByRole("button", { name: "Save correction" }));
-  await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
-  expect(mocks.save.mock.calls[1]![0]).toEqual(first);
+  expect(mocks.save).toHaveBeenCalledOnce();
 });
 it("retains a stale correction draft until the user explicitly loads the current ticket", async () => {
   const view = show();
@@ -128,6 +133,47 @@ it("retains a stale correction draft until the user explicitly loads the current
     "SERVER-SKU",
   );
   expect(mocks.save).not.toHaveBeenCalled();
+});
+it("offers the current ticket when the record changes after leaving the visible list page", async () => {
+  const view = show();
+  fireEvent.change(screen.getByRole("textbox", { name: "Job No." }), {
+    target: { value: "FO99999" },
+  });
+  // Mapped elsewhere, the row left this page, so the list still passes the
+  // open-time snapshot; the editor's own subscription sees version 4.
+  mocks.history = {
+    complete: true,
+    items: [],
+    current: { ...record, version: 4, productBarcodeText: "SERVER-SKU" },
+  };
+  view.rerender(
+    <NavigationGuardProvider>
+      <JobScanRecordEditor
+        record={record}
+        warehouseId="warehouse-a"
+        onClose={mocks.close}
+      />
+    </NavigationGuardProvider>,
+  );
+  expect(
+    screen.getByRole("button", { name: "Save correction" }),
+  ).toBeDisabled();
+  expect(screen.getByRole("textbox", { name: "Job No." })).toHaveValue(
+    "FO99999",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Load current ticket" }));
+  expect(screen.getByRole("textbox", { name: "Product barcode" })).toHaveValue(
+    "SERVER-SKU",
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "Job No." }), {
+    target: { value: "FO99999" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save correction" }));
+  await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0]).toMatchObject({
+    expectedVersion: 4,
+    fields: { factoryOrder: "FO99999", productBarcodeText: "SERVER-SKU" },
+  });
 });
 it("guards dirty ticket Cancel and keeps the correction when dismissal is canceled", async () => {
   show();
@@ -251,11 +297,7 @@ it("keeps normal new correction writes blocked on a newer revision after a known
     target: { value: "FO99999" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save correction" }));
-  await waitFor(() =>
-    expect(
-      screen.getByRole("button", { name: "Save correction" }),
-    ).toBeEnabled(),
-  );
+  await screen.findByRole("button", { name: "Load current ticket" });
   view.rerender(
     <NavigationGuardProvider>
       <JobScanRecordEditor

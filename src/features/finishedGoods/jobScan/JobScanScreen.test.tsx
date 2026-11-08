@@ -1049,3 +1049,70 @@ it.each([
     expect(mocks.save).not.toHaveBeenCalled();
   },
 );
+
+it.each([
+  ["partName", "Part name", "x".repeat(501), "x".repeat(500), 500],
+  ["customer", "Customer", "x".repeat(501), "x".repeat(500), 500],
+  ["deliveryDate", "Delivery date", "x".repeat(101), "x".repeat(100), 100],
+  ["manufacturingDate", "MFG date", "x".repeat(101), "x".repeat(100), 100],
+  ["quantity", "Quantity", 1_000_000_001, "1000000000", undefined],
+  [
+    "factoryQuantity",
+    "Qty/pallet (leaving factory)",
+    1_000_000_001,
+    "1000000000",
+    undefined,
+  ],
+  [
+    "customerQuantity",
+    "Qty/pallet (at customer)",
+    1_000_000_001,
+    "1000000000",
+    undefined,
+  ],
+] as const)(
+  "names and blocks an out-of-range AI %s until corrected",
+  async (field, label, invalid, corrected, maxLength) => {
+    mocks.resize.mockResolvedValue(
+      new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
+    );
+    mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+    mocks.extract.mockResolvedValue(
+      querySuccess({
+        ok: true,
+        fields: {
+          factoryOrder: "FO69070073",
+          productBarcodeText: "DEMO-BOX",
+          [field]: invalid,
+        },
+        raw: "{}",
+        mock: false,
+      }),
+    );
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    start();
+    submitPhoto();
+    await screen.findByText(
+      "Ticket 1: fix the highlighted field before saving.",
+    );
+    expect(screen.getByRole("button", { name: /Save 1/ })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(label);
+    fireEvent.click(screen.getByRole("button", { name: "Go to ticket #1" }));
+    expect(screen.getByRole("listitem")).toHaveFocus();
+    expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    fireEvent.click(screen.getByRole("button", { name: /More details/ }));
+    const input = screen.getByRole("textbox", { name: label });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    if (maxLength !== undefined)
+      expect(input).toHaveAttribute("maxlength", String(maxLength));
+    fireEvent.change(input, { target: { value: corrected } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: /Save 1/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save.mock.calls[0]![0].items[0][field]).toBe(
+      maxLength === undefined ? Number(corrected) : corrected,
+    );
+  },
+);

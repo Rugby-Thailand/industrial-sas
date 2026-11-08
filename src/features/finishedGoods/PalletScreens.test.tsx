@@ -1389,6 +1389,7 @@ describe("reserved destination and physical storage confirmation", () => {
       code: "wrong-qr",
       method: "MANUAL",
       palletId: "pallet-a",
+      expectedPlacementId: reservedPalletDetail.placement!._id,
     });
     await screen.findByRole("alert");
     expect(
@@ -1426,6 +1427,9 @@ describe("reserved destination and physical storage confirmation", () => {
     ).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Confirm stored" }));
     await waitFor(() => expect(callsFor("confirmStored")).toHaveLength(1));
+    expect(callsFor("confirmStored")[0]?.[1]).toMatchObject({
+      expectedPlacementId: reservedPalletDetail.placement!._id,
+    });
   });
 
   it("can keep a reservation or explicitly release it", async () => {
@@ -1442,6 +1446,9 @@ describe("reserved destination and physical storage confirmation", () => {
       ),
     );
     expect(callsFor("cancelReservation")).toHaveLength(1);
+    expect(callsFor("cancelReservation")[0]?.[1]).toMatchObject({
+      expectedPlacementId: reservedPalletDetail.placement!._id,
+    });
   });
 
   it("restores server verification after refresh and provides stored navigation", () => {

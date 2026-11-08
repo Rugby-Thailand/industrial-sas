@@ -256,10 +256,19 @@ export function PackageAssignment({
           throw new Error("WRONG_ENTITY_TYPE");
         if (batchId && unit.batchId !== batchId)
           throw new Error("WRONG_ENTITY_TYPE");
+        // Re-scanning a queued package refreshes its version (e.g. after
+        // UNIT_CHANGED) and keeps its position and fill.
         setUnits((current) =>
-          current.some((item) => item.id === unit.id) || current.length >= 50
-            ? current
-            : [...current, { ...unit, fill: String(unit.fillPercent ?? 100) }],
+          current.some((item) => item.id === unit.id)
+            ? current.map((item) =>
+                item.id === unit.id ? { ...unit, fill: item.fill } : item,
+              )
+            : current.length >= 50
+              ? current
+              : [
+                  ...current,
+                  { ...unit, fill: String(unit.fillPercent ?? 100) },
+                ],
         );
         setCode("");
       } else {
