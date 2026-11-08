@@ -38,6 +38,7 @@ import {
   draftFingerprint,
   liveRows,
   periodEmployee,
+  periodPending,
   periodRosterOf,
   published,
   scopedPeriod,
@@ -583,6 +584,7 @@ export const draftEmployeesPage = queryWithOrg({
           periodRosterOf(ctx, employee._id, period),
         ]);
         const known = holidays;
+        const pending = await periodPending(ctx, employee._id, period);
         const rows = buildPeriodRows({
           assignment: (_id, date) => rosterAssignment(roster.get(date)),
           startDate: period.startDate,
@@ -595,8 +597,7 @@ export const draftEmployeesPage = queryWithOrg({
             const day = days.get(date);
             return day ? recordedDay(day) : undefined;
           },
-          pending: (_id, date) =>
-            days.get(date)?.pendingCorrectionId !== undefined,
+          pending: (_id, date) => pending(date, days.get(date)),
         });
         return {
           employeeId: employee._id,
