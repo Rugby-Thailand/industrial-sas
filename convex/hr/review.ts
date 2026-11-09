@@ -745,6 +745,8 @@ export const decideCorrection = mutationWithOrg({
           };
         }
 
+        if (!isEmployedOn(employmentOf(employee), day.businessDate))
+          return fail("HR_OUTSIDE_EMPLOYMENT", "businessDate");
         // Punches since submission make the proposal stale: it must be resubmitted.
         if (day.revision !== correction.baseRevision)
           return fail("CORRECTION_STALE");

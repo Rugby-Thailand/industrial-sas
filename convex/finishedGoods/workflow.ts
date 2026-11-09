@@ -1901,7 +1901,10 @@ export const reserve = mutationWithOrg({
     ),
 });
 export const cancelReservation = mutationWithOrg({
-  args: writeArgs,
+  args: {
+    ...writeArgs,
+    expectedPlacementId: v.optional(v.id("finishedGoodsPlacements")),
+  },
   returns: v.any(),
   permissionCode: MANAGE,
   target: { table: "finishedGoodsPallets" },
@@ -1915,6 +1918,11 @@ export const cancelReservation = mutationWithOrg({
       async () => {
         const pallet = await palletOf(ctx, args);
         if (!pallet) return failure("NOT_FOUND");
+        if (
+          args.expectedPlacementId !== undefined &&
+          args.expectedPlacementId !== pallet.placementId
+        )
+          return failure("RESERVATION_CHANGED");
         if (pallet.status === "STORED") return failure("ALREADY_STORED");
         const placement = await currentPlacement(ctx, pallet);
         if (placement)
@@ -1978,6 +1986,7 @@ async function validReserved(
 export const verifyDestination = mutationWithOrg({
   args: {
     ...writeArgs,
+    expectedPlacementId: v.optional(v.id("finishedGoodsPlacements")),
     code: v.string(),
     method: v.union(v.literal("SCAN"), v.literal("MANUAL")),
   },
@@ -1994,6 +2003,11 @@ export const verifyDestination = mutationWithOrg({
       async () => {
         const pallet = await palletOf(ctx, args);
         if (!pallet) return failure("NOT_FOUND");
+        if (
+          args.expectedPlacementId !== undefined &&
+          args.expectedPlacementId !== pallet.placementId
+        )
+          return failure("RESERVATION_CHANGED");
         if (pallet.status !== "RESERVED")
           return failure("RESERVATION_REQUIRED");
         const placement = await currentPlacement(ctx, pallet);
@@ -2045,6 +2059,7 @@ export const verifyDestination = mutationWithOrg({
 export const confirmStored = mutationWithOrg({
   args: {
     ...writeArgs,
+    expectedPlacementId: v.optional(v.id("finishedGoodsPlacements")),
     physicalConfirmed: v.optional(v.boolean()),
     palletCode: v.optional(v.string()),
   },
@@ -2061,6 +2076,11 @@ export const confirmStored = mutationWithOrg({
       async () => {
         const pallet = await palletOf(ctx, args);
         if (!pallet) return failure("NOT_FOUND");
+        if (
+          args.expectedPlacementId !== undefined &&
+          args.expectedPlacementId !== pallet.placementId
+        )
+          return failure("RESERVATION_CHANGED");
         if (await hasActiveMove(ctx, pallet._id))
           return failure("MOVE_ALREADY_ACTIVE");
         if (pallet.status === "STORED") return { documentId: pallet._id };

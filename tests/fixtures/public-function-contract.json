@@ -6845,6 +6845,13 @@
             "type": "string"
           },
           "optional": false
+        },
+        "expectedPlacementId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "finishedGoodsPlacements"
+          },
+          "optional": true
         }
       }
     },
@@ -7087,6 +7094,13 @@
             "type": "string"
           },
           "optional": false
+        },
+        "expectedPlacementId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "finishedGoodsPlacements"
+          },
+          "optional": true
         },
         "physicalConfirmed": {
           "fieldType": {
@@ -9722,6 +9736,13 @@
             "type": "string"
           },
           "optional": false
+        },
+        "expectedPlacementId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "finishedGoodsPlacements"
+          },
+          "optional": true
         },
         "code": {
           "fieldType": {

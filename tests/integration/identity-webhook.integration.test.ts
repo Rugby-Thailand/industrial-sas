@@ -92,7 +92,7 @@ describe("normalized Clerk mirror event kernel", () => {
     });
   });
 
-  it("preserves locally administered scope and effective period on mirror updates", async () => {
+  it("preserves locally administered suspension, scope and effective period on mirror updates", async () => {
     const fixture = createIdentityMirrorPortFixture();
     fixture.seedMembership({
       clerkOrganizationId: "org_acme",
@@ -109,7 +109,7 @@ describe("normalized Clerk mirror event kernel", () => {
     await applyIdentityWebhookEvent(membershipEvent("evt_2", 20), fixture.port);
 
     expect(fixture.membership("org_acme", "mem_nok_acme")).toMatchObject({
-      status: "ACTIVE",
+      status: "SUSPENDED",
       scopeMode: "ORG_WIDE",
       effectiveFrom: 10,
       effectiveTo: 500,
