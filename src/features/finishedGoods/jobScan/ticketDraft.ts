@@ -2,6 +2,8 @@ import {
   MAX_JOB_SCAN_ITEMS,
   classifyTicketBarcode,
   JOB_TICKET_CODE_LIMITS,
+  JOB_TICKET_TEXT_LIMITS,
+  MAX_JOB_TICKET_QUANTITY,
 } from "../../../../convex/model/finishedGoods/jobScans";
 
 export {
@@ -43,6 +45,12 @@ export const NUMBER_FIELDS = new Set([
 ]);
 export type TicketField =
   (typeof REQUIRED_FIELDS)[number] | (typeof DETAIL_FIELDS)[number];
+
+export function ticketFieldMaxLength(field: TicketField) {
+  return field in JOB_TICKET_TEXT_LIMITS
+    ? JOB_TICKET_TEXT_LIMITS[field as keyof typeof JOB_TICKET_TEXT_LIMITS]
+    : undefined;
+}
 
 /** Location chosen before scanning; unmapped locations keep only their text. */
 export type PickedLocation = {
@@ -100,7 +108,9 @@ function parseTicketQuantity(value: string): number | undefined {
   if (!/^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d*)?|\.\d+)$/.test(value))
     return undefined;
   const number = Number(value.replace(/,/g, ""));
-  return Number.isFinite(number) ? number : undefined;
+  return Number.isFinite(number) && number <= MAX_JOB_TICKET_QUANTITY
+    ? number
+    : undefined;
 }
 
 export function hasInvalidQuantity(ticket: TicketDraft) {
@@ -109,6 +119,23 @@ export function hasInvalidQuantity(ticket: TicketDraft) {
     if (!value) return false;
     return parseTicketQuantity(value) === undefined;
   });
+}
+
+/** Includes AI-filled values, which bypass input maxLength. */
+export function ticketFieldError(ticket: TicketDraft) {
+  for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
+    const value = ticket.values[field] ?? "";
+    const limit = ticketFieldMaxLength(field);
+    if (limit !== undefined && value.length > limit)
+      return { code: "FIELD_TOO_LONG" as const, field };
+    if (
+      NUMBER_FIELDS.has(field) &&
+      value.trim() &&
+      parseTicketQuantity(value.trim()) === undefined
+    )
+      return { code: "FIELD_INVALID" as const, field };
+  }
+  return null;
 }
 
 /** Repeated identities can be separate pallets; require an explicit review. */

@@ -28,11 +28,14 @@ import {
   isComplete,
   toPayload,
   type TicketDraft,
+  type TicketField,
 } from "./ticketDraft";
 import { written } from "../shared";
 
 type Record = RefValue<typeof fgRefs.listJobScans>["items"][number];
-function recordDraft(record: Record): TicketDraft {
+/** The saved values and version a correction is based on. */
+type Snapshot = Pick<Record, TicketField | "storageFormat" | "version">;
+function recordDraft(record: Snapshot): TicketDraft {
   const values: TicketDraft["values"] = {};
   for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
     const value = record[field];
@@ -61,8 +64,10 @@ export function JobScanRecordEditor({
   const save = useMutation(fgRefs.updateJobScan);
   const [pendingCommand, setPendingCommand] =
     useState<Parameters<typeof save>[0]>();
-  const [baseline, setBaseline] = useState(record);
+  const [baseline, setBaseline] = useState<Snapshot>(record);
   const [ticket, setTicket] = useState(() => recordDraft(record));
+  // A STALE_REVISION refusal proves a newer version before this editor sees it.
+  const [conflict, setConflict] = useState(false);
   const dirty =
     JSON.stringify(ticket.values) !==
       JSON.stringify(recordDraft(baseline).values) ||
@@ -80,7 +85,12 @@ export function JobScanRecordEditor({
     warehouseId,
     jobScanId: record.id,
   });
-  const stale = record.version !== baseline.version;
+  // The list row stops updating once the record leaves the visible page (for
+  // example, another session maps it); this subscription still follows it.
+  const live = history?.ok ? history.value?.current : undefined;
+  const current: Snapshot =
+    live && live.version > record.version ? live : record;
+  const stale = conflict || current.version !== baseline.version;
   const close = () => {
     if (!op.busy && !closing.current)
       guard.requestTransition(() => {
@@ -113,6 +123,12 @@ export function JobScanRecordEditor({
       async () => save(command),
       (outcome) => {
         setPendingCommand(undefined);
+        if (
+          outcome.ok &&
+          !outcome.value.written &&
+          outcome.value.error.code === "STALE_REVISION"
+        )
+          setConflict(true);
         written(outcome);
         op.clearRequests();
         guard.settle();
@@ -157,8 +173,9 @@ export function JobScanRecordEditor({
                 variant="outline"
                 disabled={op.busy}
                 onClick={() => {
-                  setBaseline(record);
-                  setTicket(recordDraft(record));
+                  setBaseline(current);
+                  setTicket(recordDraft(current));
+                  setConflict(false);
                   op.setError("");
                   op.clearRequests();
                 }}

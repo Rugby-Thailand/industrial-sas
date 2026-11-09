@@ -18,8 +18,8 @@ import {
   DETAIL_FIELDS,
   NUMBER_FIELDS,
   REQUIRED_FIELDS,
-  TICKET_CODE_LIMITS,
-  hasInvalidQuantity,
+  ticketFieldMaxLength,
+  ticketFieldError,
   type TicketDraft,
   type TicketField,
   type TicketCodeField,
@@ -45,6 +45,7 @@ function TicketInput({
   const value = ticket.values[field] ?? "";
   const required = (REQUIRED_FIELDS as readonly string[]).includes(field);
   const codeField = required ? (field as TicketCodeField) : undefined;
+  const invalid = ticketFieldError(ticket)?.field === field;
   const inputProps = {
     value,
     onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -53,8 +54,8 @@ function TicketInput({
     inputMode: NUMBER_FIELDS.has(field) ? ("decimal" as const) : undefined,
     autoComplete: "off",
     spellCheck: false,
-    maxLength: codeField ? TICKET_CODE_LIMITS[codeField] : 200,
-    "aria-invalid": required && !value.trim() ? true : undefined,
+    maxLength: ticketFieldMaxLength(field),
+    "aria-invalid": invalid || (required && !value.trim()) ? true : undefined,
     className: cn(
       large && "min-h-12 font-mono text-base font-semibold",
       ticket.aiFields.includes(field) && "border-warning bg-warning-surface",
@@ -105,6 +106,8 @@ export function TicketCard({
   duplicate?: boolean;
 }) {
   const t = useTranslations("JobScan");
+  const errors = useTranslations("WriteError");
+  const issue = ticketFieldError(ticket);
   const filled = DETAIL_FIELDS.filter((field) =>
     ticket.values[field]?.trim(),
   ).length;
@@ -138,9 +141,12 @@ export function TicketCard({
       {duplicate && (
         <p className="text-sm text-warning">{t("duplicateTickets")}</p>
       )}
-      {hasInvalidQuantity(ticket) && (
+      {issue && (
         <p role="alert" className="text-sm text-danger">
-          {t("invalidQuantity")}
+          {t(issue.field)}:{" "}
+          {issue.code === "FIELD_INVALID"
+            ? t("invalidQuantity")
+            : errors(`FG_${issue.code}`)}
         </p>
       )}
       {ticket.notice && (
