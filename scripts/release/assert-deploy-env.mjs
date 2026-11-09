@@ -2,6 +2,7 @@
 // Runs inside the Vercel build command before Convex pushes backend code.
 // Usage: node scripts/release/assert-deploy-env.mjs --phase=pre|build
 import { validateBuildEnvironment } from "./lib/env-contract.mjs";
+import { verifyUploadthingBackendEnvironment } from "./lib/uploadthing-environment.mjs";
 
 const phaseArgument = process.argv.find((value) =>
   value.startsWith("--phase="),
@@ -17,6 +18,12 @@ if (!result.ok) {
   );
   for (const problem of result.problems)
     console.error(`${label}   - ${problem}`);
+  process.exit(1);
+}
+if (phase === "pre" && !verifyUploadthingBackendEnvironment(process.env)) {
+  console.error(
+    `${label} Refusing backend deployment: UPLOADTHING_TOKEN must match between Next and the reviewed Convex deployment. Verify the server configuration and retry. Values are never printed.`,
+  );
   process.exit(1);
 }
 console.log(`${label} ${result.target} build environment verified.`);

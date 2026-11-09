@@ -3145,7 +3145,16 @@
       "id": "src/features/finishedGoods/jobScan/LocationImageReader.tsx#LocationImageReader:error",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Inline operation failure feedback stays within the current editor and does not create a predecessor.",
+      "expectation": "Inline operation failure feedback stays within the current editor and does not create a predecessor. Quota refusal uses the same Notice alert and retained photo; its existing retry control creates no additional foreground or Back entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/LocationPicker.ai.test.tsx",
+          "name": "shows translated quota refusal inside the retained location photo"
+        }
+      ],
       "render": [
         {
           "shape": "and",

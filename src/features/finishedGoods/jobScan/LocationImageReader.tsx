@@ -149,13 +149,15 @@ export function LocationImageReader({
       if (!current()) return;
       if (!result.ok) {
         setError(
-          result.error.code === "AI_DENIED"
-            ? "locationAiDenied"
-            : result.error.code === "IMAGE_URL_INVALID"
-              ? "imageSize"
-              : result.error.code === "AI_UNREADABLE"
-                ? "locationAiUnreadable"
-                : "locationAiUnavailable",
+          result.error.code === "RATE_LIMITED"
+            ? "aiRateLimited"
+            : result.error.code === "AI_DENIED"
+              ? "locationAiDenied"
+              : result.error.code === "IMAGE_URL_INVALID"
+                ? "imageSize"
+                : result.error.code === "AI_UNREADABLE"
+                  ? "locationAiUnreadable"
+                  : "locationAiUnavailable",
         );
       } else if (!result.candidates.length) setError("locationAiUnreadable");
       else {

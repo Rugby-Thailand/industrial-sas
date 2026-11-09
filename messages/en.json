@@ -178,6 +178,7 @@
     "referenceCopied": "Copied"
   },
   "WriteError": {
+    "FG_ATTACHMENT_INVALID": "The photo is no longer available. Add it again before saving.",
     "FIELD_INVALID": "A value did not pass validation. Check the marked field.",
     "DUPLICATE_KEY": "Something in your organization already uses this code.",
     "NOT_FOUND": "The row being changed does not exist.",
@@ -1357,6 +1358,7 @@
     "reading": "Reading ticket…",
     "aiFilled": "AI filled — check before saving",
     "aiMock": "Sample data (no OpenRouter key)",
+    "aiRateLimited": "Too many AI photo requests. Wait up to 10 minutes, then try again. You can enter the details manually.",
     "aiFailed": "AI could not read this photo. Fill in the fields by hand.",
     "uploadFailed": "Photo not stored (upload failed). Check the fields.",
     "barcodeAdded": "{field}: {code}",
