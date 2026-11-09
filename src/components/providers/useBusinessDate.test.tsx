@@ -28,9 +28,13 @@ vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
   return {
     useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
-    useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
-      mock.names.push(getFunctionName(ref));
-      return { ok: true, value: mock.value };
+    useQuery_experimental: ({
+      query,
+    }: {
+      query: Parameters<typeof getFunctionName>[0];
+    }) => {
+      mock.names.push(getFunctionName(query));
+      return { status: "success", data: { ok: true, value: mock.value } };
     },
   };
 });

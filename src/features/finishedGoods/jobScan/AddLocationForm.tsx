@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { resolveWriteError } from "@/lib/resolveWriteError";
 import { useOperation, written } from "../shared";
 import type { PickedLocation } from "./ticketDraft";
 
@@ -28,6 +29,7 @@ export function AddLocationForm({
   draftScope?: string;
 }) {
   const t = useTranslations("JobScan");
+  const writeError = useTranslations("WriteError");
   const id = useId();
   const convex = useConvex();
   const create = useMutation(fgRefs.createJobScanLocation);
@@ -58,8 +60,18 @@ export function AddLocationForm({
     operation.setError("");
     setErrorField(undefined);
   }
+  // Location refusals use location copy, not the product (FG_) catalogue.
+  const errorText =
+    operation.error &&
+    (operation.errorCode === "REFERENCE_NOT_FOUND" &&
+    errorField === "buildingId"
+      ? t("buildingNoLongerActive")
+      : operation.errorCode === "DUPLICATE_KEY" ||
+          operation.errorCode === "REFERENCE_NOT_FOUND"
+        ? resolveWriteError(operation.errorCode, writeError, "storage")
+        : operation.error);
   const fieldError = (field: string) =>
-    errorField === field ? operation.error : undefined;
+    errorField === field ? errorText : undefined;
   const existing = useQuery(
     fgRefs.resolveJobScanLocation,
     operation.error && operation.errorCode === "DUPLICATE_KEY"
@@ -250,7 +262,7 @@ export function AddLocationForm({
       )}
       {operation.error && !errorField && (
         <p role="alert" className="text-sm text-danger">
-          {operation.error}
+          {errorText}
         </p>
       )}
       {existing?.ok && existing.value.ok && (

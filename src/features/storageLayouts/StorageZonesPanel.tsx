@@ -442,7 +442,13 @@ export function StorageZonesPanel({
       floorDepthMm,
       widthMm,
       depthMm,
-      [...reservedBlocks, ...otherZones],
+      [
+        ...reservedBlocks.map((area) => ({
+          ...area,
+          kind: "unavailable" as const,
+        })),
+        ...otherZones.map((area) => ({ ...area, kind: "spot" as const })),
+      ],
     );
     setNoRoom(position === null);
     if (position !== null) {
@@ -473,7 +479,13 @@ export function StorageZonesPanel({
       floorDepthMm,
       2_000,
       2_000,
-      [...reservedBlocks, ...zones],
+      [
+        ...reservedBlocks.map((area) => ({
+          ...area,
+          kind: "unavailable" as const,
+        })),
+        ...zones.map((area) => ({ ...area, kind: "spot" as const })),
+      ],
     );
     // No overlapping fallback (F17): leave X/Y empty and say why.
     setNoRoom(position === null);

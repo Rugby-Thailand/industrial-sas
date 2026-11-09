@@ -3,13 +3,14 @@ import createMiddleware from "next-intl/middleware";
 import { NextResponse, type NextFetchEvent, NextRequest } from "next/server";
 
 import { routing } from "./i18n/routing";
-import { resolveClerkPublishableKey } from "./lib/clerkConfiguration";
+import { isClerkConfigured } from "./lib/clerkConfiguration";
 import { RETURN_PATH_HEADER } from "./lib/auth/returnPath";
 
 const localeMiddleware = createMiddleware(routing);
-const clerkConfigured =
-  resolveClerkPublishableKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) !==
-    undefined && Boolean(process.env.CLERK_SECRET_KEY?.trim());
+const clerkConfigured = isClerkConfigured(
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  process.env.CLERK_SECRET_KEY,
+);
 
 const clerkProxy = clerkConfigured
   ? clerkMiddleware((_auth, request) => routeRequest(request))

@@ -97,16 +97,20 @@ export function adjacentZone(
   zones: readonly StorageZoneRow[],
   current: StorageZoneRow,
   key: string,
+  project: (zone: StorageZoneRow) => { x: number; y: number } = (zone) => ({
+    x: zone.xMm + zone.widthMm / 2,
+    y: zone.yMm + zone.depthMm / 2,
+  }),
 ) {
   const horizontal = key === "ArrowLeft" || key === "ArrowRight";
   const sign = key === "ArrowRight" || key === "ArrowDown" ? 1 : -1;
-  const centerX = current.xMm + current.widthMm / 2;
-  const centerY = current.yMm + current.depthMm / 2;
+  const center = project(current);
   return zones
     .filter((zone) => zone.zoneId !== current.zoneId)
     .map((zone) => {
-      const dx = zone.xMm + zone.widthMm / 2 - centerX;
-      const dy = zone.yMm + zone.depthMm / 2 - centerY;
+      const point = project(zone);
+      const dx = point.x - center.x;
+      const dy = point.y - center.y;
       const along = (horizontal ? dx : dy) * sign;
       const across = Math.abs(horizontal ? dy : dx);
       return { zone, along, score: along + across * 4 };
