@@ -41,6 +41,7 @@ import {
   fingerprintStep,
   liveRows,
   periodEmployee,
+  periodPending,
   periodRosterOf,
   scopedPeriod,
 } from "./periodData";
@@ -210,6 +211,7 @@ async function buildStep(
           employeeId: employee._id,
           businessDate: row.businessDate,
         });
+    const pending = await periodPending(ctx, employee._id, period);
     const rows = buildPeriodRows({
       assignment: (_id, date) => rosterAssignment(roster.get(date)),
       startDate: period.startDate,
@@ -222,7 +224,7 @@ async function buildStep(
         const day = days.get(date);
         return day ? recordedDay(day) : undefined;
       },
-      pending: (_id, date) => days.get(date)?.pendingCorrectionId !== undefined,
+      pending: (_id, date) => pending(date, days.get(date)),
     });
     const open =
       rows.find((row) => row.status === "EXCEPTION") ??
