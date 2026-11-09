@@ -232,10 +232,6 @@ jobs:
         with:
           fail-on-severity: high
           fail-on-scopes: runtime, development, unknown
-          # Narrow, expiring exception only (no patched release exists). Must
-          # match an unexpired entry in scripts/ci/dependency-exceptions.json;
-          # validate-workflows.mjs enforces this, so expiry breaks the PR gate.
-          allow-ghsas: GHSA-vfj7-8cjw-p6xm
           comment-summary-in-pr: never
 
   # Stable quality merge gate; CodeQL has separate required checks. Failed,

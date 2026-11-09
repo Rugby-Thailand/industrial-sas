@@ -430,9 +430,9 @@ export async function applyIdentityWebhookEvent(
       clerkUserId: event.data.clerkUserId,
       clerkMembershipId: event.data.clerkMembershipId,
       status:
-        event.type === "membership.delete" || existing?.status === "REVOKED"
+        event.type === "membership.delete"
           ? "REVOKED"
-          : "ACTIVE",
+          : (existing?.status ?? "ACTIVE"),
       scopeMode: existing?.scopeMode ?? "WAREHOUSE_SCOPED",
       effectiveFrom: existing?.effectiveFrom ?? event.eventAt,
       ...(existing?.effectiveTo === undefined

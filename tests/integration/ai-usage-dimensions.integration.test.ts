@@ -23,7 +23,7 @@ type OptionPage = {
 };
 const identity = { subject: "user_fixture_a", org_id: "org_fixture_a" };
 
-async function setup() {
+async function setup(memberCount = 250, warehouseCount = 120) {
   const world = await createConvexTenantWorld();
   await seedConvexAuthorization(world, {
     roleA: "USAGE_READER",
@@ -32,7 +32,7 @@ async function setup() {
   // 250 more members (beyond the report's 200 labels), some former, and
   // 120 more warehouses (beyond its 100), plus one foreign-tenant member.
   await world.t.run(async (ctx) => {
-    for (let n = 0; n < 250; n++) {
+    for (let n = 0; n < memberCount; n++) {
       const userId = await ctx.db.insert("users", {
         clerkUserId: `user_option_${n}`,
         displayName: n === 237 ? "ช่างสมชาย Late Operator" : `Operator ${n}`,
@@ -60,7 +60,7 @@ async function setup() {
       scopeMode: "ORG_WIDE",
       effectiveFrom: 0,
     });
-    for (let n = 0; n < 120; n++)
+    for (let n = 0; n < warehouseCount; n++)
       await ctx.db.insert("warehouses", {
         orgId: world.orgA,
         code: `W${String(n).padStart(3, "0")}`,
@@ -169,6 +169,57 @@ describe("AI usage filter options beyond the report label caps", () => {
     expect(
       await call(world, dimensions.warehouseOptions, { pageSize: 25 }),
     ).toBeNull();
+  });
+
+  it("keeps actor pages unique and complete when historical rows span page and scan boundaries", async () => {
+    const world = await setup(40, 0);
+    const expected = await world.t.run(async (ctx) => {
+      const members = await ctx.db
+        .query("memberships")
+        .withIndex("by_orgId_userId", (q) => q.eq("orgId", world.orgA))
+        .collect();
+      for (const index of [19, 29]) {
+        const member = members[index]!;
+        for (let n = 0; n < 120; n++)
+          await ctx.db.insert("memberships", {
+            orgId: world.orgA,
+            userId: member.userId,
+            clerkMembershipId: `orgmem_history_${index}_${n}`,
+            status: "REVOKED",
+            scopeMode: "WAREHOUSE_SCOPED",
+            effectiveFrom: 0,
+          });
+      }
+      return members.map((member) => member.userId);
+    });
+
+    for (const pageSize of [20, 50, 100]) {
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 100; page++) {
+        let scanCursor: string | undefined;
+        let body: OptionPage;
+        do {
+          body = await call<OptionPage>(world, dimensions.actorOptions, {
+            pageSize,
+            cursor,
+            ...(scanCursor ? { scanCursor } : {}),
+          });
+          scanCursor = body.status === "scanning" ? body.scanCursor : undefined;
+        } while (scanCursor);
+        expect(body.status).toBe("ready");
+        seen.push(...body.items.map((item) => item.id));
+        expect(body.isDone).toBe(seen.length === expected.length);
+        if (body.isDone) {
+          expect(body.continueCursor).toBe("");
+          break;
+        }
+        expect(body.items).toHaveLength(pageSize);
+        expect(body.continueCursor).not.toBe("");
+        cursor = body.continueCursor;
+      }
+      expect(seen).toEqual(expected);
+    }
   });
 
   it("labels only one displayed page of IDs, omitting foreign ones", async () => {
