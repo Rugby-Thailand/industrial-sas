@@ -337,13 +337,49 @@
       "file": "src/app/[locale]/(auth)/sign-in/[...sign-in]/page.tsx",
       "policy": "auth",
       "targets": ["src/app/[locale]/(auth)/sign-in/SignInScreen#default"],
-      "expectation": "Authentication owns its entry flow; no synthetic Back loop. Post-sign-in return intent must pass plannerReturnPath."
+      "expectation": "Authentication owns its entry flow; no synthetic Back loop. A live Clerk form requires both a valid publishable key and non-blank server secret, otherwise SetupChecklist owns the configuration state. Post-sign-in return intent must pass plannerReturnPath, preserving the exact desktop destination, including HR and AI usage, locale, query and hash.",
+      "tests": [
+        "src/lib/auth/returnPath.signIn.test.tsx",
+        "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/lib/auth/returnPath.signIn.test.tsx",
+          "name": "retains the requested protected destination through sign-in: %s"
+        },
+        {
+          "file": "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
+          "name": "does not offer sign-in into a permanently rejected setup route with secret %j"
+        },
+        {
+          "file": "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
+          "name": "allows a signed-in organization member when the server key is present"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/(auth)/sign-in/page.tsx",
       "policy": "auth",
       "targets": ["src/app/[locale]/(auth)/sign-in/SignInScreen#default"],
-      "expectation": "Authentication owns its entry flow; no synthetic Back loop. Post-sign-in return intent must pass plannerReturnPath."
+      "expectation": "Authentication owns its entry flow; no synthetic Back loop. A live Clerk form requires both a valid publishable key and non-blank server secret, otherwise SetupChecklist owns the configuration state. Post-sign-in return intent must pass plannerReturnPath, preserving the exact desktop destination, including HR and AI usage, locale, query and hash.",
+      "tests": [
+        "src/lib/auth/returnPath.signIn.test.tsx",
+        "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/lib/auth/returnPath.signIn.test.tsx",
+          "name": "retains the requested protected destination through sign-in: %s"
+        },
+        {
+          "file": "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
+          "name": "does not offer sign-in into a permanently rejected setup route with secret %j"
+        },
+        {
+          "file": "src/app/[locale]/(auth)/sign-in/SignInScreen.configuration.test.tsx",
+          "name": "allows a signed-in organization member when the server key is present"
+        }
+      ]
     },
     {
       "file": "src/app/[locale]/(desktop)/finished-goods/batches/[batchId]/page.tsx",
