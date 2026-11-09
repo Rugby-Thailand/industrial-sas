@@ -24,6 +24,10 @@ const NOW = Date.parse("2026-10-10T00:00:00Z");
 const read = (path: string) => readFileSync(path, "utf8");
 // Root-owned exact-chain exceptions; dependency review may allow only these.
 const exceptions = JSON.parse(read("scripts/ci/dependency-exceptions.json"));
+const exceptionExample = {
+  ghsa: "GHSA-aaaa-bbbb-cccc",
+  expiresAt: "2026-11-09T00:00:00Z",
+};
 const owned = {
   "quality.yml": read(".github/workflows/quality.yml"),
   "codeql.yml": read(".github/workflows/codeql.yml"),
@@ -668,20 +672,21 @@ describe("workflow policy rejects regressions", () => {
   });
 
   it("ties dependency-review allow-ghsas to active, unexpired exceptions", () => {
-    expect(
-      problemsWith("quality.yml", [
-        [
-          "allow-ghsas: GHSA-vfj7-8cjw-p6xm",
-          "allow-ghsas: GHSA-vfj7-8cjw-p6xm, GHSA-2g4f-4pwh-qvx6",
-        ],
-      ]),
-    ).toContain(
-      "quality.yml:dependency-review: GHSA-2g4f-4pwh-qvx6 lacks an active entry in scripts/ci/dependency-exceptions.json",
-    );
-    expect(
-      problemsWith("quality.yml", [], Date.parse("2026-11-10T00:00:00Z")),
-    ).toContain(
-      "quality.yml:dependency-review: GHSA-vfj7-8cjw-p6xm lacks an active entry in scripts/ci/dependency-exceptions.json",
+    const workflows = {
+      ...owned,
+      "quality.yml": owned["quality.yml"].replace(
+        "          comment-summary-in-pr: never",
+        `          allow-ghsas: ${exceptionExample.ghsa}\n          comment-summary-in-pr: never`,
+      ),
+    };
+    const check = (document: unknown, now = NOW) =>
+      workflowPolicyProblems({ workflows, actions, exceptions: document, now });
+    const fixture = { exceptions: [exceptionExample] };
+    const refusal = `quality.yml:dependency-review: ${exceptionExample.ghsa} lacks an active entry in scripts/ci/dependency-exceptions.json`;
+    expect(check(fixture)).toEqual([]);
+    expect(check({ exceptions: [] })).toContain(refusal);
+    expect(check(fixture, Date.parse(exceptionExample.expiresAt))).toContain(
+      refusal,
     );
   });
 
@@ -1194,11 +1199,11 @@ describe("concurrency queue normalization", () => {
 
 describe("dependency-review exception list", () => {
   it("allows only unexpired root-owned exact-chain exceptions", () => {
-    expect(activeExceptionGhsas(exceptions, NOW)).toEqual([
-      "GHSA-vfj7-8cjw-p6xm",
-    ]);
-    const expiry = Date.parse(exceptions.exceptions[0].expiresAt);
-    expect(activeExceptionGhsas(exceptions, expiry)).toEqual([]);
+    const fixture = { exceptions: [exceptionExample] };
+    expect(activeExceptionGhsas(fixture, NOW)).toEqual([exceptionExample.ghsa]);
+    const expiry = Date.parse(exceptionExample.expiresAt);
+    expect(activeExceptionGhsas(fixture, expiry)).toEqual([]);
+    expect(activeExceptionGhsas({ exceptions: [] }, NOW)).toEqual([]);
     expect(activeExceptionGhsas({ exceptions: [{ ghsa: "x" }] }, NOW)).toEqual(
       [],
     );
