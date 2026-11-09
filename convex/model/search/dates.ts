@@ -278,7 +278,7 @@ export function scanDates(text: string, today: IsoDate | null): DateScan {
       inferredYear: false,
     });
   });
-  each(/(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)/g, (m) =>
+  each(/(?<![a-z\d_.]|[a-z][-_.])(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)/g, (m) =>
     single(
       m,
       Number(m[3]),
@@ -350,18 +350,30 @@ export function scanDates(text: string, today: IsoDate | null): DateScan {
       const from = previous.mention;
       const to = entry.mention;
       const text = source.slice(previous.start, entry.end);
+      // A written end year anchors an omitted start year, including across New Year.
+      const anchored = from.inferredYear && !to.inferredYear;
+      const fromDate = anchored
+        ? iso(
+            Number(to.date.slice(0, 4)) -
+              (from.date.slice(5, 7) > to.date.slice(5, 7) ? 1 : 0),
+            Number(from.date.slice(5, 7)),
+            Number(from.date.slice(8, 10)),
+          )
+        : from.date;
       joined[joined.length - 1] = {
         start: previous.start,
         end: entry.end,
         mention:
-          compareDates(from.date, to.date) > 0
+          !isIsoDate(fromDate) || compareDates(fromDate, to.date) > 0
             ? { kind: "INVALID", text }
             : {
                 kind: "RANGE",
-                from: from.date,
+                from: fromDate,
                 to: to.date,
                 text,
-                inferredYear: from.inferredYear || to.inferredYear,
+                // Anchored to a written year, as the day-first form reports it.
+                inferredYear:
+                  !anchored && (from.inferredYear || to.inferredYear),
               },
       };
     } else joined.push(entry);

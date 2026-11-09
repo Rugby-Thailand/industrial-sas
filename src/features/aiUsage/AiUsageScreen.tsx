@@ -142,8 +142,7 @@ function UsageReport({
     ...(requestedModel ? { requestedModel } : {}),
     ...(environment ? { environment } : {}),
   };
-  const args = {
-    refreshKey,
+  const criteriaArgs = {
     ...filter,
     ...(period === "custom" && dates
       ? dates
@@ -151,7 +150,18 @@ function UsageReport({
           period: period === "today" ? ("today" as const) : ("month" as const),
         }),
   };
-  const outcome = useQuery(summaryRef, args);
+  const criteria = JSON.stringify(criteriaArgs);
+  const answer = useQuery(summaryRef, { refreshKey, ...criteriaArgs });
+  // Keep the mounted report through clock-only subscription reloads. A change
+  // to the requested period or filters must still discard the previous answer.
+  const [retained, setRetained] = useState({ criteria, answer });
+  if (
+    retained.criteria !== criteria ||
+    (answer !== undefined && retained.answer !== answer)
+  )
+    setRetained({ criteria, answer });
+  const outcome =
+    answer ?? (retained.criteria === criteria ? retained.answer : undefined);
   const data =
     outcome?.ok && !("error" in outcome.value) ? outcome.value : null;
   // Filter choices outlive a reload, so a selected user or warehouse keeps
@@ -274,7 +284,7 @@ function UsageReport({
           </div>
           <UsageBreakdown
             report={data}
-            criteria={JSON.stringify({ ...args, refreshKey: undefined })}
+            criteria={criteria}
             featureLabel={label}
             format={format}
             csvExport={{
@@ -285,7 +295,7 @@ function UsageReport({
             }}
           />
           <RecentActivity
-            args={args}
+            args={{ ...filter, from: data.range.from, to: data.range.to }}
             signature={JSON.stringify(data.byFeature)}
             timezone={data.range.timezone}
             featureLabel={label}
