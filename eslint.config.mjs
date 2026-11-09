@@ -16,6 +16,14 @@ export default tseslint.config(
       // Official downloaded skill payload; keep vendor sources untouched.
       ".agents/skills/impeccable/**",
       ".cache/**",
+      // Local scratch and nested checkouts are not maintained project inputs.
+      ".claude/worktrees/**",
+      ".claude-worktrees/**",
+      "tmp/**",
+      "temp/**",
+      // Archived, one-off review probes; maintained capture tools still lint.
+      "docs/reviews/**/probes/**",
+      "docs/reviews/**/*.probe.{js,mjs,cjs,ts,tsx}",
       ".next-build/**",
       ".next/**",
       "scripts/navigation-guard-preview/.next/**",

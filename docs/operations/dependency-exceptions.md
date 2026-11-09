@@ -37,6 +37,12 @@ by `scripts/ci/audit-dependencies.mjs --scope=app|release`. The scheduled
 remains mandatory with no exceptions. The helper checks the exact advisory,
 package, version, severity, dependency paths and expiry. An advisory outside an explicitly listed
 chain fails; this document does not broaden the machine policy.
+With pinned pnpm 10, the npm quick-audit response counts **findings**, not
+advisory keys, in each severity total. One advisory can contain several
+installed-location findings, including repeated versions on different chains.
+The gate reconciles high and critical separately against those finding counts;
+it still checks every finding's version and paths before allowing an exception.
+See the [current baseline and registry reproduction](../reviews/architecture-current-2026-11-09/tooling-baseline.md).
 The PR dependency review is a separate check. Successful enforcement on merged
 `main` still requires observing the workflow. See
 [implementation status](ci-cd-implementation-status.md) (S10, S12).
