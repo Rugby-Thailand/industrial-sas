@@ -24,6 +24,13 @@ Reproduce the current evidence:
 - `node scripts/ci/audit-dependencies.mjs --scope=app`
 - `node scripts/ci/audit-dependencies.mjs --scope=release`
 
+The maintained HR manual generator has a separate Python dependency scope,
+which pnpm does not audit. Its Pillow pin is 13.0.0 (Python 3.11+). Check it with
+`uvx --from pip-audit==2.10.1 pip-audit -r docs/manuals/hr-user-guide-th/requirements.txt`.
+On 2026-11-09 this reports no known vulnerabilities after replacing the
+vulnerable 12.3.0 pin. The [current baseline](../reviews/architecture-current-2026-11-09/tooling-baseline.md)
+records the audit and generator compatibility evidence.
+
 ### Bundled CLI code
 
 When assessing a future CLI advisory, inspect the published bundle as well as
