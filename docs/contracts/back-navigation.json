@@ -7390,10 +7390,17 @@
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#BuildingStatusToggle:confirming",
       "policy": "overlay",
-      "expectation": "The actual shared lifecycle confirmation protects the in-flight write, retains the current intent when leaving is canceled, and consumes successful completion before the next native Back restores the real origin locale/query/hash.",
+      "expectation": "The shared lifecycle confirmation captures the reviewed command and version, refuses stale reviews without reversing direction, protects the in-flight write, and consumes cancellation or completion before the next Back restores the real origin locale/query/hash.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+        "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx"
+      ],
       "cases": [
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx",
+          "name": "%s dismisses a stale status review before the next Back restores the actual origin"
+        },
         {
           "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
           "name": "confirms a whole-building return to Draft with the affected count"
@@ -7407,10 +7414,17 @@
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#StatusConfirmation:$overlay:ConfirmDialog:confirming",
       "policy": "overlay",
-      "expectation": "The actual shared lifecycle confirmation protects the in-flight write, retains the current intent when leaving is canceled, and consumes successful completion before the next native Back restores the real origin locale/query/hash.",
+      "expectation": "The shared lifecycle confirmation captures the reviewed command and version, refuses stale reviews without reversing direction, protects the in-flight write, and consumes cancellation or completion before the next Back restores the real origin locale/query/hash.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+        "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx"
+      ],
       "cases": [
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx",
+          "name": "%s dismisses a stale status review before the next Back restores the actual origin"
+        },
         {
           "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
           "name": "confirms a whole-building return to Draft with the affected count"

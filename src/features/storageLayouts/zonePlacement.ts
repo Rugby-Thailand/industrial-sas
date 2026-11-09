@@ -25,7 +25,9 @@ export function findFreePlacement(
   floorDepthMm: number,
   widthMm: number,
   depthMm: number,
-  areas: readonly PlacementRectangle[],
+  areas: readonly (PlacementRectangle & {
+    readonly kind?: NamedArea["kind"];
+  })[],
 ): { readonly xMm: number; readonly yMm: number } | null {
   if (widthMm <= 0 || depthMm <= 0) return null;
   const xs = [
@@ -39,7 +41,16 @@ export function findFreePlacement(
     for (const xMm of xs) {
       if (xMm + widthMm > floorWidthMm) continue;
       const candidate = { xMm, yMm, widthMm, depthMm };
-      if (!areas.some((area) => rectanglesOverlap(candidate, area)))
+      if (
+        !areas.some(
+          (area) =>
+            rectanglesOverlap(candidate, area) &&
+            !(
+              area.kind === "unavailable" &&
+              storageRectangleContains(candidate, area)
+            ),
+        )
+      )
         return { xMm, yMm };
     }
   }

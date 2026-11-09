@@ -77,14 +77,22 @@ export function BuildingStatusToggle({
   // The switch changes the whole building, so it always confirms with the
   // building name and how many addresses change (F14). Activation also shows
   // the server preflight before the command is offered (F15).
-  const [confirming, setConfirming] = useState(false);
+  // Keep the command and optimistic version that the manager actually reviewed.
+  const [confirming, setConfirming] = useState<{
+    readonly warehouseId: string;
+    readonly buildingId: string;
+    readonly status: StorageLayoutStatus;
+    readonly version: number;
+  } | null>(null);
   const impact = useQuery(
     storageLayoutRefs.lifecycleImpact,
     confirming ? { warehouseId, buildingId } : "skip",
   );
   const readiness = useQuery(
     storageLayoutRefs.readiness,
-    confirming && status !== "ACTIVE" ? { warehouseId, buildingId } : "skip",
+    confirming && confirming.status !== "ACTIVE"
+      ? { warehouseId, buildingId }
+      : "skip",
   );
   const activate = useMutation(storageLayoutRefs.activate);
   const returnToDraft = useMutation(storageLayoutRefs.returnToDraft);
@@ -112,8 +120,18 @@ export function BuildingStatusToggle({
     current === "ARCHIVED" ? "archived" : active ? "active" : "draft",
   );
 
+  const reviewedActive = confirming ? confirming.status === "ACTIVE" : active;
+  const reviewCurrent =
+    confirming !== null &&
+    confirming.warehouseId === warehouseId &&
+    confirming.buildingId === buildingId &&
+    confirming.status === current &&
+    confirming.version === control?.version;
+
   async function change() {
     if (
+      !confirming ||
+      !reviewCurrent ||
       !control ||
       control.blocked ||
       operation.busy ||
@@ -123,13 +141,12 @@ export function BuildingStatusToggle({
     )
       return;
     setError(undefined);
-    const version = control.version;
-    const status = current;
-    const requestKey = `${active ? "draft" : "activate"}:${version}`;
+    const { version, status } = confirming;
+    const requestKey = `${reviewedActive ? "draft" : "activate"}:${version}`;
     await operation.run(
       async () => {
         try {
-          const outcome = await (active ? returnToDraft : activate)({
+          const outcome = await (reviewedActive ? returnToDraft : activate)({
             warehouseId,
             buildingId,
             expectedVersion: version,
@@ -142,7 +159,7 @@ export function BuildingStatusToggle({
       },
       (result) => {
         // The outcome is reported beside the switch, which stays the owner.
-        operation.complete(() => setConfirming(false));
+        operation.complete(() => setConfirming(null));
         if (result.kind === "network") {
           setError({
             buildingId,
@@ -227,7 +244,15 @@ export function BuildingStatusToggle({
     >
       <AnimatedToggle
         checked={active}
-        onChange={() => setConfirming(true)}
+        onChange={() => {
+          if (control)
+            setConfirming({
+              warehouseId,
+              buildingId,
+              status: current,
+              version: control.version,
+            });
+        }}
         disabled={operation.busy || !control || control.blocked}
         label={t("statusToggleLabel", { code })}
         size="md"
@@ -259,23 +284,37 @@ export function BuildingStatusToggle({
         ) : null}
       </span>
       <StatusConfirmation
-        open={confirming}
-        onOpenChange={setConfirming}
-        active={active}
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          setConfirming(
+            open && control
+              ? {
+                  warehouseId,
+                  buildingId,
+                  status: current,
+                  version: control.version,
+                }
+              : null,
+          );
+        }}
+        active={reviewedActive}
         code={code}
         buildingId={buildingId}
         pending={operation.busy}
         onConfirm={() => void change()}
+        stale={confirming !== null && !reviewCurrent}
         impact={impact?.ok ? impact.value : undefined}
-        impactLoading={confirming && impact === undefined}
+        impactLoading={confirming !== null && impact === undefined}
         ready={
-          active
-            ? true
-            : readiness?.ok
-              ? readiness.value.found === true &&
-                readiness.value.ready === true &&
-                readiness.value.version === control?.version
-              : undefined
+          !reviewCurrent
+            ? false
+            : reviewedActive
+              ? true
+              : readiness?.ok
+                ? readiness.value.found === true &&
+                  readiness.value.ready === true &&
+                  readiness.value.version === control?.version
+                : undefined
         }
       />
     </div>
@@ -293,6 +332,7 @@ function StatusConfirmation({
   impact,
   impactLoading,
   ready,
+  stale,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -304,6 +344,8 @@ function StatusConfirmation({
   readonly impact: BuildingLifecycleImpact | undefined;
   readonly impactLoading: boolean;
   readonly ready: boolean | undefined;
+  /** The building changed in another session after this review opened. */
+  readonly stale: boolean;
 }) {
   const t = useTranslations("StorageLayouts");
   return (
@@ -362,7 +404,9 @@ function StatusConfirmation({
           title={storageWriteMessage(t, "LAYOUT_CAPACITY_LIMIT")}
         />
       ) : null}
-      {!active && ready === undefined ? (
+      {stale ? (
+        <Notice tone="warning" title={t("layoutChangedRetry")} />
+      ) : !active && ready === undefined ? (
         <p role="status" className="text-sm text-muted">
           {t("layoutActions.readinessChecking")}
         </p>
