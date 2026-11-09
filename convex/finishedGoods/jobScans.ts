@@ -17,6 +17,7 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { ATTACHMENT_GRACE_MS } from "./attachments";
 import { command, created, failure, rows, stamp } from "./workflow";
 import {
   MAX_JOB_SCAN_ITEMS,
@@ -47,6 +48,11 @@ const batchFormat = v.union(
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const TABLE = "finishedGoodsJobScans";
+export const JOB_TICKET_RATE_LIMIT = Object.freeze({
+  key: "finishedGoods.jobTicket.ai",
+  limit: 20,
+  windowMs: 10 * 60_000,
+});
 const DEFAULT_MODEL = "openai/gpt-6-luna";
 const MAX_ITEMS = MAX_JOB_SCAN_ITEMS;
 const LIST_LIMIT = 300;
@@ -81,6 +87,7 @@ const ticketItem = v.object({
   storageFormat: v.optional(batchFormat),
   source: v.union(v.literal("AI"), v.literal("BARCODE"), v.literal("MANUAL")),
   imageUrl: optionalText,
+  imageAssetId: v.optional(v.id("jobTicketAssets")),
   aiRaw: optionalText,
   aiUsageOperationId: optionalText,
 });
@@ -175,6 +182,7 @@ export const searchLocations = queryWithOrg({
 
 /** Reads a job ticket photo with OpenRouter. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
+  rateLimit: JOB_TICKET_RATE_LIMIT,
   args: { warehouseId: v.id("warehouses"), imageUrl: v.string() },
   returns: v.any(),
   permissionCode: MANAGE,
@@ -189,6 +197,12 @@ export const extractJobTicket = actionWithOrg({
       args.imageUrl.length > 4_000_000
     )
       return { ok: false as const, error: { code: "IMAGE_URL_INVALID" } };
+    if (ctx.quota === undefined || !ctx.quota.allowed)
+      return {
+        ok: false as const,
+        error: { code: "RATE_LIMITED" },
+        retryAfterMs: ctx.quota?.retryAfterMs ?? JOB_TICKET_RATE_LIMIT.windowMs,
+      };
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
     if (!apiKey) {
       if (
@@ -324,6 +338,29 @@ export const saveJobScans = mutationWithOrg({
         const detailError = jobTicketDetailError(item);
         if (detailError) return failure(detailError.code, detailError.field);
       }
+      // Validate the whole group before any insert or attachment transition.
+      const assets = new Map<string, Doc<"jobTicketAssets">>();
+      for (const item of args.items) {
+        if (item.imageUrl && !item.imageAssetId)
+          return failure("ATTACHMENT_INVALID");
+        if (!item.imageAssetId) continue;
+        const asset = await ctx.tenantDb.get<Doc<"jobTicketAssets">>(
+          "jobTicketAssets",
+          item.imageAssetId,
+        );
+        if (
+          !asset ||
+          asset.warehouseId !== args.warehouseId ||
+          asset.createdByUserId !== ctx.tenant.actor._id ||
+          asset.state !== "READY" ||
+          asset.expiresAt <= Date.now() ||
+          !asset.url ||
+          assets.has(asset._id) ||
+          (item.imageUrl && item.imageUrl !== asset.url)
+        )
+          return failure("ATTACHMENT_INVALID");
+        assets.set(asset._id, asset);
+      }
       const linked = new Set<string>();
       for (const item of args.items) {
         if (!item.aiUsageOperationId) continue;
@@ -360,6 +397,9 @@ export const saveJobScans = mutationWithOrg({
       for (const item of args.items) {
         const id = await ctx.tenantDb.insert(TABLE, {
           ...item,
+          imageUrl: item.imageAssetId
+            ? assets.get(item.imageAssetId)!.url
+            : undefined,
           factoryOrder: item.factoryOrder.trim(),
           productBarcodeText: item.productBarcodeText.trim(),
           warehouseId: args.warehouseId,
@@ -368,6 +408,11 @@ export const saveJobScans = mutationWithOrg({
           ...(mapped ?? {}),
           ...created(ctx),
         });
+        if (item.imageAssetId)
+          await ctx.tenantDb.patch("jobTicketAssets", item.imageAssetId, {
+            state: "ATTACHED",
+            jobScanId: id,
+          });
         if (item.aiUsageOperationId) {
           const op = await ctx.tenantDb
             .byIndex<Doc<"aiUsageOperations">>(
@@ -601,7 +646,25 @@ export const deleteJobScans = mutationWithOrg({
       );
       if (invalidSelection) return invalidSelection;
       const ids = [...new Set(args.ids)];
-      for (const id of ids) await ctx.tenantDb.delete(TABLE, id);
+      for (const id of ids) {
+        const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+          TABLE,
+          id,
+        );
+        if (scan?.imageAssetId) {
+          const asset = await ctx.tenantDb.get<Doc<"jobTicketAssets">>(
+            "jobTicketAssets",
+            scan.imageAssetId,
+          );
+          if (asset?.jobScanId === id)
+            await ctx.tenantDb.patch("jobTicketAssets", asset._id, {
+              state: "READY",
+              jobScanId: undefined,
+              expiresAt: Date.now() + ATTACHMENT_GRACE_MS,
+            });
+        }
+        await ctx.tenantDb.delete(TABLE, id);
+      }
       return { documentId: ids[0]! };
     }),
 });

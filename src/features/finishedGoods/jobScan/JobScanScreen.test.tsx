@@ -684,17 +684,24 @@ function submitPhoto() {
   fireEvent.click(screen.getByRole("button", { name: "Submit demo photo" }));
 }
 
-it("uploads one resized image, extracts independently, and saves its provider URL", async () => {
+it("uploads one resized image, extracts independently, and saves its owned asset ID", async () => {
   const resized = new File(["resized"], "resized.jpg", { type: "image/jpeg" });
   mocks.resize.mockResolvedValue(resized);
-  mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+  mocks.upload.mockResolvedValue([
+    {
+      ufsUrl: storedPhotoUrl,
+      serverData: { url: storedPhotoUrl, assetId: "asset-owned" },
+    },
+  ]);
   mocks.extract.mockResolvedValue(successfulExtraction());
   const { container } = start();
   submitPhoto();
   await waitFor(() =>
     expect(screen.getByRole("button", { name: /Save 1/ })).toBeEnabled(),
   );
-  expect(mocks.upload).toHaveBeenCalledExactlyOnceWith([resized]);
+  expect(mocks.upload).toHaveBeenCalledExactlyOnceWith([resized], {
+    warehouseId: "warehouse-a",
+  });
   expect(mocks.toDataUrl).toHaveBeenCalledExactlyOnceWith(resized);
   expect(mocks.extract).toHaveBeenCalledExactlyOnceWith({
     warehouseId: "warehouse-a",
@@ -706,7 +713,7 @@ it("uploads one resized image, extracts independently, and saves its provider UR
   expect(mocks.save.mock.calls[0]![0].items).toEqual([
     expect.objectContaining({
       source: "AI",
-      imageUrl: storedPhotoUrl,
+      imageAssetId: "asset-owned",
       factoryOrder: "FO69070073",
       productBarcodeText: "DEMO-BOX",
     }),
@@ -727,14 +734,21 @@ it("starts AI before WebP compression finishes and uploads WebP without waiting 
   mocks.extract.mockImplementation(
     () => new Promise((resolve) => (extracted = resolve)),
   );
-  mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+  mocks.upload.mockResolvedValue([
+    {
+      ufsUrl: storedPhotoUrl,
+      serverData: { url: storedPhotoUrl, assetId: "asset-owned" },
+    },
+  ]);
   start();
   submitPhoto();
   await waitFor(() => expect(mocks.extract).toHaveBeenCalledOnce());
   expect(mocks.toDataUrl).toHaveBeenCalledExactlyOnceWith(jpeg);
   expect(mocks.upload).not.toHaveBeenCalled();
   await act(async () => compressed(webp));
-  expect(mocks.upload).toHaveBeenCalledExactlyOnceWith([webp]);
+  expect(mocks.upload).toHaveBeenCalledExactlyOnceWith([webp], {
+    warehouseId: "warehouse-a",
+  });
   expect(screen.getByRole("button", { name: /Save 1/ })).toBeDisabled();
   await act(async () => extracted(successfulExtraction()));
   await waitFor(() =>
@@ -793,7 +807,12 @@ it.each(["oversized", "unreadable"])(
     if (problem === "oversized")
       mocks.toDataUrl.mockResolvedValue("x".repeat(4_000_001));
     else mocks.toDataUrl.mockRejectedValue(new Error("Reader failed"));
-    mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+    mocks.upload.mockResolvedValue([
+      {
+        ufsUrl: storedPhotoUrl,
+        serverData: { url: storedPhotoUrl, assetId: "asset-owned" },
+      },
+    ]);
     start();
     submitPhoto();
     await screen.findByText(
@@ -862,7 +881,12 @@ it("retains a successful upload when extraction fails and allows manual completi
   mocks.resize.mockResolvedValue(
     new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
   );
-  mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+  mocks.upload.mockResolvedValue([
+    {
+      ufsUrl: storedPhotoUrl,
+      serverData: { url: storedPhotoUrl, assetId: "asset-owned" },
+    },
+  ]);
   mocks.extract.mockRejectedValue(new Error("AI unavailable"));
   const { container } = start();
   submitPhoto();
@@ -879,7 +903,7 @@ it("retains a successful upload when extraction fails and allows manual completi
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
   await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
   expect(mocks.save.mock.calls[0]![0].items[0]).toMatchObject({
-    imageUrl: storedPhotoUrl,
+    imageAssetId: "asset-owned",
     factoryOrder: "FO69070073",
   });
 });
@@ -890,7 +914,9 @@ it.each(["remove", "unmount"])(
     mocks.resize.mockResolvedValue(
       new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
     );
-    let resolveUpload!: (files: { ufsUrl: string }[]) => void;
+    let resolveUpload!: (
+      files: { ufsUrl: string; serverData: { url: string; assetId: string } }[],
+    ) => void;
     mocks.upload.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -904,7 +930,14 @@ it.each(["remove", "unmount"])(
     if (action === "remove")
       fireEvent.click(screen.getByRole("button", { name: "Remove #1" }));
     else unmount();
-    await act(async () => resolveUpload([{ ufsUrl: storedPhotoUrl }]));
+    await act(async () =>
+      resolveUpload([
+        {
+          ufsUrl: storedPhotoUrl,
+          serverData: { url: storedPhotoUrl, assetId: "asset-owned" },
+        },
+      ]),
+    );
     expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
     expect(
       screen.queryByRole("textbox", { name: /Job No\./ }),
@@ -1076,7 +1109,12 @@ it.each([
     mocks.resize.mockResolvedValue(
       new File(["photo"], "photo.jpg", { type: "image/jpeg" }),
     );
-    mocks.upload.mockResolvedValue([{ ufsUrl: storedPhotoUrl }]);
+    mocks.upload.mockResolvedValue([
+      {
+        ufsUrl: storedPhotoUrl,
+        serverData: { url: storedPhotoUrl, assetId: "asset-owned" },
+      },
+    ]);
     mocks.extract.mockResolvedValue(
       querySuccess({
         ok: true,
@@ -1116,3 +1154,37 @@ it.each([
     );
   },
 );
+
+it("shows translated quota refusal while retaining the independently uploaded photo for manual save", async () => {
+  mocks.resize.mockResolvedValue(
+    new File(["photo"], "photo.webp", { type: "image/webp" }),
+  );
+  mocks.upload.mockResolvedValue([
+    { serverData: { url: storedPhotoUrl, assetId: "asset-owned" } },
+  ]);
+  mocks.extract.mockResolvedValue(
+    querySuccess({
+      ok: false,
+      error: { code: "RATE_LIMITED" },
+      retryAfterMs: 1000,
+    }),
+  );
+  const { container } = start();
+  submitPhoto();
+  await screen.findByText(
+    "Too many AI photo requests. Wait up to 10 minutes, then try again. You can enter the details manually.",
+  );
+  expect(container.querySelector("img")).toHaveAttribute("src", storedPhotoUrl);
+  fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
+    target: { value: "FO69070073" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: /Product barcode/ }), {
+    target: { value: "DEMO-BOX" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(mocks.save.mock.calls[0]![0].items[0]).toMatchObject({
+    imageAssetId: "asset-owned",
+  });
+  expect(mocks.save.mock.calls[0]![0].items[0]).not.toHaveProperty("imageUrl");
+});

@@ -77,12 +77,14 @@ export type TicketDraft = {
   aiFields: TicketField[];
   previewUrl?: string;
   imageUrl?: string;
+  imageAssetId?: string;
   aiUsageOperationId?: string;
   aiRaw?: string;
   notice?:
     | "aiFilled"
     | "aiMock"
     | "aiFailed"
+    | "aiRateLimited"
     | "uploadFailed"
     | "photoProcessingFailed";
 };
@@ -324,7 +326,7 @@ export function toPayload(ticket: TicketDraft) {
     } else item[field] = value;
   }
   if (ticket.storageFormat) item["storageFormat"] = ticket.storageFormat;
-  if (ticket.imageUrl) item["imageUrl"] = ticket.imageUrl;
+  if (ticket.imageAssetId) item["imageAssetId"] = ticket.imageAssetId;
   if (ticket.aiUsageOperationId)
     item["aiUsageOperationId"] = ticket.aiUsageOperationId;
   if (ticket.aiRaw) item["aiRaw"] = ticket.aiRaw;

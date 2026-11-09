@@ -609,3 +609,21 @@ describe("Scan job ticket location step presentation", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+it("shows translated quota refusal inside the retained location photo", async () => {
+  mocks.action.mockResolvedValue(
+    querySuccess({
+      ok: false,
+      error: { code: "RATE_LIMITED" },
+      retryAfterMs: 1000,
+    }),
+  );
+  const { onPick } = setup();
+  startReading();
+  select();
+  await screen.findByText(
+    "Too many AI photo requests. Wait up to 10 minutes, then try again. You can enter the details manually.",
+  );
+  expect(screen.getByRole("button", { name: "Retry reading" })).toBeEnabled();
+  expect(onPick).not.toHaveBeenCalled();
+});
