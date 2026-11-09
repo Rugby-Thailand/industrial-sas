@@ -57,7 +57,7 @@ import {
   classifyTicketBarcode,
   describeIntake,
   isComplete,
-  hasInvalidQuantity,
+  ticketFieldError,
   duplicateTicketKeys,
   mergeExtracted,
   newTicket,
@@ -438,7 +438,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         (ticket) =>
           ticket.status === "reading" ||
           !isComplete(ticket) ||
-          hasInvalidQuantity(ticket),
+          ticketFieldError(ticket),
       ) ||
       (currentDuplicates.length > 0 &&
         reviewedDuplicates !== currentFingerprint)
@@ -554,7 +554,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     if (photos.photos.length) return { text: t("sendPhotosFirst") };
     if (reading) return { text: t("waitReading") };
     const named = (
-      message: "saveBlockedTickets" | "invalidQuantityTickets",
+      message: "saveBlockedTickets" | "invalidFieldTickets",
       rows: TicketDraft[],
     ) => {
       if (!rows.length) return null;
@@ -573,8 +573,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     );
     if (incomplete) return incomplete;
     const invalid = named(
-      "invalidQuantityTickets",
-      tickets.filter(hasInvalidQuantity),
+      "invalidFieldTickets",
+      tickets.filter((ticket) => ticketFieldError(ticket) !== null),
     );
     if (invalid) return invalid;
     if (duplicateKeys.length > 0 && !duplicatesReviewed)
