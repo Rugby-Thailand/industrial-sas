@@ -8680,6 +8680,32 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:conflict",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "A STALE_REVISION refusal proves a newer saved ticket even when its list row left the visible page, so the containing dirty/pending-aware correction Dialog shows the same inline stale explanation and explicit Load current ticket reload as an observed newer version, retaining the draft and blocking Save until the reload. It creates no foreground or Back entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "saves only ticket fields with the reviewed version and preserves correction after conflict"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "keeps normal new correction writes blocked on a newer revision after a known rejection"
+        }
+      ],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
       "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:pendingCommand",
       "policy": "presentation",
       "expectation": "An immutable attempted correction controls inline recovery status and suppresses the stale explanation while its response is uncertain. It freezes fields and retries the same version and request; the containing shared correction Dialog remains the foreground owner.",

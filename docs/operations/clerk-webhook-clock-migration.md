@@ -34,7 +34,9 @@ the external ID when its source clock is below that floor, while retaining the
 floor. This prevents the migration from leaving a revoked legacy identity active.
 
 Deleted users and revoked membership IDs stay inactive on later upserts.
-Organization upserts preserve local suspension/closure. A valid re-add creates
+Organization upserts preserve local suspension/closure, and membership upserts
+keep a local SUSPENDED or REVOKED status; only `membership.delete` changes a
+membership to REVOKED. A valid re-add creates
 a new membership ID with default `WAREHOUSE_SCOPED` access and no inherited role
 or warehouse grants. Tenant lookup reads the exact ACTIVE and SUSPENDED buckets
 with at most two rows each, excludes historical REVOKED rows, and denies multiple

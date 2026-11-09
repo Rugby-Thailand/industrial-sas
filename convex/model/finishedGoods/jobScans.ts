@@ -96,6 +96,42 @@ export const JOB_TICKET_CODE_LIMITS = {
   productBarcodeText: 200,
 } as const;
 
+export const JOB_TICKET_DETAIL_TEXT_LIMITS = {
+  partName: 500,
+  customer: 500,
+  deliveryDate: 100,
+  manufacturingDate: 100,
+} as const;
+
+export const JOB_TICKET_TEXT_LIMITS = {
+  ...JOB_TICKET_CODE_LIMITS,
+  ...JOB_TICKET_DETAIL_TEXT_LIMITS,
+};
+export const MAX_JOB_TICKET_QUANTITY = 1_000_000_000;
+
+/** Intake and correction must accept the same ticket details. */
+export function jobTicketDetailError(fields: Partial<JobTicketFields>) {
+  for (const field of Object.keys(
+    JOB_TICKET_DETAIL_TEXT_LIMITS,
+  ) as (keyof typeof JOB_TICKET_DETAIL_TEXT_LIMITS)[]) {
+    if ((fields[field]?.length ?? 0) > JOB_TICKET_DETAIL_TEXT_LIMITS[field])
+      return { code: "FIELD_TOO_LONG" as const, field };
+  }
+  for (const field of [
+    "quantity",
+    "factoryQuantity",
+    "customerQuantity",
+  ] as const) {
+    const value = fields[field];
+    if (
+      value !== undefined &&
+      (!Number.isFinite(value) || value < 0 || value > MAX_JOB_TICKET_QUANTITY)
+    )
+      return { code: "FIELD_INVALID" as const, field };
+  }
+  return null;
+}
+
 export function jobTicketError(fields: {
   factoryOrder: string;
   productBarcodeText: string;
