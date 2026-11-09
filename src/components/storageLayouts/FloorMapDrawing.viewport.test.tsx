@@ -113,7 +113,7 @@ describe("floor viewport fitting", () => {
   );
 
   it.each([undefined, { x: 4800, y: 10000 }])(
-    "keeps the physical center across narrower and taller viewports at low zoom (focus=%s)",
+    "keeps the physical center within pan bounds across viewport changes (focus=%s)",
     (focus) => {
       const view = scene(1.25, focus);
       for (const [width, height, footerHeight] of [
@@ -135,12 +135,56 @@ describe("floor viewport fitting", () => {
         const centerX = (frameWidth! / 2 - tx!) / zoom!;
         const centerY = (frameHeight! / 2 - ty!) / zoom!;
         const floor = view.floor();
-        expect(
-          (centerX - floor[0]![0]!) / (floor[1]![0]! - floor[0]![0]!),
-        ).toBeCloseTo(0.5 + (focus?.x ?? 0) / 60000, 8);
-        expect(
-          (centerY - floor[0]![1]!) / (floor[3]![1]! - floor[0]![1]!),
-        ).toBeCloseTo(0.5 + (focus?.y ?? 0) / 120000, 8);
+        for (const [center, start, end, frameSize, offset, physicalSize] of [
+          [
+            centerX,
+            floor[0]![0]!,
+            floor[1]![0]!,
+            frameWidth!,
+            focus?.x ?? 0,
+            60000,
+          ],
+          [
+            centerY,
+            floor[0]![1]!,
+            floor[3]![1]!,
+            frameHeight!,
+            focus?.y ?? 0,
+            120000,
+          ],
+        ] as const) {
+          const span = (end - start) * zoom!;
+          const visibleStart = frameSize / 2 + (start - center) * zoom!;
+          const visibleEnd = visibleStart + span;
+          const requestedStart =
+            frameSize / 2 - (0.5 + offset / physicalSize) * span;
+          const requestedEnd = requestedStart + span;
+          const coversFrame = span >= frameSize;
+          if (coversFrame) {
+            expect(visibleStart).toBeLessThanOrEqual(1e-8);
+            expect(visibleEnd).toBeGreaterThanOrEqual(frameSize - 1e-8);
+          } else {
+            expect(visibleStart).toBeGreaterThanOrEqual(-1e-8);
+            expect(visibleEnd).toBeLessThanOrEqual(frameSize + 1e-8);
+          }
+          const requestedFits = coversFrame
+            ? requestedStart <= 0 && requestedEnd >= frameSize
+            : requestedStart >= 0 && requestedEnd <= frameSize;
+          if (requestedFits) {
+            expect((center - start) / (end - start)).toBeCloseTo(
+              0.5 + offset / physicalSize,
+              8,
+            );
+          } else {
+            // Clamp only as far as needed for a floor edge to meet the frame.
+            expect(
+              Math.min(
+                Math.abs(visibleStart),
+                Math.abs(visibleEnd - frameSize),
+              ),
+            ).toBeLessThan(1e-8);
+          }
+        }
       }
     },
   );

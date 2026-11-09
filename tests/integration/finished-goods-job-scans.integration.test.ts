@@ -273,6 +273,15 @@ describe("saved job ticket corrections", () => {
       quantity: 1000,
       version: 2,
     });
+    // The editor's own subscription follows the remapped record off its page.
+    expect(
+      value(
+        await call(world, jobScans.listJobScanCorrections, {
+          warehouseId: world.warehouseId,
+          jobScanId,
+        }),
+      )["current"],
+    ).toMatchObject({ version: 2, quantity: 1000 });
   });
 
   it("checks the entire reviewed remap selection before changing any ticket", async () => {
@@ -1195,4 +1204,69 @@ describe("register a location during job scanning", () => {
       await world.t.run((ctx) => ctx.db.query("locations").collect()),
     ).toHaveLength(1);
   });
+});
+
+it("refuses the entire scan group when any ticket detail exceeds correction limits", async () => {
+  const world = await setup();
+  const invalidDetails = [
+    ["partName", "x".repeat(501), "FIELD_TOO_LONG"],
+    ["customer", "x".repeat(501), "FIELD_TOO_LONG"],
+    ["deliveryDate", "x".repeat(101), "FIELD_TOO_LONG"],
+    ["manufacturingDate", "x".repeat(101), "FIELD_TOO_LONG"],
+    ["quantity", 1_000_000_001, "FIELD_INVALID"],
+    ["factoryQuantity", 1_000_000_001, "FIELD_INVALID"],
+    ["customerQuantity", 1_000_000_001, "FIELD_INVALID"],
+    ["quantity", -1, "FIELD_INVALID"],
+  ] as const;
+  for (const [field, invalid, code] of invalidDetails) {
+    const result = await call(world, jobScans.saveJobScans, {
+      warehouseId: world.warehouseId,
+      requestId: crypto.randomUUID(),
+      locationText: "Dock",
+      items: [ticket, { ...ticket, [field]: invalid }],
+    });
+    expect(value(result)).toMatchObject({
+      written: false,
+      error: { code, field },
+    });
+    expect(
+      await world.t.run((ctx) =>
+        ctx.db.query("finishedGoodsJobScans").collect(),
+      ),
+    ).toHaveLength(0);
+  }
+});
+
+it("accepts ticket details at their limits and preserves correctability", async () => {
+  const world = await setup();
+  const fields = {
+    factoryOrder: ticket.factoryOrder,
+    productBarcodeText: ticket.productBarcodeText,
+    partName: "x".repeat(500),
+    customer: "x".repeat(500),
+    deliveryDate: "x".repeat(100),
+    manufacturingDate: "x".repeat(100),
+    quantity: 1_000_000_000,
+    factoryQuantity: 0,
+    customerQuantity: 1_000_000_000,
+  };
+  const jobScanId = id(
+    await call(world, jobScans.saveJobScans, {
+      warehouseId: world.warehouseId,
+      requestId: crypto.randomUUID(),
+      locationText: "Dock",
+      items: [{ ...fields, source: "MANUAL" }],
+    }),
+  );
+  expect(
+    id(
+      await call(world, jobScans.updateJobScan, {
+        warehouseId: world.warehouseId,
+        jobScanId,
+        requestId: crypto.randomUUID(),
+        expectedVersion: 1,
+        fields: { ...fields, factoryOrder: "FO69070074" },
+      }),
+    ),
+  ).toBe(jobScanId);
 });

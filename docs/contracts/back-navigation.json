@@ -7426,10 +7426,17 @@
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#BuildingStatusToggle:confirming",
       "policy": "overlay",
-      "expectation": "The actual shared lifecycle confirmation protects the in-flight write, retains the current intent when leaving is canceled, and consumes successful completion before the next native Back restores the real origin locale/query/hash.",
+      "expectation": "The shared lifecycle confirmation captures the reviewed command and version, refuses stale reviews without reversing direction, protects the in-flight write, and consumes cancellation or completion before the next Back restores the real origin locale/query/hash.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+        "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx"
+      ],
       "cases": [
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx",
+          "name": "%s dismisses a stale status review before the next Back restores the actual origin"
+        },
         {
           "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
           "name": "confirms a whole-building return to Draft with the affected count"
@@ -7443,10 +7450,17 @@
     {
       "id": "src/features/storageLayouts/BuildingStatusToggle.tsx#StatusConfirmation:$overlay:ConfirmDialog:confirming",
       "policy": "overlay",
-      "expectation": "The actual shared lifecycle confirmation protects the in-flight write, retains the current intent when leaving is canceled, and consumes successful completion before the next native Back restores the real origin locale/query/hash.",
+      "expectation": "The shared lifecycle confirmation captures the reviewed command and version, refuses stale reviews without reversing direction, protects the in-flight write, and consumes cancellation or completion before the next Back restores the real origin locale/query/hash.",
       "integration": "confirmation",
-      "tests": ["src/features/storageLayouts/BuildingStatusToggle.test.tsx"],
+      "tests": [
+        "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
+        "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx"
+      ],
       "cases": [
+        {
+          "file": "src/features/storageLayouts/BuildingStatusToggle.confirmation.test.tsx",
+          "name": "%s dismisses a stale status review before the next Back restores the actual origin"
+        },
         {
           "file": "src/features/storageLayouts/BuildingStatusToggle.test.tsx",
           "name": "confirms a whole-building return to Draft with the affected count"
@@ -8716,6 +8730,32 @@
       ]
     },
     {
+      "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:conflict",
+      "policy": "presentation",
+      "uses": ["branch"],
+      "expectation": "A STALE_REVISION refusal proves a newer saved ticket even when its list row left the visible page, so the containing dirty/pending-aware correction Dialog shows the same inline stale explanation and explicit Load current ticket reload as an observed newer version, retaining the draft and blocking Save until the reload. It creates no foreground or Back entry.",
+      "tests": [
+        "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx"
+      ],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "saves only ticket fields with the reviewed version and preserves correction after conflict"
+        },
+        {
+          "file": "src/features/finishedGoods/jobScan/JobScanRecordEditor.test.tsx",
+          "name": "keeps normal new correction writes blocked on a newer revision after a known rejection"
+        }
+      ],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["div[role=alert]", "p", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ]
+    },
+    {
       "id": "src/features/finishedGoods/jobScan/JobScanRecordEditor.tsx#JobScanRecordEditor:pendingCommand",
       "policy": "presentation",
       "expectation": "An immutable attempted correction controls inline recovery status and suppresses the stale explanation while its response is uncertain. It freezes fields and retries the same version and request; the containing shared correction Dialog remains the foreground owner.",
@@ -8802,7 +8842,7 @@
       "id": "src/features/hr/DayScreen.tsx#CorrectionArea:retention",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Preserves the same inline employee correction form or its saved receipt over live eligibility changes while also showing the current unavailability Notice. It is part of the day detail, not a foreground or whole-view editor; the form owns dirty/pending departure protection. Its retained target key stays fixed for unsent/pending work and the completed receipt, then changes only for a clean form or an eligible later returned-request version.",
+      "expectation": "Preserves the same inline employee correction form or its saved receipt over live eligibility changes while also showing the current unavailability Notice. It is part of the day detail, not a foreground or whole-view editor; the form owns dirty/pending departure protection. Its retained target key stays fixed for unsent/pending work and the completed receipt, then changes only for a clean form or an eligible later correction identity/version after a decision.",
       "render": [
         {
           "shape": "conditional",
@@ -8817,6 +8857,10 @@
       ],
       "cases": [
         {
+          "file": "src/features/hr/DayScreen.correctionReceipt.test.tsx",
+          "name": "a certified correction releases its receipt for a fresh form with complete snapshot %s"
+        },
+        {
           "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
           "name": "retains the %s reason and blocks new writes after a live period closure"
         },
@@ -8829,7 +8873,10 @@
           "name": "keeps a successful employee correction receipt after its live pending update"
         }
       ],
-      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
+      "tests": [
+        "src/features/hr/HrLiveDayDrafts.test.tsx",
+        "src/features/hr/DayScreen.correctionReceipt.test.tsx"
+      ]
     },
     {
       "id": "src/features/hr/ReviewDetail.tsx#DecisionArea:action",

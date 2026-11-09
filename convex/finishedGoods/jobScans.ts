@@ -23,6 +23,7 @@ import {
   JOB_TICKET_JSON_SCHEMA,
   JOB_TICKET_PROMPT,
   jobTicketError,
+  jobTicketDetailError,
   parseJobTicket,
 } from "../model/finishedGoods/jobScans";
 
@@ -320,6 +321,8 @@ export const saveJobScans = mutationWithOrg({
       for (const item of args.items) {
         const error = jobTicketError(item);
         if (error) return failure(error);
+        const detailError = jobTicketDetailError(item);
+        if (detailError) return failure(detailError.code, detailError.field);
       }
       const linked = new Set<string>();
       for (const item of args.items) {
@@ -411,27 +414,8 @@ export const updateJobScan = mutationWithOrg({
         return failure("STALE_REVISION");
       const error = jobTicketError(args.fields);
       if (error) return failure(error);
-      for (const [field, limit] of [
-        ["partName", 500],
-        ["customer", 500],
-        ["deliveryDate", 100],
-        ["manufacturingDate", 100],
-      ] as const) {
-        if ((args.fields[field]?.length ?? 0) > limit)
-          return failure("FIELD_TOO_LONG", field);
-      }
-      for (const field of [
-        "quantity",
-        "factoryQuantity",
-        "customerQuantity",
-      ] as const) {
-        const value = args.fields[field];
-        if (
-          value !== undefined &&
-          (!Number.isFinite(value) || value < 0 || value > 1_000_000_000)
-        )
-          return failure("FIELD_INVALID", field);
-      }
+      const detailError = jobTicketDetailError(args.fields);
+      if (detailError) return failure(detailError.code, detailError.field);
       // Materialize optional fields so deleting an old value is intentional,
       // version-checked and included in the immutable audit event.
       const fields = {
@@ -462,7 +446,10 @@ export const updateJobScan = mutationWithOrg({
     }),
 });
 
-/** Recent corrections are read independently from the inventory and location. */
+/**
+ * Recent corrections are read independently from the inventory and location,
+ * with the record's current editable values.
+ */
 export const listJobScanCorrections = queryWithOrg({
   args: {
     warehouseId: v.id("warehouses"),
@@ -503,6 +490,21 @@ export const listJobScanCorrections = queryWithOrg({
           actorUserId: event.actorUserId,
           changes: event.changes ?? [],
         })),
+      // The correction editor's live baseline: the list row stops updating
+      // once another session moves the record off the visible page.
+      current: {
+        version: record.version ?? 1,
+        factoryOrder: record.factoryOrder,
+        productBarcodeText: record.productBarcodeText,
+        partName: record.partName,
+        customer: record.customer,
+        deliveryDate: record.deliveryDate,
+        manufacturingDate: record.manufacturingDate,
+        quantity: record.quantity,
+        factoryQuantity: record.factoryQuantity,
+        customerQuantity: record.customerQuantity,
+        storageFormat: record.storageFormat,
+      },
     };
   },
 });

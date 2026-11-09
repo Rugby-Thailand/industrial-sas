@@ -123,7 +123,7 @@ if (import.meta.url === new URL(process.argv[1], "file:").href) {
     if (problems.length) process.exitCode = 1;
     else
       console.log(
-        `Dependency audit passed (${scope}); exact-chain exceptions checked against their expiry. Unpatched risk remains documented in docs/operations/dependency-exceptions.md.`,
+        `Dependency audit passed (${scope}); exact-chain exceptions checked against their expiry. Exception policy: docs/operations/dependency-exceptions.md.`,
       );
   } catch {
     console.error(
