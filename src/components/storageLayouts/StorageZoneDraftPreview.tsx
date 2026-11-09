@@ -27,14 +27,11 @@ import {
   rectanglesOverlap,
 } from "@/lib/storageLayouts/storagePlacementGeometry";
 import { storageRectangleContains } from "../../../convex/model/storageLayout/storageZone";
+import { measuredMillimetres } from "@/features/storageLayouts/measure";
 type EditableBlock = Omit<StorageReservedBlockRow, "blockId"> & {
   readonly id: string;
 };
 const metres = (value: number) => value / 1000;
-const draftMillimetres = (value: string) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.round(parsed * 1_000) : 0;
-};
 
 export function StorageZoneDraftPreview({
   floorWidthMm,
@@ -87,11 +84,11 @@ export function StorageZoneDraftPreview({
       }
     | undefined
   >(undefined);
-  const xMm = draftMillimetres(zoneX);
-  const yMm = draftMillimetres(zoneY);
-  const widthMm = draftMillimetres(zoneWidth);
-  const depthMm = draftMillimetres(zoneDepth);
-  const heightMm = draftMillimetres(stackHeight);
+  const measured = [zoneX, zoneY, zoneWidth, zoneDepth, stackHeight].map(
+    measuredMillimetres,
+  );
+  const [xMm = 0, yMm = 0, widthMm = 0, depthMm = 0, heightMm = 0] =
+    measured.map((value) => value ?? 0);
   const isReserved = variant === "reserved";
   const previewLabel = t(
     view === "3d"
@@ -121,6 +118,7 @@ export function StorageZoneDraftPreview({
           !storageRectangleContains(draft, area),
       );
   const fitsFloor =
+    measured.every((value) => value !== null) &&
     xMm >= 0 &&
     yMm >= 0 &&
     widthMm > 0 &&

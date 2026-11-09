@@ -350,14 +350,16 @@ function SceneDrawing({
   });
   const center = !pannable
     ? { x: frameCenterX, y: frameCenterY }
-    : focus
-      ? framePoint(focus)
-      : target
-        ? point(
-            target.xMm + target.widthMm / 2,
-            target.yMm + target.depthMm / 2,
-          )
-        : framePoint(sceneCenter);
+    : clampFocus(
+        focus
+          ? framePoint(focus)
+          : target
+            ? point(
+                target.xMm + target.widthMm / 2,
+                target.yMm + target.depthMm / 2,
+              )
+            : framePoint(sceneCenter),
+      );
   // Hide whole codes at the viewport edge or under fixed annotations.
   // These are fixed occupied rectangles, not a label-placement algorithm.
   const labelIsVisible = (code: string, x: number, y: number) => {
@@ -687,7 +689,17 @@ function SceneDrawing({
                     ].includes(e.key)
                   ) {
                     e.preventDefault();
-                    const next = adjacentZone(props.zones, zone, e.key);
+                    const next = adjacentZone(
+                      props.zones,
+                      zone,
+                      e.key,
+                      (candidate) =>
+                        point(
+                          candidate.xMm + candidate.widthMm / 2,
+                          candidate.yMm + candidate.depthMm / 2,
+                          view === "3d" ? candidate.maxStackHeightMm / 2 : 0,
+                        ),
+                    );
                     if (!next) return;
                     onSelect(next.zoneId);
                     const controls = e.currentTarget

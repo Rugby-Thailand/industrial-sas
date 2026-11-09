@@ -51,13 +51,28 @@ export const actorOptions = queryWithOrg({
     if (pageSize === null) return null;
     const needle = normalize(args.search ?? "");
     const name = memberNames(ctx);
+    // A re-added member has several membership rows; offer only the first.
+    const firstRows = new Map<string, Promise<string | undefined>>();
+    const firstRowOf = (userId: string) => {
+      if (!firstRows.has(userId))
+        firstRows.set(
+          userId,
+          ctx.tenantDb
+            .byIndex<Doc<"memberships">>("memberships", "by_orgId_userId", [
+              { field: "userId", value: userId },
+            ])
+            .first()
+            .then((row) => row?._id),
+        );
+      return firstRows.get(userId)!;
+    };
     return boundedRecordPage(ctx, {
       scope: ["aiUsage.actorOptions", needle],
       pageSize,
       cursor: args.cursor,
       scanCursor: args.scanCursor,
       progressive: true,
-      filtering: Boolean(needle),
+      filtering: true,
       read: (range, limit) =>
         ctx.tenantDb
           .byIndex<Doc<"memberships">>("memberships", "by_orgId_userId")
@@ -68,6 +83,9 @@ export const actorOptions = queryWithOrg({
           }),
       get: (id) => ctx.tenantDb.get<Doc<"memberships">>("memberships", id),
       accept: async (membership) => {
+        // Keep the first row for each user even across page and scan cursors.
+        if ((await firstRowOf(membership.userId)) !== membership._id)
+          return false;
         const label = await name(membership.userId);
         return label !== null && (!needle || normalize(label).includes(needle));
       },

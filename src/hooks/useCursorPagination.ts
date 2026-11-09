@@ -67,6 +67,20 @@ function remembered(scope: string, criteria: string) {
     ? saved
     : initial(criteria);
 }
+function savePosition(scope: string, next: Position) {
+  positions.delete(scope);
+  positions.set(scope, next);
+  while (positions.size > MAX_SCOPES)
+    positions.delete(positions.keys().next().value!);
+  updateHistoryMetadata((state) => {
+    state.cataloguePaginationScopes = [
+      ...historyPositions(state).filter((entry) => entry.scope !== scope),
+      { scope, value: next },
+    ].slice(-MAX_SCOPES);
+    // Retain the last-used slot for browser entries created by older clients.
+    state.cataloguePagination = { scope, value: next };
+  });
+}
 
 /** Bounded cursor history only: records always come from the authorized live query. */
 export function useCursorPagination({
@@ -91,25 +105,26 @@ export function useCursorPagination({
     setStored({ scope, value });
   }
   useEffect(() => {
-    const restore = () =>
+    const restore = () => {
+      const history = historyPosition(scope);
+      // The URL owner may publish restored criteria after this listener. Leave
+      // that entry intact until render can adopt its matching position.
+      if (history && history.criteria !== fingerprint) return;
       setStored({ scope, value: remembered(scope, fingerprint) });
+    };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, [scope, fingerprint]);
+  // Replace copied criteria for this scope, even for an unpaged filter choice,
+  // without adding untouched pagers mounted by an editor to its history entry.
+  useEffect(() => {
+    const history = historyPosition(scope);
+    if (history && history.criteria !== value.criteria)
+      savePosition(scope, value);
+  }, [scope, value]);
   function save(next: Position) {
-    positions.delete(scope);
-    positions.set(scope, next);
-    while (positions.size > MAX_SCOPES)
-      positions.delete(positions.keys().next().value!);
-    updateHistoryMetadata((state) => {
-      state.cataloguePaginationScopes = [
-        ...historyPositions(state).filter((entry) => entry.scope !== scope),
-        { scope, value: next },
-      ].slice(-MAX_SCOPES);
-      // Retain the last-used slot for browser entries created by older clients.
-      state.cataloguePagination = { scope, value: next };
-    });
     setStored({ scope, value: next });
+    savePosition(scope, next);
   }
   return {
     page: value.offset + value.index + 1,

@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
-import { resolveClerkPublishableKey } from "@/lib/clerkConfiguration";
+import { isClerkConfigured } from "@/lib/clerkConfiguration";
 
 export type AppAccess = "SIGN_IN" | "ORGANIZATION_REQUIRED" | "APP";
 
@@ -14,10 +14,10 @@ export function resolveAppAccess(input: {
 }
 
 export async function readAppAccess(): Promise<AppAccess> {
-  const identityConfigured =
-    resolveClerkPublishableKey(
-      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    ) !== undefined && Boolean(process.env.CLERK_SECRET_KEY?.trim());
+  const identityConfigured = isClerkConfigured(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    process.env.CLERK_SECRET_KEY,
+  );
 
   if (!identityConfigured) {
     return resolveAppAccess({

@@ -9,6 +9,21 @@ vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     args === "skip" ? undefined : transport.read(getFunctionName(ref), args),
+  useQuery_experimental: ({
+    query,
+    args,
+  }: {
+    query: Parameters<typeof getFunctionName>[0];
+    args: unknown;
+  }) => {
+    const data =
+      args === "skip"
+        ? undefined
+        : transport.read(getFunctionName(query), args);
+    return data === undefined
+      ? { status: "loading" }
+      : { status: "success", data };
+  },
   useMutation: () => transport.mutate,
 }));
 vi.mock("@/i18n/navigation", () => ({

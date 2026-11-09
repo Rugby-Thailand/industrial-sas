@@ -15,6 +15,8 @@ export interface StorageRectangle {
 
 export interface StorageZoneCandidate extends StorageRectangle {
   readonly maxStackHeightMm: number;
+  readonly mode?: "SIMPLE" | "FLOOR_POSITIONS" | "RACK" | "PLATFORM";
+  readonly baseElevationMm?: number;
 }
 
 export interface StackPlacement {
@@ -98,7 +100,9 @@ export function validateStorageZone(input: {
   if (
     candidate.xMm + candidate.widthMm > input.floorWidthMm ||
     candidate.yMm + candidate.depthMm > input.floorDepthMm ||
-    candidate.maxStackHeightMm > input.floorHeightMm
+    candidate.maxStackHeightMm +
+      (candidate.mode === "PLATFORM" ? (candidate.baseElevationMm ?? 0) : 0) >
+      input.floorHeightMm
   ) {
     return fail({ code: "ZONE_OUT_OF_BOUNDS" });
   }

@@ -1,13 +1,22 @@
-import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
 import { auditProblems } from "../../scripts/ci/audit-dependencies.mjs";
 
-const exceptions = JSON.parse(
-  readFileSync("scripts/ci/dependency-exceptions.json", "utf8"),
-).exceptions;
-const exception = exceptions[0];
+// Policy fixtures stay test-owned when the live exception list is empty.
+const exception = {
+  ghsa: "GHSA-aaaa-bbbb-cccc",
+  package: "example",
+  version: "3.0.3",
+  severity: "high",
+  expiresAt: "2026-11-09T00:00:00Z",
+  owner: "Test maintainer",
+  reason: "Exact-chain policy fixture",
+  paths: {
+    app: [".>linter>example"],
+    release: [".>release-cli>example"],
+  },
+};
+const exceptions = [exception];
 const now = Date.parse("2026-10-10T00:00:00Z");
 const advisory = {
   github_advisory_id: exception.ghsa,
@@ -36,7 +45,7 @@ describe("scoped dependency risk exceptions", () => {
 
   it("refuses a new advisory, critical severity, changed version or application runtime chain", () => {
     for (const change of [
-      { github_advisory_id: "GHSA-aaaa-bbbb-cccc" },
+      { github_advisory_id: "GHSA-dddd-eeee-ffff" },
       { severity: "critical" },
       { module_name: "other" },
       { findings: [{ version: "3.0.2", paths: exception.paths.release }] },

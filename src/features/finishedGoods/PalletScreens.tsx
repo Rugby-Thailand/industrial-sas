@@ -882,6 +882,7 @@ function PalletDetailScreen({
           await verifyMutation({
             warehouseId,
             palletId: pallet._id,
+            ...(placement ? { expectedPlacementId: placement._id } : {}),
             code,
             method,
             requestId: op.request(`verify:${placement?._id}:${code}:${method}`),
@@ -897,6 +898,7 @@ function PalletDetailScreen({
         await storeMutation({
           warehouseId,
           palletId: pallet._id,
+          ...(placement ? { expectedPlacementId: placement._id } : {}),
           requestId: op.request(
             `store:${placement?._id}:${upperCode}:${physicalStack}`,
           ),
@@ -914,6 +916,7 @@ function PalletDetailScreen({
           await cancelMutation({
             warehouseId,
             palletId: pallet._id,
+            ...(placement ? { expectedPlacementId: placement._id } : {}),
             requestId: op.request(`cancel:${placement?._id}`),
           }),
         );

@@ -6,7 +6,7 @@ import { PublicInfoNav } from "@/components/system/PublicInfoNav";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
-import { resolveClerkPublishableKey } from "@/lib/clerkConfiguration";
+import { isClerkConfigured } from "@/lib/clerkConfiguration";
 import { ROUTES } from "@/lib/navigation";
 import { plannerReturnPath } from "@/lib/auth/returnPath";
 
@@ -21,10 +21,10 @@ export default async function SignInScreen({
   const returnTo = plannerReturnPath((await searchParams).returnTo, locale);
   setRequestLocale(locale);
   const t = await getTranslations("SignIn");
-  const identityConfigured =
-    resolveClerkPublishableKey(
-      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    ) !== undefined;
+  const identityConfigured = isClerkConfigured(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    process.env.CLERK_SECRET_KEY,
+  );
 
   if (identityConfigured) {
     return (

@@ -1,4 +1,11 @@
-/** Only planner routes in the current locale can become a post-sign-in destination. */
+import { HR_ROOT, ROUTES } from "@/lib/navigation";
+
+const RETURN_PATH_ROOTS = [
+  HR_ROOT,
+  ...Object.values(ROUTES).filter((route) => route !== ROUTES.signIn),
+];
+
+/** Only desktop routes in the current locale can become a post-sign-in destination. */
 export function plannerReturnPath(
   value: unknown,
   locale: string,
@@ -12,8 +19,12 @@ export function plannerReturnPath(
   const prefix = `/${locale}/`;
   if (!value.startsWith(prefix)) return undefined;
   const path = value.split(/[?#]/)[0]!;
-  const root = path.slice(prefix.length);
-  if (!/^(finished-goods|master-data\/storage-layouts|setup)(\/|$)/.test(root))
+  const root = path.slice(prefix.length - 1);
+  if (
+    !RETURN_PATH_ROOTS.some(
+      (route) => root === route || root.startsWith(`${route}/`),
+    )
+  )
     return undefined;
   const parsed = new URL(value, "https://planner.invalid");
   if (parsed.pathname !== path) return undefined;

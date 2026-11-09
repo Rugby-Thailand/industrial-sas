@@ -1,8 +1,9 @@
 "use client";
 
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery_experimental } from "convex/react";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import { failureCodeOf } from "@/lib/convex/ledgerState";
 import { hrRefs } from "@/lib/convex/hrApi";
 
 import { useBusinessDate } from "./useBusinessDate";
@@ -59,10 +60,13 @@ export function HrAccessProvider({
   readonly children: ReactNode;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const outcome = useQuery(
-    hrRefs.accessDisplay,
-    !isLoading && isAuthenticated ? {} : "skip",
-  );
+  const queryState = useQuery_experimental({
+    query: hrRefs.accessDisplay,
+    args: !isLoading && isAuthenticated ? {} : "skip",
+  });
+  const outcome = queryState.status === "success" ? queryState.data : undefined;
+  const queryError =
+    queryState.status === "error" ? queryState.error : undefined;
   const today = useBusinessDate(
     outcome?.ok === true && outcome.value.timezoneSupported
       ? outcome.value.offsetMinutes
@@ -71,6 +75,13 @@ export function HrAccessProvider({
   const value = useMemo<HrAccessValue>(() => {
     if (isLoading) return { ...UNAVAILABLE, status: "LOADING" };
     if (!isAuthenticated) return UNAVAILABLE;
+    if (queryError !== undefined) {
+      // No active organization is a normal signed-in state (the chooser
+      // handles it); any other failure must still reach the error boundary.
+      if (failureCodeOf(queryError) !== "ACTIVE_ORGANIZATION_MISSING")
+        throw queryError;
+      return { ...UNAVAILABLE, status: "NONE" };
+    }
     if (outcome === undefined) return { ...UNAVAILABLE, status: "LOADING" };
     if (!outcome.ok) return { ...UNAVAILABLE, status: "NONE" };
     const access = outcome.value;
@@ -86,7 +97,7 @@ export function HrAccessProvider({
       sitesComplete: access.sitesComplete,
       identityKey: `${access.organizationId}:${access.actorUserId}:${access.employee?.id ?? "not-linked"}`,
     };
-  }, [isAuthenticated, isLoading, outcome, today]);
+  }, [isAuthenticated, isLoading, queryError, outcome, today]);
   return (
     <HrAccessContext.Provider value={value}>
       {children}
