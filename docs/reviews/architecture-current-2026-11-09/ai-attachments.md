@@ -69,7 +69,11 @@ URL-only new attachment is deliberately refused as `ATTACHMENT_INVALID`.
    `UPLOADTHING_TOKEN` in both Next and Convex through the authorized secret
    workflow. Staging and production must stay separate. Never publish the value.
    The backend refuses new intents when its token is absent. A mismatched token
-   causes callback verification to fail closed and must block promotion.
+   causes callback verification to fail closed. The guarded pre-deploy entry point
+   now privately compares Next/Convex tokens on the reviewed target; absence,
+   mismatch or failed bounded read blocks backend deployment without logging
+   secrets or changing configuration. This is a read-only prerequisite, not
+   evidence that live credentials or provider ACL have been verified.
 2. Deploy the additive backend first. Coordinate a brief scan-photo acquisition
    pause, finish or explicitly discard old photo drafts, promote the matching Next
    build, and require old scan tabs to reload. Never silently reset unsaved
@@ -120,3 +124,26 @@ runtime tests use synthetic provider responses and credentials, real registered
 Convex authorization/persistence boundaries, and actual scan/Location callers.
 They do not establish physical camera behavior, live provider ACL or production
 throughput. Codegen uses the repository's credential-free throwaway local backend.
+
+## Coordinator review follow-up
+
+The initial PR CI exposed an omitted representative public-module fixture for
+`finishedGoods/attachments`. Added a real registered `createIntent` example,
+retaining the full anonymous/mirror/org/argument/warehouse denial matrix. The
+module inventory now covers 40 modules and 45 representative functions; no
+module exemption was added. Signature ingress is covered separately by the
+attachment suite.
+
+The original pre-deploy guard accepted the Next token without checking Convex.
+A new real-CLI regression went red on that entry point (exit 0 when a private
+backend read supplied a mismatched value), then green with the bounded parity
+check (exit 1, with both credential values and captured diagnostics absent from
+logs). The installed Convex CLI selects the exact deployment from the validated
+deployment key; it rejects a simultaneous `--deployment` flag, so no selector
+flag is passed. The guard performs no configuration writes.
+
+Coordinator follow-up verification: six focused files / 309 tests passed, including
+the complete representative public-module denial/payload suite and release
+orchestration. Normal lint, repository formatting and both type-checker lanes
+passed after the guard was added. No live credential read, provider ACL check or
+cloud configuration write was performed.
