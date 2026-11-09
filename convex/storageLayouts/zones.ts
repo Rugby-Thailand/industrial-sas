@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import {
+  assertUnique,
   createMasterDataRow,
   normalizeDisplayName,
   normalizeField,
@@ -26,6 +27,7 @@ import {
   makeStorageZoneQrValue,
   STORAGE_ZONE_LIMITS,
   storageRecordRevision,
+  storageRectanglesOverlap,
   nextStorageRecordRevision,
   validateStorageZone,
 } from "../model/storageLayout/storageZone";
@@ -37,6 +39,7 @@ import {
   storagePositionQrValue,
   validateStoragePosition,
   type StorageAreaMode,
+  type StoragePositionGeometry,
 } from "../model/storageLayout/storagePosition";
 
 import { hasOccupiedStorage } from "./catalogue";
@@ -130,6 +133,24 @@ async function activePositions(
       ],
     )
     .all(STORAGE_POSITION_LIMITS.maximumPositionsPerArea);
+}
+
+function overlapsPosition(
+  candidate: StoragePositionGeometry,
+  positions: readonly PositionDocument[],
+): boolean {
+  return positions.some(
+    (position) =>
+      !position.isDefault &&
+      position.kind !== "DEFAULT" &&
+      (position.elevationMm ?? 0) === (candidate.elevationMm ?? 0) &&
+      storageRectanglesOverlap(candidate, {
+        xMm: position.xMm ?? NaN,
+        yMm: position.yMm ?? NaN,
+        widthMm: position.widthMm ?? NaN,
+        depthMm: position.depthMm ?? NaN,
+      }),
+  );
 }
 
 export async function ensureDefaultPosition(
@@ -893,7 +914,67 @@ async function createPositionRecords(
     readonly slotIndex?: number;
     readonly elevationMm?: number;
   },
+  positions?: readonly PositionDocument[],
 ) {
+  if (positions !== undefined) {
+    // Resolve legacy per-row replays and immutable codes before geometry,
+    // without creating a location that an overlap refusal would leave behind.
+    const locationReplay = await replayTenantWriteIfPresent({
+      ...writeContext(
+        ctx,
+        "locations",
+        "storageLayout.position.location.create",
+        input.requestId,
+        input.zone.warehouseId,
+      ),
+      fingerprint: {
+        zoneId: input.zone._id,
+        code: input.code,
+        kind: input.kind,
+      },
+    });
+    if (!locationReplay.ok) return locationReplay;
+    if (locationReplay.value !== null) {
+      const positionReplay = await replayTenantWriteIfPresent({
+        ...writeContext(
+          ctx,
+          "storagePositions",
+          "storageLayout.position.create",
+          input.requestId,
+          input.zone.warehouseId,
+        ),
+        fingerprint: { ...input, locationId: locationReplay.value.documentId },
+      });
+      if (!positionReplay.ok) return positionReplay;
+      if (positionReplay.value !== null)
+        return { ok: true as const, value: positionReplay.value };
+    }
+    const codeCheck = [
+      {
+        field: "code",
+        index: "by_orgId_warehouseId_code",
+        equality: [
+          { field: "warehouseId", value: input.zone.warehouseId },
+          { field: "code", value: input.code },
+        ],
+      },
+    ];
+    if (locationReplay.value === null) {
+      const unique = await assertUnique(ctx.tenantDb, "locations", codeCheck);
+      if (!unique.ok) return unique;
+    }
+    const unique = await assertUnique(
+      ctx.tenantDb,
+      "storagePositions",
+      codeCheck,
+    );
+    if (!unique.ok) return unique;
+    if (overlapsPosition(input, positions))
+      return {
+        ok: false as const,
+        error: { code: "POSITION_OVERLAPS_POSITION" as const },
+      };
+  }
   const building = await ctx.tenantDb.get<BuildingDocument>(
     "storageBuildings",
     input.zone.buildingId,
@@ -1104,13 +1185,17 @@ export const createStoragePosition = mutationWithOrg({
     if (positions.length >= STORAGE_POSITION_LIMITS.maximumPositionsPerArea) {
       return failure("POSITION_LIMIT_EXCEEDED");
     }
-    const created = await createPositionRecords(ctx, {
-      zone,
-      requestId: args.requestId,
-      code,
-      label: label.value,
-      ...geometry,
-    });
+    const created = await createPositionRecords(
+      ctx,
+      {
+        zone,
+        requestId: args.requestId,
+        code,
+        label: label.value,
+        ...geometry,
+      },
+      positions,
+    );
     if (!created.ok) return failure(created.error.code);
     await writeIdempotencyRecord({
       tenantDb: ctx.tenantDb,
@@ -1249,8 +1334,52 @@ export const generateRackStoragePositions = mutationWithOrg({
       if (location !== null || position !== null)
         return failure("RACK_CODE_CONFLICT", "fixtureCode");
     }
+    // Try the area origin and existing right/bottom edges in floor-plan order.
+    // Every level moves together, preserving the fixture's bay/slot geometry.
+    const obstacles = positions.filter((position) => !position.isDefault);
+    const xs = [
+      ...new Set([
+        zone.xMm,
+        ...obstacles.map((p) => (p.xMm ?? NaN) + (p.widthMm ?? NaN)),
+      ]),
+    ]
+      .filter(Number.isSafeInteger)
+      .sort((a, b) => a - b);
+    const ys = [
+      ...new Set([
+        zone.yMm,
+        ...obstacles.map((p) => (p.yMm ?? NaN) + (p.depthMm ?? NaN)),
+      ]),
+    ]
+      .filter(Number.isSafeInteger)
+      .sort((a, b) => a - b);
+    let placed: typeof generated.value | undefined;
+    for (const yMm of ys) {
+      for (const xMm of xs) {
+        if (
+          xMm < zone.xMm ||
+          yMm < zone.yMm ||
+          xMm + args.bayCount * args.bayWidthMm > zone.xMm + zone.widthMm ||
+          yMm + args.rackDepthMm > zone.yMm + zone.depthMm
+        )
+          continue;
+        const candidates = generated.value.map((candidate) => ({
+          ...candidate,
+          xMm: candidate.xMm + xMm - zone.xMm,
+          yMm: candidate.yMm + yMm - zone.yMm,
+        }));
+        if (
+          candidates.some((candidate) => overlapsPosition(candidate, positions))
+        )
+          continue;
+        placed = candidates;
+        break;
+      }
+      if (placed !== undefined) break;
+    }
+    if (placed === undefined) return failure("RACK_DOES_NOT_FIT_AREA");
     const createdIds: string[] = [];
-    for (const candidate of generated.value) {
+    for (const candidate of placed) {
       const code = `${zone.code}-${candidate.codeSuffix}`;
       const created = await createPositionRecords(ctx, {
         zone,
@@ -1372,6 +1501,17 @@ export const updateStoragePosition = mutationWithOrg({
       },
     });
     if (!valid.ok) return failure(valid.error.code);
+    if (
+      geometryChanged &&
+      !position.isDefault &&
+      overlapsPosition(
+        valid.value,
+        (await activePositions(ctx, zone)).filter(
+          (row) => row._id !== position._id,
+        ),
+      )
+    )
+      return failure("POSITION_OVERLAPS_POSITION");
     const updated = await updateMasterDataRow({
       ...writeContext(
         ctx,

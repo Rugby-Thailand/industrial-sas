@@ -770,6 +770,7 @@
         "AREA_HAS_EXACT_POSITIONS": "Archive the exact positions before returning to one automatic spot.",
         "POSITION_MODE_MISMATCH": "Existing exact positions don't fit that mode.",
         "POSITION_OUT_OF_AREA": "The exact position must stay inside its spot.",
+        "POSITION_OVERLAPS_POSITION": "The exact position overlaps another active position at the same height.",
         "RACK_CODE_CONFLICT": "Positions with this rack identity already exist. Choose another rack identity.",
         "RACK_DOES_NOT_FIT_AREA": "The rack doesn't fit inside this spot.",
         "POSITION_LIMIT_EXCEEDED": "A spot can hold at most 100 exact positions.",
