@@ -454,7 +454,7 @@ function SensitiveStatementBody({
     try {
       const result = await request(
         kind,
-        ticketIntent.current ?? crypto.randomUUID(),
+        kind === "DOWNLOAD" ? ticketIntent.current! : crypto.randomUUID(),
       );
       if (!isCurrent()) return;
       if ("clerk_error" in result)
@@ -478,7 +478,9 @@ function SensitiveStatementBody({
     } catch (error) {
       if (!isCurrent()) return;
       setEntry(null);
-      if (error instanceof PayslipAccessError) ticketIntent.current = null;
+      // Only a refused download ends that download's retry identity.
+      if (kind === "DOWNLOAD" && error instanceof PayslipAccessError)
+        ticketIntent.current = null;
       setAction({
         scope: capturedScope,
         pending: false,

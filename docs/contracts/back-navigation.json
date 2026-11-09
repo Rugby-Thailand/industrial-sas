@@ -8792,7 +8792,7 @@
       "id": "src/features/hr/DayScreen.tsx#CorrectionArea:retention",
       "policy": "presentation",
       "uses": ["branch"],
-      "expectation": "Preserves the same inline employee correction form or its saved receipt over live eligibility changes while also showing the current unavailability Notice. It is part of the day detail, not a foreground or whole-view editor; the form owns dirty/pending departure protection. Its retained target key stays fixed for unsent/pending work and the completed receipt, then changes only for a clean form or an eligible later returned-request version.",
+      "expectation": "Preserves the same inline employee correction form or its saved receipt over live eligibility changes while also showing the current unavailability Notice. It is part of the day detail, not a foreground or whole-view editor; the form owns dirty/pending departure protection. Its retained target key stays fixed for unsent/pending work and the completed receipt, then changes only for a clean form or an eligible later correction identity/version after a decision.",
       "render": [
         {
           "shape": "conditional",
@@ -8807,6 +8807,10 @@
       ],
       "cases": [
         {
+          "file": "src/features/hr/DayScreen.correctionReceipt.test.tsx",
+          "name": "a certified correction releases its receipt for a fresh form with complete snapshot %s"
+        },
+        {
           "file": "src/features/hr/HrLiveDayDrafts.test.tsx",
           "name": "retains the %s reason and blocks new writes after a live period closure"
         },
@@ -8819,7 +8823,10 @@
           "name": "keeps a successful employee correction receipt after its live pending update"
         }
       ],
-      "tests": ["src/features/hr/HrLiveDayDrafts.test.tsx"]
+      "tests": [
+        "src/features/hr/HrLiveDayDrafts.test.tsx",
+        "src/features/hr/DayScreen.correctionReceipt.test.tsx"
+      ]
     },
     {
       "id": "src/features/hr/ReviewDetail.tsx#DecisionArea:action",
