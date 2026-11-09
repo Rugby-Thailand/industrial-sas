@@ -15,9 +15,11 @@
 - `build.py`, `verify.py`, `requirements.txt`: source และตัวตรวจสำหรับสร้างซ้ำ
 - `assets/fonts/`: Noto Sans Thai และใบอนุญาต OFL
 
-สร้างซ้ำจาก root ของ repository:
+สร้างซ้ำจาก root ของ repository โดยใช้ Python 3.11 ขึ้นไป (Pillow 13):
 
 ```sh
+python3 -m venv output/hr-user-guide-tools/.venv
+output/hr-user-guide-tools/.venv/bin/python -m pip install -r docs/manuals/hr-user-guide-th/requirements.txt
 output/hr-user-guide-tools/.venv/bin/python docs/manuals/hr-user-guide-th/build.py
 pdftoppm -png -scale-to 1600 output/pdf/hr-user-guide-th.pdf tmp/pdfs/hr-user-guide-th/rendered/page
 output/hr-user-guide-tools/.venv/bin/python docs/manuals/hr-user-guide-th/verify.py

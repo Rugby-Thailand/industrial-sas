@@ -60,11 +60,19 @@ export function auditProblems(report, exceptions, scope, now = Date.now()) {
     ["high", "critical"].includes(entry.severity),
   );
   const metadata = report.metadata.vulnerabilities;
+  // pnpm 10 passes through npm's quick-audit metadata: it counts findings
+  // (installed locations), not advisory keys. One GHSA may have several
+  // findings, even for the same version on different dependency chains.
   if (
-    ![metadata.high, metadata.critical].every(
-      (n) => Number.isSafeInteger(n) && n >= 0,
-    ) ||
-    high.length !== metadata.high + metadata.critical
+    ["high", "critical"].some(
+      (severity) =>
+        !Number.isSafeInteger(metadata[severity]) ||
+        metadata[severity] < 0 ||
+        metadata[severity] !==
+          high
+            .filter((advisory) => advisory.severity === severity)
+            .reduce((count, advisory) => count + advisory.findings.length, 0),
+    )
   ) {
     problems.push("Audit severity totals do not match its advisory inventory.");
   }

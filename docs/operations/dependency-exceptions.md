@@ -24,6 +24,13 @@ Reproduce the current evidence:
 - `node scripts/ci/audit-dependencies.mjs --scope=app`
 - `node scripts/ci/audit-dependencies.mjs --scope=release`
 
+The maintained HR manual generator has a separate Python dependency scope,
+which pnpm does not audit. Its Pillow pin is 13.0.0 (Python 3.11+). Check it with
+`uvx --from pip-audit==2.10.1 pip-audit -r docs/manuals/hr-user-guide-th/requirements.txt`.
+On 2026-11-09 this reports no known vulnerabilities after replacing the
+vulnerable 12.3.0 pin. The [current baseline](../reviews/architecture-current-2026-11-09/tooling-baseline.md)
+records the audit and generator compatibility evidence.
+
 ### Bundled CLI code
 
 When assessing a future CLI advisory, inspect the published bundle as well as
@@ -37,6 +44,12 @@ by `scripts/ci/audit-dependencies.mjs --scope=app|release`. The scheduled
 remains mandatory with no exceptions. The helper checks the exact advisory,
 package, version, severity, dependency paths and expiry. An advisory outside an explicitly listed
 chain fails; this document does not broaden the machine policy.
+With pinned pnpm 10, the npm quick-audit response counts **findings**, not
+advisory keys, in each severity total. One advisory can contain several
+installed-location findings, including repeated versions on different chains.
+The gate reconciles high and critical separately against those finding counts;
+it still checks every finding's version and paths before allowing an exception.
+See the [current baseline and registry reproduction](../reviews/architecture-current-2026-11-09/tooling-baseline.md).
 The PR dependency review is a separate check. Successful enforcement on merged
 `main` still requires observing the workflow. See
 [implementation status](ci-cd-implementation-status.md) (S10, S12).
