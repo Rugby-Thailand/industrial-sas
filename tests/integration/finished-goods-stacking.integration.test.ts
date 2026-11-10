@@ -952,12 +952,6 @@ it("excludes retired/box units and uses the unit format before legacy product de
       storageFormat: "BOX",
     });
   });
-  const options = value(
-    await call(w, workflow.stackOptions, { ...w.base, rotation: 0 }),
-  );
-  expect(
-    (options["pallets"] as Array<{ _id: string }>).map((p) => p._id),
-  ).toEqual([w.upperId]);
   // Paged choices and by-ID previews apply the same eligibility.
   expect(
     (
@@ -1190,13 +1184,9 @@ it("protects supporting batch units independently of cached status, then repacks
       (p) => p.stackable === undefined && p.maxStackLevels === undefined,
     ),
   ).toBe(true);
-  const options = value(
-    await call(w, workflow.stackOptions, { ...w.base, rotation: 0 }),
-  );
+  const choices = value(await call(w, workflow.stackChoices, w.base));
   expect(
-    (options["pallets"] as Array<{ _id: string }>).some(
-      (p) => p._id === lowerId,
-    ),
+    (choices["items"] as Array<{ _id: string }>).some((p) => p._id === lowerId),
   ).toBe(false);
 });
 
@@ -1247,11 +1237,19 @@ it("pages eligible upper pallets in the same global code order without reading t
         ...(n % 4 === 2 || heightMm === undefined ? {} : { heightMm }),
       });
   });
-  const expected = (
-    value(await call(w, workflow.stackOptions, { ...w.base, rotation: 0 }))[
-      "pallets"
-    ] as Array<{ _id: string }>
-  ).map((p) => p._id);
+  // Independent oracle: the measured non-box units in global code order.
+  const expected = await w.t.run(async (ctx) =>
+    (await ctx.db.query("finishedGoodsPallets").collect())
+      .filter(
+        (p) =>
+          p._id === w.upperId ||
+          (p.code.startsWith("Q-") &&
+            p.storageFormat !== "BOX" &&
+            p.heightMm !== undefined),
+      )
+      .sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0))
+      .map((p) => p._id as string),
+  );
   expect(expected).toHaveLength(81);
   type ChoicePage = {
     status: string;

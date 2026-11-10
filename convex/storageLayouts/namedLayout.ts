@@ -12,6 +12,7 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import { refusal, writeContextOf } from "../lib/writeEnvelope";
 import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import {
@@ -95,6 +96,7 @@ export const namedLocationLayoutTarget = queryWithOrg({
 });
 
 export const completeNamedLocationLayout = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     locationId: v.id("locations"),

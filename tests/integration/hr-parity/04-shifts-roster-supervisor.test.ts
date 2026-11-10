@@ -106,6 +106,8 @@ async function rosterWorld() {
     "../convex/hr/roster.ts": () => import("../../../convex/hr/roster"),
     "../convex/hr/setup.ts": () => import("../../../convex/hr/setup"),
     "../convex/hr/periods.ts": () => import("../../../convex/hr/periods"),
+    "../convex/hr/periodClose.ts": () =>
+      import("../../../convex/hr/periodClose"),
     "../convex/hr/self.ts": () => import("../../../convex/hr/self"),
     "../convex/hr/review.ts": () => import("../../../convex/hr/review"),
   });
@@ -183,7 +185,7 @@ it("registered period close rejects an unseen OFF revision and freezes the revie
   expect(await assign("CLEAR", 1)).toMatchObject({ written: true });
   expect(await assign("OFF", 2)).toMatchObject({ written: true });
   expect(
-    await registered(world, "mutation", "hr/periods:close", {
+    await registered(world, "mutation", "hr/periodClose:begin", {
       periodId: period.documentId,
       expectedFingerprint: reviewed.view.fingerprint,
     }),
@@ -193,7 +195,7 @@ it("registered period close rejects an unseen OFF revision and freezes the revie
   ).toEqual([]);
   const fresh = await preview();
   expect(
-    await registered(world, "mutation", "hr/periods:close", {
+    await registered(world, "mutation", "hr/periodClose:begin", {
       periodId: period.documentId,
       expectedFingerprint: fresh.view.fingerprint,
     }),

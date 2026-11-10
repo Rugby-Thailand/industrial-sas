@@ -1,6 +1,6 @@
 import { api } from "../../../convex/_generated/api";
 
-import { clientRef } from "./clientRef";
+import { clientRef, typedClientRef, type RefValue } from "./clientRef";
 
 export type StorageLayoutStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 
@@ -197,7 +197,7 @@ export const storageLayoutRefs = Object.freeze({
   archive: clientRef(api.storageLayouts.writes.archiveStorageBuilding),
   createZone: clientRef(api.storageLayouts.zones.createStorageZone),
   updateZone: clientRef(api.storageLayouts.zones.updateStorageZone),
-  archiveZone: clientRef(api.storageLayouts.zones.archiveStorageZone),
+  archiveZone: typedClientRef(api.storageLayouts.zones.archiveStorageZone),
   createPosition: clientRef(api.storageLayouts.zones.createStoragePosition),
   generateRackPositions: clientRef(
     api.storageLayouts.zones.generateRackStoragePositions,
@@ -208,7 +208,7 @@ export const storageLayoutRefs = Object.freeze({
   backfillPositions: clientRef(
     api.storageLayouts.zones.backfillStoragePositions,
   ),
-  readiness: clientRef(api.storageLayouts.writes.layoutReadiness),
+  readiness: typedClientRef(api.storageLayouts.writes.layoutReadiness),
   lifecycleImpact: clientRef(api.storageLayouts.writes.buildingLifecycleImpact),
   removeTopFloor: clientRef(api.storageLayouts.writes.removeTopStorageFloor),
   namedLayoutTarget: clientRef(
@@ -219,23 +219,12 @@ export const storageLayoutRefs = Object.freeze({
   ),
 });
 
-export interface LayoutReadinessIssue {
-  readonly code: string;
-  readonly blocking: boolean;
-  readonly floorNumber?: number;
-  readonly zoneCode?: string;
-  readonly zoneLabel?: string;
-  readonly field?: string;
-}
-
-export interface LayoutReadiness {
-  readonly found: boolean;
-  readonly status?: StorageLayoutStatus;
-  readonly version?: number;
-  readonly zoneCount?: number;
-  readonly ready?: boolean;
-  readonly issues?: readonly LayoutReadinessIssue[];
-}
+/** Inferred from the explicit `storageLayouts/writes:layoutReadiness` result validator. */
+export type LayoutReadiness = RefValue<typeof storageLayoutRefs.readiness>;
+export type LayoutReadinessIssue = Extract<
+  LayoutReadiness,
+  { readonly found: true }
+>["issues"][number];
 
 export interface BuildingLifecycleImpact {
   readonly found: boolean;

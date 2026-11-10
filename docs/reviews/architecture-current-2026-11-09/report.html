@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Architecture review and implementation roadmap</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --radius: 12px;
+        --font-sans: system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--foreground, #17212d);
+        font: 15px/1.6 var(--font-sans);
+      }
+      main {
+        max-width: 1100px;
+        margin: auto;
+      }
+      h1 {
+        font-size: clamp(26px, 5vw, 40px);
+        line-height: 1.15;
+        letter-spacing: -0.035em;
+        margin: 10px 0 20px;
+      }
+      h2 {
+        font-size: 22px;
+        margin: 34px 0 12px;
+      }
+      h3 {
+        font-size: 17px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 10px 0;
+      }
+      .meta,
+      .muted {
+        color: inherit;
+        opacity: 0.75;
+      }
+      a {
+        color: var(--info, var(--foreground, #155a76));
+      }
+      .callout,
+      .layer,
+      .step {
+        background: var(--card, #f4f7fa);
+        border: 1px solid var(--border, #d9e1e9);
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+      .layers {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .layer b {
+        display: block;
+      }
+      .flow {
+        font-size: 13px;
+        color: inherit;
+        opacity: 0.75;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        text-align: left;
+      }
+      th,
+      td {
+        padding: 13px 10px;
+        vertical-align: top;
+        border-bottom: 1px solid var(--border, #d9e1e9);
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      td:first-child {
+        white-space: nowrap;
+        font-weight: 700;
+      }
+      .status {
+        display: block;
+        color: var(--info, var(--foreground, #155a76));
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      details {
+        margin-top: 8px;
+      }
+      summary {
+        cursor: pointer;
+        color: var(--info, var(--foreground, #155a76));
+      }
+      .steps {
+        display: grid;
+        gap: 12px;
+      }
+      .step strong {
+        display: block;
+      }
+      code {
+        font:
+          13px ui-monospace,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 650px) {
+        .layers {
+          grid-template-columns: 1fr;
+        }
+        th,
+        td {
+          padding: 10px 6px;
+        }
+        table {
+          min-width: 640px;
+        }
+      }
+      @media print {
+        details {
+          display: block;
+        }
+        details > * {
+          display: block;
+        }
+        table {
+          font-size: 11px;
+        }
+        .scroll {
+          overflow: visible;
+        }
+        a {
+          color: inherit;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="meta">
+        Verified architecture review · 10 November 2026 · Prelaunch
+      </p>
+      <h1>A smaller, explicit architecture</h1>
+      <p>
+        Keep the existing Next.js, React and Convex application. Improve the
+        seams developers change most: typed feature interfaces, pure domain
+        rules, explicit transactional writers and clearly owned UI drafts.
+      </p>
+      <div class="callout">
+        <strong>Implementation is based on current evidence.</strong>
+        <p>
+          The original audit used an older checkout. Several claims were already
+          fixed or did not reproduce. Codex and Kiro investigated the findings;
+          Kiro repeatedly stalled, so Codex reviewed and completed the
+          structural slice. The completed changes are grouped into three PRs,
+          within the five-PR limit.
+        </p>
+        <p>
+          <a href="https://github.com/Rugby-Thailand/industrial-sas/pull/149"
+            >#149 · Tooling and dependencies (merged)</a
+          >
+          ·
+          <a href="https://github.com/Rugby-Thailand/industrial-sas/pull/150"
+            >#150 · AI quotas and owned attachments (merged)</a
+          >
+          ·
+          <a href="https://github.com/Rugby-Thailand/industrial-sas/pull/154"
+            >#154 · Explicit feature boundaries and this report (awaiting CI)</a
+          >.
+        </p>
+      </div>
+      <h2>Architecture and data flow</h2>
+      <div class="layers">
+        <div class="layer">
+          <b>1. Feature UI</b>
+          <p>
+            Routes and screens compose feature adapters, draft reducers and
+            reusable components.
+          </p>
+          <p class="flow">
+            User intent → version-bound draft → one live command owner
+          </p>
+        </div>
+        <div class="layer">
+          <b>2. Feature functions</b>
+          <p>
+            Convex functions validate inputs, authorize the tenant and call pure
+            domain rules. Feature commands own replay and write policy.
+          </p>
+          <p class="flow">
+            Validated request → rules → source write + receipt + projections
+          </p>
+        </div>
+        <div class="layer">
+          <b>3. Storage and integrations</b>
+          <p>
+            Convex stores authoritative rows and derived read models. Clerk
+            supplies identity; UploadThing assets require verified ownership. AI
+            calls consume quotas first.
+          </p>
+          <p class="flow">
+            Atomic commit → reactive query → inferred UI result
+          </p>
+        </div>
+      </div>
+      <p>
+        Keep one deployable application and the current transactional backend.
+        No evidence calls for microservices, another database, a new state
+        framework or a wholesale runtime replacement. The
+        <a href="../../architecture/module-map.md">module map</a> names owners,
+        allowed imports and verification commands.
+      </p>
+      <h2>Finding dispositions</h2>
+      <p class="muted">
+        P0: security/reliability · P1: safe change and clear ownership · P2:
+        measured scale and development cost. “Pilot” and “unmeasured” are
+        deliberately distinct from complete fixes.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID / priority</th>
+              <th>Verified problem and disposition</th>
+              <th>Implementation and proof</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>A01<br />P0</td>
+              <td>
+                <span class="status">Fixed / already resolved</span>Dependency
+                audit metadata miscounted severity findings; the maintained
+                manual had vulnerable Pillow. Current Node fixes were already on
+                main.
+              </td>
+              <td>
+                #149 corrects counts, scopes exceptions and updates Pillow to
+                13.0.0.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Production/app/release audits; Python audit and
+                    rendered-manual comparison.
+                  </p>
+                  <a href="tooling-baseline.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A02<br />P1</td>
+              <td>
+                <span class="status">Fixed</span>Seven public interfaces had no
+                current production callers; an October exact-schema snapshot
+                blocked intentional prelaunch change.
+              </td>
+              <td>
+                Remove unused interfaces and obsolete freeze. Keep current
+                schema, tenant/index and registered-contract gates.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Caller/history inventory; canonical close/replay cases;
+                    public contract snapshot.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A03<br />P1</td>
+              <td>
+                <span class="status">Fixed</span>Pure HR model imported
+                persistence schemas and Convex validators.
+              </td>
+              <td>
+                Store schemas in convex/hr/schema; keep rules in convex/model;
+                enforce import direction.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Schema export equivalence; import-boundary regressions;
+                    generated bindings.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A04<br />P1</td>
+              <td>
+                <span class="status">Pilot delivered</span>Broad result
+                validators and erased document IDs weaken compile-time
+                contracts.
+              </td>
+              <td>
+                Two explicit-result pilots use inferred client types,
+                ID-preserving references and table-derived tenant reads.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Registered validator rejection; wrong-table/malformed
+                    inputs; compile-time negative cases.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A05<br />P1</td>
+              <td>
+                <span class="status">Fixed at verified seams</span>Command
+                helpers lived behind a public workflow module; FloorForm mixed
+                version-bound draft transitions with live operations.
+              </td>
+              <td>
+                Extract finished-goods commands/records and a pure floor-draft
+                reducer. Keep the actual save and Back owners in the caller.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Receipt/replay integration; draft invariants; pending save,
+                    refresh, dirty draft and next Back callers.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A06<br />P1</td>
+              <td>
+                <span class="status">Fixed</span>Receipt digest/verification
+                mechanics were duplicated across commands.
+              </td>
+              <td>
+                Share digest and identity verification; preserve documented HR,
+                inventory and master-data policies.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Stored-format and replay/refusal regressions; policy matrix.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A07<br />P2</td>
+              <td>
+                <span class="status"
+                  >Fixed / existing improvements retained</span
+                >Unused warehouse-wide readers added surface area; the audit
+                understated newer indexed queries.
+              </td>
+              <td>
+                Remove four broad readers; retain current indexed/paged reads.
+                Measure before replacing more.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    2,200-record indexed/fallback comparison; 1,200-zone
+                    recommendation fixture.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A08<br />P1</td>
+              <td>
+                <span class="status">Fixed; production scale unmeasured</span
+                >The generic tenant wrapper implicitly owned inventory
+                projections for every feature.
+              </td>
+              <td>
+                Declare inventoryWriter on relevant mutations; forbid undeclared
+                source writes; enforce import boundaries.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Transactional guard tests; incremental versus rebuilt
+                    summaries after seeded writes and duplicate delivery.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A09<br />P0</td>
+              <td>
+                <span class="status">Fixed; live delivery check remains</span
+                >Image actions bypassed quota enforcement; URL attachments and
+                upload ownership were insufficiently constrained.
+              </td>
+              <td>
+                Enforce quotas and owned asset intents/callbacks; atomic
+                attachment; bounded abandoned-upload cleanup.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    #150: quota, ownership, callback, cleanup tests and server
+                    credential parity preflight. Live CDN ACL is not proven.
+                  </p>
+                  <a href="ai-attachments.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A10<br />P1</td>
+              <td>
+                <span class="status">Fixed</span>History and navigation guard
+                modules formed a runtime import cycle.
+              </td>
+              <td>
+                Use an import-free marker leaf; preserve public exports and
+                workflow ownership.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Cycle enforcement; navigation contract; real caller/browser
+                    cases.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A11<br />P2</td>
+              <td>
+                <span class="status">Already resolved / regression added</span
+                >The old report missed staged HR close. Certification history
+                needed explicit limit-refusal coverage.
+              </td>
+              <td>
+                Keep staged close and supported limits; add over-limit refusal
+                coverage.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    120 employees × 31 dates fixture; 50-entry certification
+                    history cap.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A12<br />P2</td>
+              <td>
+                <span class="status"
+                  >Fixed docs/tooling; hypotheses deferred</span
+                >Module discovery and lint scope impeded navigation.
+                Provider/checker/telemetry redesign claims lacked measurements.
+              </td>
+              <td>
+                Add a maintained module map, scope lint to maintained inputs,
+                and retain current runtime/tools.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    Enforced module boundaries; lint; discovery and both checker
+                    lanes.
+                  </p>
+                  <a href="structural-dispositions.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+            <tr>
+              <td>A13<br />P1</td>
+              <td>
+                <span class="status">Refuted at current baseline</span>Reported
+                broad test failures did not reproduce on current main.
+              </td>
+              <td>
+                Keep all maintained suites in CI; investigate an actual failing
+                case before changing behavior or limits.
+                <details>
+                  <summary>Evidence and limits</summary>
+                  <p>
+                    #149 baseline: 468 files / 5,814 tests, no skips. Structural
+                    validation is recorded separately.
+                  </p>
+                  <a href="tooling-baseline.md">Detailed disposition</a>
+                </details>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h2>Next implementation steps</h2>
+      <div class="steps">
+        <div class="step">
+          <strong>1 · Finish the reviewed structural PR</strong>
+          <p>
+            Run both type checkers, normal lint/format, codegen freshness,
+            registered contracts, navigation gates, actual caller/browser tests
+            and the full suite. Merge only after the required aggregate CI gate
+            passes. Preserve the already-merged security work during
+            integration.
+          </p>
+        </div>
+        <div class="step">
+          <strong>2 · Verify the external upload path before release</strong>
+          <p>
+            Set matching Next/Convex UploadThing credentials; the deploy
+            preflight refuses missing or mismatched credentials. Exercise a real
+            staging callback, cross-tenant attachment refusal and
+            abandoned-upload cleanup. Check the actual CDN delivery/ACL policy
+            against the intended privacy requirement. Local tests cannot prove
+            that live policy.
+          </p>
+        </div>
+        <div class="step">
+          <strong>3 · Extend typed contracts when changing a feature</strong>
+          <p>
+            229 of 234 public results still contain <code>any</code>. Follow the
+            two pilots: explicit result validator → inferred client result →
+            table-derived document access → ID-preserving feature reference.
+            Accept a slice only with registered wrong-shape/input cases and
+            compile-time wrong-table checks. Avoid a second mirrored DTO/error
+            system.
+          </p>
+        </div>
+        <div class="step">
+          <strong>4 · Measure scale before changing the architecture</strong>
+          <p>
+            Capture per-feature read counts, transaction sizes, latency,
+            projection conflicts and provider spend on realistic fixtures or
+            staging. Consider partitioning only when a repeatable budget
+            violation exists. Raise HR limits only after staged close and
+            history-refusal budgets are demonstrated. Compare checker time and
+            defects caught before removing a lane.
+          </p>
+        </div>
+      </div>
+      <h2>How to keep changes safe</h2>
+      <p>
+        Declare inventory projection ownership at the mutation. Keep domain
+        models free of persistence imports. Reuse receipt mechanics while
+        preserving feature policies. Keep drafts, pending operations and Back
+        entries under explicit owners. Remove interfaces with a caller
+        inventory; prelaunch permits deliberate breaking cutovers and fresh
+        data, so historical snapshots should not dictate the current model.
+      </p>
+      <p class="muted">
+        Detailed evidence:
+        <a href="structural-dispositions.md">structural review</a>,
+        <a href="tooling-baseline.md">tooling baseline</a>,
+        <a href="ai-attachments.md">AI and attachments</a>. Production load,
+        live CDN ACL and telemetry delivery remain unverified. No remote data
+        reset or deployment is claimed.
+      </p>
+    </main>
+  </body>
+</html>

@@ -17,7 +17,7 @@ import {
 } from "../lib/tenantFunctions";
 import { isIsoDate } from "../model/hr/calendar";
 import { MAX_NAME_LENGTH, validateEmployeeDraft } from "../model/hr/employee";
-import { employeeOrgFields } from "../model/hr/orgSchema";
+import { employeeOrgFields } from "./schema/org";
 import {
   employmentState,
   separationPreserved,

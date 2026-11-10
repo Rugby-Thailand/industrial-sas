@@ -40,6 +40,10 @@ Run `pnpm check`, `pnpm build`, and `pnpm audit:prod` before releasing.
 `pnpm format:check` checks formatting. Physical camera scanning still requires
 a device check.
 
+The [module map](docs/architecture/module-map.md) shows where a change belongs,
+the allowed import direction between domain rules, Convex handlers and the
+frontend, the command/idempotency policies, and the supported HR sizes.
+
 Put new throwaway previews, raw captures, recordings, and generated review
 reports under the ignored `output/` directory. Keep maintained source,
 selected design evidence, and concise decisions in the repository. When
@@ -235,3 +239,5 @@ occupancy is a separate per-building query; location placements load only when
 the row is expanded. Occupancy retains the geometric-union calculation and
 fails explicitly at scoped capacity limits rather than displaying a partial
 footprint. Scene reads remain independent of list pagination.
+
+Current architecture audit and implementation roadmap: [HTML report](docs/reviews/architecture-current-2026-11-09/report.html). Verified findings and remaining measurements are linked from the report.

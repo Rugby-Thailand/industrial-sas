@@ -1,5 +1,6 @@
+import { tenantDocument } from "../lib/tenantDocument";
 import { normalizeAreaColor } from "../model/storageLayout/areaColor";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import {
@@ -10,7 +11,9 @@ import {
   updateMasterDataRow,
 } from "../lib/masterDataStore";
 import { TenantDbError } from "../lib/tenantDb";
+import { storageLayoutStatus } from "../lib/validators";
 import type { TenantFunctionContext } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import { mutationWithOrg, queryWithOrg } from "../lib/tenantFunctions";
 import { refusal, writeContextOf, written } from "../lib/writeEnvelope";
 import {
@@ -202,6 +205,7 @@ function validateFloorZones(input: {
 }
 
 export const createStorageBuilding = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),
@@ -304,6 +308,7 @@ export const createStorageBuilding = mutationWithOrg({
 });
 
 export const updateStorageBuilding = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     buildingId: v.id("storageBuildings"),
@@ -424,6 +429,7 @@ export const updateStorageBuilding = mutationWithOrg({
 
 /** Publish the approved F1/F2 schematic without rewriting operational zones or QR codes. */
 export const approveF1F2Schematic = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     buildingId: v.id("storageBuildings"),
@@ -522,6 +528,7 @@ export const approveF1F2Schematic = mutationWithOrg({
 });
 
 export const changeStorageFloorCount = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     buildingId: v.id("storageBuildings"),
@@ -630,6 +637,7 @@ export const changeStorageFloorCount = mutationWithOrg({
 });
 
 export const saveStorageFloor = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     buildingId: v.id("storageBuildings"),
@@ -790,15 +798,33 @@ export const saveStorageFloor = mutationWithOrg({
   },
 });
 
-export interface LayoutReadinessIssue {
-  readonly code: string;
+/** One activation-preflight finding; the UI translates `code`. */
+export const layoutReadinessIssueValidator = v.object({
+  code: v.string(),
   /** Blocking issues refuse activation; others are advisory. */
-  readonly blocking: boolean;
-  readonly floorNumber?: number;
-  readonly zoneCode?: string;
-  readonly zoneLabel?: string;
-  readonly field?: string;
-}
+  blocking: v.boolean(),
+  floorNumber: v.optional(v.number()),
+  zoneCode: v.optional(v.string()),
+  zoneLabel: v.optional(v.string()),
+  field: v.optional(v.string()),
+});
+export type LayoutReadinessIssue = Infer<typeof layoutReadinessIssueValidator>;
+
+/**
+ * The public `layoutReadiness` result. Explicit, so the registered function
+ * rejects an unexpected field and clients infer this exact shape.
+ */
+const layoutReadinessResult = v.union(
+  v.object({ found: v.literal(false) }),
+  v.object({
+    found: v.literal(true),
+    status: storageLayoutStatus,
+    version: v.number(),
+    zoneCount: v.number(),
+    ready: v.boolean(),
+    issues: v.array(layoutReadinessIssueValidator),
+  }),
+);
 
 /**
  * The one activation preflight. The activate mutation refuses with the first
@@ -1114,6 +1140,7 @@ const statusArgs = {
   expectedVersion: v.number(),
 };
 export const activateStorageBuilding = mutationWithOrg({
+  writer: inventoryWriter,
   args: statusArgs,
   returns: outcome,
   permissionCode: "masterData.storageLayout.activate",
@@ -1122,6 +1149,7 @@ export const activateStorageBuilding = mutationWithOrg({
   handler: (ctx, args) => changeStatus(ctx, args, "ACTIVE"),
 });
 export const archiveStorageBuilding = mutationWithOrg({
+  writer: inventoryWriter,
   args: statusArgs,
   returns: outcome,
   permissionCode: "masterData.storageLayout.activate",
@@ -1131,6 +1159,7 @@ export const archiveStorageBuilding = mutationWithOrg({
 });
 
 export const returnStorageBuildingToDraft = mutationWithOrg({
+  writer: inventoryWriter,
   args: statusArgs,
   returns: outcome,
   permissionCode: "masterData.storageLayout.activate",
@@ -1147,12 +1176,13 @@ const buildingArgs = {
 /** Server preflight for the review screen: every activation check, per floor and spot. */
 export const layoutReadiness = queryWithOrg({
   args: buildingArgs,
-  returns: v.any(),
+  returns: layoutReadinessResult,
   permissionCode: "masterData.storageLayout.read",
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const building = await ctx.tenantDb.get<BuildingDocument>(
+    const building = await tenantDocument(
+      ctx.tenantDb,
       "storageBuildings",
       args.buildingId,
     );
@@ -1265,6 +1295,7 @@ export const buildingLifecycleImpact = queryWithOrg({
  * and are removed with it. Lower floors and every identity stay untouched.
  */
 export const removeTopStorageFloor = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     buildingId: v.id("storageBuildings"),

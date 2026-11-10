@@ -4,7 +4,8 @@ Scope: storage and neutral validation for the HRZoft work-condition and OT setti
 
 ## Where it lives
 
-- `convex/model/hr/workRules.ts`: Convex validator, `WorkRules` type, `validateWorkRules`, and `WORK_RULES_EXECUTION`.
+- `convex/model/hr/workRules.ts`: `WorkRules` type, `validateWorkRules`, and `WORK_RULES_EXECUTION` (pure; shared with the UI).
+- `convex/hr/schema/policy.ts`: the stored Convex validators for work rules and the policy config, with a compile-time check against those types.
 - `convex/model/hr/policy.ts`: `PolicyConfig.workRules` is optional. `validatePolicy` runs the work-rule check after the unchanged leave floors. `validatePolicyCapability` allows `workRules` only on the `LEAVE` capability.
 - `convex/hr/policies.ts`: the existing `current`, `saveDraft` and `activate` handlers. They keep HR admin permission, org-wide scope, `hrCommand` idempotency/audit, `expectedVersion` stale checks and immutable activation. `current` (LEAVE) also returns `workRulesExecution`. The `saveDraft` audit records `workRules: NONE | STORED_INACTIVE`.
 

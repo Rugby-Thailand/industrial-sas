@@ -108,6 +108,28 @@ export function classifyTable(name: string): TableClassification {
   return "unclassified";
 }
 
+/**
+ * Tenant tables whose writes feed derived rows maintained in the same
+ * transaction (product summaries, warehouse totals, zone occupancy and
+ * surfaces, catalogue signals, search indexes). A tenant mutation may write
+ * them only when it declares the derived-state `writer` that owns those
+ * updates; `mutationWithOrg` refuses the write otherwise. Which derived rows
+ * change, and how, belongs to that writer, not to this policy.
+ */
+export const PROJECTED_SOURCE_TABLES: ReadonlySet<TenantTableName> = new Set([
+  "locations",
+  "storageBuildings",
+  "storageFloors",
+  "storageZones",
+  "storagePositions",
+  "finishedGoodsProducts",
+  "finishedGoodsBatches",
+  "finishedGoodsPallets",
+  "finishedGoodsPlacements",
+  "finishedGoodsMoves",
+  "finishedGoodsJobScans",
+] as const satisfies readonly TenantTableName[]);
+
 export const FORBIDDEN_FIELD_WORDS = [
   "password",
   "passwd",

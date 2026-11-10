@@ -5,26 +5,20 @@ import {
   WORKFLOW_CONTROLLERS_EVENT,
 } from "./workflowControllers";
 import { updateBrowserQuery } from "./history";
+import {
+  APP_HISTORY_KEY,
+  APP_ROUTE_ORIGIN_KEY,
+  GUARD_HISTORY_KEY,
+  appHistoryIndex,
+  historyIndex,
+} from "./appHistoryMarkers";
 
-export const APP_ROUTE_ORIGIN_KEY = "appRouteOrigin";
-export const APP_HISTORY_KEY = "appNavigationIndex";
-/** The navigation guard owner's same-URL buffer entry carries this marker. */
-export const GUARD_HISTORY_KEY = "__storageWorkspaceGuard";
-
-/** Only entries visited in this app count; history.length includes other sites. */
-export function appHistoryIndex(): number | undefined {
-  return historyIndex(window.history.state);
-}
-
-function historyIndex(state: unknown): number | undefined {
-  const value: unknown =
-    state !== null && typeof state === "object" && APP_HISTORY_KEY in state
-      ? state[APP_HISTORY_KEY]
-      : undefined;
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
-    ? value
-    : undefined;
-}
+export {
+  APP_HISTORY_KEY,
+  APP_ROUTE_ORIGIN_KEY,
+  GUARD_HISTORY_KEY,
+  appHistoryIndex,
+} from "./appHistoryMarkers";
 
 function routePath(url: URL): string {
   return url.pathname.replace(/^\/(?:en|th)(?=\/|$)/, "") || "/";

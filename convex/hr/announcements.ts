@@ -10,7 +10,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { isEmployedOn } from "../model/hr/schedule";
-import { announcementAudienceValidator } from "../model/hr/announcementsSchema";
+import { announcementAudienceValidator } from "./schema/announcements";
 import { activePolicy } from "./policies";
 import { deliverNotification, completeRows500 } from "./notifications";
 import {

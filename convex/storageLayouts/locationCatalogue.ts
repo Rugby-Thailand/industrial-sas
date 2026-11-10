@@ -455,25 +455,3 @@ export const options = queryWithOrg({
     };
   },
 });
-
-// Compatibility for existing integrations. The catalogue UI uses page above.
-export const list = queryWithOrg({
-  args: { warehouseId: v.id("warehouses") },
-  returns: v.any(),
-  permissionCode: "masterData.storageLayout.read",
-  target: { table: "storageZones" },
-  warehouseId: (args) => args.warehouseId,
-  handler: async (ctx, { warehouseId }) => {
-    const zones = await ctx.tenantDb
-      .byIndex<Doc<"storageZones">>(
-        "storageZones",
-        "by_orgId_warehouseId_code",
-        [{ field: "warehouseId", value: warehouseId }],
-      )
-      .all(10_000);
-    const rows = await Promise.all(zones.map(createLocationReader(ctx)));
-    return await Promise.all(
-      rows.filter((row) => row !== null).map((row) => withOccupancy(ctx, row)),
-    );
-  },
-});

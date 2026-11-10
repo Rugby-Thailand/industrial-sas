@@ -18,7 +18,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import * as workflow from "../../convex/finishedGoods/workflow";
 import * as scanning from "../../convex/finishedGoods/scanning";
 import * as batches from "../../convex/finishedGoods/batches";
-import { list as listLocations } from "../../convex/storageLayouts/locationCatalogue";
+import { detail as locationDetail } from "../../convex/storageLayouts/locationCatalogue";
 import { archiveStorageBuilding } from "../../convex/storageLayouts/writes";
 import {
   createConvexTenantWorld,
@@ -401,13 +401,16 @@ describe("ordered package scanning", () => {
       occupiedFootprintAreaSqMm: 0,
     });
     const catalogue = value(
-      await call(world, listLocations, { warehouseId: world.warehouseId }),
+      await call(world, locationDetail, {
+        warehouseId: world.warehouseId,
+        zoneId: world.zoneId,
+      }),
     ) as unknown as {
       palletCount: number;
       measuredAreaPartial: boolean;
       occupiedFootprintAreaSqMm: number;
-    }[];
-    expect(catalogue[0]).toMatchObject({
+    };
+    expect(catalogue).toMatchObject({
       palletCount: 3,
       measuredAreaPartial: true,
       occupiedFootprintAreaSqMm: 0,
@@ -656,14 +659,17 @@ describe("ordered package scanning", () => {
     });
     id(await call(world, scanning.confirmScanAssignment, input));
     const catalogue = value(
-      await call(world, listLocations, { warehouseId: world.warehouseId }),
+      await call(world, locationDetail, {
+        warehouseId: world.warehouseId,
+        zoneId: world.zoneId,
+      }),
     ) as unknown as {
       palletCount: number;
       unmeasuredPalletCount: number;
       measuredAreaPartial: boolean;
       occupiedFootprintAreaSqMm: number;
-    }[];
-    expect(catalogue[0]).toMatchObject({
+    };
+    expect(catalogue).toMatchObject({
       palletCount: 4,
       unmeasuredPalletCount: 3,
       measuredAreaPartial: true,

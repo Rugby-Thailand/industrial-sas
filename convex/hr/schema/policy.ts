@@ -1,11 +1,114 @@
 import { defineTable } from "convex/server";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import { byOrg, tenantFields } from "../../lib/tenantTable";
-import {
-  capabilityValidator,
-  leaveTypeValidator,
-  policyConfigValidator,
-} from "./policy";
+import type {
+  LeaveType,
+  PolicyCapability,
+  PolicyConfig,
+} from "../../model/hr/policy";
+import type { WorkRules } from "../../model/hr/workRules";
+
+/*
+ * Stored and argument validators for HR policy and leave records. The pure
+ * rules over these values (`validatePolicy`, `validateWorkRules`, leave
+ * periods and grants) live in `convex/model/hr`, which the UI also imports.
+ */
+
+export const capabilityValidator = v.union(
+  v.literal("LEAVE"),
+  v.literal("ANNOUNCEMENTS"),
+  v.literal("PAYSLIPS"),
+);
+export const attendanceRulesValidator = v.object({
+  lateAfterMinutes: v.optional(v.number()),
+  veryLateAfterMinutes: v.optional(v.number()),
+  absentAfterMinutes: v.optional(v.number()),
+  excludeGraceMinutesFromLate: v.optional(v.boolean()),
+});
+export const overtimeRulesValidator = v.object({
+  automaticCalculation: v.optional(v.boolean()),
+  beforeShiftStartMinutes: v.optional(v.number()),
+  afterShiftEndMinutes: v.optional(v.number()),
+  minimumMinutes: v.optional(v.number()),
+  maximumOutsideShiftMinutes: v.optional(v.number()),
+  rounding: v.optional(
+    v.object({ direction: v.literal("DOWN"), intervalMinutes: v.number() }),
+  ),
+  eligibility: v.optional(
+    v.object({
+      requirePassedProbation: v.optional(v.boolean()),
+      minimumTenureDays: v.optional(v.number()),
+      excludedGroupKeys: v.optional(v.array(v.string())),
+    }),
+  ),
+});
+/** Inert slice-02 settings; see `convex/model/hr/workRules.ts`. */
+export const workRulesValidator = v.object({
+  attendance: v.optional(attendanceRulesValidator),
+  overtime: v.optional(overtimeRulesValidator),
+});
+export const policyConfigValidator = v.object({
+  annualDays: v.number(),
+  firstYearAnnualDays: v.number(),
+  sickPaidDays: v.number(),
+  personalDays: v.number(),
+  maternityDays: v.number(),
+  maternityPaidDays: v.number(),
+  spouseDays: v.number(),
+  newbornCareDays: v.number(),
+  newbornCarePayPercent: v.number(),
+  militaryPaidDays: v.number(),
+  announcementAudience: v.union(v.literal("ORGANIZATION"), v.literal("SITE")),
+  announcementAcknowledgment: v.boolean(),
+  verificationMinutes: v.number(),
+  downloadSeconds: v.number(),
+  requireFileHash: v.boolean(),
+  hashAlgorithm: v.literal("SHA256"),
+  /** LEAVE capability only; `validatePolicyCapability` enforces that. */
+  workRules: v.optional(workRulesValidator),
+});
+export const leaveTypeValidator = v.union(
+  v.literal("ANNUAL"),
+  v.literal("SICK"),
+  v.literal("PERSONAL"),
+  v.literal("MATERNITY"),
+  v.literal("SPOUSE"),
+  v.literal("NEWBORN_CARE"),
+  v.literal("STERILIZATION"),
+  v.literal("MILITARY"),
+  v.literal("TRAINING"),
+);
+
+// The validators and the pure rules' types live in different layers, so a
+// field added to one must fail compilation until it is added to the other.
+type Assert<Condition extends true> = Condition;
+type SameKeys<A, B> = [keyof A] extends [keyof B]
+  ? [keyof B] extends [keyof A]
+    ? true
+    : false
+  : false;
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+export type PolicyValidatorsMatchRules = [
+  Assert<Equal<Infer<typeof capabilityValidator>, PolicyCapability>>,
+  Assert<Equal<Infer<typeof leaveTypeValidator>, LeaveType>>,
+  Assert<
+    Infer<typeof policyConfigValidator> extends PolicyConfig ? true : false
+  >,
+  Assert<SameKeys<Infer<typeof policyConfigValidator>, PolicyConfig>>,
+  Assert<SameKeys<Infer<typeof workRulesValidator>, WorkRules>>,
+  Assert<
+    SameKeys<
+      NonNullable<Infer<typeof workRulesValidator>["overtime"]>,
+      NonNullable<WorkRules["overtime"]>
+    >
+  >,
+  Assert<
+    SameKeys<
+      NonNullable<Infer<typeof workRulesValidator>["attendance"]>,
+      NonNullable<WorkRules["attendance"]>
+    >
+  >,
+];
 const history = v.object({
   action: v.string(),
   at: v.number(),

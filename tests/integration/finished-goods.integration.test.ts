@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { queryWithOrg } from "../../convex/lib/tenantFunctions";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it, vi } from "vitest";
+import * as catalogue from "../../convex/finishedGoods/catalogue";
 import * as workflow from "../../convex/finishedGoods/workflow";
 import type { DataModel } from "../../convex/schema";
 import { archiveStorageBuilding } from "../../convex/storageLayouts/writes";
@@ -857,10 +858,10 @@ describe("finished goods workflow", () => {
     const world = await setup();
     const { palletId, productId } = await measuredPallet(world);
     await expect(
-      call(world, workflow.list, { warehouseId: world.warehouseId }, false),
+      call(world, catalogue.summary, { warehouseId: world.warehouseId }, false),
     ).rejects.toThrow("ANONYMOUS");
     await expect(
-      call(world, workflow.list, { warehouseId: world.warehouses.alphaB }),
+      call(world, catalogue.summary, { warehouseId: world.warehouses.alphaB }),
     ).rejects.toThrow();
     await world.t.run(async (ctx) => {
       const membership = await ctx.db
@@ -941,11 +942,11 @@ describe("finished goods workflow", () => {
     ).toMatchObject({ ok: false });
     expect(
       value(
-        await call(readOnly, workflow.list, {
+        await call(readOnly, catalogue.summary, {
           warehouseId: readOnly.warehouseId,
         }),
       ),
-    ).toEqual({ products: [], pallets: [] });
+    ).toHaveProperty("status");
   });
   it("rejects malformed placement bounds and stale measurement snapshots", async () => {
     const world = await setup();

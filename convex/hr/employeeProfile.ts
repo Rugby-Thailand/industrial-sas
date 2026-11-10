@@ -27,7 +27,7 @@ import {
   profileFields,
   profileUpdateArgs,
   separationType,
-} from "../model/hr/employeeProfileSchema";
+} from "./schema/employeeProfile";
 import {
   maskAccountNumber,
   mergeUpdate,

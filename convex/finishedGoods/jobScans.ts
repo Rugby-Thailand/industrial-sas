@@ -17,8 +17,9 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
+import { command, created, failure, stamp } from "./commands";
 import { ATTACHMENT_GRACE_MS } from "./attachments";
-import { command, created, failure, rows, stamp } from "./workflow";
 import {
   MAX_JOB_SCAN_ITEMS,
   JOB_TICKET_JSON_SCHEMA,
@@ -56,7 +57,6 @@ export const JOB_TICKET_RATE_LIMIT = Object.freeze({
 const DEFAULT_MODEL = "openai/gpt-6-luna";
 const MAX_ITEMS = MAX_JOB_SCAN_ITEMS;
 const LIST_LIMIT = 300;
-const LOCATION_PAGE_SIZE = 10;
 
 const optionalText = v.optional(v.string());
 const optionalNumber = v.optional(v.number());
@@ -137,48 +137,6 @@ async function mapLocation(
     locationName: location.name,
   };
 }
-
-export const searchLocations = queryWithOrg({
-  args: {
-    warehouseId: v.id("warehouses"),
-    text: v.string(),
-    page: v.optional(v.number()),
-  },
-  returns: v.any(),
-  permissionCode: READ,
-  target: { table: "storageZones" },
-  warehouseId: (args) => args.warehouseId,
-  handler: async (ctx, args) => {
-    const needle = args.text.trim().toUpperCase();
-    const zones = await rows<Doc<"storageZones">>(
-      ctx,
-      "storageZones",
-      "by_orgId_warehouseId_code",
-      [{ field: "warehouseId", value: args.warehouseId }],
-    );
-    const matches = zones.filter(
-      (zone) =>
-        zone.status === "ACTIVE" &&
-        (!needle ||
-          zone.code.toUpperCase().includes(needle) ||
-          zone.label.toUpperCase().includes(needle)),
-    );
-    const pages = Math.max(1, Math.ceil(matches.length / LOCATION_PAGE_SIZE));
-    const page = Math.min(Math.max(1, Math.floor(args.page ?? 1)), pages);
-    return {
-      page,
-      pages,
-      total: matches.length,
-      items: matches
-        .slice((page - 1) * LOCATION_PAGE_SIZE, page * LOCATION_PAGE_SIZE)
-        .map((zone) => ({
-          zoneId: zone._id,
-          code: zone.code,
-          name: zone.label,
-        })),
-    };
-  },
-});
 
 /** Reads a job ticket photo with OpenRouter. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
@@ -317,6 +275,7 @@ export const extractJobTicket = actionWithOrg({
 });
 
 export const saveJobScans = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),
@@ -432,6 +391,7 @@ export const saveJobScans = mutationWithOrg({
 });
 
 export const updateJobScan = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     jobScanId: v.id("finishedGoodsJobScans"),
@@ -555,6 +515,7 @@ export const listJobScanCorrections = queryWithOrg({
 });
 
 export const assignJobScanLocation = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),
@@ -628,6 +589,7 @@ export const assignJobScanLocation = mutationWithOrg({
 });
 
 export const deleteJobScans = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),

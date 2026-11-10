@@ -1,7 +1,5 @@
 import { createPermissionGrants } from "./navigationGrants";
 import { createAiUsagePort, type AiUsagePort } from "./aiUsage";
-import { trackFinishedGoodsWrites } from "./finishedGoodsSummary";
-import { trackSearchIndexWrites } from "./searchIndexWrites";
 import {
   actionGeneric,
   internalMutationGeneric,
@@ -57,7 +55,7 @@ import {
   createMemberDirectory,
   type MemberDirectoryPort,
 } from "./memberDirectory";
-import type { TenantTableName } from "./schemaPolicy";
+import { PROJECTED_SOURCE_TABLES, type TenantTableName } from "./schemaPolicy";
 import {
   TENANT_CONTEXT_DENIAL_CODES,
   TENANT_CONTEXT_DENIAL_MESSAGE,
@@ -177,6 +175,36 @@ type TenantFunctionDefinition<
     ctx: TenantFunctionContext,
     ...args: OneOrZeroArgs
   ) => ReturnValue;
+};
+
+/**
+ * The owner of a mutation's derived writes: it wraps the handler's database
+ * to observe source writes and `flush` completes the derived rows before the
+ * transaction commits. Declared by the feature that owns those rows, so a
+ * mutation's interface shows every projection it maintains.
+ */
+export type TenantWriteOwner = (input: {
+  readonly db: TenantDocumentAccess;
+  readonly orgId: OrganizationId;
+  readonly scheduler: GenericMutationCtx<DataModel>["scheduler"];
+}) => {
+  readonly db: TenantDocumentAccess;
+  readonly flush: () => Promise<void>;
+};
+
+type TenantMutationDefinition<
+  ArgsValidator extends FunctionValidator,
+  ReturnsValidator extends FunctionValidator,
+  ReturnValue,
+  OneOrZeroArgs extends ArgsArrayForOptionalValidator<ArgsValidator>,
+> = TenantFunctionDefinition<
+  ArgsValidator,
+  ReturnsValidator,
+  ReturnValue,
+  OneOrZeroArgs
+> & {
+  /** Required to write a table in `PROJECTED_SOURCE_TABLES`. */
+  readonly writer?: TenantWriteOwner;
 };
 
 type TenantActionDefinition<
@@ -449,6 +477,36 @@ async function verifiedTargetId(input: {
   return document === null ? undefined : id;
 }
 
+function refuseProjectedSourceWrites(
+  db: TenantDocumentAccess,
+): TenantDocumentAccess {
+  const check = (table: TenantTableName) => {
+    if (PROJECTED_SOURCE_TABLES.has(table))
+      throw new Error(
+        `Writing ${table} requires the mutation to declare its writer.`,
+      );
+  };
+  return {
+    ...db,
+    insert: async (table, payload) => {
+      check(table);
+      return db.insert(table, payload);
+    },
+    patch: async (table, id, fields) => {
+      check(table);
+      return db.patch(table, id, fields);
+    },
+    replace: async (table, id, fields) => {
+      check(table);
+      return db.replace(table, id, fields);
+    },
+    delete: async (table, id) => {
+      check(table);
+      return db.delete(table, id);
+    },
+  };
+}
+
 async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   rawContext: RawTenantContext,
   args: Args,
@@ -457,6 +515,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   storageFactory: StorageFactory,
   audit: boolean,
   handler: (ctx: TenantFunctionContext, ...args: Args) => ReturnValue,
+  writer?: TenantWriteOwner,
 ): Promise<TenantFunctionOutcome<Awaited<ReturnValue>>> {
   // Query IDs correlate cached results; they are not audit timestamps.
   const requestId = audit ? mintRequestId() : crypto.randomUUID();
@@ -487,21 +546,18 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       storageFactory(rawContext, requestId),
     );
 
-    const summaryWrites = audit
-      ? trackFinishedGoodsWrites(
-          sourceDb,
-          "scheduler" in rawContext ? rawContext.scheduler : undefined,
-        )
-      : undefined;
-    const searchWrites = summaryWrites
-      ? trackSearchIndexWrites(
-          summaryWrites.db,
-          sourceDb,
-          resolved.context.organization._id,
-          "scheduler" in rawContext ? rawContext.scheduler : undefined,
-        )
-      : undefined;
-    const tenantDb = searchWrites?.db ?? sourceDb;
+    // Only a mutation's declared writer may write a projected source table,
+    // so no derived row is left stale by a writer that forgot it.
+    const owned =
+      audit && writer !== undefined && "scheduler" in rawContext
+        ? writer({
+            db: sourceDb,
+            orgId: resolved.context.organization._id,
+            scheduler: rawContext.scheduler,
+          })
+        : undefined;
+    const tenantDb =
+      owned?.db ?? (audit ? refuseProjectedSourceWrites(sourceDb) : sourceDb);
 
     const authorizationLookups = createConvexAuthorizationLookups(
       rawContext,
@@ -549,8 +605,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
     });
 
     const value = (await handler(narrowed, ...args)) as Awaited<ReturnValue>;
-    await summaryWrites?.flush();
-    await searchWrites?.flush();
+    await owned?.flush();
     return Object.freeze({ ok: true as const, requestId, value });
   } catch (error) {
     if (error instanceof SafeTenantFunctionFailure) {
@@ -862,7 +917,7 @@ export function mutationWithOrg<
   OneOrZeroArgs extends ArgsArrayForOptionalValidator<ArgsValidator> =
     DefaultArgsForOptionalValidator<ArgsValidator>,
 >(
-  definition: TenantFunctionDefinition<
+  definition: TenantMutationDefinition<
     ArgsValidator,
     ReturnsValidator,
     ReturnValue,
@@ -896,6 +951,7 @@ export function mutationWithOrg<
           ),
         true,
         definition.handler,
+        definition.writer,
       ) as unknown as ReturnValue,
   }) as unknown as RegisteredMutation<
     "public",

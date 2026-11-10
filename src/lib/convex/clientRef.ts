@@ -16,7 +16,28 @@ type ClientValue<Value> =
         ? { readonly [Key in keyof Value]: ClientValue<Value[Key]> }
         : Value;
 
-type ClientReference<Reference> =
+// Use the typed adapter for validated feature interfaces. Raw route/scanner
+// text is still checked by the registered server validator; an ID that already
+// carries a table brand cannot silently become an unrelated table's ID.
+type UnvalidatedIdInput = string & { readonly __tableName?: never };
+type TypedClientInput<Value> =
+  Value extends GenericId<infer Table>
+    ? GenericId<Table> | UnvalidatedIdInput
+    : Value extends readonly (infer Item)[]
+      ? readonly TypedClientInput<Item>[]
+      : Value extends object
+        ? { readonly [Key in keyof Value]: TypedClientInput<Value[Key]> }
+        : Value;
+type TypedClientResult<Value> =
+  Value extends GenericId<string>
+    ? Value
+    : Value extends readonly (infer Item)[]
+      ? readonly TypedClientResult<Item>[]
+      : Value extends object
+        ? { readonly [Key in keyof Value]: TypedClientResult<Value[Key]> }
+        : Value;
+
+type ClientReference<Reference, TypedIds extends boolean = false> =
   Reference extends FunctionReference<
     infer Type,
     infer Visibility,
@@ -27,8 +48,8 @@ type ClientReference<Reference> =
     ? FunctionReference<
         Type,
         Visibility,
-        ClientValue<Args>,
-        ClientValue<Result>,
+        TypedIds extends true ? TypedClientInput<Args> : ClientValue<Args>,
+        TypedIds extends true ? TypedClientResult<Result> : ClientValue<Result>,
         ComponentPath
       >
     : never;
@@ -44,6 +65,12 @@ export const clientRef = <Reference extends AnyReference>(
   reference: Reference,
 ): ClientReference<Reference> =>
   reference as unknown as ClientReference<Reference>;
+
+/** Preserves document ID brands for newly validated feature interfaces. */
+export const typedClientRef = <Reference extends AnyReference>(
+  reference: Reference,
+): ClientReference<Reference, true> =>
+  reference as unknown as ClientReference<Reference, true>;
 
 export type RefValue<Reference extends AnyReference> =
   FunctionReturnType<Reference> extends infer Outcome

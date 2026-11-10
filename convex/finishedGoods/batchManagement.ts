@@ -6,22 +6,19 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import {
   quantityToMinor,
   validatePacking,
   MAX_FG_PACKAGES,
 } from "../model/finishedGoods/packing";
+import { command, compact, created, failure, stamp } from "./commands";
 import {
-  command,
-  compact,
-  created,
-  failure,
-  hasHeldPlacement,
   firstActiveMove,
+  hasHeldPlacement,
   nextCode,
   productOf,
-  stamp,
-} from "./workflow";
+} from "./records";
 
 const scope = {
   warehouseId: v.id("warehouses"),
@@ -76,6 +73,7 @@ export const get = queryWithOrg({
   },
 });
 export const repackAvailable = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...scope,
     requestId: v.string(),

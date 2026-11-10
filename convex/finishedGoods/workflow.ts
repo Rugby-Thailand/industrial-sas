@@ -36,16 +36,9 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
-import { refusal, written } from "../lib/writeEnvelope";
-import {
-  checkIdempotency,
-  fingerprintArguments,
-  sha256Hex,
-  writeIdempotencyRecord,
-} from "../lib/idempotency";
-import type { TenantTableName } from "../lib/schemaPolicy";
-import type { AuditChange } from "../lib/masterDataStore";
-import type { TenantIndexEquality, TenantOwnedDocument } from "../lib/tenantDb";
+import { inventoryWriter } from "../lib/inventoryWriter";
+import { command, compact, created, failure, stamp } from "./commands";
+import { nextCode, palletOf, productOf, rows } from "./records";
 import {
   dimensions,
   firstFit,
@@ -78,164 +71,8 @@ const productFields = {
   customerReference: v.optional(v.string()),
   productReference: v.optional(v.string()),
 };
-export const failure = (code: string, field?: string, reason?: string) =>
-  refusal({ code, field, reason });
-export const stamp = (ctx: TenantFunctionContext) => ({
-  updatedAt: Date.now(),
-  updatedByUserId: ctx.tenant.actor._id,
-});
-export const created = (ctx: TenantFunctionContext) => ({
-  ...stamp(ctx),
-  createdAt: Date.now(),
-  createdByUserId: ctx.tenant.actor._id,
-});
-export const compact = <T extends Record<string, unknown>>(fields: T) =>
-  Object.fromEntries(
-    Object.entries(fields).filter(([, value]) => value !== undefined),
-  );
-
-export async function rows<T extends TenantOwnedDocument>(
-  ctx: TenantFunctionContext,
-  table: TenantTableName,
-  index: string,
-  equality: TenantIndexEquality,
-): Promise<T[]> {
-  return [
-    ...(await ctx.tenantDb.byIndex<T>(table, index, equality).all(10_000)),
-  ];
-}
-export async function palletOf(
-  ctx: TenantFunctionContext,
-  args: { warehouseId: string; palletId: string },
-) {
-  const pallet = await ctx.tenantDb.get<Doc<"finishedGoodsPallets">>(
-    "finishedGoodsPallets",
-    args.palletId,
-  );
-  return pallet?.warehouseId === args.warehouseId && !pallet.retiredAt
-    ? pallet
-    : null;
-}
-export async function productOf(
-  ctx: TenantFunctionContext,
-  args: { warehouseId: string; productId: string },
-) {
-  const product = await ctx.tenantDb.get<Doc<"finishedGoodsProducts">>(
-    "finishedGoodsProducts",
-    args.productId,
-  );
-  return product?.warehouseId === args.warehouseId ? product : null;
-}
-export async function nextCode(
-  ctx: TenantFunctionContext,
-  warehouseId: Id<"warehouses">,
-  kind: "pallet" | "position",
-) {
-  const counter = await ctx.tenantDb
-    .byIndex<Doc<"finishedGoodsCounters">>(
-      "finishedGoodsCounters",
-      "by_orgId_warehouseId",
-      [{ field: "warehouseId", value: warehouseId }],
-    )
-    .unique();
-  const field = kind === "pallet" ? "palletSequence" : "positionSequence";
-  const number = (counter?.[field] ?? 0) + 1;
-  if (counter)
-    await ctx.tenantDb.patch("finishedGoodsCounters", counter._id, {
-      [field]: number,
-    });
-  else
-    await ctx.tenantDb.insert("finishedGoodsCounters", {
-      warehouseId,
-      palletSequence: kind === "pallet" ? number : 0,
-      positionSequence: kind === "position" ? number : 0,
-    });
-  return `${kind === "pallet" ? "P" : "POS"}-${String(number).padStart(6, "0")}`;
-}
-/** A mutation reads the complete occupancy range before inserting a hold. Convex retries conflicting transactions. */
-export async function command(
-  ctx: TenantFunctionContext,
-  args: { warehouseId: Id<"warehouses">; requestId: string },
-  operation: string,
-  table: TenantTableName,
-  run: () => Promise<
-    | ReturnType<typeof refusal>
-    | { documentId: string; changes?: readonly AuditChange[] }
-  >,
-) {
-  if (!args.requestId.trim() || args.requestId.length > 200)
-    return failure("REQUEST_IDENTITY_INVALID", "requestId");
-  const hash = await fingerprintArguments(
-    compact(
-      operation.startsWith("finishedGoods.move.") ||
-        operation.startsWith("finishedGoods.scan.")
-        ? { ...args, actorUserId: ctx.tenant.actor._id }
-        : args,
-    ),
-  );
-  if (!hash.ok) return refusal(hash.error);
-  const replay = await checkIdempotency({
-    tenantDb: ctx.tenantDb,
-    operation,
-    requestId: args.requestId,
-    requestHash: hash.value,
-  });
-  if (!replay.ok) return refusal(replay.error);
-  if (replay.value.kind === "REPLAY") {
-    const id = replay.value.record.resultRef;
-    if (
-      !id ||
-      replay.value.record.resultHash !== (await sha256Hex(`${table}:${id}`))
-    )
-      return failure("REPLAY_RESULT_UNVERIFIABLE");
-    return written({ documentId: id, replayed: true });
-  }
-  const result = await run();
-  if ("written" in result) {
-    await ctx.tenantDb.insert("auditEvents", {
-      occurredAt: Date.now(),
-      actorKind: "USER",
-      actorUserId: ctx.tenant.actor._id,
-      action: operation,
-      permissionCode: ctx.permission.code,
-      entityTable: table,
-      warehouseId: args.warehouseId,
-      outcome: "DENIED",
-      requestId: args.requestId,
-      changes: [{ field: "error", to: result.error.code }],
-    });
-    return result;
-  }
-  const now = Date.now();
-  await ctx.tenantDb.insert("auditEvents", {
-    occurredAt: now,
-    actorKind: "USER",
-    actorUserId: ctx.tenant.actor._id,
-    action: operation,
-    permissionCode: ctx.permission.code,
-    entityTable: table,
-    entityId: result.documentId,
-    warehouseId: args.warehouseId,
-    outcome: "ALLOWED",
-    requestId: args.requestId,
-    ...(result.changes
-      ? { changes: result.changes.map((change) => ({ ...change })) }
-      : {}),
-  });
-  await writeIdempotencyRecord({
-    tenantDb: ctx.tenantDb,
-    operation,
-    requestId: args.requestId,
-    requestHash: hash.value,
-    resultRef: result.documentId,
-    resultHash: await sha256Hex(`${table}:${result.documentId}`),
-    actorUserId: ctx.tenant.actor._id,
-    now,
-  });
-  return written({ ...result, replayed: false });
-}
-
 export const saveProduct = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...warehouseArgs,
     ...productFields,
@@ -394,6 +231,7 @@ export const saveProduct = mutationWithOrg({
 });
 
 export const createPallet = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...warehouseArgs,
     requestId: v.string(),
@@ -431,6 +269,7 @@ export const createPallet = mutationWithOrg({
     ),
 });
 export const createPacking = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...warehouseArgs,
     requestId: v.string(),
@@ -511,6 +350,7 @@ export const createPacking = mutationWithOrg({
 });
 
 export const saveMeasurement = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     expectedMeasurementUpdatedAt: v.optional(v.number()),
@@ -1735,64 +1575,8 @@ export const getProduct = queryWithOrg({
   warehouseId: (a) => a.warehouseId,
   handler: productOf,
 });
-export const list = queryWithOrg({
-  args: warehouseArgs,
-  returns: v.any(),
-  permissionCode: READ,
-  target: { table: "finishedGoodsProducts" },
-  warehouseId: (a) => a.warehouseId,
-  handler: async (ctx, args) => {
-    const products = await rows<Doc<"finishedGoodsProducts">>(
-      ctx,
-      "finishedGoodsProducts",
-      "by_orgId_warehouseId_sku",
-      [{ field: "warehouseId", value: args.warehouseId }],
-    );
-    const pallets = await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
-      "finishedGoodsPallets",
-      "by_orgId_warehouseId_code",
-      [{ field: "warehouseId", value: args.warehouseId }],
-    );
-    const activeMoves = (
-      await Promise.all(
-        (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
-          rows<Doc<"finishedGoodsMoves">>(
-            ctx,
-            "finishedGoodsMoves",
-            "by_orgId_warehouseId_status",
-            [
-              { field: "warehouseId", value: args.warehouseId },
-              { field: "status", value: status },
-            ],
-          ),
-        ),
-      )
-    ).flat();
-    const productById = new Map(
-      products.map((product) => [product._id, product]),
-    );
-    return {
-      products: products.sort((a, b) => b.updatedAt - a.updatedAt),
-      pallets: pallets
-        .filter((pallet) => !pallet.retiredAt)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .map((pallet) => ({
-          ...pallet,
-          ...(() => {
-            const move = activeMoves.find((m) => m.palletId === pallet._id);
-            return move
-              ? { moveStatus: move.status, activeMoveId: move._id }
-              : {};
-          })(),
-          productName: productById.get(pallet.productId)?.name ?? "",
-          sku: productById.get(pallet.productId)?.sku ?? "",
-        })),
-    };
-  },
-});
-
 export const reserve = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     zoneId: v.id("storageZones"),
@@ -1901,6 +1685,7 @@ export const reserve = mutationWithOrg({
     ),
 });
 export const cancelReservation = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     expectedPlacementId: v.optional(v.id("finishedGoodsPlacements")),
@@ -1984,6 +1769,7 @@ async function validReserved(
   return error ? { error } : { context };
 }
 export const verifyDestination = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     expectedPlacementId: v.optional(v.id("finishedGoodsPlacements")),
@@ -2057,6 +1843,7 @@ export const verifyDestination = mutationWithOrg({
     ),
 });
 export const confirmStored = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     expectedPlacementId: v.optional(v.id("finishedGoodsPlacements")),
@@ -2350,6 +2137,7 @@ function matchesLocation(
   );
 }
 export const reserveMove = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     zoneId: v.id("storageZones"),
@@ -2518,6 +2306,7 @@ export const reserveMove = mutationWithOrg({
     ),
 });
 export const startMove = mutationWithOrg({
+  writer: inventoryWriter,
   args: { ...moveArgs, ...moveConfirmationArgs },
   returns: v.any(),
   permissionCode: MANAGE,
@@ -2563,6 +2352,7 @@ export const startMove = mutationWithOrg({
     ),
 });
 export const verifyMoveDestination = mutationWithOrg({
+  writer: inventoryWriter,
   args: { ...moveArgs, ...identificationArgs },
   returns: v.any(),
   permissionCode: MANAGE,
@@ -2613,6 +2403,7 @@ export const verifyMoveDestination = mutationWithOrg({
     ),
 });
 export const completeMove = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...moveArgs,
     physicalConfirmed: v.boolean(),
@@ -2685,6 +2476,7 @@ export const completeMove = mutationWithOrg({
     ),
 });
 export const cancelMove = mutationWithOrg({
+  writer: inventoryWriter,
   args: moveArgs,
   returns: v.any(),
   permissionCode: MANAGE,
@@ -2715,6 +2507,7 @@ export const cancelMove = mutationWithOrg({
     ),
 });
 export const returnMove = mutationWithOrg({
+  writer: inventoryWriter,
   args: { ...moveArgs, ...moveConfirmationArgs },
   returns: v.any(),
   permissionCode: MANAGE,
@@ -2769,6 +2562,7 @@ export const returnMove = mutationWithOrg({
     ),
 });
 export const reportMoveIssue = mutationWithOrg({
+  writer: inventoryWriter,
   args: { ...moveArgs, issue: v.string() },
   returns: v.any(),
   permissionCode: MANAGE,
@@ -2835,49 +2629,6 @@ async function stackChildren(
     value: palletId,
   });
 }
-/** Presence checks exclude released history and read at most one row per status. */
-export async function hasHeldPlacement(
-  ctx: TenantFunctionContext,
-  owner: { field: "supportPalletId" | "palletId"; value: string },
-) {
-  const found = await Promise.all(
-    (["RESERVED", "STORED"] as const).map((status) =>
-      ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsPlacements">>(
-          "finishedGoodsPlacements",
-          `by_orgId_${owner.field}_status`,
-          [owner, { field: "status", value: status }],
-        )
-        .first(),
-    ),
-  );
-  return found.some((row) => row !== null);
-}
-
-/** Preserve the original oldest-active selection, including RESERVED-first ties. */
-export async function firstActiveMove(
-  ctx: TenantFunctionContext,
-  palletId: string,
-) {
-  const moves = await Promise.all(
-    (["RESERVED", "IN_TRANSIT"] as const).map((status) =>
-      ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsMoves">>(
-          "finishedGoodsMoves",
-          "by_orgId_palletId_status",
-          [
-            { field: "palletId", value: palletId },
-            { field: "status", value: status },
-          ],
-        )
-        .first(),
-    ),
-  );
-  return moves
-    .filter((move) => move !== null)
-    .sort((a, b) => a._creationTime - b._creationTime)[0];
-}
-
 /**
  * Reserved and stored placements in creation order. Released placements are
  * history: reading them only grows the cost of every occupancy check.
@@ -3054,6 +2805,7 @@ async function validateStack(
   return null;
 }
 export const saveStackingLimits = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...writeArgs,
     stackable: v.boolean(),
@@ -3221,33 +2973,6 @@ const stackArgs = {
   upperPalletId: v.optional(v.id("finishedGoodsPallets")),
   rotation: v.union(v.literal(0), v.literal(90)),
 };
-/**
- * Retained for clients loaded before stack choices were paged: it lists every
- * eligible pallet in the warehouse. Current clients use `stackChoices` and
- * `stackPreview`, which never read the warehouse's pallet collection.
- */
-export const stackOptions = queryWithOrg({
-  args: stackArgs,
-  returns: v.any(),
-  permissionCode: READ,
-  target: { table: "finishedGoodsPallets" },
-  warehouseId: (a) => a.warehouseId,
-  handler: async (ctx, args) => {
-    const stack = await stackSupport(ctx, args);
-    if (!stack) return null;
-    const pallets: Doc<"finishedGoodsPallets">[] = [];
-    for (const pallet of await rows<Doc<"finishedGoodsPallets">>(
-      ctx,
-      "finishedGoodsPallets",
-      "by_orgId_warehouseId_code",
-      [{ field: "warehouseId", value: args.warehouseId }],
-    ))
-      if (await stackUpperEligible(ctx, stack.lower, pallet))
-        pallets.push(pallet);
-    const upper = pallets.find((p) => p._id === args.upperPalletId);
-    return { ...(await stackPreviewOf(ctx, args, stack, upper)), pallets };
-  },
-});
 /** Preview and checks for one chosen upper pallet, resolved by ID. */
 export const stackPreview = queryWithOrg({
   args: stackArgs,

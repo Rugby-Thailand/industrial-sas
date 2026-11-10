@@ -346,6 +346,28 @@ export async function backfillProductSummaries(
   };
 }
 
+/** Source rows whose warehouse is recorded for change shards or layout signals. */
+const WAREHOUSE_ROW_TABLES = [
+  "finishedGoodsPallets",
+  "finishedGoodsProducts",
+  "finishedGoodsMoves",
+  "finishedGoodsBatches",
+  "storageBuildings",
+  "storageFloors",
+  "storageZones",
+  "storagePositions",
+] as const;
+const isWarehouseRowTable = (
+  table: string,
+): table is (typeof WAREHOUSE_ROW_TABLES)[number] =>
+  (WAREHOUSE_ROW_TABLES as readonly string[]).includes(table);
+/** Every table whose writes this tracker reacts to. */
+export const FINISHED_GOODS_SOURCE_TABLES: ReadonlySet<string> = new Set([
+  ...WAREHOUSE_ROW_TABLES,
+  "finishedGoodsPlacements",
+  "locations",
+]);
+
 /** Wrap source writes once and flush after the entire mutation, including moves. */
 export function trackFinishedGoodsWrites(
   db: TenantDocumentAccess,
@@ -395,16 +417,7 @@ export function trackFinishedGoodsWrites(
       // The pallet it rests on (before and after): its stack facts change.
       if (row?.supportPalletId) supports.add(row.supportPalletId);
     }
-    if (
-      table === "finishedGoodsPallets" ||
-      table === "finishedGoodsProducts" ||
-      table === "finishedGoodsMoves" ||
-      table === "finishedGoodsBatches" ||
-      table === "storageBuildings" ||
-      table === "storageFloors" ||
-      table === "storageZones" ||
-      table === "storagePositions"
-    ) {
+    if (isWarehouseRowTable(table)) {
       const row = await db.get<
         | Doc<"finishedGoodsPallets">
         | Doc<"finishedGoodsProducts">

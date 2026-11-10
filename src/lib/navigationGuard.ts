@@ -14,7 +14,7 @@
  *   buffer entry (restoring a cancelled Back, or removing the buffer before
  *   a permitted move). Query readers must keep their committed snapshot then.
  */
-import { appHistoryIndex } from "./browser/appHistory";
+import { appHistoryIndex } from "./browser/appHistoryMarkers";
 export type Transition = () => void;
 export interface TransitionOptions {
   /** Identity permits a context owner to revoke only its own queued prompt. */

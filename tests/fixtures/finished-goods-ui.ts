@@ -5,7 +5,7 @@ import { zonePreview } from "../../convex/model/finishedGoods/recommendationView
 import type {
   Product,
   Pallet,
-  FinishedGoodsList,
+  FinishedGoodsRows,
   fgRefs,
 } from "@/lib/convex/finishedGoodsApi";
 
@@ -41,6 +41,14 @@ export const finishedGoodPallet: Pallet = {
   updatedAt: 1000,
   updatedByUserId: "user-a",
 };
+/**
+ * Test source rows, in the shape the catalogue renders. The pagination test
+ * adapter derives `catalogue:page`/`summary` responses from them.
+ */
+export type FinishedGoodsList = {
+  products: FinishedGoodsRows["products"][number][];
+  pallets: FinishedGoodsRows["pallets"][number][];
+};
 export const finishedGoodsList: FinishedGoodsList = {
   products: [finishedGoodProduct],
   pallets: [
@@ -48,6 +56,8 @@ export const finishedGoodsList: FinishedGoodsList = {
       ...finishedGoodPallet,
       productName: finishedGoodProduct.name,
       sku: finishedGoodProduct.sku,
+      unit: finishedGoodProduct.unit,
+      storageFormat: finishedGoodProduct.storageFormat,
     },
   ],
 };

@@ -46,11 +46,9 @@ export const fgRefs = Object.freeze({
   getBatch: clientRef(api.finishedGoods.batches.getBatch),
   pageBatchRevisions: clientRef(api.finishedGoods.batches.pageBatchRevisions),
   cancelLegacyUnit: clientRef(api.finishedGoods.batches.cancelLegacyUnit),
-  stackOptions: clientRef(api.finishedGoods.workflow.stackOptions),
   stackPreview: clientRef(api.finishedGoods.workflow.stackPreview),
   stackChoices: clientRef(api.finishedGoods.workflow.stackChoices),
   saveStackingLimits: clientRef(api.finishedGoods.workflow.saveStackingLimits),
-  list: clientRef(api.finishedGoods.workflow.list),
   getProduct: clientRef(api.finishedGoods.workflow.getProduct),
   getPallet: clientRef(api.finishedGoods.workflow.getPallet),
   palletMoveHistory: clientRef(api.finishedGoods.history.palletMoveHistory),
@@ -94,7 +92,20 @@ export type ZonePreview = NonNullable<
 >;
 /** A full candidate: `{ ...listed, ...zonePreview }`, as the editor previews it. */
 export type Candidate = Destination;
-export type FinishedGoodsList = RefValue<typeof fgRefs.list>;
+type CataloguePage = RefValue<typeof fgRefs.cataloguePage>;
+/** A hydrated product row of `finishedGoods/catalogue:page`, products tab. */
+export type CatalogueProduct = CataloguePage["products"][number];
+/** A hydrated unit row of `finishedGoods/catalogue:page`, units tab. */
+export type CatalogueUnit = CataloguePage["pallets"][number];
+/**
+ * What the catalogue table and mobile list render. Products are the stored
+ * product rows; the catalogue's per-product summaries arrive separately
+ * (`productSummaries`), so a row need not carry `summary`.
+ */
+export interface FinishedGoodsRows {
+  readonly products: readonly Omit<CatalogueProduct, "summary">[];
+  readonly pallets: readonly CatalogueUnit[];
+}
 
 export type BatchDetail = NonNullable<RefValue<typeof fgRefs.getBatch>>;
 export type PreparationBatch = BatchDetail["batch"];

@@ -14,6 +14,7 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import {
   quantityToMinor,
   validatePacking,
@@ -21,17 +22,8 @@ import {
   type PackedUnit,
 } from "../model/finishedGoods/packing";
 import { validDimension } from "../model/finishedGoods/placement";
-import {
-  command,
-  compact,
-  created,
-  failure,
-  nextCode,
-  palletOf,
-  productOf,
-  stamp,
-  firstActiveMove,
-} from "./workflow";
+import { command, compact, created, failure, stamp } from "./commands";
+import { firstActiveMove, nextCode, palletOf, productOf } from "./records";
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const format = v.union(
@@ -344,6 +336,7 @@ async function save(
   };
 }
 export const saveBatchDraft = mutationWithOrg({
+  writer: inventoryWriter,
   args: writeFields,
   returns: v.any(),
   permissionCode: MANAGE,
@@ -352,6 +345,7 @@ export const saveBatchDraft = mutationWithOrg({
   handler: (ctx, args) => save(ctx, args, false),
 });
 export const commitBatch = mutationWithOrg({
+  writer: inventoryWriter,
   args: writeFields,
   returns: v.any(),
   permissionCode: MANAGE,
@@ -406,6 +400,7 @@ export const pageBatchRevisions = queryWithOrg({
   },
 });
 export const cancelLegacyUnit = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     palletId: v.id("finishedGoodsPallets"),

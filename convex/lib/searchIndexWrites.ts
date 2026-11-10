@@ -35,6 +35,12 @@ const RELEVANT: Partial<Record<TenantTableName, readonly string[]>> = {
   storageZones: ["code", "label", "locationId", "warehouseId"],
 };
 
+/** Every table whose writes this tracker reacts to. */
+export const SEARCH_SOURCE_TABLES: ReadonlySet<string> = new Set([
+  ...Object.keys(RELEVANT),
+  ...LAYOUT_TABLES,
+]);
+
 /**
  * Wrap tenant writes so the derived search indexes (job scans, building
  * names, picker locations) are brought up to date by `flush()` at the end of

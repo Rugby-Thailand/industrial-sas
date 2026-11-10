@@ -3,7 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
+import type { FinishedGoodsRows } from "@/lib/convex/finishedGoodsApi";
 import {
   productPalletSummary,
   summaryFormatText,
@@ -30,10 +30,10 @@ export function FinishedGoodsMobileList({
   productSummaries,
 }: {
   tab: "products" | "pallets";
-  products: FinishedGoodsList["products"];
-  pallets: FinishedGoodsList["pallets"];
-  allProducts: FinishedGoodsList["products"];
-  allPallets: FinishedGoodsList["pallets"];
+  products: FinishedGoodsRows["products"];
+  pallets: FinishedGoodsRows["pallets"];
+  allProducts: FinishedGoodsRows["products"];
+  allPallets: FinishedGoodsRows["pallets"];
   canManage: boolean;
   productSummaries?: Record<string, Parameters<typeof summaryFormatText>[0]>;
 }) {

@@ -495,13 +495,13 @@ describe("prepared staging authorization", () => {
       "WAREHOUSE_UNKNOWN",
     );
     await denied(
-      actor.query(api.finishedGoods.workflow.list, {
+      actor.query(api.finishedGoods.catalogue.summary, {
         warehouseId: first.forbiddenWarehouseId,
       }),
       "WAREHOUSE_OUT_OF_SCOPE",
     );
     await denied(
-      actor.query(api.finishedGoods.workflow.list, {
+      actor.query(api.finishedGoods.catalogue.summary, {
         warehouseId: otherRun.runWarehouseId,
       }),
       "WAREHOUSE_UNKNOWN",

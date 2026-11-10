@@ -27,6 +27,8 @@ async function fixture() {
     "../convex/hr/announcements.ts": () =>
       import("../../../convex/hr/announcements"),
     "../convex/hr/periods.ts": () => import("../../../convex/hr/periods"),
+    "../convex/hr/periodClose.ts": () =>
+      import("../../../convex/hr/periodClose"),
     "../convex/hr/recovery.ts": () => import("../../../convex/hr/recovery"),
     "../convex/hr/self.ts": () => import("../../../convex/hr/self"),
     "../convex/hr/leave.ts": () => import("../../../convex/hr/leave"),
@@ -493,7 +495,7 @@ it("repeated employment intervals keep pre-exit history and frozen outputs while
   });
   expect(
     (
-      await mutation(w, api.hr.periods.close, {
+      await mutation(w, api.hr.periodClose.begin, {
         requestId: requestId(),
         periodId: period.documentId,
         expectedFingerprint: preview.view.fingerprint,

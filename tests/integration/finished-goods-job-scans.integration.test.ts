@@ -537,18 +537,6 @@ describe("finished goods job scans", () => {
     );
   });
 
-  it("finds active zones by code or label", async () => {
-    const world = await setup();
-    const found = value(
-      await call(world, jobScans.searchLocations, {
-        warehouseId: world.warehouseId,
-        text: "fg-1",
-      }),
-    ) as unknown as { total: number; pages: number; items: { code: string }[] };
-    expect(found.items.map((zone) => zone.code)).toEqual(["BLDG-A-F01-Z01"]);
-    expect(found).toMatchObject({ total: 1, pages: 1, page: 1 });
-  });
-
   it("deletes mapped and unmapped records, audits the command, and replays retries", async () => {
     const world = await setup();
     for (const mapped of [false, true]) {

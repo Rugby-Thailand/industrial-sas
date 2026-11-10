@@ -19,7 +19,7 @@ Creating or closing a period refused rosters above 50 employees (`PERIOD_TOO_LAR
 
 These outcomes discard the attempt, record the reason on the period, and return it to `DRAFT`: an open day (`PERIOD_NOT_READY` / `PERIOD_SHIFT_UNFINISHED`, with the employee and date), an empty roster (`PERIOD_EMPTY`), or a source revised after the snapshot (`PERIOD_STALE`). The version number is not consumed. Totals become history only on publication. Until then, every history reader ignores the version: version lists, version by number, row pages, exports and employee frozen history.
 
-Rosters of up to 50 employees keep the one-click flow. Their draft is previewed completely with the same fingerprint chain, and `begin` with that fingerprint checks the draft first, then builds and publishes in one transaction. The deprecated `hr/periods:close` is a thin shim over this path for tabs opened before the rollout. Remove it in a later contract release.
+Rosters of up to 50 employees keep the one-click flow. Their draft is previewed completely with the same fingerprint chain, and `begin` with that fingerprint checks the draft first, then builds and publishes in one transaction. The prelaunch contract release removed the uncalled `hr/periods:close` shim. All current callers use `hr/periodClose:begin`; a complete reviewed fingerprint still permits a one-click close in that canonical interface.
 
 ## Write guards while closing
 
@@ -39,4 +39,4 @@ The UI drives `advance` from the displayed step. Reopening the period resumes an
 
 ## Rollout
 
-Schema changes are additive: the new status literal, optional fields and new indexes. Existing documents remain valid and need no backfill. Deploy the backend before the frontend. Old tabs keep the one-step close through the shim. They do not understand the new `PAGED`/`CLOSING` views and need a reload for large periods.
+Schema changes are additive: the new status literal, optional fields and new indexes. Existing documents remain valid and need no backfill. Deploy the backend before the frontend. The prelaunch structural release removes the uncalled one-step shim; old tabs must reload. Current one-click and staged flows both use `hr/periodClose:begin`. Earlier clients also do not understand `PAGED`/`CLOSING` views.

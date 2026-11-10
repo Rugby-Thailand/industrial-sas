@@ -12,6 +12,7 @@ import type { DataModel } from "../../convex/schema";
 import * as locations from "../../convex/finishedGoods/jobScanLocations";
 import * as backfill from "../../convex/finishedGoods/searchIndexBackfill";
 import { RECONCILE_MARGIN_MS } from "../../convex/lib/searchReadiness";
+import { inventoryWriter } from "../../convex/lib/inventoryWriter";
 import { mutationWithOrg } from "../../convex/lib/tenantFunctions";
 import { createStorageBuilding } from "../../convex/storageLayouts/writes";
 import {
@@ -498,6 +499,7 @@ describe("index-backed location picker search", () => {
     expect(rack["createdCount"]).toBe(100);
     // Labels and codes changed through the tracked tenant writer.
     const edit = mutationWithOrg({
+      writer: inventoryWriter,
       args: {
         warehouseId: v.id("warehouses"),
         table: v.union(

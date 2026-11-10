@@ -5334,40 +5334,9 @@
       ]
     },
     {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:baseline",
+      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:draft",
       "policy": "presentation",
-      "expectation": "The original version/geometry baseline drives inline conflict and reload choices while preserving the unsaved floor draft; it is not a foreground editor.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "aside",
-            "h2",
-            "p",
-            "p[role=status]",
-            "section",
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button",
-            "src/features/storageLayouts/layoutActions#BlockedImpact",
-            "src/features/storageLayouts/layoutActions#OperationFailure"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:blocks",
-      "policy": "presentation",
-      "expectation": "Retained unavailable-area data supplies inline save/preflight/validation and empty feedback in the floor form; its editing Dialog owns a separate foreground draft.",
+      "expectation": "The version-bound floor command draft retains baseline, received version, geometry context, dimension overrides, unavailable-area metadata and placement atomically. It controls the existing inline aside/section status, conflict Notice and reload Button, plus ReservedBlocks empty paragraph; it adds no foreground. The actual FloorForm impactStep, offsetStep and shared unavailable-area Dialog continue to own review, placement editing and area editing, with pending protection and retained drafts. Explicit reload discards only this command; clean authoritative refresh and successful save reconcile it without remounting the caller.",
       "uses": ["branch"],
       "render": [
         {
@@ -5398,98 +5367,44 @@
           "truthy": [],
           "falsy": ["p"]
         }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:depth",
-      "policy": "presentation",
-      "expectation": "Depth is a dirty floor input which changes inline geometry/preflight feedback; the floor workflow retains it through impact/offset Back.",
-      "uses": ["branch"],
-      "render": [
+      ],
+      "tests": [
+        "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+        "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+        "src/features/storageLayouts/floorDraft.caller.test.tsx"
+      ],
+      "cases": [
         {
-          "shape": "conditional",
-          "truthy": [
-            "aside",
-            "h2",
-            "p",
-            "p[role=status]",
-            "section",
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button",
-            "src/features/storageLayouts/layoutActions#BlockedImpact",
-            "src/features/storageLayouts/layoutActions#OperationFailure"
-          ],
-          "falsy": []
+          "file": "src/features/storageLayouts/floorDraft.caller.test.tsx",
+          "name": "adopts a clean authoritative refresh without remounting the floor controls"
         },
         {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:geometryContext",
-      "policy": "presentation",
-      "expectation": "Retained floor geometry supplies inline preflight/conflict explanation and explicit reload controls within the same dirty floor editor. The impact review and offset editor have distinct named workflow owners.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "aside",
-            "h2",
-            "p",
-            "p[role=status]",
-            "section",
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button",
-            "src/features/storageLayouts/layoutActions#BlockedImpact",
-            "src/features/storageLayouts/layoutActions#OperationFailure"
-          ],
-          "falsy": []
+          "file": "src/features/storageLayouts/floorDraft.caller.test.tsx",
+          "name": "protects a pending floor save through live refresh, then reconciles success before the next Back"
         },
         {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:height",
-      "policy": "presentation",
-      "expectation": "Height is a dirty floor input which changes inline geometry/preflight feedback within the retained editor, protected by its draft owner.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "aside",
-            "h2",
-            "p",
-            "p[role=status]",
-            "section",
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button",
-            "src/features/storageLayouts/layoutActions#BlockedImpact",
-            "src/features/storageLayouts/layoutActions#OperationFailure"
-          ],
-          "falsy": []
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "keeps an unsaved floor draft when a newer saved version arrives and offers an explicit reload"
         },
         {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "native Back returns floor impact review to the dirty floor editor without discarding dimensions"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "Cancel from the impact review consumes both steps before closing the editor"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "discarding only the unavailable-area foreground retains dirty floor dimensions"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutNavigation.test.tsx",
+          "name": "remount with an owned editor entry restores the editor and Back still consumes it"
+        },
+        {
+          "file": "src/features/storageLayouts/StorageLayoutScreens.test.tsx",
+          "name": "saves a color-only edit without changing geometry (occupied: %s)"
         }
       ]
     },
@@ -5532,68 +5447,6 @@
         {
           "shape": "prop:open",
           "truthy": ["src/components/ui/dialog#Dialog"],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:placement",
-      "policy": "presentation",
-      "expectation": "Floor placement coordinates are retained input data for geometry/conflict feedback. Opening their offset editor enters a distinct named offsetStep, rather than inheriting presentation ownership.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "aside",
-            "h2",
-            "p",
-            "p[role=status]",
-            "section",
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button",
-            "src/features/storageLayouts/layoutActions#BlockedImpact",
-            "src/features/storageLayouts/layoutActions#OperationFailure"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
-          "falsy": []
-        }
-      ]
-    },
-    {
-      "id": "src/features/storageLayouts/StorageLayoutScreens.tsx#FloorForm:width",
-      "policy": "presentation",
-      "expectation": "Width is a dirty floor input which changes inline geometry/preflight feedback; a separate impactStep owns the review and keeps width retained on Back.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "aside",
-            "h2",
-            "p",
-            "p[role=status]",
-            "section",
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button",
-            "src/features/storageLayouts/layoutActions#BlockedImpact",
-            "src/features/storageLayouts/layoutActions#OperationFailure"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/ui/Notice#Notice[role=alert]",
-            "src/components/ui/button#Button"
-          ],
           "falsy": []
         }
       ]
