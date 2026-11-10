@@ -698,36 +698,6 @@ export const getStorageBuildingInventory = queryWithOrg({
   },
 });
 
-export const getStorageFloor = queryWithOrg({
-  args: { ...buildingArgs, floorNumber: v.number() },
-  returns: v.any(),
-  permissionCode: "masterData.storageLayout.read",
-  target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
-  warehouseId: ({ warehouseId }) => warehouseId,
-  handler: async (ctx, args) => {
-    const building = await ctx.tenantDb.get<BuildingDocument>(
-      "storageBuildings",
-      args.buildingId,
-    );
-    if (building === null || building.warehouseId !== args.warehouseId) {
-      return { found: false as const };
-    }
-    const floor = await ctx.tenantDb
-      .byIndex<FloorDocument>(
-        "storageFloors",
-        "by_orgId_buildingId_floorNumber",
-        [
-          { field: "buildingId", value: args.buildingId },
-          { field: "floorNumber", value: args.floorNumber },
-        ],
-      )
-      .unique();
-    return floor === null
-      ? { found: false as const }
-      : { found: true as const, building, floor: await readFloor(ctx, floor) };
-  },
-});
-
 export const getStorageBuildingReview = getStorageBuilding;
 
 export const getStorageLocationMap = queryWithOrg({

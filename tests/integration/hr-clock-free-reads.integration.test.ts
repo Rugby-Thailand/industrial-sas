@@ -126,17 +126,6 @@ describe("clock-free HR display reads", () => {
       employee: { code: "OWN" },
     });
     expect(display.outcome.value).not.toHaveProperty("today");
-
-    // The legacy query keeps the server business date for older open tabs.
-    const legacy = await meteredCall<{ ok: true; value: any }>(
-      w,
-      access.current,
-      {},
-      ACTOR,
-    );
-    const { today, ...facts } = legacy.outcome.value;
-    expect(today).toBe(TODAY);
-    expect(facts).toEqual(display.outcome.value);
   });
 
   it("reports an unsupported timezone without an offset", async () => {

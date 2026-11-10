@@ -23,7 +23,7 @@ S01-01..04, S01-06..19, S01-21..23 (22 tasks).
    `สถานที่ทำงาน` (workplace). We add a new `hrBranches` table for the legal
    branch. The existing `hrEmployees.warehouseId` stays as the **workplace** and
    is not changed. `warehouses` get no new fields.
-2. **New tables live in `convex/model/hr/orgSchema.ts`** exporting
+2. **New tables live in `convex/hr/schema/org.ts`** (moved from `convex/model/hr/orgSchema.ts` on 2026-11-09) exporting
    `hrOrgTables`, spread into `convex/schema.ts` like `hrPolicyTables`. All use
    `tenantFields` / `byOrg`. Minimal edits to `convex/schema.ts`.
 3. **Masters:** `hrDepartments` (name, nameEn?, managerEmployeeId?, status),

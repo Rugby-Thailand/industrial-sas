@@ -10,42 +10,12 @@
  * statutory number. See docs/plans/hr-parity/02-rules-calendar-roles/
  * work-rules-foundation.md for the open business decisions.
  */
-import { v } from "convex/values";
-
 /** Upper bound for every minute field: one calendar day. */
 export const WORK_RULE_MAX_MINUTES = 1440;
 /** Upper bound for minimum tenure: 100 years of days. */
 export const WORK_RULE_MAX_TENURE_DAYS = 36_500;
 export const WORK_RULE_MAX_EXCLUDED_GROUPS = 50;
 export const WORK_RULE_MAX_GROUP_KEY_LENGTH = 80;
-
-export const attendanceRulesValidator = v.object({
-  lateAfterMinutes: v.optional(v.number()),
-  veryLateAfterMinutes: v.optional(v.number()),
-  absentAfterMinutes: v.optional(v.number()),
-  excludeGraceMinutesFromLate: v.optional(v.boolean()),
-});
-export const overtimeRulesValidator = v.object({
-  automaticCalculation: v.optional(v.boolean()),
-  beforeShiftStartMinutes: v.optional(v.number()),
-  afterShiftEndMinutes: v.optional(v.number()),
-  minimumMinutes: v.optional(v.number()),
-  maximumOutsideShiftMinutes: v.optional(v.number()),
-  rounding: v.optional(
-    v.object({ direction: v.literal("DOWN"), intervalMinutes: v.number() }),
-  ),
-  eligibility: v.optional(
-    v.object({
-      requirePassedProbation: v.optional(v.boolean()),
-      minimumTenureDays: v.optional(v.number()),
-      excludedGroupKeys: v.optional(v.array(v.string())),
-    }),
-  ),
-});
-export const workRulesValidator = v.object({
-  attendance: v.optional(attendanceRulesValidator),
-  overtime: v.optional(overtimeRulesValidator),
-});
 
 export type AttendanceRules = {
   lateAfterMinutes?: number;

@@ -10,6 +10,15 @@ generated Convex document and id types, so its types are tied to the schema.
 `search/provider.ts` is an I/O adapter: it makes the AI Search request and owns its
 timeout. Neither is a reason to put database access into a domain validator.
 
+Persistence belongs to the Convex layer. Table definitions and stored or argument
+validators (`defineTable`, `v.*`) live beside the handlers that own them, for
+example `convex/hr/schema/*.ts` for HR tables and the policy validators. Their
+types must agree with the pure rules here; `convex/hr/schema/policy.ts` fails
+compilation when the two drift. `tests/integration/module-boundaries.integration.test.ts`
+enforces the import direction: modules here import only each other (plus the one
+type-only exception above), and production frontend code imports backend code at
+runtime only through `convex/_generated` and this directory.
+
 That is not stylistic. Three things depend on it:
 
 - **Testability.** Domain rules can be exercised with ordinary function calls,
@@ -41,6 +50,8 @@ That is not stylistic. Three things depend on it:
 | `hr/attendance.ts`                       | One employee day's status, effective interval, minutes, and certification validity      |
 | `hr/employee.ts`                         | Employee code, name, employment-range, and reason input rules                           |
 | `hr/period.ts`                           | Bounded attendance periods: complete row set, totals, and close readiness               |
+| `hr/policy.ts`                           | Leave-policy types, statutory floors, policy validation, leave periods and grants       |
+| `hr/workRules.ts`                        | Inert stored work-rule types and their shape check                                      |
 | `hr/csv.ts`                              | Attendance CSV v1 export (UTF-8 BOM, RFC 4180, formula neutralisation)                  |
 | `identifiers/normalization.ts`           | Raw scan, SKU, lot code, and GTIN normalization                                         |
 | `inventory/requestIdentity.ts`           | UUIDv7 request IDs, operation names, request namespaces, and canonical argument text    |

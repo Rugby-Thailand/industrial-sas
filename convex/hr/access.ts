@@ -32,13 +32,12 @@ import {
 import {
   heldHrPermissions,
   linkedEmployee,
-  orgClock,
   scopedSites,
   siteResolver,
   siteScope,
 } from "./shared";
 
-/** The clock-free access facts shared by `display` and legacy `current`. */
+/** The clock-free access facts `display` answers. */
 async function accessFacts(ctx: TenantFunctionContext) {
   const permissions = await heldHrPermissions(ctx);
   const timezone = ctx.tenant.organization.settings.timezone;
@@ -86,22 +85,6 @@ export const display = queryWithOrg({
   permissionCode: HR_PERMISSION.selfAccess,
   target: { table: "hrEmployees" },
   handler: async (ctx) => await accessFacts(ctx),
-});
-
-/**
- * Deprecated: `display` plus the server's current business date. Kept,
- * unchanged for already-open tabs of the previous frontend, until a later
- * release removes it once no client calls it.
- */
-export const current = queryWithOrg({
-  args: {},
-  returns: v.any(),
-  permissionCode: HR_PERMISSION.selfAccess,
-  target: { table: "hrEmployees" },
-  handler: async (ctx) => {
-    const clock = orgClock(ctx);
-    return { ...(await accessFacts(ctx)), today: clock?.today };
-  },
 });
 
 /**

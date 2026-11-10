@@ -19,7 +19,7 @@ import {
   buildingOccupancy,
   listStorageBuildingsPage,
 } from "../../convex/storageLayouts/catalogue";
-import { list as listLocations } from "../../convex/storageLayouts/locationCatalogue";
+import { detail as locationDetail } from "../../convex/storageLayouts/locationCatalogue";
 import {
   activateStorageBuilding,
   archiveStorageBuilding,
@@ -432,14 +432,17 @@ describe("planner protects finished goods occupancy", () => {
         }),
       ]),
     );
-    const catalogue = (await call(world, listLocations, { warehouseId }))[
-      "value"
-    ] as Record<string, unknown>[];
-    expect(catalogue[0]).toMatchObject({
+    const zoneId = await world.t.run(
+      async (ctx) => (await ctx.db.get(placementId))!.zoneId,
+    );
+    const catalogue = (
+      await call(world, locationDetail, { warehouseId, zoneId })
+    )["value"] as Record<string, unknown>;
+    expect(catalogue).toMatchObject({
       palletCount: 1,
       occupiedFootprintAreaSqMm: 1_800_000,
     });
-    expect(catalogue[0]!["placements"]).toEqual(
+    expect(catalogue["placements"]).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           moveRole: "SOURCE",

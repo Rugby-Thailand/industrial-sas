@@ -21,6 +21,7 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import {
   createMasterDataRow,
   normalizeDisplayName,
@@ -33,7 +34,8 @@ import {
   targetContext,
   type LayoutParentReads,
 } from "./scanning";
-import { rows, created } from "./workflow";
+import { created } from "./commands";
+import { rows } from "./records";
 
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
@@ -516,6 +518,7 @@ export const options = queryWithOrg({
 });
 
 export const create = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...argsWarehouse,
     requestId: v.string(),

@@ -1,38 +1,8 @@
-import { v } from "convex/values";
 import { addDays, isIsoDate } from "./calendar";
-import {
-  validateWorkRules,
-  workRulesValidator,
-  type WorkRules,
-} from "./workRules";
+import { validateWorkRules, type WorkRules } from "./workRules";
 
 export const POLICY_PRESET = "TH_LPA_MINIMUM_2026_10_11";
-export const capabilityValidator = v.union(
-  v.literal("LEAVE"),
-  v.literal("ANNOUNCEMENTS"),
-  v.literal("PAYSLIPS"),
-);
 export type PolicyCapability = "LEAVE" | "ANNOUNCEMENTS" | "PAYSLIPS";
-export const policyConfigValidator = v.object({
-  annualDays: v.number(),
-  firstYearAnnualDays: v.number(),
-  sickPaidDays: v.number(),
-  personalDays: v.number(),
-  maternityDays: v.number(),
-  maternityPaidDays: v.number(),
-  spouseDays: v.number(),
-  newbornCareDays: v.number(),
-  newbornCarePayPercent: v.number(),
-  militaryPaidDays: v.number(),
-  announcementAudience: v.union(v.literal("ORGANIZATION"), v.literal("SITE")),
-  announcementAcknowledgment: v.boolean(),
-  verificationMinutes: v.number(),
-  downloadSeconds: v.number(),
-  requireFileHash: v.boolean(),
-  hashAlgorithm: v.literal("SHA256"),
-  /** Inert slice-02 settings; LEAVE capability only. See ./workRules. */
-  workRules: v.optional(workRulesValidator),
-});
 export type PolicyConfig = {
   annualDays: number;
   firstYearAnnualDays: number;
@@ -158,17 +128,6 @@ export function annualPeriod(startDate: string, date: string) {
     eligible: date >= anniversary(startDate, Number(startDate.slice(0, 4)) + 1),
   };
 }
-export const leaveTypeValidator = v.union(
-  v.literal("ANNUAL"),
-  v.literal("SICK"),
-  v.literal("PERSONAL"),
-  v.literal("MATERNITY"),
-  v.literal("SPOUSE"),
-  v.literal("NEWBORN_CARE"),
-  v.literal("STERILIZATION"),
-  v.literal("MILITARY"),
-  v.literal("TRAINING"),
-);
 export type LeaveType =
   | "ANNUAL"
   | "SICK"

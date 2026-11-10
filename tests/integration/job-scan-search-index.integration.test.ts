@@ -17,6 +17,7 @@ import {
   jobScanTextMatches,
   normalizeJobScanSearch,
 } from "../../convex/lib/jobScanSearch";
+import { inventoryWriter } from "../../convex/lib/inventoryWriter";
 import { mutationWithOrg } from "../../convex/lib/tenantFunctions";
 import { v } from "convex/values";
 import {
@@ -960,6 +961,7 @@ describe("index-backed job-scan search", () => {
 
     // A building rename re-posts the building name through the tracked write.
     const rename = mutationWithOrg({
+      writer: inventoryWriter,
       args: {
         warehouseId: v.id("warehouses"),
         buildingId: v.id("storageBuildings"),
@@ -1376,6 +1378,7 @@ describe("index-backed job-scan search", () => {
       })),
     });
     const rename = mutationWithOrg({
+      writer: inventoryWriter,
       args: {
         warehouseId: v.id("warehouses"),
         buildingId: v.id("storageBuildings"),

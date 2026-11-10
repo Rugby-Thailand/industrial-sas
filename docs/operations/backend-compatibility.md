@@ -36,6 +36,23 @@ UPDATE_PUBLIC_CONTRACT=1 pnpm exec vitest run --project integration tests/integr
 
 A removed function, narrowed argument, newly required argument, or incompatible result shape needs an explicit expand/migrate/contract plan before accepting a breaking snapshot. Do not set `ACCEPT_BREAKING_PUBLIC_CONTRACT` just to make the test pass. Keep old callers supported until their migration is complete, or document a deliberate fail-closed runtime policy and the recovery path as above.
 
+## Contract release: uncalled compatibility queries (2026-11-09)
+
+The current frontend, scripts and documented operations no longer call these public queries. Each one only served tabs loaded before the replacement shipped, and each read a whole warehouse or duplicated a current query:
+
+| Removed function                           | Last frontend caller removed                                                                  | Current replacement                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `finishedGoods/jobScans:searchLocations`   | #55, 2026-10-10                                                                               | `finishedGoods/jobScanLocations:*` paged location readers |
+| `finishedGoods/workflow:stackOptions`      | #86, 2026-10-13 (dead ref remained)                                                           | `finishedGoods/workflow:stackChoices` and `stackPreview`  |
+| `hr/access:current`                        | #89, 2026-10-13                                                                               | `hr/access:display`; the client derives the business date |
+| `storageLayouts/locationCatalogue:list`    | never queried; dead ref removed in #133                                                       | `storageLayouts/locationCatalogue:page`                   |
+| `storageLayouts/catalogue:getStorageFloor` | never called by any frontend, script or operator doc on `main` (added 2026-08-21)             | `storageLayouts/catalogue:getStorageBuildingLayout`       |
+| `finishedGoods/workflow:list`              | never subscribed on `main`; `fgRefs.list` (since 983fb5a6, 2026-09-19) was only a type source | `finishedGoods/catalogue:page`, `catalogue:summary`       |
+
+The caller inventory (rerun 2026-11-09 after review, including `git log -S`/`-G` over `src/` and `scripts/` history) searched `src/`, `scripts/`, `convex/`, tests and docs for generated `api.*` references and literal `module:function` names. A tab that still runs a frontend from before those releases receives a missing-function error for that read and must reload. No document, schema field, write or audit record changes. The snapshot was refreshed with `ACCEPT_BREAKING_PUBLIC_CONTRACT="backend-compatibility.md#contract-release-uncalled-compatibility-queries-2026-11-09"`.
+
+`hr/periods:close` stays until its documented contract step in [hr-period-staged-close.md](hr-period-staged-close.md); its frontend caller was removed only on 2026-11-02.
+
 ## HR foundation employee and logo protocols
 
 `hr/setup:saveEmployee` accepts optional `replaceOrgFields: true`. The group is exactly

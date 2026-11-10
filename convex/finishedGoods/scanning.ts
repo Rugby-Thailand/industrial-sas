@@ -5,17 +5,15 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
+import { command, created, failure, stamp } from "./commands";
 import {
-  command,
-  created,
-  failure,
   firstActiveMove,
   hasHeldPlacement,
   palletOf,
   productOf,
   rows,
-  stamp,
-} from "./workflow";
+} from "./records";
 import {
   isGeometricPlacement,
   scanGroupError,
@@ -293,6 +291,7 @@ export const resolveLocationCode = queryWithOrg({
   },
 });
 export const confirmScanAssignment = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),

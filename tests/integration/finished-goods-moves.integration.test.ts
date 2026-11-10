@@ -407,13 +407,8 @@ describe("stored pallet moves", () => {
     id(await start(w));
     expect((await placementState(w)).source?.status).toBe("STORED");
     expect(
-      value(await call(w, workflow.list, { warehouseId: w.warehouseId }))
-        .pallets,
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ moveStatus: "IN_TRANSIT" }),
-      ]),
-    );
+      value(await call(w, workflow.getPallet, w.base)).activeMove,
+    ).toMatchObject({ status: "IN_TRANSIT" });
     error(
       await call(w, workflow.completeMove, {
         ...w.args,

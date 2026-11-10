@@ -4,7 +4,7 @@ import { createTenantDocumentAccess } from "../../convex/lib/tenantDb";
 import { createMutationTenantStorage } from "../../convex/lib/tenantStorage";
 import type { GenericMutationCtx } from "convex/server";
 import { describe, expect, it } from "vitest";
-import { list, page } from "../../convex/storageLayouts/locationCatalogue";
+import { page } from "../../convex/storageLayouts/locationCatalogue";
 import { listStorageBuildingsPage } from "../../convex/storageLayouts/catalogue";
 import { createStorageBuilding } from "../../convex/storageLayouts/writes";
 import { createStorageZone } from "../../convex/storageLayouts/zones";
@@ -163,15 +163,31 @@ describe("warehouse location catalogue", () => {
           label: `Extra ${i}`,
         });
     });
-    const result = (await call(world, list, {
-      warehouseId: world.warehouses.alphaA,
-    })) as {
-      ok: boolean;
-      value: { label: string; floorNumber: number; status: string }[];
-    };
-    expect(result.ok).toBe(true);
-    expect(result.value).toHaveLength(53);
-    expect(result.value).toEqual(
+    type Row = { label: string; floorNumber: number; status: string };
+    const rows: Row[] = [];
+    let cursor: string | undefined;
+    for (let i = 0; i < 5; i++) {
+      const result = (await call(world, page, {
+        warehouseId: world.warehouses.alphaA,
+        pageSize: 20,
+        ...(cursor ? { cursor } : {}),
+      })) as {
+        ok: boolean;
+        value: {
+          status: string;
+          page: Row[];
+          isDone: boolean;
+          continueCursor: string;
+        };
+      };
+      expect(result.ok).toBe(true);
+      expect(result.value.status).toBe("ready");
+      rows.push(...result.value.page);
+      if (result.value.isDone) break;
+      cursor = result.value.continueCursor;
+    }
+    expect(rows).toHaveLength(53);
+    expect(rows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           label: "Spot 1",
@@ -189,13 +205,24 @@ describe("warehouse location catalogue", () => {
   it("refuses out-of-scope, unauthenticated and foreign-tenant reads", async () => {
     const world = await setup();
     await expect(
-      call(world, list, { warehouseId: world.warehouses.bravoA }),
+      call(world, page, {
+        warehouseId: world.warehouses.bravoA,
+        pageSize: 20,
+      }),
     ).rejects.toThrow("WAREHOUSE_OUT_OF_SCOPE");
     await expect(
-      call(world, list, { warehouseId: world.warehouses.alphaB }),
+      call(world, page, {
+        warehouseId: world.warehouses.alphaB,
+        pageSize: 20,
+      }),
     ).rejects.toThrow("WAREHOUSE_UNKNOWN");
     await expect(
-      call(world, list, { warehouseId: world.warehouses.alphaA }, false),
+      call(
+        world,
+        page,
+        { warehouseId: world.warehouses.alphaA, pageSize: 20 },
+        false,
+      ),
     ).rejects.toThrow();
   });
   it("traverses 101 buildings and searches a late location with combined filters", async () => {

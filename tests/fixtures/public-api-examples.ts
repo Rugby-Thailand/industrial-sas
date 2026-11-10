@@ -228,7 +228,7 @@ function example<K extends Kind>(
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("aiUsage/reports:summary", "query", () => ({})),
   example("aiUsage/dimensions:warehouseOptions", "query", () => ({})),
-  example("hr/access:current", "query", () => ({})),
+  example("hr/access:display", "query", () => ({})),
   example("hr/access:sitesPage", "query", () => ({ search: "a" })),
   example("hr/navigationIntent:interpret", "action", () => ({
     query: "",
@@ -319,8 +319,9 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("finishedGoods/summaryMaintenance:prepare", "mutation", (w) => ({
     warehouseId: w.warehouses.alphaA,
   })),
-  example("finishedGoods/workflow:list", "query", (w) => ({
+  example("finishedGoods/workflow:getPallet", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
+    palletId: w.palletId,
   })),
   example("storageLayouts/catalogue:getStorageBuilding", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
@@ -335,8 +336,9 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     }),
     true,
   ),
-  example("storageLayouts/locationCatalogue:list", "query", (w) => ({
+  example("storageLayouts/locationCatalogue:page", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
+    pageSize: 20,
   })),
   example(
     "storageLayouts/namedLayout:namedLocationLayoutTarget",

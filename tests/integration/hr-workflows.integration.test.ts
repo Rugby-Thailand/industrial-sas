@@ -278,11 +278,11 @@ describe("HR roles and the shell boundary (HR-002, A15)", () => {
     expect(await call(world, workspace.readCurrent, {})).toMatchObject({
       ok: false,
     });
-    expect(value(await call(world, access.current, {}))).toMatchObject({
+    expect(value(await call(world, access.display, {}))).toMatchObject({
       permissions: ["hr.self.access"],
       employee: { code: "EMP-001" },
     });
-    expect(await call(world, access.current, {}, MANAGER)).toMatchObject({
+    expect(await call(world, access.display, {}, MANAGER)).toMatchObject({
       ok: false,
     });
     expect(await call(world, setup.listEmployees, {}, MANAGER)).toMatchObject({
@@ -292,7 +292,7 @@ describe("HR roles and the shell boundary (HR-002, A15)", () => {
       value(await call(world, workspace.readCurrent, {}, MANAGER)),
     ).toMatchObject({ navigationPermissions: expect.any(Array) });
     expect(
-      value(await call(world, access.current, {}, HR_ADMIN)).permissions,
+      value(await call(world, access.display, {}, HR_ADMIN)).permissions,
     ).toEqual(HR_PERMISSION_CODES);
   });
 
@@ -1136,6 +1136,60 @@ describe("corrections and review (HR-030 – HR-034)", () => {
       disposition: "ABSENT",
       workedMinutes: 0,
     });
+  });
+
+  it("re-certifies up to the supported history and then refuses instead of dropping history", async () => {
+    const { world, unlinkedId } = await hrWorld();
+    setNow("2026-10-09", "09:00");
+    const dispose = (requestId: string, expectedRevision: number) =>
+      call(
+        world,
+        review.disposeDay,
+        {
+          requestId: rid(requestId),
+          employeeId: unlinkedId,
+          businessDate: "2026-10-08",
+          expectedRevision,
+          disposition: "ABSENT",
+          reason: `Decision ${requestId}`,
+        },
+        SUPERVISOR,
+      );
+    written(await dispose("first", 0));
+    const day = async () =>
+      (await world.t.run((ctx) => ctx.db.query("hrAttendanceDays").collect()))
+        .filter(
+          (row) =>
+            row.employeeId === unlinkedId && row.businessDate === "2026-10-08",
+        )
+        .at(0)!;
+    // One below the limit: earlier decisions already fill 49 entries.
+    const certified = await day();
+    await world.t.run((ctx) =>
+      ctx.db.patch(certified._id, {
+        certificationHistory: Array.from(
+          { length: review.MAX_CERTIFICATION_HISTORY - 1 },
+          () => {
+            const { disposition, reason, decidedByUserId, decidedAt } =
+              certified.certification!;
+            return { disposition, reason, decidedByUserId, decidedAt };
+          },
+        ),
+      }),
+    );
+    written(await dispose("fiftieth", certified.revision));
+    const full = await day();
+    expect(full.certificationHistory).toHaveLength(
+      review.MAX_CERTIFICATION_HISTORY,
+    );
+    refused(
+      await dispose("over-limit", full.revision),
+      "CERTIFICATION_HISTORY_LIMIT",
+    );
+    const after = await day();
+    expect(after.revision).toBe(full.revision);
+    expect(after.certification).toEqual(full.certification);
+    expect(after.certificationHistory).toEqual(full.certificationHistory);
   });
 });
 

@@ -40,6 +40,10 @@ Run `pnpm check`, `pnpm build`, and `pnpm audit:prod` before releasing.
 `pnpm format:check` checks formatting. Physical camera scanning still requires
 a device check.
 
+The [module map](docs/architecture/module-map.md) shows where a change belongs,
+the allowed import direction between domain rules, Convex handlers and the
+frontend, the command/idempotency policies, and the supported HR sizes.
+
 Put new throwaway previews, raw captures, recordings, and generated review
 reports under the ignored `output/` directory. Keep maintained source,
 selected design evidence, and concise decisions in the repository. When

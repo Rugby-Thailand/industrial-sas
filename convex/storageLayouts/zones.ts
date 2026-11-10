@@ -14,13 +14,19 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import {
   checkIdempotency,
   fingerprintArguments,
+  resultIdentityDigest,
   sha256Hex,
   writeIdempotencyRecord,
 } from "../lib/idempotency";
-import { refusal, writeContextOf } from "../lib/writeEnvelope";
+import {
+  refusal,
+  writeContextOf,
+  writeOutcomeValidator,
+} from "../lib/writeEnvelope";
 import { STORAGE_LAYOUT_LIMITS } from "../model/storageLayout/storageLayout";
 import {
   makeStorageZoneCode,
@@ -320,6 +326,7 @@ async function readBuildingFloor(
 }
 
 export const createStorageZone = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     buildingId: v.id("storageBuildings"),
@@ -639,6 +646,7 @@ export const createStorageZone = mutationWithOrg({
 });
 
 export const updateStorageZone = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     zoneId: v.id("storageZones"),
@@ -1080,6 +1088,7 @@ async function createPositionRecords(
 }
 
 export const createStoragePosition = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     zoneId: v.id("storageZones"),
@@ -1203,8 +1212,9 @@ export const createStoragePosition = mutationWithOrg({
       requestId: args.requestId,
       requestHash: fingerprint.value,
       resultRef: created.value.documentId,
-      resultHash: await sha256Hex(
-        `storagePositions:${created.value.documentId}`,
+      resultHash: await resultIdentityDigest(
+        "storagePositions",
+        created.value.documentId,
       ),
       actorUserId: ctx.tenant.actor._id,
       now: Date.now(),
@@ -1219,6 +1229,7 @@ export const createStoragePosition = mutationWithOrg({
 });
 
 export const generateRackStoragePositions = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     zoneId: v.id("storageZones"),
@@ -1415,6 +1426,7 @@ export const generateRackStoragePositions = mutationWithOrg({
 });
 
 export const updateStoragePosition = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     positionId: v.id("storagePositions"),
@@ -1543,6 +1555,7 @@ export const updateStoragePosition = mutationWithOrg({
 });
 
 export const archiveStoragePosition = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     positionId: v.id("storagePositions"),
@@ -1648,6 +1661,7 @@ export const archiveStoragePosition = mutationWithOrg({
 });
 
 export const backfillStoragePositions = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     requestId: v.string(),
@@ -1831,12 +1845,14 @@ export const resolveStorageAddress = queryWithOrg({
 });
 
 export const archiveStorageZone = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     warehouseId: v.id("warehouses"),
     zoneId: v.id("storageZones"),
     requestId: v.string(),
   },
-  returns: outcome,
+  // Explicit result pilot: the plain write receipt or a coded refusal.
+  returns: writeOutcomeValidator,
   permissionCode: "masterData.storageLayout.manage",
   target: { table: "storageZones", id: ({ zoneId }) => zoneId },
   warehouseId: ({ warehouseId }) => warehouseId,

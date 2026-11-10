@@ -387,7 +387,7 @@ describe("bounded lists report completeness (HR-051)", () => {
   it("flags an oversized site scope without widening it", async () => {
     const { w } = await world("HR_ADMIN");
     await manySites(w);
-    const current = (await call(w, access.current, {})).value;
+    const current = (await call(w, access.display, {})).value;
     expect(current.sitesComplete).toBe(false);
     expect(current.sites.length).toBeLessThanOrEqual(50);
     // Nothing outside the membership's scope ever appears.
@@ -481,7 +481,7 @@ describe("replay and frozen history (HR-022, HR-041, HR-043)", () => {
         settings: { ...organization!.settings, timezone: "Europe/London" },
       });
     });
-    expect((await call(w, access.current, {})).value.timezoneSupported).toBe(
+    expect((await call(w, access.display, {})).value.timezoneSupported).toBe(
       false,
     );
     expect((await call(w, periods.preview, { periodId })).value).toMatchObject({

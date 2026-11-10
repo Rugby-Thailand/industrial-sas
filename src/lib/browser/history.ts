@@ -1,4 +1,4 @@
-import { APP_HISTORY_KEY, appHistoryIndex } from "./appHistory";
+import { APP_HISTORY_KEY, appHistoryIndex } from "./appHistoryMarkers";
 import { isGuardTraversal } from "@/lib/navigationGuard";
 
 export const browserQueryEvent = "app-query-state";

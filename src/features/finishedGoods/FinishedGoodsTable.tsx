@@ -30,7 +30,7 @@ import {
 import { TableScroller } from "@/components/ui/TableScroller";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
-import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
+import type { FinishedGoodsRows } from "@/lib/convex/finishedGoodsApi";
 import {
   productPalletSummary,
   summaryFormatText,
@@ -58,10 +58,10 @@ export function FinishedGoodsTable({
   productSummaries,
 }: {
   tab: "products" | "pallets";
-  products: FinishedGoodsList["products"];
-  pallets: FinishedGoodsList["pallets"];
-  allProducts: FinishedGoodsList["products"];
-  allPallets: FinishedGoodsList["pallets"];
+  products: FinishedGoodsRows["products"];
+  pallets: FinishedGoodsRows["pallets"];
+  allProducts: FinishedGoodsRows["products"];
+  allPallets: FinishedGoodsRows["pallets"];
   canManage: boolean;
   filterControls?: FilterControlsProps;
   productSummaries?: Record<string, Parameters<typeof summaryFormatText>[0]>;

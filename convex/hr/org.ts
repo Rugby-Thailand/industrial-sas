@@ -22,7 +22,7 @@ import {
   companyFields,
   masterFields,
   orgStatus,
-} from "../model/hr/orgSchema";
+} from "./schema/org";
 import {
   fail,
   diff,

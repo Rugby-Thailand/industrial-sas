@@ -208,7 +208,9 @@ const responses: Record<string, (args: unknown) => unknown> = {
           ],
           complete: true,
         }),
-  "hr/access:current": () =>
+  // `HrAccessProvider` reads the clock-free `display` and derives today from
+  // `offsetMinutes`; the removed `hr/access:current` also returned `today`.
+  "hr/access:display": () =>
     FIXTURE.hr === "ready"
       ? ok({
           organizationId: "org-fixture",
@@ -217,7 +219,7 @@ const responses: Record<string, (args: unknown) => unknown> = {
           permissions: Object.values(HR_CODES),
           timezone: "Asia/Bangkok",
           timezoneSupported: true,
-          today: "2026-10-13",
+          offsetMinutes: 420,
           employee: {
             id: "employee-fixture-a",
             code: "EMP-FIXTURE-1",

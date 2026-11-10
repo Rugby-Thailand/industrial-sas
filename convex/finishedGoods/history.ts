@@ -3,7 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { queryWithOrg } from "../lib/tenantFunctions";
 import { isGeometricPlacement } from "../model/finishedGoods/scanning";
 import { boundedRecordPage } from "../lib/boundedRecordPage";
-import { palletOf } from "./workflow";
+import { palletOf } from "./records";
 
 const READ = "masterData.storageLayout.read";
 const isActive = (move: Doc<"finishedGoodsMoves">) =>

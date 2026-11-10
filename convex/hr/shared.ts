@@ -12,7 +12,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import {
   checkIdempotency,
   fingerprintArguments,
-  sha256Hex,
+  resultIdentityDigest,
+  verifiedResultIdentity,
   writeIdempotencyRecord,
 } from "../lib/idempotency";
 import { grantedPermissionsAmong } from "../lib/navigationGrants";
@@ -1509,13 +1510,8 @@ export async function hrCommand<Extra extends Record<string, unknown>>(
   });
   if (!decision.ok) return fail(decision.error.code, "requestId");
   if (decision.value.kind === "REPLAY") {
-    const id = decision.value.record.resultRef;
-    if (
-      id === undefined ||
-      decision.value.record.resultHash !==
-        (await sha256Hex(`${input.table}:${id}`))
-    )
-      return fail("REPLAY_RESULT_UNVERIFIABLE");
+    const id = await verifiedResultIdentity(decision.value.record, input.table);
+    if (id === null) return fail("REPLAY_RESULT_UNVERIFIABLE");
     // A command that answers with data must be able to rebuild it now, under
     // current access; otherwise a replay is refused rather than reported as
     // a success without its result.
@@ -1573,7 +1569,7 @@ export async function hrCommand<Extra extends Record<string, unknown>>(
     requestId: input.requestId,
     requestHash: hash.value,
     resultRef: result.documentId,
-    resultHash: await sha256Hex(`${input.table}:${result.documentId}`),
+    resultHash: await resultIdentityDigest(input.table, result.documentId),
     actorUserId,
     now,
   });

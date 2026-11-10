@@ -170,7 +170,7 @@ describe("organization-scoped AI usage access", () => {
     expect((await actor.query(api.workspace.current.readCurrent, {})).ok).toBe(
       false,
     );
-    expect((await actor.query(api.hr.access.current, {})).ok).toBe(false);
+    expect((await actor.query(api.hr.access.display, {})).ok).toBe(false);
     expect(
       (
         await actor.mutation(api.aiUsage.reports.configure, {

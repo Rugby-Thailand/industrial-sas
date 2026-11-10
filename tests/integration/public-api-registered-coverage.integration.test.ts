@@ -187,7 +187,7 @@ describe("representative registered payloads and safe HR capability gates", () =
           AI_SEARCH: { operationCount: 0 },
         },
       },
-      "hr/access:current": {
+      "hr/access:display": {
         organizationId: world.orgA,
         permissions: expect.any(Array),
         timezoneSupported: true,
@@ -296,15 +296,9 @@ describe("representative registered payloads and safe HR capability gates", () =
         isDone: true,
         scanned: 1,
       },
-      "finishedGoods/workflow:list": {
-        products: [{ _id: world.productId, sku: "PUBLIC-1" }],
-        pallets: [
-          {
-            _id: world.palletId,
-            productName: "Public contract product",
-            sku: "PUBLIC-1",
-          },
-        ],
+      "finishedGoods/workflow:getPallet": {
+        pallet: { _id: world.palletId, productId: world.productId },
+        product: { _id: world.productId, sku: "PUBLIC-1" },
       },
       "storageLayouts/catalogue:getStorageBuilding": {
         found: true,
@@ -319,7 +313,11 @@ describe("representative registered payloads and safe HR capability gates", () =
         ok: false,
         error: { code: "LOCATION_NOT_FOUND" },
       },
-      "storageLayouts/locationCatalogue:list": [],
+      "storageLayouts/locationCatalogue:page": {
+        status: "ready",
+        page: [],
+        isDone: true,
+      },
       "storageLayouts/namedLayout:namedLocationLayoutTarget": {
         found: true,
         locationId: world.historicalLocationId,

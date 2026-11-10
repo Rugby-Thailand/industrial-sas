@@ -5,6 +5,7 @@ import {
   mutationWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import { fingerprintArguments } from "../lib/idempotency";
 import { appendDomainAudit } from "../lib/masterDataStore";
 import {
@@ -352,6 +353,7 @@ export const preflight = queryWithOrg({
   },
 });
 export const apply = mutationWithOrg({
+  writer: inventoryWriter,
   args: {
     ...targetArgs,
     revision: v.literal(PD_REVISION),
@@ -475,6 +477,7 @@ export const apply = mutationWithOrg({
 
 /** Restores only an authentic pre-import snapshot and refuses any later activity. */
 export const rollback = mutationWithOrg({
+  writer: inventoryWriter,
   args: { ...targetArgs, expectedAfterDigest: v.string(), backup: v.any() },
   returns: v.any(),
   permissionCode: "masterData.storageLayout.manage",

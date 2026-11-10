@@ -2,7 +2,7 @@ import {
   matchesRow,
   createRowComparator,
 } from "../../convex/finishedGoods/catalogueFilters";
-import type { FinishedGoodsList } from "@/lib/convex/finishedGoodsApi";
+import type { FinishedGoodsList } from "./finished-goods-ui";
 import {
   progressOptions,
   newFilters,

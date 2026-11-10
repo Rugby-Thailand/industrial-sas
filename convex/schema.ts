@@ -1,13 +1,13 @@
 import { aiUsageTables } from "./aiUsage/schema";
-import { hrPolicyTables } from "./model/hr/policySchema";
-import { employeeOrgFields, hrOrgTables } from "./model/hr/orgSchema";
+import { hrPolicyTables } from "./hr/schema/policy";
+import { employeeOrgFields, hrOrgTables } from "./hr/schema/org";
 import {
   employeeLifecycleFields,
   hrEmployeeProfileTables,
-} from "./model/hr/employeeProfileSchema";
-import { hrPayslipTables } from "./model/hr/payslipSchema";
-import { hrAnnouncementTables } from "./model/hr/announcementsSchema";
-import { hrRosterTables, rosterProvenance } from "./model/hr/rosterSchema";
+} from "./hr/schema/employeeProfile";
+import { hrPayslipTables } from "./hr/schema/payslip";
+import { hrAnnouncementTables } from "./hr/schema/announcements";
+import { hrRosterTables, rosterProvenance } from "./hr/schema/roster";
 import { defineSchema, defineTable } from "convex/server";
 import type { DataModelFromSchemaDefinition } from "convex/server";
 import { v } from "convex/values";

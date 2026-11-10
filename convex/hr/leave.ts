@@ -19,12 +19,12 @@ import {
   ACCOUNT_TYPES,
   accountPeriod,
   grantFor,
-  leaveTypeValidator,
   type AccountType,
   type LeaveType,
 } from "../model/hr/policy";
 import { isEmployedOn } from "../model/hr/schedule";
 import { activePolicy, leaveAccount } from "./policies";
+import { leaveTypeValidator } from "./schema/policy";
 import { deliverNotification } from "./notifications";
 import { hrListInput, hrPageArgs, hrScanPage } from "./pagination";
 import {

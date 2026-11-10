@@ -13,15 +13,14 @@ import {
   POLICY_PRESET,
   POLICY_SOURCES,
   accountPeriod,
-  capabilityValidator,
   grantFor,
-  policyConfigValidator,
   thailandDefaults,
   validatePolicy,
   validatePolicyCapability,
   type PolicyCapability,
 } from "../model/hr/policy";
 import { WORK_RULES_EXECUTION } from "../model/hr/workRules";
+import { capabilityValidator, policyConfigValidator } from "./schema/policy";
 import { isEmployedOn, validateSchedule } from "../model/hr/schedule";
 import {
   employmentOf,

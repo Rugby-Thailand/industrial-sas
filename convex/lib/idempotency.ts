@@ -55,6 +55,34 @@ export type IdempotencyDecision =
   | { readonly kind: "FRESH" }
   | { readonly kind: "REPLAY"; readonly record: IdempotencyRecord };
 
+/**
+ * The receipt digest that binds a stored result reference to the table it
+ * answered, so a replay cannot return another table's document. Shared by
+ * the finished-goods, HR and master-data command helpers. Commands whose
+ * receipt is a structured payload (rack generation) digest that payload.
+ */
+export const resultIdentityDigest = (
+  table: string,
+  documentId: string,
+): Promise<string> => sha256Hex(`${table}:${documentId}`);
+
+/**
+ * The replayed document ID when the receipt proves it answered `table`,
+ * otherwise null. Strict: a missing reference or digest is unverifiable.
+ * What a caller does next (refuse, rebuild the answer under current access,
+ * check the target still exists) remains that feature's policy.
+ */
+export async function verifiedResultIdentity(
+  record: Pick<IdempotencyRecord, "resultRef" | "resultHash">,
+  table: string,
+): Promise<string | null> {
+  const documentId = record.resultRef;
+  if (!documentId) return null;
+  return record.resultHash === (await resultIdentityDigest(table, documentId))
+    ? documentId
+    : null;
+}
+
 export interface IdempotencyCheckInput {
   readonly tenantDb: TenantDocumentAccess;
 

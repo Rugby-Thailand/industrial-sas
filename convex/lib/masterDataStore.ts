@@ -8,6 +8,7 @@ import { fail, ok, type Result } from "../model/result";
 import {
   checkIdempotency,
   fingerprintArguments,
+  resultIdentityDigest,
   sha256Hex,
   writeIdempotencyRecord,
   type IdempotencyError,
@@ -227,7 +228,7 @@ export async function createMasterDataRow(
     changes: insertedFields(input.document),
   });
 
-  const resultHash = await identityDigest(table, documentId);
+  const resultHash = await resultIdentityDigest(table, documentId);
   await writeIdempotencyRecord({
     tenantDb,
     operation,
@@ -296,7 +297,7 @@ export async function updateMasterDataRow(
     changes: diffFields(before, input.patch),
   });
 
-  const resultHash = await identityDigest(table, documentId);
+  const resultHash = await resultIdentityDigest(table, documentId);
   await writeIdempotencyRecord({
     tenantDb,
     operation,
@@ -404,9 +405,6 @@ export async function deleteMasterDataRow<
   return ok(Object.freeze({ documentId, replayed: false }));
 }
 
-const identityDigest = (table: string, documentId: string): Promise<string> =>
-  sha256Hex(`${table}:${documentId}`);
-
 const removalDigest = (table: string, documentId: string): Promise<string> =>
   sha256Hex(`${table}:${documentId}:deleted`);
 
@@ -436,7 +434,7 @@ async function replayStoredMasterDataWrite(
     });
   }
 
-  const expected = await identityDigest(table, reference);
+  const expected = await resultIdentityDigest(table, reference);
   if (record.resultHash !== undefined && record.resultHash !== expected) {
     return fail({
       code: "REPLAY_RESULT_UNVERIFIABLE",
