@@ -45,6 +45,7 @@ export const TENANT_TABLES = [
   "storageZoneSurfaces",
   "finishedGoodsScanAssignments",
   "finishedGoodsJobScans",
+  "jobTicketAssets",
   "finishedGoodsJobScanSearchRows",
   "finishedGoodsJobScanTerms",
   "finishedGoodsJobScanTermGrams",

@@ -1,5 +1,13 @@
 # File storage inventory and recovery
 
+Job-ticket uploads now use organization/warehouse-owned intents and verified
+callback finalization in the existing UploadThing store. New saves attach by
+asset ID; historical URL-only rows stay readable. Detached uploads have a
+seven-day recovery grace and bounded hourly cleanup. Both Next and Convex need
+the same environment-specific server `UPLOADTHING_TOKEN`. Follow the
+[coordinated A09 release and cutover](../reviews/architecture-current-2026-11-09/ai-attachments.md#releasecutover-required-not-executed-here)
+before promotion. The historical inventories below do not authorize deletion.
+
 The 2026-10-13 read-only inventory found no historical Convex files to migrate.
 New job-ticket photos continue through the existing UploadThing route; Convex
 stores their returned URLs. Native Convex exports now back up the database

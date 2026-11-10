@@ -48,6 +48,16 @@ const current = snapshotOf(
 const transport = vi.fn<typeof fetch>();
 
 beforeEach(() => {
+  vi.stubEnv(
+    "UPLOADTHING_TOKEN",
+    btoa(
+      JSON.stringify({
+        apiKey: "sk_synthetic_boundary",
+        appId: "boundary-app",
+        regions: ["sea1"],
+      }),
+    ),
+  );
   transport.mockReset().mockImplementation(async () => {
     throw new Error("Unexpected provider transport in a boundary test.");
   });
@@ -86,7 +96,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(39);
+    expect(coveredModules).toHaveLength(40);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -107,9 +117,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 44 representative functions, not every public export
+    // The inventory covers 45 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(44);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(45);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -180,6 +190,7 @@ describe("representative registered payloads and safe HR capability gates", () =
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
     const expected: Readonly<Record<string, object>> = {
+      "finishedGoods/attachments:createIntent": { assetId: expect.any(String) },
       "aiUsage/reports:summary": {
         complete: true,
         byFeature: {

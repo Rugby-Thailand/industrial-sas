@@ -1,12 +1,17 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   classifyConvexDeployKey,
   decodePublishableKey,
   validateBuildEnvironment,
 } from "../../scripts/release/lib/env-contract.mjs";
+
+import { verifyUploadthingBackendEnvironment } from "../../scripts/release/lib/uploadthing-environment.mjs";
 
 /**
  * The build-time contract that runs before Convex pushes (R5). Every value
@@ -279,4 +284,108 @@ describe("credential classification", () => {
     );
     expect(classifyConvexDeployKey("nobar").kind).toBe("malformed");
   });
+});
+
+describe("upload callback release credential parity", () => {
+  const answer = (stdout: string, status = 0) => ({
+    pid: 1,
+    output: [null, stdout, ""],
+    stdout,
+    stderr: "",
+    signal: null,
+    status,
+  });
+  it("privately reads only the reviewed deployment token before backend deployment", () => {
+    for (const env of [production, staging]) {
+      const execute = vi.fn(() => answer(env.UPLOADTHING_TOKEN + "\n"));
+      expect(verifyUploadthingBackendEnvironment(env, execute)).toBe(true);
+      expect(execute).toHaveBeenCalledWith(
+        process.execPath,
+        [
+          expect.stringContaining("node_modules/convex/bin/main.js"),
+          "env",
+          "get",
+          "UPLOADTHING_TOKEN",
+        ],
+        expect.objectContaining({
+          env,
+          stdio: ["ignore", "pipe", "pipe"],
+          timeout: 20_000,
+          maxBuffer: 65_536,
+        }),
+      );
+      expect(JSON.stringify(execute.mock.calls[0]?.slice(0, 2))).not.toContain(
+        env.UPLOADTHING_TOKEN,
+      );
+    }
+  });
+  it("refuses missing, mismatched, failed or truncated reads without exposing diagnostics", () => {
+    for (const result of [
+      answer(""),
+      answer("other-app-token\n"),
+      answer("token\n", 1),
+      {
+        ...answer(production.UPLOADTHING_TOKEN),
+        error: new Error("private credential diagnostic"),
+      },
+    ]) {
+      expect(
+        verifyUploadthingBackendEnvironment(production, () => result),
+      ).toBe(false);
+    }
+    expect(
+      verifyUploadthingBackendEnvironment(production, () => {
+        throw new Error("private credential diagnostic");
+      }),
+    ).toBe(false);
+  });
+  it("never contacts a deployment when provenance or target selection is invalid", () => {
+    const execute = vi.fn(() => answer(production.UPLOADTHING_TOKEN));
+    for (const env of [
+      { ...production, RELEASE_SHA: "" },
+      { ...production, CONVEX_DEPLOY_KEY: staging.CONVEX_DEPLOY_KEY },
+      { ...production, CONVEX_DEPLOYMENT: "dev:local" },
+    ]) {
+      expect(verifyUploadthingBackendEnvironment(env, execute)).toBe(false);
+    }
+    expect(execute).not.toHaveBeenCalled();
+  });
+});
+
+it("the real pre-deploy CLI refuses backend credential mismatch without logging captured secrets", () => {
+  const directory = mkdtempSync(path.join(tmpdir(), "upload-env-preflight-"));
+  try {
+    const preload = path.join(directory, "private-reader.mjs");
+    writeFileSync(
+      preload,
+      `import childProcess from "node:child_process";
+import {syncBuiltinESMExports} from "node:module";
+childProcess.spawnSync = () => ({status: 0, stdout: "DIFFERENT_PRIVATE_BACKEND_TOKEN\\n", stderr: "PRIVATE_CLI_DIAGNOSTIC"});
+syncBuiltinESMExports();`,
+    );
+    const run = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preload,
+        "scripts/release/assert-deploy-env.mjs",
+        "--phase=pre",
+      ],
+      {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...production, PATH: process.env.PATH, NODE_ENV: "test" },
+      },
+    );
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain("UPLOADTHING_TOKEN must match");
+    for (const secret of [
+      production.UPLOADTHING_TOKEN,
+      "DIFFERENT_PRIVATE_BACKEND_TOKEN",
+      "PRIVATE_CLI_DIAGNOSTIC",
+    ])
+      expect(run.stdout + run.stderr).not.toContain(secret);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

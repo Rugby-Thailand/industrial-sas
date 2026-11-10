@@ -201,9 +201,16 @@ alone therefore never selects live resources.
 | `CLERK_JWT_ISSUER_DOMAIN`                   | live issuer (readback matched)                                                                                      | test issuer (readback matched)                                    |
 | `CLERK_WEBHOOK_SIGNING_SECRET`              | production Clerk endpoint secret                                                                                    | dedicated CI endpoint secret (installed)                          |
 | `OPENROUTER_API_KEY`                        | **backend only**. Never in Vercel, never `NEXT_PUBLIC_*`. If absent, job-ticket extraction returns `AI_UNAVAILABLE` | normally absent                                                   |
+| `UPLOADTHING_TOKEN`                         | same server UploadThing token as this environment's Next project; pre-deploy parity check is mandatory              | same, with the isolated staging app token                         |
 | `OPENROUTER_MODEL`                          | optional model override                                                                                             | optional                                                          |
 | `E2E_FIXTURE_TARGET`                        | must be **absent**                                                                                                  | `befitting-stoat-208` (staging fixture marker; readback verified) |
 | `JOB_SCAN_DEMO_AI`, `ALLOW_LOCAL_TEST_SEED` | absent (local development only)                                                                                     | absent                                                            |
+
+Before backend deployment, the release preflight privately reads only the reviewed
+Convex deployment's `UPLOADTHING_TOKEN` and compares it with Next's value. Missing,
+mismatched or unreadable values block the build; no credential or CLI diagnostic
+is logged and this check never writes environment variables. Provision the
+matching environment-specific token through the operator secret workflow first.
 
 Convex backups exclude code and environment variables. Record any change to
 this table in a reviewed PR.

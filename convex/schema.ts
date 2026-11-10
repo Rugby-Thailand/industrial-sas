@@ -1307,6 +1307,24 @@ const schema = defineSchema({
     .index("by_orgId_warehouseId", byOrg("warehouseId"))
     .index("by_orgId_warehouseId_requestId", byOrg("warehouseId", "requestId")),
   /** Job tickets captured by the scan page. Location stays free text until mapped to a zone. */
+  jobTicketAssets: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      createdByUserId: v.id("users"),
+      state: v.union(
+        v.literal("PENDING"),
+        v.literal("READY"),
+        v.literal("ATTACHED"),
+        v.literal("DELETING"),
+      ),
+      expiresAt: v.number(),
+      fileKey: v.optional(v.string()),
+      url: v.optional(v.string()),
+      size: v.optional(v.number()),
+      mimeType: v.optional(v.string()),
+      jobScanId: v.optional(v.id("finishedGoodsJobScans")),
+    }),
+  ).index("by_orgId_state_expiresAt", byOrg("state", "expiresAt")),
   finishedGoodsJobScans: defineTable(
     tenantFields({
       version: v.optional(v.number()),
@@ -1331,6 +1349,7 @@ const schema = defineSchema({
         v.literal("BARCODE"),
         v.literal("MANUAL"),
       ),
+      imageAssetId: v.optional(v.id("jobTicketAssets")),
       imageUrl: v.optional(v.string()),
       aiRaw: v.optional(v.string()),
       aiUsageOperationId: v.optional(v.string()),

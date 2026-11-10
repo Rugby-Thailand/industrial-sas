@@ -312,7 +312,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       // AI and storage remain independent, including their different size limits.
       const [uploaded, outcome] = await Promise.all([
         image.size <= MAX_JOB_TICKET_UPLOAD_BYTES
-          ? startUpload([image]).catch((error: unknown) => {
+          ? startUpload([image], { warehouseId }).catch((error: unknown) => {
               console.error("Job ticket upload failed", error);
               return undefined;
             })
@@ -320,17 +320,22 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         reading,
       ]);
       if (!current()) return;
-      const imageUrl = uploaded?.[0]?.ufsUrl;
+      const attachment = uploaded?.[0]?.serverData;
+      const imageUrl = attachment?.url;
       const result = outcome?.ok ? outcome.value : undefined;
       update(ticket.key, (row) => ({
         ...(result?.ok ? mergeExtracted(row, result.fields) : row),
         status: "ready",
-        ...(imageUrl ? { imageUrl } : {}),
+        ...(imageUrl && attachment?.assetId
+          ? { imageUrl, imageAssetId: attachment.assetId }
+          : {}),
         ...(result?.ok
           ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
           : {}),
         notice: !result?.ok
-          ? "aiFailed"
+          ? result?.error.code === "RATE_LIMITED"
+            ? "aiRateLimited"
+            : "aiFailed"
           : !imageUrl
             ? "uploadFailed"
             : result.mock

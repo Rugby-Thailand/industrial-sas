@@ -135,6 +135,11 @@ describe("module import boundaries", () => {
   it("lets production frontend code import only generated references and domain rules at runtime", () => {
     const backend = join(ROOT, "convex");
     const runtimeAllowed = [join(backend, "_generated"), MODEL];
+    // This Next API route is a server-to-server integration, not browser code.
+    // Clerk's server entry point also prevents it entering a client bundle.
+    const serverAdapters: Readonly<Record<string, readonly string[]>> = {
+      "src/app/api/uploadthing/core.ts": [join(backend, "lib/uploadReceipt")],
+    };
     const violations: string[] = [];
     for (const file of sourceFiles(SRC)) {
       for (const { specifier, typeOnly } of importsOf(file)) {
@@ -142,6 +147,7 @@ describe("module import boundaries", () => {
         if (target === null || !inside(target, backend) || typeOnly) continue;
         if (runtimeAllowed.some((directory) => inside(target, directory)))
           continue;
+        if (serverAdapters[display(file)]?.includes(target)) continue;
         violations.push(`${display(file)} imports ${specifier}`);
       }
     }

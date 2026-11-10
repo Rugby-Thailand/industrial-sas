@@ -30,6 +30,69 @@ const report = {
 };
 
 describe("scoped dependency risk exceptions", () => {
+  it("counts registry findings rather than advisory keys, including repeated versions on distinct chains", () => {
+    // Reproduced against npm's quick-audit endpoint with pnpm 10's tree shape:
+    // one GHSA, two installed locations, metadata.high = 2 (see disposition).
+    const paths = [".>release-cli>example", ".>other-cli>example"];
+    const multiple = {
+      advisories: {
+        example: {
+          ...advisory,
+          findings: paths.map((path) => ({ version: "3.0.3", paths: [path] })),
+        },
+      },
+      metadata: { vulnerabilities: { high: 2, critical: 0 } },
+    };
+    const allowed = [{ ...exception, paths: { release: paths } }];
+    expect(auditProblems(multiple, allowed, "release", now)).toEqual([]);
+    expect(auditProblems(multiple, [], "release", now)).toEqual([
+      "A high or critical advisory has no valid exact-chain exception.",
+    ]);
+    expect(
+      auditProblems(
+        { ...multiple, metadata: report.metadata },
+        allowed,
+        "release",
+        now,
+      ),
+    ).toContain("Audit severity totals do not match its advisory inventory.");
+    expect(
+      auditProblems(
+        {
+          ...multiple,
+          advisories: {
+            example: {
+              ...advisory,
+              findings: [
+                { version: "3.0.3", paths: [paths[0]] },
+                { version: "3.0.2", paths: [paths[1]] },
+              ],
+            },
+          },
+        },
+        allowed,
+        "release",
+        now,
+      ),
+    ).toEqual([
+      "A high or critical advisory has no valid exact-chain exception.",
+    ]);
+  });
+
+  it("does not let high and critical totals compensate for each other", () => {
+    expect(
+      auditProblems(
+        {
+          ...report,
+          metadata: { vulnerabilities: { high: 0, critical: 1 } },
+        },
+        exceptions,
+        "release",
+        now,
+      ),
+    ).toContain("Audit severity totals do not match its advisory inventory.");
+  });
+
   it("accepts only the documented version and exact trusted-tool chain before expiry", () => {
     expect(auditProblems(report, exceptions, "release", now)).toEqual([]);
     expect(auditProblems(report, exceptions, "app", now)).not.toEqual([]);

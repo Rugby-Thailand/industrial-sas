@@ -1146,6 +1146,259 @@
       "type": "any"
     }
   },
+  "finishedGoods/attachmentCleanup:cleanup": {
+    "kind": "action",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "deleted": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "failed": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "finishedGoods/attachments:claimExpired": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "orgId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "organizations"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "finishedGoods/attachments:createIntent": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "warehouseId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "warehouses"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "union",
+                "value": [
+                  {
+                    "type": "object",
+                    "value": {
+                      "assetId": {
+                        "fieldType": {
+                          "type": "id",
+                          "tableName": "jobTicketAssets"
+                        },
+                        "optional": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "finishedGoods/attachments:dispatchCleanup": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
+  "finishedGoods/attachments:finalizeUpload": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "assetId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "jobTicketAssets"
+          },
+          "optional": false
+        },
+        "fileKey": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "url": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "size": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "mimeType": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "signature": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "null"
+    }
+  },
+  "finishedGoods/attachments:finishDeletion": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "assetId": {
+          "fieldType": {
+            "type": "id",
+            "tableName": "jobTicketAssets"
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "any"
+    }
+  },
   "finishedGoods/batches:cancelLegacyUnit": {
     "kind": "mutation",
     "visibility": "public",
@@ -4976,6 +5229,13 @@
                 "imageUrl": {
                   "fieldType": {
                     "type": "string"
+                  },
+                  "optional": true
+                },
+                "imageAssetId": {
+                  "fieldType": {
+                    "type": "id",
+                    "tableName": "jobTicketAssets"
                   },
                   "optional": true
                 },

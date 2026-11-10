@@ -32,4 +32,10 @@ crons.interval(
   internal.finishedGoods.searchIndexBackfill.reconcileSweep,
   {},
 );
+crons.interval(
+  "delete abandoned job ticket uploads",
+  { hours: 1 },
+  internal.finishedGoods.attachments.dispatchCleanup,
+  {},
+);
 export default crons;

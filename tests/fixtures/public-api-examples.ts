@@ -283,6 +283,9 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     palletId: w.palletId,
     pageSize: 20,
   })),
+  example("finishedGoods/attachments:createIntent", "mutation", (w) => ({
+    warehouseId: w.warehouses.alphaA,
+  })),
   example("finishedGoods/batchManagement:get", "query", (w) => ({
     warehouseId: w.warehouses.alphaA,
     batchId: w.batchId,

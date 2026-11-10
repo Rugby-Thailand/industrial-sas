@@ -7,12 +7,14 @@ export type LocationImageResult =
   | { ok: true; candidates: readonly LocationLabelCandidate[] }
   | {
       ok: false;
+      retryAfterMs?: number;
       error: {
         code:
           | "IMAGE_URL_INVALID"
           | "AI_UNAVAILABLE"
           | "AI_UNREADABLE"
-          | "AI_DENIED";
+          | "AI_DENIED"
+          | "RATE_LIMITED";
       };
     };
 

@@ -13,6 +13,11 @@ import {
   type LocationLabelCandidate,
 } from "../model/finishedGoods/locationImage";
 
+export const LOCATION_IMAGE_RATE_LIMIT = Object.freeze({
+  key: "finishedGoods.locationLabel.ai",
+  limit: 20,
+  windowMs: 10 * 60_000,
+});
 const DEFAULT_MODEL = "openai/gpt-6-luna";
 
 /** The validated candidates of model content, or null when unreadable. */
@@ -26,6 +31,7 @@ function readCandidates(content: string): LocationLabelCandidate[] | null {
 
 /** Read-only extraction, authorized before sending a photo to the paid provider. */
 export const extractLocationLabel = actionWithOrg({
+  rateLimit: LOCATION_IMAGE_RATE_LIMIT,
   args: { warehouseId: v.id("warehouses"), imageDataUrl: v.string() },
   returns: v.any(),
   permissionCode: "masterData.storageLayout.manage",
@@ -34,6 +40,13 @@ export const extractLocationLabel = actionWithOrg({
   handler: async (ctx, args): Promise<LocationImageResult> => {
     if (!validLocationImage(args.imageDataUrl))
       return { ok: false, error: { code: "IMAGE_URL_INVALID" } };
+    if (ctx.quota === undefined || !ctx.quota.allowed)
+      return {
+        ok: false,
+        error: { code: "RATE_LIMITED" },
+        retryAfterMs:
+          ctx.quota?.retryAfterMs ?? LOCATION_IMAGE_RATE_LIMIT.windowMs,
+      };
     const key = process.env.OPENROUTER_API_KEY?.trim();
     if (!key) return { ok: false, error: { code: "AI_UNAVAILABLE" } };
     const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
