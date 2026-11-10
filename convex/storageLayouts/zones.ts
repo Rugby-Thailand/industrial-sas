@@ -1,3 +1,4 @@
+import { tenantDocument } from "../lib/tenantDocument";
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
@@ -1867,14 +1868,16 @@ export const archiveStorageZone = mutationWithOrg({
       args,
     );
     if (replay !== null) return replay;
-    const zone = await ctx.tenantDb.get<ZoneDocument>(
+    const zone = await tenantDocument(
+      ctx.tenantDb,
       "storageZones",
       args.zoneId,
     );
     if (zone === null || zone.warehouseId !== args.warehouseId) {
       return failure("NOT_FOUND");
     }
-    const building = await ctx.tenantDb.get<BuildingDocument>(
+    const building = await tenantDocument(
+      ctx.tenantDb,
       "storageBuildings",
       zone.buildingId,
     );

@@ -33,7 +33,6 @@ import {
   validatePeriodRange,
   type PeriodRow,
 } from "../model/hr/period";
-import { beginCloseCommand } from "./periodClose";
 import {
   draftFingerprint,
   liveRows,
@@ -656,26 +655,6 @@ async function scopedVersion(ctx: TenantFunctionContext, versionId: string) {
     ? version
     : null;
 }
-
-/**
- * Deprecated one-step close of a completely previewed draft, kept so tabs
- * opened before the staged close keep working during a rollout. It runs the
- * staged begin with the reviewed fingerprint, which checks, builds and
- * publishes up to `MAX_PREVIEW_EMPLOYEES` in this one transaction. Remove it
- * (contract step) once no deployed client calls `hr/periods:close`; see
- * docs/operations/hr-period-staged-close.md.
- */
-export const close = mutationWithOrg({
-  args: {
-    requestId: v.string(),
-    periodId: v.id("hrPeriods"),
-    expectedFingerprint: v.string(),
-  },
-  returns: v.any(),
-  permissionCode: CLOSE,
-  target: { table: "hrPeriods", id: (args) => args.periodId },
-  handler: async (ctx, args) => beginCloseCommand(ctx, args),
-});
 
 export const create = mutationWithOrg({
   args: {

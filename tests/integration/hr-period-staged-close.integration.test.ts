@@ -676,17 +676,17 @@ describe("complete-preview close (up to 50 employees)", () => {
     expect(version.totals).toMatchObject({ employees: 50, days: 50 * DAYS });
   });
 
-  it("keeps the deprecated one-step close working for tabs opened before the rollout", async () => {
+  it("replays a reviewed one-click close through the canonical begin interface", async () => {
     const { world, periodId } = await fixture(12);
     const draft = await preview(world, periodId);
     const args = {
-      requestId: rid("legacy-close"),
+      requestId: rid("reviewed-begin"),
       periodId,
       expectedFingerprint: draft.view.fingerprint,
     };
-    const closed = written(await call(world, periods.close, args));
+    const closed = written(await call(world, periodClose.begin, args));
     expect(closed).toMatchObject({ version: 1, state: "CLOSED" });
-    expect(await call(world, periods.close, args)).toMatchObject({
+    expect(await call(world, periodClose.begin, args)).toMatchObject({
       written: true,
       replayed: true,
       documentId: closed.documentId,

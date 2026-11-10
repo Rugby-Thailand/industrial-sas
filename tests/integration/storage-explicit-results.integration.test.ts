@@ -131,3 +131,24 @@ describe("explicit storage results", () => {
     });
   });
 });
+
+it("rejects wrong-table and malformed IDs at the registered readiness and archive entry points", async () => {
+  const { client, warehouseId } = await world();
+  for (const id of [warehouseId, "not-an-id"]) {
+    // Deliberately forged transport input: compile-time callers cannot make
+    // this mistake through the typed adapter, but a hostile client still can.
+    await expect(
+      client.query(api.storageLayouts.writes.layoutReadiness, {
+        warehouseId,
+        buildingId: id as Id<"storageBuildings">,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      client.mutation(api.storageLayouts.zones.archiveStorageZone, {
+        warehouseId,
+        zoneId: id as Id<"storageZones">,
+        requestId: "wrong-table-input",
+      }),
+    ).rejects.toThrow();
+  }
+});

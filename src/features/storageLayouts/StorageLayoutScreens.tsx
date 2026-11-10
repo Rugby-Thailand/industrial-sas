@@ -1,4 +1,11 @@
 "use client";
+import {
+  createFloorDraft,
+  floorDraftGeometry,
+  floorDraftNeedsRefresh,
+  floorDraftReducer,
+  hasFloorDraftChanges,
+} from "./floorDraft";
 import { WorkspaceFloorSelector } from "./WorkspaceFloorSelector";
 import { useStorageBuilding } from "./useStorageBuilding";
 import { updateBrowserQuery } from "@/lib/browser/history";
@@ -73,6 +80,7 @@ import {
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type FormEvent,
@@ -1846,7 +1854,12 @@ function FloorForm({
     savedFloor.storageZones,
   );
   const zonePanelRef = useRef<{ create: () => void }>(null);
-  const [geometryContext, setGeometryContext] = useState(detail);
+  const [draft, dispatchDraft] = useReducer(
+    floorDraftReducer,
+    { floor: savedFloor, detail },
+    createFloorDraft,
+  );
+  const { baseline, geometryContext, width, depth, height, blocks } = draft;
   const [areaEditorOpen, setAreaEditorOpen] = useState(false);
   const [zoneEditorOpen, setZoneEditorOpen] = useState(false);
   const [zonePending, setZonePending] = useState(false);
@@ -1861,8 +1874,6 @@ function FloorForm({
     // editor's live completion closed it after a save (SS-05).
     dialogChange?.(areaEditorOpen);
   }, [dialogChange, areaEditorOpen]);
-  const [baseline, setBaseline] = useState(savedFloor);
-  const [receivedVersion, setReceivedVersion] = useState(savedFloor.version);
   const floor = { ...baseline, storageZones: savedFloor.storageZones };
   const t = useTranslations("StorageLayouts");
   const canManage = useCanManage();
@@ -1876,47 +1887,18 @@ function FloorForm({
     zoneId: string;
     nonce: number;
   }>();
-  const [width, setWidth] = useState(
-    floor.widthMm === undefined ? "" : String(metres(floor.widthMm)),
-  );
-  const [depth, setDepth] = useState(
-    floor.depthMm === undefined ? "" : String(metres(floor.depthMm)),
-  );
-  const [height, setHeight] = useState(
-    floor.heightMm === undefined ? "" : String(metres(floor.heightMm)),
-  );
-  const previousFloor = geometryContext.floors.find(
-    (candidate) => candidate.floorNumber === floor.floorNumber - 1,
-  );
-  const baseWidthMm =
-    previousFloor?.widthMm ?? geometryContext.building.widthMm;
-  const baseDepthMm =
-    previousFloor?.depthMm ?? geometryContext.building.depthMm;
-  const initialWidthMm = floor.widthMm ?? geometryContext.building.widthMm;
-  const initialDepthMm = floor.depthMm ?? geometryContext.building.depthMm;
-  const [placement, setPlacement] = useState({
-    xMm:
-      floor.offsetXMm ??
-      Math.max(0, Math.floor((baseWidthMm - initialWidthMm) / 2)),
-    yMm:
-      floor.offsetYMm ??
-      Math.max(0, Math.floor((baseDepthMm - initialDepthMm) / 2)),
-  });
-  const [blocks, setBlocks] = useState<EditableBlock[]>(
-    floor.reservedBlocks.map((block) => ({
-      id: block.blockId,
-      label: block.label,
-      ...(block.areaKind === undefined ? {} : { areaKind: block.areaKind }),
-      ...(block.displayHeightMm === undefined
-        ? {}
-        : { displayHeightMm: block.displayHeightMm }),
-      ...(block.color === undefined ? {} : { color: block.color }),
-      xMm: block.xMm,
-      yMm: block.yMm,
-      widthMm: block.widthMm,
-      depthMm: block.depthMm,
-    })),
-  );
+  const {
+    previousFloor,
+    baseWidthMm,
+    baseDepthMm,
+    initialWidthMm,
+    initialDepthMm,
+    initialPlacement,
+    actualWidth,
+    actualDepth,
+    actualHeight,
+    actualPlacement,
+  } = floorDraftGeometry(draft);
   const [pending, setPending] = useState(false);
   // Stock-blocked review is an owned step on top of the dirty floor form:
   // Back returns to the same draft (retained through the draft scope).
@@ -1949,64 +1931,7 @@ function FloorForm({
     tone: "success" | "warning";
     text: string;
   }>();
-  const actualWidth =
-    width === "" ? geometryContext.building.widthMm : millimetres(width);
-  const actualDepth =
-    depth === "" ? geometryContext.building.depthMm : millimetres(depth);
-  const actualHeight =
-    height === ""
-      ? geometryContext.building.defaultFloorHeightMm
-      : millimetres(height);
-  const actualPlacement = {
-    xMm: Math.max(
-      0,
-      Math.min(placement.xMm, Math.max(0, baseWidthMm - actualWidth)),
-    ),
-    yMm: Math.max(
-      0,
-      Math.min(placement.yMm, Math.max(0, baseDepthMm - actualDepth)),
-    ),
-  };
-  const initialPlacement = {
-    xMm:
-      floor.offsetXMm ??
-      Math.max(0, Math.floor((baseWidthMm - initialWidthMm) / 2)),
-    yMm:
-      floor.offsetYMm ??
-      Math.max(0, Math.floor((baseDepthMm - initialDepthMm) / 2)),
-  };
-  // Hidden metadata counts as a change too, so an editor can never drop it
-  // silently (F03).
-  const blockShape = (block: {
-    readonly color?: string;
-    readonly areaKind?: string;
-    readonly displayHeightMm?: number;
-    readonly label: string;
-    readonly xMm: number;
-    readonly yMm: number;
-    readonly widthMm: number;
-    readonly depthMm: number;
-  }) => [
-    block.label,
-    block.areaKind ?? null,
-    block.displayHeightMm ?? null,
-    resolveAreaColor(block.color),
-    block.xMm,
-    block.yMm,
-    block.widthMm,
-    block.depthMm,
-  ];
-  const hasUnsavedFloorChanges =
-    width !==
-      (floor.widthMm === undefined ? "" : String(metres(floor.widthMm))) ||
-    depth !==
-      (floor.depthMm === undefined ? "" : String(metres(floor.depthMm))) ||
-    height !==
-      (floor.heightMm === undefined ? "" : String(metres(floor.heightMm))) ||
-    placement.xMm !== initialPlacement.xMm ||
-    placement.yMm !== initialPlacement.yMm ||
-    JSON.stringify(blocks.map(blockShape)) !==
-      JSON.stringify(floor.reservedBlocks.map(blockShape));
+  const hasUnsavedFloorChanges = hasFloorDraftChanges(draft);
   const grossAreaSqMm = actualWidth * actualDepth;
   const reservedAreaSqMm = blocks.reduce(
     (total, block) => total + block.widthMm * block.depthMm,
@@ -2065,63 +1990,10 @@ function FloorForm({
   }, [floorWriteChange, pending]);
   /** Replace the form with the latest saved floor (discarding any draft). */
   function adoptSaved() {
-    setReceivedVersion(savedFloor.version);
-    setGeometryContext(detail);
-    setBaseline(savedFloor);
-    setWidth(
-      savedFloor.widthMm === undefined
-        ? ""
-        : String(metres(savedFloor.widthMm)),
-    );
-    setDepth(
-      savedFloor.depthMm === undefined
-        ? ""
-        : String(metres(savedFloor.depthMm)),
-    );
-    setHeight(
-      savedFloor.heightMm === undefined
-        ? ""
-        : String(metres(savedFloor.heightMm)),
-    );
-    const savedPreviousFloor = detail.floors.find(
-      (item) => item.floorNumber === savedFloor.floorNumber - 1,
-    );
-    setPlacement({
-      xMm:
-        savedFloor.offsetXMm ??
-        Math.max(
-          0,
-          Math.floor(
-            ((savedPreviousFloor?.widthMm ?? detail.building.widthMm) -
-              (savedFloor.widthMm ?? detail.building.widthMm)) /
-              2,
-          ),
-        ),
-      yMm:
-        savedFloor.offsetYMm ??
-        Math.max(
-          0,
-          Math.floor(
-            ((savedPreviousFloor?.depthMm ?? detail.building.depthMm) -
-              (savedFloor.depthMm ?? detail.building.depthMm)) /
-              2,
-          ),
-        ),
-    });
-    setBlocks(
-      savedFloor.reservedBlocks.map(({ blockId, ...block }) => ({
-        ...block,
-        id: blockId,
-      })),
-    );
+    dispatchDraft({ type: "reload", floor: savedFloor, detail });
   }
   // Reconcile external updates only when the local draft is clean.
-  if (
-    (savedFloor.version > receivedVersion ||
-      detail.building.version > geometryContext.building.version) &&
-    savedFloor.version >= baseline.version &&
-    !hasUnsavedFloorChanges
-  )
+  if (floorDraftNeedsRefresh(draft, { floor: savedFloor, detail }))
     adoptSaved();
   // A newer saved version arrived while this draft was dirty: keep the draft
   // and say so instead of remounting or silently rebasing it.
@@ -2168,43 +2040,7 @@ function FloorForm({
           else if (!outcome.value.written) setRefusal(outcome.value.error.code);
           else {
             operation.clearRequests();
-            const nextFloor = {
-              ...floor,
-              widthMm: actualWidth,
-              depthMm: actualDepth,
-              heightMm: actualHeight,
-              offsetXMm: actualPlacement.xMm,
-              offsetYMm: actualPlacement.yMm,
-              reservedBlocks: blocks.map(({ id, ...block }) => ({
-                ...block,
-                blockId: id,
-              })),
-              version: floor.version + 1,
-            };
-            const inheritedFloor: StorageFloorRow = {
-              floorId: nextFloor.floorId,
-              floorNumber: nextFloor.floorNumber,
-              grossAreaSqMm: nextFloor.grossAreaSqMm,
-              reservedAreaSqMm: nextFloor.reservedAreaSqMm,
-              usableAreaSqMm: nextFloor.usableAreaSqMm,
-              version: nextFloor.version,
-              storageZones: nextFloor.storageZones,
-              reservedBlocks: nextFloor.reservedBlocks,
-              offsetXMm: nextFloor.offsetXMm,
-              offsetYMm: nextFloor.offsetYMm,
-              ...(width === "" ? {} : { widthMm: actualWidth }),
-              ...(depth === "" ? {} : { depthMm: actualDepth }),
-              ...(height === "" ? {} : { heightMm: actualHeight }),
-            };
-            setBaseline(inheritedFloor);
-            setGeometryContext((current) => ({
-              ...current,
-              building: {
-                ...current.building,
-                version: current.building.version + 1,
-              },
-            }));
-            setPlacement(actualPlacement);
+            dispatchDraft({ type: "saved", submitted: draft });
             dirtyChange?.(false);
             setMessage({ tone: "success", text: t("savedContinueToStorage") });
             requestAnimationFrame(() => {
@@ -2301,7 +2137,8 @@ function FloorForm({
             {...(editable && showEditing
               ? {
                   onPlacementChange: (next: { xMm: number; yMm: number }) => {
-                    if (!pending) setPlacement(next);
+                    if (!pending)
+                      dispatchDraft({ type: "placement", value: next });
                   },
                   offsetEditing: offsetStep.active,
                   onOffsetEditingChange: (open: boolean) => {
@@ -2352,19 +2189,25 @@ function FloorForm({
               <OverrideField
                 label={t("width")}
                 value={width}
-                onChange={setWidth}
+                onChange={(value) =>
+                  dispatchDraft({ type: "dimension", field: "width", value })
+                }
                 disabled={!editable || pending}
               />
               <OverrideField
                 label={t("depth")}
                 value={depth}
-                onChange={setDepth}
+                onChange={(value) =>
+                  dispatchDraft({ type: "dimension", field: "depth", value })
+                }
                 disabled={!editable || pending}
               />
               <OverrideField
                 label={t("height")}
                 value={height}
-                onChange={setHeight}
+                onChange={(value) =>
+                  dispatchDraft({ type: "dimension", field: "height", value })
+                }
                 disabled={!editable || pending}
               />
             </CollapsibleSection>
@@ -2384,7 +2227,7 @@ function FloorForm({
               onEditorOpenChange={setAreaEditorOpen}
               editable={editable && !pending}
               blocks={blocks}
-              setBlocks={setBlocks}
+              setBlocks={(value) => dispatchDraft({ type: "blocks", value })}
               floorWidthMm={actualWidth}
               floorDepthMm={actualDepth}
               floorHeightMm={actualHeight}

@@ -102,6 +102,7 @@ import type * as lib_signedCatalogueCursor from "../lib/signedCatalogueCursor.js
 import type * as lib_tenantContext from "../lib/tenantContext.js";
 import type * as lib_tenantContextLookups from "../lib/tenantContextLookups.js";
 import type * as lib_tenantDb from "../lib/tenantDb.js";
+import type * as lib_tenantDocument from "../lib/tenantDocument.js";
 import type * as lib_tenantFunctions from "../lib/tenantFunctions.js";
 import type * as lib_tenantIndexPolicy from "../lib/tenantIndexPolicy.js";
 import type * as lib_tenantStorage from "../lib/tenantStorage.js";
@@ -277,6 +278,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tenantContext": typeof lib_tenantContext;
   "lib/tenantContextLookups": typeof lib_tenantContextLookups;
   "lib/tenantDb": typeof lib_tenantDb;
+  "lib/tenantDocument": typeof lib_tenantDocument;
   "lib/tenantFunctions": typeof lib_tenantFunctions;
   "lib/tenantIndexPolicy": typeof lib_tenantIndexPolicy;
   "lib/tenantStorage": typeof lib_tenantStorage;

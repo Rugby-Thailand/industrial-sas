@@ -16,7 +16,7 @@ A mutation's successful request identity is checked before live-version and occu
 
 ## HR staged period close and payslip payloads
 
-- `hr/periodClose:begin|advance|publish|cancel`, `hr/periods:draftEmployeesPage` and `hr/periods:versionRowsPage` are new. `hr/periods:exportCsv` gains an optional `cursor`; an old tab that ignores `continueCursor` downloads only the first part of a version above 2,000 rows, so reload before exporting large versions. `hr/periods:close` is retained as a deprecated shim over the staged begin (see [hr-period-staged-close.md](hr-period-staged-close.md)); remove it in a later contract release.
+- `hr/periodClose:begin|advance|publish|cancel`, `hr/periods:draftEmployeesPage` and `hr/periods:versionRowsPage` are new. `hr/periods:exportCsv` gains an optional `cursor`; an old tab that ignores `continueCursor` downloads only the first part of a version above 2,000 rows, so reload before exporting large versions. `hr/periods:close` was a deprecated shim and is removed by the prelaunch structural release below; current callers use `hr/periodClose:begin` (see [hr-period-staged-close.md](hr-period-staged-close.md)).
 - The preview's `LIMIT` view is gone; large drafts answer `PAGED` and in-progress closes answer `CLOSING`. Old tabs render neither and must reload.
 - Payslip bytes move to `hrPayslipPayloads`; legacy rows answer `PAYSLIP_SOURCE_MIGRATION_PENDING` until the [payload migration](hr-payslip-payload-migration.md) has run.
 
@@ -51,7 +51,7 @@ The current frontend, scripts and documented operations no longer call these pub
 
 The caller inventory (rerun 2026-11-09 after review, including `git log -S`/`-G` over `src/` and `scripts/` history) searched `src/`, `scripts/`, `convex/`, tests and docs for generated `api.*` references and literal `module:function` names. A tab that still runs a frontend from before those releases receives a missing-function error for that read and must reload. No document, schema field, write or audit record changes. The snapshot was refreshed with `ACCEPT_BREAKING_PUBLIC_CONTRACT="backend-compatibility.md#contract-release-uncalled-compatibility-queries-2026-11-09"`.
 
-`hr/periods:close` stays until its documented contract step in [hr-period-staged-close.md](hr-period-staged-close.md); its frontend caller was removed only on 2026-11-02.
+`hr/periods:close` had its final frontend caller removed on 2026-11-02 and is retired by the prelaunch structural contract release below.
 
 ## HR foundation employee and logo protocols
 
@@ -94,3 +94,20 @@ command. A stale upload retains its selected bytes in the mounted editor and req
 **Apply selected file to current logo** after reviewing the current preview. A full reload
 does not persist the selected image bytes; an uncertain request can be reconciled through
 the existing request recovery flow. Profile text drafts remain independent.
+
+## Prelaunch structural contract release (2026-11-10)
+
+Breaking interfaces and data resets are allowed by the current prelaunch scope;
+backward compatibility and preservation of unused seed data are not product
+requirements. No reset is needed or performed by this slice. The obsolete
+`hr/periods:close` shim joins the six proved-uncalled reads removed in this
+release. Current one-click and staged callers use `hr/periodClose:begin`; its
+review fingerprint, stale check and replay semantics remain tested.
+
+The October deployed-field snapshot and its exact-validator freeze test are
+retired. Current schema contracts, tenant/index rules, registered function
+validators, seed tests and codegen freshness remain mandatory. A future schema
+change can use an explicit fresh-environment/reset cutover instead of retaining
+obsolete fields merely to satisfy that snapshot. Meaningful immutable HR
+history remains a current domain requirement. Existing migrations/fallbacks
+with uncertain live dependencies are not silently executed or deleted.

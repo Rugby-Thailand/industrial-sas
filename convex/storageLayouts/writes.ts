@@ -1,3 +1,4 @@
+import { tenantDocument } from "../lib/tenantDocument";
 import { normalizeAreaColor } from "../model/storageLayout/areaColor";
 import { v, type Infer } from "convex/values";
 
@@ -1180,7 +1181,8 @@ export const layoutReadiness = queryWithOrg({
   target: { table: "storageBuildings", id: ({ buildingId }) => buildingId },
   warehouseId: ({ warehouseId }) => warehouseId,
   handler: async (ctx, args) => {
-    const building = await ctx.tenantDb.get<BuildingDocument>(
+    const building = await tenantDocument(
+      ctx.tenantDb,
       "storageBuildings",
       args.buildingId,
     );
