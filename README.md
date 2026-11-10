@@ -239,3 +239,5 @@ occupancy is a separate per-building query; location placements load only when
 the row is expanded. Occupancy retains the geometric-union calculation and
 fails explicitly at scoped capacity limits rather than displaying a partial
 footprint. Scene reads remain independent of list pagination.
+
+Current architecture audit and implementation roadmap: [HTML report](docs/reviews/architecture-current-2026-11-09/report.html). Verified findings and remaining measurements are linked from the report.
