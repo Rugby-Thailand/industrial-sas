@@ -5,19 +5,15 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { getFunctionName } from "convex/server";
 import type { ComponentProps, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), otherWrite: vi.fn() }));
-vi.mock("convex/react", () => ({
-  useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref) === "storageLayouts/writes:saveStorageFloor"
-      ? mocks.save
-      : mocks.otherWrite,
-  useQuery: () => undefined,
-}));
+const mocks = vi.hoisted(() => ({ save: vi.fn() }));
+vi.mock("convex/react", async () => {
+  const { getTestMutation } = await import("@tests/fixtures/convex-mutation");
+  return { useMutation: getTestMutation, useQuery: () => undefined };
+});
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "user-a", orgId: "org-a" }),
 }));
@@ -37,6 +33,8 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+import { registerTestMutation } from "@tests/fixtures/convex-mutation";
+import { storageLayoutRefs } from "@/lib/convex/storageLayoutApi";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import { isGuardTraversal } from "@/lib/navigationGuard";
@@ -84,7 +82,7 @@ const workspace = (nextFloor = floor, nextBuilding = building) => (
 let stop: (() => void) | undefined;
 beforeEach(() => {
   mocks.save.mockReset();
-  mocks.otherWrite.mockReset();
+  registerTestMutation(storageLayoutRefs.saveFloor, mocks.save);
   window.history.replaceState({ appNavigationIndex: 0 }, "", origin);
   stop = trackAppHistory();
   window.history.pushState({}, "", buildingUrl);

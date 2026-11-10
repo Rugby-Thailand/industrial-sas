@@ -127,3 +127,7 @@ Additional proof: `inventory-rebuild-equivalence` runs eight seeded packing batc
 - Final integration gates pass: normal lint/format, Bun 1.4.3 / TypeScript 7.0.2 and TypeScript 6.0.3, codegen freshness, test discovery (477 Vitest files), and navigation (68 fixtures, 60 routes, 308 owners, 26 actions). A fresh production navigation build passes 32 desktop/mobile Chromium cases. Full local Vitest is still running at PR creation; all required CI checks remain mandatory before merge.
 
 Local command outputs live in ignored `logs/coordinator-*.log`; the reproducible test names and commands above, maintained tests and PR checks are the durable evidence. No cloud ACL, production transaction budget or telemetry delivery was verified by local tests.
+
+### CI correction: strict mutation registry
+
+The first #154 test shard 3 run found that the new floor caller used a local fallback mutation mock, violating the existing registry ratchet. The caller now uses `getTestMutation` and registers only `storageLayoutRefs.saveFloor`; unexpected writes fail through the shared teardown. No allowlist or guard was weakened. The registry detector, reducer and caller tests pass together (3 files / 24 tests); the pinned checker passes again.
