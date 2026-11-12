@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
 
+import { ensurePinnedBun } from "./ci/install-bun-checker.mjs";
 import { createChildRegistry } from "./lib/childLifecycle.mjs";
 
 const root = process.cwd();
@@ -20,6 +21,8 @@ if (
   );
 }
 const bin = (name) => join(root, "node_modules", ".bin", name);
+// Resolve before starting either child so setup failure cannot leave Convex running.
+const bun = await ensurePinnedBun();
 const children = createChildRegistry();
 
 let interrupted = false;
@@ -63,14 +66,15 @@ console.log("[dev] Convex and Next.js share this terminal. Ctrl+C stops both.");
 
 // Convex stays on its Node CLI. Next runs under Bun (docs/operations/
 // bun-runtime.md): its JS entry directly, so this child is the Next process
-// itself and stopAll() signals it as before. --no-env-file stops Bun preloading
+// itself and stopAll() signals it as before. Use the cached pin rather than
+// shell PATH. --no-env-file stops Bun preloading
 // .env files before Next selects its own; BUN_OPTIONS carries the flag to the
 // dev server Next forks with its own execArgv. `pnpm dev:web:node` is the
 // Node fallback.
 const backend = start("Convex backend", bin("convex"), ["dev"]);
 const web = start(
   "Next.js web (Bun)",
-  "bun",
+  bun,
   [
     "--bun",
     "--no-env-file",
@@ -89,10 +93,6 @@ await stopAll();
 if (!interrupted) {
   if (firstExit.error !== null) {
     console.error(`[dev] ${firstExit.name} failed to start:`, firstExit.error);
-    if (firstExit.error.code === "ENOENT" && firstExit.name.includes("Bun"))
-      console.error(
-        "[dev] Put the pinned Bun on PATH (node scripts/ci/install-bun-checker.mjs).",
-      );
   } else {
     const reason =
       firstExit.signal === null

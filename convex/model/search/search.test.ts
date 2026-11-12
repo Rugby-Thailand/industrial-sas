@@ -161,6 +161,87 @@ describe("date expressions (organization business date)", () => {
     });
   });
 
+  it.each([
+    ["29 ก.พ.", "2026-10-09", "2024-02-29"],
+    ["February 29", "2027-02-28", "2024-02-29"],
+    ["29 Feb", "2024-02-28", "2020-02-29"],
+    ["29 Feb", "2024-02-29", "2024-02-29"],
+    ["29 Feb", "2104-02-28", "2096-02-29"],
+  ])("infers the latest leap day for %s on %s", (text, today, date) => {
+    expect(one(text, today)).toMatchObject({
+      kind: "DATE",
+      date,
+      inferredYear: true,
+    });
+  });
+
+  it("infers a missing range year from its latest past leap-day endpoint", () => {
+    expect(one("28–29 ก.พ.")).toMatchObject({
+      kind: "RANGE",
+      from: "2024-02-28",
+      to: "2024-02-29",
+      inferredYear: true,
+    });
+  });
+
+  it.each([
+    ["29 ก.พ. - 1 มี.ค.", "2026-10-09", "2024-02-29", "2024-03-01"],
+    ["February 29 to March 1", "2026-10-09", "2024-02-29", "2024-03-01"],
+    ["February 29 through March 1", "2026-10-09", "2024-02-29", "2024-03-01"],
+    ["29 Feb through 1 Mar", "2026-10-09", "2024-02-29", "2024-03-01"],
+    ["February 28 to February 29", "2026-10-09", "2024-02-28", "2024-02-29"],
+    ["29 Feb to 1 Mar", "2024-02-29", "2020-02-29", "2020-03-01"],
+    ["February 29 to March 1", "2024-02-29", "2020-02-29", "2020-03-01"],
+    ["29 Feb to 1 Mar", "2104-02-28", "2096-02-29", "2096-03-01"],
+    ["February 29 to March 1", "2104-02-28", "2096-02-29", "2096-03-01"],
+  ])(
+    "infers the latest whole leap-day range for %s on %s",
+    (text, today, from, to) => {
+      expect(one(text, today)).toMatchObject({
+        kind: "RANGE",
+        from,
+        to,
+        inferredYear: true,
+      });
+    },
+  );
+
+  it("does not infer another year for explicit or impossible leap-day ranges", () => {
+    expect(one("29 Feb to 1 Mar 2024")).toMatchObject({
+      from: "2024-02-29",
+      to: "2024-03-01",
+      inferredYear: false,
+    });
+    expect(one("29 Feb to 1 Mar 2026")).toMatchObject({ kind: "INVALID" });
+    expect(one("February 29 to March 1, 2024")).toMatchObject({
+      from: "2024-02-29",
+      to: "2024-03-01",
+      inferredYear: false,
+    });
+    expect(one("February 29 to March 1, 2026")).toMatchObject({
+      kind: "INVALID",
+    });
+    expect(one("February 29 to March 1, 2024", null)).toMatchObject({
+      from: "2024-02-29",
+      to: "2024-03-01",
+      inferredYear: false,
+    });
+    expect(one("February 29 to March 1", null)).toMatchObject({
+      kind: "AMBIGUOUS",
+    });
+    expect(one("30 Feb to 1 Mar")).toMatchObject({ kind: "INVALID" });
+    expect(one("29 Feb to 1 Mar", "1904-02-29")).toMatchObject({
+      kind: "INVALID",
+    });
+    expect(one("29 Feb to 1 Mar", null)).toMatchObject({ kind: "AMBIGUOUS" });
+  });
+
+  it("rejects impossible omitted-year dates and dates before the supported calendar", () => {
+    expect(one("30 Feb")).toMatchObject({ kind: "INVALID" });
+    expect(one("29 Feb", "1903-03-01")).toMatchObject({ kind: "INVALID" });
+    expect(one("29 Feb", null)).toMatchObject({ kind: "AMBIGUOUS" });
+  });
+
   it("refuses ambiguous, invalid and unsupported expressions instead of guessing", () => {
     expect(one("8/10/2026")).toMatchObject({ kind: "AMBIGUOUS" });
     expect(one("8/10/69")).toMatchObject({ kind: "AMBIGUOUS" });
@@ -334,6 +415,36 @@ describe("grounding in the user's own words", () => {
     date: true,
     period: false,
   };
+
+  it("grounds an omitted-year leap day while retaining year confirmation", () => {
+    expect(
+      ground("ตรวจ EMP-003 วันที่ 29 ก.พ.", {
+        employeeCode: "EMP-003",
+        dateText: "29 ก.พ.",
+      }),
+    ).toMatchObject({
+      employee: { ref: "CODE", code: "EMP-003", codes: ["EMP-003"] },
+      date: { ref: "DATE", date: "2024-02-29", inferredYear: true },
+      dateProblem: null,
+    });
+  });
+
+  it("grounds a whole leap-day range while retaining year confirmation", () => {
+    expect(
+      ground("ตรวจ EMP-003 วันที่ 29 ก.พ. ถึง 1 มี.ค.", {
+        employeeCode: "EMP-003",
+        dateText: "29 ก.พ. ถึง 1 มี.ค.",
+      }),
+    ).toMatchObject({
+      date: {
+        ref: "RANGE",
+        from: "2024-02-29",
+        to: "2024-03-01",
+        inferredYear: true,
+      },
+      dateProblem: null,
+    });
+  });
 
   it("keeps a code only when the query contains it", () => {
     expect(

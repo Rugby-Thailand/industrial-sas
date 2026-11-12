@@ -13,15 +13,15 @@ Node functions; it also leaves the older build-image Bun on PATH.
 
 ## What runs on Bun
 
-| Surface                       | Command or configuration                                                               |
-| ----------------------------- | -------------------------------------------------------------------------------------- |
-| `pnpm dev` (Next part)        | `scripts/dev.mjs` runs `bun --bun --no-env-file node_modules/next/dist/bin/next dev`   |
-| `pnpm dev:web`                | `BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next dev --webpack --port 3100` |
-| `pnpm build`                  | same prefix, `next build` (also inside the gated Vercel build command)                 |
-| `pnpm start`                  | same prefix, `next start --port 3100`                                                  |
-| Credential-free browser smoke | `playwright.config.ts` `webServer` runs `next start` with the same invocation          |
-| Hosted functions              | `vercel.json` and the generated release config: `"bunVersion": "1.4.x"`                |
-| Type checking                 | `bun --check` (unchanged; see README)                                                  |
+| Surface                       | Command or configuration                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------------------------- |
+| `pnpm dev` (Next part)        | Resolves the cached pin, then runs the Next CLI directly under Bun                           |
+| `pnpm dev:web`                | The pin launcher runs `bun run --bun --no-env-file next dev --webpack --port 3100`           |
+| `pnpm build`                  | `BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next build` (also in the Vercel gate) |
+| `pnpm start`                  | same prefix, `next start --port 3100`                                                        |
+| Credential-free browser smoke | `playwright.config.ts` `webServer` runs `next start` with the same invocation                |
+| Hosted functions              | `vercel.json` and the generated release config: `"bunVersion": "1.4.x"`                      |
+| Type checking                 | Generates Next route types, then resolves the cached pin for `bun --check`                   |
 
 Framework flags (`--webpack`, `--port`, `--hostname`) are unchanged.
 
@@ -62,10 +62,16 @@ requires Bun 1.4.x on staging, the production candidate, and the live domain.
 
 ## Setup
 
+`pnpm dev`, `pnpm dev:web` and `pnpm typecheck` use the exact cached Bun
+directly and install it from the checksum-verified archive when needed. They
+ignore Bun on `PATH`. The launcher forwards SIGINT/SIGTERM to its child;
+the combined dev runner still signals Next directly and stops both children.
+
+For `pnpm build`, `pnpm start` or other Bun commands, run the installer and
+copy the exact `export PATH=…` line it prints into the current shell:
+
 ```sh
 node scripts/ci/install-bun-checker.mjs   # checksum-verified, prints the PATH entry
-export PATH="$PWD/.cache/bun-checker/bun-v1.4.3-<platform>:$PATH"
-bun --version                             # 1.4.3
 ```
 
 CI installs the same pinned Bun in `.github/actions/setup-node-pnpm` right
