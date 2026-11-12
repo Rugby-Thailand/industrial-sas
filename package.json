@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:login": "node scripts/dev-login.mjs",
-    "dev:web": "BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next dev --webpack --port 3100",
+    "dev:web": "BUN_OPTIONS=--no-env-file node scripts/ci/install-bun-checker.mjs --run run --bun --no-env-file next dev --webpack --port 3100",
     "dev:web:node": "next dev --webpack --port 3100",
     "dev:backend": "convex dev",
     "codegen": "convex codegen --typecheck disable",
@@ -24,7 +24,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty",
+    "typecheck": "next typegen && node scripts/ci/install-bun-checker.mjs --run --check --no-pretty",
     "typecheck:ts6": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --project unit --project unit-node",

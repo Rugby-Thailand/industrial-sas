@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Pinned standalone Bun type checker for `pnpm typecheck` (delivery plan T01).
 //
-//   node scripts/ci/install-bun-checker.mjs           install, then verify
-//   node scripts/ci/install-bun-checker.mjs --verify  verify the `bun` on PATH
+//   node scripts/ci/install-bun-checker.mjs              install, then verify
+//   node scripts/ci/install-bun-checker.mjs --run <args>  run the pinned bun
 //
 // Install downloads the official release archive for this platform and checks
 // its SHA-256 against the digest pinned below before extracting anything. It
@@ -12,28 +12,27 @@
 // bytes are verified again on every use. On GitHub Actions the directory is
 // appended to GITHUB_PATH for later steps.
 //
-// `pnpm typecheck` runs --verify first: a missing `bun` on PATH, or one that
-// reports a different Bun or embedded TypeScript version, fails instead of
-// silently checking with another version. --verify trusts what the selected
-// binary reports; it does not rehash it. Archive integrity is verified only
-// by install, against the pinned digest.
-import { execFileSync, spawnSync } from "node:child_process";
+// `pnpm typecheck` uses --run: it runs the installed binary from
+// .cache/bun-checker/ directly, never whatever `bun` is on PATH, and installs
+// it first when it is missing or reports a different Bun or embedded
+// TypeScript version. --run trusts what the installed binary reports; it does
+// not rehash it. Archive integrity is verified only by install, against the
+// pinned digest.
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  accessSync,
   appendFileSync,
   chmodSync,
-  constants,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { constants, tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const BUN_CHECKER = Object.freeze({
@@ -97,21 +96,6 @@ export function versionProblems({ version, typescript }) {
       `embedded TypeScript ${typescript || "(none)"} found; ${BUN_CHECKER.typescript} is required`,
     );
   return problems;
-}
-
-/** First executable `bun` in a PATH string, as the shell would select it. */
-export function findOnPath(pathValue, name = "bun", cwd = process.cwd()) {
-  for (const directory of String(pathValue ?? "").split(delimiter)) {
-    const candidate = resolve(cwd, directory, name);
-    try {
-      if (!statSync(candidate).isFile()) continue;
-      accessSync(candidate, constants.X_OK);
-      return candidate;
-    } catch {
-      // Not present or not executable here; keep searching like the shell.
-    }
-  }
-  return null;
 }
 
 const sha256Of = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -225,38 +209,65 @@ async function install() {
   if (process.env.GITHUB_ACTIONS === "true" && process.env.GITHUB_PATH) {
     appendFileSync(process.env.GITHUB_PATH, `${binDir}\n`);
     console.log("Added the pinned Bun directory to GITHUB_PATH.");
-  } else {
-    console.log(`Put it first on PATH: export PATH="${binDir}:$PATH"`);
   }
 }
 
-function verify() {
-  const version = readPin();
-  const binary = findOnPath(process.env.PATH);
-  if (!binary)
-    throw new Error(
-      `bun ${version} is not on PATH. Install it: ${INSTALL_HINT}`,
-    );
-  const problems = versionProblems(probeBun(binary));
-  if (problems.length > 0)
-    throw new Error(
-      `${binary}: ${problems.join("; ")}. Install the pin: ${INSTALL_HINT}`,
-    );
-  console.log(`Bun checker ${version} (TypeScript ${BUN_CHECKER.typescript})`);
+/** Resolves the exact pinned Bun, installing it when absent or incompatible. */
+export async function ensurePinnedBun() {
+  readPin();
+  const binary = join(installedBinDir(), "bun");
+  if (versionProblems(probeBun(binary)).length > 0) await install();
+  return binary;
 }
 
-if (
-  process.argv[1] &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
-  const args = process.argv.slice(2);
-  if (args.some((arg) => arg !== "--verify")) {
-    console.error(`Unknown argument. Usage: ${INSTALL_HINT} [--verify]`);
+/** Runs the installed pinned `bun` with `args`, installing it if needed. */
+async function run(args) {
+  const binary = await ensurePinnedBun();
+  const child = spawn(binary, args, { stdio: "inherit" });
+  // The launcher is also used for long-running dev servers. Keep its event
+  // loop alive so terminating it reaches Bun instead of leaving an orphan.
+  const handlers = ["SIGINT", "SIGTERM"].map((signal) => {
+    const handler = () => child.kill(signal);
+    process.on(signal, handler);
+    return [signal, handler];
+  });
+  try {
+    const code = await new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", (code, signal) =>
+        resolve(code ?? (signal ? 128 + constants.signals[signal] : 1)),
+      );
+    });
+    process.exitCode = code;
+  } finally {
+    for (const [signal, handler] of handlers) process.off(signal, handler);
+  }
+}
+
+// realpath: Node resolves symlinks in import.meta.url but not in argv[1], so
+// a checkout under a symlink (macOS /var, /tmp) would otherwise exit 0 here.
+let isMain = false;
+try {
+  isMain =
+    Boolean(process.argv[1]) &&
+    realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+} catch {
+  // stdin/eval importers can have a non-file argv[1], such as "-".
+}
+if (isMain) {
+  const [mode, ...args] = process.argv.slice(2);
+  if (mode !== undefined && mode !== "--run") {
+    console.error(`Unknown argument. Usage: ${INSTALL_HINT} [--run <args>]`);
     process.exit(2);
   }
   try {
-    if (args.includes("--verify")) verify();
-    else await install();
+    if (mode === "--run") await run(args);
+    else {
+      await install();
+      console.log(
+        `For build/start, put it first on PATH: export PATH="${installedBinDir()}:$PATH"`,
+      );
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

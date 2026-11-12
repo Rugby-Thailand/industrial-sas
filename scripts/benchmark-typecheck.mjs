@@ -290,7 +290,7 @@ async function main() {
     },
   };
   assert.equal(pins.asset.cachedArchiveSha256, asset.sha256);
-  assert.match(pins.scripts.typecheck, /&& bun --check --no-pretty$/);
+  assert.match(pins.scripts.typecheck, / --run --check --no-pretty$/);
   assert.doesNotMatch(JSON.stringify(manifestJson.scripts), /\bbun check\b/);
 
   const pilotCopy = join(output, "pilot-benchmark-typecheck.mjs.txt");

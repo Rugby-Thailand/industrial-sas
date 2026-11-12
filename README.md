@@ -52,12 +52,14 @@ tests; preserve coverage for shared or maintained tools. See the
 [cleanup audit](docs/reviews/repository-cleanup-2026-11-03.md) for the first pass.
 
 `pnpm typecheck` generates Next route types and then runs Bun's standalone
-TypeScript checker (`bun --check`, TypeScript 7.0.2 semantics). It needs the
-exact Bun in `.bun-version` (1.4.3) first on `PATH`; install it with
-`node scripts/ci/install-bun-checker.mjs`, which checksum-verifies the official
-release archive into the ignored `.cache/bun-checker/` and prints the `PATH`
-entry. CI runs the same installer. Never use bare `bun check` here: it runs the
-aggregate `check` script. `pnpm typecheck:ts6` generates the same Next route
+TypeScript checker (`bun --check`, TypeScript 7.0.2 semantics) with the exact
+Bun in `.bun-version` (1.4.3). It runs that binary from the ignored
+`.cache/bun-checker/`, never the `bun` on `PATH`, and installs it there on first
+use: `scripts/ci/install-bun-checker.mjs` checksum-verifies the official
+release archive. `pnpm dev` and `pnpm dev:web` resolve the same cached pin
+automatically. `pnpm build` and `pnpm start` need Bun first on `PATH`; the
+installer prints that entry. CI runs the same installer. Never use bare
+`bun check` here: it runs the aggregate `check` script. `pnpm typecheck:ts6` generates the same Next route
 types and runs TypeScript 6.0.3 with `tsc --noEmit`. Both checkers are required
 in the CI contracts lane. TypeScript 6 remains installed for the editor,
 typescript-eslint and ordinary local builds. Anonymous CI smoke delegates
@@ -67,11 +69,13 @@ Production builds use that contract only after the aggregate quality gate
 passes. The navigation harness keeps its own build typecheck.
 `node scripts/benchmark-typecheck.mjs` compares the two checkers serially.
 
-Next.js runs on that pinned Bun: `pnpm dev` (the Next half; Convex stays on
-Node), `pnpm dev:web`, `pnpm build` and `pnpm start` use
-`bun run --bun --no-env-file next …` so Bun does not preload `.env` files
-before Next selects them. `pnpm dev:web:node`, `pnpm build:node` and
-`pnpm start:node` are the Node fallbacks. Installation, Vitest, the Playwright
+Next.js runs on Bun: `pnpm dev` runs its Next half directly with the cached
+pin (Convex stays on Node); `pnpm dev:web`, `pnpm build` and `pnpm start` use
+`bun run --bun --no-env-file next …`. The commands also set
+`BUN_OPTIONS=--no-env-file` so Bun does not preload `.env` files before Next
+selects them, including in Next's child processes. `pnpm dev:web:node`,
+`pnpm build:node` and `pnpm start:node` are the Node fallbacks. Installation,
+Vitest, the Playwright
 runner, Convex and the release tooling stay on Node and pnpm. Hosted Vercel
 Functions use `bunVersion: "1.4.x"`, and `GET /api/runtime` reports the serving
 runtime. See [Bun runtime](docs/operations/bun-runtime.md) for exceptions,

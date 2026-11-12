@@ -1,5 +1,15 @@
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 
@@ -9,7 +19,6 @@ import {
   BUN_CHECKER,
   bunAsset,
   cachedArchivePath,
-  findOnPath,
   installedBinDir,
   pinnedVersion,
   versionProblems,
@@ -90,7 +99,7 @@ describe("pinned Bun checker", () => {
   it("keeps the ordinary and fallback checks explicit", () => {
     const { scripts } = manifest;
     expect(scripts.typecheck).toBe(
-      "node scripts/ci/install-bun-checker.mjs --verify && next typegen && bun --check --no-pretty",
+      "next typegen && node scripts/ci/install-bun-checker.mjs --run --check --no-pretty",
     );
     expect(scripts["typecheck:ts6"]).toBe("next typegen && tsc --noEmit");
     // Bare `bun check` would dispatch the aggregate `check` script.
@@ -106,7 +115,6 @@ describe("pinned Bun checker", () => {
       "BUN_OPTIONS=--no-env-file bun run --bun --no-env-file next";
     expect(scripts.build).toBe(`${bunNext} build`);
     expect(scripts.start).toBe(`${bunNext} start --port 3100`);
-    expect(scripts["dev:web"]).toBe(`${bunNext} dev --webpack --port 3100`);
     expect(scripts["build:node"]).toBe("next build");
     expect(scripts["start:node"]).toBe("next start --port 3100");
     expect(scripts["dev:web:node"]).toBe("next dev --webpack --port 3100");
@@ -122,76 +130,207 @@ describe("pinned Bun checker", () => {
   });
 });
 
-describe("install-bun-checker --verify", () => {
+describe("install-bun-checker --run", () => {
   const directories: string[] = [];
   afterEach(() => {
     for (const directory of directories.splice(0))
       rmSync(directory, { recursive: true, force: true });
   });
-
-  /** A PATH directory whose `bun` reports the given versions. */
-  function fakeBun(version: string, typescript: string) {
-    const directory = mkdtempSync(join(tmpdir(), "fake-bun-"));
+  const temporary = (prefix: string) => {
+    const directory = mkdtempSync(join(tmpdir(), prefix));
     directories.push(directory);
+    return directory;
+  };
+
+  /** A `bun` that reports the given versions and echoes any other call. */
+  function fakeBun(directory: string, version: string, typescript = "7.0.2") {
+    mkdirSync(directory, { recursive: true });
     writeFileSync(
       join(directory, "bun"),
       [
         "#!/bin/sh",
         `if [ "$1" = "--version" ]; then echo ${version}; exit 0; fi`,
         `if [ "$1" = "-p" ]; then echo ${typescript}; exit 0; fi`,
-        "exit 1",
+        `echo "${version} ran: $*"`,
+        'echo "BUN_OPTIONS=$BUN_OPTIONS"',
+        "exit 3",
         "",
       ].join("\n"),
       { mode: 0o755 },
     );
     return directory;
   }
-  const verify = (path: string, cwd = process.cwd()) =>
-    runInstaller(["--verify"], { cwd, path });
 
-  it("accepts only the pinned checker selected first on PATH", () => {
-    const pinned = fakeBun("1.4.3", "7.0.2");
-    const older = fakeBun("1.4.2", "7.0.2");
-    expect(verify(pinned).status).toBe(0);
+  /** A copy of the installer in a repository whose pinned bun is a fake. */
+  function repository() {
+    const repo = temporary("bun-repo-");
+    mkdirSync(join(repo, "scripts/ci"), { recursive: true });
+    copyFileSync(installer, join(repo, "scripts/ci/install-bun-checker.mjs"));
+    copyFileSync(".bun-version", join(repo, ".bun-version"));
+    fakeBun(installedBinDir(repo), "1.4.3");
+    return join(repo, "scripts/ci/install-bun-checker.mjs");
+  }
+  const run = (script: string, path: string) =>
+    spawnSync(process.execPath, [script, "--run", "--check", "--no-pretty"], {
+      encoding: "utf8",
+      env: { NODE_ENV: "test", PATH: path },
+    });
 
-    const shadowed = verify([older, pinned].join(delimiter));
-    expect(shadowed.status).toBe(1);
-    expect(shadowed.stderr).toContain("Bun 1.4.2 found; 1.4.3 is required");
-    expect(findOnPath([older, pinned].join(delimiter))).toBe(
-      join(older, "bun"),
-    );
-
-    const wrongCompiler = verify(fakeBun("1.4.3", "7.0.1"));
-    expect(wrongCompiler.status).toBe(1);
-    expect(wrongCompiler.stderr).toContain("embedded TypeScript 7.0.1");
+  it("runs the installed pin with no bun on PATH and keeps its exit code", () => {
+    const result = run(repository(), temporary("no-bun-"));
+    expect(result.stdout).toContain("1.4.3 ran: --check --no-pretty");
+    expect(result.status).toBe(3);
   });
 
-  it("fails when no bun is on PATH", () => {
-    const empty = mkdtempSync(join(tmpdir(), "no-bun-"));
-    directories.push(empty);
-    const result = verify(empty);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("is not on PATH");
+  it("ignores another bun that is first on PATH", () => {
+    const older = fakeBun(temporary("old-bun-"), "1.3.14");
+    const result = run(repository(), [older, process.env.PATH].join(delimiter));
+    expect(result.stdout).toContain("1.4.3 ran: --check --no-pretty");
+    expect(result.stdout).not.toContain("1.3.14");
   });
 
-  it("honors empty PATH components as the current directory", () => {
-    const current = fakeBun("1.4.2", "7.0.2");
-    const pinned = fakeBun("1.4.3", "7.0.2");
-    const absent = join(current, "absent");
-    for (const path of [
-      `${delimiter}${pinned}`,
-      `${absent}${delimiter}`,
-      `${absent}${delimiter}${delimiter}${pinned}`,
-    ]) {
-      expect(findOnPath(path, "bun", current)).toBe(join(current, "bun"));
-      const result = verify(path, current);
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Bun 1.4.2 found");
-    }
-    expect(findOnPath(`${pinned}${delimiter}`, "bun", current)).toBe(
-      join(pinned, "bun"),
-    );
+  it.each(["SIGINT", "SIGTERM"] as const)(
+    "forwards %s to a long-running pinned command",
+    async (signal) => {
+      const script = repository();
+      const repo = realpathSync(join(script, "../../.."));
+      writeFileSync(
+        join(installedBinDir(repo), "bun"),
+        `#!${process.execPath}
+if (process.argv[2] === "--version") { console.log("1.4.3"); process.exit(0); }
+if (process.argv[2] === "-p") { console.log("7.0.2"); process.exit(0); }
+process.on("${signal}", () => { console.log("stopped"); process.exit(0); });
+console.log(process.pid);
+setInterval(() => {}, 1000);
+`,
+        { mode: 0o755 },
+      );
+      const child = spawn(process.execPath, [script, "--run", "serve"], {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { NODE_ENV: "test", PATH: temporary("no-bun-") },
+      });
+      let commandPid: number | undefined;
+      let output = "";
+      child.stdout.on("data", (data) => {
+        output += data;
+      });
+      try {
+        const [ready] = await once(child.stdout, "data", {
+          signal: AbortSignal.timeout(3_000),
+        });
+        commandPid = Number(String(ready).trim());
+        expect(commandPid).toBeGreaterThan(0);
+        const closed = once(child, "close", {
+          signal: AbortSignal.timeout(3_000),
+        });
+        child.kill(signal);
+        const [code] = await closed;
+        expect(code).toBe(0);
+        expect(output).toContain("stopped");
+      } finally {
+        child.kill("SIGKILL");
+        if (commandPid !== undefined) {
+          try {
+            process.kill(commandPid, "SIGKILL");
+          } catch {
+            /* already exited */
+          }
+        }
+      }
+    },
+  );
+
+  it("runs through a symlink without silently skipping the command", () => {
+    const script = repository();
+    const alias = join(temporary("bun-alias-"), "repo");
+    symlinkSync(join(script, "../../.."), alias, "dir");
+    const result = run(join(alias, "scripts/ci/install-bun-checker.mjs"), "");
+    expect(result.stdout).toContain("1.4.3 ran: --check --no-pretty");
+    expect(result.status).toBe(3);
   });
+
+  it("can be imported from a stdin Node program without running the CLI", () => {
+    const script = repository();
+    const result = spawnSync(process.execPath, ["--input-type=module", "-"], {
+      cwd: realpathSync(join(script, "../../..")),
+      input:
+        'import { BUN_CHECKER } from "./scripts/ci/install-bun-checker.mjs"; console.log(BUN_CHECKER.version);',
+      encoding: "utf8",
+      env: { NODE_ENV: "test", PATH: temporary("no-bun-") },
+    });
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("1.4.3");
+  });
+
+  it.each([false, true])(
+    "dev:web uses the pin and preserves Next flags (older Bun on PATH: %s)",
+    (olderOnPath) => {
+      const script = repository();
+      const repo = realpathSync(join(script, "../../.."));
+      const path = temporary("dev-path-");
+      symlinkSync(process.execPath, join(path, "node"));
+      if (olderOnPath) fakeBun(path, "1.3.14");
+      const result = spawnSync(
+        "/bin/sh",
+        ["-c", `${manifest.scripts["dev:web"]} --hostname 127.0.0.1`],
+        {
+          cwd: repo,
+          encoding: "utf8",
+          env: { NODE_ENV: "test", PATH: path },
+          timeout: 5_000,
+        },
+      );
+      expect(result.stdout).toContain(
+        "1.4.3 ran: run --bun --no-env-file next dev --webpack --port 3100 --hostname 127.0.0.1",
+      );
+      expect(result.stdout).toContain("BUN_OPTIONS=--no-env-file");
+      expect(result.status).toBe(3);
+    },
+  );
+
+  it.each([false, true])(
+    "dev runs pinned Next directly and stops Convex on exit (older Bun on PATH: %s)",
+    (olderOnPath) => {
+      const script = repository();
+      const repo = realpathSync(join(script, "../../.."));
+      mkdirSync(join(repo, "scripts/lib"), { recursive: true });
+      copyFileSync("scripts/dev.mjs", join(repo, "scripts/dev.mjs"));
+      copyFileSync(
+        "scripts/lib/childLifecycle.mjs",
+        join(repo, "scripts/lib/childLifecycle.mjs"),
+      );
+      writeFileSync(
+        join(repo, ".env.local"),
+        "CONVEX_DEPLOYMENT=local:fixture\n",
+      );
+      mkdirSync(join(repo, "node_modules/.bin"), { recursive: true });
+      writeFileSync(
+        join(repo, "node_modules/.bin/convex"),
+        `#!${process.execPath}\nsetInterval(() => {}, 1000);\n`,
+        { mode: 0o755 },
+      );
+      const path = temporary("dev-path-");
+      if (olderOnPath) fakeBun(path, "1.3.14");
+      const result = spawnSync(
+        process.execPath,
+        [join(repo, "scripts/dev.mjs")],
+        {
+          cwd: repo,
+          encoding: "utf8",
+          env: { NODE_ENV: "test", PATH: path, PORT: "3199" },
+          timeout: 5_000,
+        },
+      );
+      expect(result.stdout).toContain(
+        `1.4.3 ran: --bun --no-env-file ${join(repo, "node_modules/next/dist/bin/next")} dev --webpack --port 3199`,
+      );
+      expect(result.stdout).toContain("BUN_OPTIONS=--no-env-file");
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(3);
+      expect(result.stderr).toContain("stopped both");
+    },
+  );
 
   it("rejects unknown arguments", () => {
     const result = runInstaller(["--version=1.4.4"]);
