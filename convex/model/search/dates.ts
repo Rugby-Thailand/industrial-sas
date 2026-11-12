@@ -104,7 +104,7 @@ const ENGLISH_MONTH = `(${MONTH_NAMES.flatMap(([, names]) => names)
 const ERA = "(พ\\.?ศ\\.?|ค\\.?ศ\\.?|b\\.?e\\.?|c\\.?e\\.?|a\\.?d\\.?)";
 const YEAR = `(?:\\s*,?\\s*${ERA}?\\s*(\\d{2,4})(?!\\d))?`;
 const DAY = "(?<!\\d)(\\d{1,2})(?!\\d)";
-const RANGE_JOIN = "\\s*(?:-|ถึง|to|until)\\s*";
+const RANGE_JOIN = "\\s*(?:-|ถึง|จนถึง|to|until|through|thru)\\s*";
 
 function monthNumber(text: string): number | null {
   for (const [pattern, month] of MONTH_LOOKUP)
@@ -143,20 +143,23 @@ function dated(
   month: number,
   year: Year,
   today: IsoDate | null,
+  isValid: (date: IsoDate) => boolean = isIsoDate,
 ): { date: IsoDate; inferred: boolean } | "AMBIGUOUS" | "INVALID" {
   if (year.kind === "AMBIGUOUS") return "AMBIGUOUS";
   if (year.kind === "MISSING") {
     if (today === null) return "AMBIGUOUS";
     const current = Number(today.slice(0, 4));
-    for (const candidate of [current, current - 1]) {
+    // Leap days can be eight years apart across a non-leap century (2100).
+    // Keep the search bounded; isIsoDate also enforces the supported calendar.
+    for (let candidate = current; candidate >= current - 8; candidate--) {
       const date = iso(candidate, month, day);
-      if (isIsoDate(date) && compareDates(date, today) <= 0)
+      if (isValid(date) && compareDates(date, today) <= 0)
         return { date, inferred: true };
     }
     return "INVALID";
   }
   const date = iso(year.year, month, day);
-  return isIsoDate(date) ? { date, inferred: false } : "INVALID";
+  return isValid(date) ? { date, inferred: false } : "INVALID";
 }
 
 interface Found {
@@ -187,7 +190,7 @@ const QUALIFIERS =
   /(?:สัปดาห์|อาทิตย์|เดือน|ปี)(?:ที่แล้ว|ก่อน|นี้|หน้า)|(?<![a-z])(?:last|this|next|previous|past) (?:week|month|year)(?![a-z])|(?<![a-z])(?:last|next) (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?![a-z])/g;
 
 /** Between two dates, these make one range: "a to b", "a – b", "a ถึง b". */
-const BETWEEN_RANGE = /^\s*(?:-|ถึง|จนถึง|to|until|through|thru)\s*$/;
+const BETWEEN_RANGE = new RegExp(`^${RANGE_JOIN}$`);
 
 /** Every date expression in `text`, longest match first where they overlap. */
 export function scanDates(text: string, today: IsoDate | null): DateScan {
@@ -234,22 +237,28 @@ export function scanDates(text: string, today: IsoDate | null): DateScan {
     const text = m[0].trim();
     if (fromMonth === null || toMonth === null)
       return add(m, { kind: "INVALID", text });
-    const to = dated(toDay, toMonth, year, today);
+    const startOfRange = (to: IsoDate) =>
+      iso(
+        Number(to.slice(0, 4)) - (fromMonth > toMonth ? 1 : 0),
+        fromMonth,
+        fromDay,
+      );
+    // Infer a year in which the whole range exists, including a leap-day start.
+    const to = dated(
+      toDay,
+      toMonth,
+      year,
+      today,
+      (date) => isIsoDate(date) && isIsoDate(startOfRange(date)),
+    );
     if (to === "AMBIGUOUS" || to === "INVALID")
       return add(m, { kind: to, text });
-    // A missing year was inferred from the end date so the range stays whole.
-    const fromYear: Year = {
-      kind: "YEAR",
-      year: Number(to.date.slice(0, 4)) - (fromMonth > toMonth ? 1 : 0),
-    };
-    const from = dated(fromDay, fromMonth, fromYear, today);
-    if (from === "AMBIGUOUS" || from === "INVALID")
-      return add(m, { kind: from, text });
-    if (compareDates(from.date, to.date) > 0)
+    const from = startOfRange(to.date);
+    if (compareDates(from, to.date) > 0)
       return add(m, { kind: "INVALID", text });
     add(m, {
       kind: "RANGE",
-      from: from.date,
+      from,
       to: to.date,
       text,
       inferredYear: to.inferred,
@@ -316,6 +325,18 @@ export function scanDates(text: string, today: IsoDate | null): DateScan {
   });
   each(`${DAY}\\s*${MONTH}${YEAR}`, (m) =>
     single(m, Number(m[1]), monthNumber(m[2]!), resolveYear(m[3], m[4])),
+  );
+  each(
+    `${ENGLISH_MONTH}\\s+${DAY}(?:st|nd|rd|th)?${RANGE_JOIN}${ENGLISH_MONTH}\\s+${DAY}(?:st|nd|rd|th)?${YEAR}`,
+    (m) =>
+      range(
+        m,
+        Number(m[2]),
+        monthNumber(m[1]!),
+        Number(m[4]),
+        monthNumber(m[3]!),
+        resolveYear(m[5], m[6]),
+      ),
   );
   each(
     `${ENGLISH_MONTH}\\s+(\\d{1,2})(?:st|nd|rd|th)?(?!\\d)(?:\\s*,?\\s*(\\d{4})(?!\\d))?`,
