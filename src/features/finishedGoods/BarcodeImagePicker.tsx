@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/Notice";
-import { classifyTicketBarcode } from "./jobScan/ticketDraft";
+import { classifyTicketBarcode } from "../../../convex/model/finishedGoods/jobScans";
 import { BarcodeCropControls } from "./BarcodeCropControls";
 import type { BarcodeCrop } from "./barcodeDecoder";
 import {

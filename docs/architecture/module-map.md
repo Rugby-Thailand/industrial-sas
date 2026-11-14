@@ -15,6 +15,31 @@ Where a change belongs, what each area may import, and which tests prove its rul
 | `src/features/<feature>/**`                                                                                         | Screens, drafts, data adapters for one feature                                                                                                       | `src/components`, `src/lib`, `src/hooks`, `convex/_generated`, `convex/model`; other backend modules **type-only**      | `module-boundaries` (frontend rule)                                                                                                         |
 | `src/lib/browser`, `src/lib/navigationGuard.ts`, `src/hooks/useWorkflowStep.ts`, `src/components/navigation`        | History ownership and the Back contract                                                                                                              | Leaf `appHistoryMarkers` ← `navigationGuard` ← `history` ← `appHistory`; no runtime cycle                               | `module-boundaries` (cycle rule), `pnpm check:navigation`, caller tests listed in [back-navigation.json](../contracts/back-navigation.json) |
 
+## Job-scan and public registration boundaries
+
+`module-boundaries` keeps `src/features/finishedGoods/jobScan` private, including
+its types. Route pages may import the exact `JobScanScreen` and `JobScanRecords`
+screen entries. Barcode consumers share `classifyTicketBarcode` directly from
+`convex/model/finishedGoods/jobScans`; they do not depend on ticket drafts.
+
+Public Convex registrations use `queryWithOrg`, `mutationWithOrg` or
+`actionWithOrg`, including local factories such as `storageBuildingQuery`.
+The guard audits named imports of raw constructors from `convex/server` and
+`convex/_generated/server`, and confines their use to exact registration owners.
+Namespace/dynamic imports and raw constructor re-exports are rejected so they
+cannot hide a bypass. Named `internal*` constructors and type-only imports remain
+allowed. The two sessionless public ingress exceptions are:
+
+- `convex/lib/clerkWebhook.ts#clerkWebhook`: verifies the Clerk webhook signature.
+- `convex/finishedGoods/attachments.ts#finalizeUpload`: verifies an HMAC receipt
+  for a provider callback before finalizing its existing organization-owned
+  intent ([review](../reviews/architecture-current-2026-11-09/ai-attachments.md)).
+
+The navigation cycle check follows runtime edges through intermediate frontend
+modules, starting at each of the four history-core modules. Type-only imports
+and re-exports are erased edges. In-memory fixtures prove that each boundary
+rejects violations, including constructor aliases and runtime cycles.
+
 ## Where common changes go
 
 | Change                                   | Start here                                                                                                                                                        | Verify with                                                                                                   |
