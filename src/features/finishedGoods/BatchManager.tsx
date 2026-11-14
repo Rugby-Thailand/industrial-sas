@@ -692,7 +692,10 @@ function AvailableEditor({
     await op.run(
       async () => {
         return written(
-          await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
+          await save({
+            ...args,
+            requestId: op.request(JSON.stringify(args), "durable"),
+          }),
         );
       },
       (receipt) => {

@@ -368,7 +368,7 @@ function Measurement({
         written(
           await mutate({
             ...args,
-            requestId: op.request(JSON.stringify(args)),
+            requestId: op.request(JSON.stringify(args), "durable"),
           }),
         );
       },
@@ -861,8 +861,9 @@ function PalletDetailScreen({
   const cancelMutation = useMutation(fgRefs.cancelReservation);
   const verifyMutation = useMutation(fgRefs.verifyDestination);
   const storeMutation = useMutation(fgRefs.confirmStored);
+  const scope = useDraftKey("fg-pallet-operations");
   const op = useOperation(
-    undefined,
+    scope ? `${scope}:${warehouseId}:${detail.pallet._id}` : undefined,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const [cancel, setCancel] = useState(false);
@@ -885,7 +886,10 @@ function PalletDetailScreen({
             ...(placement ? { expectedPlacementId: placement._id } : {}),
             code,
             method,
-            requestId: op.request(`verify:${placement?._id}:${code}:${method}`),
+            requestId: op.request(
+              `verify:${placement?._id}:${code}:${method}`,
+              "ephemeral",
+            ),
           }),
         ),
       () => op.clearRequests(),
@@ -901,6 +905,7 @@ function PalletDetailScreen({
           ...(placement ? { expectedPlacementId: placement._id } : {}),
           requestId: op.request(
             `store:${placement?._id}:${upperCode}:${physicalStack}`,
+            "durable",
           ),
           ...(placement?.supportPalletId
             ? { palletCode: upperCode, physicalConfirmed: physicalStack }
@@ -917,7 +922,7 @@ function PalletDetailScreen({
             warehouseId,
             palletId: pallet._id,
             ...(placement ? { expectedPlacementId: placement._id } : {}),
-            requestId: op.request(`cancel:${placement?._id}`),
+            requestId: op.request(`cancel:${placement?._id}`, "durable"),
           }),
         );
       },

@@ -324,7 +324,7 @@ export function PackageAssignment({
     const request =
       pendingRequest?.fingerprint === fingerprint
         ? pendingRequest
-        : { id: op.request(fingerprint), fingerprint };
+        : { id: op.request(fingerprint, "ephemeral"), fingerprint };
     // The assignment and its retry identity must survive together. The generic
     // request registry is a convenience; this required write is the durable owner.
     if (

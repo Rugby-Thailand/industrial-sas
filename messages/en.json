@@ -268,6 +268,7 @@
     "FG_NOT_VERIFIED": "Verify the destination before confirming storage.",
     "FG_NOT_FOUND": "This record is unavailable in the selected warehouse.",
     "FG_STORED_PALLET": "A stored pallet cannot be measured or reserved again.",
+    "FG_REQUEST_IDENTITY_UNAVAILABLE": "The change was not sent because browser retry recovery could not be read or saved. Restore browser storage and try again. Keep existing recovery data.",
     "FG_UNKNOWN": "The change could not be saved. Check your input and connection, then retry.",
     "FG_VERSION_CONFLICT": "This product changed or its edit version is missing. Your draft is retained. Reload the current product and review your changes before saving.",
     "FG_QUANTITY_INVALID": "Enter positive quantities with the precision allowed for this unit."

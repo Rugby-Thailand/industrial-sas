@@ -1577,7 +1577,7 @@ describe("measurement draft privacy", () => {
   });
 });
 
-it("can save measurements when browser recovery storage is blocked", async () => {
+it("refuses measurements when retry storage is blocked and retries after recovery", async () => {
   const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new DOMException("Blocked", "SecurityError");
   });
@@ -1594,6 +1594,15 @@ it("can save measurements when browser recovery storage is blocked", async () =>
   try {
     renderPallet("measure");
     number("Length (m)", "1.5");
+    fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The change was not sent",
+    );
+    expect(callsFor("saveMeasurement")).toHaveLength(0);
+    expect(mocks.replace).not.toHaveBeenCalled();
+    read.mockRestore();
+    write.mockRestore();
+    remove.mockRestore();
     fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenCalledWith(

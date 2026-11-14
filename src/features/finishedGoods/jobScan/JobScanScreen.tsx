@@ -125,7 +125,9 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
   const router = useRouter();
   const canManage = useCanManage();
-  const operation = useOperation();
+  const operation = useOperation(
+    useDraftKey(`fg-job-scan:${warehouseId}`) ?? undefined,
+  );
   const extract = useAction(fgRefs.extractJobTicket);
   const save = useMutation(fgRefs.saveJobScans);
   const { startUpload } = useUploadThing("jobTicketImage");
@@ -468,7 +470,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
         requireWritten(
           await save({
             ...payload,
-            requestId: operation.request(JSON.stringify(payload)),
+            requestId: operation.request(JSON.stringify(payload), "durable"),
           }),
         ),
       () => {
