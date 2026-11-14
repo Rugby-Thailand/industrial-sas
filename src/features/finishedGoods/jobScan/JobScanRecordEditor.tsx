@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { requireWritten } from "@/lib/convex/mutationOutcome";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { ErrorNotice, Field, useOperation } from "../shared";
 import {
@@ -30,7 +31,6 @@ import {
   type TicketDraft,
   type TicketField,
 } from "./ticketDraft";
-import { written } from "../shared";
 
 type Record = RefValue<typeof fgRefs.listJobScans>["items"][number];
 /** The saved values and version a correction is based on. */
@@ -129,7 +129,7 @@ export function JobScanRecordEditor({
           outcome.value.error.code === "STALE_REVISION"
         )
           setConflict(true);
-        written(outcome);
+        requireWritten(outcome);
         op.clearRequests();
         guard.settle();
         op.complete(() => {

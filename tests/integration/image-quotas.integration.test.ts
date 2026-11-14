@@ -82,7 +82,11 @@ it.each([
         value: { ok: false, error: { code: "RATE_LIMITED" } },
       });
       if (result.ok && !result.value.ok)
-        expect(result.value.retryAfterMs).toBeGreaterThan(0);
+        expect(
+          "retryAfterMs" in result.value
+            ? result.value.retryAfterMs
+            : undefined,
+        ).toBeGreaterThan(0);
     }
     expect(transport).toHaveBeenCalledTimes(20 - count);
     const attempts = await w.t.run((ctx) =>
