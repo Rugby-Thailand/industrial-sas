@@ -1011,7 +1011,7 @@ it("shows the actual structured Convex error instead of treating its wrapper mes
   expect(mocks.pallet).not.toHaveBeenCalled();
 });
 
-it("refuses product creation when retry storage is unavailable and retries after recovery", async () => {
+it("can save a product when storage is blocked", async () => {
   const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new DOMException("Blocked", "SecurityError");
   });
@@ -1028,15 +1028,6 @@ it("refuses product creation when retry storage is unavailable and retries after
   try {
     renderProduct();
     fillValidProduct();
-    submitProduct();
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The change was not sent",
-    );
-    expect(mocks.save).not.toHaveBeenCalled();
-    expect(mocks.replace).not.toHaveBeenCalled();
-    read.mockRestore();
-    write.mockRestore();
-    remove.mockRestore();
     submitProduct();
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenCalledWith(

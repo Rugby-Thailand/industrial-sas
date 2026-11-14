@@ -195,12 +195,10 @@ function expectLightweightRow(value: unknown, path = "row") {
     }
   } else if (value !== null && typeof value === "object") {
     for (const [key, entry] of Object.entries(value)) {
-      expect(key, `Heavy field: ${path}.${key}`).not.toMatch(
-        /image|photo|thumbnail|attachment|base64/i,
-      );
       expectLightweightRow(entry, `${path}.${key}`);
     }
   } else if (typeof value === "string") {
+    expect(value.length, `Large string: ${path}`).toBeLessThanOrEqual(2048);
     expect(value, `Inline media: ${path}`).not.toMatch(
       /^data:(?:image\/|[^,]*;base64,)/i,
     );
@@ -212,14 +210,13 @@ describe("bounded finished goods catalogue pages", () => {
   // for 20 / 50 / 100 rows, including Thai names and the tenant envelope.
   // Budgets are ceil(measured * 1.10): an explicit 10% margin for fixture
   // timestamps/cursors and small scalar additions, never nested histories.
-  it.each([
-    [20, 29_696],
-    [50, 72_321],
-    [100, 143_368],
-  ])(
-    "budgets the UTF-8 JSON payload for %i product rows",
-    async (pageSize, budget) => {
-      const { world } = await setup();
+  it("budgets the UTF-8 JSON payload for 20, 50 and 100 product rows", async () => {
+    const { world } = await setup();
+    for (const [pageSize, budget] of [
+      [20, 29_696],
+      [50, 72_321],
+      [100, 143_368],
+    ] as const) {
       const { result, payload } = await measuredPage(world, { pageSize });
       expect(result.status).toBe("ready");
       expect(result.page).toHaveLength(pageSize);
@@ -238,13 +235,20 @@ describe("bounded finished goods catalogue pages", () => {
       ]) {
         for (const row of rows) expectLightweightRow(row);
       }
-    },
-  );
+    }
+  });
+  it("allows harmless media flags and short scalar fields", () => {
+    expectLightweightRow({
+      hasImage: true,
+      imageCount: 2,
+      thumbnail: "short-reference",
+    });
+  });
   it.each([
     { nested: { units: [] } },
     { nested: { moves: [] } },
-    { nested: { image: "small" } },
-    { nested: { base64: "small" } },
+    { nested: { image: "x".repeat(2049) } },
+    { nested: { base64: "A".repeat(2049) } },
     { nested: { preview: "data:image/png;base64,AAAA" } },
   ])("rejects heavy row fields even below the byte budget: %j", (row) => {
     expect(() => expectLightweightRow(row)).toThrow();

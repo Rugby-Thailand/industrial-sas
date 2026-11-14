@@ -122,6 +122,7 @@ export function AddLocationForm({
         // Throws with metadata; the operation still describes the same copy key.
         requireWritten(result);
         if (outcome.kind === "UNWRITTEN") return;
+        operation.clearRequests();
         guard.settle();
         operation.complete(() =>
           onPick({

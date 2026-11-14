@@ -16,20 +16,15 @@ function readRequests(scope: string): Requests | undefined {
       if (!value || typeof value !== "object" || Array.isArray(value))
         return undefined;
       const record = value as Record<string, unknown>;
-      if (record.version === 1 && Object.keys(record).length !== 2)
+      const entries = record.version === 1 ? record.requests : record;
+      if (!entries || typeof entries !== "object" || Array.isArray(entries))
         return undefined;
-      const entries =
-        record.version === 1 && "requests" in record ? record.requests : record;
-      if (
-        !entries ||
-        typeof entries !== "object" ||
-        Array.isArray(entries) ||
-        !Object.values(entries).every(
-          (id) => typeof id === "string" && ID_PATTERN.test(id),
-        )
-      )
-        return undefined;
-      return entries as Requests;
+      return Object.fromEntries(
+        Object.entries(entries).filter(
+          (entry): entry is [string, string] =>
+            typeof entry[1] === "string" && ID_PATTERN.test(entry[1]),
+        ),
+      );
     },
     undefined,
   );
@@ -38,14 +33,12 @@ export function useRequestIdentity(scope?: string) {
   const requests = useRef({
     scope,
     registry: createRequestIdentityRegistry(),
-    durable: false,
   });
   const currentRequests = () => {
     if (requests.current.scope !== scope)
       requests.current = {
         scope,
         registry: createRequestIdentityRegistry(),
-        durable: false,
       };
     return requests.current;
   };
@@ -55,36 +48,38 @@ export function useRequestIdentity(scope?: string) {
   ) => {
     const current = currentRequests();
     const saved = scope ? readRequests(scope) : undefined;
-    if (policy === "durable") {
-      current.durable = true;
-      if (!scope || saved === undefined)
-        throw new Error("REQUEST_IDENTITY_UNAVAILABLE");
-      // The stored identity wins over local memory (including another tab's
-      // completed persistence). Reading it is sufficient even at quota.
-      if (Object.hasOwn(saved, key)) current.registry.forget(key);
-    }
+    // Stored durable identities win, including another tab's persisted ID.
+    if (policy === "durable" && saved && Object.hasOwn(saved, key))
+      current.registry.forget(key);
     const id = current.registry.request(key, {
       read: () => (saved && Object.hasOwn(saved, key) ? saved[key]! : null),
     });
     if (scope && saved !== undefined && saved[key] !== id) {
-      const persisted = drafts.write(`fg-requests:${scope}`, {
+      drafts.write(`fg-requests:${scope}`, {
         version: 1,
         requests: { ...saved, [key]: id },
       });
-      if (policy === "durable" && !persisted)
-        throw new Error("REQUEST_IDENTITY_UNAVAILABLE");
     }
     return id;
   };
-  const clearRequests = () => {
+  const clearRequests = (key?: string) => {
     const current = currentRequests();
-    // Do not erase a document we cannot decode, or forget a durable ID when
-    // removal failed. A remount must see the same recovery identity.
-    const removed =
-      !!scope &&
-      readRequests(scope) !== undefined &&
-      drafts.remove(`fg-requests:${scope}`);
-    if (removed || !current.durable) current.registry.clear();
+    if (key !== undefined) {
+      const saved = scope ? readRequests(scope) : undefined;
+      if (saved === undefined) {
+        current.registry.forget(key);
+        return false;
+      }
+      delete saved[key];
+      const cleared = Object.keys(saved).length
+        ? drafts.write(`fg-requests:${scope}`, { version: 1, requests: saved })
+        : drafts.remove(`fg-requests:${scope}`);
+      current.registry.forget(key);
+      return cleared;
+    }
+    // Whole-scope success may retire even an unreadable recovery document.
+    const removed = !!scope && drafts.remove(`fg-requests:${scope}`);
+    current.registry.clear();
     return removed;
   };
   return { request, clearRequests };

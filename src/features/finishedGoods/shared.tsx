@@ -64,7 +64,8 @@ export function useUnitText(format: string | undefined) {
     tr: (en: string, th: string) => unitCopy(tr(en, th), format),
   };
 }
-export { useDraftKey } from "@/hooks/useDraftKey";
+import { useDraftKey } from "@/hooks/useDraftKey";
+export { useDraftKey };
 export { useCanManage } from "@/hooks/useCanManage";
 export function ViewOnlyNotice() {
   const { t } = useFGText();
@@ -309,9 +310,11 @@ export function useWriteError(storageFormat?: string) {
 }
 export function useOperation(scope?: string, storageFormat?: string) {
   const describeError = useWriteError(storageFormat);
+  // Persisted scopes are per signed-in user; an unscoped operation stays in memory.
+  const actorScope = useDraftKey(scope ?? "");
   const operation = useAsyncOperation({
     navigation: "write",
-    ...(scope === undefined ? {} : { scope }),
+    scope: scope === undefined ? undefined : (actorScope ?? undefined),
     describeError,
   });
   // Every finished-goods command must declare its recovery policy.

@@ -299,7 +299,6 @@ function Records({
     setLocationSelection({ scope: selectionScope, ids: [...ids] });
     locationStep.enter();
     operation.setError("");
-    operation.clearRequests();
   }
 
   const confirmDelete = (ids: string[]) => {

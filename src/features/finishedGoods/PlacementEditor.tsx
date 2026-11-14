@@ -213,9 +213,7 @@ export function PlacementEditor({
   const moveMutation = useMutation(fgRefs.reserveMove);
   const actorScope = useDraftKey("fg-move-reserve");
   const op = useOperation(
-    actorScope
-      ? `${actorScope}:${warehouseId}:${detail.pallet._id}${moving ? "" : ":store"}`
-      : undefined,
+    `fg-move-reserve:${warehouseId}:${detail.pallet._id}${moving ? "" : ":store"}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const previewKey = actorScope

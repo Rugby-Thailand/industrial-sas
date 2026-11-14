@@ -177,7 +177,6 @@ export function JobScanRecordEditor({
                   setTicket(recordDraft(current));
                   setConflict(false);
                   op.setError("");
-                  op.clearRequests();
                 }}
               >
                 {t("reloadRecord")}

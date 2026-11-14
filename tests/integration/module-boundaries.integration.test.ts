@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 import ts from "typescript";
+import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
 import { FINISHED_GOODS_SOURCE_TABLES } from "../../convex/lib/finishedGoodsSummary";
@@ -37,6 +38,7 @@ const MODEL_TYPE_ONLY_EXCEPTIONS: Readonly<Record<string, readonly string[]>> =
 interface ModuleImport {
   readonly specifier: string;
   readonly typeOnly: boolean;
+  readonly indirect?: boolean;
 }
 
 const importCache = new Map<
@@ -71,16 +73,7 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
       ts.isStringLiteral(node.moduleSpecifier)
     ) {
       const clause = node.importClause;
-      const typeOnly =
-        clause !== undefined &&
-        (clause.isTypeOnly ||
-          (clause.name === undefined &&
-            clause.namedBindings !== undefined &&
-            ts.isNamedImports(clause.namedBindings) &&
-            clause.namedBindings.elements.length > 0 &&
-            clause.namedBindings.elements.every(
-              (element) => element.isTypeOnly,
-            )));
+      const typeOnly = clause?.isTypeOnly === true;
       found.push({ specifier: node.moduleSpecifier.text, typeOnly });
     } else if (
       ts.isExportDeclaration(node) &&
@@ -89,12 +82,7 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
     ) {
       found.push({
         specifier: node.moduleSpecifier.text,
-        typeOnly:
-          node.isTypeOnly ||
-          (node.exportClause !== undefined &&
-            ts.isNamedExports(node.exportClause) &&
-            node.exportClause.elements.length > 0 &&
-            node.exportClause.elements.every((element) => element.isTypeOnly)),
+        typeOnly: node.isTypeOnly,
       });
     } else if (
       ts.isCallExpression(node) &&
@@ -104,7 +92,11 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
       node.arguments[0] !== undefined &&
       ts.isStringLiteral(node.arguments[0])
     ) {
-      found.push({ specifier: node.arguments[0].text, typeOnly: false });
+      found.push({
+        specifier: node.arguments[0].text,
+        typeOnly: false,
+        indirect: true,
+      });
     } else if (
       ts.isImportEqualsDeclaration(node) &&
       ts.isExternalModuleReference(node.moduleReference) &&
@@ -114,13 +106,18 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
       found.push({
         specifier: node.moduleReference.expression.text,
         typeOnly: node.isTypeOnly,
+        indirect: true,
       });
     } else if (
       ts.isImportTypeNode(node) &&
       ts.isLiteralTypeNode(node.argument) &&
       ts.isStringLiteral(node.argument.literal)
     ) {
-      found.push({ specifier: node.argument.literal.text, typeOnly: true });
+      found.push({
+        specifier: node.argument.literal.text,
+        typeOnly: true,
+        indirect: true,
+      });
     }
     ts.forEachChild(node, visit);
   };
@@ -144,24 +141,14 @@ function resolved(file: string, specifier: string): string | null {
 }
 
 const JOB_SCAN = join(SRC, "features/finishedGoods/jobScan");
-const JOB_SCAN_SCREENS = ["JobScanScreen", "JobScanRecords"].map((name) =>
-  join(JOB_SCAN, name),
-);
-
+// ESLint owns static edges. Its import rule cannot see dynamic/require/type expressions.
 function jobScanViolations(file: string, text: string): string[] {
   if (inside(file, JOB_SCAN)) return [];
-  return importsOf(file, text).flatMap(({ specifier }) => {
-    const target = resolved(file, specifier);
-    if (target === null || !inside(target, JOB_SCAN)) return [];
-    // Only route pages consume screen entries; all other internals, including
-    // draft types, stay private. Shared barcode rules belong in convex/model.
-    if (
-      inside(file, join(SRC, "app")) &&
-      /[/\\]page\.tsx?$/.test(file) &&
-      JOB_SCAN_SCREENS.includes(target)
-    )
-      return [];
-    return [`${display(file)} imports private jobScan module ${specifier}`];
+  return importsOf(file, text).flatMap(({ specifier, indirect }) => {
+    const target = indirect ? resolved(file, specifier) : null;
+    return target !== null && inside(target, JOB_SCAN)
+      ? [`${display(file)} imports private jobScan module ${specifier}`]
+      : [];
   });
 }
 
@@ -208,123 +195,53 @@ function navigationCycles(sources: ReadonlyMap<string, string>): string[] {
   return cycles;
 }
 
-/** Exact registration owners, never whole-file exemptions. */
-const RAW_PUBLIC_OWNERS: Readonly<
-  Record<string, { readonly builder: string; readonly reason: string }>
-> = {
-  "convex/lib/tenantFunctions.ts#queryWithOrg": {
-    builder: "queryGeneric",
-    reason: "tenant query registration implementation",
-  },
-  "convex/lib/tenantFunctions.ts#mutationWithOrg": {
-    builder: "mutationGeneric",
-    reason: "tenant mutation registration implementation",
-  },
-  "convex/lib/tenantFunctions.ts#actionWithOrg": {
-    builder: "actionGeneric",
-    reason: "tenant action registration implementation",
-  },
-  "convex/lib/clerkWebhook.ts#clerkWebhook": {
-    builder: "httpActionGeneric",
-    reason: "Clerk signature-verified HTTP ingress has no tenant session",
-  },
-  "convex/finishedGoods/attachments.ts#finalizeUpload": {
-    builder: "mutation",
-    reason:
-      "sessionless provider callback verifies an HMAC upload receipt before writing the existing org-owned intent; see ai-attachments.md",
-  },
+/** Exact owners; the sessionless ingress reasons are recorded in module-map.md. */
+const RAW_PUBLIC_OWNERS: Readonly<Record<string, string>> = {
+  "convex/lib/tenantFunctions.ts#queryWithOrg": "queryGeneric",
+  "convex/lib/tenantFunctions.ts#mutationWithOrg": "mutationGeneric",
+  "convex/lib/tenantFunctions.ts#actionWithOrg": "actionGeneric",
+  "convex/lib/clerkWebhook.ts#clerkWebhook": "httpActionGeneric",
+  "convex/finishedGoods/attachments.ts#finalizeUpload": "mutation",
 };
 
-const PUBLIC_BUILDERS = new Set([
-  "query",
-  "mutation",
-  "action",
-  "httpAction",
-  "queryGeneric",
-  "mutationGeneric",
-  "actionGeneric",
-  "httpActionGeneric",
-]);
-
-function publicBuilderViolations(file: string, text: string): string[] {
+/** Only the gaps in no-restricted-imports: indirect access and exact owner use. */
+function registrationOwnerViolations(file: string, text: string): string[] {
   const rawModule = (specifier: string) =>
     specifier === "convex/server" ||
     resolved(file, specifier) === join(ROOT, "convex/_generated/server");
-  if (
-    !importsOf(file, text).some(
-      ({ specifier, typeOnly }) => !typeOnly && rawModule(specifier),
+  const edges = importsOf(file, text);
+  const violations = edges
+    .filter(
+      ({ specifier, typeOnly, indirect }) =>
+        !typeOnly && indirect && rawModule(specifier),
     )
-  )
-    return [];
+    .map(({ specifier }) => `${display(file)} indirectly imports ${specifier}`);
+  const owners = Object.entries(RAW_PUBLIC_OWNERS).filter(([owner]) =>
+    owner.startsWith(`${display(file)}#`),
+  );
+  if (!owners.length) return violations;
   const source = importCache.get(file)!.source;
   const bindings = new Map<string, string>();
-  const violations: string[] = [];
-  const refuse = (detail: string) =>
-    violations.push(`${display(file)}: ${detail}`);
-
-  // Named imports make every raw builder auditable, including aliases. Reject
-  // namespace/dynamic access and re-exports so a helper cannot launder a raw
-  // constructor into a seemingly tenant-safe factory. internal* stays allowed.
   for (const statement of source.statements) {
     if (
-      ts.isImportDeclaration(statement) &&
-      ts.isStringLiteral(statement.moduleSpecifier)
-    ) {
-      if (
-        !rawModule(statement.moduleSpecifier.text) ||
-        statement.importClause?.isTypeOnly
-      )
-        continue;
-      const named = statement.importClause?.namedBindings;
-      if (named === undefined || !ts.isNamedImports(named)) {
-        refuse("use named imports from Convex server entry points");
-        continue;
-      }
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !rawModule(statement.moduleSpecifier.text) ||
+      statement.importClause?.isTypeOnly
+    )
+      continue;
+    const named = statement.importClause?.namedBindings;
+    if (named && ts.isNamedImports(named))
       for (const element of named.elements) {
         const builder = (element.propertyName ?? element.name).text;
-        if (!element.isTypeOnly && PUBLIC_BUILDERS.has(builder)) {
-          bindings.set(element.name.text, builder);
-          if (
-            !Object.entries(RAW_PUBLIC_OWNERS).some(
-              ([owner, rule]) =>
-                owner.startsWith(`${display(file)}#`) &&
-                rule.builder === builder,
-            )
-          )
-            refuse(`raw public builder ${builder}; use a tenant wrapper`);
-        }
-      }
-    } else if (
-      ts.isExportDeclaration(statement) &&
-      statement.moduleSpecifier &&
-      ts.isStringLiteral(statement.moduleSpecifier)
-    ) {
-      if (!rawModule(statement.moduleSpecifier.text) || statement.isTypeOnly)
-        continue;
-      const named = statement.exportClause;
-      if (
-        !named ||
-        !ts.isNamedExports(named) ||
-        named.elements.some(
-          (element) =>
-            !element.isTypeOnly &&
-            PUBLIC_BUILDERS.has((element.propertyName ?? element.name).text),
+        if (
+          !element.isTypeOnly &&
+          /^(query|mutation|action|httpAction)(Generic)?$/.test(builder)
         )
-      )
-        refuse("do not re-export raw public builders");
-    }
+          bindings.set(element.name.text, builder);
+      }
   }
-
   const visit = (node: ts.Node) => {
-    if (
-      ts.isImportEqualsDeclaration(node) &&
-      !node.isTypeOnly &&
-      ts.isExternalModuleReference(node.moduleReference) &&
-      node.moduleReference.expression &&
-      ts.isStringLiteral(node.moduleReference.expression) &&
-      rawModule(node.moduleReference.expression.text)
-    )
-      refuse("use named imports from Convex server entry points");
     if (
       ts.isIdentifier(node) &&
       bindings.has(node.text) &&
@@ -332,53 +249,31 @@ function publicBuilderViolations(file: string, text: string): string[] {
     ) {
       let owner: ts.Node = node;
       while (owner.parent !== source) owner = owner.parent;
-      let name: string | undefined;
-      if (ts.isFunctionDeclaration(owner)) name = owner.name?.text;
-      if (ts.isVariableStatement(owner)) {
-        let declaration: ts.Node = node;
-        while (declaration !== owner && !ts.isVariableDeclaration(declaration))
-          declaration = declaration.parent;
-        if (
-          ts.isVariableDeclaration(declaration) &&
-          ts.isIdentifier(declaration.name)
-        )
-          name = declaration.name.text;
-      }
+      const declaration = ts.isVariableStatement(owner)
+        ? owner.declarationList.declarations.find(
+            (entry) => entry.pos <= node.pos && entry.end >= node.end,
+          )
+        : undefined;
+      const name = ts.isFunctionDeclaration(owner)
+        ? owner.name?.text
+        : declaration && ts.isIdentifier(declaration.name)
+          ? declaration.name.text
+          : undefined;
       const rule = RAW_PUBLIC_OWNERS[`${display(file)}#${name}`];
       if (
-        rule?.builder !== bindings.get(node.text) ||
+        rule !== bindings.get(node.text) ||
         !ts.isCallExpression(node.parent) ||
         node.parent.expression !== node
       )
-        refuse(
-          `raw public builder ${node.text} outside its exact registration owner`,
+        violations.push(
+          `${display(file)}: raw public builder ${node.text} outside its exact registration owner`,
         );
     }
-    if (
-      ts.isCallExpression(node) &&
-      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) &&
-          node.expression.text === "require")) &&
-      node.arguments[0] &&
-      ts.isStringLiteral(node.arguments[0]) &&
-      rawModule(node.arguments[0].text)
-    )
-      refuse("use named imports from Convex server entry points");
     ts.forEachChild(node, visit);
   };
   visit(source);
   return violations;
 }
-
-// All rules inspect the same source snapshot. Parse its import edges once;
-// rescanning each tree for each boundary otherwise dominates this suite.
-const PRODUCTION_SOURCES = new Map(
-  [...sourceFiles(SRC), ...sourceFiles(join(ROOT, "convex"))].map((file) => [
-    file,
-    readFileSync(file, "utf8"),
-  ]),
-);
-for (const [file, text] of PRODUCTION_SOURCES) importsOf(file, text);
 
 describe("module import boundaries", () => {
   it("keeps convex/model free of Convex runtime, schema and framework imports", () => {
@@ -445,159 +340,131 @@ describe("module import boundaries", () => {
     expect(files.length).toBeGreaterThan(100);
     expect(
       files.flatMap((file) =>
-        publicBuilderViolations(file, readFileSync(file, "utf8")),
+        registrationOwnerViolations(file, readFileSync(file, "utf8")),
       ),
     ).toEqual([]);
   });
 
-  it.each([
-    'import { newTicket } from "./jobScan/ticketDraft";',
-    'import { newTicket } from "@/features/finishedGoods/jobScan/ticketDraft";',
-    'import type { TicketDraft } from "./jobScan/ticketDraft";',
-    'export { type TicketDraft } from "./jobScan/ticketDraft";',
-    'export * from "./jobScan/ticketDraft";',
-    'const later = import("./jobScan/ticketDraft");',
-    'const draft = require("./jobScan/ticketDraft");',
-    'import draft = require("./jobScan/ticketDraft");',
-    'import { JobScanScreen } from "./jobScan/JobScanScreen";',
-  ])("rejects a cross-feature jobScan edge: %s", (text) => {
-    const violations = jobScanViolations(
-      join(SRC, "features/finishedGoods/probe.ts"),
-      text,
-    );
-    expect(violations).toHaveLength(1);
-    expect(violations[0]).toContain("imports private jobScan module");
-    expect(() => expect(violations).toEqual([])).toThrow();
-  });
-
-  it("allows feature-local imports, shared model rules and exact route screen entries", () => {
-    const fixtures = [
-      [
-        join(JOB_SCAN, "probe.ts"),
-        'import type { TicketDraft } from "./ticketDraft";',
-      ],
-      [
-        join(SRC, "features/finishedGoods/probe.ts"),
-        'import { classifyTicketBarcode } from "../../../convex/model/finishedGoods/jobScans";',
-      ],
-      [
-        join(SRC, "app/probe/page.tsx"),
-        'import { JobScanScreen } from "@/features/finishedGoods/jobScan/JobScanScreen";',
-      ],
-      [
-        join(SRC, "app/probe/page.tsx"),
-        'import { JobScanRecordsScreen } from "../../features/finishedGoods/jobScan/JobScanRecords";',
-      ],
-    ] as const;
-    for (const [file, text] of fixtures)
-      expect(jobScanViolations(file, text)).toEqual([]);
-    expect(
-      jobScanViolations(
-        join(SRC, "app/probe/page.tsx"),
-        'import { newTicket } from "@/features/finishedGoods/jobScan/ticketDraft";',
-      ),
-    ).toHaveLength(1);
-  });
-
-  it.each([
-    ["query", "../_generated/server"],
-    ["mutation", "../_generated/server.js"],
-    ["action", "../_generated/server"],
-    ["httpAction", "../_generated/server"],
-    ["queryGeneric", "convex/server"],
-    ["mutationGeneric", "convex/server"],
-    ["actionGeneric", "convex/server"],
-    ["httpActionGeneric", "convex/server"],
-  ])(
-    "rejects a raw public %s function from %s (including aliases)",
-    (builder, specifier) => {
-      const file = join(ROOT, "convex/finishedGoods/probe.ts");
-      const text = `import { ${builder} as register } from "${specifier}";
-      export const unscoped = register({ handler: () => null });`;
-      const violations = publicBuilderViolations(file, text);
-      expect(violations[0]).toContain(
-        `raw public builder ${builder}; use a tenant wrapper`,
+  it("rejects static boundary violations through ESLint, including aliases, namespaces and re-exports", async () => {
+    const eslint = new ESLint();
+    const backend = "convex/finishedGoods/probe.ts";
+    const frontend = "src/features/finishedGoods/probe.ts";
+    const route = "src/app/[locale]/(desktop)/finished-goods/scan/";
+    const restricted = async (text: string, filePath: string) => {
+      const [result] = await eslint.lintText(text, { filePath });
+      return result!.messages.filter(
+        (message) =>
+          message.ruleId === "@typescript-eslint/no-restricted-imports",
       );
-      expect(() => expect(violations).toEqual([])).toThrow();
-    },
-  );
-
-  it.each([
-    'import * as server from "../_generated/server"; export const unscoped = server.query({});',
-    'const { mutation: register } = await import("../_generated/server"); export const unscoped = register({});',
-    'const { actionGeneric } = require("convex/server"); export const unscoped = actionGeneric({});',
-    'import server = require("../_generated/server"); export const unscoped = server.query({});',
-    'export { query as hiddenBuilder } from "../_generated/server";',
-    'export * from "convex/server";',
-  ])("rejects indirect raw public builder access: %s", (text) => {
-    expect(
-      publicBuilderViolations(join(ROOT, "convex/finishedGoods/probe.ts"), text)
-        .length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("allows tenant factories, internal registrations and erased server types", () => {
-    const file = join(ROOT, "convex/storageLayouts/probe.ts");
-    const text = `
-      import { queryWithOrg as register } from "../lib/tenantFunctions";
-      import { internalQuery, internalMutation, internalAction, type QueryCtx } from "../_generated/server";
-      import { internalQueryGeneric, internalMutationGeneric, internalActionGeneric } from "convex/server";
-      import type { query } from "../_generated/server";
-      export { type action } from "../_generated/server";
-      function storageBuildingQuery(includeInventory: boolean) {
-        return register({ handler: () => includeInventory });
-      }
-      export const building = storageBuildingQuery(true);
-      export const layout = storageBuildingQuery(false);
-      export const read = internalQuery({});
-      export const write = internalMutation({});
-      export const act = internalAction({});
-      export const genericRead = internalQueryGeneric({});
-      export const genericWrite = internalMutationGeneric({});
-      export const genericAct = internalActionGeneric({});
-    `;
-    expect(publicBuilderViolations(file, text)).toEqual([]);
-    // A helper's name never exempts its constructor from the same guard.
-    expect(
-      publicBuilderViolations(
-        file,
-        text.replace(
-          'import { queryWithOrg as register } from "../lib/tenantFunctions";',
-          'import { query as register } from "../_generated/server";',
+    };
+    for (const builder of [
+      "query",
+      "mutation",
+      "action",
+      "httpAction",
+      "queryGeneric",
+      "mutationGeneric",
+      "actionGeneric",
+      "httpActionGeneric",
+    ])
+      expect(
+        await restricted(
+          `import { ${builder} as register } from "../_generated/server";`,
+          backend,
         ),
-      ).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("limits each reviewed raw builder to its exact owner and constructor", () => {
-    for (const [entry, { builder, reason }] of Object.entries(
-      RAW_PUBLIC_OWNERS,
-    )) {
-      const [name, owner] = entry.split("#") as [string, string];
-      const file = join(ROOT, name);
-      const specifier = builder.endsWith("Generic")
+      ).not.toEqual([]);
+    for (const text of [
+      'import * as server from "convex/server";',
+      'export { query as hidden } from "../_generated/server.js";',
+      'export * from "convex/server";',
+    ])
+      expect(await restricted(text, backend)).not.toEqual([]);
+    for (const text of [
+      'import type { TicketDraft } from "./jobScan/ticketDraft";',
+      'export { type TicketDraft } from "@/features/finishedGoods/jobScan/ticketDraft";',
+    ])
+      expect(await restricted(text, frontend)).not.toEqual([]);
+    for (const [page, entry] of [
+      ["page.tsx", "JobScanScreen"],
+      ["records/page.tsx", "JobScanRecords"],
+    ]) {
+      expect(
+        await restricted(
+          'import { newTicket } from "@/features/finishedGoods/jobScan/ticketDraft";',
+          route + page,
+        ),
+      ).not.toEqual([]);
+      expect(
+        await restricted(
+          `import * as screen from "@/features/finishedGoods/jobScan/${entry}";`,
+          route + page,
+        ),
+      ).toEqual([]);
+    }
+    for (const text of [
+      'import { internalQuery } from "../_generated/server";',
+      'import type { query } from "../_generated/server";',
+    ])
+      expect(await restricted(text, backend)).toEqual([]);
+    for (const [entry, builder] of Object.entries(RAW_PUBLIC_OWNERS)) {
+      const file = entry.split("#")[0]!;
+      const source = builder.endsWith("Generic")
         ? "convex/server"
         : "../_generated/server";
-      const imported = `import { ${builder} as register } from "${specifier}";`;
-      expect(reason.length).toBeGreaterThan(20);
-      const allowed = `${imported} export const ${owner} = register({});`;
-      expect(publicBuilderViolations(file, allowed)).toEqual([]);
       expect(
-        publicBuilderViolations(
-          file,
-          `${allowed} export const surprise = register({});`,
-        ),
+        await restricted(`import { ${builder} } from "${source}";`, file),
+      ).toEqual([]);
+    }
+  });
+
+  it("rejects dynamic private imports and raw constructors outside exact owners", () => {
+    for (const text of [
+      'const later = import("./jobScan/ticketDraft");',
+      'const draft = require("./jobScan/ticketDraft");',
+      'import draft = require("./jobScan/ticketDraft");',
+      'type Draft = import("./jobScan/ticketDraft").TicketDraft;',
+    ])
+      expect(
+        jobScanViolations(join(SRC, "features/finishedGoods/probe.ts"), text),
       ).toHaveLength(1);
+    for (const text of [
+      'const server = import("convex/server");',
+      'const server = require("../_generated/server");',
+      'import server = require("../_generated/server");',
+    ])
       expect(
-        publicBuilderViolations(
-          file,
+        registrationOwnerViolations(
+          join(ROOT, "convex/finishedGoods/probe.ts"),
+          text,
+        ),
+      ).not.toEqual([]);
+    for (const [entry, builder] of Object.entries(RAW_PUBLIC_OWNERS)) {
+      const [file, owner] = entry.split("#");
+      const imported = `import { ${builder} as register } from "${builder.endsWith("Generic") ? "convex/server" : "../_generated/server"}";`;
+      expect(
+        registrationOwnerViolations(
+          join(ROOT, file!),
+          `${imported} export const ${owner} = register({});`,
+        ),
+      ).toEqual([]);
+      expect(
+        registrationOwnerViolations(
+          join(ROOT, file!),
+          `${imported} export const surprise = register({});`,
+        ),
+      ).not.toEqual([]);
+      expect(
+        registrationOwnerViolations(
+          join(ROOT, file!),
           `${imported} export const ${owner} = register;`,
         ),
-      ).toHaveLength(1);
+      ).not.toEqual([]);
+      const wrongBuilder =
+        builder === "queryGeneric" ? "mutationGeneric" : "queryGeneric";
       expect(
-        publicBuilderViolations(
-          file,
-          allowed.replaceAll(builder, "httpAction"),
+        registrationOwnerViolations(
+          join(ROOT, file!),
+          `${imported.replaceAll(builder, wrongBuilder)} export const ${owner} = register({});`,
         ),
       ).not.toEqual([]);
     }
@@ -609,6 +476,8 @@ describe("module import boundaries", () => {
     'const later = import("../navigationGuard");',
     'const guard = require("../navigationGuard");',
     'import { type Guard, guard } from "../navigationGuard";',
+    'import { type Guard } from "../navigationGuard";',
+    'export { type Guard } from "../navigationGuard";',
   ])("rejects a runtime navigation cycle: %s", (closingEdge) => {
     const guard = join(ROOT, "src/lib/navigationGuard.ts");
     const history = join(ROOT, "src/lib/browser/history.ts");
@@ -630,9 +499,7 @@ describe("module import boundaries", () => {
 
   it.each([
     'import type { Guard } from "../navigationGuard";',
-    'import { type Guard } from "../navigationGuard";',
     'export type { Guard } from "../navigationGuard";',
-    'export { type Guard } from "../navigationGuard";',
     'type Guard = import("../navigationGuard").Guard;',
   ])("ignores erased navigation edges: %s", (edge) => {
     expect(
@@ -766,11 +633,11 @@ describe("module import boundaries", () => {
     expect(importsOf(probe, text)).toEqual([
       { specifier: "convex/values", typeOnly: false },
       { specifier: "../_generated/dataModel", typeOnly: true },
-      { specifier: "../_generated/dataModel", typeOnly: true },
+      { specifier: "../_generated/dataModel", typeOnly: false },
       { specifier: "./local", typeOnly: false },
       { specifier: "../lib/tenantTable", typeOnly: false },
-      { specifier: "react", typeOnly: false },
-      { specifier: "convex/server", typeOnly: true },
+      { specifier: "react", typeOnly: false, indirect: true },
+      { specifier: "convex/server", typeOnly: true, indirect: true },
     ]);
     expect(resolved(probe, "../lib/tenantTable")).toBe(
       join(ROOT, "convex", "lib", "tenantTable"),

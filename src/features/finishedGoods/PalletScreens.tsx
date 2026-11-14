@@ -248,7 +248,7 @@ function Measurement({
     useSearchParams()?.get("returnToUnit") === pallet._id;
   const key = `${draftScope}:${warehouseId}:${pallet._id}`;
   const op = useOperation(
-    key,
+    `fg-measure:${warehouseId}:${pallet._id}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const savedMeasurement = (): MeasurementDraft => ({
@@ -423,7 +423,6 @@ function Measurement({
                   setDirty(false);
                   drafts.remove(key);
                   op.setError("");
-                  op.clearRequests();
                 }}
               >
                 {tr(
@@ -861,9 +860,8 @@ function PalletDetailScreen({
   const cancelMutation = useMutation(fgRefs.cancelReservation);
   const verifyMutation = useMutation(fgRefs.verifyDestination);
   const storeMutation = useMutation(fgRefs.confirmStored);
-  const scope = useDraftKey("fg-pallet-operations");
   const op = useOperation(
-    scope ? `${scope}:${warehouseId}:${detail.pallet._id}` : undefined,
+    `fg-pallet-operations:${warehouseId}:${detail.pallet._id}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const [cancel, setCancel] = useState(false);
@@ -892,27 +890,30 @@ function PalletDetailScreen({
             ),
           }),
         ),
-      () => op.clearRequests(),
+      () => op.clearRequests(`verify:${placement?._id}:${code}:${method}`),
     );
     if (result === null) throw new Error("Verification failed");
   }
   async function store() {
-    await op.run(async () => {
-      written(
-        await storeMutation({
-          warehouseId,
-          palletId: pallet._id,
-          ...(placement ? { expectedPlacementId: placement._id } : {}),
-          requestId: op.request(
-            `store:${placement?._id}:${upperCode}:${physicalStack}`,
-            "durable",
-          ),
-          ...(placement?.supportPalletId
-            ? { palletCode: upperCode, physicalConfirmed: physicalStack }
-            : {}),
-        }),
-      );
-    });
+    await op.run(
+      async () => {
+        written(
+          await storeMutation({
+            warehouseId,
+            palletId: pallet._id,
+            ...(placement ? { expectedPlacementId: placement._id } : {}),
+            requestId: op.request(
+              `store:${placement?._id}:${upperCode}:${physicalStack}`,
+              "durable",
+            ),
+            ...(placement?.supportPalletId
+              ? { palletCode: upperCode, physicalConfirmed: physicalStack }
+              : {}),
+          }),
+        );
+      },
+      () => op.clearRequests(),
+    );
   }
   async function release() {
     await op.run(
@@ -927,6 +928,7 @@ function PalletDetailScreen({
         );
       },
       () => {
+        op.clearRequests();
         op.complete(() =>
           completeTask(storagePath(pallet._id), router.replace),
         );

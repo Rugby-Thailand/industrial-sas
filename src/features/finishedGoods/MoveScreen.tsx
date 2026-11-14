@@ -358,7 +358,7 @@ function ActiveMove({
   const issueMutation = useMutation(fgRefs.reportMoveIssue);
   const move = detail.activeMove!;
   const op = useOperation(
-    `${actorScope}:${warehouseId}:${move._id}`,
+    `fg-move:${warehouseId}:${move._id}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const [physicalConfirmed, setPhysicalConfirmed] = useState(false);
@@ -494,7 +494,7 @@ function ActiveMove({
         return true;
       },
       () => {
-        op.clearRequests();
+        op.clearRequests(`verify:${code}:${method}`);
       },
     );
     if (!result) throw new Error("Verification failed");

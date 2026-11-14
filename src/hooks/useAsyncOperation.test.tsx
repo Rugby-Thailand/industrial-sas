@@ -452,7 +452,7 @@ describe("durable retry dispatch", () => {
     });
 
   it.each(["read", "write"])(
-    "never dispatches with blocked %s storage, including after remount, and can retry after recovery",
+    "dispatches with an in-memory durable ID when %s storage is blocked",
     async (failure) => {
       const blocked = vi
         .spyOn(Storage.prototype, failure === "read" ? "getItem" : "setItem")
@@ -461,43 +461,26 @@ describe("durable retry dispatch", () => {
         });
       const send = vi.fn(async (_id: string) => "saved");
       const completed = vi.fn();
-      const first = renderHook(useCommand);
-      await act(async () => {
-        expect(
-          await first.result.current.run(
-            () =>
-              send(first.result.current.request("create:payload", "durable")),
-            completed,
-          ),
-        ).toBeNull();
-      });
-      expect(first.result.current.error).toBe(
-        "Recoverable: REQUEST_IDENTITY_UNAVAILABLE",
-      );
-      expect(first.result.current.busy).toBe(false);
-      first.unmount();
-      const next = renderHook(useCommand);
-      await act(async () => {
-        await next.result.current.run(
-          () => send(next.result.current.request("create:payload", "durable")),
-          completed,
-        );
-      });
-      expect(send).not.toHaveBeenCalled();
-      expect(completed).not.toHaveBeenCalled();
+      const hook = renderHook(useCommand);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await act(async () => {
+          expect(
+            await hook.result.current.run(
+              () =>
+                send(hook.result.current.request("create:payload", "durable")),
+              completed,
+            ),
+          ).toBe("saved");
+        });
+      }
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(send.mock.calls[0]![0]).toBe(send.mock.calls[1]![0]);
+      expect(completed).toHaveBeenCalledTimes(2);
+      expect(hook.result.current.error).toBe("");
       blocked.mockRestore();
-      await act(async () => {
-        expect(
-          await next.result.current.run(
-            () =>
-              send(next.result.current.request("create:payload", "durable")),
-            completed,
-          ),
-        ).toBe("saved");
-      });
-      expect(send).toHaveBeenCalledOnce();
-      expect(completed).toHaveBeenCalledOnce();
-      expect(next.result.current.error).toBe("");
+      expect(hook.result.current.request("create:payload", "durable")).toBe(
+        send.mock.calls[0]![0],
+      );
     },
   );
 

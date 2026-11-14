@@ -221,6 +221,16 @@ it("retains entered tickets and reuses the same request after a lost save respon
   expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
     "FO69070073",
   );
+  const requestKey = Object.keys(localStorage).find((key) =>
+    key.startsWith("fg-requests:"),
+  )!;
+  expect(
+    Object.keys(JSON.parse(localStorage.getItem(requestKey)!).requests),
+  ).toEqual(["save"]);
+  expect(screen.getByRole("textbox", { name: /Job No\./ })).toBeDisabled();
+  fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
+    target: { value: "EDITED-AFTER-LOST-RESPONSE" },
+  });
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
   await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
   expect(mocks.save.mock.calls[0]![0]).toEqual(mocks.save.mock.calls[1]![0]);
