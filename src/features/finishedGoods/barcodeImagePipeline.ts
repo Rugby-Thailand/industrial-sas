@@ -4,7 +4,7 @@ import {
   type ReadResult,
 } from "zxing-wasm/reader";
 import type { BarcodeImageTarget, BarcodeImageResult } from "./barcodeImage";
-import { classifyTicketBarcode } from "./jobScan/ticketDraft";
+import { classifyTicketBarcode } from "../../../convex/model/finishedGoods/jobScans";
 import { linearBarcodeRegions } from "./barcodeRegions";
 import { createBarcodeReader, decodeBarcodeCanvas } from "./barcodeDecoder";
 
