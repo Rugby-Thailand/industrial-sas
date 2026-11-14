@@ -22,6 +22,9 @@ const mocks = vi.hoisted(() => ({
   resolve: vi.fn(),
   noBuildings: false,
 }));
+vi.mock("@/hooks/useDraftKey", () => ({
+  useDraftKey: (scope: string) => `${scope}:user-a`,
+}));
 vi.mock("@/i18n/navigation", () => ({
   Link: (props: ComponentProps<"a">) => <a {...props} />,
 }));
@@ -123,6 +126,9 @@ it("requires a building, clears an incompatible floor and selects the created ca
   expect(onPick).toHaveBeenCalledWith(
     expect.objectContaining({ locationId: "named-a", text: "DOCK-NEW" }),
   );
+  expect(
+    Object.keys(localStorage).filter((key) => key.startsWith("fg-requests:")),
+  ).toEqual([]);
   expect(await axe(container)).toHaveNoViolations();
 });
 it("reuses the request after a lost response and offers a concurrent existing registration", async () => {

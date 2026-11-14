@@ -125,11 +125,13 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
   const router = useRouter();
   const canManage = useCanManage();
-  const operation = useOperation(
-    useDraftKey(`fg-job-scan:${warehouseId}`) ?? undefined,
-  );
+  const operation = useOperation(`fg-job-scan:${warehouseId}`);
   const extract = useAction(fgRefs.extractJobTicket);
   const save = useMutation(fgRefs.saveJobScans);
+  const [pendingCommand, setPendingCommand] = useState<{
+    args: Parameters<typeof save>[0];
+    location: PickedLocation;
+  }>();
   const { startUpload } = useUploadThing("jobTicketImage");
   const [location, setLocation] = useState<PickedLocation>();
   const [tickets, setTicketState] = useState<TicketDraft[]>([]);
@@ -466,20 +468,29 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     acquisitionBlocked.current = true;
     closeFieldScan();
     const result = await operation.run(
-      async () =>
-        requireWritten(
-          await save({
-            ...payload,
-            requestId: operation.request(JSON.stringify(payload), "durable"),
-          }),
-        ),
-      () => {
+      async () => {
+        const command = pendingCommand ?? {
+          args: { ...payload, requestId: operation.request("save", "durable") },
+          location,
+        };
+        setPendingCommand(command);
+        return { outcome: await save(command.args), command };
+      },
+      ({ outcome, command }) => {
+        // A received refusal resolves uncertainty and permits a corrected command.
+        setPendingCommand(undefined);
+        if (!outcome.ok || !outcome.value.written)
+          operation.clearRequests("save");
+        requireWritten(outcome);
         // Current completion only: a stale or unmounted save changes nothing.
         operation.clearRequests();
         currentTickets.forEach(releasePreview);
         draft.settle();
         setTickets([]);
-        setSaved({ count: currentTickets.length, location });
+        setSaved({
+          count: command.args.items.length,
+          location: command.location,
+        });
         changePanel(null);
         operation.complete(() => completeTask(JOB_SCAN_PATH, router.replace));
       },
@@ -669,7 +680,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           <Button
             variant="ghost"
             className="ml-auto shrink-0 px-2 text-link sm:ml-0"
-            disabled={saving}
+            disabled={saving || Boolean(pendingCommand)}
             onClick={locationStep.back}
           >
             {t("change")}
@@ -678,7 +689,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       </Panel>
 
       <fieldset
-        disabled={saving}
+        disabled={saving || Boolean(pendingCommand)}
         aria-busy={saving}
         className="min-w-0 space-y-3"
       >
@@ -777,7 +788,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
                 ticket={ticket}
                 duplicate={duplicateKeys.includes(ticket.key)}
                 index={index}
-                disabled={saving}
+                disabled={saving || Boolean(pendingCommand)}
                 onScan={(field) => openFieldScan(ticket, field, index)}
                 onChange={(field, value) => {
                   if (panelRef.current === "BARCODE") changePanel(null);

@@ -17,7 +17,7 @@ Where a change belongs, what each area may import, and which tests prove its rul
 
 ## Job-scan and public registration boundaries
 
-`module-boundaries` keeps `src/features/finishedGoods/jobScan` private, including
+ESLint keeps `src/features/finishedGoods/jobScan` private, including
 its types. Route pages may import the exact `JobScanScreen` and `JobScanRecords`
 screen entries. Barcode consumers share `classifyTicketBarcode` directly from
 `convex/model/finishedGoods/jobScans`; they do not depend on ticket drafts.
@@ -26,7 +26,8 @@ Public Convex registrations use `queryWithOrg`, `mutationWithOrg` or
 `actionWithOrg`, including local factories such as `storageBuildingQuery`.
 The guard audits named imports of raw constructors from `convex/server` and
 `convex/_generated/server`, and confines their use to exact registration owners.
-Namespace/dynamic imports and raw constructor re-exports are rejected so they
+Namespace imports and raw constructor re-exports are rejected by ESLint;
+`module-boundaries` covers dynamic access and exact owner use so they
 cannot hide a bypass. Named `internal*` constructors and type-only imports remain
 allowed. The two sessionless public ingress exceptions are:
 
@@ -36,8 +37,9 @@ allowed. The two sessionless public ingress exceptions are:
   intent ([review](../reviews/architecture-current-2026-11-09/ai-attachments.md)).
 
 The navigation cycle check follows runtime edges through intermediate frontend
-modules, starting at each of the four history-core modules. Type-only imports
-and re-exports are erased edges. In-memory fixtures prove that each boundary
+modules, starting at each of the four history-core modules. Only whole-statement `import type` / `export type` and import-type expressions
+are erased edges. Inline `import { type X }` / `export { type X }` retain runtime
+edges under `verbatimModuleSyntax`. In-memory fixtures prove that each boundary
 rejects violations, including constructor aliases and runtime cycles.
 
 ## Where common changes go
@@ -65,9 +67,9 @@ Three helpers write a business change, an audit row and an idempotency receipt i
 | Retired request          | —                                                      | Actor-scoped fence returns `REQUEST_RETIRED`                                     | —                                               |
 | Refusal                  | Returned with a DENIED audit row                       | Returned with a DENIED audit row                                                 | Returned as `Result`                            |
 
-On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`, which keeps one ID per payload key in draft storage (`fg-requests:<scope>`) until `clearRequests()`. Finished-goods `useOperation().request(key, policy)` requires a typed `"durable"` or `"ephemeral"` policy at every call. Durable requests must read recovery state and persist a new ID before dispatch; unavailable scope, blocked/corrupt storage or a failed new write raises `REQUEST_IDENTITY_UNAVAILABLE` through the existing operation notice. A previously saved ID needs no new write, so retries still work at quota. Failed removal retains durable identities; unreadable records are never overwritten or removed. Ephemeral requests retain the in-memory fallback. The version 1 document is `{ version: 1, requests: { [payloadKey]: requestId } }`; legacy unversioned ID maps remain readable. `useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
+On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`, which keeps one ID per command key in draft storage (`fg-requests:<scope>`) until `clearRequests()`. Finished-goods `useOperation().request(key, policy)` requires a typed `"durable"` or `"ephemeral"` policy at every call. `useOperation` consistently derives an actor-scoped key with `useDraftKey`; no storage scope is used while the actor is unavailable. Old per-device keys and keys whose actor position changed are intentionally ignored. Durable requests honor stored IDs and persist new IDs before dispatch whenever storage works. Missing scope, blocked/full storage and unreadable recovery documents fall back to the live in-memory ID, so writes keep working; remount recovery cannot be guaranteed when persistence fails. Failed removal leaves stored IDs recoverable. Unreadable documents are preserved during requests and per-key clearing; whole-scope clearing after success may remove them. Verification clears only its own key, preserving uncertain inventory commands. Reloading a draft retains unresolved IDs; only success retires a whole scope. Version 1 documents use `requests` and ignore extra top-level keys; other objects are legacy flat maps, with invalid ID entries dropped. Ephemeral requests retain the in-memory fallback. `useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
 
-The 23 request sites in 12 finished-goods files have these policies (2026-11-14). TypeScript requires the second argument through `useOperation`; `useRequestIdentity.test.tsx` pins that required signature. Hook/operation tests cover refusal before dispatch, old and corrupt records, failed removal, quota and remount recovery. This is identity recovery for the same payload key, not persistence of a form or HR-style reconciliation.
+The 23 request sites in 12 finished-goods files have these policies (2026-11-14). TypeScript requires the second argument through `useOperation`; `useRequestIdentity.test.tsx` pins that required signature. Hook/operation tests cover dispatch with blocked storage, old and corrupt records, failed removal, quota, per-key clearing, actor isolation and remount recovery. This is identity recovery for the same payload key, not persistence of a form or HR-style reconciliation.
 
 | File (under `src/features/finishedGoods`) | Calls | Policy and reason                                                                                                                                               |
 | ----------------------------------------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -82,7 +84,7 @@ The 23 request sites in 12 finished-goods files have these policies (2026-11-14)
 | `jobScan/AddLocationForm.tsx`             |     1 | Durable: location creation must recover its original ID.                                                                                                        |
 | `jobScan/JobScanRecordEditor.tsx`         |     1 | Ephemeral: content update is guarded by `expectedVersion`; a repeated committed correction is unchanged or refused as stale.                                    |
 | `jobScan/JobScanRecords.tsx`              |     1 | Ephemeral: remapping is guarded atomically by `expectedVersions`; a repeated committed assignment is refused as stale.                                          |
-| `jobScan/JobScanScreen.tsx`               |     1 | Durable: ticket-group creation can duplicate manual entries; actor/warehouse-scoped persistence precedes dispatch.                                              |
+| `jobScan/JobScanScreen.tsx`               |     1 | Durable: ticket-group creation can duplicate manual entries; a small stable key and pinned attempted command preserve uncertain retries; clear after success.   |
 
 Totals: **17 durable + 6 ephemeral = 23**. The package-assignment ephemeral registry policy does not relax its existing required command persistence. Version-fenced edits may report stale after a lost response/remount; they cannot apply the original revision twice. Concurrent tabs share saved IDs once visible in storage, but this hook does not provide atomic cross-tab command locking. HR's owner, payload/revision recovery and retirement policy remain separate.
 

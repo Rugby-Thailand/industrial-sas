@@ -245,7 +245,7 @@ function ProductForm({
     optimisticProductDetails,
   );
   const key = `${draftScope}:${warehouseId}:${product?._id ?? "new"}`;
-  const op = useOperation(key);
+  const op = useOperation(`fg-product:${warehouseId}:${product?._id ?? "new"}`);
   const [defaultValues, setDefaultValues] = useState(() =>
     canManage
       ? readDraft(key, initialDraft(product, locale))
@@ -400,7 +400,6 @@ function ProductForm({
     setConfirmedValues(latest);
     setStorageWarning(!drafts.write(key, resolved));
     op.setError("");
-    op.clearRequests();
   }
   function save(next: boolean, packing = false) {
     return productForm.handleSubmit({ next, packing });

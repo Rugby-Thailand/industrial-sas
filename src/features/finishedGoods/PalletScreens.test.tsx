@@ -1430,6 +1430,13 @@ describe("reserved destination and physical storage confirmation", () => {
     expect(callsFor("confirmStored")[0]?.[1]).toMatchObject({
       expectedPlacementId: reservedPalletDetail.placement!._id,
     });
+    await waitFor(() =>
+      expect(
+        Object.keys(localStorage).filter((key) =>
+          key.startsWith("fg-requests:"),
+        ),
+      ).toEqual([]),
+    );
   });
 
   it("can keep a reservation or explicitly release it", async () => {
@@ -1449,6 +1456,9 @@ describe("reserved destination and physical storage confirmation", () => {
     expect(callsFor("cancelReservation")[0]?.[1]).toMatchObject({
       expectedPlacementId: reservedPalletDetail.placement!._id,
     });
+    expect(
+      Object.keys(localStorage).filter((key) => key.startsWith("fg-requests:")),
+    ).toEqual([]);
   });
 
   it("restores server verification after refresh and provides stored navigation", () => {
@@ -1577,7 +1587,7 @@ describe("measurement draft privacy", () => {
   });
 });
 
-it("refuses measurements when retry storage is blocked and retries after recovery", async () => {
+it("can save measurements when storage is blocked", async () => {
   const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new DOMException("Blocked", "SecurityError");
   });
@@ -1594,15 +1604,6 @@ it("refuses measurements when retry storage is blocked and retries after recover
   try {
     renderPallet("measure");
     number("Length (m)", "1.5");
-    fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The change was not sent",
-    );
-    expect(callsFor("saveMeasurement")).toHaveLength(0);
-    expect(mocks.replace).not.toHaveBeenCalled();
-    read.mockRestore();
-    write.mockRestore();
-    remove.mockRestore();
     fireEvent.click(screen.getByRole("button", { name: "Save and exit" }));
     await waitFor(() =>
       expect(mocks.replace).toHaveBeenCalledWith(

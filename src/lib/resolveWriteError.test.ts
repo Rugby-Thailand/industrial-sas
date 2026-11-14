@@ -59,7 +59,6 @@ describe("resolveWriteError", () => {
         "LOCATION_ONLY_ACTION_UNAVAILABLE",
         "SCAN_GROUP_SIZE_INVALID",
         "STACK_SETTINGS_STALE",
-        "REQUEST_IDENTITY_UNAVAILABLE",
       ];
       const generic = resolveWriteError("NOT_A_REAL_CODE", catalogue);
       const messages = codes.map((code) => resolveWriteError(code, catalogue));

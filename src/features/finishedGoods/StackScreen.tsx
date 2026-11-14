@@ -32,7 +32,6 @@ import {
   useOperation,
   written,
   useWriteError,
-  useDraftKey,
 } from "./shared";
 
 export function StackScreen({ palletId }: { palletId: string }) {
@@ -194,7 +193,6 @@ function Limits({
               load(live);
               setSaved(false);
               op.setError("");
-              op.clearRequests();
             }}
           >
             {t("copy.load-current-stacking-limits")}
@@ -217,10 +215,7 @@ function StackLoader({
   const writeError = useWriteError();
   const router = useRouter();
   const canManage = useCanManage();
-  const scope = useDraftKey("stack");
-  const op = useOperation(
-    scope ? `${scope}:${warehouseId}:${palletId}` : undefined,
-  );
+  const op = useOperation(`stack:${warehouseId}:${palletId}`);
   const [upperId, setUpperId] = useState("");
   const [lowerDirty, setLowerDirty] = useState(false);
   const [upperDirty, setUpperDirty] = useState(false);

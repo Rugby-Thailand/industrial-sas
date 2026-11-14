@@ -8,7 +8,6 @@ import { useRequestIdentity } from "./useRequestIdentity";
 const scope = "org:user:warehouse";
 const storageKey = `fg-requests:${scope}`;
 const key = "save:payload";
-const refusal = "REQUEST_IDENTITY_UNAVAILABLE";
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
@@ -47,7 +46,7 @@ it("keeps the ephemeral in-memory fallback when storage is blocked, renewing onl
 });
 
 it.each(["read", "write"])(
-  "refuses durable identity when storage blocks %s, including after remount",
+  "keeps a durable in-memory ID when storage blocks %s",
   (failure) => {
     vi.spyOn(
       Storage.prototype,
@@ -56,16 +55,17 @@ it.each(["read", "write"])(
       throw new DOMException("Quota or access failure", "QuotaExceededError");
     });
     const hook = renderHook(() => useRequestIdentity(scope));
-    expect(() => hook.result.current.request(key, "durable")).toThrow(refusal);
-    hook.unmount();
-    const next = renderHook(() => useRequestIdentity(scope));
-    expect(() => next.result.current.request(key, "durable")).toThrow(refusal);
+    const id = hook.result.current.request(key, "durable");
+    expect(hook.result.current.request(key, "durable")).toBe(id);
+    hook.result.current.clearRequests();
+    expect(hook.result.current.request(key, "durable")).not.toBe(id);
   },
 );
 
-it("refuses a durable command without a persistence scope", () => {
+it("keeps a durable in-memory ID without a persistence scope", () => {
   const hook = renderHook(() => useRequestIdentity());
-  expect(() => hook.result.current.request(key, "durable")).toThrow(refusal);
+  const id = hook.result.current.request(key, "durable");
+  expect(hook.result.current.request(key, "durable")).toBe(id);
 });
 
 it("recovers after quota is restored, then reuses the persisted ID on remount at quota", () => {
@@ -75,9 +75,9 @@ it("recovers after quota is restored, then reuses the persisted ID on remount at
       throw new DOMException("Full", "QuotaExceededError");
     });
   const hook = renderHook(() => useRequestIdentity(scope));
-  expect(() => hook.result.current.request(key, "durable")).toThrow(refusal);
-  write.mockRestore();
   const id = hook.result.current.request(key, "durable");
+  write.mockRestore();
+  expect(hook.result.current.request(key, "durable")).toBe(id);
   hook.unmount();
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new DOMException("Full", "QuotaExceededError");
@@ -107,25 +107,62 @@ it.each(["legacy", "versioned"])(
   },
 );
 
-it.each([
-  '{"unfinished"',
-  '"old scalar"',
-  "null",
-  "[]",
-  '{"version":2,"requests":{}}',
-  '{"version":1,"requests":{},"recovery":"unknown"}',
-  '{"version":1,"requests":{"save:payload":"invalid"}}',
-  '{"save:payload":{"requestId":"not-a-string"}}',
-])("never overwrites or removes unreadable recovery state: %s", (raw) => {
-  localStorage.setItem(storageKey, raw);
+it.each(['{"unfinished"', '"old scalar"', "null", "[]"])(
+  "preserves unreadable recovery until whole-scope success: %s",
+  (raw) => {
+    localStorage.setItem(storageKey, raw);
+    const hook = renderHook(() => useRequestIdentity(scope));
+    const id = hook.result.current.request(key, "durable");
+    expect(hook.result.current.request(key, "durable")).toBe(id);
+    expect(localStorage.getItem(storageKey)).toBe(raw);
+    hook.result.current.clearRequests("verify");
+    expect(localStorage.getItem(storageKey)).toBe(raw);
+    hook.result.current.clearRequests();
+    expect(localStorage.getItem(storageKey)).toBeNull();
+  },
+);
+
+it.each([false, true])(
+  "drops invalid entries and ignores versioned top-level extras: %s",
+  (versioned) => {
+    const id = crypto.randomUUID();
+    const entries = { [key]: id, broken: "invalid", nested: { requestId: id } };
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(
+        versioned
+          ? {
+              version: 1,
+              requests: entries,
+              recovery: "unknown",
+              oldBundleKey: crypto.randomUUID(),
+            }
+          : entries,
+      ),
+    );
+    const hook = renderHook(() => useRequestIdentity(scope));
+    expect(hook.result.current.request(key, "durable")).toBe(id);
+    const fresh = hook.result.current.request("fresh", "durable");
+    expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual({
+      version: 1,
+      requests: { [key]: id, fresh },
+    });
+    expect(hook.result.current.clearRequests()).toBe(true);
+    expect(localStorage.getItem(storageKey)).toBeNull();
+  },
+);
+
+it("clears only the successful step, retaining other durable commands through remount", () => {
   const hook = renderHook(() => useRequestIdentity(scope));
-  expect(() => hook.result.current.request(key, "durable")).toThrow(refusal);
-  hook.result.current.clearRequests();
-  expect(localStorage.getItem(storageKey)).toBe(raw);
-  const id = hook.result.current.request(key, "ephemeral");
-  expect(hook.result.current.request(key, "ephemeral")).toBe(id);
-  hook.result.current.clearRequests();
-  expect(localStorage.getItem(storageKey)).toBe(raw);
+  const id = hook.result.current.request(key, "durable");
+  hook.result.current.request("verify", "ephemeral");
+  hook.result.current.clearRequests("verify");
+  hook.unmount();
+  const next = renderHook(() => useRequestIdentity(scope));
+  expect(next.result.current.request(key, "durable")).toBe(id);
+  expect(JSON.parse(localStorage.getItem(storageKey)!).requests).toEqual({
+    [key]: id,
+  });
 });
 
 it("retains a durable ID after failed removal, both live and after remount", () => {
@@ -146,14 +183,13 @@ it("retains a durable ID after failed removal, both live and after remount", () 
   expect(next.result.current.request(key, "durable")).not.toBe(id);
 });
 
-it("refuses unreadable storage even with a live durable ID, then restores it after remount", () => {
+it("uses the live durable ID when reads fail, then restores it after remount", () => {
   const hook = renderHook(() => useRequestIdentity(scope));
   const id = hook.result.current.request(key, "durable");
   const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new Error("Blocked");
   });
-  expect(() => hook.result.current.request(key, "durable")).toThrow(refusal);
-  expect(hook.result.current.clearRequests()).toBe(false);
+  expect(hook.result.current.request(key, "durable")).toBe(id);
   hook.unmount();
   read.mockRestore();
   const next = renderHook(() => useRequestIdentity(scope));
