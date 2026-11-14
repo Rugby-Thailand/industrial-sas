@@ -97,7 +97,7 @@ async function measuredPage(
     reads.filter((read) => read.table === "finishedGoodsSummaryReadiness")
       .length,
   ).toBeLessThanOrEqual(1);
-  return { result: outcome.value, reads, documentReads };
+  return { result: outcome.value, payload: outcome, reads, documentReads };
 }
 type Page = {
   status: string;
@@ -109,6 +109,8 @@ type Page = {
     code?: string;
     summary?: { quantity: number };
   }>;
+  products?: unknown[];
+  pallets?: unknown[];
   isDone: boolean;
   continueCursor: string;
   scanCursor?: string;
@@ -178,7 +180,75 @@ async function setup(count = 105) {
   }
   return { world, ids };
 }
+
+function expectLightweightRow(value: unknown, path = "row") {
+  if (Array.isArray(value)) {
+    // The bounded format-count summary is the only row array; unit/move
+    // histories (even under a new nested name) belong to detail queries.
+    expect(path, `Unexpected row array: ${path}`).toBe("row.summary.formats");
+    expect(value.length).toBeLessThanOrEqual(3);
+    for (const entry of value) {
+      expect(entry).toEqual({
+        format: expect.any(String),
+        count: expect.any(Number),
+      });
+    }
+  } else if (value !== null && typeof value === "object") {
+    for (const [key, entry] of Object.entries(value)) {
+      expect(key, `Heavy field: ${path}.${key}`).not.toMatch(
+        /image|photo|thumbnail|attachment|base64/i,
+      );
+      expectLightweightRow(entry, `${path}.${key}`);
+    }
+  } else if (typeof value === "string") {
+    expect(value, `Inline media: ${path}`).not.toMatch(
+      /^data:(?:image\/|[^,]*;base64,)/i,
+    );
+  }
+}
+
 describe("bounded finished goods catalogue pages", () => {
+  // Measured with setup(105): 26,996 / 65,746 / 130,334 UTF-8 JSON bytes
+  // for 20 / 50 / 100 rows, including Thai names and the tenant envelope.
+  // Budgets are ceil(measured * 1.10): an explicit 10% margin for fixture
+  // timestamps/cursors and small scalar additions, never nested histories.
+  it.each([
+    [20, 29_696],
+    [50, 72_321],
+    [100, 143_368],
+  ])(
+    "budgets the UTF-8 JSON payload for %i product rows",
+    async (pageSize, budget) => {
+      const { world } = await setup();
+      const { result, payload } = await measuredPage(world, { pageSize });
+      expect(result.status).toBe("ready");
+      expect(result.page).toHaveLength(pageSize);
+      expect(result.isDone).toBe(false);
+      // Include the tenant envelope, continuation and duplicated page/products
+      // rows. UTF-8 JSON estimates app payload, not Convex framing/compression.
+      const bytes = Buffer.byteLength(JSON.stringify(payload), "utf8");
+      expect(
+        bytes,
+        `${pageSize} rows: ${bytes} JSON bytes (budget ${budget})`,
+      ).toBeLessThanOrEqual(budget);
+      for (const rows of [
+        result.page,
+        result.products ?? [],
+        result.pallets ?? [],
+      ]) {
+        for (const row of rows) expectLightweightRow(row);
+      }
+    },
+  );
+  it.each([
+    { nested: { units: [] } },
+    { nested: { moves: [] } },
+    { nested: { image: "small" } },
+    { nested: { base64: "small" } },
+    { nested: { preview: "data:image/png;base64,AAAA" } },
+  ])("rejects heavy row fields even below the byte budget: %j", (row) => {
+    expect(() => expectLightweightRow(row)).toThrow();
+  });
   it.each([
     ["catalogue", catalogue.page],
     ["legacy units", batches.pageLegacyUnits],
