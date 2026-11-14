@@ -13,7 +13,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { ComponentProps, ReactNode } from "react";
+import { StrictMode, type ComponentProps, type ReactNode } from "react";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { querySuccess, writeSuccess } from "@tests/fixtures/finished-goods-ui";
 import { JobScanScreen } from "./JobScanScreen";
@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   decode: undefined as ((code: string) => void) | undefined,
   pickerPresentation: [] as (string | undefined)[],
   realPhotos: false,
+  warehouseId: "warehouse-a",
+  actorId: "actor-a",
 }));
 vi.mock("../BarcodeCameraBox", () => ({
   BarcodeCameraBox: ({
@@ -66,9 +68,9 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (id: string) => ReactNode }) =>
-    children("warehouse-a"),
+    children(mocks.warehouseId),
 }));
-vi.mock("@/hooks/useDraftKey", () => ({ useDraftKey: () => "actor-a" }));
+vi.mock("@/hooks/useDraftKey", () => ({ useDraftKey: () => mocks.actorId }));
 vi.mock("@/hooks/useCanManage", () => ({ useCanManage: () => true }));
 vi.mock("@/lib/uploadthing", () => ({
   useUploadThing: () => ({ startUpload: mocks.upload }),
@@ -169,6 +171,8 @@ beforeEach(() => {
   registerTestMutation(fgRefs.saveJobScans, mocks.save);
 
   mocks.realPhotos = false;
+  mocks.warehouseId = "warehouse-a";
+  mocks.actorId = "actor-a";
   window.history.replaceState({ __NA: true }, "", "/en/finished-goods/scan");
   mocks.upload.mockReset().mockResolvedValue(undefined);
   mocks.extract.mockReset().mockResolvedValue(querySuccess({ ok: false }));
@@ -186,8 +190,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function start() {
-  const view = renderWithIntl(<JobScanScreen />, { locale: "en" });
+function start(preserveProviders = false) {
+  const view = renderWithIntl(<JobScanScreen />, {
+    locale: "en",
+    preserveProviders,
+  });
   fireEvent.click(screen.getByRole("button", { name: "Choose demo location" }));
   return view;
 }
@@ -945,6 +952,91 @@ it.each(["remove", "unmount"])(
     expect(mocks.save).not.toHaveBeenCalled();
   },
 );
+
+it.each(["warehouse", "actor"] as const)(
+  "disposes photo acquisition on a %s scope switch without applying late uploads to the new draft",
+  async (scope) => {
+    mocks.resize.mockResolvedValue(
+      new File(["photo"], "ticket.jpg", { type: "image/jpeg" }),
+    );
+    mocks.extract.mockResolvedValue(successfulExtraction());
+    let finishOld!: (
+      result: { serverData: { url: string; assetId: string } }[],
+    ) => void;
+    mocks.upload.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+    );
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce("blob:old")
+      .mockReturnValueOnce("blob:new");
+    const view = start(true);
+    submitPhoto();
+    await waitFor(() => expect(mocks.upload).toHaveBeenCalledOnce());
+    if (scope === "warehouse") mocks.warehouseId = "warehouse-b";
+    else mocks.actorId = "actor-b";
+    view.rerender(<JobScanScreen />);
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:old");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose demo location" }),
+    );
+    expect(
+      screen.queryByRole("textbox", { name: /Job No\./ }),
+    ).not.toBeInTheDocument();
+    mocks.upload.mockResolvedValue([
+      { serverData: { url: storedPhotoUrl, assetId: "new-asset" } },
+    ]);
+    submitPhoto();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Save 1/ })).toBeEnabled(),
+    );
+    await act(async () =>
+      finishOld([
+        { serverData: { url: storedPhotoUrl, assetId: "old-asset" } },
+      ]),
+    );
+    expect(screen.getAllByRole("textbox", { name: /Job No\./ })).toHaveLength(
+      1,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save.mock.calls[0]![0]).toMatchObject({
+      warehouseId: mocks.warehouseId,
+      items: [expect.objectContaining({ imageAssetId: "new-asset" })],
+    });
+    view.unmount();
+    expect(vi.mocked(URL.revokeObjectURL).mock.calls).toEqual([
+      ["blob:old"],
+      ["blob:new"],
+    ]);
+  },
+);
+
+it("acquires photos after StrictMode lifetime replay and releases each preview once", async () => {
+  mocks.resize.mockResolvedValue(
+    new File(["photo"], "ticket.jpg", { type: "image/jpeg" }),
+  );
+  mocks.extract.mockResolvedValue(successfulExtraction());
+  mocks.upload.mockResolvedValue([
+    { serverData: { url: storedPhotoUrl, assetId: "asset-owned" } },
+  ]);
+  const view = renderWithIntl(
+    <StrictMode>
+      <JobScanScreen />
+    </StrictMode>,
+    { locale: "en" },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Choose demo location" }));
+  submitPhoto();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /Save 1/ })).toBeEnabled(),
+  );
+  expect(mocks.upload).toHaveBeenCalledOnce();
+  view.unmount();
+  expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:demo");
+});
 
 it("returns to the location question when page Back follows a location choice", async () => {
   start();
