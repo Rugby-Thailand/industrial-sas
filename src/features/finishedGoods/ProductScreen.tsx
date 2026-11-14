@@ -345,7 +345,10 @@ function ProductForm({
         return written(
           await saveProduct({
             ...payload,
-            requestId: op.request(`product:${JSON.stringify(payload)}`),
+            requestId: op.request(
+              `product:${JSON.stringify(payload)}`,
+              "durable",
+            ),
           }),
         );
       },

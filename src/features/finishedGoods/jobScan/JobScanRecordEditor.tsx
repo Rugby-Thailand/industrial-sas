@@ -114,7 +114,7 @@ export function JobScanRecordEditor({
     };
     const command = pendingCommand ?? {
       ...args,
-      requestId: op.request(JSON.stringify(args)),
+      requestId: op.request(JSON.stringify(args), "ephemeral"),
     };
     // An accepted correction may advance the query before its response reaches
     // us. Only the immutable attempted command can recover that result safely.

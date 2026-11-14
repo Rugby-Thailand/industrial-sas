@@ -96,7 +96,7 @@ export function AddLocationForm({
       async () => {
         const result = await create({
           ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
+          requestId: operation.request(JSON.stringify(payload), "durable"),
         });
         // A refusal or denial resolves for the current completion below,
         // which alone may mark its field.

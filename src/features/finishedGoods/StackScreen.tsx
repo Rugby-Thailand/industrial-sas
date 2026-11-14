@@ -127,7 +127,7 @@ function Limits({
             written(
               await save({
                 ...args,
-                requestId: op.request(JSON.stringify(args)),
+                requestId: op.request(JSON.stringify(args), "ephemeral"),
               }),
             );
           },
@@ -306,7 +306,7 @@ function StackLoader({
           written(
             await reserveMove({
               ...moveArgs,
-              requestId: op.request(JSON.stringify(moveArgs)),
+              requestId: op.request(JSON.stringify(moveArgs), "durable"),
             }),
           );
           return `${palletPath(upper._id)}/move`;
@@ -314,7 +314,7 @@ function StackLoader({
         written(
           await reserve({
             ...args,
-            requestId: op.request(JSON.stringify(args)),
+            requestId: op.request(JSON.stringify(args), "durable"),
           }),
         );
         return palletPath(upper._id);

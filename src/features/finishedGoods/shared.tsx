@@ -19,6 +19,7 @@ import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 export { ErrorNotice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { Panel } from "@/components/ui/Panel";
+import type { RequestIdentityPolicy } from "@/hooks/useRequestIdentity";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 
 export {
@@ -308,11 +309,15 @@ export function useWriteError(storageFormat?: string) {
 }
 export function useOperation(scope?: string, storageFormat?: string) {
   const describeError = useWriteError(storageFormat);
-  return useAsyncOperation({
+  const operation = useAsyncOperation({
     navigation: "write",
     ...(scope === undefined ? {} : { scope }),
     describeError,
   });
+  // Every finished-goods command must declare its recovery policy.
+  const request: (key: string, policy: RequestIdentityPolicy) => string =
+    operation.request;
+  return { ...operation, request };
 }
 export { written } from "@/lib/convex/mutationOutcome";
 export { useUnsavedWarning } from "@/hooks/useUnsavedWarning";

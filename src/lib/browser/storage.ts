@@ -3,10 +3,15 @@ function browserStorage(kind: "local" | "session" = "local") {
   const storage = () =>
     kind === "local" ? window.localStorage : window.sessionStorage;
   return {
-    read<T>(key: string, decode: (value: unknown) => T, fallback: T): T {
+    read<T>(
+      key: string,
+      decode: (value: unknown, present: boolean) => T,
+      fallback: T,
+    ): T {
       try {
         const raw = storage().getItem(key);
-        return decode(raw === null ? null : JSON.parse(raw));
+        // Absence must be distinguishable from a stored JSON null for recovery.
+        return decode(raw === null ? null : JSON.parse(raw), raw !== null);
       } catch {
         return fallback;
       }

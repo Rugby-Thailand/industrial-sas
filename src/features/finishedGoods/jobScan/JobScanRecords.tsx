@@ -695,7 +695,10 @@ function Records({
                     };
                     command = {
                       warehouseId,
-                      requestId: operation.request(JSON.stringify(target)),
+                      requestId: operation.request(
+                        JSON.stringify(target),
+                        "ephemeral",
+                      ),
                       ...target,
                     };
                   }
