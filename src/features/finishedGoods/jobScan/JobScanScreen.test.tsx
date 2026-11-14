@@ -211,7 +211,9 @@ function addTicket(index = 0) {
 }
 
 it("retains entered tickets and reuses the same request after a lost save response", async () => {
-  mocks.save.mockRejectedValueOnce(new Error("NETWORK_ERROR"));
+  // Synthetic rejection checks retry policy; a real disconnect stays pending.
+  mocks.save.mockRejectedValueOnce(new Error("SAVE_FAILED"));
+  mocks.save.mockRejectedValueOnce(new Error("SAVE_FAILED"));
   start();
   addTicket();
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
@@ -221,19 +223,21 @@ it("retains entered tickets and reuses the same request after a lost save respon
   expect(screen.getByRole("textbox", { name: /Job No\./ })).toHaveValue(
     "FO69070073",
   );
-  const requestKey = Object.keys(localStorage).find((key) =>
-    key.startsWith("fg-requests:"),
-  )!;
-  expect(
-    Object.keys(JSON.parse(localStorage.getItem(requestKey)!).requests),
-  ).toEqual(["save"]);
-  expect(screen.getByRole("textbox", { name: /Job No\./ })).toBeDisabled();
-  fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
-    target: { value: "EDITED-AFTER-LOST-RESPONSE" },
-  });
   fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
   await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
   expect(mocks.save.mock.calls[0]![0]).toEqual(mocks.save.mock.calls[1]![0]);
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: /Job No\./ })).toBeEnabled(),
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
+    target: { value: "FO69070074" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(3));
+  const revised = mocks.save.mock.calls[2]![0];
+  expect(revised.requestId).not.toBe(mocks.save.mock.calls[0]![0].requestId);
+  expect(revised.items[0].factoryOrder).toBe("FO69070074");
+
   await waitFor(() =>
     expect(
       screen.getByRole("button", { name: "Keep scanning at DEMO-L01" }),

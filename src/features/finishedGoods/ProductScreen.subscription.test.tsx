@@ -18,13 +18,26 @@ import {
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn<(href: string) => void>(),
   query: vi.fn<(name: string, args: unknown) => unknown>(),
+  // Live subscriptions by function name: mounted, non-skipped useQuery calls.
+  active: new Map<string, number>(),
 }));
 vi.mock("convex/react", async () => {
   const { getTestMutation } = await import("@tests/fixtures/convex-mutation");
+  const { useEffect } = await import("react");
   return {
     useMutation: getTestMutation,
-    useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
-      args === "skip" ? undefined : mocks.query(getFunctionName(ref), args),
+    useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
+      const name = getFunctionName(ref);
+      const skipped = args === "skip";
+      useEffect(() => {
+        if (skipped) return;
+        mocks.active.set(name, (mocks.active.get(name) ?? 0) + 1);
+        return () => {
+          mocks.active.set(name, mocks.active.get(name)! - 1);
+        };
+      }, [name, skipped]);
+      return skipped ? undefined : mocks.query(name, args);
+    },
   };
 });
 vi.mock("@/hooks/useDraftKey", () => ({
@@ -59,8 +72,9 @@ vi.mock("@/i18n/navigation", () => ({
 
 import { ProductScreen } from "./ProductScreen";
 
-it("subscribes once on product detail open and never watches getPallet", () => {
+it("subscribes once on product detail open, releases it on Cancel and never watches getPallet", () => {
   localStorage.clear();
+  mocks.active.clear();
   window.history.replaceState(null, "", "/en/finished-goods");
   const detailName = getFunctionName(fgRefs.getProduct);
   mocks.query.mockImplementation((name, args) => {
@@ -91,7 +105,9 @@ it("subscribes once on product detail open and never watches getPallet", () => {
   expect(
     mocks.query.mock.calls.filter(([name]) => name === detailName),
   ).toHaveLength(1);
+  expect(mocks.active.get(detailName)).toBe(1);
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(mocks.active.get(detailName)).toBe(0);
   expect(screen.getByRole("button", { name: "Open detail" })).toBeVisible();
   expect(
     mocks.query.mock.calls.filter(([name]) => name === detailName),
