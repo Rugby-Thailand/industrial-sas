@@ -25,6 +25,7 @@ import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { ScanIcon } from "@/components/ui/ScanIcon";
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { requireWritten } from "@/lib/convex/mutationOutcome";
 import { useUploadThing } from "@/lib/uploadthing";
 import {
   ErrorNotice,
@@ -34,7 +35,6 @@ import {
   useDraftKey,
   useOperation,
   ViewOnlyNotice,
-  written,
 } from "../shared";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import { AcquisitionModes } from "./AcquisitionModes";
@@ -330,7 +330,12 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
           ? { imageUrl, imageAssetId: attachment.assetId }
           : {}),
         ...(result?.ok
-          ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
+          ? {
+              aiRaw: result.raw,
+              ...(result.mock
+                ? {}
+                : { aiUsageOperationId: result.aiUsageOperationId }),
+            }
           : {}),
         notice: !result?.ok
           ? result?.error.code === "RATE_LIMITED"
@@ -460,7 +465,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     closeFieldScan();
     const result = await operation.run(
       async () =>
-        written(
+        requireWritten(
           await save({
             ...payload,
             requestId: operation.request(JSON.stringify(payload)),

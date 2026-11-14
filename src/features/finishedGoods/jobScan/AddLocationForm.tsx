@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { requireWritten } from "@/lib/convex/mutationOutcome";
 import { resolveWriteError } from "@/lib/resolveWriteError";
-import { useOperation, written } from "../shared";
+import { useOperation } from "../shared";
 import type { PickedLocation } from "./ticketDraft";
 
 export function AddLocationForm({
@@ -108,17 +109,19 @@ export function AddLocationForm({
         });
         if (!resolved.ok || !resolved.value.ok)
           throw new Error("LOCATION_UNAVAILABLE");
-        return { kind: "CREATED", location: resolved.value.location } as const;
+        return {
+          kind: "CREATED",
+          outcome: result,
+          location: resolved.value.location,
+        } as const;
       },
       (outcome) => {
-        if (outcome.kind === "UNWRITTEN") {
-          const result = outcome.outcome;
-          if (result.ok && !result.value.written)
-            setErrorField(result.value.error.field);
-          // Throws: the operation records its code and describes the error.
-          written(result);
-          return;
-        }
+        const result = outcome.outcome;
+        if (result.ok && !result.value.written)
+          setErrorField(result.value.error.field);
+        // Throws with metadata; the operation still describes the same copy key.
+        requireWritten(result);
+        if (outcome.kind === "UNWRITTEN") return;
         guard.settle();
         operation.complete(() =>
           onPick({

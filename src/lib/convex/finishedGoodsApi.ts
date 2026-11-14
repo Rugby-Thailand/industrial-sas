@@ -1,5 +1,5 @@
 import { api } from "../../../convex/_generated/api";
-import { clientRef, type RefValue } from "./clientRef";
+import { clientRef, typedClientRef, type RefValue } from "./clientRef";
 
 export const fgRefs = Object.freeze({
   prepareSummaries: clientRef(api.finishedGoods.summaryMaintenance.prepare),
@@ -19,15 +19,15 @@ export const fgRefs = Object.freeze({
   searchJobScanLocations: clientRef(
     api.finishedGoods.jobScanLocations.searchPage,
   ),
-  extractJobTicket: clientRef(api.finishedGoods.jobScans.extractJobTicket),
+  extractJobTicket: typedClientRef(api.finishedGoods.jobScans.extractJobTicket),
   extractLocationLabel: clientRef(
     api.finishedGoods.locationImage.extractLocationLabel,
   ),
-  updateJobScan: clientRef(api.finishedGoods.jobScans.updateJobScan),
+  updateJobScan: typedClientRef(api.finishedGoods.jobScans.updateJobScan),
   listJobScanCorrections: clientRef(
     api.finishedGoods.jobScans.listJobScanCorrections,
   ),
-  saveJobScans: clientRef(api.finishedGoods.jobScans.saveJobScans),
+  saveJobScans: typedClientRef(api.finishedGoods.jobScans.saveJobScans),
   deleteJobScans: clientRef(api.finishedGoods.jobScans.deleteJobScans),
   assignJobScanLocation: clientRef(
     api.finishedGoods.jobScans.assignJobScanLocation,
