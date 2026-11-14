@@ -1,5 +1,9 @@
 import { expect, it, vi } from "vitest";
 import { JobScanAcquisition, type AcquisitionPorts } from "./acquisition";
+import {
+  MAX_JOB_TICKET_AI_DATA_URL,
+  MAX_JOB_TICKET_UPLOAD_BYTES,
+} from "./prepareJobTicketPhoto";
 import type { TicketDraft } from "./ticketDraft";
 
 type Extraction = Awaited<ReturnType<AcquisitionPorts["extract"]>>;
@@ -173,7 +177,7 @@ it.each(["rejected", "unreadable", "rateLimited"] as const)(
   },
 );
 
-it("accepts a retry after preparation failure without losing the editable failed ticket", async () => {
+it("starts a fresh acquisition after a preparation failure without losing the failed ticket", async () => {
   const h = harness();
   const failed = deferred<File>();
   h.ports.prepare.mockImplementationOnce(() => failed.promise);
@@ -195,25 +199,59 @@ it("accepts a retry after preparation failure without losing the editable failed
   expect(h.ports.revokeObjectURL).toHaveBeenCalledTimes(2);
 });
 
-it("rejects old scope results while a new warehouse controller completes independently", async () => {
-  const old = harness();
-  const pending = pendingTransports(old);
-  const oldWork = old.controller.acquire(file);
-  await old.uploadStarted.promise;
-  old.controller.dispose();
-  const next = harness();
-  await next.controller.acquire(file);
-  expect(next.first()).toMatchObject({ status: "ready", notice: "aiFilled" });
-  pending.extraction.resolve(extracted);
-  pending.upload.resolve(attachment);
-  await oldWork;
-  await old.controller.acquire(file);
-  expect(old.ports.updateTicket).not.toHaveBeenCalled();
-  expect(old.ports.addTicket).toHaveBeenCalledOnce();
-  expect(old.ports.prepare.mock.calls[0]![1].signal.aborted).toBe(true);
-  expect(old.ports.revokeObjectURL).toHaveBeenCalledOnce();
-  expect(next.ports.updateTicket).toHaveBeenCalledOnce();
-  next.controller.dispose();
+// Warehouse switches remount JobScanWorkflow with a new controller; the keyed
+// remount and old-controller rejection are covered in JobScanScreen.test.tsx
+// and by the dispose cases below.
+
+it("marks sample-data extraction as aiMock without an AI usage operation", async () => {
+  const h = harness();
+  h.ports.extract.mockResolvedValue({
+    ok: true,
+    requestId: "extract-mock",
+    value: {
+      ok: true,
+      mock: true,
+      fields: { factoryOrder: "FO-MOCK" },
+      raw: "{}",
+    },
+  });
+  await h.controller.acquire(file);
+  expect(h.first()).toMatchObject({ notice: "aiMock", aiRaw: "{}" });
+  expect(h.first()).not.toHaveProperty("aiUsageOperationId");
+  h.controller.dispose();
+});
+
+it("skips upload for an oversized image but still applies AI fields", async () => {
+  const h = harness();
+  const oversized = new File(["x"], "big.jpg", { type: "image/jpeg" });
+  Object.defineProperty(oversized, "size", {
+    value: MAX_JOB_TICKET_UPLOAD_BYTES + 1,
+  });
+  h.ports.prepare.mockImplementation(async (_image, options) => {
+    await options.onAiReady(file);
+    return oversized;
+  });
+  await h.controller.acquire(file);
+  expect(h.ports.upload).not.toHaveBeenCalled();
+  expect(h.first()).toMatchObject({ status: "ready", notice: "uploadFailed" });
+  expect(h.first().values.factoryOrder).toBe("FO12345");
+  h.controller.dispose();
+});
+
+it("skips AI for an oversized data URL but still stores the photo", async () => {
+  const h = harness();
+  h.ports.toDataUrl.mockResolvedValue(
+    "x".repeat(MAX_JOB_TICKET_AI_DATA_URL + 1),
+  );
+  await h.controller.acquire(file);
+  expect(h.ports.extract).not.toHaveBeenCalled();
+  expect(h.ports.upload).toHaveBeenCalledOnce();
+  expect(h.first()).toMatchObject({
+    status: "ready",
+    notice: "aiFailed",
+    imageAssetId: "asset-a",
+  });
+  h.controller.dispose();
 });
 
 it.each(["preparation", "dataUrl", "transport"] as const)(

@@ -44,10 +44,8 @@ export class JobScanAcquisition {
     };
     const photo = { controller: new AbortController(), previewUrl };
     this.photos.set(ticket.key, photo);
-    const current = () =>
-      !this.disposed &&
-      this.photos.get(ticket.key) === photo &&
-      !photo.controller.signal.aborted;
+    // release() and dispose() remove the entry, so membership is the only check.
+    const current = () => this.photos.get(ticket.key) === photo;
     let reading: Promise<
       Awaited<ReturnType<AcquisitionPorts["extract"]>> | undefined
     > = Promise.resolve(undefined);
