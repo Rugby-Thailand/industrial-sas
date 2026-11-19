@@ -1,65 +1,22 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import { useConvex, useMutation, useQueries, useQuery } from "convex/react";
+import { useMutation, useQueries } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import {
-  Archive,
-  ArchiveRestore,
-  ChevronRight,
-  Mail,
-  MapPin,
-  PencilLine,
-  Phone,
-  Plus,
-  User,
-} from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-
+import { useTranslations } from "next-intl";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { api } from "../../../convex/_generated/api";
-import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
-import { CollectionToolbar } from "@/components/system/CollectionToolbar";
-import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { DescriptionList } from "@/components/ui/DescriptionList";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { SelectControl } from "@/components/ui/SelectControl";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
-import { TableScroller } from "@/components/ui/TableScroller";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
-import { useCatalogueSync } from "@/hooks/useCatalogueSync";
-import { useCursorPagination } from "@/hooks/useCursorPagination";
-import {
-  useDebouncedSearch,
-  useScanContinuation,
-} from "@/hooks/useScanContinuation";
-import { Link, useRouter } from "@/i18n/navigation";
-import { customerEditPath, customerPath, ROUTES } from "@/lib/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { customerPath, ROUTES } from "@/lib/navigation";
 import { completeTask, returnFromTask } from "@/lib/taskNavigation";
 import {
   customerInput,
@@ -73,670 +30,14 @@ import {
   type CustomerDraftField,
   type CustomerSection,
 } from "./customerDraft";
-import {
-  useCustomerCatalogueState,
-  type CustomerStatusFilter,
-} from "./useCustomerCatalogueState";
 import { readCustomerWrite, type CustomerWriteFailure } from "./customerWrites";
 import {
   CustomerGate,
   useCustomerAccess,
   useSubmissionIdentity,
 } from "./customerAccess";
-
-const DASH = "—";
-
-interface SimilarCustomer {
-  readonly customerId: string;
-  readonly code: string;
-  readonly name: string;
-  readonly status: "ACTIVE" | "ARCHIVED";
-}
-
-type CustomerDetailRow = Omit<Doc<"customers">, "codeSequenceKey"> & {
-  readonly customerId: Id<"customers">;
-  readonly taxIdChecksumValid?: boolean;
-};
-
-/* List ---------------------------------------------------------------- */
-
-export function CustomerCatalogue() {
-  const t = useTranslations("Customers");
-  return (
-    <CustomerGate loadingLabel={t("loading")}>
-      <CatalogueContent />
-    </CustomerGate>
-  );
-}
-
-export function NewCustomerAction() {
-  const t = useTranslations("Customers");
-  if (!useCustomerAccess().canManage) return null;
-  return (
-    <Button asChild className="shrink-0">
-      <Link href={`${ROUTES.customers}/new`} data-testid="new-customer-action">
-        <Plus aria-hidden="true" className="size-4" />
-        {t("newCustomer")}
-      </Link>
-    </Button>
-  );
-}
-
-function CatalogueContent() {
-  const t = useTranslations("Customers");
-  const locale = useLocale();
-  const { userId, orgId } = useAuth();
-  const { canManage } = useCustomerAccess();
-  const scope = `customers:${orgId ?? "null"}:${userId ?? "anonymous"}`;
-  const { state: filters, update } = useCustomerCatalogueState(scope);
-  const settled = useDebouncedSearch(filters.search);
-  const criteria = { search: settled, status: filters.status };
-  const paging = useCursorPagination({ scope, criteria });
-  const scan = useScanContinuation(
-    JSON.stringify([criteria, paging.cursor, paging.pageSize]),
-  );
-  const outcome = useQuery(
-    api.customers.catalogue.listCustomersPage,
-    filters.search === settled
-      ? {
-          search: settled,
-          ...(filters.status === "ALL" ? {} : { status: filters.status }),
-          pageSize: paging.pageSize,
-          ...(paging.cursor ? { cursor: paging.cursor } : {}),
-          ...(scan.cursor ? { scanCursor: scan.cursor } : {}),
-        }
-      : "skip",
-  );
-  const sync = useCatalogueSync({
-    outcome,
-    continuation: scan,
-    paging,
-    resetKey: JSON.stringify(criteria),
-    hasRows: (value) => Boolean(value.page?.length),
-  });
-  const ready = outcome?.ok && outcome.value.status === "ready";
-  const denied = outcome !== undefined && !outcome.ok;
-  const failed =
-    denied || (outcome?.ok === true && outcome.value.status === "reset");
-  const customers = ready ? outcome.value.page : [];
-  const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
-  const clear = () => update({ search: "", status: "ACTIVE" });
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-        <CollectionToolbar
-          value={filters.search}
-          // A search-only patch: typing coalesces into one history entry.
-          onValueChange={(search) => update({ search })}
-          searchLabel={t("search")}
-          clearLabel={t("clearSearch")}
-          actions={<NewCustomerAction />}
-        />
-        <SelectControl
-          value={filters.status}
-          onValueChange={(status) =>
-            update({ status: status as CustomerStatusFilter })
-          }
-          options={[
-            { value: "ACTIVE", label: t("statusActive") },
-            { value: "ARCHIVED", label: t("statusArchived") },
-            { value: "ALL", label: t("statusAll") },
-          ]}
-          label={t("statusFilter")}
-          placeholder={t("statusFilter")}
-          emptyLabel={t("statusActive")}
-        />
-      </div>
-      {outcome !== undefined && !outcome.ok ? (
-        // A refused read is an access decision, not a connection problem.
-        <LedgerPanelStatus
-          state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
-        />
-      ) : failed ? (
-        // The list changed under a continuation more often than the automatic
-        // reset allows; reloading from the first page is the person's call.
-        <Notice
-          tone="warning"
-          role="alert"
-          title={t("loadError")}
-          body={t("loadErrorBody")}
-          testId="customer-list-changed"
-        >
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-2"
-            onClick={sync.retry}
-          >
-            {t("reload")}
-          </Button>
-        </Notice>
-      ) : !ready ? (
-        <LedgerPanelStatus state={{ kind: "LOADING" }} label={t("loading")} />
-      ) : customers.length === 0 ? (
-        filtered ? (
-          <EmptyState
-            title={t("noMatches")}
-            body={t("noMatchesBody")}
-            action={
-              <Button type="button" variant="ghost" onClick={clear}>
-                {t("clearFilters")}
-              </Button>
-            }
-          />
-        ) : (
-          <EmptyState
-            title={t("emptyTitle")}
-            body={canManage ? t("emptyBody") : t("emptyBodyViewOnly")}
-          />
-        )
-      ) : (
-        <>
-          <div className="hidden md:block">
-            <TableScroller label={t("tableLabel")} testId="customer-table">
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[64%]">
-                      {t("colCustomer")}
-                    </TableHead>
-                    <TableHead>{t("colProvince")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customers.map((customer) => (
-                    <TableRow key={customer.customerId}>
-                      <TableCell className="align-top">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <Link
-                            href={customerPath(customer.customerId)}
-                            className="font-medium break-words text-text hover:text-link hover:underline focus-visible:outline-2 focus-visible:outline-link"
-                          >
-                            {customer.name}
-                          </Link>
-                          {customer.status === "ARCHIVED" ? (
-                            <StatusBadge
-                              tone="muted"
-                              label={t("statusArchived")}
-                            />
-                          ) : null}
-                        </div>
-                        <div className="mt-0.5 font-mono text-xs text-muted">
-                          {customer.code}
-                        </div>
-                      </TableCell>
-                      <TableCell className="align-top text-sm">
-                        {customer.province ?? (
-                          <span className="text-muted">{DASH}</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableScroller>
-          </div>
-          <ul
-            className="divide-y divide-border rounded-lg border border-border bg-surface md:hidden"
-            aria-label={t("tableLabel")}
-            data-testid="customer-cards"
-          >
-            {customers.map((customer) => (
-              <li key={customer.customerId}>
-                <Link
-                  href={customerPath(customer.customerId)}
-                  className="flex min-h-touch items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-medium break-words text-text">
-                        {customer.name}
-                      </span>
-                      {customer.status === "ARCHIVED" ? (
-                        <StatusBadge tone="muted" label={t("statusArchived")} />
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted">
-                      <span className="font-mono">{customer.code}</span>
-                      {customer.province ? ` · ${customer.province}` : null}
-                    </span>
-                  </span>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-4 shrink-0 text-muted"
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {failed ? null : (
-        <CursorPagination
-          page={paging.page}
-          pageSize={paging.pageSize}
-          onPageSizeChange={paging.setPageSize}
-          onPrevious={paging.previous}
-          onNext={() => {
-            if (ready) paging.next(outcome.value.continueCursor);
-          }}
-          canPrevious={paging.canPrevious}
-          canNext={Boolean(ready && !outcome.value.isDone)}
-          loading={!ready}
-          locale={locale === "th" ? "th" : "en"}
-        />
-      )}
-    </div>
-  );
-}
-
-/* Detail -------------------------------------------------------------- */
-
-export function CustomerDetail({
-  customerId,
-}: {
-  readonly customerId: string;
-}) {
-  const t = useTranslations("Customers");
-  return (
-    <CustomerGate
-      loadingLabel={t("loadingCustomer")}
-      frame={
-        <PageHeader
-          title={t("detailTitle")}
-          breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
-        />
-      }
-    >
-      <CustomerQuery customerId={customerId} page="detail" />
-    </CustomerGate>
-  );
-}
-
-export function EditCustomerForm({
-  customerId,
-}: {
-  readonly customerId: string;
-}) {
-  const t = useTranslations("Customers");
-  return (
-    <CustomerGate
-      loadingLabel={t("loadingCustomer")}
-      frame={
-        <PageHeader
-          title={t("editTitle")}
-          breadcrumbs={[
-            { label: t("title"), href: ROUTES.customers },
-            { label: t("detailTitle"), href: customerPath(customerId) },
-          ]}
-        />
-      }
-    >
-      <CustomerQuery customerId={customerId} page="edit" />
-    </CustomerGate>
-  );
-}
-
-/** One subscription feeds the detail page or the editor; both keep a page frame while it loads. */
-function CustomerQuery({
-  customerId,
-  page,
-}: {
-  readonly customerId: string;
-  readonly page: "detail" | "edit";
-}) {
-  const t = useTranslations("Customers");
-  const outcome = useQuery(api.customers.catalogue.getCustomer, {
-    customerId,
-  });
-  const customer: CustomerDetailRow | null | undefined = outcome?.ok
-    ? (outcome.value ?? null)
-    : undefined;
-  if (!customer) {
-    const missing = customer === null;
-    return (
-      <>
-        {page === "edit" ? (
-          <PageHeader
-            title={missing ? t("notFoundTitle") : t("editTitle")}
-            breadcrumbs={[
-              { label: t("title"), href: ROUTES.customers },
-              { label: t("detailTitle"), href: customerPath(customerId) },
-            ]}
-          />
-        ) : (
-          <PageHeader
-            title={missing ? t("notFoundTitle") : t("detailTitle")}
-            breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
-          />
-        )}
-        {outcome === undefined ? (
-          <LedgerPanelStatus
-            state={{ kind: "LOADING" }}
-            label={t("loadingCustomer")}
-          />
-        ) : missing ? (
-          <Notice
-            tone="warning"
-            title={t("notFoundTitle")}
-            body={t("notFoundBody")}
-            testId="customer-not-found"
-          />
-        ) : (
-          <LedgerPanelStatus
-            state={{
-              kind: "DENIED",
-              requestId: outcome.ok ? "" : outcome.denial.requestId,
-            }}
-          />
-        )}
-      </>
-    );
-  }
-  return page === "edit" ? (
-    <CustomerEditor key={customerId} customer={customer} />
-  ) : (
-    <CustomerDetailContent customer={customer} />
-  );
-}
-
-function CustomerDetailContent({
-  customer,
-}: {
-  readonly customer: CustomerDetailRow;
-}) {
-  const t = useTranslations("Customers");
-  const { canManage } = useCustomerAccess();
-  const archived = customer.status === "ARCHIVED";
-  const address = customer.deliveryAddress;
-  const contact = customer.contact;
-  const addressLines = [
-    address?.line,
-    [address?.subdistrict, address?.district].filter(Boolean).join(" "),
-    [address?.province, address?.postcode].filter(Boolean).join(" "),
-  ].filter((line): line is string => Boolean(line));
-  return (
-    <>
-      <PageHeader
-        title={customer.name}
-        breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
-        meta={
-          <>
-            <span className="font-mono">{customer.code}</span>
-            <StatusBadge
-              tone={archived ? "muted" : "success"}
-              label={archived ? t("statusArchived") : t("statusActive")}
-            />
-          </>
-        }
-      >
-        {canManage ? (
-          <>
-            {archived ? null : (
-              <Button asChild variant="outline">
-                <Link href={customerEditPath(customer.customerId)}>
-                  <PencilLine aria-hidden="true" className="size-4" />
-                  {t("edit")}
-                </Link>
-              </Button>
-            )}
-            {/* One instance across archive and restore, so a live status
-                change never unmounts a confirmation that is still closing. */}
-            <LifecycleAction customer={customer} />
-          </>
-        ) : null}
-      </PageHeader>
-      <div className="max-w-5xl space-y-4">
-        {archived ? (
-          <Notice
-            tone="muted"
-            title={t("archivedNotice")}
-            {...(canManage ? { body: t("archivedNoticeBody") } : {})}
-          />
-        ) : null}
-        <div className="grid gap-4 md:grid-cols-2">
-          <DetailCard title={t("sectionDelivery")}>
-            {address?.label ? (
-              <p className="font-medium text-text">{address.label}</p>
-            ) : null}
-            {addressLines.length > 0 ? (
-              <p className="flex gap-2 text-sm text-text">
-                <MapPin
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-muted"
-                />
-                <span>
-                  {addressLines.map((line) => (
-                    <span key={line} className="block">
-                      {line}
-                    </span>
-                  ))}
-                </span>
-              </p>
-            ) : (
-              <p className="text-sm text-muted">{t("noDelivery")}</p>
-            )}
-            <div className="border-t border-border pt-3">
-              {contact?.name ||
-              contact?.role ||
-              contact?.phone ||
-              contact?.email ? (
-                <div className="space-y-1 text-sm">
-                  {contact.name || contact.role ? (
-                    <p className="flex items-center gap-2 text-text">
-                      <User aria-hidden="true" className="size-4 text-muted" />
-                      <span>
-                        {[contact.name, contact.role]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </p>
-                  ) : null}
-                  {contact.phone && telHref(contact.phone) ? (
-                    <a
-                      href={telHref(contact.phone)}
-                      className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
-                    >
-                      <Phone aria-hidden="true" className="size-4" />
-                      {contact.phone}
-                    </a>
-                  ) : contact.phone ? (
-                    // Nothing dialable: show it as written, without a link.
-                    <p className="flex items-center gap-2 text-text">
-                      <Phone aria-hidden="true" className="size-4 text-muted" />
-                      {contact.phone}
-                    </p>
-                  ) : null}
-                  {contact.email ? (
-                    <a
-                      href={mailtoHref(contact.email)}
-                      className="-my-1 flex min-h-touch items-center gap-2 break-all text-link hover:underline md:my-0 md:min-h-0"
-                    >
-                      <Mail aria-hidden="true" className="size-4" />
-                      {contact.email}
-                    </a>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-sm text-muted">{t("noContact")}</p>
-              )}
-            </div>
-          </DetailCard>
-          <DetailCard title={t("sectionTax")}>
-            <DescriptionList
-              layout="rows"
-              items={[
-                {
-                  id: "legalNameTh",
-                  label: t("legalNameTh"),
-                  value: customer.legalNameTh ?? DASH,
-                },
-                {
-                  id: "legalNameEn",
-                  label: t("legalNameEn"),
-                  value: customer.legalNameEn ?? DASH,
-                },
-                {
-                  id: "taxId",
-                  label: t("taxId"),
-                  value: customer.taxId ? (
-                    <span className="font-mono">{customer.taxId}</span>
-                  ) : (
-                    DASH
-                  ),
-                },
-                {
-                  id: "establishment",
-                  label: t("establishment"),
-                  value:
-                    customer.establishment?.kind === "HEAD_OFFICE"
-                      ? t("headOffice")
-                      : customer.establishment?.kind === "BRANCH"
-                        ? t("branch", { code: customer.establishment.code })
-                        : DASH,
-                },
-              ]}
-            />
-            {customer.taxIdChecksumValid === false ? (
-              <Notice
-                tone="warning"
-                title={t("taxIdChecksumWarning")}
-                testId="customer-tax-id-warning"
-              />
-            ) : null}
-          </DetailCard>
-        </div>
-        {customer.notes ? (
-          <DetailCard title={t("sectionNotes")}>
-            <p className="text-sm whitespace-pre-line text-text">
-              {customer.notes}
-            </p>
-          </DetailCard>
-        ) : null}
-      </div>
-    </>
-  );
-}
-
-function DetailCard({
-  title,
-  children,
-}: {
-  readonly title: string;
-  readonly children: ReactNode;
-}) {
-  const id = useId();
-  return (
-    <section
-      aria-labelledby={id}
-      className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4"
-    >
-      <h2 id={id} className="text-lg leading-7 font-semibold text-text">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-/** Archive or restore, confirmed in the shared dialog that owns its Back entry. */
-function LifecycleAction({
-  customer,
-}: {
-  readonly customer: CustomerDetailRow;
-}) {
-  const t = useTranslations("Customers");
-  const archive = useMutation(api.customers.writes.archiveCustomer);
-  const restore = useMutation(api.customers.writes.restoreCustomer);
-  // The confirmation keeps what it was opened for: the status and version
-  // shown then. A live update while it is open or closing changes neither.
-  const [open, setOpen] = useState(false);
-  const [target, setTarget] = useState({
-    archived: customer.status === "ARCHIVED",
-    version: customer.version,
-  });
-  const [failure, setFailure] = useState<CustomerWriteFailure>();
-  const identity = useSubmissionIdentity();
-  const operation = useAsyncOperation({
-    scope: `customer-lifecycle:${customer.customerId}`,
-    describeError: () => "UNKNOWN",
-    navigation: "write",
-  });
-  const archived = open ? target.archived : customer.status === "ARCHIVED";
-  async function confirm() {
-    if (operation.busy) return;
-    setFailure(undefined);
-    const args = {
-      customerId: customer.customerId,
-      expectedVersion: target.version,
-    };
-    await operation.run(
-      async () =>
-        (archived ? restore : archive)({
-          ...args,
-          requestId: identity.request(
-            JSON.stringify({ archived, ...args }),
-            undefined,
-          ).requestId,
-        }),
-      (outcome) => {
-        // An answered attempt never reuses its identity.
-        identity.clear();
-        const result = readCustomerWrite(outcome);
-        if (!result.ok) setFailure(result.failure);
-        else operation.complete(() => setOpen(false));
-      },
-    );
-  }
-  const error =
-    failure !== undefined
-      ? t(`errors.${failure.code}`)
-      : operation.error
-        ? t("errors.UNKNOWN")
-        : null;
-  return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => {
-          setFailure(undefined);
-          setTarget({
-            archived: customer.status === "ARCHIVED",
-            version: customer.version,
-          });
-          setOpen(true);
-        }}
-      >
-        {archived ? (
-          <ArchiveRestore aria-hidden="true" className="size-4" />
-        ) : (
-          <Archive aria-hidden="true" className="size-4" />
-        )}
-        {archived ? t("restore") : t("archive")}
-      </Button>
-      <ConfirmDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={
-          archived
-            ? t("restoreTitle", { name: customer.name })
-            : t("archiveTitle", { name: customer.name })
-        }
-        description={archived ? t("restoreBody") : t("archiveBody")}
-        error={error}
-        cancelLabel={t("cancel")}
-        confirmLabel={archived ? t("restore") : t("archive")}
-        pendingLabel={archived ? t("restoring") : t("archiving")}
-        pending={operation.busy}
-        onConfirm={() => void confirm()}
-        testId="customer-lifecycle-dialog"
-      />
-    </>
-  );
-}
-
-/* Create and edit ------------------------------------------------------ */
+import type { CustomerDetailRow } from "./customerTypes";
+import { useDuplicateCheck } from "./useDuplicateCheck";
 
 export function NewCustomerForm() {
   const t = useTranslations("Customers");
@@ -784,7 +85,7 @@ function NewCustomerContent() {
   );
 }
 
-function CustomerEditor({
+export function CustomerEditor({
   customer,
 }: {
   readonly customer: CustomerDetailRow;
@@ -845,26 +146,6 @@ function CustomerEditor({
   );
 }
 
-/**
- * Dial the first run that reads as a phone number (at least seven digits,
- * with spaces, dashes, dots or brackets). Labels ("PBX", "ติดต่อ",
- * "24h hotline:") and extensions ("ต่อ 89", "ext 89") are shown, not
- * dialled. Returns undefined when no such run exists.
- */
-function telHref(phone: string): string | undefined {
-  for (const run of phone.matchAll(/\+?\d[\d\s().-]*\d/gu)) {
-    const digits = run[0].replace(/[^\d+]/gu, "");
-    if (digits.replace("+", "").length >= 7) return `tel:${digits}`;
-  }
-  return undefined;
-}
-
-/** A mailto: link that keeps the literal "@" and encodes each side of it. */
-function mailtoHref(email: string): string {
-  const at = email.lastIndexOf("@");
-  return `mailto:${encodeURIComponent(email.slice(0, at))}@${encodeURIComponent(email.slice(at + 1))}`;
-}
-
 function sameEditableFields(
   left: CustomerDetailRow,
   right: CustomerDetailRow,
@@ -913,18 +194,11 @@ function CustomerFormBody({
   const t = useTranslations("Customers");
   const router = useRouter();
   const access = useCustomerAccess();
-  const convex = useConvex();
   const identity = useSubmissionIdentity();
   const idPrefix = useId();
   const [draft, setDraft] = useState(initial);
   const [dirty, setDirty] = useState(false);
   const [failure, setFailure] = useState<CustomerWriteFailure>();
-  // Likely duplicates found when Save was pressed before the live hint
-  // caught up; shown before any create is sent.
-  const [checked, setChecked] = useState<{
-    readonly name: string;
-    readonly matches: readonly SimilarCustomer[];
-  }>();
   const [openSections, setOpenSections] = useState<
     ReadonlySet<CustomerSection>
   >(
@@ -955,39 +229,9 @@ function CustomerFormBody({
       setFailure(undefined);
     },
   });
-  const settledName = useDebouncedSearch(draft.name, 400);
-  // The live hint answers with an Error instead of throwing: a failed hint
-  // must not take the form, and its draft, down with it. Save then runs its
-  // own check, which refuses to create without an answer.
-  const hint = useQueries(
-    mode === "create" && settledName.trim() !== ""
-      ? {
-          similar: {
-            query: api.customers.catalogue.findSimilarCustomers,
-            args: { name: settledName },
-          },
-        }
-      : {},
-  ).similar as
-    | FunctionReturnType<typeof api.customers.catalogue.findSimilarCustomers>
-    | Error
-    | undefined;
-  const similar = hint instanceof Error ? undefined : hint;
+  const duplicates = useDuplicateCheck(mode === "create", draft.name);
   const currentName = draft.name.trim();
-  const liveMatches =
-    settledName.trim() === currentName && similar?.ok
-      ? similar.value
-      : undefined;
-  // One precedence rule for what is shown and what counts as reviewed: the
-  // live answer for the current name wins, including an empty one; the
-  // Save-time check only stands in while that answer is unavailable.
-  // A live answer supersedes the Save-time one for good.
-  if (liveMatches !== undefined && checked !== undefined) setChecked(undefined);
-  const savedCheck =
-    liveMatches === undefined && checked?.name === currentName
-      ? checked.matches
-      : undefined;
-  const matches = liveMatches ?? savedCheck ?? [];
+  const matches = duplicates.matches;
   const field = (name: CustomerDraftField) => ({
     id: `${idPrefix}-${name}`,
     value: draft[name],
@@ -996,7 +240,7 @@ function CustomerFormBody({
       setDirty(true);
       // A Save-time answer belongs to the name it checked; editing the name
       // retires it, so it can never come back for a later, equal name.
-      if (name === "name") setChecked(undefined);
+      if (name === "name") duplicates.forget();
     },
   });
   const fieldError = (prefix: string) =>
@@ -1030,35 +274,17 @@ function CustomerFormBody({
       options.skipDuplicateCheck === true &&
       failure?.code === "DUPLICATE_CHECK_FAILED" &&
       failure.name === currentName;
-    const unchecked =
-      mode === "create" &&
-      !skip &&
-      liveMatches === undefined &&
-      savedCheck === undefined;
+    const unchecked = mode === "create" && !skip && !duplicates.answered;
     const submitted = draft;
     await operation.run(
       async () => {
         if (unchecked) {
-          // The client can answer synchronously from a cached failure, so
-          // both a throw and a rejection count as "no answer".
-          let found:
-            | FunctionReturnType<
-                typeof api.customers.catalogue.findSimilarCustomers
-              >
-            | undefined;
-          try {
-            found = await convex.query(
-              api.customers.catalogue.findSimilarCustomers,
-              { name: currentName },
-            );
-          } catch {
-            found = undefined;
-          }
           // No answer is not "no duplicates": keep the draft and let the
           // person retry, or save without the check on purpose.
-          if (!found?.ok) return { lookupFailed: true } as const;
-          if (found.value.length > 0)
-            return { duplicates: found.value } as const;
+          const check = await duplicates.lookup(currentName);
+          if (check.kind === "failed") return { lookupFailed: true } as const;
+          if (check.kind === "found")
+            return { duplicates: check.matches } as const;
         }
         // The form may have closed while the check ran; a closed form
         // never starts a write.
@@ -1086,7 +312,7 @@ function CustomerFormBody({
           return;
         }
         if ("duplicates" in attempt) {
-          setChecked({ name: currentName, matches: attempt.duplicates });
+          duplicates.remember(currentName, attempt.duplicates);
           return;
         }
         // An answered attempt never reuses its identity.

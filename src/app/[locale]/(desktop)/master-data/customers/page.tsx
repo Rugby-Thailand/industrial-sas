@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { PageHeader } from "@/components/ui/PageHeader";
-import { CustomerCatalogue } from "@/features/customers/CustomerScreens";
+import { CustomerCatalogue } from "@/features/customers/CustomerList";
 
 export default async function CustomersPage({
   params,

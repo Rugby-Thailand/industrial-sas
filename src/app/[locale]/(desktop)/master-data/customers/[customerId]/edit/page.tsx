@@ -1,6 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 
-import { EditCustomerForm } from "@/features/customers/CustomerScreens";
+import { EditCustomerForm } from "@/features/customers/CustomerDetail";
 
 export default async function EditCustomerPage({
   params,

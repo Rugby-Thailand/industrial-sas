@@ -950,7 +950,7 @@
       "file": "src/app/[locale]/(desktop)/master-data/customers/[customerId]/edit/page.tsx",
       "policy": "parent",
       "parent": "/master-data/customers/[customerId]",
-      "targets": ["src/features/customers/CustomerScreens#EditCustomerForm"],
+      "targets": ["src/features/customers/CustomerDetail#EditCustomerForm"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
       "cases": [
@@ -968,7 +968,7 @@
       "file": "src/app/[locale]/(desktop)/master-data/customers/[customerId]/page.tsx",
       "policy": "parent",
       "parent": "/master-data/customers",
-      "targets": ["src/features/customers/CustomerScreens#CustomerDetail"],
+      "targets": ["src/features/customers/CustomerDetail#CustomerDetail"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
       "cases": [
@@ -986,7 +986,7 @@
       "file": "src/app/[locale]/(desktop)/master-data/customers/new/page.tsx",
       "policy": "parent",
       "parent": "/master-data/customers",
-      "targets": ["src/features/customers/CustomerScreens#NewCustomerForm"],
+      "targets": ["src/features/customers/CustomerForm#NewCustomerForm"],
       "expectation": "Back dismisses foreground/earlier workflow first, otherwise preserves the actual origin locale/query/hash; direct links use the declared module parent.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
       "cases": [
@@ -1005,7 +1005,7 @@
       "policy": "hub",
       "targets": [
         "src/components/ui/PageHeader#PageHeader",
-        "src/features/customers/CustomerScreens#CustomerCatalogue"
+        "src/features/customers/CustomerList#CustomerCatalogue"
       ],
       "expectation": "A module hub preserves actual-origin and foreground Back; direct entry has no synthetic parent or self-navigation.",
       "tests": ["src/features/customers/CustomersBackPolicy.test.tsx"],
@@ -9181,7 +9181,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#LifecycleAction:open",
+      "id": "src/features/customers/CustomerDetail.tsx#LifecycleAction:open",
       "policy": "overlay",
       "expectation": "The actual shared confirmation owns its foreground entry: native Back closes it before leaving the customer, a pending archive/restore cannot be dismissed, and success consumes the entry. One instance persists across the live status change, so the closing confirmation is never unmounted.",
       "integration": "confirmation",
@@ -9198,7 +9198,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#LifecycleAction:$overlay:ConfirmDialog:open",
+      "id": "src/features/customers/CustomerDetail.tsx#LifecycleAction:$overlay:ConfirmDialog:open",
       "policy": "overlay",
       "expectation": "The actual shared confirmation owns its foreground entry: native Back closes it before leaving the customer, a pending archive/restore cannot be dismissed, and success consumes the entry. One instance persists across the live status change, so the closing confirmation is never unmounted.",
       "integration": "confirmation",
@@ -9215,7 +9215,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#LifecycleAction:target",
+      "id": "src/features/customers/CustomerDetail.tsx#LifecycleAction:target",
       "policy": "presentation",
       "expectation": "Records the status and version the confirmation was opened for, so its wording and expected version stay fixed while a live update arrives during review or closing. It only selects archive or restore copy and icon inside the same shared ConfirmDialog; it opens no foreground of its own.",
       "uses": ["branch"],
@@ -9239,7 +9239,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:draft",
+      "id": "src/features/customers/CustomerForm.tsx#CustomerFormBody:draft",
       "policy": "presentation",
       "expectation": "The customer form's field values. They choose inline hints (tax ID length or check digit), the branch number field under Branch, and the duplicate-name Notice (whose Use this customer Button completes the task through the declared openExisting completion); no foreground. The page-level navigation draft protects unsaved values: native Back asks before discarding them. The current name also decides whether a failed duplicate check's inline Notice and its Save without checking Button still apply; changing the name withdraws them.",
       "uses": ["branch"],
@@ -9293,7 +9293,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:failure",
+      "id": "src/features/customers/CustomerForm.tsx#CustomerFormBody:failure",
       "policy": "presentation",
       "expectation": "The last refused save. It marks the refused field, shows a save error or version-conflict Notice with an explicit reload, and opens the refused field's inline section; it adds no foreground and keeps the draft. A failed duplicate check adds an inline Button inside the same Notice that saves without the check on explicit request; it opens no foreground.",
       "uses": ["branch"],
@@ -9349,7 +9349,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:openSections",
+      "id": "src/features/customers/CustomerForm.tsx#CustomerFormBody:openSections",
       "policy": "presentation",
       "expectation": "Which inline CollapsibleSection accordions of the form are expanded. Sections with saved values start open and a refused field opens its section. Inline disclosure only: no history entry, and the draft is unaffected.",
       "uses": ["open"],
@@ -9369,32 +9369,6 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "warns on a failed tax ID check digit and still saves the digits with leading zeros"
-        }
-      ]
-    },
-    {
-      "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:checked",
-      "policy": "presentation",
-      "expectation": "Likely duplicates found by the check a fast Save runs before creating. It only feeds the same inline duplicate-name Notice the live hint uses, so the person sees the match before a second, deliberate Save; it opens no foreground and leaves the draft and history untouched.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "li",
-            "span",
-            "src/components/ui/Notice#Notice[role=status]",
-            "src/components/ui/button#Button",
-            "ul"
-          ],
-          "falsy": []
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "checks for a likely duplicate when Save is pressed before the hint appears"
         }
       ]
     }
@@ -9876,7 +9850,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#save:$task:completeTask:customerPath",
+      "id": "src/features/customers/CustomerForm.tsx#save:$task:completeTask:customerPath",
       "intent": "completion",
       "expectation": "Only a live successful create/update completes the form task, consuming its entry before replacing it with the customer; opened from that customer, completion traverses back to the real entry with its query and hash.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
@@ -9892,7 +9866,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#cancel:$task:returnFromTask:ROUTES.customers",
+      "id": "src/features/customers/CustomerForm.tsx#cancel:$task:returnFromTask:ROUTES.customers",
       "intent": "return",
       "expectation": "Explicit new-customer Cancel consumes its task and restores the actual list origin locale/query/hash; a directly opened form replaces itself with the list. A dirty draft asks first.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
@@ -9908,7 +9882,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#cancel:$task:returnFromTask:customerPath",
+      "id": "src/features/customers/CustomerForm.tsx#cancel:$task:returnFromTask:customerPath",
       "intent": "return",
       "expectation": "Explicit editor Cancel consumes its task and restores the customer it was opened from; a directly opened editor replaces itself with the customer.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
@@ -9924,7 +9898,7 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerScreens.tsx#openExisting:$task:completeTask:customerPath",
+      "id": "src/features/customers/CustomerForm.tsx#openExisting:$task:completeTask:customerPath",
       "intent": "completion",
       "expectation": "Choosing a listed existing customer ends the create task like a save: the shared draft guard asks before discarding the typed draft, then the live operation completes by replacing the form's entry with that customer, so the next Back restores the real list origin with its query and hash and Forward returns to the chosen customer.",
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],

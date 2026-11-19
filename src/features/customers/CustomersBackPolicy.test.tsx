@@ -19,7 +19,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => router,
 }));
 // The route header must be available even while the list is loading.
-vi.mock("@/features/customers/CustomerScreens", () => ({
+vi.mock("@/features/customers/CustomerList", () => ({
   CustomerCatalogue: () => <p role="status">Loading customers</p>,
 }));
 import CustomersPage from "@/app/[locale]/(desktop)/master-data/customers/page";

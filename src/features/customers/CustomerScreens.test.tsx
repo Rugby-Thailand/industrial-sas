@@ -121,12 +121,9 @@ import { api } from "../../../convex/_generated/api";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
 import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { trackAppHistory } from "@/lib/browser/appHistory";
-import {
-  CustomerCatalogue,
-  CustomerDetail,
-  EditCustomerForm,
-  NewCustomerForm,
-} from "./CustomerScreens";
+import { CustomerCatalogue } from "./CustomerList";
+import { CustomerDetail, EditCustomerForm } from "./CustomerDetail";
+import { NewCustomerForm } from "./CustomerForm";
 
 const READ = "masterData.customer.read";
 const MANAGE = "masterData.customer.manage";
@@ -1590,6 +1587,12 @@ describe("edit customer", () => {
     mocks.readiness = { kind: "LOADING" };
     view.rerender(<DraftGuardProvider>{editor()}</DraftGuardProvider>);
     expect(screen.getByDisplayValue("Unsaved contact")).toBeInTheDocument();
+    // Recovery: the very same input still holds the edit, never remounted.
+    const input = screen.getByRole("textbox", { name: /Contact name/ });
+    mocks.readiness = { kind: "READY_TO_QUERY" };
+    view.rerender(<DraftGuardProvider>{editor()}</DraftGuardProvider>);
+    expect(screen.getByRole("textbox", { name: /Contact name/ })).toBe(input);
+    expect(input).toHaveValue("Unsaved contact");
   });
 
   it("a live archive while editing keeps the unsaved draft and blocks saving", async () => {
