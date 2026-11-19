@@ -1,10 +1,8 @@
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
-import {
-  paginatedScan,
-  remainingScanCapacity,
-} from "../lib/cataloguePagination";
+import { paginatedOrderedScan } from "../lib/cataloguePagination";
+import { grantedPermissionsAmong } from "../lib/navigationGrants";
 import { queryWithOrg } from "../lib/tenantFunctions";
 import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import {
@@ -12,15 +10,20 @@ import {
   normalizeCustomerName,
   normalizeTaxId,
 } from "../model/customers/customers";
+import { customerCatalogueGeneration } from "./catalogueGeneration";
 import { nextCustomerCode } from "./customerCodes";
-import { customerRowFields, customerStatus } from "./validators";
+import {
+  customerDetailFields,
+  customerStatus,
+  customerSummary,
+} from "./validators";
 
 const readCustomers = {
   permissionCode: NAVIGATION_PERMISSION.customers,
   target: { table: "customers" },
 } as const;
 
-function customerRow({
+function customerDetail({
   codeSequenceKey: _codeSequenceKey,
   ...row
 }: Doc<"customers">) {
@@ -33,11 +36,23 @@ const pageValidator = v.object({
     v.literal("scanning"),
     v.literal("reset"),
   ),
-  page: v.array(v.object(customerRowFields)),
+  page: v.array(customerSummary),
   isDone: v.boolean(),
   continueCursor: v.string(),
   scanCursor: v.optional(v.string()),
   scanned: v.number(),
+});
+
+export const viewer = queryWithOrg({
+  ...readCustomers,
+  args: {},
+  returns: v.object({ canManage: v.boolean() }),
+  handler: async (ctx) => {
+    const grants = await grantedPermissionsAmong(ctx, [
+      NAVIGATION_PERMISSION.customerManage,
+    ]);
+    return { canManage: grants.includes(NAVIGATION_PERMISSION.customerManage) };
+  },
 });
 
 export const listCustomersPage = queryWithOrg({
@@ -54,12 +69,13 @@ export const listCustomersPage = queryWithOrg({
     const { status, cursor, scanCursor, pageSize } = args;
     const needle = normalizeCustomerName(args.search ?? "");
     const exactTaxId = normalizeTaxId(args.search ?? "");
-    return paginatedScan(ctx, {
+    const result = await paginatedOrderedScan(ctx, {
       scope: { entity: "customers", status, needle, exactTaxId },
       pageSize,
       cursor,
       scanCursor,
-      read: (rawCursor, endCursor) =>
+      generation: () => customerCatalogueGeneration(ctx.tenantDb),
+      read: ({ raw, end }) =>
         ctx.tenantDb
           .byIndex<Doc<"customers">>(
             "customers",
@@ -69,12 +85,11 @@ export const listCustomersPage = queryWithOrg({
             status ? [{ field: "status", value: status }] : [],
           )
           .page({
-            limit: remainingScanCapacity(scanCursor, pageSize),
-            ...(rawCursor ? { cursor: rawCursor } : {}),
-            ...(endCursor ? { endCursor } : {}),
+            limit: pageSize,
+            ...(raw ? { cursor: raw } : {}),
+            ...(end ? { endCursor: end } : {}),
           }),
       get: (id) => ctx.tenantDb.get<Doc<"customers">>("customers", id),
-      hydrate: async (row) => customerRow(row),
       matches: (row) =>
         (!status || row.status === status) &&
         (!needle ||
@@ -84,6 +99,18 @@ export const listCustomersPage = queryWithOrg({
           normalizeCustomerName(row.legalNameEn ?? "").includes(needle) ||
           (exactTaxId !== null && row.taxId === exactTaxId)),
     });
+    return {
+      ...result,
+      page: result.page.map(({ _id, code, name, status, deliveryAddress }) => ({
+        customerId: _id,
+        code,
+        name,
+        status,
+        ...(deliveryAddress?.province === undefined
+          ? {}
+          : { province: deliveryAddress.province }),
+      })),
+    };
   },
 });
 
@@ -93,7 +120,7 @@ export const getCustomer = queryWithOrg({
   returns: v.union(
     v.null(),
     v.object({
-      ...customerRowFields,
+      ...customerDetailFields,
       taxIdChecksumValid: v.optional(v.boolean()),
     }),
   ),
@@ -104,7 +131,7 @@ export const getCustomer = queryWithOrg({
     );
     if (!row) return null;
     return {
-      ...customerRow(row),
+      ...customerDetail(row),
       ...(row.taxId === undefined
         ? {}
         : { taxIdChecksumValid: isValidThaiTaxIdChecksum(row.taxId) }),

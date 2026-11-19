@@ -117,9 +117,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 47 representative functions, not every public export
+    // The inventory covers 48 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(47);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(48);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -191,10 +191,21 @@ describe("representative registered payloads and safe HR capability gates", () =
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
     const expected: Readonly<Record<string, object>> = {
+      "customers/catalogue:viewer": { canManage: true },
       "customers/catalogue:listCustomersPage": {
         status: "ready",
-        page: [],
+        page: [
+          {
+            customerId: expect.any(String),
+            code: "C-0001",
+            name: "Public contract customer",
+            status: "ACTIVE",
+            province: "Bangkok",
+          },
+        ],
         isDone: true,
+        continueCursor: "",
+        scanned: 1,
       },
       "customers/writes:createCustomer": {
         ok: true,
@@ -388,7 +399,10 @@ describe("representative registered payloads and safe HR capability gates", () =
         ok: true,
         requestId: expect.any(String),
       });
-      expect(allowedValue(outcome)).toMatchObject(expectedResult);
+      const value = allowedValue(outcome);
+      if (example.name === "customers/catalogue:listCustomersPage")
+        expect(value).toEqual(expectedResult);
+      else expect(value).toMatchObject(expectedResult);
       checked.push(example.name);
     }
     expect(checked.sort()).toEqual(Object.keys(expected).sort());

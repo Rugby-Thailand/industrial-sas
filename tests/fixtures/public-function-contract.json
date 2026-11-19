@@ -1743,149 +1743,12 @@
                       "value": {
                         "type": "object",
                         "value": {
-                          "name": {
+                          "customerId": {
                             "fieldType": {
-                              "type": "string"
+                              "type": "id",
+                              "tableName": "customers"
                             },
                             "optional": false
-                          },
-                          "legalNameTh": {
-                            "fieldType": {
-                              "type": "string"
-                            },
-                            "optional": true
-                          },
-                          "legalNameEn": {
-                            "fieldType": {
-                              "type": "string"
-                            },
-                            "optional": true
-                          },
-                          "taxId": {
-                            "fieldType": {
-                              "type": "string"
-                            },
-                            "optional": true
-                          },
-                          "establishment": {
-                            "fieldType": {
-                              "type": "union",
-                              "value": [
-                                {
-                                  "type": "object",
-                                  "value": {
-                                    "kind": {
-                                      "fieldType": {
-                                        "type": "literal",
-                                        "value": "HEAD_OFFICE"
-                                      },
-                                      "optional": false
-                                    }
-                                  }
-                                },
-                                {
-                                  "type": "object",
-                                  "value": {
-                                    "kind": {
-                                      "fieldType": {
-                                        "type": "literal",
-                                        "value": "BRANCH"
-                                      },
-                                      "optional": false
-                                    },
-                                    "code": {
-                                      "fieldType": {
-                                        "type": "string"
-                                      },
-                                      "optional": false
-                                    }
-                                  }
-                                }
-                              ]
-                            },
-                            "optional": true
-                          },
-                          "deliveryAddress": {
-                            "fieldType": {
-                              "type": "object",
-                              "value": {
-                                "label": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "line": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "subdistrict": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "district": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "province": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "postcode": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                }
-                              }
-                            },
-                            "optional": true
-                          },
-                          "contact": {
-                            "fieldType": {
-                              "type": "object",
-                              "value": {
-                                "name": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "role": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "phone": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                },
-                                "email": {
-                                  "fieldType": {
-                                    "type": "string"
-                                  },
-                                  "optional": true
-                                }
-                              }
-                            },
-                            "optional": true
-                          },
-                          "notes": {
-                            "fieldType": {
-                              "type": "string"
-                            },
-                            "optional": true
                           },
                           "code": {
                             "fieldType": {
@@ -1893,7 +1756,7 @@
                             },
                             "optional": false
                           },
-                          "normalizedName": {
+                          "name": {
                             "fieldType": {
                               "type": "string"
                             },
@@ -1915,77 +1778,11 @@
                             },
                             "optional": false
                           },
-                          "version": {
+                          "province": {
                             "fieldType": {
-                              "type": "number"
-                            },
-                            "optional": false
-                          },
-                          "createdAt": {
-                            "fieldType": {
-                              "type": "number"
-                            },
-                            "optional": false
-                          },
-                          "createdByUserId": {
-                            "fieldType": {
-                              "type": "id",
-                              "tableName": "users"
-                            },
-                            "optional": false
-                          },
-                          "updatedAt": {
-                            "fieldType": {
-                              "type": "number"
-                            },
-                            "optional": false
-                          },
-                          "updatedByUserId": {
-                            "fieldType": {
-                              "type": "id",
-                              "tableName": "users"
-                            },
-                            "optional": false
-                          },
-                          "archivedAt": {
-                            "fieldType": {
-                              "type": "number"
+                              "type": "string"
                             },
                             "optional": true
-                          },
-                          "archivedByUserId": {
-                            "fieldType": {
-                              "type": "id",
-                              "tableName": "users"
-                            },
-                            "optional": true
-                          },
-                          "orgId": {
-                            "fieldType": {
-                              "type": "id",
-                              "tableName": "organizations"
-                            },
-                            "optional": false
-                          },
-                          "_id": {
-                            "fieldType": {
-                              "type": "id",
-                              "tableName": "customers"
-                            },
-                            "optional": false
-                          },
-                          "_creationTime": {
-                            "fieldType": {
-                              "type": "number"
-                            },
-                            "optional": false
-                          },
-                          "customerId": {
-                            "fieldType": {
-                              "type": "id",
-                              "tableName": "customers"
-                            },
-                            "optional": false
                           }
                         }
                       }
@@ -2168,6 +1965,104 @@
       ]
     }
   },
+  "customers/catalogue:viewer": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {}
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "canManage": {
+                    "fieldType": {
+                      "type": "boolean"
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "customers/provision:upgradeOrgAdminRoles": {
     "kind": "mutation",
     "visibility": "internal",
@@ -2209,6 +2104,26 @@
           },
           "optional": false
         },
+        "customizedOrgIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "organizations"
+            }
+          },
+          "optional": false
+        },
+        "missingOrgIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "organizations"
+            }
+          },
+          "optional": false
+        },
         "isDone": {
           "fieldType": {
             "type": "boolean"
@@ -2218,6 +2133,86 @@
         "continueCursor": {
           "fieldType": {
             "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
+  "customers/provision:verifyOrgAdminGrants": {
+    "kind": "query",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "page": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "object",
+              "value": {
+                "orgId": {
+                  "fieldType": {
+                    "type": "id",
+                    "tableName": "organizations"
+                  },
+                  "optional": false
+                },
+                "status": {
+                  "fieldType": {
+                    "type": "union",
+                    "value": [
+                      {
+                        "type": "literal",
+                        "value": "current"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "eligible"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "customized"
+                      },
+                      {
+                        "type": "literal",
+                        "value": "missing"
+                      }
+                    ]
+                  },
+                  "optional": false
+                },
+                "hasCustomerGrants": {
+                  "fieldType": {
+                    "type": "boolean"
+                  },
+                  "optional": false
+                }
+              }
+            }
           },
           "optional": false
         }

@@ -19,6 +19,7 @@ import type * as aiUsage_reports from "../aiUsage/reports.js";
 import type * as aiUsage_validators from "../aiUsage/validators.js";
 import type * as crons from "../crons.js";
 import type * as customers_catalogue from "../customers/catalogue.js";
+import type * as customers_catalogueGeneration from "../customers/catalogueGeneration.js";
 import type * as customers_customerCodes from "../customers/customerCodes.js";
 import type * as customers_provision from "../customers/provision.js";
 import type * as customers_validators from "../customers/validators.js";
@@ -201,6 +202,7 @@ declare const fullApi: ApiFromModules<{
   "aiUsage/validators": typeof aiUsage_validators;
   crons: typeof crons;
   "customers/catalogue": typeof customers_catalogue;
+  "customers/catalogueGeneration": typeof customers_catalogueGeneration;
   "customers/customerCodes": typeof customers_customerCodes;
   "customers/provision": typeof customers_provision;
   "customers/validators": typeof customers_validators;

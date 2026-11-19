@@ -1,10 +1,13 @@
+import type { FunctionReturnType } from "convex/server";
 import { describe, expect, it } from "vitest";
 
 import { api, internal } from "../../convex/_generated/api";
+import { listCustomersPage } from "../../convex/customers/catalogue";
 import { provisionHrForOrganization } from "../../convex/lib/authorizationSeedConvex";
 import { DEFAULT_ORGANIZATION_SETTINGS } from "../../convex/lib/organizationDefaults";
 import {
   CUSTOMER_PERMISSION_CODES,
+  HR_ADMIN_PERMISSION_CODES,
   PLANNER_PERMISSION_CODES,
 } from "../../convex/lib/permissions";
 import {
@@ -17,7 +20,9 @@ import {
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
+  seedSecondActorForOrgA,
 } from "../fixtures/convex-tenant-world";
+import { settlePage } from "../fixtures/query-read-stats";
 
 const catalogue = api.customers.catalogue;
 const writes = api.customers.writes;
@@ -58,6 +63,45 @@ async function setup(roleA = "ORG_ADMIN") {
     return result;
   };
   return { ...world, roles, actorA, actorB, create };
+}
+
+const searchArgs = {
+  search: "needle",
+  pageSize: 20,
+  status: "ACTIVE",
+} as const;
+type ListOutcome = FunctionReturnType<typeof catalogue.listCustomersPage>;
+type ListPage = Extract<ListOutcome, { ok: true }>["value"];
+
+async function seedCustomerSearch(
+  matches: (index: number) => boolean,
+  notes?: string,
+) {
+  const world = await setup();
+  const ids = await world.t.run(async (ctx) => {
+    const ids = [];
+    for (let index = 0; index < 100; index++) {
+      const name = `Customer ${String(index).padStart(2, "0")}`;
+      ids.push(
+        await ctx.db.insert("customers", {
+          orgId: world.orgA,
+          code: `FIXTURE-${index}`,
+          name,
+          normalizedName: name.toLowerCase(),
+          ...(matches(index) ? { legalNameEn: "needle" } : {}),
+          ...(notes === undefined ? {} : { notes }),
+          status: "ACTIVE",
+          version: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          createdByUserId: world.userA,
+          updatedByUserId: world.userA,
+        }),
+      );
+    }
+    return ids;
+  });
+  return { ...world, ids };
 }
 
 describe("customer model", () => {
@@ -242,6 +286,34 @@ describe("customer catalogue", () => {
     ).toMatchObject({ ok: true, replayed: false });
   });
 
+  it("rejects a generated code when the next sequence number exceeds the explicit code limit", async () => {
+    const { actorA, create } = await setup();
+    const highest = `C-${"9".repeat(62)}`;
+    const overflow = `C-1${"0".repeat(62)}`;
+    const { customerId } = await create({
+      requestId: "highest",
+      code: highest,
+      name: "Highest",
+    });
+    for (const code of [overflow, undefined]) {
+      expect(
+        allowed(
+          await actorA.mutation(writes.createCustomer, {
+            requestId: code ? "explicit-overflow" : "generated-overflow",
+            name: "Overflow",
+            ...(code ? { code } : {}),
+          }),
+        ),
+      ).toEqual({ ok: false, code: "FIELD_INVALID", field: "code" });
+    }
+    expect(
+      allowed(await actorA.query(catalogue.listCustomersPage, { pageSize: 20 }))
+        .page,
+    ).toEqual([
+      { customerId, code: highest, name: "Highest", status: "ACTIVE" },
+    ]);
+  });
+
   it("returns null for malformed, deleted and foreign IDs and refuses foreign writes", async () => {
     const { actorA, actorB, create, t, warehouses } = await setup();
     const { customerId } = await create({
@@ -282,6 +354,75 @@ describe("customer catalogue", () => {
     ).toEqual({ ok: false, code: "NOT_FOUND" });
   });
 
+  it("authorizes customer-only managers and reports read-only access without warehouse grants", async () => {
+    const world = await setup();
+    const { t, orgA, roles, actorA, create } = world;
+    const readerRole = "CUSTOMER_READER";
+    await t.run(async (ctx) => {
+      const roleId = roles.rolesA.get("ORG_ADMIN")!;
+      const grants = await ctx.db
+        .query("rolePermissions")
+        .withIndex("by_orgId_roleId_permissionCode", (q) =>
+          q.eq("orgId", orgA).eq("roleId", roleId),
+        )
+        .collect();
+      for (const grant of grants)
+        if (!grant.permissionCode.startsWith("masterData.customer."))
+          await ctx.db.delete("rolePermissions", grant._id);
+      const readRoleId = await ctx.db.insert("roles", {
+        orgId: orgA,
+        key: readerRole,
+        name: "Customer reader",
+        seeded: false,
+        status: "ACTIVE",
+      });
+      await ctx.db.insert("rolePermissions", {
+        orgId: orgA,
+        roleId: readRoleId,
+        permissionCode: "masterData.customer.read",
+      });
+    });
+    const { clerkUserId } = await seedSecondActorForOrgA(world, readerRole);
+    const reader = t.withIdentity({
+      subject: clerkUserId,
+      org_id: "org_fixture_a",
+    });
+    expect(
+      await actorA.query(api.workspace.current.readCurrent, {}),
+    ).toMatchObject({
+      ok: false,
+      denial: { code: "AUTHORIZATION_DENIED" },
+    });
+    const { customerId } = await create({
+      requestId: "customer-only",
+      name: "Customer only",
+    });
+    for (const [actor, canManage] of [
+      [actorA, true],
+      [reader, false],
+    ] as const) {
+      expect(
+        allowed(
+          await actor.query(catalogue.listCustomersPage, { pageSize: 20 }),
+        ).page,
+      ).toEqual([
+        { customerId, code: "C-0001", name: "Customer only", status: "ACTIVE" },
+      ]);
+      expect(
+        allowed(await actor.query(catalogue.getCustomer, { customerId })),
+      ).toMatchObject({ customerId, name: "Customer only" });
+      expect(allowed(await actor.query(catalogue.viewer, {}))).toEqual({
+        canManage,
+      });
+    }
+    expect(
+      await reader.mutation(writes.createCustomer, {
+        requestId: "read-only",
+        name: "Denied",
+      }),
+    ).toMatchObject({ ok: false, denial: { code: "AUTHORIZATION_DENIED" } });
+  });
+
   it("denies a member without customer grants", async () => {
     const { actorA, actorB } = await setup("WAREHOUSE_MANAGER");
     const row = allowed(
@@ -296,6 +437,7 @@ describe("customer catalogue", () => {
       actorA.query(catalogue.listCustomersPage, { pageSize: 20 }),
       actorA.query(catalogue.findSimilarCustomers, { name: "Customer" }),
       actorA.query(catalogue.suggestCustomerCode, {}),
+      actorA.query(catalogue.viewer, {}),
       actorA.mutation(writes.createCustomer, {
         requestId: "denied",
         name: "Customer",
@@ -411,7 +553,12 @@ describe("customer catalogue", () => {
           pageSize: 20,
         }),
       ).page,
-    ).toMatchObject([{ name: "Updated", version: 4 }]);
+    ).toEqual([
+      { customerId, code: "C-0001", name: "Updated", status: "ACTIVE" },
+    ]);
+    expect(
+      allowed(await actorA.query(catalogue.getCustomer, { customerId })),
+    ).toMatchObject({ version: 4 });
   });
 
   it("replays a create without allocating another code and rejects an altered replay", async () => {
@@ -435,6 +582,77 @@ describe("customer catalogue", () => {
     );
   });
 
+  it("trims optional text on create and update while preserving the inner text", async () => {
+    const { actorA, create } = await setup();
+    const { customerId } = await create({
+      requestId: "trim-create",
+      name: " กิ่ง   Ａcme ",
+      legalNameTh: "  บริษัท  กิ่ง ",
+      legalNameEn: " Ａcme  Co. ",
+      notes: " \nLine  One\nLine Two \t ",
+      deliveryAddress: {
+        label: " HQ  EAST ",
+        line: " 123  Ａ Road ",
+        subdistrict: " แขวง  นา ",
+        district: " เขต  นา ",
+        province: " Bangkok ",
+        postcode: " 10100 ",
+      },
+      contact: {
+        name: " Ａda  Lovelace ",
+        role: " SALES ",
+        phone: " +66  123 ",
+        email: " SALES@example.test ",
+      },
+    });
+    expect(
+      allowed(await actorA.query(catalogue.getCustomer, { customerId })),
+    ).toMatchObject({
+      name: " กิ่ง   Ａcme ",
+      normalizedName: "กิ่ง acme",
+      legalNameTh: "บริษัท  กิ่ง",
+      legalNameEn: "Ａcme  Co.",
+      notes: "Line  One\nLine Two",
+      deliveryAddress: {
+        label: "HQ  EAST",
+        line: "123  Ａ Road",
+        subdistrict: "แขวง  นา",
+        district: "เขต  นา",
+        province: "Bangkok",
+        postcode: "10100",
+      },
+      contact: {
+        name: "Ａda  Lovelace",
+        role: "SALES",
+        phone: "+66  123",
+        email: "SALES@example.test",
+      },
+    });
+    const notes = "x".repeat(2000);
+    expect(
+      allowed(
+        await actorA.mutation(writes.updateCustomer, {
+          requestId: "trim-update",
+          customerId,
+          expectedVersion: 1,
+          name: "Customer",
+          legalNameTh: " \t ",
+          legalNameEn: " Second  Ｃompany ",
+          notes: ` ${notes} `,
+          deliveryAddress: { line: "  Second  Address ", province: "  " },
+          contact: { name: " New  Person ", phone: " \n " },
+        }),
+      ),
+    ).toEqual({ ok: true, customerId, replayed: false });
+    const updated = allowed(
+      await actorA.query(catalogue.getCustomer, { customerId }),
+    );
+    expect(updated).not.toHaveProperty("legalNameTh");
+    expect(updated).toMatchObject({ legalNameEn: "Second  Ｃompany", notes });
+    expect(updated?.deliveryAddress).toEqual({ line: "Second  Address" });
+    expect(updated?.contact).toEqual({ name: "New  Person" });
+  });
+
   it("fully replaces editable fields and records private fields only as change markers", async () => {
     const { actorA, create, t, orgA } = await setup();
     const privateValues = {
@@ -443,7 +661,7 @@ describe("customer catalogue", () => {
         phone: "020000021",
         email: "private@example.test",
       },
-      deliveryAddress: { line: "Confidential address", postcode: "10100" },
+      deliveryAddress: { line: "Confidential address", postcode: "92734" },
       taxId: "0105553012341",
       notes: "Sensitive notes",
     };
@@ -460,8 +678,8 @@ describe("customer catalogue", () => {
       await actorA.query(catalogue.getCustomer, { customerId }),
     );
     expect(initial).toMatchObject({
-      legalNameTh: " Thai display spacing ",
-      legalNameEn: " English display spacing ",
+      legalNameTh: "Thai display spacing",
+      legalNameEn: "English display spacing",
       establishment: { kind: "BRANCH", code: "00001" },
       taxIdChecksumValid: true,
     });
@@ -531,13 +749,59 @@ describe("customer catalogue", () => {
       "020000021",
       "private@example.test",
       "Confidential address",
-      "10100",
+      "92734",
       "0105553012341",
       "Sensitive notes",
       "New private person",
     ]) {
       expect(payload).not.toContain(secret);
     }
+  });
+
+  it("returns only customer summaries in the list and full fields in detail", async () => {
+    const { actorA, create } = await setup();
+    const privateFields = {
+      legalNameTh: "ชื่อบริษัท",
+      legalNameEn: "Private legal name",
+      taxId: "0105553012341",
+      establishment: { kind: "HEAD_OFFICE" as const },
+      deliveryAddress: { line: "Private address", province: "Bangkok" },
+      contact: { name: "Private contact", phone: "020000021" },
+      notes: "Private notes",
+    };
+    const first = await create({
+      requestId: "summary-fields",
+      code: "FIRST",
+      name: "First",
+      ...privateFields,
+    });
+    const second = await create({ requestId: "no-province", name: "Second" });
+
+    expect(
+      allowed(await actorA.query(catalogue.listCustomersPage, { pageSize: 20 }))
+        .page,
+    ).toEqual([
+      {
+        customerId: first.customerId,
+        code: "FIRST",
+        name: "First",
+        status: "ACTIVE",
+        province: "Bangkok",
+      },
+      {
+        customerId: second.customerId,
+        code: "C-0001",
+        name: "Second",
+        status: "ACTIVE",
+      },
+    ]);
+    expect(
+      allowed(
+        await actorA.query(catalogue.getCustomer, {
+          customerId: first.customerId,
+        }),
+      ),
+    ).toMatchObject({ ...privateFields, taxIdChecksumValid: true });
   });
 
   it("finds case-insensitive substrings and matches only a complete tax ID", async () => {
@@ -616,6 +880,131 @@ describe("customer catalogue", () => {
         await actorA.query(catalogue.findSimilarCustomers, { name: " " }),
       ),
     ).toEqual([]);
+  });
+
+  it("settles 19 of 100 matches within the customer read and call budget", async () => {
+    const world = await seedCustomerSearch((index) => index < 19);
+    const { result, requests, stats } = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+      100,
+    );
+    const measuredBudget = {
+      calls: requests,
+      scannedRows: stats.rangeDocs.customers,
+      retainedIdReads: stats.gets.customers ?? 0,
+    };
+    expect(result.status).toBe("ready");
+    expect(result.isDone).toBe(true);
+    expect(result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(0, 19),
+    );
+    expect(measuredBudget.scannedRows).toBe(100);
+    expect(
+      measuredBudget.calls,
+      JSON.stringify(measuredBudget),
+    ).toBeLessThanOrEqual(5);
+    expect(
+      measuredBudget.retainedIdReads,
+      JSON.stringify(measuredBudget),
+    ).toBeLessThanOrEqual(19);
+  });
+
+  it("invalidates a scan when an already-scanned customer becomes eligible", async () => {
+    const world = await seedCustomerSearch((index) => index < 19);
+    const { actorA, ids } = world;
+    const first = allowed(
+      await actorA.query(catalogue.listCustomersPage, searchArgs),
+    );
+    expect(first.status).toBe("scanning");
+    expect(first.scanned).toBe(20);
+    const update = allowed(
+      await actorA.mutation(writes.updateCustomer, {
+        requestId: "new-match",
+        customerId: ids[19]!,
+        expectedVersion: 1,
+        name: "Customer 19",
+        legalNameEn: "needle",
+      }),
+    );
+    expect(update).toMatchObject({ ok: true, replayed: false });
+
+    const fresh = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+    );
+    expect(fresh.result.page.map((row) => row.customerId)).toEqual(
+      ids.slice(0, 20),
+    );
+    const stale = await settlePage<ListPage>(world, listCustomersPage, {
+      ...searchArgs,
+      scanCursor: first.scanCursor,
+    });
+    expect(stale.result).toMatchObject({ status: "reset", page: [] });
+
+    expect(
+      allowed(await actorA.query(catalogue.listCustomersPage, searchArgs))
+        .status,
+    ).toBe("ready");
+    expect(fresh.result.continueCursor).toBeTruthy();
+    await actorA.mutation(writes.archiveCustomer, {
+      requestId: "archive-new-match",
+      customerId: ids[19]!,
+      expectedVersion: 2,
+    });
+    expect(
+      allowed(
+        await actorA.query(catalogue.listCustomersPage, {
+          ...searchArgs,
+          cursor: fresh.result.continueCursor,
+        }),
+      ),
+    ).toMatchObject({ status: "reset", page: [] });
+  });
+
+  it("carries surplus matches across page boundaries in index order", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index !== 19 && index !== 40,
+    );
+    const pages: ListPage["page"][] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 5; page++) {
+      const { result } = await settlePage<ListPage>(world, listCustomersPage, {
+        ...searchArgs,
+        ...(cursor ? { cursor } : {}),
+      });
+      expect(result.status).toBe("ready");
+      pages.push(result.page);
+      cursor = result.continueCursor;
+      if (result.isDone) break;
+    }
+    expect(pages.map((rows) => rows.length)).toEqual([20, 20, 20, 20, 18]);
+    expect(pages.flat().map((row) => row.customerId)).toEqual(
+      world.ids.filter((_, index) => index !== 19 && index !== 40),
+    );
+  });
+
+  it("keeps scanning past a native split caused by large customer records", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index !== 50,
+      "ก".repeat(2000),
+    );
+    const { result, requests } = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      {
+        ...searchArgs,
+        pageSize: 100,
+      },
+    );
+    expect(requests).toBeGreaterThan(1);
+    expect(result.status).toBe("ready");
+    expect(result.isDone).toBe(true);
+    expect(result.page.map((row) => row.customerId)).toEqual(
+      world.ids.filter((_, index) => index !== 50),
+    );
   });
 
   it("advances bounded scan and page cursors in normalized-name order", async () => {
@@ -700,6 +1089,200 @@ describe("customer catalogue", () => {
 });
 
 describe("customer authorization upgrade", () => {
+  it.each([
+    ["customers", "hr", "ai"],
+    ["customers", "ai", "hr"],
+    ["hr", "customers", "ai"],
+    ["hr", "ai", "customers"],
+    ["ai", "customers", "hr"],
+    ["ai", "hr", "customers"],
+  ] as const)(
+    "upgrades exact defaults and preserves customized roles in migration order %s → %s → %s",
+    async (first, second, third) => {
+      const { t, roles, orgA, orgB } = await setup();
+      const roleA = roles.rolesA.get("ORG_ADMIN")!;
+      const roleB = roles.rolesB.get("ORG_ADMIN")!;
+      const plannerAndCustomers = [
+        ...PLANNER_PERMISSION_CODES,
+        ...CUSTOMER_PERMISSION_CODES,
+      ];
+      const plannerHrAndCustomers = [
+        ...plannerAndCustomers,
+        ...HR_ADMIN_PERMISSION_CODES,
+      ];
+      const fixture = await t.run(async (ctx) => {
+        const orgId = await ctx.db.insert("organizations", {
+          clerkOrganizationId: "org_renamed_with_hr",
+          name: "Renamed with HR",
+          status: "ACTIVE",
+          settings: DEFAULT_ORGANIZATION_SETTINGS,
+        });
+        const roleId = await ctx.db.insert("roles", {
+          orgId,
+          key: "ORG_ADMIN",
+          name: "Renamed with HR",
+          description: "Manages building and storage plans and HR attendance.",
+          seeded: true,
+          status: "ACTIVE",
+        });
+        for (const permissionCode of plannerHrAndCustomers)
+          await ctx.db.insert("rolePermissions", {
+            orgId,
+            roleId,
+            permissionCode,
+          });
+        for (const [orgId, roleId, keep] of [
+          [orgA, roleA, plannerAndCustomers],
+          [orgB, roleB, PLANNER_PERMISSION_CODES],
+        ] as const) {
+          const grants = await ctx.db
+            .query("rolePermissions")
+            .withIndex("by_orgId_roleId_permissionCode", (q) =>
+              q.eq("orgId", orgId).eq("roleId", roleId),
+            )
+            .collect();
+          for (const grant of grants)
+            if (!keep.includes(grant.permissionCode))
+              await ctx.db.delete("rolePermissions", grant._id);
+        }
+        await ctx.db.patch("roles", roleA, {
+          name: "Renamed planner",
+          description: "Manages building and storage plans.",
+        });
+        await ctx.db.patch("roles", roleB, {
+          description: "Manages building and storage plans.",
+        });
+        return { orgId, roleId };
+      });
+      const upgrade = internal.customers.provision.upgradeOrgAdminRoles;
+      const ai = internal.aiUsage.provision.organization;
+      for (const step of [first, second, third]) {
+        if (step === "customers") {
+          expect(await t.mutation(upgrade, {})).toMatchObject({
+            upgraded: 1,
+            customized: 2,
+          });
+          expect(await t.mutation(upgrade, {})).toMatchObject({
+            upgraded: 0,
+            current: 1,
+            customized: 2,
+          });
+        } else {
+          const run = async (orgId: typeof orgA) =>
+            step === "hr"
+              ? (await t.run((ctx) => provisionHrForOrganization(ctx, orgId)))
+                  .orgAdmin
+              : t.mutation(ai, { orgId });
+          expect(await run(orgA)).toBe("CUSTOMIZED");
+          expect(await run(fixture.orgId)).toBe("CUSTOMIZED");
+          expect(await run(orgB)).toBe("UPGRADED");
+          expect(await run(orgB)).toBe("CURRENT");
+        }
+      }
+      for (const [orgId, roleId, expected] of [
+        [orgA, roleA, plannerAndCustomers],
+        [fixture.orgId, fixture.roleId, plannerHrAndCustomers],
+        [
+          orgB,
+          roleB,
+          [...plannerHrAndCustomers, "aiUsage.read", "aiUsage.configure"],
+        ],
+      ] as const) {
+        const grants = await t.run((ctx) =>
+          ctx.db
+            .query("rolePermissions")
+            .withIndex("by_orgId_roleId_permissionCode", (q) =>
+              q.eq("orgId", orgId).eq("roleId", roleId),
+            )
+            .collect(),
+        );
+        expect(grants.map((grant) => grant.permissionCode).sort()).toEqual(
+          [...expected].sort(),
+        );
+      }
+    },
+  );
+
+  it("verifies administrator grant state page by page before and after upgrades", async () => {
+    const { t, roles, orgA, orgB } = await setup();
+    const { customized, missing } = await t.run(async (ctx) => {
+      const roleId = roles.rolesA.get("ORG_ADMIN")!;
+      const grants = await ctx.db
+        .query("rolePermissions")
+        .withIndex("by_orgId_roleId_permissionCode", (q) =>
+          q.eq("orgId", orgA).eq("roleId", roleId),
+        )
+        .collect();
+      for (const grant of grants)
+        if (grant.permissionCode.startsWith("masterData.customer."))
+          await ctx.db.delete("rolePermissions", grant._id);
+
+      const ids = [];
+      for (let index = 0; index < 51; index++) {
+        ids.push(
+          await ctx.db.insert("organizations", {
+            clerkOrganizationId: `org_check_${String(index).padStart(2, "0")}`,
+            name: `Check ${index}`,
+            status: "ACTIVE",
+            settings: DEFAULT_ORGANIZATION_SETTINGS,
+          }),
+        );
+      }
+      const customized = ids[0]!;
+      const customRole = await ctx.db.insert("roles", {
+        orgId: customized,
+        key: "ORG_ADMIN",
+        name: "Renamed admin",
+        description: "Manages building and storage plans.",
+        seeded: true,
+        status: "ACTIVE",
+      });
+      for (const permissionCode of CUSTOMER_PERMISSION_CODES)
+        await ctx.db.insert("rolePermissions", {
+          orgId: customized,
+          roleId: customRole,
+          permissionCode,
+        });
+      return { customized, missing: ids[50]! };
+    });
+    const verify = internal.customers.provision.verifyOrgAdminGrants;
+    const upgrade = internal.customers.provision.upgradeOrgAdminRoles;
+    const first = await t.query(verify, {});
+    expect(first.isDone).toBe(false);
+    expect(first.page).toHaveLength(50);
+    expect(first.page[0]).toEqual({
+      orgId: customized,
+      status: "customized",
+      hasCustomerGrants: true,
+    });
+    const args = { cursor: first.continueCursor };
+    const second = await t.query(verify, args);
+    expect(second.isDone).toBe(true);
+    expect(second.page).toEqual([
+      { orgId: missing, status: "missing", hasCustomerGrants: false },
+      { orgId: orgA, status: "eligible", hasCustomerGrants: false },
+      { orgId: orgB, status: "current", hasCustomerGrants: true },
+    ]);
+    expect(await t.query(verify, args)).toEqual(second);
+
+    expect(await t.mutation(upgrade, args)).toMatchObject({
+      upgraded: 1,
+      current: 1,
+      missing: 1,
+    });
+    expect(await t.mutation(upgrade, args)).toMatchObject({
+      upgraded: 0,
+      current: 2,
+      missing: 1,
+    });
+    expect((await t.query(verify, args)).page).toEqual([
+      { orgId: missing, status: "missing", hasCustomerGrants: false },
+      { orgId: orgA, status: "current", hasCustomerGrants: true },
+      { orgId: orgB, status: "current", hasCustomerGrants: true },
+    ]);
+    expect(await t.query(verify, {})).toEqual(first);
+  });
+
   it("resumes bounded pages, upgrades older defaults, skips customizations and exposes grants", async () => {
     const { actorA, actorB, t, roles, orgA, orgB } = await setup();
     const customerOnly = (code: string) =>
@@ -707,7 +1290,7 @@ describe("customer authorization upgrade", () => {
     const legacyPlannerOnly = (code: string) =>
       !PLANNER_PERMISSION_CODES.includes(code);
 
-    await t.run(async (ctx) => {
+    const fixtureOrgIds = await t.run(async (ctx) => {
       for (const permissionCode of CUSTOMER_PERMISSION_CODES) {
         const definition = await ctx.db
           .query("permissions")
@@ -735,6 +1318,7 @@ describe("customer authorization upgrade", () => {
         description: "Manages building and storage plans.",
       });
 
+      const orgIds = [];
       for (let index = 0; index < 51; index += 1) {
         const name = `Custom tenant ${index}`;
         const orgId = await ctx.db.insert("organizations", {
@@ -743,6 +1327,7 @@ describe("customer authorization upgrade", () => {
           status: "ACTIVE",
           settings: DEFAULT_ORGANIZATION_SETTINGS,
         });
+        orgIds.push(orgId);
         if (index >= 4) continue;
         const roleId = await ctx.db.insert("roles", {
           orgId,
@@ -763,6 +1348,7 @@ describe("customer authorization upgrade", () => {
           });
         }
       }
+      return orgIds;
     });
     expect(await actorA.query(catalogue.suggestCustomerCode, {})).toMatchObject(
       { ok: false },
@@ -782,14 +1368,26 @@ describe("customer authorization upgrade", () => {
       missing: 1,
       isDone: true,
     });
-    expect(await t.mutation(upgrade, {})).toMatchObject({
-      upgraded: 0,
-      customized: 4,
-      missing: 46,
-    });
+    expect(first.customizedOrgIds).toHaveLength(4);
+    expect([...first.customizedOrgIds].sort()).toEqual(
+      fixtureOrgIds.slice(0, 4).sort(),
+    );
+    expect(first.missingOrgIds).toHaveLength(46);
+    expect(second.customizedOrgIds).toEqual([]);
+    expect(second.missingOrgIds).toHaveLength(1);
+    expect([...first.missingOrgIds, ...second.missingOrgIds].sort()).toEqual(
+      fixtureOrgIds.slice(4).sort(),
+    );
+    expect(await t.mutation(upgrade, {})).toEqual(first);
     expect(
       await t.mutation(upgrade, { cursor: first.continueCursor }),
-    ).toMatchObject({ upgraded: 0, current: 2, isDone: true });
+    ).toMatchObject({
+      upgraded: 0,
+      current: 2,
+      customizedOrgIds: [],
+      missingOrgIds: second.missingOrgIds,
+      isDone: true,
+    });
     for (const actor of [actorA, actorB]) {
       expect(
         allowed(await actor.query(api.workspace.current.readCurrent, {}))

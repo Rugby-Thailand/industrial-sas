@@ -18,6 +18,7 @@ import { writeContextOf } from "../lib/writeEnvelope";
 import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import { validateCustomerFields } from "../model/customers/customers";
 import type { Result } from "../model/result";
+import { bumpCustomerCatalogueGeneration } from "./catalogueGeneration";
 import { customerCodeSequenceKey, nextCustomerCode } from "./customerCodes";
 import { editableCustomerFields } from "./validators";
 
@@ -51,13 +52,19 @@ const success = ({ documentId, replayed }: MasterDataOutcome) => ({
   customerId: documentId,
   replayed,
 });
-const outcomeOf = (write: Result<MasterDataOutcome, MasterDataError>) =>
-  write.ok
-    ? success(write.value)
-    : failure(
-        write.error.code,
-        "field" in write.error ? write.error.field : undefined,
-      );
+async function finishWrite(
+  ctx: TenantFunctionContext,
+  write: Result<MasterDataOutcome, MasterDataError>,
+) {
+  if (!write.ok)
+    return failure(
+      write.error.code,
+      "field" in write.error ? write.error.field : undefined,
+    );
+  if (!write.value.replayed)
+    await bumpCustomerCatalogueGeneration(ctx.tenantDb);
+  return success(write.value);
+}
 
 const manageCustomers = {
   permissionCode: NAVIGATION_PERMISSION.customerManage,
@@ -103,16 +110,14 @@ export const createCustomer = mutationWithOrg({
     const editable = validateCustomerFields(args);
     if (!editable.ok) return failure(editable.error.code, editable.error.field);
 
-    let code: string;
-    if (args.code?.trim()) {
-      const explicitCode = normalizeField("code", args.code, CODE_FIELD);
-      if (!explicitCode.ok) return failure(explicitCode.error.code, "code");
-      code = explicitCode.value;
-    } else {
-      code = await nextCustomerCode(ctx.tenantDb);
-    }
+    const codeInput =
+      args.code?.trim() || (await nextCustomerCode(ctx.tenantDb));
+    const normalizedCode = normalizeField("code", codeInput, CODE_FIELD);
+    if (!normalizedCode.ok) return failure(normalizedCode.error.code, "code");
+    const code = normalizedCode.value;
 
-    return outcomeOf(
+    return finishWrite(
+      ctx,
       await createMasterDataRow({
         ...context,
         fingerprint: args,
@@ -174,7 +179,8 @@ async function changeCustomer(
   const changes = patch(row, context.now);
   if (!changes.ok) return failure(changes.error.code, changes.error.field);
 
-  return outcomeOf(
+  return finishWrite(
+    ctx,
     await updateMasterDataRow({
       ...context,
       documentId: row._id,

@@ -12,6 +12,7 @@ export const GLOBAL_TABLES = ["organizations", "users", "permissions"] as const;
 export const TENANT_TABLES = [
   "warehouses",
   "customers",
+  "customerCatalogueSignals",
   "memberships",
   "membershipRoles",
   "membershipWarehouses",

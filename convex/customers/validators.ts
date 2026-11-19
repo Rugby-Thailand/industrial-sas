@@ -51,7 +51,15 @@ export const customerFields = {
   archivedByUserId: v.optional(v.id("users")),
 };
 
-export const customerRowFields = {
+export const customerSummary = v.object({
+  customerId: v.id("customers"),
+  code: v.string(),
+  name: v.string(),
+  status: customerStatus,
+  province: v.optional(v.string()),
+});
+
+export const customerDetailFields = {
   ...customerFields,
   orgId: v.id("organizations"),
   _id: v.id("customers"),

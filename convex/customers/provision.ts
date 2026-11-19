@@ -1,108 +1,141 @@
 import { v } from "convex/values";
 
 import type { Id } from "../_generated/dataModel";
-import { internalMutation, type MutationCtx } from "../_generated/server";
 import {
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+} from "../_generated/server";
+import {
+  readSeededOrgAdminGrants,
   seedPermissionDefinitions,
-  withoutCustomerAdminGrants,
+  upgradeSeededOrgAdmin,
 } from "../lib/authorizationSeedConvex";
 import {
   CUSTOMER_PERMISSION_CODES,
-  HR_ADMIN_PERMISSION_CODES,
   PERMISSIONS_BY_CODE,
-  PLANNER_PERMISSION_CODES,
 } from "../lib/permissions";
 
 const BATCH_SIZE = 50;
-const PLANNER_AND_HR = [
-  ...PLANNER_PERMISSION_CODES,
-  ...HR_ADMIN_PERMISSION_CODES,
-];
-const PRE_CUSTOMERS_ADMIN = [
-  ...PLANNER_AND_HR,
-  "aiUsage.read",
-  "aiUsage.configure",
-];
-const BASELINES = [
-  PLANNER_PERMISSION_CODES,
-  PLANNER_AND_HR,
-  PRE_CUSTOMERS_ADMIN,
-];
 const CUSTOMER_DEFINITIONS = CUSTOMER_PERMISSION_CODES.map((code) =>
   PERMISSIONS_BY_CODE.get(code)!,
 );
+const batchArgs = { cursor: v.optional(v.string()) };
+const batchCursor = { isDone: v.boolean(), continueCursor: v.string() };
 
-async function upgradeAdmin(ctx: MutationCtx, orgId: Id<"organizations">) {
-  const role = await ctx.db
-    .query("roles")
-    .withIndex("by_orgId_key", (q) =>
-      q.eq("orgId", orgId).eq("key", "ORG_ADMIN"),
-    )
-    .unique();
-  if (!role) return "missing";
-  if (
-    !role.seeded ||
-    role.status !== "ACTIVE" ||
-    role.name !== "Organization administrator" ||
-    (role.description !== "Manages building and storage plans." &&
-      role.description !==
-        "Manages building and storage plans and HR attendance.")
-  ) {
-    return "customized";
-  }
-
-  const grants = await ctx.db
-    .query("rolePermissions")
-    .withIndex("by_orgId_roleId_permissionCode", (q) =>
-      q.eq("orgId", orgId).eq("roleId", role._id),
-    )
-    .take(PRE_CUSTOMERS_ADMIN.length + CUSTOMER_PERMISSION_CODES.length + 1);
-  const codes = new Set(grants.map((grant) => grant.permissionCode));
-  const baselineCodes = withoutCustomerAdminGrants(codes);
-  if (
-    grants.length !== codes.size ||
-    !BASELINES.some(
-      (baseline) =>
-        baseline.length === baselineCodes.size &&
-        baseline.every((code) => baselineCodes.has(code)),
-    )
-  ) {
-    return "customized";
-  }
-  if (baselineCodes !== codes) return "current";
-
-  for (const permissionCode of CUSTOMER_PERMISSION_CODES) {
-    await ctx.db.insert("rolePermissions", {
-      orgId,
-      roleId: role._id,
-      permissionCode,
-    });
-  }
-  return "upgraded";
+function organizationPage(ctx: QueryCtx, cursor: string | undefined) {
+  return ctx.db
+    .query("organizations")
+    .withIndex("by_clerkOrganizationId")
+    .paginate({ cursor: cursor ?? null, numItems: BATCH_SIZE });
 }
 
 /** Run after deployment. Pass continueCursor back in as cursor until isDone. */
 export const upgradeOrgAdminRoles = internalMutation({
-  args: { cursor: v.optional(v.string()) },
+  args: batchArgs,
   returns: v.object({
     upgraded: v.number(),
     current: v.number(),
     customized: v.number(),
     missing: v.number(),
-    isDone: v.boolean(),
-    continueCursor: v.string(),
+    customizedOrgIds: v.array(v.id("organizations")),
+    missingOrgIds: v.array(v.id("organizations")),
+    ...batchCursor,
   }),
   handler: async (ctx, { cursor }) => {
     await seedPermissionDefinitions(ctx, CUSTOMER_DEFINITIONS);
-    const { page, isDone, continueCursor } = await ctx.db
-      .query("organizations")
-      .withIndex("by_clerkOrganizationId")
-      .paginate({ cursor: cursor ?? null, numItems: BATCH_SIZE });
-    const counts = { upgraded: 0, current: 0, customized: 0, missing: 0 };
-    for (const organization of page) {
-      const outcome = await upgradeAdmin(ctx, organization._id);
-      counts[outcome] += 1;
+    const { page, isDone, continueCursor } = await organizationPage(
+      ctx,
+      cursor,
+    );
+    const counts = { UPGRADED: 0, CURRENT: 0 };
+    const customizedOrgIds: Id<"organizations">[] = [];
+    const missingOrgIds: Id<"organizations">[] = [];
+    for (const { _id: orgId } of page) {
+      const outcome = await upgradeSeededOrgAdmin(
+        ctx,
+        orgId,
+        CUSTOMER_PERMISSION_CODES,
+      );
+      if (outcome === "CUSTOMIZED") customizedOrgIds.push(orgId);
+      else if (outcome === "MISSING") missingOrgIds.push(orgId);
+      else counts[outcome] += 1;
     }
-    return { ...counts, isDone, continueCursor };
+    return {
+      upgraded: counts.UPGRADED,
+      current: counts.CURRENT,
+      customized: customizedOrgIds.length,
+      missing: missingOrgIds.length,
+      customizedOrgIds,
+      missingOrgIds,
+      isDone,
+      continueCursor,
+    };
+  },
+});
+
+async function verifyAdmin(ctx: QueryCtx, orgId: Id<"organizations">) {
+  const admin = await readSeededOrgAdminGrants(ctx, orgId);
+  if (admin.status === "MISSING")
+    return { orgId, status: "missing" as const, hasCustomerGrants: false };
+  if (admin.status === "SEEDED") {
+    const hasCustomerGrants = CUSTOMER_PERMISSION_CODES.every((code) =>
+      admin.codes.has(code),
+    );
+    return {
+      orgId,
+      status: hasCustomerGrants ? ("current" as const) : ("eligible" as const),
+      hasCustomerGrants,
+    };
+  }
+
+  // Customized roles can have more grants than the bounded eligibility read.
+  const grants = await Promise.all(
+    CUSTOMER_PERMISSION_CODES.map((permissionCode) =>
+      ctx.db
+        .query("rolePermissions")
+        .withIndex("by_orgId_roleId_permissionCode", (q) =>
+          q
+            .eq("orgId", orgId)
+            .eq("roleId", admin.roleId)
+            .eq("permissionCode", permissionCode),
+        )
+        .first(),
+    ),
+  );
+  return {
+    orgId,
+    status: "customized" as const,
+    hasCustomerGrants: grants.every((grant) => grant !== null),
+  };
+}
+
+export const verifyOrgAdminGrants = internalQuery({
+  args: batchArgs,
+  returns: v.object({
+    ...batchCursor,
+    page: v.array(
+      v.object({
+        orgId: v.id("organizations"),
+        status: v.union(
+          v.literal("current"),
+          v.literal("eligible"),
+          v.literal("customized"),
+          v.literal("missing"),
+        ),
+        hasCustomerGrants: v.boolean(),
+      }),
+    ),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const { page, isDone, continueCursor } = await organizationPage(
+      ctx,
+      cursor,
+    );
+    return {
+      isDone,
+      continueCursor,
+      page: await Promise.all(page.map(({ _id }) => verifyAdmin(ctx, _id))),
+    };
   },
 });

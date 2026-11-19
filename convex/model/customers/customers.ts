@@ -89,8 +89,8 @@ function optionalTextFields<Field extends string>(
   if (!fields) return ok(undefined);
   const cleaned: Partial<Record<Field, string>> = {};
   for (const field in limits) {
-    const value = fields[field];
-    if (!value?.trim()) continue;
+    const value = fields[field]?.trim();
+    if (!value) continue;
     if (value.length > limits[field]) return invalidField(prefix + field);
     cleaned[field] = value;
   }

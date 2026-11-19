@@ -711,6 +711,9 @@ const schema = defineSchema({
     .index("by_orgId_status_normalizedName", byOrg("status", "normalizedName"))
     .index("by_orgId_normalizedName", byOrg("normalizedName"))
     .index("by_orgId_codeSequenceKey", byOrg("codeSequenceKey")),
+  customerCatalogueSignals: defineTable(
+    tenantFields({ generation: v.number() }),
+  ).index("by_orgId", byOrg()),
   memberships: defineTable(
     tenantFields({
       accessRevision: v.optional(v.number()),
