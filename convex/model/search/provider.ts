@@ -25,6 +25,8 @@ const PAGE_HELP: Readonly<Record<(typeof PAGE_KEYS)[number], string>> = {
   "planner.jobScanRecords": "list of scanned job tickets",
   "planner.storageLayouts": "buildings, floors and storage spots",
   "planner.newBuilding": "create a storage building",
+  "planner.customers": "customer list: names, tax IDs and delivery addresses",
+  "planner.newCustomer": "create a customer",
   "planner.setup": "system setup checklist",
   "hr.today": "clock in / clock out today",
   "hr.time": "my attendance history and correction requests",

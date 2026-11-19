@@ -43,6 +43,7 @@ export function isHrPath(pathname: string): boolean {
 export const ROUTES = Object.freeze({
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
+  customers: "/master-data/customers",
   finishedGoods: "/finished-goods",
   jobScan: "/finished-goods/scan",
   jobScanRecords: "/finished-goods/scan/records",
@@ -72,6 +73,7 @@ export const ROUTES = Object.freeze({
 
 export const PLANNER_PATHS: readonly string[] = Object.freeze([
   ROUTES.storageLayouts,
+  ROUTES.customers,
   ROUTES.finishedGoods,
 ]);
 
@@ -115,6 +117,8 @@ export interface StaticDestination {
 
 const STORAGE_READ = [NAVIGATION_PERMISSION.storageLayouts];
 const STORAGE_MANAGE = [NAVIGATION_PERMISSION.storageLayoutManage];
+const CUSTOMER_READ = [NAVIGATION_PERMISSION.customers];
+const CUSTOMER_MANAGE = [NAVIGATION_PERMISSION.customerManage];
 
 export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
   {
@@ -225,6 +229,39 @@ export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
       "add building",
     ],
     permissionCodes: STORAGE_MANAGE,
+  },
+  {
+    key: "planner.customers",
+    kind: "PAGE",
+    module: "planner",
+    href: ROUTES.customers,
+    labelKey: "customers",
+    aliases: [
+      "ลูกค้า",
+      "รายชื่อลูกค้า",
+      "ผู้ซื้อ",
+      "customers",
+      "customer list",
+      "clients",
+    ],
+    permissionCodes: CUSTOMER_READ,
+    menu: true,
+  },
+  {
+    key: "planner.newCustomer",
+    kind: "TASK",
+    module: "planner",
+    href: `${ROUTES.customers}/new`,
+    labelKey: "newCustomer",
+    parent: "planner.customers",
+    aliases: [
+      "เพิ่มลูกค้า",
+      "สร้างลูกค้า",
+      "ลูกค้าใหม่",
+      "new customer",
+      "add customer",
+    ],
+    permissionCodes: CUSTOMER_MANAGE,
   },
   {
     key: "planner.setup",
@@ -941,6 +978,12 @@ export const hrPeriodPath = (periodId: string) =>
 
 export const storageBuildingPath = (buildingId: string): string =>
   `${ROUTES.storageLayouts}/${encodeURIComponent(buildingId)}`;
+
+export const customerPath = (customerId: string): string =>
+  `${ROUTES.customers}/${encodeURIComponent(customerId)}`;
+
+export const customerEditPath = (customerId: string): string =>
+  `${customerPath(customerId)}/edit`;
 
 export const storageFloorPath = (
   buildingId: string,

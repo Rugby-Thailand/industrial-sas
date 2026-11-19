@@ -19,6 +19,7 @@ export const ROUTE_NAMESPACES = {
     "App",
     "Workspace",
     "StorageLayouts",
+    "Customers",
     "JobScan",
     "Pagination",
     "Panel",

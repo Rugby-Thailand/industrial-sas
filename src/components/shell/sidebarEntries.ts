@@ -5,6 +5,7 @@ import {
   ChartNoAxesCombined,
   ClipboardList,
   Clock,
+  Contact,
   Megaphone,
   ReceiptText,
   Send,
@@ -29,6 +30,7 @@ const NAVIGATION_ICONS: Readonly<Record<string, LucideIcon>> = Object.freeze({
   [ROUTES.jobScan]: ScanIcon,
   [ROUTES.jobScanRecords]: ClipboardList,
   [ROUTES.storageLayouts]: Building2,
+  [ROUTES.customers]: Contact,
   [ROUTES.hrRequests]: Send,
   [ROUTES.aiUsage]: ChartNoAxesCombined,
 });

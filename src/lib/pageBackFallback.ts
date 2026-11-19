@@ -30,7 +30,7 @@ function internalUrl(href: string): URL | null {
 
 function moduleFor(pathname: string): string | null {
   return (
-    [ROUTES.storageLayouts, ROUTES.finishedGoods, "/hr"].find(
+    [ROUTES.storageLayouts, ROUTES.customers, ROUTES.finishedGoods, "/hr"].find(
       (root) => pathname === root || pathname.startsWith(`${root}/`),
     ) ?? null
   );
@@ -91,6 +91,12 @@ export function moduleBackFallback(currentHref: string): string | null {
     if (suffix.length === 1) return ROUTES.storageLayouts;
     if (suffix[1] === "review" || suffix[1] === "floors")
       return `${ROUTES.storageLayouts}/${suffix[0]}`;
+  }
+  if (path.startsWith(`${ROUTES.customers}/`)) {
+    const suffix = path.slice(ROUTES.customers.length + 1).split("/");
+    if (suffix.length === 2 && suffix[1] === "edit")
+      return `${ROUTES.customers}/${suffix[0]}`;
+    return ROUTES.customers;
   }
   if (path.startsWith(`${ROUTES.finishedGoods}/`)) {
     const suffix = path.slice(ROUTES.finishedGoods.length + 1).split("/");
