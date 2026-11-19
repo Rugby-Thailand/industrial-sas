@@ -72,6 +72,21 @@ export const ROUTES = Object.freeze({
 });
 
 /**
+ * Organization-record pages whose own queries authorize them. They need a
+ * signed-in member, never the warehouse workspace, so a refused or failing
+ * warehouse read must not replace them.
+ */
+export const ORGANIZATION_RECORD_PATHS: readonly string[] = Object.freeze([
+  ROUTES.customers,
+]);
+
+/** True for an organization-record page; accepts a path with or without its locale. */
+export function isOrganizationRecordPath(pathname: string): boolean {
+  const path = pathname.replace(/^\/(?:th|en)(?=\/|$)/u, "") || "/";
+  return ORGANIZATION_RECORD_PATHS.some((root) => isActivePath(path, root));
+}
+
+/**
  * Pages that need the warehouse workspace. Customer pages are organization
  * records gated by their own grants, so they are deliberately not listed.
  */

@@ -99,11 +99,15 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
     readiness: mocks.readiness,
     // Sign-in settles independently of the warehouse workspace read.
     authenticated: mocks.authenticated,
+    failed: mocks.readiness.kind === "ERROR",
     permissionsReady: mocks.readiness.kind === "READY_TO_QUERY",
     navigationPermissions:
       mocks.readiness.kind === "READY_TO_QUERY" ? mocks.permissions : [],
     warehouses: [],
   }),
+}));
+vi.mock("next/navigation", () => ({
+  usePathname: () => window.location.pathname,
 }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
@@ -115,6 +119,7 @@ vi.mock("@/i18n/navigation", () => ({
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import { api } from "../../../convex/_generated/api";
 import { DraftGuardProvider } from "@/components/providers/DraftGuardProvider";
+import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { trackAppHistory } from "@/lib/browser/appHistory";
 import {
   CustomerCatalogue,
@@ -1563,23 +1568,27 @@ describe("edit customer", () => {
   });
 
   it("a failing warehouse workspace read never unmounts an open customer editor", () => {
+    // Under the real desktop access boundary, as the app mounts it.
+    window.history.replaceState(
+      {},
+      "",
+      "/en/master-data/customers/customer-a/edit",
+    );
     mocks.queries.set(GET, { ok: true, value: full });
-    const view = render(<EditCustomerForm customerId="customer-a" />);
+    const editor = () => (
+      <WorkspaceAccessBoundary>
+        <EditCustomerForm customerId="customer-a" />
+      </WorkspaceAccessBoundary>
+    );
+    const view = render(editor());
     type(/Contact name/, "Unsaved contact");
     mocks.readiness = { kind: "ERROR", code: "WORKSPACE_UNAVAILABLE" };
-    view.rerender(
-      <DraftGuardProvider>
-        <EditCustomerForm customerId="customer-a" />
-      </DraftGuardProvider>,
-    );
+    view.rerender(<DraftGuardProvider>{editor()}</DraftGuardProvider>);
     expect(screen.getByTestId("customer-form")).toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-query-error")).toBeNull();
     expect(screen.getByDisplayValue("Unsaved contact")).toBeInTheDocument();
     mocks.readiness = { kind: "LOADING" };
-    view.rerender(
-      <DraftGuardProvider>
-        <EditCustomerForm customerId="customer-a" />
-      </DraftGuardProvider>,
-    );
+    view.rerender(<DraftGuardProvider>{editor()}</DraftGuardProvider>);
     expect(screen.getByDisplayValue("Unsaved contact")).toBeInTheDocument();
   });
 

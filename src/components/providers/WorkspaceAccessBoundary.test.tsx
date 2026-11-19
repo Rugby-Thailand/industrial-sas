@@ -82,6 +82,35 @@ describe("WorkspaceAccessBoundary", () => {
     },
   );
 
+  it.each(["/en/master-data/customers/c1/edit", "/th/master-data/customers"])(
+    "keeps the organization-record page %s mounted when the warehouse read fails",
+    (pathname) => {
+      boundaryMocks.failed = true;
+      boundaryMocks.pathname = pathname;
+      renderWithIntl(
+        <WorkspaceAccessBoundary>
+          <p>Customer editor</p>
+        </WorkspaceAccessBoundary>,
+        { locale: "en", environment: testEnvironment, workspace: false },
+      );
+      expect(screen.getByText("Customer editor")).toBeVisible();
+      expect(screen.queryByTestId("workspace-query-error")).toBeNull();
+    },
+  );
+
+  it("still replaces a warehouse page when the warehouse read fails", () => {
+    boundaryMocks.failed = true;
+    boundaryMocks.pathname = "/en/master-data/storage-layouts";
+    renderWithIntl(
+      <WorkspaceAccessBoundary>
+        <p>Storage page</p>
+      </WorkspaceAccessBoundary>,
+      { locale: "en", environment: testEnvironment, workspace: false },
+    );
+    expect(screen.queryByText("Storage page")).toBeNull();
+    expect(screen.getByTestId("workspace-query-error")).toBeInTheDocument();
+  });
+
   it("reports failures and resets when the warehouse route changes", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     let shouldThrow = true;
