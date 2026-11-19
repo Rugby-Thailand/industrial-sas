@@ -532,7 +532,7 @@ function CustomerDetailContent({
                       </span>
                     </p>
                   ) : null}
-                  {contact.phone ? (
+                  {contact.phone && telHref(contact.phone) ? (
                     <a
                       href={telHref(contact.phone)}
                       className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
@@ -540,6 +540,12 @@ function CustomerDetailContent({
                       <Phone aria-hidden="true" className="size-4" />
                       {contact.phone}
                     </a>
+                  ) : contact.phone ? (
+                    // Nothing dialable: show it as written, without a link.
+                    <p className="flex items-center gap-2 text-text">
+                      <Phone aria-hidden="true" className="size-4 text-muted" />
+                      {contact.phone}
+                    </p>
                   ) : null}
                   {contact.email ? (
                     <a
@@ -839,10 +845,17 @@ function CustomerEditor({
   );
 }
 
-/** Dial the base number only: an extension ("ต่อ 89", "ext 89") is shown, not dialled. */
-function telHref(phone: string): string {
-  const base = phone.split(/\s*(?:ต่อ|ext\.?|x|#)\s*/iu)[0] ?? phone;
-  return `tel:${base.replace(/[^\d+]/gu, "")}`;
+/**
+ * Dial the base number only. An extension ("ต่อ 89", "ext 89", "x89") after
+ * the first digit is shown, not dialled; a label before it ("PBX") is ignored.
+ * Returns undefined when nothing dialable remains.
+ */
+function telHref(phone: string): string | undefined {
+  const start = phone.search(/[\d+]/u);
+  if (start < 0) return undefined;
+  const base = phone.slice(start).split(/\s*(?:ต่อ|ext\.?|x|#)\s*/iu)[0] ?? "";
+  const digits = base.replace(/[^\d+]/gu, "");
+  return /\d/u.test(digits) ? `tel:${digits}` : undefined;
 }
 
 /** A mailto: link that keeps the literal "@" and encodes each side of it. */
@@ -967,8 +980,12 @@ function CustomerFormBody({
   // One precedence rule for what is shown and what counts as reviewed: the
   // live answer for the current name wins, including an empty one; the
   // Save-time check only stands in while that answer is unavailable.
+  // A live answer supersedes the Save-time one for good.
+  if (liveMatches !== undefined && checked !== undefined) setChecked(undefined);
   const savedCheck =
-    checked?.name === currentName ? checked.matches : undefined;
+    liveMatches === undefined && checked?.name === currentName
+      ? checked.matches
+      : undefined;
   const matches = liveMatches ?? savedCheck ?? [];
   const field = (name: CustomerDraftField) => ({
     id: `${idPrefix}-${name}`,
@@ -976,6 +993,9 @@ function CustomerFormBody({
     onChange: (event: { target: { value: string } }) => {
       setDraft((previous) => ({ ...previous, [name]: event.target.value }));
       setDirty(true);
+      // A Save-time answer belongs to the name it checked; editing the name
+      // retires it, so it can never come back for a later, equal name.
+      if (name === "name") setChecked(undefined);
     },
   });
   const fieldError = (prefix: string) =>

@@ -710,7 +710,10 @@ describe("new customer", () => {
       ok: true,
       value: [match("old", "OLD-1")],
     });
-    mocks.queries.set(SIMILAR, { ok: true, value: [match("new", "NEW-2")] });
+    mocks.queries.set(SIMILAR, {
+      ok: true,
+      value: [match("customer-b", "NEW-2")],
+    });
     const view = render(<NewCustomerForm />);
     type(/Customer name/, "Acme");
     await act(async () => {
@@ -725,7 +728,7 @@ describe("new customer", () => {
       within(screen.getByTestId("customer-similar")).getByRole("link", {
         name: "Use this customer",
       }),
-    ).toHaveAttribute("href", "/master-data/customers/new");
+    ).toHaveAttribute("href", "/master-data/customers/customer-b");
     mocks.queries.set(SIMILAR, { ok: true, value: [] });
     view.rerender(
       <DraftGuardProvider>
@@ -733,6 +736,85 @@ describe("new customer", () => {
       </DraftGuardProvider>,
     );
     expect(screen.queryByTestId("customer-similar")).toBeNull();
+  });
+
+  it("a superseded Save-time match never returns after the name goes away and back", async () => {
+    const create = mutationFor(CREATE);
+    const match = (customerId: string, code: string) => ({
+      customerId,
+      code,
+      name: "Acme",
+      status: "ACTIVE",
+    });
+    mocks.convexQuery.mockResolvedValueOnce({
+      ok: true,
+      value: [match("customer-a", "OLD-1")],
+    });
+    mocks.queries.set(SIMILAR, { ok: true, value: [] });
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Acme");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(screen.getByTestId("customer-similar")).toHaveTextContent("OLD-1");
+    // The live answer (empty) supersedes it.
+    await waitFor(() =>
+      expect(screen.queryByTestId("customer-similar")).toBeNull(),
+    );
+    type(/Customer name/, "Other");
+    await waitFor(() =>
+      expect(mocks.queryArgs.get(SIMILAR)).toEqual({ name: "Other" }),
+    );
+    // Back to Acme, before its live answer settles: the old match stays
+    // gone, and Save asks again instead of creating blind.
+    type(/Customer name/, "Acme");
+    expect(screen.queryByTestId("customer-similar")).toBeNull();
+    mocks.convexQuery.mockResolvedValueOnce({
+      ok: true,
+      value: [match("customer-b", "NEW-2")],
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(mocks.convexQuery).toHaveBeenCalledTimes(2);
+    expect(create).not.toHaveBeenCalled();
+    expect(
+      within(screen.getByTestId("customer-similar")).getByRole("link", {
+        name: "Use this customer",
+      }),
+    ).toHaveAttribute("href", "/master-data/customers/customer-b");
+  });
+
+  it("a live error after a live match does not bring back the Save-time match", async () => {
+    const match = (customerId: string, code: string) => ({
+      customerId,
+      code,
+      name: "Acme",
+      status: "ACTIVE",
+    });
+    mocks.convexQuery.mockResolvedValueOnce({
+      ok: true,
+      value: [match("customer-a", "OLD-1")],
+    });
+    mocks.queries.set(SIMILAR, {
+      ok: true,
+      value: [match("customer-b", "NEW-2")],
+    });
+    const view = render(<NewCustomerForm />);
+    type(/Customer name/, "Acme");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("customer-similar")).toHaveTextContent("NEW-2"),
+    );
+    mocks.hintError = new Error("live query failed");
+    view.rerender(
+      <DraftGuardProvider>
+        <NewCustomerForm />
+      </DraftGuardProvider>,
+    );
+    expect(screen.queryByText("OLD-1")).toBeNull();
   });
 
   it("a retry that sends the same trimmed command keeps its request ID", async () => {
@@ -1008,6 +1090,30 @@ describe("customer detail", () => {
       "href",
       expected,
     );
+  });
+
+  it("shows a switchboard label with an extension as dialable base digits", () => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: {
+        ...base,
+        contact: { name: "Desk", phone: "PBX 02-123-4567 ext 89" },
+      },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(
+      screen.getByRole("link", { name: "PBX 02-123-4567 ext 89" }),
+    ).toHaveAttribute("href", "tel:021234567");
+  });
+
+  it("shows a phone with nothing dialable as plain text", () => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: { ...base, contact: { name: "Desk", phone: "ask reception" } },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(screen.getByText("ask reception")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "ask reception" })).toBeNull();
   });
 
   it("dials the base number when a phone has an extension", () => {
