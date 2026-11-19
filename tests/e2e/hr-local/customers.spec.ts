@@ -55,7 +55,9 @@ test.describe("customers on a 390px phone", () => {
     await expect(
       page.getByRole("heading", { level: 1, name, exact: true }),
     ).toBeVisible();
-    const stored = await api.query("customers/catalogue:getCustomer", {
+    // A fresh token: the warm-up on a busy machine can outlast the first.
+    const verifier = await convexAs(page);
+    const stored = await verifier.query("customers/catalogue:getCustomer", {
       customerId,
     });
     expect(stored.ok).toBe(true);
