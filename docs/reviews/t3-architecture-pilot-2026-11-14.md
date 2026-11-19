@@ -109,8 +109,13 @@ Two independent audits of `be5ab7a2` scored it 6.4/10 (gpt-6.2-sol) and 7.1/10
 - Boundary guards reject `/./` and `//` path segments, template-literal dynamic
   imports and raw builder re-exports from exact owners. `module-boundaries`
   resolves every raw-module import path as a backstop to ESLint's pattern.
-- Stored durable IDs expire with the server's 30-day receipt retention.
-  Unknown document versions are treated as unreadable rather than as flat maps.
+- Stored durable IDs expire with the server's 30-day receipt retention. The
+  document stays the pre-pilot flat map, with mint times under one reserved
+  entry, so tabs on the old bundle keep working during the rollout.
+- Success retires only IDs this mount dispatched and only while storage still
+  holds them; a mount never overwrites another tab's ID for the same key, and
+  unreadable documents are left untouched. Ephemeral cleanup stays in memory.
+- Convex sources must be TypeScript, so no `.js` entry escapes the guards.
 - The subscription test counts live owners instead of renders, and the
   acquisition controller takes a ports getter.
 

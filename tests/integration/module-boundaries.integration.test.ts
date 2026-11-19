@@ -368,6 +368,21 @@ describe("module import boundaries", () => {
     ).toEqual([]);
   });
 
+  it("keeps Convex sources TypeScript-only, so the registration guards see every entry", () => {
+    // Convex also bundles .js/.jsx/.mjs/.cjs entries, which ESLint's
+    // convex/**/*.ts rules and the source scan below would not inspect.
+    const scripts = (directory: string): string[] =>
+      readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory())
+          return entry.name === "_generated" ? [] : scripts(path);
+        return /\.(?:[cm]?jsx?|tsx|[cm]ts)$/.test(entry.name)
+          ? [display(path)]
+          : [];
+      });
+    expect(scripts(join(ROOT, "convex"))).toEqual([]);
+  });
+
   it("registers public Convex functions only through tenant wrappers or exact reviewed owners", () => {
     const files = sourceFiles(join(ROOT, "convex")).filter(
       (file) => !inside(file, join(ROOT, "convex/_generated")),
