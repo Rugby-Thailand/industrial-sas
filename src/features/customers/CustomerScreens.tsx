@@ -854,7 +854,8 @@ function telHref(phone: string): string | undefined {
   const start = phone.search(/[\d+]/u);
   if (start < 0) return undefined;
   // "ext. 89" with no base number before it is an extension alone.
-  if (/(?:ต่อ|ext\.?|\bx|#)\s*$/iu.test(phone.slice(0, start)))
+  // The marker must stand alone: "ติดต่อ" and "text" are ordinary labels.
+  if (/(?:^|[\s/(])(?:ต่อ|ext\.?|x|#)\s*$/iu.test(phone.slice(0, start)))
     return undefined;
   const base = phone.slice(start).split(/\s*(?:ต่อ|ext\.?|x|#)\s*/iu)[0] ?? "";
   const digits = base.replace(/[^\d+]/gu, "");

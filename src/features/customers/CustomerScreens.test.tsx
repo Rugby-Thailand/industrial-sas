@@ -1147,6 +1147,21 @@ describe("customer detail", () => {
     ).toHaveAttribute("href", "tel:021234567");
   });
 
+  it.each([
+    ["ติดต่อ 02-123-4567", "tel:021234567"],
+    ["Call/text 081-234-5678", "tel:0812345678"],
+  ])("keeps tap-to-call for the labelled number %s", (phone, expected) => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: { ...base, contact: { name: "Desk", phone } },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(screen.getByRole("link", { name: phone })).toHaveAttribute(
+      "href",
+      expected,
+    );
+  });
+
   it("shows an extension with no base number as plain text", () => {
     mocks.queries.set(GET, {
       ok: true,
