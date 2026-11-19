@@ -65,4 +65,4 @@ An already open tab is affected on its next server call. After step 1, members w
 
 ## Data handled
 
-The detail query returns customer contact, address and tax ID, and only to members holding `masterData.customer.read`. The list query returns summary fields only: code, name, status and province. Audit records name changed contact, address, tax ID and notes fields without their values. The browser keeps no customer field values: request identities live in memory, and only the list's status filter is remembered between visits.
+The detail query returns customer contact, address and tax ID, and only to members holding `masterData.customer.read`. The list query returns summary fields only: code, name, status and province. Audit records name changed contact, address, tax ID and notes fields without their values. The browser saves no customer field values: request identities live in memory, and the only preference remembered between visits is the list's status filter. A search is different. It stays in the page URL and its history entry, so Back can restore it. An exact tax-ID search is therefore visible in that URL, and it is copied along if someone shares the link.

@@ -534,7 +534,7 @@ function CustomerDetailContent({
                   ) : null}
                   {contact.phone ? (
                     <a
-                      href={`tel:${contact.phone.replace(/[^\d+]/gu, "")}`}
+                      href={telHref(contact.phone)}
                       className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
                     >
                       <Phone aria-hidden="true" className="size-4" />
@@ -839,6 +839,12 @@ function CustomerEditor({
   );
 }
 
+/** Dial the base number only: an extension ("ต่อ 89", "ext 89") is shown, not dialled. */
+function telHref(phone: string): string {
+  const base = phone.split(/\s*(?:ต่อ|ext\.?|x|#)\s*/iu)[0] ?? phone;
+  return `tel:${base.replace(/[^\d+]/gu, "")}`;
+}
+
 /** A mailto: link that keeps the literal "@" and encodes each side of it. */
 function mailtoHref(email: string): string {
   const at = email.lastIndexOf("@");
@@ -958,8 +964,12 @@ function CustomerFormBody({
     settledName.trim() === currentName && similar?.ok
       ? similar.value
       : undefined;
-  const matches =
-    checked?.name === currentName ? checked.matches : (liveMatches ?? []);
+  // One precedence rule for what is shown and what counts as reviewed: the
+  // live answer for the current name wins, including an empty one; the
+  // Save-time check only stands in while that answer is unavailable.
+  const savedCheck =
+    checked?.name === currentName ? checked.matches : undefined;
+  const matches = liveMatches ?? savedCheck ?? [];
   const field = (name: CustomerDraftField) => ({
     id: `${idPrefix}-${name}`,
     value: draft[name],
@@ -1002,8 +1012,8 @@ function CustomerFormBody({
     const unchecked =
       mode === "create" &&
       !skip &&
-      matches.length === 0 &&
-      liveMatches === undefined;
+      liveMatches === undefined &&
+      savedCheck === undefined;
     const submitted = draft;
     await operation.run(
       async () => {

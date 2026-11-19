@@ -698,6 +698,43 @@ describe("new customer", () => {
     );
   });
 
+  it("a newer live duplicate answer replaces the one found at Save, including an empty one", async () => {
+    const match = (customerId: string, code: string) => ({
+      customerId,
+      code,
+      name: "Acme",
+      status: "ACTIVE",
+    });
+    mutationFor(CREATE);
+    mocks.convexQuery.mockResolvedValue({
+      ok: true,
+      value: [match("old", "OLD-1")],
+    });
+    mocks.queries.set(SIMILAR, { ok: true, value: [match("new", "NEW-2")] });
+    const view = render(<NewCustomerForm />);
+    type(/Customer name/, "Acme");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(screen.getByTestId("customer-similar")).toHaveTextContent("OLD-1");
+    // The live hint settles on the current name: it is authoritative.
+    await waitFor(() =>
+      expect(screen.getByTestId("customer-similar")).toHaveTextContent("NEW-2"),
+    );
+    expect(
+      within(screen.getByTestId("customer-similar")).getByRole("link", {
+        name: "Use this customer",
+      }),
+    ).toHaveAttribute("href", "/master-data/customers/new");
+    mocks.queries.set(SIMILAR, { ok: true, value: [] });
+    view.rerender(
+      <DraftGuardProvider>
+        <NewCustomerForm />
+      </DraftGuardProvider>,
+    );
+    expect(screen.queryByTestId("customer-similar")).toBeNull();
+  });
+
   it("a retry that sends the same trimmed command keeps its request ID", async () => {
     const create = mutationFor(CREATE);
     create.mockRejectedValueOnce(new Error("reply lost"));
@@ -971,6 +1008,20 @@ describe("customer detail", () => {
       "href",
       expected,
     );
+  });
+
+  it("dials the base number when a phone has an extension", () => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: {
+        ...base,
+        contact: { name: "Desk", phone: "02-123-4567 ต่อ 89" },
+      },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(
+      screen.getByRole("link", { name: "02-123-4567 ต่อ 89" }),
+    ).toHaveAttribute("href", "tel:021234567");
   });
 
   it("shows a contact role even without a contact name", () => {
