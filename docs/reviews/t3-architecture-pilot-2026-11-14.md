@@ -133,3 +133,27 @@ below address their findings.
 Unchanged by decision: durable commands still dispatch with an in-memory ID
 when storage is blocked or full (`8438ae4b`). Refusing before dispatch remains
 limited to the package assignment, whose draft is its durable owner.
+
+### Verification of the audit-fix head
+
+These checks passed on `e0b9fe23`:
+
+- `pnpm typecheck` and `pnpm typecheck:ts6`
+- `pnpm lint` (whole repository, no warnings)
+- `pnpm check:navigation`
+- `pnpm format:check`
+- `pnpm ci:test-discovery` (483 Vitest files, 29 Playwright specs)
+- `git diff --check c30b1c5f..HEAD`
+
+Vitest with `--maxWorkers=2` covered `src/features/finishedGoods`,
+`src/lib/convex`, `src/hooks`, `src/features/storageLayouts` and the
+module-boundary, job-scan contract and catalogue integration files: **106 files,
+1,377 tests, 2 failures**. Both failures passed when rerun:
+
+- `MoveScreen.test.tsx` passed twice on its own.
+- `StorageLayoutNavigation.test.tsx` fails intermittently under machine load.
+  It failed one of three runs on unmodified `c30b1c5f`, so the flakiness
+  predates this branch.
+
+Unrelated sessions kept the load average between 65 and 138 during this run.
+The full parallel suite and the browser suites were not rerun; CI runs them.
