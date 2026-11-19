@@ -121,7 +121,11 @@ export interface StaticDestination {
 const STORAGE_READ = [NAVIGATION_PERMISSION.storageLayouts];
 const STORAGE_MANAGE = [NAVIGATION_PERMISSION.storageLayoutManage];
 const CUSTOMER_READ = [NAVIGATION_PERMISSION.customers];
-const CUSTOMER_MANAGE = [NAVIGATION_PERMISSION.customerManage];
+// The create form also reads customers (code suggestion, duplicate check).
+const CUSTOMER_MANAGE = [
+  NAVIGATION_PERMISSION.customers,
+  NAVIGATION_PERMISSION.customerManage,
+];
 
 export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
   {

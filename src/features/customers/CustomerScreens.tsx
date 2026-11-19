@@ -543,7 +543,7 @@ function CustomerDetailContent({
                   ) : null}
                   {contact.email ? (
                     <a
-                      href={`mailto:${encodeURIComponent(contact.email)}`}
+                      href={mailtoHref(contact.email)}
                       className="-my-1 flex min-h-touch items-center gap-2 break-all text-link hover:underline md:my-0 md:min-h-0"
                     >
                       <Mail aria-hidden="true" className="size-4" />
@@ -839,6 +839,12 @@ function CustomerEditor({
   );
 }
 
+/** A mailto: link that keeps the literal "@" and encodes each side of it. */
+function mailtoHref(email: string): string {
+  const at = email.lastIndexOf("@");
+  return `mailto:${encodeURIComponent(email.slice(0, at))}@${encodeURIComponent(email.slice(at + 1))}`;
+}
+
 function sameEditableFields(
   left: CustomerDetailRow,
   right: CustomerDetailRow,
@@ -988,9 +994,14 @@ function CustomerFormBody({
     setFailure(undefined);
     // Matches already on screen for this exact name count as reviewed; a
     // name the hint has not checked yet is checked before creating.
+    // Skipping is honored only for the name whose check failed.
+    const skip =
+      options.skipDuplicateCheck === true &&
+      failure?.code === "DUPLICATE_CHECK_FAILED" &&
+      failure.name === currentName;
     const unchecked =
       mode === "create" &&
-      !options.skipDuplicateCheck &&
+      !skip &&
       matches.length === 0 &&
       liveMatches === undefined;
     const submitted = draft;
@@ -1039,7 +1050,8 @@ function CustomerFormBody({
       (attempt) => {
         if ("abandoned" in attempt) return;
         if ("lookupFailed" in attempt) {
-          setFailure({ code: "DUPLICATE_CHECK_FAILED" });
+          // Bound to this exact name: changing it restores the normal check.
+          setFailure({ code: "DUPLICATE_CHECK_FAILED", name: currentName });
           return;
         }
         if ("duplicates" in attempt) {
@@ -1103,7 +1115,9 @@ function CustomerFormBody({
   // Field refusals and a duplicate code are shown on their field; the rest
   // explain themselves above the action bar.
   const failureMessage =
-    failure === undefined || failure.code === "DUPLICATE_KEY"
+    failure === undefined ||
+    failure.code === "DUPLICATE_KEY" ||
+    (failure.code === "DUPLICATE_CHECK_FAILED" && failure.name !== currentName)
       ? undefined
       : failure.code === "FIELD_INVALID"
         ? failure.field === undefined

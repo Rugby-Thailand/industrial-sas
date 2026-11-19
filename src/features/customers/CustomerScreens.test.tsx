@@ -38,6 +38,9 @@ const mocks = vi.hoisted(() => ({
   hintError: undefined as Error | undefined,
   // The optional code suggestion fails the same way.
   suggestError: undefined as Error | undefined,
+  // Optional per-args list answers, for continuation scenarios.
+  listResolver: undefined as
+    ((args: Record<string, unknown>) => unknown) | undefined,
   // The imperative duplicate check a fast Save runs before creating.
   convexQuery: vi.fn(),
 }));
@@ -77,6 +80,8 @@ vi.mock("convex/react", () => ({
               ),
             },
           };
+    if (name === "customers/catalogue:listCustomersPage" && mocks.listResolver)
+      return mocks.listResolver(args as Record<string, unknown>);
     return mocks.queries.get(name);
   },
 }));
@@ -209,6 +214,7 @@ beforeEach(() => {
   mocks.viewerPending = false;
   mocks.hintError = undefined;
   mocks.suggestError = undefined;
+  mocks.listResolver = undefined;
   mocks.convexQuery.mockReset();
   mocks.convexQuery.mockImplementation(async () => mocks.queries.get(SIMILAR));
 });
@@ -418,36 +424,54 @@ describe("customer list", () => {
     expect(screen.getByText(/req-7/)).toBeInTheDocument();
   });
 
-  it("a list that changed under its cursor offers to load it again", () => {
-    // A continuation the server can no longer resume.
-    mocks.queries.set(LIST, {
-      ok: true,
-      value: {
-        status: "reset",
-        page: [],
-        isDone: false,
-        continueCursor: "",
-        scanned: 0,
-      },
-    });
-    const view = render(<CustomerCatalogue />);
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The customer list changed while it was loading",
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Load again" }));
-    // The reload settles on a ready first page: the rows come back.
-    mocks.queries.set(LIST, page([summary]));
-    view.rerender(
-      <DraftGuardProvider>
-        <CustomerCatalogue />
-      </DraftGuardProvider>,
-    );
-    expect(screen.queryByTestId("customer-list-changed")).toBeNull();
+  it("a list that changed under its cursor offers to load it again", async () => {
+    // Every scan continuation is stale. A first-page read starts a scan;
+    // only the third fresh start (after the person's Load again) finishes.
+    let starts = 0;
+    let previous = "";
+    mocks.listResolver = (args) => {
+      const key = JSON.stringify(args);
+      if (key !== previous && !args.scanCursor) starts += 1;
+      previous = key;
+      if (args.scanCursor)
+        return {
+          ok: true,
+          value: {
+            status: "reset",
+            page: [],
+            isDone: false,
+            continueCursor: "",
+            scanned: 0,
+          },
+        };
+      return starts >= 3
+        ? page([summary])
+        : {
+            ok: true,
+            value: {
+              status: "scanning",
+              page: [],
+              isDone: false,
+              continueCursor: "",
+              scanCursor: "stale",
+              scanned: 20,
+            },
+          };
+    };
+    render(<CustomerCatalogue />);
+    // One automatic reset, then the list stops and asks.
     expect(
-      within(screen.getByTestId("customer-table")).getByRole("link", {
-        name: full.name,
-      }),
+      await screen.findByTestId("customer-list-changed"),
+    ).toHaveTextContent("The customer list changed while it was loading");
+    expect(starts).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: "Load again" }));
+    expect(
+      await within(await screen.findByTestId("customer-table")).findByRole(
+        "link",
+        { name: full.name },
+      ),
     ).toBeVisible();
+    expect(screen.queryByTestId("customer-list-changed")).toBeNull();
   });
 });
 
@@ -634,6 +658,44 @@ describe("new customer", () => {
       requestId: expect.any(String),
       name: "Cached Failure Co",
     });
+  });
+
+  it("a failed check for one name never lets another name skip its check", async () => {
+    const create = mutationFor(CREATE);
+    mocks.convexQuery.mockImplementationOnce(() => {
+      throw new Error("cached failure");
+    });
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Name A");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(
+      screen.getByRole("button", { name: "Save without checking" }),
+    ).toBeVisible();
+    type(/Customer name/, full.name);
+    // The override belonged to Name A: it disappears for the new name.
+    expect(
+      screen.queryByRole("button", { name: "Save without checking" }),
+    ).toBeNull();
+    mocks.convexQuery.mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          customerId: "customer-a",
+          code: "C-0007",
+          name: full.name,
+          status: "ACTIVE",
+        },
+      ],
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("customer-similar")).toHaveTextContent(
+      "C-0007",
+    );
   });
 
   it("a retry that sends the same trimmed command keeps its request ID", async () => {
@@ -894,6 +956,21 @@ describe("customer detail", () => {
       "/master-data/customers/customer-a/edit",
     );
     expect(screen.queryByTestId("customer-tax-id-warning")).toBeNull();
+  });
+
+  it.each([
+    ["sales@example.org", "mailto:sales@example.org"],
+    ["sales+th@example.org", "mailto:sales%2Bth@example.org"],
+  ])("links the contact email %s with a literal @", (email, expected) => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: { ...base, contact: { name: "Sales", email } },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(screen.getByRole("link", { name: email })).toHaveAttribute(
+      "href",
+      expected,
+    );
   });
 
   it("shows a contact role even without a contact name", () => {

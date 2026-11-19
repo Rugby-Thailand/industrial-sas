@@ -226,6 +226,18 @@ describe("menu matching", () => {
     ]);
   });
 
+  it("offers New customer only to members who may read and manage customers", () => {
+    expect(keys("เพิ่มลูกค้า", ["masterData.customer.manage"])).not.toContain(
+      "planner.newCustomer",
+    );
+    expect(
+      keys("เพิ่มลูกค้า", [
+        "masterData.customer.read",
+        "masterData.customer.manage",
+      ]),
+    ).toContain("planner.newCustomer");
+  });
+
   it("tolerates one Latin typo but never fuzzes Thai", () => {
     expect(keys("holidyas")).toEqual([]);
     expect(keys("holidys")).toContain("hr.settings.holidays");

@@ -3,6 +3,8 @@ export interface CustomerWriteFailure {
   readonly code: string;
   readonly field?: string | undefined;
   readonly reason?: string | undefined;
+  /** The trimmed name a failed duplicate check was for. */
+  readonly name?: string | undefined;
 }
 
 export type CustomerWriteResult =

@@ -9241,7 +9241,7 @@
     {
       "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:draft",
       "policy": "presentation",
-      "expectation": "The customer form's field values. They choose inline hints (tax ID length or check digit), the branch number field under Branch, and the duplicate-name Notice; no foreground. The page-level navigation draft protects unsaved values: native Back asks before discarding them.",
+      "expectation": "The customer form's field values. They choose inline hints (tax ID length or check digit), the branch number field under Branch, and the duplicate-name Notice; no foreground. The page-level navigation draft protects unsaved values: native Back asks before discarding them. The current name also decides whether a failed duplicate check's inline Notice and its Save without checking Button still apply; changing the name withdraws them.",
       "uses": ["branch"],
       "render": [
         {
@@ -9263,6 +9263,14 @@
             "src/components/ui/input#Input"
           ],
           "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": ["src/components/ui/Notice#Notice[role=alert]"]
         }
       ],
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
@@ -9278,6 +9286,10 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "shows a likely duplicate before saving and links to the existing customer"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "a failed check for one name never lets another name skip its check"
         }
       ]
     },
