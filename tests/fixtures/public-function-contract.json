@@ -2306,6 +2306,18 @@
                     "type": "boolean"
                   },
                   "optional": false
+                },
+                "hasCustomerRead": {
+                  "fieldType": {
+                    "type": "boolean"
+                  },
+                  "optional": false
+                },
+                "hasCustomerManage": {
+                  "fieldType": {
+                    "type": "boolean"
+                  },
+                  "optional": false
                 }
               }
             }
