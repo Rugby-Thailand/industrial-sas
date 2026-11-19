@@ -32,7 +32,6 @@ import {
   useOperation,
   written,
   useWriteError,
-  useDraftKey,
 } from "./shared";
 
 export function StackScreen({ palletId }: { palletId: string }) {
@@ -127,7 +126,7 @@ function Limits({
             written(
               await save({
                 ...args,
-                requestId: op.request(JSON.stringify(args)),
+                requestId: op.request(JSON.stringify(args), "ephemeral"),
               }),
             );
           },
@@ -194,7 +193,6 @@ function Limits({
               load(live);
               setSaved(false);
               op.setError("");
-              op.clearRequests();
             }}
           >
             {t("copy.load-current-stacking-limits")}
@@ -217,10 +215,7 @@ function StackLoader({
   const writeError = useWriteError();
   const router = useRouter();
   const canManage = useCanManage();
-  const scope = useDraftKey("stack");
-  const op = useOperation(
-    scope ? `${scope}:${warehouseId}:${palletId}` : undefined,
-  );
+  const op = useOperation(`stack:${warehouseId}:${palletId}`);
   const [upperId, setUpperId] = useState("");
   const [lowerDirty, setLowerDirty] = useState(false);
   const [upperDirty, setUpperDirty] = useState(false);
@@ -306,7 +301,7 @@ function StackLoader({
           written(
             await reserveMove({
               ...moveArgs,
-              requestId: op.request(JSON.stringify(moveArgs)),
+              requestId: op.request(JSON.stringify(moveArgs), "durable"),
             }),
           );
           return `${palletPath(upper._id)}/move`;
@@ -314,7 +309,7 @@ function StackLoader({
         written(
           await reserve({
             ...args,
-            requestId: op.request(JSON.stringify(args)),
+            requestId: op.request(JSON.stringify(args), "durable"),
           }),
         );
         return palletPath(upper._id);

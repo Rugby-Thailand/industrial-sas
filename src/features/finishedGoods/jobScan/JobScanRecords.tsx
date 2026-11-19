@@ -34,6 +34,7 @@ import { Panel } from "@/components/ui/Panel";
 import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { requireWritten } from "@/lib/convex/mutationOutcome";
 import { cn } from "@/lib/utils";
 import {
   ErrorNotice,
@@ -41,7 +42,6 @@ import {
   Loading,
   useCanManage,
   useOperation,
-  written,
 } from "../shared";
 import { JobScanRecordEditor } from "./JobScanRecordEditor";
 import { JobScanRecordRow } from "./JobScanRecordRow";
@@ -299,7 +299,6 @@ function Records({
     setLocationSelection({ scope: selectionScope, ids: [...ids] });
     locationStep.enter();
     operation.setError("");
-    operation.clearRequests();
   }
 
   const confirmDelete = (ids: string[]) => {
@@ -315,7 +314,8 @@ function Records({
     // owned confirmation until the successful operation consumes its entry.
     setDeleting(true);
     const saved = await operation.run(
-      async () => written(await deleteScans({ warehouseId, ...deletion })),
+      async () =>
+        requireWritten(await deleteScans({ warehouseId, ...deletion })),
       () => {
         operation.complete(() =>
           deletionCompletion.current?.complete(() => {
@@ -695,7 +695,10 @@ function Records({
                     };
                     command = {
                       warehouseId,
-                      requestId: operation.request(JSON.stringify(target)),
+                      requestId: operation.request(
+                        JSON.stringify(target),
+                        "ephemeral",
+                      ),
                       ...target,
                     };
                   }
@@ -716,7 +719,7 @@ function Records({
                             }
                           : null,
                       );
-                      written(outcome);
+                      requireWritten(outcome);
                       operation.complete(() =>
                         remapCompletion.current?.complete(() =>
                           locationStep.complete(() => {

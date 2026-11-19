@@ -213,7 +213,7 @@ export function PlacementEditor({
   const moveMutation = useMutation(fgRefs.reserveMove);
   const actorScope = useDraftKey("fg-move-reserve");
   const op = useOperation(
-    moving ? `${actorScope}:${warehouseId}:${detail.pallet._id}` : undefined,
+    `fg-move-reserve:${warehouseId}:${detail.pallet._id}${moving ? "" : ":store"}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const previewKey = actorScope
@@ -369,14 +369,14 @@ export function PlacementEditor({
           written(
             await moveMutation({
               ...moveArgs,
-              requestId: op.request(JSON.stringify(moveArgs)),
+              requestId: op.request(JSON.stringify(moveArgs), "durable"),
             }),
           );
         } else {
           written(
             await mutate({
               ...args,
-              requestId: op.request(JSON.stringify(args)),
+              requestId: op.request(JSON.stringify(args), "durable"),
             }),
           );
         }

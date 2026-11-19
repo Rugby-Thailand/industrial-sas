@@ -9,7 +9,7 @@ export type {
   ImageProviderFailure as JobTicketProviderFailure,
   ImageProviderOutcome as JobTicketProviderOutcome,
 } from "../lib/imageProvider";
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   actionWithOrg,
@@ -18,6 +18,7 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { inventoryWriter } from "../lib/inventoryWriter";
+import { writeOutcomeValidator } from "../lib/writeEnvelope";
 import { command, created, failure, stamp } from "./commands";
 import { ATTACHMENT_GRACE_MS } from "./attachments";
 import {
@@ -99,6 +100,48 @@ const mappedLocation = v.union(
   }),
 );
 
+const extractedTicketFields = v.object({
+  factoryOrder: optionalText,
+  productBarcodeText: optionalText,
+  deliveryDate: optionalText,
+  partName: optionalText,
+  customer: optionalText,
+  manufacturingDate: optionalText,
+  quantity: optionalNumber,
+  factoryQuantity: optionalNumber,
+  customerQuantity: optionalNumber,
+});
+const extractionOutcome = v.union(
+  v.object({
+    ok: v.literal(true),
+    mock: v.literal(true),
+    fields: extractedTicketFields,
+    raw: v.string(),
+  }),
+  v.object({
+    ok: v.literal(true),
+    mock: v.literal(false),
+    aiUsageOperationId: v.string(),
+    fields: extractedTicketFields,
+    raw: v.string(),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({
+      code: v.union(
+        v.literal("IMAGE_URL_INVALID"),
+        v.literal("AI_UNAVAILABLE"),
+        v.literal("AI_UNREADABLE"),
+      ),
+    }),
+  }),
+  v.object({
+    ok: v.literal(false),
+    error: v.object({ code: v.literal("RATE_LIMITED") }),
+    retryAfterMs: v.number(),
+  }),
+);
+
 /** Validate the entire selection before either bulk operation writes anything. */
 async function validateJobScanSelection(
   ctx: TenantFunctionContext,
@@ -142,11 +185,11 @@ async function mapLocation(
 export const extractJobTicket = actionWithOrg({
   rateLimit: JOB_TICKET_RATE_LIMIT,
   args: { warehouseId: v.id("warehouses"), imageUrl: v.string() },
-  returns: v.any(),
+  returns: extractionOutcome,
   permissionCode: MANAGE,
   target: { table: TABLE },
   warehouseId: (args) => args.warehouseId,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Infer<typeof extractionOutcome>> => {
     // An uploaded https URL, or the photo itself as a JPEG data URL (≈1 MB after client resize).
     if (
       !/^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(
@@ -283,7 +326,7 @@ export const saveJobScans = mutationWithOrg({
     location: v.optional(mappedLocation),
     items: v.array(ticketItem),
   },
-  returns: v.any(),
+  returns: writeOutcomeValidator,
   permissionCode: MANAGE,
   target: { table: TABLE },
   warehouseId: (args) => args.warehouseId,
@@ -399,7 +442,7 @@ export const updateJobScan = mutationWithOrg({
     expectedVersion: v.number(),
     fields: correctionFields,
   },
-  returns: v.any(),
+  returns: writeOutcomeValidator,
   permissionCode: MANAGE,
   target: { table: TABLE },
   warehouseId: (args) => args.warehouseId,

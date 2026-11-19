@@ -593,7 +593,10 @@ export function ProductBatches({
                         written(
                           await cancelUnit({
                             ...payload,
-                            requestId: op.request(JSON.stringify(payload)),
+                            requestId: op.request(
+                              JSON.stringify(payload),
+                              "durable",
+                            ),
                           }),
                         );
                       },

@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { writeFailure } from "@/lib/convex/mutationOutcome";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { ErrorNotice, Field, useOperation } from "../shared";
 import {
@@ -30,7 +31,6 @@ import {
   type TicketDraft,
   type TicketField,
 } from "./ticketDraft";
-import { written } from "../shared";
 
 type Record = RefValue<typeof fgRefs.listJobScans>["items"][number];
 /** The saved values and version a correction is based on. */
@@ -114,7 +114,7 @@ export function JobScanRecordEditor({
     };
     const command = pendingCommand ?? {
       ...args,
-      requestId: op.request(JSON.stringify(args)),
+      requestId: op.request(JSON.stringify(args), "ephemeral"),
     };
     // An accepted correction may advance the query before its response reaches
     // us. Only the immutable attempted command can recover that result safely.
@@ -123,13 +123,11 @@ export function JobScanRecordEditor({
       async () => save(command),
       (outcome) => {
         setPendingCommand(undefined);
-        if (
-          outcome.ok &&
-          !outcome.value.written &&
-          outcome.value.error.code === "STALE_REVISION"
-        )
-          setConflict(true);
-        written(outcome);
+        const failure = writeFailure(outcome);
+        if (failure) {
+          if (failure.code === "STALE_REVISION") setConflict(true);
+          throw failure;
+        }
         op.clearRequests();
         guard.settle();
         op.complete(() => {
@@ -177,7 +175,6 @@ export function JobScanRecordEditor({
                   setTicket(recordDraft(current));
                   setConflict(false);
                   op.setError("");
-                  op.clearRequests();
                 }}
               >
                 {t("reloadRecord")}

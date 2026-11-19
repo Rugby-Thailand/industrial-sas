@@ -20,6 +20,9 @@ import { AddLocationForm } from "./AddLocationForm";
 // message and the building field reads the generic connection error.
 
 const mocks = vi.hoisted(() => ({ create: vi.fn(), resolve: vi.fn() }));
+vi.mock("@/hooks/useDraftKey", () => ({
+  useDraftKey: (scope: string) => `${scope}:user-a`,
+}));
 vi.mock("@/i18n/navigation", () => ({
   Link: (props: ComponentProps<"a">) => <a {...props} />,
 }));

@@ -1011,7 +1011,7 @@ it("shows the actual structured Convex error instead of treating its wrapper mes
   expect(mocks.pallet).not.toHaveBeenCalled();
 });
 
-it("can create a product when browser recovery storage is unavailable", async () => {
+it("can save a product when storage is blocked", async () => {
   const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new DOMException("Blocked", "SecurityError");
   });

@@ -1430,6 +1430,13 @@ describe("reserved destination and physical storage confirmation", () => {
     expect(callsFor("confirmStored")[0]?.[1]).toMatchObject({
       expectedPlacementId: reservedPalletDetail.placement!._id,
     });
+    await waitFor(() =>
+      expect(
+        Object.keys(localStorage).filter((key) =>
+          key.startsWith("fg-requests:"),
+        ),
+      ).toEqual([]),
+    );
   });
 
   it("can keep a reservation or explicitly release it", async () => {
@@ -1449,6 +1456,9 @@ describe("reserved destination and physical storage confirmation", () => {
     expect(callsFor("cancelReservation")[0]?.[1]).toMatchObject({
       expectedPlacementId: reservedPalletDetail.placement!._id,
     });
+    expect(
+      Object.keys(localStorage).filter((key) => key.startsWith("fg-requests:")),
+    ).toEqual([]);
   });
 
   it("restores server verification after refresh and provides stored navigation", () => {
@@ -1577,7 +1587,7 @@ describe("measurement draft privacy", () => {
   });
 });
 
-it("can save measurements when browser recovery storage is blocked", async () => {
+it("can save measurements when storage is blocked", async () => {
   const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
     throw new DOMException("Blocked", "SecurityError");
   });
