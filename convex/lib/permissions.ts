@@ -1,6 +1,7 @@
 import {
   HR_PERMISSION,
   HR_PERMISSION_CODES,
+  NAVIGATION_PERMISSION,
   type HrPermissionCode,
 } from "../model/authorization/navigationPermissions";
 import type { DenialReason, MembershipScopeMode } from "./validators";
@@ -30,6 +31,11 @@ const permission = (
     requiresThreshold: flags.includes("THRESHOLD"),
   });
 
+export const CUSTOMER_PERMISSION_CODES = Object.freeze([
+  NAVIGATION_PERMISSION.customers,
+  NAVIGATION_PERMISSION.customerManage,
+] as const);
+
 export const PERMISSION_CATALOGUE = Object.freeze([
   permission("masterData.warehouse.read", "ORG"),
   permission("masterData.storageLayout.read", "WAREHOUSE"),
@@ -38,6 +44,7 @@ export const PERMISSION_CATALOGUE = Object.freeze([
   permission("aiUsage.read", "ORG"),
   permission("aiUsage.configure", "ORG"),
   ...HR_PERMISSION_CODES.map((code) => permission(code, "ORG")),
+  ...CUSTOMER_PERMISSION_CODES.map((code) => permission(code, "ORG")),
 ]);
 export const PERMISSIONS_BY_CODE: ReadonlyMap<string, PermissionDefinition> =
   new Map(PERMISSION_CATALOGUE.map((entry) => [entry.code, entry]));
@@ -70,6 +77,7 @@ export const DEFAULT_ROLES: readonly DefaultRoleDefinition[] = Object.freeze([
       ...HR_ADMIN_PERMISSION_CODES,
       "aiUsage.read",
       "aiUsage.configure",
+      ...CUSTOMER_PERMISSION_CODES,
     ],
   },
   {

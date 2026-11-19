@@ -1,6 +1,9 @@
 import { internalMutation } from "../_generated/server";
 import { v } from "convex/values";
-import { seedAuthorizationForOrganization } from "../lib/authorizationSeedConvex";
+import {
+  seedAuthorizationForOrganization,
+  withoutCustomerAdminGrants,
+} from "../lib/authorizationSeedConvex";
 import {
   HR_ADMIN_PERMISSION_CODES,
   PLANNER_PERMISSION_CODES,
@@ -26,7 +29,9 @@ export const organization = internalMutation({
         q.eq("orgId", args.orgId).eq("roleId", role._id),
       )
       .take(201);
-    const codes = new Set(grants.map((g) => g.permissionCode));
+    const codes = withoutCustomerAdminGrants(
+      new Set(grants.map((g) => g.permissionCode)),
+    );
     const legacy = [...PLANNER_PERMISSION_CODES, ...HR_ADMIN_PERMISSION_CODES];
     const target = [...legacy, "aiUsage.read", "aiUsage.configure"];
     if (codes.size === target.length && target.every((c) => codes.has(c)))

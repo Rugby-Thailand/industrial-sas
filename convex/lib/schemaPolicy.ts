@@ -11,6 +11,7 @@ export const GLOBAL_TABLES = ["organizations", "users", "permissions"] as const;
 
 export const TENANT_TABLES = [
   "warehouses",
+  "customers",
   "memberships",
   "membershipRoles",
   "membershipWarehouses",
@@ -329,6 +330,7 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   { table: "users", key: ["clerkUserId"], condition: ALWAYS },
   { table: "permissions", key: ["code"], condition: ALWAYS },
   { table: "warehouses", key: ["orgId", "code"], condition: ALWAYS },
+  { table: "customers", key: ["orgId", "code"], condition: ALWAYS },
   { table: "memberships", key: ["orgId", "userId"], condition: ALWAYS },
   {
     table: "memberships",

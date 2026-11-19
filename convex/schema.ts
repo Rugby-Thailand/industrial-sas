@@ -1,4 +1,5 @@
 import { aiUsageTables } from "./aiUsage/schema";
+import { customerFields } from "./customers/validators";
 import { hrPolicyTables } from "./hr/schema/policy";
 import { employeeOrgFields, hrOrgTables } from "./hr/schema/org";
 import {
@@ -699,6 +700,17 @@ const schema = defineSchema({
   )
     .index("by_orgId_code", byOrg("code"))
     .index("by_orgId_status_code", byOrg("status", "code")),
+  customers: defineTable(
+    tenantFields({
+      ...customerFields,
+      // Decimal length followed by digits sorts sequence codes numerically.
+      codeSequenceKey: v.optional(v.string()),
+    }),
+  )
+    .index("by_orgId_code", byOrg("code"))
+    .index("by_orgId_status_normalizedName", byOrg("status", "normalizedName"))
+    .index("by_orgId_normalizedName", byOrg("normalizedName"))
+    .index("by_orgId_codeSequenceKey", byOrg("codeSequenceKey")),
   memberships: defineTable(
     tenantFields({
       accessRevision: v.optional(v.number()),

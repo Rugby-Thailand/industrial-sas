@@ -26,12 +26,21 @@ const SHIPPING_CATALOGUE = [
   ["hr.admin.manage", "ORG"],
   ["hr.period.close", "ORG"],
   ["hr.period.export", "ORG"],
+  ["masterData.customer.read", "ORG"],
+  ["masterData.customer.manage", "ORG"],
 ] as const;
 const PLANNER = SHIPPING_CATALOGUE.slice(0, 4).map(([code]) => code);
-const HR = SHIPPING_CATALOGUE.slice(6).map(([code]) => code);
+const HR = SHIPPING_CATALOGUE.slice(6, 11).map(([code]) => code);
 
 const SHIPPING_ROLES: Record<string, readonly string[]> = {
-  ORG_ADMIN: [...PLANNER, ...HR, "aiUsage.read", "aiUsage.configure"],
+  ORG_ADMIN: [
+    ...PLANNER,
+    ...HR,
+    "aiUsage.read",
+    "aiUsage.configure",
+    "masterData.customer.read",
+    "masterData.customer.manage",
+  ],
   WAREHOUSE_MANAGER: PLANNER,
   HR_EMPLOYEE: ["hr.self.access"],
   HR_SUPERVISOR: ["hr.self.access", "hr.team.review"],
