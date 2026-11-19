@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQuery } from "convex/react";
 import {
   Archive,
   ArchiveRestore,
@@ -18,13 +18,10 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { NAVIGATION_PERMISSION } from "../../../convex/model/authorization/navigationPermissions";
 import { useNavigationDraft } from "@/components/navigation/navigationDraft";
-import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
-import { QueryGate } from "@/components/system/QueryGate";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -47,7 +44,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
-import { useCan } from "@/hooks/useCan";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import {
@@ -74,9 +70,20 @@ import {
   type CustomerStatusFilter,
 } from "./useCustomerCatalogueState";
 import { readCustomerWrite, type CustomerWriteFailure } from "./customerWrites";
+import {
+  CustomerGate,
+  useCustomerAccess,
+  useSubmissionIdentity,
+} from "./customerAccess";
 
-const MANAGE = NAVIGATION_PERMISSION.customerManage;
 const DASH = "—";
+
+interface SimilarCustomer {
+  readonly customerId: string;
+  readonly code: string;
+  readonly name: string;
+  readonly status: "ACTIVE" | "ARCHIVED";
+}
 
 type CustomerDetailRow = Omit<Doc<"customers">, "codeSequenceKey"> & {
   readonly customerId: Id<"customers">;
@@ -88,15 +95,15 @@ type CustomerDetailRow = Omit<Doc<"customers">, "codeSequenceKey"> & {
 export function CustomerCatalogue() {
   const t = useTranslations("Customers");
   return (
-    <QueryGate scope="ORG" loadingLabel={t("loading")}>
-      {() => <CatalogueContent />}
-    </QueryGate>
+    <CustomerGate loadingLabel={t("loading")}>
+      <CatalogueContent />
+    </CustomerGate>
   );
 }
 
 export function NewCustomerAction() {
   const t = useTranslations("Customers");
-  if (!useCan(MANAGE)) return null;
+  if (!useCustomerAccess().canManage) return null;
   return (
     <Button asChild className="shrink-0">
       <Link href={`${ROUTES.customers}/new`} data-testid="new-customer-action">
@@ -111,7 +118,7 @@ function CatalogueContent() {
   const t = useTranslations("Customers");
   const locale = useLocale();
   const { userId, orgId } = useAuth();
-  const canManage = useCan(MANAGE);
+  const { canManage } = useCustomerAccess();
   const scope = `customers:${orgId ?? "null"}:${userId ?? "anonymous"}`;
   const { state: filters, update } = useCustomerCatalogueState(scope);
   const settled = useDebouncedSearch(filters.search);
@@ -151,7 +158,8 @@ function CatalogueContent() {
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
         <CollectionToolbar
           value={filters.search}
-          onValueChange={(search) => update({ ...filters, search })}
+          // A search-only patch: typing coalesces into one history entry.
+          onValueChange={(search) => update({ search })}
           searchLabel={t("search")}
           clearLabel={t("clearSearch")}
           actions={<NewCustomerAction />}
@@ -159,7 +167,7 @@ function CatalogueContent() {
         <SelectControl
           value={filters.status}
           onValueChange={(status) =>
-            update({ ...filters, status: status as CustomerStatusFilter })
+            update({ status: status as CustomerStatusFilter })
           }
           options={[
             { value: "ACTIVE", label: t("statusActive") },
@@ -233,7 +241,7 @@ function CatalogueContent() {
                         </div>
                       </TableCell>
                       <TableCell className="align-top text-sm">
-                        {customer.deliveryAddress?.province ?? (
+                        {customer.province ?? (
                           <span className="text-muted">{DASH}</span>
                         )}
                       </TableCell>
@@ -265,9 +273,7 @@ function CatalogueContent() {
                     </span>
                     <span className="mt-0.5 block text-xs text-muted">
                       <span className="font-mono">{customer.code}</span>
-                      {customer.deliveryAddress?.province
-                        ? ` · ${customer.deliveryAddress.province}`
-                        : null}
+                      {customer.province ? ` · ${customer.province}` : null}
                     </span>
                   </span>
                   <ChevronRight
@@ -308,9 +314,17 @@ export function CustomerDetail({
 }) {
   const t = useTranslations("Customers");
   return (
-    <QueryGate scope="ORG" loadingLabel={t("loadingCustomer")}>
-      {() => <CustomerQuery customerId={customerId} page="detail" />}
-    </QueryGate>
+    <CustomerGate
+      loadingLabel={t("loadingCustomer")}
+      frame={
+        <PageHeader
+          title={t("detailTitle")}
+          breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
+        />
+      }
+    >
+      <CustomerQuery customerId={customerId} page="detail" />
+    </CustomerGate>
   );
 }
 
@@ -321,9 +335,20 @@ export function EditCustomerForm({
 }) {
   const t = useTranslations("Customers");
   return (
-    <QueryGate scope="ORG" loadingLabel={t("loadingCustomer")}>
-      {() => <CustomerQuery customerId={customerId} page="edit" />}
-    </QueryGate>
+    <CustomerGate
+      loadingLabel={t("loadingCustomer")}
+      frame={
+        <PageHeader
+          title={t("editTitle")}
+          breadcrumbs={[
+            { label: t("title"), href: ROUTES.customers },
+            { label: t("detailTitle"), href: customerPath(customerId) },
+          ]}
+        />
+      }
+    >
+      <CustomerQuery customerId={customerId} page="edit" />
+    </CustomerGate>
   );
 }
 
@@ -396,7 +421,7 @@ function CustomerDetailContent({
   readonly customer: CustomerDetailRow;
 }) {
   const t = useTranslations("Customers");
-  const canManage = useCan(MANAGE);
+  const { canManage } = useCustomerAccess();
   const archived = customer.status === "ARCHIVED";
   const address = customer.deliveryAddress;
   const contact = customer.contact;
@@ -467,16 +492,18 @@ function CustomerDetailContent({
               <p className="text-sm text-muted">{t("noDelivery")}</p>
             )}
             <div className="border-t border-border pt-3">
-              {contact?.name || contact?.phone || contact?.email ? (
+              {contact?.name ||
+              contact?.role ||
+              contact?.phone ||
+              contact?.email ? (
                 <div className="space-y-1 text-sm">
-                  {contact.name ? (
+                  {contact.name || contact.role ? (
                     <p className="flex items-center gap-2 text-text">
                       <User aria-hidden="true" className="size-4 text-muted" />
                       <span>
-                        {contact.name}
-                        {contact.role ? (
-                          <span className="text-muted"> · {contact.role}</span>
-                        ) : null}
+                        {[contact.name, contact.role]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </p>
                   ) : null}
@@ -598,6 +625,7 @@ function LifecycleAction({
     version: customer.version,
   });
   const [failure, setFailure] = useState<CustomerWriteFailure>();
+  const identity = useSubmissionIdentity();
   const operation = useAsyncOperation({
     scope: `customer-lifecycle:${customer.customerId}`,
     describeError: () => "UNKNOWN",
@@ -615,15 +643,14 @@ function LifecycleAction({
       async () =>
         (archived ? restore : archive)({
           ...args,
-          requestId: operation.request(JSON.stringify({ archived, ...args })),
+          requestId: identity.request(JSON.stringify({ archived, ...args })),
         }),
       (outcome) => {
+        // An answered attempt never reuses its identity.
+        identity.clear();
         const result = readCustomerWrite(outcome);
         if (!result.ok) setFailure(result.failure);
-        else {
-          operation.clearRequests();
-          operation.complete(() => setOpen(false));
-        }
+        else operation.complete(() => setOpen(false));
       },
     );
   }
@@ -686,7 +713,9 @@ export function NewCustomerForm() {
         summary={t("newSummary")}
         breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
       />
-      <QueryGate scope="ORG">{() => <NewCustomerContent />}</QueryGate>
+      <CustomerGate loadingLabel={t("loading")}>
+        <NewCustomerContent />
+      </CustomerGate>
     </>
   );
 }
@@ -720,31 +749,18 @@ function CustomerEditor({
   // The editor owns the version it was opened at. A newer saved version
   // arriving while editing does not replace the draft; saving reports it.
   const [baseline, setBaseline] = useState(customer);
+  // A live archive never unmounts the editor: an unsaved draft stays until
+  // its owner saves after restoring, or discards it explicitly.
   const archived = customer.status === "ARCHIVED";
-  const header = (
-    <PageHeader
-      title={t("editTitle")}
-      breadcrumbs={[
-        { label: t("title"), href: ROUTES.customers },
-        { label: customer.name, href: customerPath(customer.customerId) },
-      ]}
-    />
-  );
-  if (archived)
-    return (
-      <>
-        {header}
-        <Notice
-          tone="muted"
-          title={t("archivedNotice")}
-          body={t("archivedCannotEdit")}
-          testId="customer-archived-edit"
-        />
-      </>
-    );
   return (
     <>
-      {header}
+      <PageHeader
+        title={t("editTitle")}
+        breadcrumbs={[
+          { label: t("title"), href: ROUTES.customers },
+          { label: customer.name, href: customerPath(customer.customerId) },
+        ]}
+      />
       <CustomerFormBody
         key={baseline.version}
         mode="edit"
@@ -752,6 +768,7 @@ function CustomerEditor({
         customerId={customer.customerId}
         latestVersion={customer.version}
         onReloadLatest={() => setBaseline(customer)}
+        blockedReason={archived ? t("archivedCannotEdit") : undefined}
         submit={(draft, requestId) =>
           update({
             requestId,
@@ -779,6 +796,7 @@ function CustomerFormBody({
   customerId,
   latestVersion,
   onReloadLatest,
+  blockedReason,
   submit,
 }: {
   readonly mode: "create" | "edit";
@@ -788,6 +806,8 @@ function CustomerFormBody({
   readonly customerId?: string;
   readonly latestVersion?: number;
   readonly onReloadLatest?: () => void;
+  /** Why saving cannot succeed right now (an archived customer); the draft stays. */
+  readonly blockedReason?: string | undefined;
   readonly submit: (
     draft: CustomerDraft,
     requestId: string,
@@ -795,12 +815,19 @@ function CustomerFormBody({
 }) {
   const t = useTranslations("Customers");
   const router = useRouter();
-  const canManage = useCan(MANAGE);
-  const { permissionsReady } = useWorkspace();
+  const access = useCustomerAccess();
+  const convex = useConvex();
+  const identity = useSubmissionIdentity();
   const idPrefix = useId();
   const [draft, setDraft] = useState(initial);
   const [dirty, setDirty] = useState(false);
   const [failure, setFailure] = useState<CustomerWriteFailure>();
+  // Likely duplicates found when Save was pressed before the live hint
+  // caught up; shown before any create is sent.
+  const [checked, setChecked] = useState<{
+    readonly name: string;
+    readonly matches: readonly SimilarCustomer[];
+  }>();
   const [openSections, setOpenSections] = useState<
     ReadonlySet<CustomerSection>
   >(
@@ -831,7 +858,13 @@ function CustomerFormBody({
       ? { name: settledName }
       : "skip",
   );
-  const matches = similar?.ok ? similar.value : [];
+  const currentName = draft.name.trim();
+  const liveMatches =
+    settledName.trim() === currentName && similar?.ok
+      ? similar.value
+      : undefined;
+  const matches =
+    checked?.name === currentName ? checked.matches : (liveMatches ?? []);
   const field = (name: CustomerDraftField) => ({
     id: `${idPrefix}-${name}`,
     value: draft[name],
@@ -854,17 +887,44 @@ function CustomerFormBody({
 
   async function save(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    if (operation.busy) return;
-    if (draft.name.trim() === "") {
+    if (operation.busy || blockedReason !== undefined) return;
+    if (currentName === "") {
       setFailure({ code: "FIELD_INVALID", field: "name", reason: "EMPTY" });
       nameRef.current?.focus();
       return;
     }
     setFailure(undefined);
+    // Matches already on screen for this exact name count as reviewed; a
+    // name the hint has not checked yet is checked before creating.
+    const unchecked =
+      mode === "create" && matches.length === 0 && liveMatches === undefined;
+    const submitted = draft;
     await operation.run(
-      async () => submit(draft, operation.request(JSON.stringify(draft))),
-      (outcome) => {
-        const result = readCustomerWrite(outcome);
+      async () => {
+        if (unchecked) {
+          const found = await convex
+            .query(api.customers.catalogue.findSimilarCustomers, {
+              name: currentName,
+            })
+            .catch(() => undefined);
+          if (found?.ok && found.value.length > 0)
+            return { duplicates: found.value } as const;
+        }
+        return {
+          written: await submit(
+            submitted,
+            identity.request(JSON.stringify(submitted)),
+          ),
+        } as const;
+      },
+      (attempt) => {
+        if ("duplicates" in attempt) {
+          setChecked({ name: currentName, matches: attempt.duplicates });
+          return;
+        }
+        // An answered attempt never reuses its identity.
+        identity.clear();
+        const result = readCustomerWrite(attempt.written);
         if (!result.ok) {
           setFailure(result.failure);
           const section = sectionForField(result.failure.field);
@@ -872,7 +932,6 @@ function CustomerFormBody({
             setOpenSections((previous) => new Set([...previous, section]));
           return;
         }
-        operation.clearRequests();
         setDirty(false);
         // Completion consumes the form's entry: Back from the customer
         // returns to wherever the form was opened from.
@@ -891,7 +950,7 @@ function CustomerFormBody({
     else returnFromTask(customerPath(customerId), router.replace);
   }
 
-  if (permissionsReady && !canManage)
+  if (access.ready && !access.canManage)
     return (
       <div className="max-w-3xl space-y-3">
         <Notice tone="muted" title={t("viewOnly")} />
@@ -930,7 +989,21 @@ function CustomerFormBody({
       className="min-w-0"
       data-testid="customer-form"
     >
-      <div className="max-w-3xl space-y-4">
+      {/* A pending save freezes the submitted values: an edit typed after
+          Save could otherwise look saved when the form completes. */}
+      <fieldset
+        disabled={operation.busy}
+        className="max-w-3xl min-w-0 space-y-4"
+      >
+        {blockedReason ? (
+          <Notice
+            tone="warning"
+            role="status"
+            title={t("archivedNotice")}
+            body={blockedReason}
+            testId="customer-archived-edit"
+          />
+        ) : null}
         <div className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
           <FormField
             id={`${idPrefix}-name`}
@@ -1241,7 +1314,7 @@ function CustomerFormBody({
             testId="customer-save-error"
           />
         ) : null}
-      </div>
+      </fieldset>
       <StickyActionBar className="border-t border-border px-3 py-3 md:px-4">
         <div className="flex max-w-3xl justify-end gap-2">
           <Button
@@ -1252,7 +1325,10 @@ function CustomerFormBody({
           >
             {t("cancel")}
           </Button>
-          <Button type="submit" disabled={operation.busy}>
+          <Button
+            type="submit"
+            disabled={operation.busy || blockedReason !== undefined}
+          >
             {operation.busy
               ? t("saving")
               : mode === "create"

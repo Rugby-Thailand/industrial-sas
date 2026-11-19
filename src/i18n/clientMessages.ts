@@ -19,12 +19,20 @@ export const ROUTE_NAMESPACES = {
     "App",
     "Workspace",
     "StorageLayouts",
-    "Customers",
     "JobScan",
     "Pagination",
     "Panel",
     "Table",
     "WriteError",
+  ],
+  // Customer pages only: storage pages under master-data do not carry it.
+  "(desktop)/master-data/customers": [
+    "App",
+    "Workspace",
+    "Customers",
+    "Pagination",
+    "Panel",
+    "Table",
   ],
   "(desktop)/finished-goods": [
     "App",

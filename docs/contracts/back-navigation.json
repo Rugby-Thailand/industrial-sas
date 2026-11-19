@@ -9345,6 +9345,33 @@
           "name": "warns on a failed tax ID check digit and still saves the digits with leading zeros"
         }
       ]
+    },
+    {
+      "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:checked",
+      "policy": "presentation",
+      "expectation": "Likely duplicates found by the check a fast Save runs before creating. It only feeds the same inline duplicate-name Notice the live hint uses, so the person sees the match before a second, deliberate Save; it opens no foreground and leaves the draft and history untouched.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "li",
+            "span",
+            "src/components/ui/Notice#Notice[role=status]",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "ul"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "checks for a likely duplicate when Save is pressed before the hint appears"
+        }
+      ]
     }
   ],
   "overlayDelegates": [

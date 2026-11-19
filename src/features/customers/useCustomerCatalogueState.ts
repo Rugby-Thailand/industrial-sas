@@ -38,11 +38,16 @@ const options = {
     },
     encode: (state: CustomerCatalogueState) => JSON.stringify(state),
     readPreference: read,
-    writePreference: (state: CustomerCatalogueState) => state,
+    // Only the status filter is remembered between visits. A search can be
+    // an exact tax ID, so it lives only in this page's history entry.
+    writePreference: (state: CustomerCatalogueState) => ({
+      search: "",
+      status: state.status,
+    }),
   },
 };
 
-/** Search and status live in the URL, so Back to the list restores them. */
+/** Search and status live in the URL, so Back to the list restores them; only the status is remembered between visits. */
 export function useCustomerCatalogueState(scope: string) {
   return useCatalogueUrlState(scope, options);
 }
