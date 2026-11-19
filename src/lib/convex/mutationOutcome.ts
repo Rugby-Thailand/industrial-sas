@@ -1,17 +1,3 @@
-export function written(outcome: {
-  readonly ok: boolean;
-  readonly value?: {
-    readonly written: boolean;
-    readonly documentId?: string;
-    readonly error?: { readonly code: string };
-  };
-}): string {
-  if (!outcome.ok) throw new Error("ACCESS_DENIED");
-  if (!outcome.value?.written)
-    throw new Error(outcome.value?.error?.code ?? "SAVE_FAILED");
-  return outcome.value.documentId ?? "";
-}
-
 type OutcomeDetails = {
   readonly code?: string;
   readonly field?: string;
@@ -46,11 +32,13 @@ export class WriteOutcomeError extends Error {
   }
 }
 
-/** Keep receipt/failure metadata at the write boundary, including absent flags. */
-export function requireWritten(outcome: MutationOutcome) {
+/** The structured denial or refusal of an unwritten outcome; null once written. */
+export function writeFailure(
+  outcome: MutationOutcome,
+): WriteOutcomeError | null {
   if (!outcome.ok) {
     const denial = outcome.denial;
-    throw new WriteOutcomeError(
+    return new WriteOutcomeError(
       "denial",
       denial?.code ?? "ACCESS_DENIED",
       denial?.field,
@@ -59,20 +47,30 @@ export function requireWritten(outcome: MutationOutcome) {
     );
   }
   const value = outcome.value;
-  if (!value?.written) {
-    const error = value?.error;
-    throw new WriteOutcomeError(
-      "refusal",
-      error?.code ?? "SAVE_FAILED",
-      error?.field,
-      error?.requestId ?? outcome.requestId,
-      error?.replayed ?? value?.replayed,
-    );
-  }
+  if (value?.written) return null;
+  const error = value?.error;
+  return new WriteOutcomeError(
+    "refusal",
+    error?.code ?? "SAVE_FAILED",
+    error?.field,
+    error?.requestId ?? outcome.requestId,
+    error?.replayed ?? value?.replayed,
+  );
+}
+
+/** Keep receipt/failure metadata at the write boundary, including absent flags. */
+export function requireWritten(outcome: MutationOutcome) {
+  const failure = writeFailure(outcome);
+  if (failure) throw failure;
+  const value = outcome.value!;
   return {
     ...value,
     written: true as const,
-    documentId: value.documentId ?? "",
     requestId: value.requestId ?? outcome.requestId,
   };
+}
+
+/** The written document ID ("" when the command returns none). */
+export function written(outcome: MutationOutcome): string {
+  return requireWritten(outcome).documentId ?? "";
 }

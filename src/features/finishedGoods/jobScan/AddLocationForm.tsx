@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
-import { requireWritten } from "@/lib/convex/mutationOutcome";
+import { writeFailure } from "@/lib/convex/mutationOutcome";
 import { resolveWriteError } from "@/lib/resolveWriteError";
 import { useOperation } from "../shared";
 import type { PickedLocation } from "./ticketDraft";
@@ -101,27 +101,22 @@ export function AddLocationForm({
         });
         // A refusal or denial resolves for the current completion below,
         // which alone may mark its field.
-        if (!result.ok || !result.value.written)
-          return { kind: "UNWRITTEN", outcome: result } as const;
+        const failure = writeFailure(result);
+        if (failure) return { kind: "REFUSED", failure } as const;
         const resolved = await convex.query(fgRefs.resolveJobScanLocation, {
           warehouseId,
           code,
         });
         if (!resolved.ok || !resolved.value.ok)
           throw new Error("LOCATION_UNAVAILABLE");
-        return {
-          kind: "CREATED",
-          outcome: result,
-          location: resolved.value.location,
-        } as const;
+        return { kind: "CREATED", location: resolved.value.location } as const;
       },
       (outcome) => {
-        const result = outcome.outcome;
-        if (result.ok && !result.value.written)
-          setErrorField(result.value.error.field);
-        // Throws with metadata; the operation still describes the same copy key.
-        requireWritten(result);
-        if (outcome.kind === "UNWRITTEN") return;
+        if (outcome.kind === "REFUSED") {
+          setErrorField(outcome.failure.field);
+          // The operation still describes the same copy key.
+          throw outcome.failure;
+        }
         operation.clearRequests();
         guard.settle();
         operation.complete(() =>

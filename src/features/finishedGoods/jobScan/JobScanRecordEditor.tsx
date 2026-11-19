@@ -16,7 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
-import { requireWritten } from "@/lib/convex/mutationOutcome";
+import { writeFailure } from "@/lib/convex/mutationOutcome";
 import type { RefValue } from "@/lib/convex/clientRef";
 import { ErrorNotice, Field, useOperation } from "../shared";
 import {
@@ -123,13 +123,11 @@ export function JobScanRecordEditor({
       async () => save(command),
       (outcome) => {
         setPendingCommand(undefined);
-        if (
-          outcome.ok &&
-          !outcome.value.written &&
-          outcome.value.error.code === "STALE_REVISION"
-        )
-          setConflict(true);
-        requireWritten(outcome);
+        const failure = writeFailure(outcome);
+        if (failure) {
+          if (failure.code === "STALE_REVISION") setConflict(true);
+          throw failure;
+        }
         op.clearRequests();
         guard.settle();
         op.complete(() => {

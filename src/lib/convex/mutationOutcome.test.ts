@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { operationErrorCode } from "@/hooks/useAsyncOperation";
 import { resolveWriteError } from "@/lib/resolveWriteError";
-import { requireWritten, WriteOutcomeError } from "./mutationOutcome";
+import {
+  requireWritten,
+  writeFailure,
+  written,
+  WriteOutcomeError,
+} from "./mutationOutcome";
 
 function caught(run: () => unknown) {
   try {
@@ -105,6 +110,36 @@ describe("structured mutation outcomes", () => {
       requestId: undefined,
     });
   });
+
+  it("returns no failure once written and does not invent a document ID", () => {
+    const outcome = { ok: true, value: { written: true } };
+    expect(writeFailure(outcome)).toBeNull();
+    expect(requireWritten(outcome).documentId).toBeUndefined();
+    expect(written(outcome)).toBe("");
+  });
+
+  it.each([
+    [{ ok: false }, "ACCESS_DENIED", undefined],
+    [{ ok: true, value: { written: false } }, "SAVE_FAILED", undefined],
+    [
+      {
+        ok: true,
+        value: {
+          written: false,
+          error: { code: "FIELD_INVALID", field: "code" },
+        },
+      },
+      "FIELD_INVALID",
+      "code",
+    ],
+  ])(
+    "gives written() callers the same copy key with structured metadata: %o",
+    (outcome, message, field) => {
+      const error = caught(() => written(outcome));
+      expect(error.message).toBe(message);
+      expect(error.field).toBe(field);
+    },
+  );
 
   it("uses the existing safe localized fallback for missing and unknown failures", () => {
     const t = Object.assign((key: string) => `localized:${key}`, {
