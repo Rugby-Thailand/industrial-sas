@@ -1,0 +1,2676 @@
+<!doctype html>
+<html
+  lang="th"
+  data-screen="list"
+  data-device="desktop"
+  data-theme="light"
+  data-state="data"
+  data-phase="v2"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Customer module preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+Thai:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Tokens copied from src/app/globals.css (light :root and .dark). */
+      html[data-theme="light"] {
+        color-scheme: light;
+        --background: #ffffff;
+        --foreground: #17212f;
+        --card: #ffffff;
+        --primary: #1d4ed8;
+        --primary-foreground: #ffffff;
+        --primary-hover: #1e40af;
+        --primary-border: #1d4ed8;
+        --secondary: oklch(0.9401 0 0);
+        --muted: #f6f7f9;
+        --muted-foreground: #475569;
+        --accent: #eff6ff;
+        --accent-foreground: #1d4ed8;
+        --link: #1d4ed8;
+        --border: oklch(0.92 0 0);
+        --border-strong: #808080;
+        --ring: #1d4ed8;
+        --sidebar: #f6f7f9;
+        --success: #166534;
+        --badge-success: #084d2c;
+        --success-surface: #e3f3ea;
+        --warning: #92400e;
+        --badge-warning: #643900;
+        --warning-surface: #fff0d0;
+        --danger: #b91c1c;
+        --badge-danger: #851c16;
+        --danger-surface: #fee9e7;
+        --pending: #5a3fb8;
+        --badge-pending: #3e258a;
+        --pending-surface: #eeeaff;
+        --stage: #e9ecf1;
+      }
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --background: oklch(0 0 0);
+        --foreground: oklch(0.946 0 0);
+        --card: oklch(0.145 0 0);
+        --primary: oklch(0.46 0.22 266);
+        --primary-foreground: oklch(0.985 0 0);
+        --primary-hover: #2948cd;
+        --primary-border: #8298ed;
+        --secondary: oklch(0.32 0 0);
+        --muted: oklch(0.23 0 0);
+        --muted-foreground: oklch(0.72 0 0);
+        --accent: oklch(0.32 0 0);
+        --accent-foreground: oklch(0.92 0.04 272);
+        --link: #a9baff;
+        --border: oklch(0.26 0 0);
+        --border-strong: #858585;
+        --ring: #a9baff;
+        --sidebar: oklch(0 0 0);
+        --success: #58d19a;
+        --badge-success: #8be3b7;
+        --success-surface: #183c2e;
+        --warning: #f0b357;
+        --badge-warning: #ffd08a;
+        --warning-surface: #49361c;
+        --danger: #ff9a90;
+        --badge-danger: #ffbbb4;
+        --danger-surface: #492725;
+        --pending: #b3a0ff;
+        --badge-pending: #d0c0ff;
+        --pending-surface: #312b50;
+        --stage: #121417;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        background: var(--stage);
+        color: var(--foreground);
+        font-family: Geist, "Noto Sans Thai", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        -webkit-font-smoothing: antialiased;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      h2 {
+        margin: 0;
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .mono {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-size: 13px;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+      .muted {
+        color: var(--muted-foreground);
+      }
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      :focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      /* ---------- Preview chrome (not part of the product) ---------- */
+      .pv {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--card);
+      }
+      .pv-title {
+        font-weight: 600;
+        margin-right: auto;
+      }
+      .pv-title small {
+        display: block;
+        font-weight: 400;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted-foreground);
+      }
+      .pv-group {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 2px;
+        gap: 2px;
+        background: var(--muted);
+      }
+      .pv-group button {
+        border: 0;
+        background: transparent;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--muted-foreground);
+      }
+      .pv-group button[aria-pressed="true"] {
+        background: var(--card);
+        color: var(--foreground);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+      }
+      .pv-phase {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pending);
+        margin-left: 4px;
+      }
+      .pv-state[hidden] {
+        display: none;
+      }
+      .stage {
+        padding: 24px;
+        display: flex;
+        justify-content: center;
+      }
+      /* v2-only parts disappear in the v1 view */
+      html[data-phase="v1"] .v2 {
+        display: none !important;
+      }
+
+      /* ---------- Device frame ---------- */
+      .frame {
+        width: 1280px;
+        container-type: inline-size;
+        background: var(--background);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 30px rgb(0 0 0 / 0.08);
+      }
+      html[data-device="phone"] .frame {
+        width: 390px;
+        border-radius: 28px;
+      }
+
+      /* ---------- App shell ---------- */
+      .app {
+        display: grid;
+        grid-template-columns: 248px minmax(0, 1fr);
+        min-height: 860px;
+      }
+      .sidebar {
+        background: var(--sidebar);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+        gap: 4px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px 14px;
+      }
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        display: grid;
+        place-items: center;
+        font-weight: 600;
+      }
+      .brand b {
+        display: block;
+        font-weight: 600;
+      }
+      .brand span {
+        display: block;
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted-foreground);
+      }
+      .nav-label {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted-foreground);
+        padding: 12px 8px 4px;
+        font-weight: 500;
+      }
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 36px;
+        padding: 0 8px;
+        border-radius: 6px;
+        color: var(--foreground);
+        text-decoration: none;
+      }
+      .nav a:hover {
+        background: var(--muted);
+      }
+      .nav a[aria-current="page"] {
+        background: var(--accent);
+        color: var(--accent-foreground);
+        font-weight: 600;
+      }
+      .sidebar-foot {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 8px;
+        border-top: 1px solid var(--border);
+      }
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--secondary);
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .topbar {
+        height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--background);
+      }
+      .topbar .search-trigger {
+        flex: 0 1 320px;
+        justify-content: flex-start;
+        color: var(--muted-foreground);
+        font-weight: 400;
+      }
+      .topbar .search-trigger kbd {
+        margin-left: auto;
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0 4px;
+      }
+      .topbar .spacer {
+        flex: 1;
+      }
+      .mobile-only {
+        display: none !important;
+      }
+      .content {
+        padding: 24px 32px 32px;
+        flex: 1;
+      }
+
+      /* ---------- Controls ---------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 36px;
+        min-width: 36px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-weight: 600;
+        font-size: 14px;
+        white-space: nowrap;
+        cursor: pointer;
+        text-decoration: none;
+        background: transparent;
+        color: var(--foreground);
+      }
+      .btn-primary {
+        background: var(--primary);
+        border-color: var(--primary-border);
+        color: var(--primary-foreground);
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+      .btn-outline {
+        background: var(--card);
+        border-color: var(--border-strong);
+      }
+      .btn-outline:hover,
+      .btn-ghost:hover {
+        background: var(--muted);
+      }
+      .btn-sm {
+        font-size: 13px;
+        padding: 4px 10px;
+        gap: 6px;
+      }
+      .btn-icon {
+        padding: 0;
+      }
+      .btn[aria-disabled="true"] {
+        color: var(--muted-foreground);
+        background: var(--muted);
+        border-color: var(--border);
+        cursor: not-allowed;
+      }
+      .link {
+        color: var(--link);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .link:hover {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+      .field > label,
+      .field-label {
+        font-weight: 500;
+      }
+      .req {
+        color: var(--danger);
+        margin-left: 2px;
+      }
+      .hint {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted-foreground);
+      }
+      .input {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        background: var(--card);
+        width: 100%;
+      }
+      .input input,
+      .input select,
+      .input textarea {
+        border: 0;
+        outline: 0;
+        background: transparent;
+        width: 100%;
+        min-height: 34px;
+        padding: 0;
+        appearance: none;
+      }
+      .input textarea {
+        padding: 8px 0;
+        resize: vertical;
+      }
+      .input input::placeholder,
+      .input textarea::placeholder {
+        color: var(--muted-foreground);
+      }
+      .input:focus-within {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+      .input .i {
+        color: var(--muted-foreground);
+      }
+      .w-code {
+        max-width: 16rem;
+      }
+      .w-tax {
+        max-width: 20rem;
+      }
+
+      /* StatusBadge: rounded pill, text-xs semibold, glyph + text */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        border: 1px solid;
+        font-size: 12px;
+        line-height: 18px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge::before {
+        font-size: 9px;
+      }
+      .badge-success {
+        border-color: var(--badge-success);
+        background: var(--success-surface);
+        color: var(--badge-success);
+      }
+      .badge-success::before {
+        content: "●";
+      }
+      .badge-muted {
+        border-color: var(--border-strong);
+        background: var(--muted);
+        color: var(--muted-foreground);
+      }
+      .badge-muted::before {
+        content: "○";
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .card-pad {
+        padding: 16px;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        min-height: 52px;
+      }
+      .card-head h2 {
+        font-size: 18px;
+        line-height: 28px;
+        font-weight: 600;
+      }
+      .card-body {
+        padding: 16px;
+      }
+
+      /* Notice: surface, 4px tone edge, bold title, body and actions below */
+      .notice {
+        display: grid;
+        gap: 4px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-left-width: 4px;
+        border-radius: 8px;
+        background: var(--card);
+      }
+      .notice-title {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-weight: 600;
+      }
+      .notice-title .i {
+        margin-top: 2px;
+      }
+      .notice-body {
+        color: var(--muted-foreground);
+      }
+      .notice-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .notice-info {
+        border-left-color: var(--link);
+      }
+      .notice-info .notice-title .i {
+        color: var(--link);
+      }
+      .notice-warning {
+        border-left-color: var(--warning);
+      }
+      .notice-warning .notice-title .i {
+        color: var(--warning);
+      }
+      .notice-danger {
+        border-left-color: var(--danger);
+      }
+      .notice-danger .notice-title .i {
+        color: var(--danger);
+      }
+
+      /* ---------- Page header (PageHeader + optional meta slot) ---------- */
+      .ph {
+        margin-bottom: 16px;
+        display: grid;
+        gap: 4px;
+      }
+      .crumbs {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted-foreground);
+        min-width: 0;
+      }
+      .crumbs a {
+        color: var(--muted-foreground);
+        text-decoration: none;
+      }
+      .crumbs a:hover {
+        color: var(--foreground);
+        text-decoration: underline;
+      }
+      .crumbs .i {
+        width: 14px;
+        height: 14px;
+      }
+      .crumbs [aria-current] {
+        max-width: 15rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ph-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px 16px;
+      }
+      .ph-main {
+        flex: 1 1 16rem;
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .ph-title {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+      }
+      .ph h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 32px;
+        font-weight: 600;
+        text-wrap: balance;
+      }
+      .ph-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted-foreground);
+      }
+      .ph-summary {
+        margin: 0;
+        color: var(--muted-foreground);
+      }
+      .ph-title:has(.back) + .ph-meta,
+      .ph-title:has(.back) + .ph-summary {
+        padding-left: 32px;
+      }
+      .ph-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .back {
+        margin-left: -8px;
+      }
+
+      /* ---------- Screens ---------- */
+      .view {
+        display: none;
+      }
+      html[data-screen="list"] .view-list,
+      html[data-screen="detail"] .view-detail,
+      html[data-screen="form"] .view-form,
+      html[data-screen="review"] .view-review {
+        display: block;
+      }
+
+      /* List */
+      .view-list > .notice {
+        margin-bottom: 16px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .toolbar .search {
+        flex: 1 1 18rem;
+        max-width: 28rem;
+      }
+      .toolbar .status {
+        flex: 0 0 13rem;
+      }
+      .select-wrap {
+        position: relative;
+        display: block;
+      }
+      .select-wrap .chev {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        translate: 0 -50%;
+        pointer-events: none;
+        color: var(--muted-foreground);
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      /* Same fixed columns for data and skeleton so nothing jumps on load */
+      .list-table {
+        table-layout: fixed;
+      }
+      .list-table th:nth-child(1) {
+        width: 44%;
+      }
+      .list-table th:nth-child(2) {
+        width: 20%;
+      }
+      .list-table th:nth-child(3) {
+        width: 10%;
+      }
+      .list-table td {
+        overflow-wrap: anywhere;
+      }
+      td.r .skel {
+        margin-left: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted-foreground);
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+        background: var(--muted);
+      }
+      th.r,
+      td.r {
+        text-align: right;
+      }
+      td {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover td {
+        background: color-mix(in oklab, var(--muted) 70%, transparent);
+      }
+      .cust-name {
+        font-weight: 500;
+        color: var(--foreground);
+        text-decoration: none;
+      }
+      .cust-name:hover {
+        color: var(--link);
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+      .cust-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+      }
+      .cust-code {
+        display: block;
+        color: var(--muted-foreground);
+      }
+      .job-cell {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .cards {
+        display: none;
+      }
+      .pager {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+      .pager .size {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted-foreground);
+      }
+      .pager .size .input {
+        width: auto;
+        min-width: 76px;
+      }
+      .pager-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted-foreground);
+      }
+      .pager-nav .page {
+        margin-right: 4px;
+      }
+
+      .state {
+        display: none;
+      }
+      html[data-state="data"] .state-data,
+      html[data-state="empty"] .state-empty,
+      html[data-state="loading"] .state-loading,
+      html[data-state="error"] .state-error {
+        display: block;
+      }
+      html[data-state="error"] .list-card,
+      html[data-state="error"] .pager,
+      html[data-state="empty"] .pager,
+      html[data-state="loading"] .pager,
+      html[data-state="empty"] .toolbar,
+      html:not([data-state="data"]) .review-notice {
+        display: none;
+      }
+      .empty {
+        text-align: center;
+        padding: 56px 24px;
+        display: grid;
+        justify-items: center;
+        gap: 8px;
+      }
+      .empty-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--muted);
+        display: grid;
+        place-items: center;
+        color: var(--muted-foreground);
+        margin-bottom: 4px;
+      }
+      .empty-icon .i {
+        width: 22px;
+        height: 22px;
+      }
+      .empty h2 {
+        font-size: 18px;
+        line-height: 28px;
+        font-weight: 600;
+      }
+      .empty p {
+        margin: 0 0 8px;
+        color: var(--muted-foreground);
+        max-width: 28rem;
+      }
+      .skel {
+        display: block;
+        height: 12px;
+        border-radius: 4px;
+        background: var(--muted);
+      }
+      .skel + .skel {
+        margin-top: 8px;
+      }
+
+      /* Detail */
+      .detail {
+        max-width: 80rem;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 16px;
+        align-items: start;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      html[data-phase="v1"] .detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      html[data-phase="v1"] .col {
+        display: contents;
+      }
+      dl.dl {
+        margin: 0;
+        display: grid;
+        gap: 14px;
+      }
+      .dl > div {
+        display: grid;
+        gap: 2px;
+      }
+      .dl dt {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted-foreground);
+      }
+      .dl dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .site-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .contact {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        display: grid;
+        gap: 6px;
+      }
+      .contact-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 24px;
+      }
+      .contact-line .i {
+        color: var(--muted-foreground);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--muted);
+        font-size: 13px;
+      }
+      .rows {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .rows li {
+        border-bottom: 1px solid var(--border);
+      }
+      .rows li:last-child {
+        border-bottom: 0;
+      }
+      .row-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 16px;
+        min-height: 48px;
+        color: inherit;
+        text-decoration: none;
+      }
+      .row-link:hover {
+        background: var(--muted);
+      }
+      .row-link .primary {
+        color: var(--link);
+        font-weight: 500;
+      }
+      .row-link:hover .primary {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+      .row-link .sub {
+        display: block;
+        color: var(--muted-foreground);
+        font-size: 13px;
+      }
+      .row-link .side {
+        color: var(--muted-foreground);
+        text-align: right;
+        flex: none;
+      }
+      .jobs-mobile {
+        display: none;
+      }
+
+      /* Form */
+      .form {
+        max-width: 48rem;
+      }
+      .form-stack {
+        display: grid;
+        gap: 16px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .dupe-candidate {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin-top: 8px;
+        padding: 10px 12px;
+        background: var(--muted);
+        border-radius: 6px;
+      }
+      .dupe-candidate .who {
+        flex: 1 1 14rem;
+        min-width: 0;
+        color: var(--foreground);
+      }
+      .dupe-candidate .who b {
+        font-weight: 500;
+        display: block;
+      }
+      /* CollapsibleSection: label, status pill, chevron at the far right, divided body */
+      .collapse-head {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px;
+        min-height: 48px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .collapse-head:hover {
+        background: var(--muted);
+      }
+      .collapse[data-open="true"] .collapse-head {
+        border-radius: 8px 8px 0 0;
+      }
+      .pill {
+        border-radius: 999px;
+        background: var(--muted);
+        padding: 2px 8px;
+        font-size: 12px;
+        line-height: 16px;
+        font-weight: 400;
+        color: var(--muted-foreground);
+      }
+      .collapse-head > .i {
+        margin-left: auto;
+        color: var(--muted-foreground);
+        transition: rotate 0.15s;
+      }
+      .collapse[data-open="true"] .collapse-head > .i {
+        rotate: 180deg;
+      }
+      .collapse-body {
+        display: none;
+        padding: 16px;
+        gap: 16px;
+        border-top: 1px solid var(--border);
+      }
+      .collapse[data-open="true"] .collapse-body {
+        display: grid;
+      }
+      .seg {
+        display: inline-flex;
+        width: fit-content;
+      }
+      .seg button {
+        border: 1px solid var(--border-strong);
+        margin-left: -1px;
+        background: var(--card);
+        padding: 0 14px;
+        min-height: 36px;
+        cursor: pointer;
+      }
+      .seg button:first-child {
+        margin-left: 0;
+        border-radius: 6px 0 0 6px;
+      }
+      .seg button:last-child {
+        border-radius: 0 6px 6px 0;
+      }
+      .seg button:focus-visible {
+        outline-offset: -3px;
+        position: relative;
+      }
+      .seg button[aria-checked="true"] {
+        background: var(--accent);
+        color: var(--accent-foreground);
+        font-weight: 600;
+        position: relative;
+      }
+      .branch-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .branch-code {
+        width: 7.5rem;
+      }
+      .branch-code[hidden] {
+        display: none;
+      }
+      .actionbar {
+        position: sticky;
+        bottom: 0;
+        padding: 12px 32px;
+        border-top: 1px solid var(--border);
+        background: var(--card);
+        margin: 24px -32px -32px;
+      }
+      .actionbar-in {
+        max-width: 48rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      /* Review */
+      .review-list {
+        display: grid;
+        gap: 12px;
+      }
+      .rv {
+        padding: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+        gap: 16px 24px;
+      }
+      .rv-read h2 {
+        font-size: 18px;
+        line-height: 28px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+        margin-bottom: 4px;
+      }
+      .rv-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        color: var(--muted-foreground);
+        font-size: 13px;
+      }
+      .rv-meta span + span::before {
+        content: "·";
+        margin-right: 8px;
+      }
+      .rv-match {
+        border-left: 1px solid var(--border);
+        padding-left: 24px;
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+      .why {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted-foreground);
+      }
+      .rv-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .check {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        width: fit-content;
+      }
+      .check input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary);
+        margin: 0;
+      }
+      .radio-list {
+        display: grid;
+        gap: 6px;
+      }
+      .radio-opt {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .radio-opt input {
+        margin: 3px 0 0;
+        accent-color: var(--primary);
+        flex: none;
+      }
+      .radio-opt .who {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+      .radio-opt .who b {
+        font-weight: 500;
+      }
+      .radio-opt:has(input:checked) {
+        border-color: var(--link);
+        background: var(--accent);
+      }
+
+      /* ---------- Phone (container width) ---------- */
+      @container (max-width: 720px) {
+        .app {
+          grid-template-columns: 1fr;
+          min-height: 844px;
+        }
+        .sidebar,
+        .desktop-only {
+          display: none !important;
+        }
+        .mobile-only {
+          display: inline-flex !important;
+        }
+        .topbar {
+          padding: 0 8px 0 4px;
+          gap: 4px;
+        }
+        .topbar .brand-min {
+          font-weight: 600;
+        }
+        .content {
+          padding: 16px;
+        }
+        .btn,
+        .btn-sm {
+          min-height: 48px;
+          min-width: 48px;
+        }
+        .input {
+          min-height: 48px;
+        }
+        .input input,
+        .input select {
+          min-height: 46px;
+        }
+        .seg button {
+          min-height: 48px;
+        }
+        .w-code,
+        .w-tax {
+          max-width: none;
+        }
+        .ph h1 {
+          font-size: 22px;
+          line-height: 30px;
+        }
+        .toolbar .search,
+        .toolbar .status {
+          flex: 1 1 100%;
+          max-width: none;
+        }
+        .table-wrap {
+          display: none;
+        }
+        .cards {
+          display: block;
+        }
+        .card-link {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 16px;
+          border-bottom: 1px solid var(--border);
+          text-decoration: none;
+          color: inherit;
+          min-height: 48px;
+        }
+        .card-link:last-child {
+          border-bottom: 0;
+        }
+        .card-link .body {
+          flex: 1;
+          min-width: 0;
+          display: grid;
+          gap: 4px;
+        }
+        .card-link .name {
+          font-weight: 500;
+        }
+        .card-link .meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 2px 8px;
+          color: var(--muted-foreground);
+          font-size: 13px;
+        }
+        .card-link .meta > span + span::before {
+          content: "·";
+          margin-right: 8px;
+        }
+        .card-link > .i {
+          color: var(--muted-foreground);
+        }
+        .card-head .link {
+          min-height: 48px;
+          display: inline-flex;
+          align-items: center;
+        }
+        a.contact-line {
+          min-height: 48px;
+        }
+
+        .detail-grid,
+        html[data-phase="v1"] .detail-grid {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .col {
+          display: contents;
+        }
+        .d-delivery {
+          order: 1;
+        }
+        .d-jobs {
+          order: 2;
+        }
+        .d-products {
+          order: 3;
+        }
+        .d-tax {
+          order: 4;
+        }
+        .d-aliases {
+          order: 5;
+        }
+        .jobs-table {
+          display: none;
+        }
+        .jobs-mobile {
+          display: block;
+        }
+
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+        .actionbar {
+          padding: 12px 16px;
+          margin: 16px -16px -16px;
+        }
+        .actionbar .btn {
+          flex: 1;
+        }
+        .dupe-candidate .btn {
+          flex: 1 1 100%;
+        }
+
+        .rv {
+          grid-template-columns: 1fr;
+        }
+        .rv-match {
+          border-left: 0;
+          padding-left: 0;
+          border-top: 1px solid var(--border);
+          padding-top: 14px;
+        }
+        .check {
+          min-height: 48px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24">
+          <path d="M5 12h14" />
+          <path d="M12 5v14" />
+        </symbol>
+        <symbol id="i-left" viewBox="0 0 24 24">
+          <path d="m15 18-6-6 6-6" />
+        </symbol>
+        <symbol id="i-right" viewBox="0 0 24 24">
+          <path d="m9 18 6-6-6-6" />
+        </symbol>
+        <symbol id="i-down" viewBox="0 0 24 24">
+          <path d="m6 9 6 6 6-6" />
+        </symbol>
+        <symbol id="i-more" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="19" cy="12" r="1" />
+          <circle cx="5" cy="12" r="1" />
+        </symbol>
+        <symbol id="i-building" viewBox="0 0 24 24">
+          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+          <path d="M10 6h4" />
+          <path d="M10 10h4" />
+          <path d="M10 14h4" />
+          <path d="M10 18h4" />
+        </symbol>
+        <symbol id="i-customer" viewBox="0 0 24 24">
+          <path d="M16 2v2" />
+          <path d="M17.915 22a6 6 0 0 0-12 0" />
+          <path d="M8 2v2" />
+          <circle cx="12" cy="12" r="4" />
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+        </symbol>
+        <symbol id="i-package" viewBox="0 0 24 24">
+          <path
+            d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"
+          />
+          <path d="M12 22V12" />
+          <path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7" />
+          <path d="m7.5 4.27 9 5.15" />
+        </symbol>
+        <symbol id="i-scan" viewBox="0 0 24 24">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+          <path d="M7 12h10" />
+        </symbol>
+        <symbol id="i-clipboard" viewBox="0 0 24 24">
+          <rect width="8" height="4" x="8" y="2" rx="1" />
+          <path
+            d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+          />
+          <path d="M12 11h4" />
+          <path d="M12 16h4" />
+          <path d="M8 11h.01" />
+          <path d="M8 16h.01" />
+        </symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </symbol>
+        <symbol id="i-users" viewBox="0 0 24 24">
+          <path d="M18 21a8 8 0 0 0-16 0" />
+          <circle cx="10" cy="8" r="5" />
+          <path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3" />
+        </symbol>
+        <symbol id="i-user" viewBox="0 0 24 24">
+          <circle cx="12" cy="8" r="5" />
+          <path d="M20 21a8 8 0 0 0-16 0" />
+        </symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24">
+          <path d="M12 16v5" />
+          <path d="M16 14v7" />
+          <path d="M20 10v11" />
+          <path
+            d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.708 0L2 15"
+          />
+          <path d="M4 18v3" />
+          <path d="M8 14v7" />
+        </symbol>
+        <symbol id="i-phone" viewBox="0 0 24 24">
+          <path
+            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
+          />
+        </symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24">
+          <path d="M4 12h16" />
+          <path d="M4 6h16" />
+          <path d="M4 18h16" />
+        </symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m6.34 17.66-1.41 1.41" />
+          <path d="m19.07 4.93-1.41 1.41" />
+        </symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24">
+          <path
+            d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"
+          />
+          <path d="M12 9v4" />
+          <path d="M12 17h.01" />
+        </symbol>
+        <symbol id="i-circle-alert" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
+        </symbol>
+        <symbol id="i-link" viewBox="0 0 24 24">
+          <path
+            d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+          />
+          <path
+            d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+          />
+        </symbol>
+        <symbol id="i-pencil" viewBox="0 0 24 24">
+          <path
+            d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"
+          />
+          <path d="m15 5 4 4" />
+        </symbol>
+        <symbol id="i-back" viewBox="0 0 24 24">
+          <path d="m12 19-7-7 7-7" />
+          <path d="M19 12H5" />
+        </symbol>
+        <symbol id="i-warehouse" viewBox="0 0 24 24">
+          <path d="M18 21V10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v11" />
+          <path
+            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"
+          />
+          <path d="M6 13h12" />
+          <path d="M6 17h12" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+          <path d="M8 16H3v5" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <!-- Preview controls: not part of the product UI -->
+    <div class="pv" role="toolbar" aria-label="Preview controls">
+      <div class="pv-title">
+        ลูกค้า / Customers — preview<small
+          >Yongkit · plan 2026-11-18 · fictional data</small
+        >
+      </div>
+      <div class="pv-group" data-key="screen" aria-label="Screen">
+        <button data-v="list">รายชื่อ</button>
+        <button data-v="detail">รายละเอียด</button>
+        <button data-v="form">เพิ่มลูกค้า</button>
+        <button data-v="review">
+          ชื่อที่รอตรวจสอบ<span class="pv-phase">v2</span>
+        </button>
+      </div>
+      <div class="pv-group pv-state" data-key="state" aria-label="List state">
+        <button data-v="data">มีข้อมูล</button>
+        <button data-v="empty">ว่าง</button>
+        <button data-v="loading">กำลังโหลด</button>
+        <button data-v="error">ผิดพลาด</button>
+      </div>
+      <div class="pv-group" data-key="phase" aria-label="Phase">
+        <button data-v="v1">v1</button>
+        <button data-v="v2">v1 + v2</button>
+      </div>
+      <div class="pv-group" data-key="device" aria-label="Device">
+        <button data-v="desktop">Desktop</button>
+        <button data-v="phone">390px</button>
+      </div>
+      <div class="pv-group" data-key="theme" aria-label="Theme">
+        <button data-v="light">Light</button>
+        <button data-v="dark">Dark</button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="frame">
+        <div class="app">
+          <aside class="sidebar" aria-label="เมนูหลัก">
+            <div class="brand">
+              <div class="brand-mark">ย</div>
+              <div><b>โยงกิจ</b><span>โรงงานตัวอย่าง</span></div>
+            </div>
+            <nav class="nav">
+              <div class="nav-label">คลังสินค้า</div>
+              <a href="#"
+                ><svg class="i"><use href="#i-package" /></svg
+                >สินค้าสำเร็จรูป</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-scan" /></svg>สแกนใบ Job</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-clipboard" /></svg
+                >รายการที่สแกนแล้ว</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-building" /></svg
+                >อาคารและจุดจัดเก็บ</a
+              >
+              <a href="#" aria-current="page"
+                ><svg class="i"><use href="#i-customer" /></svg>ลูกค้า</a
+              >
+              <div class="nav-label">บุคลากร</div>
+              <a href="#"
+                ><svg class="i"><use href="#i-clock" /></svg>วันนี้</a
+              >
+              <a href="#"
+                ><svg class="i"><use href="#i-users" /></svg>พนักงาน</a
+              >
+              <div class="nav-label">ผู้ดูแลองค์กร</div>
+              <a href="#"
+                ><svg class="i"><use href="#i-chart" /></svg>การใช้งาน AI</a
+              >
+            </nav>
+            <div class="sidebar-foot">
+              <div class="avatar">สม</div>
+              <div>
+                <div>สมชาย ใจดี</div>
+                <div class="hint">ผู้ดูแลองค์กร</div>
+              </div>
+            </div>
+          </aside>
+
+          <div class="main">
+            <header class="topbar">
+              <button
+                class="btn btn-ghost btn-icon mobile-only"
+                aria-label="เปิดเมนู"
+              >
+                <svg class="i"><use href="#i-menu" /></svg>
+              </button>
+              <span class="brand-min mobile-only">โยงกิจ</span>
+              <button class="btn btn-outline search-trigger desktop-only">
+                <svg class="i"><use href="#i-search" /></svg>ค้นหาหรือถาม AI<kbd
+                  >⌘K</kbd
+                >
+              </button>
+              <span class="spacer"></span>
+              <button
+                class="btn btn-ghost btn-icon mobile-only"
+                aria-label="ค้นหา"
+              >
+                <svg class="i"><use href="#i-search" /></svg>
+              </button>
+              <button class="btn btn-outline desktop-only">
+                <svg class="i"><use href="#i-warehouse" /></svg>คลังบางพลี<svg
+                  class="i"
+                >
+                  <use href="#i-down" />
+                </svg>
+              </button>
+              <button class="btn btn-ghost desktop-only" aria-label="ภาษา">
+                TH
+              </button>
+              <button
+                class="btn btn-ghost btn-icon desktop-only"
+                aria-label="สลับธีม"
+              >
+                <svg class="i"><use href="#i-sun" /></svg>
+              </button>
+            </header>
+
+            <main class="content">
+              <!-- ================= LIST ================= -->
+              <section class="view view-list" aria-labelledby="h-list">
+                <div class="ph">
+                  <div class="ph-row">
+                    <div class="ph-main">
+                      <div class="ph-title"><h1 id="h-list">ลูกค้า</h1></div>
+                      <p class="ph-summary">
+                        รายชื่อลูกค้าที่ใช้ร่วมกันทุกคลังในองค์กร
+                      </p>
+                    </div>
+                    <div class="ph-actions">
+                      <a href="#" class="btn btn-primary" data-go="form"
+                        ><svg class="i"><use href="#i-plus" /></svg
+                        >เพิ่มลูกค้า</a
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <div class="notice notice-info review-notice v2" role="status">
+                  <div class="notice-title">
+                    <svg class="i"><use href="#i-link" /></svg>มี 4 ชื่อจากใบ
+                    Job 22 ใบที่ยังไม่ได้เชื่อมกับลูกค้า
+                  </div>
+                  <div class="notice-actions">
+                    <a href="#" class="btn btn-outline btn-sm" data-go="review"
+                      >ตรวจสอบ</a
+                    >
+                  </div>
+                </div>
+
+                <div class="toolbar" role="search">
+                  <label class="input search"
+                    ><svg class="i"><use href="#i-search" /></svg
+                    ><span class="sr">ค้นหาลูกค้า</span
+                    ><input placeholder="ค้นหาชื่อ รหัส หรือชื่อบนใบ Job"
+                  /></label>
+                  <label class="select-wrap status">
+                    <span class="sr">สถานะ</span>
+                    <span class="input"
+                      ><select id="status-filter">
+                        <option value="active">สถานะ: ใช้งานอยู่</option>
+                        <option value="archived">สถานะ: เก็บถาวร</option>
+                        <option value="all">สถานะ: ทั้งหมด</option>
+                      </select></span
+                    >
+                    <svg class="i chev"><use href="#i-down" /></svg>
+                  </label>
+                </div>
+
+                <div class="card list-card">
+                  <div class="state state-data">
+                    <div class="table-wrap">
+                      <table class="list-table">
+                        <thead>
+                          <tr>
+                            <th>ลูกค้า</th>
+                            <th>จังหวัดจัดส่ง</th>
+                            <th class="r v2">สินค้า</th>
+                            <th class="v2">ใบ Job ล่าสุด</th>
+                          </tr>
+                        </thead>
+                        <tbody id="rows"></tbody>
+                      </table>
+                    </div>
+                    <div class="cards" id="cards"></div>
+                  </div>
+                  <div class="state state-empty">
+                    <div class="empty">
+                      <div class="empty-icon">
+                        <svg class="i"><use href="#i-customer" /></svg>
+                      </div>
+                      <h2>ยังไม่มีลูกค้า</h2>
+                      <p>
+                        เพิ่มลูกค้ารายแรก แล้วใบ Job
+                        และสินค้าจะเชื่อมกับลูกค้าได้
+                      </p>
+                      <a href="#" class="btn btn-primary" data-go="form"
+                        ><svg class="i"><use href="#i-plus" /></svg
+                        >เพิ่มลูกค้า</a
+                      >
+                    </div>
+                  </div>
+                  <div class="state state-loading" role="status">
+                    <span class="sr">กำลังโหลด</span>
+                    <div class="table-wrap">
+                      <table class="list-table" aria-hidden="true">
+                        <thead>
+                          <tr>
+                            <th>ลูกค้า</th>
+                            <th>จังหวัดจัดส่ง</th>
+                            <th class="r v2">สินค้า</th>
+                            <th class="v2">ใบ Job ล่าสุด</th>
+                          </tr>
+                        </thead>
+                        <tbody id="skel-rows"></tbody>
+                      </table>
+                    </div>
+                    <div class="cards" id="skel-cards" aria-hidden="true"></div>
+                  </div>
+                </div>
+
+                <div class="state state-error">
+                  <div class="notice notice-danger" role="alert">
+                    <div class="notice-title">
+                      <svg class="i"><use href="#i-circle-alert" /></svg
+                      >โหลดรายชื่อลูกค้าไม่สำเร็จ
+                    </div>
+                    <div class="notice-body">
+                      ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง
+                    </div>
+                    <div class="notice-actions">
+                      <button class="btn btn-outline btn-sm">
+                        <svg class="i"><use href="#i-refresh" /></svg
+                        >ลองอีกครั้ง
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pager">
+                  <div class="size">
+                    รายการต่อหน้า
+                    <label class="select-wrap"
+                      ><span class="input"
+                        ><select aria-label="รายการต่อหน้า">
+                          <option>20</option>
+                          <option>50</option>
+                          <option>100</option>
+                        </select></span
+                      ><svg class="i chev"><use href="#i-down" /></svg
+                    ></label>
+                  </div>
+                  <div class="pager-nav">
+                    <span class="page">หน้า 1</span>
+                    <a
+                      class="btn btn-outline btn-icon"
+                      aria-label="หน้าก่อนหน้า"
+                      aria-disabled="true"
+                      ><svg class="i"><use href="#i-left" /></svg
+                    ></a>
+                    <a
+                      class="btn btn-outline btn-icon"
+                      aria-label="หน้าถัดไป"
+                      aria-disabled="true"
+                      ><svg class="i"><use href="#i-right" /></svg
+                    ></a>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ================= DETAIL ================= -->
+              <section
+                class="view view-detail detail"
+                aria-labelledby="h-detail"
+              >
+                <div class="ph">
+                  <nav class="crumbs" aria-label="เส้นทาง">
+                    <a href="#" data-go="list">ลูกค้า</a
+                    ><svg class="i"><use href="#i-right" /></svg
+                    ><span aria-current="page"
+                      >บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด</span
+                    >
+                  </nav>
+                  <div class="ph-row">
+                    <div class="ph-main">
+                      <div class="ph-title">
+                        <a
+                          href="#"
+                          class="btn btn-ghost btn-icon back"
+                          aria-label="กลับ"
+                          data-go="list"
+                          ><svg class="i"><use href="#i-back" /></svg
+                        ></a>
+                        <h1 id="h-detail">
+                          บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด
+                        </h1>
+                      </div>
+                      <div class="ph-meta">
+                        <span class="mono">C-0007</span
+                        ><span class="badge badge-success">ใช้งานอยู่</span>
+                      </div>
+                    </div>
+                    <div class="ph-actions">
+                      <button class="btn btn-outline">
+                        <svg class="i"><use href="#i-pencil" /></svg>แก้ไข
+                      </button>
+                      <button
+                        class="btn btn-outline btn-icon"
+                        aria-label="การทำงานอื่น"
+                        aria-haspopup="menu"
+                      >
+                        <svg class="i"><use href="#i-more" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="detail-grid">
+                  <div class="col">
+                    <div class="card d-jobs v2">
+                      <div class="card-head">
+                        <h2>ใบ Job ล่าสุด</h2>
+                        <a href="#" class="link">ดูทั้งหมด (38)</a>
+                      </div>
+                      <div class="table-wrap jobs-table">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>เลขที่ใบ Job</th>
+                              <th>ชิ้นงาน</th>
+                              <th>คลัง</th>
+                              <th>สแกนเมื่อ</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td>
+                                <a class="link mono" href="#">FO-2511-0423</a>
+                              </td>
+                              <td>กล่องลูกฟูก 5 ชั้น 40×30</td>
+                              <td>บางพลี</td>
+                              <td class="num">17 พ.ย. 14:20</td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <a class="link mono" href="#">FO-2511-0417</a>
+                              </td>
+                              <td>ถาดกระดาษ A3</td>
+                              <td>บางพลี</td>
+                              <td class="num">16 พ.ย. 09:05</td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <a class="link mono" href="#">FO-2511-0402</a>
+                              </td>
+                              <td>กล่องลูกฟูก 3 ชั้น 30×20</td>
+                              <td>อมตะ</td>
+                              <td class="num">14 พ.ย. 16:48</td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <a class="link mono" href="#">FOM-2511-0088</a>
+                              </td>
+                              <td>แผ่นรองพาเลท</td>
+                              <td>บางพลี</td>
+                              <td class="num">12 พ.ย. 11:30</td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <a class="link mono" href="#">FO-2511-0371</a>
+                              </td>
+                              <td>กล่องลูกฟูก 5 ชั้น 40×30</td>
+                              <td>อมตะ</td>
+                              <td class="num">10 พ.ย. 08:12</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <ul class="rows jobs-mobile">
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary mono">FO-2511-0423</span
+                              ><span class="sub"
+                                >กล่องลูกฟูก 5 ชั้น 40×30 · บางพลี</span
+                              ></span
+                            ><span class="side num">17 พ.ย.</span></a
+                          >
+                        </li>
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary mono">FO-2511-0417</span
+                              ><span class="sub"
+                                >ถาดกระดาษ A3 · บางพลี</span
+                              ></span
+                            ><span class="side num">16 พ.ย.</span></a
+                          >
+                        </li>
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary mono">FO-2511-0402</span
+                              ><span class="sub"
+                                >กล่องลูกฟูก 3 ชั้น 30×20 · อมตะ</span
+                              ></span
+                            ><span class="side num">14 พ.ย.</span></a
+                          >
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div class="card d-products v2">
+                      <div class="card-head"><h2>สินค้า (4)</h2></div>
+                      <ul class="rows">
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary"
+                                >กล่องลูกฟูก 5 ชั้น 40×30</span
+                              ><span class="sub mono">TRR-BX5-4030</span></span
+                            ><span class="side num">คงคลัง 1,240 ชิ้น</span></a
+                          >
+                        </li>
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary"
+                                >กล่องลูกฟูก 3 ชั้น 30×20</span
+                              ><span class="sub mono">TRR-BX3-3020</span></span
+                            ><span class="side num">คงคลัง 860 ชิ้น</span></a
+                          >
+                        </li>
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary">ถาดกระดาษ A3</span
+                              ><span class="sub mono">TRR-TR-A3</span></span
+                            ><span class="side num">คงคลัง 2,400 ชิ้น</span></a
+                          >
+                        </li>
+                        <li>
+                          <a class="row-link" href="#"
+                            ><span
+                              ><span class="primary">แผ่นรองพาเลท</span
+                              ><span class="sub mono">TRR-PAD-1210</span></span
+                            ><span class="side num">คงคลัง 96 ชิ้น</span></a
+                          >
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="col">
+                    <div class="card d-delivery">
+                      <div class="card-head">
+                        <h2>ที่อยู่จัดส่งและผู้ติดต่อ</h2>
+                      </div>
+                      <div class="card-body">
+                        <div class="site-title">โรงงาน 2 · ประตู 3</div>
+                        <div>
+                          700/123 หมู่ 5 นิคมอุตสาหกรรมอมตะซิตี้ ชลบุรี<br />ต.คลองตำหรุ
+                          อ.เมืองชลบุรี จ.ชลบุรี <span class="num">20000</span>
+                        </div>
+                        <div class="contact">
+                          <div class="contact-line">
+                            <svg class="i"><use href="#i-user" /></svg>คุณวิภา
+                            ศรีสุข · แผนกรับสินค้า
+                          </div>
+                          <a class="contact-line link num" href="#"
+                            ><svg class="i"><use href="#i-phone" /></svg
+                            >038-000-123</a
+                          >
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card d-tax">
+                      <div class="card-head"><h2>ข้อมูลภาษี</h2></div>
+                      <div class="card-body">
+                        <dl class="dl">
+                          <div>
+                            <dt>ชื่อจดทะเบียน (ไทย)</dt>
+                            <dd>บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด</dd>
+                          </div>
+                          <div>
+                            <dt>ชื่อจดทะเบียน (อังกฤษ)</dt>
+                            <dd>Thai Rungrueang Packaging Co., Ltd.</dd>
+                          </div>
+                          <div>
+                            <dt>เลขประจำตัวผู้เสียภาษี</dt>
+                            <dd class="mono">0105553012341</dd>
+                          </div>
+                          <div>
+                            <dt>สถานประกอบการ</dt>
+                            <dd>สำนักงานใหญ่</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+
+                    <div class="card d-aliases v2">
+                      <div class="card-head"><h2>ชื่อบนใบ Job</h2></div>
+                      <div class="card-body">
+                        <div class="chips">
+                          <span class="chip">ไทยรุ่งเรือง</span
+                          ><span class="chip">บจก.ไทยรุ่งเรืองบรรจุภัณฑ์</span
+                          ><span class="chip">TRR PACKAGING</span>
+                        </div>
+                        <p class="hint" style="margin: 10px 0 0">
+                          ใบ Job
+                          ที่มีชื่อเหล่านี้จะเชื่อมกับลูกค้ารายนี้โดยอัตโนมัติ
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ================= FORM ================= -->
+              <section class="view view-form" aria-labelledby="h-form">
+                <div class="form">
+                  <div class="ph">
+                    <nav class="crumbs" aria-label="เส้นทาง">
+                      <a href="#" data-go="list">ลูกค้า</a
+                      ><svg class="i"><use href="#i-right" /></svg
+                      ><span aria-current="page">เพิ่มลูกค้า</span>
+                    </nav>
+                    <div class="ph-row">
+                      <div class="ph-main">
+                        <div class="ph-title">
+                          <a
+                            href="#"
+                            class="btn btn-ghost btn-icon back"
+                            aria-label="กลับ"
+                            data-go="list"
+                            ><svg class="i"><use href="#i-back" /></svg
+                          ></a>
+                          <h1 id="h-form">เพิ่มลูกค้า</h1>
+                        </div>
+                        <p class="ph-summary">
+                          กรอกแค่ชื่อก็บันทึกได้ ข้อมูลอื่นเพิ่มทีหลังได้
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-stack">
+                    <div class="card card-pad" style="display: grid; gap: 16px">
+                      <div class="field">
+                        <label for="f-name"
+                          >ชื่อลูกค้า<span class="req" aria-hidden="true"
+                            >*</span
+                          ></label
+                        >
+                        <span class="input"
+                          ><input
+                            id="f-name"
+                            value="ไทยรุ่งเรือง บรรจุภัณฑ์"
+                            required
+                            aria-describedby="f-dupe"
+                        /></span>
+                        <div
+                          class="notice notice-warning"
+                          id="f-dupe"
+                          role="status"
+                        >
+                          <div class="notice-title">
+                            <svg class="i"><use href="#i-alert" /></svg
+                            >อาจมีลูกค้ารายนี้อยู่แล้ว
+                          </div>
+                          <div class="dupe-candidate">
+                            <div class="who">
+                              <b>บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด</b
+                              ><span class="hint"
+                                ><span class="mono">C-0007</span> · ชลบุรี</span
+                              >
+                            </div>
+                            <a
+                              href="#"
+                              class="btn btn-outline btn-sm"
+                              data-go="detail"
+                              >ใช้ลูกค้านี้</a
+                            >
+                          </div>
+                        </div>
+                      </div>
+                      <div class="field w-code">
+                        <label for="f-code">รหัสลูกค้า</label>
+                        <span class="input"
+                          ><input
+                            id="f-code"
+                            class="mono"
+                            value="C-0031"
+                            aria-describedby="f-code-h"
+                        /></span>
+                        <span class="hint" id="f-code-h"
+                          >สร้างให้อัตโนมัติ แก้ไขได้ก่อนบันทึก</span
+                        >
+                      </div>
+                    </div>
+
+                    <div class="card collapse" data-open="true">
+                      <button
+                        class="collapse-head"
+                        aria-expanded="true"
+                        aria-controls="sec-tax"
+                      >
+                        ชื่อจดทะเบียนและข้อมูลภาษี<svg class="i">
+                          <use href="#i-down" />
+                        </svg>
+                      </button>
+                      <div class="collapse-body" id="sec-tax">
+                        <div class="grid-2">
+                          <div class="field">
+                            <label for="f-lth">ชื่อจดทะเบียน (ไทย)</label
+                            ><span class="input"
+                              ><input
+                                id="f-lth"
+                                placeholder="เช่น บริษัท … จำกัด"
+                            /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-len">ชื่อจดทะเบียน (อังกฤษ)</label
+                            ><span class="input"
+                              ><input id="f-len" placeholder="เช่น … Co., Ltd."
+                            /></span>
+                          </div>
+                        </div>
+                        <div class="field w-tax">
+                          <label for="f-tax">เลขประจำตัวผู้เสียภาษี</label>
+                          <span class="input"
+                            ><input
+                              id="f-tax"
+                              class="mono"
+                              inputmode="numeric"
+                              placeholder="13 หลัก"
+                              aria-describedby="f-tax-h"
+                          /></span>
+                          <span class="hint" id="f-tax-h"
+                            >ถ้ายังไม่ทราบ เว้นว่างไว้ได้</span
+                          >
+                        </div>
+                        <div class="field">
+                          <span class="field-label" id="f-est"
+                            >สถานประกอบการ</span
+                          >
+                          <div class="branch-row">
+                            <div
+                              class="seg"
+                              role="radiogroup"
+                              aria-labelledby="f-est"
+                            >
+                              <button
+                                role="radio"
+                                aria-checked="true"
+                                data-est="none"
+                              >
+                                ไม่ระบุ
+                              </button>
+                              <button
+                                role="radio"
+                                aria-checked="false"
+                                data-est="ho"
+                              >
+                                สำนักงานใหญ่
+                              </button>
+                              <button
+                                role="radio"
+                                aria-checked="false"
+                                data-est="br"
+                              >
+                                สาขา
+                              </button>
+                            </div>
+                            <span class="input branch-code" hidden
+                              ><input
+                                class="mono"
+                                value="00001"
+                                inputmode="numeric"
+                                maxlength="5"
+                                aria-label="รหัสสาขา 5 หลัก"
+                            /></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card collapse" data-open="false">
+                      <button
+                        class="collapse-head"
+                        aria-expanded="false"
+                        aria-controls="sec-addr"
+                      >
+                        ที่อยู่จัดส่ง<span class="pill">ยังไม่ระบุ</span
+                        ><svg class="i"><use href="#i-down" /></svg>
+                      </button>
+                      <div class="collapse-body" id="sec-addr">
+                        <div class="field">
+                          <label for="f-site">ชื่อจุดส่ง</label
+                          ><span class="input"
+                            ><input
+                              id="f-site"
+                              placeholder="เช่น โรงงาน 2 ประตู 3"
+                          /></span>
+                        </div>
+                        <div class="field">
+                          <label for="f-addr">ที่อยู่</label
+                          ><span class="input"
+                            ><input
+                              id="f-addr"
+                              placeholder="เลขที่ หมู่ ซอย ถนน อาคาร"
+                          /></span>
+                        </div>
+                        <div class="grid-2">
+                          <div class="field">
+                            <label for="f-sub">ตำบล/แขวง</label
+                            ><span class="input"><input id="f-sub" /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-dis">อำเภอ/เขต</label
+                            ><span class="input"><input id="f-dis" /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-prv">จังหวัด</label
+                            ><span class="input"><input id="f-prv" /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-zip">รหัสไปรษณีย์</label
+                            ><span class="input"
+                              ><input
+                                id="f-zip"
+                                class="mono"
+                                inputmode="numeric"
+                                maxlength="5"
+                            /></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card collapse" data-open="false">
+                      <button
+                        class="collapse-head"
+                        aria-expanded="false"
+                        aria-controls="sec-contact"
+                      >
+                        ผู้ติดต่อ<span class="pill">ยังไม่ระบุ</span
+                        ><svg class="i"><use href="#i-down" /></svg>
+                      </button>
+                      <div class="collapse-body" id="sec-contact">
+                        <div class="grid-2">
+                          <div class="field">
+                            <label for="f-cn">ชื่อผู้ติดต่อ</label
+                            ><span class="input"><input id="f-cn" /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-cr">หน้าที่</label
+                            ><span class="input"
+                              ><input
+                                id="f-cr"
+                                placeholder="เช่น แผนกรับสินค้า"
+                            /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-cp">โทรศัพท์</label
+                            ><span class="input"
+                              ><input id="f-cp" inputmode="tel"
+                            /></span>
+                          </div>
+                          <div class="field">
+                            <label for="f-ce">อีเมล</label
+                            ><span class="input"
+                              ><input id="f-ce" inputmode="email"
+                            /></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card collapse" data-open="false">
+                      <button
+                        class="collapse-head"
+                        aria-expanded="false"
+                        aria-controls="sec-note"
+                      >
+                        หมายเหตุ<span class="pill">ยังไม่ระบุ</span
+                        ><svg class="i"><use href="#i-down" /></svg>
+                      </button>
+                      <div class="collapse-body" id="sec-note">
+                        <div class="field">
+                          <label for="f-note" class="sr">หมายเหตุ</label
+                          ><span class="input">
+                            <textarea id="f-note" rows="3"></textarea>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="actionbar">
+                  <div class="actionbar-in">
+                    <a href="#" class="btn btn-outline" data-go="list"
+                      >ยกเลิก</a
+                    >
+                    <button class="btn btn-primary">บันทึกลูกค้า</button>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ================= REVIEW (v2) ================= -->
+              <section class="view view-review" aria-labelledby="h-review">
+                <div class="ph">
+                  <nav class="crumbs" aria-label="เส้นทาง">
+                    <a href="#" data-go="list">ลูกค้า</a
+                    ><svg class="i"><use href="#i-right" /></svg
+                    ><span aria-current="page">ชื่อที่รอตรวจสอบ</span>
+                  </nav>
+                  <div class="ph-row">
+                    <div class="ph-main">
+                      <div class="ph-title">
+                        <a
+                          href="#"
+                          class="btn btn-ghost btn-icon back"
+                          aria-label="กลับ"
+                          data-go="list"
+                          ><svg class="i"><use href="#i-back" /></svg
+                        ></a>
+                        <h1 id="h-review">ชื่อที่รอตรวจสอบ</h1>
+                      </div>
+                      <p class="ph-summary">
+                        ชื่อลูกค้าที่อ่านจากใบ Job แต่ยังไม่ได้เชื่อมกับลูกค้า
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="review-list">
+                  <article class="card rv" aria-labelledby="rv1">
+                    <div class="rv-read">
+                      <h2 id="rv1">บจก.ไทยรุ่งเรือง บรรจุภัณฑ์</h2>
+                      <div class="rv-meta">
+                        <span class="num">12 ใบ</span><span>ล่าสุด 17 พ.ย.</span
+                        ><span>บางพลี, อมตะ</span>
+                      </div>
+                    </div>
+                    <div class="rv-match">
+                      <div class="why">
+                        ชื่อใกล้เคียง ต่างกันที่ช่องว่างและคำย่อ
+                      </div>
+                      <div
+                        class="radio-list"
+                        role="radiogroup"
+                        aria-labelledby="rv1"
+                      >
+                        <label class="radio-opt"
+                          ><input type="radio" name="tr" checked /><span
+                            class="who"
+                            ><b>บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด</b
+                            ><span class="why"
+                              ><span class="mono">C-0007</span> · ชลบุรี</span
+                            ></span
+                          ></label
+                        >
+                      </div>
+                      <label class="check"
+                        ><input type="checkbox" checked />จำชื่อนี้สำหรับใบ Job
+                        ถัดไป</label
+                      >
+                      <div class="rv-actions">
+                        <button class="btn btn-primary btn-sm">
+                          เชื่อม 12 ใบ
+                        </button>
+                        <button class="btn btn-outline btn-sm">
+                          เลือกลูกค้าอื่น
+                        </button>
+                        <button class="btn btn-ghost btn-sm">ข้าม</button>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article class="card rv" aria-labelledby="rv2">
+                    <div class="rv-read">
+                      <h2 id="rv2">นครไทย</h2>
+                      <div class="rv-meta">
+                        <span class="num">2 ใบ</span><span>ล่าสุด 15 พ.ย.</span
+                        ><span>บางพลี</span>
+                      </div>
+                    </div>
+                    <div class="rv-match">
+                      <div class="why">
+                        ตรงกับลูกค้า 2 ราย เลือกรายที่ถูกต้อง
+                      </div>
+                      <div
+                        class="radio-list"
+                        role="radiogroup"
+                        aria-labelledby="rv2"
+                      >
+                        <label class="radio-opt"
+                          ><input type="radio" name="nk" /><span class="who"
+                            ><b>บริษัท นครไทยอิเล็กทรอนิกส์ จำกัด (มหาชน)</b
+                            ><span class="why"
+                              ><span class="mono">C-0015</span> ·
+                              พระนครศรีอยุธยา</span
+                            ></span
+                          ></label
+                        >
+                        <label class="radio-opt"
+                          ><input type="radio" name="nk" /><span class="who"
+                            ><b>บริษัท นครไทยโลหะภัณฑ์ จำกัด</b
+                            ><span class="why"
+                              ><span class="mono">C-0024</span> ·
+                              สมุทรปราการ</span
+                            ></span
+                          ></label
+                        >
+                      </div>
+                      <div class="rv-actions">
+                        <button
+                          class="btn btn-primary btn-sm"
+                          aria-disabled="true"
+                        >
+                          เชื่อม 2 ใบ
+                        </button>
+                        <button class="btn btn-outline btn-sm">
+                          เลือกลูกค้าอื่น
+                        </button>
+                        <button class="btn btn-ghost btn-sm">ข้าม</button>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article class="card rv" aria-labelledby="rv3">
+                    <div class="rv-read">
+                      <h2 id="rv3">สยามเมทัลชีท</h2>
+                      <div class="rv-meta">
+                        <span class="num">3 ใบ</span><span>ล่าสุด 14 พ.ย.</span
+                        ><span>อมตะ</span>
+                      </div>
+                    </div>
+                    <div class="rv-match">
+                      <div class="why">ไม่พบลูกค้าที่ชื่อใกล้เคียง</div>
+                      <div class="rv-actions">
+                        <button class="btn btn-outline btn-sm">
+                          <svg class="i"><use href="#i-plus" /></svg
+                          >สร้างลูกค้าใหม่
+                        </button>
+                        <button class="btn btn-outline btn-sm">
+                          เลือกลูกค้า
+                        </button>
+                        <button class="btn btn-ghost btn-sm">ข้าม</button>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const customers = [
+        {
+          name: "บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด",
+          code: "C-0007",
+          prov: "ชลบุรี",
+          prods: 4,
+          job: "FO-2511-0423",
+          date: "17 พ.ย.",
+        },
+        {
+          name: "บริษัท อีสเทิร์นออโต้พาร์ท จำกัด",
+          code: "C-0012",
+          prov: "ระยอง",
+          prods: 9,
+          job: "FO-2511-0418",
+          date: "16 พ.ย.",
+        },
+        {
+          name: "Sakura Precision (Thailand) Co., Ltd.",
+          code: "C-0021",
+          prov: "ปทุมธานี",
+          prods: 6,
+          job: "FO-2511-0409",
+          date: "15 พ.ย.",
+        },
+        {
+          name: "บริษัท เจริญกิจพลาสติก จำกัด",
+          code: "C-0003",
+          prov: "สมุทรปราการ",
+          prods: 2,
+          job: "FOM-2511-0102",
+          date: "12 พ.ย.",
+        },
+        {
+          name: "บริษัท นครไทยอิเล็กทรอนิกส์ จำกัด (มหาชน)",
+          code: "C-0015",
+          prov: "พระนครศรีอยุธยา",
+          prods: 3,
+          job: "FO-2510-0977",
+          date: "28 ต.ค.",
+        },
+        {
+          name: "บริษัท เอเชียฟู้ดแพ็ค จำกัด",
+          code: "C-0018",
+          prov: "สระบุรี",
+          prods: 1,
+          job: "FO-2509-0311",
+          date: "3 ก.ย.",
+        },
+        {
+          name: "ห้างหุ้นส่วนจำกัด สมบูรณ์การช่าง",
+          code: "C-0030",
+          prov: null,
+          prods: 0,
+          job: null,
+          date: null,
+        },
+        {
+          name: "บริษัท ไทยสตีลเวิร์ค จำกัด",
+          code: "C-0009",
+          prov: "ชลบุรี",
+          prods: 0,
+          job: "FO-2506-0140",
+          date: "2 มิ.ย.",
+          archived: true,
+        },
+      ];
+      const dash = '<span class="muted">—</span>';
+      const archivedBadge = '<span class="badge badge-muted">เก็บถาวร</span>';
+      function renderList() {
+        const f = document.getElementById("status-filter").value;
+        const shown = customers.filter(
+          (c) => f === "all" || (f === "archived") === !!c.archived,
+        );
+        document.getElementById("rows").innerHTML = shown
+          .map(
+            (c) => `
+    <tr>
+      <td><span class="cust-line"><a href="#" class="cust-name" data-go="detail">${c.name}</a>${c.archived ? archivedBadge : ""}</span><span class="cust-code mono">${c.code}</span></td>
+      <td>${c.prov ?? dash}</td>
+      <td class="r num v2">${c.prods || dash}</td>
+      <td class="v2">${c.job ? `<span class="job-cell"><span class="mono">${c.job}</span><span class="muted num">${c.date}</span></span>` : dash}</td>
+    </tr>`,
+          )
+          .join("");
+        document.getElementById("cards").innerHTML = shown
+          .map(
+            (c) => `
+    <a href="#" class="card-link" data-go="detail">
+      <span class="body">
+        <span class="cust-line"><span class="name">${c.name}</span>${c.archived ? archivedBadge : ""}</span>
+        <span class="meta"><span class="mono">${c.code}</span>${c.prov ? `<span>${c.prov}</span>` : ""}${c.job ? `<span class="v2">ใบ Job ล่าสุด ${c.date}</span>` : ""}</span>
+      </span>
+      <svg class="i"><use href="#i-right"/></svg>
+    </a>`,
+          )
+          .join("");
+      }
+      renderList();
+      document
+        .getElementById("status-filter")
+        .addEventListener("change", renderList);
+      const sk = (w) => `<span class="skel" style="width:${w}%"></span>`;
+      document.getElementById("skel-rows").innerHTML = [
+        [70, 40],
+        [55, 30],
+        [80, 45],
+        [60, 35],
+        [65, 40],
+      ]
+        .map(
+          ([a, b]) =>
+            `<tr><td>${sk(a)}${sk(25)}</td><td>${sk(b + 20)}</td><td class="r v2">${sk(30)}</td><td class="v2">${sk(70)}</td></tr>`,
+        )
+        .join("");
+      document.getElementById("skel-cards").innerHTML = [75, 60, 85, 65]
+        .map(
+          (a) =>
+            `<div class="card-link"><span class="body">${sk(a)}${sk(45)}</span></div>`,
+        )
+        .join("");
+
+      const root = document.documentElement;
+      function set(key, value) {
+        root.dataset[key] = value;
+        document
+          .querySelectorAll(`.pv-group[data-key="${key}"] button`)
+          .forEach((b) =>
+            b.setAttribute("aria-pressed", String(b.dataset.v === value)),
+          );
+        document.querySelector(".pv-state").hidden =
+          root.dataset.screen !== "list";
+      }
+      function applyHash() {
+        new URLSearchParams(location.hash.slice(1)).forEach((v, k) => {
+          if (k in root.dataset) root.dataset[k] = v;
+        });
+        ["screen", "state", "phase", "device", "theme"].forEach((k) =>
+          set(k, root.dataset[k]),
+        );
+      }
+      applyHash();
+      addEventListener("hashchange", applyHash);
+      document
+        .querySelectorAll(".pv-group button")
+        .forEach((b) =>
+          b.addEventListener("click", () =>
+            set(b.parentElement.dataset.key, b.dataset.v),
+          ),
+        );
+      document.addEventListener("click", (e) => {
+        const go = e.target.closest("[data-go]");
+        if (go) {
+          e.preventDefault();
+          set("screen", go.dataset.go);
+          window.scrollTo(0, 0);
+          return;
+        }
+        const head = e.target.closest(".collapse-head");
+        if (head) {
+          const c = head.parentElement;
+          const open = c.dataset.open !== "true";
+          c.dataset.open = open;
+          head.setAttribute("aria-expanded", open);
+          return;
+        }
+        const est = e.target.closest("[data-est]");
+        if (est) {
+          est.parentElement
+            .querySelectorAll("[data-est]")
+            .forEach((b) => b.setAttribute("aria-checked", String(b === est)));
+          document.querySelector(".branch-code").hidden =
+            est.dataset.est !== "br";
+        }
+      });
+    </script>
+  </body>
+</html>
