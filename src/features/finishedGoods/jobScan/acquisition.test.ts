@@ -70,7 +70,7 @@ function harness() {
     onUploadError: vi.fn<AcquisitionPorts["onUploadError"]>(),
   };
   return {
-    controller: new JobScanAcquisition(ports),
+    controller: new JobScanAcquisition(() => ports),
     ports,
     tickets,
     extractStarted,

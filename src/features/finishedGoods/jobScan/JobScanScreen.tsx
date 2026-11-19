@@ -121,8 +121,8 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
   const router = useRouter();
   const canManage = useCanManage();
-  // useOperation scopes persisted request IDs to the signed-in user.
-  const operation = useOperation(`fg-job-scan:${warehouseId}`);
+  // Tickets are not persisted, so neither are their save IDs (see module map).
+  const operation = useOperation();
   const extract = useAction(fgRefs.extractJobTicket);
   const save = useMutation(fgRefs.saveJobScans);
   const { startUpload } = useUploadThing("jobTicketImage");
@@ -386,7 +386,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
             // ID replays an identical retry and lets an edited batch mint anew.
             requestId: operation.request(
               `save:${JSON.stringify(payload)}`,
-              "durable",
+              "ephemeral",
             ),
           }),
         ),

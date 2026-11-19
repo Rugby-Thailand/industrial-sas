@@ -70,7 +70,9 @@ vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (id: string) => ReactNode }) =>
     children(mocks.warehouseId),
 }));
-vi.mock("@/hooks/useDraftKey", () => ({ useDraftKey: () => mocks.actorId }));
+vi.mock("@/hooks/useDraftKey", () => ({
+  useDraftKey: (scope: string) => `${scope}:${mocks.actorId}`,
+}));
 vi.mock("@/hooks/useCanManage", () => ({ useCanManage: () => true }));
 vi.mock("@/lib/uploadthing", () => ({
   useUploadThing: () => ({ startUpload: mocks.upload }),
@@ -229,6 +231,10 @@ it("retains entered tickets and reuses the same request after a lost save respon
   await waitFor(() =>
     expect(screen.getByRole("textbox", { name: /Job No\./ })).toBeEnabled(),
   );
+  // Ticket contents (and their payload-keyed IDs) never reach browser storage.
+  expect(
+    Object.keys(localStorage).filter((key) => key.startsWith("fg-requests:")),
+  ).toEqual([]);
   fireEvent.change(screen.getByRole("textbox", { name: /Job No\./ }), {
     target: { value: "FO69070074" },
   });

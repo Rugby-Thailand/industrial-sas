@@ -196,15 +196,27 @@ it("uses the live durable ID when reads fail, then restores it after remount", (
   expect(next.result.current.request(key, "durable")).toBe(id);
 });
 
-it("keeps ephemeral IDs usable at quota and clears their in-memory fallback", () => {
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new DOMException("Full", "QuotaExceededError");
-  });
+it("keeps ephemeral IDs in memory only, so a remount mints a new one", () => {
+  const write = vi.spyOn(Storage.prototype, "setItem");
   const hook = renderHook(() => useRequestIdentity(scope));
   const id = hook.result.current.request(key, "ephemeral");
   expect(hook.result.current.request(key, "ephemeral")).toBe(id);
-  hook.result.current.clearRequests();
-  expect(hook.result.current.request(key, "ephemeral")).not.toBe(id);
+  expect(hook.result.current.clearRequests(key)).toBe(true);
+  const renewed = hook.result.current.request(key, "ephemeral");
+  expect(renewed).not.toBe(id);
+  hook.unmount();
+  const next = renderHook(() => useRequestIdentity(scope));
+  expect(next.result.current.request(key, "ephemeral")).not.toBe(renewed);
+  expect(write).not.toHaveBeenCalled();
+  expect(localStorage.length).toBe(0);
+});
+
+it("defaults to the durable policy for callers outside finished goods", () => {
+  const hook = renderHook(() => useRequestIdentity(scope));
+  const id = hook.result.current.request(key);
+  hook.unmount();
+  const next = renderHook(() => useRequestIdentity(scope));
+  expect(next.result.current.request(key)).toBe(id);
 });
 
 it("requires an explicit typed policy on every finished-goods request", () => {

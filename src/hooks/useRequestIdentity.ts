@@ -3,6 +3,10 @@ import { useRef } from "react";
 import { drafts } from "@/lib/browser/storage";
 import { createRequestIdentityRegistry } from "./requestIdentityRegistry";
 
+/**
+ * durable: persisted per scope, so a remount or another tab reuses the ID.
+ * ephemeral: in memory only; a remount mints a new ID.
+ */
 export type RequestIdentityPolicy = "durable" | "ephemeral";
 const ID_PATTERN = /^[0-9a-f-]{36}$/;
 type Requests = Record<string, string>;
@@ -42,19 +46,15 @@ export function useRequestIdentity(scope?: string) {
       };
     return requests.current;
   };
-  const request = (
-    key: string,
-    policy: RequestIdentityPolicy = "ephemeral",
-  ) => {
+  const request = (key: string, policy: RequestIdentityPolicy = "durable") => {
     const current = currentRequests();
-    const saved = scope ? readRequests(scope) : undefined;
-    // Stored durable identities win, including another tab's persisted ID.
-    if (policy === "durable" && saved && Object.hasOwn(saved, key))
-      current.registry.forget(key);
-    const id = current.registry.request(key, {
-      read: () => (saved && Object.hasOwn(saved, key) ? saved[key]! : null),
-    });
-    if (scope && saved !== undefined && saved[key] !== id) {
+    if (policy === "ephemeral" || !scope) return current.registry.request(key);
+    const saved = readRequests(scope);
+    const stored = saved && Object.hasOwn(saved, key) ? saved[key]! : null;
+    // Stored identities win, including another tab's persisted ID.
+    if (stored) current.registry.forget(key);
+    const id = current.registry.request(key, { read: () => stored });
+    if (saved !== undefined && stored !== id) {
       drafts.write(`fg-requests:${scope}`, {
         version: 1,
         requests: { ...saved, [key]: id },
@@ -66,15 +66,14 @@ export function useRequestIdentity(scope?: string) {
     const current = currentRequests();
     if (key !== undefined) {
       const saved = scope ? readRequests(scope) : undefined;
-      if (saved === undefined) {
-        current.registry.forget(key);
-        return false;
-      }
+      current.registry.forget(key);
+      if (saved === undefined) return false;
+      // Ephemeral keys and already-cleared keys leave storage untouched.
+      if (!Object.hasOwn(saved, key)) return true;
       delete saved[key];
       const cleared = Object.keys(saved).length
         ? drafts.write(`fg-requests:${scope}`, { version: 1, requests: saved })
         : drafts.remove(`fg-requests:${scope}`);
-      current.registry.forget(key);
       return cleared;
     }
     // Whole-scope success may retire even an unreadable recovery document.

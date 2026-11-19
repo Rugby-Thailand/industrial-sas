@@ -11,17 +11,7 @@ export function useJobScanAcquisition(ports: AcquisitionPorts) {
     committed.current = ports;
   });
   useLayoutEffect(() => {
-    const acquisition = new JobScanAcquisition({
-      prepare: (...args) => committed.current.prepare(...args),
-      toDataUrl: (file) => committed.current.toDataUrl(file),
-      extract: (imageUrl) => committed.current.extract(imageUrl),
-      upload: (file) => committed.current.upload(file),
-      createObjectURL: (file) => committed.current.createObjectURL(file),
-      revokeObjectURL: (url) => committed.current.revokeObjectURL(url),
-      addTicket: (ticket) => committed.current.addTicket(ticket),
-      updateTicket: (...args) => committed.current.updateTicket(...args),
-      onUploadError: (error) => committed.current.onUploadError(error),
-    });
+    const acquisition = new JobScanAcquisition(() => committed.current);
     controller.current = acquisition;
     return () => {
       controller.current = null;

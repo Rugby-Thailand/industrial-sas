@@ -102,16 +102,15 @@ it("subscribes once on product detail open, releases it on Cancel and never watc
   expect(screen.getByRole("textbox", { name: "Product name" })).toHaveValue(
     finishedGoodProduct.name,
   );
-  expect(
-    mocks.query.mock.calls.filter(([name]) => name === detailName),
-  ).toHaveLength(1);
+  // Count live owners, not renders: a benign re-render must not fail this.
   expect(mocks.active.get(detailName)).toBe(1);
+  const detailReads = () =>
+    mocks.query.mock.calls.filter(([name]) => name === detailName).length;
+  const readsBeforeLeaving = detailReads();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(mocks.active.get(detailName)).toBe(0);
   expect(screen.getByRole("button", { name: "Open detail" })).toBeVisible();
-  expect(
-    mocks.query.mock.calls.filter(([name]) => name === detailName),
-  ).toHaveLength(1);
+  expect(detailReads()).toBe(readsBeforeLeaving);
   expect(
     mocks.query.mock.calls.some(
       ([name]) => name === getFunctionName(fgRefs.getPallet),

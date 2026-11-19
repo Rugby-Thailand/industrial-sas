@@ -32,7 +32,12 @@ export class JobScanAcquisition {
   >();
   private disposed = false;
 
-  constructor(private readonly ports: AcquisitionPorts) {}
+  /** Ports are read on each use, so a React owner can supply its latest callbacks. */
+  constructor(private readonly currentPorts: () => AcquisitionPorts) {}
+
+  private get ports() {
+    return this.currentPorts();
+  }
 
   async acquire(file: File): Promise<void> {
     if (this.disposed) return;
