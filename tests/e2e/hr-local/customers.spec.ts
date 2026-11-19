@@ -14,7 +14,25 @@ test.describe("customers on a 390px phone", () => {
   test("a Thai name-only customer saves in under 10 seconds and survives reload", async ({
     page,
   }, info) => {
+    test.setTimeout(420_000);
     const name = `บริษัท ทดสอบ ${randomUUID().slice(0, 6)} จำกัด`;
+    // The local server is `next dev`, which compiles a route on its first
+    // request. Open one customer's page first, so the timed save measures
+    // the save rather than a one-off compile a production build never does.
+    const api = await convexAs(page);
+    const warm = await api.mutation("customers/writes:createCustomer", {
+      requestId: randomUUID(),
+      name: `Warm-up ${randomUUID().slice(0, 6)}`,
+    });
+    expect(warm.ok && warm.value.ok).toBe(true);
+    // Untimed warm-up: a first compile on a busy machine can take minutes.
+    await page.goto(`/th/master-data/customers/${warm.value.customerId}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 240_000,
+    });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
+      timeout: 240_000,
+    });
     await page.goto("/th/master-data/customers/new");
     const field = page.getByRole("textbox", { name: /ชื่อลูกค้า/ });
     await expect(field).toBeEditable();
@@ -37,7 +55,6 @@ test.describe("customers on a 390px phone", () => {
     await expect(
       page.getByRole("heading", { level: 1, name, exact: true }),
     ).toBeVisible();
-    const api = await convexAs(page);
     const stored = await api.query("customers/catalogue:getCustomer", {
       customerId,
     });
