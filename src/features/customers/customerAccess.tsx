@@ -8,10 +8,11 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 
 /**
- * Customers are organization records. The warehouse workspace feed refuses a
- * member without warehouse access, but that refusal says nothing about
- * customers: once identity is settled, customer queries authorize themselves.
- * While identity is still settling, the page keeps its header (`frame`).
+ * Customers are organization records. Once the member is signed in, the
+ * customer queries authorize themselves, so the page depends on sign-in
+ * alone: a pending, refused or failing warehouse workspace read never holds
+ * it back or unmounts an open form. Before sign-in settles the page keeps
+ * its header (`frame`).
  */
 export function CustomerGate({
   frame,
@@ -22,13 +23,17 @@ export function CustomerGate({
   readonly loadingLabel: string;
   readonly children: ReactNode;
 }) {
-  const { readiness } = useWorkspace();
-  if (readiness.kind === "READY_TO_QUERY" || readiness.kind === "DENIED")
-    return <>{children}</>;
+  const { authenticated, readiness } = useWorkspace();
+  if (authenticated) return <>{children}</>;
   return (
     <>
       {frame}
-      <LedgerPanelStatus state={readiness} label={loadingLabel} />
+      <LedgerPanelStatus
+        state={
+          readiness.kind === "READY_TO_QUERY" ? { kind: "LOADING" } : readiness
+        }
+        label={loadingLabel}
+      />
     </>
   );
 }

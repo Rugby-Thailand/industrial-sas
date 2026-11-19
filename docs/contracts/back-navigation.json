@@ -9241,7 +9241,7 @@
     {
       "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:draft",
       "policy": "presentation",
-      "expectation": "The customer form's field values. They choose inline hints (tax ID length or check digit), the branch number field under Branch, and the duplicate-name Notice; no foreground. The page-level navigation draft protects unsaved values: native Back asks before discarding them. The current name also decides whether a failed duplicate check's inline Notice and its Save without checking Button still apply; changing the name withdraws them.",
+      "expectation": "The customer form's field values. They choose inline hints (tax ID length or check digit), the branch number field under Branch, and the duplicate-name Notice (whose Use this customer Button completes the task through the declared openExisting completion); no foreground. The page-level navigation draft protects unsaved values: native Back asks before discarding them. The current name also decides whether a failed duplicate check's inline Notice and its Save without checking Button still apply; changing the name withdraws them.",
       "uses": ["branch"],
       "render": [
         {
@@ -9251,7 +9251,6 @@
             "span",
             "src/components/ui/Notice#Notice[role=status]",
             "src/components/ui/button#Button",
-            "src/i18n/navigation#Link",
             "ul"
           ],
           "falsy": []
@@ -9386,7 +9385,6 @@
             "span",
             "src/components/ui/Notice#Notice[role=status]",
             "src/components/ui/button#Button",
-            "src/i18n/navigation#Link",
             "ul"
           ],
           "falsy": []
@@ -9922,6 +9920,22 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "Cancel on a directly opened editor replaces it with the customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerScreens.tsx#openExisting:$task:completeTask:customerPath",
+      "intent": "completion",
+      "expectation": "Choosing a listed existing customer ends the create task like a save: the shared draft guard asks before discarding the typed draft, then the live operation completes by replacing the form's entry with that customer, so the next Back restores the real list origin with its query and hash and Forward returns to the chosen customer.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "choosing an existing customer replaces the form: Back restores the filtered list, Forward the customer"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "shows a likely duplicate before saving and links to the existing customer"
         }
       ]
     }

@@ -32,8 +32,13 @@ const mocks = vi.hoisted(() => ({
     "masterData.customer.manage",
   ] as string[],
   replace: vi.fn(),
-  readiness: { kind: "READY_TO_QUERY" } as { kind: string; requestId?: string },
+  readiness: { kind: "READY_TO_QUERY" } as {
+    kind: string;
+    requestId?: string;
+    code?: string;
+  },
   viewerPending: false,
+  authenticated: true,
   // The live duplicate hint fails with a query error (it never throws).
   hintError: undefined as Error | undefined,
   // The optional code suggestion fails the same way.
@@ -92,6 +97,8 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
   ...(await importOriginal<typeof WorkspaceModule>()),
   useWorkspace: () => ({
     readiness: mocks.readiness,
+    // Sign-in settles independently of the warehouse workspace read.
+    authenticated: mocks.authenticated,
     permissionsReady: mocks.readiness.kind === "READY_TO_QUERY",
     navigationPermissions:
       mocks.readiness.kind === "READY_TO_QUERY" ? mocks.permissions : [],
@@ -212,6 +219,7 @@ beforeEach(() => {
   mocks.queries.set(SIMILAR, { ok: true, value: [] });
   mocks.readiness = { kind: "READY_TO_QUERY" };
   mocks.viewerPending = false;
+  mocks.authenticated = true;
   mocks.hintError = undefined;
   mocks.suggestError = undefined;
   mocks.listResolver = undefined;
@@ -243,6 +251,21 @@ async function nativeBack() {
     window.history.back();
     await new Promise<void>((resolve) => setTimeout(resolve, 30));
   });
+}
+/** Chooses the listed existing customer, confirming the draft discard. */
+async function chooseExisting(expectedPath: string) {
+  fireEvent.click(
+    within(screen.getByTestId("customer-similar")).getByRole("button", {
+      name: "Use this customer",
+    }),
+  );
+  const prompt = await screen.findByRole("dialog", {
+    name: "Discard changes?",
+  });
+  fireEvent.click(
+    within(prompt).getByRole("button", { name: "Discard changes" }),
+  );
+  await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith(expectedPath));
 }
 const type = (name: RegExp | string, value: string) =>
   fireEvent.change(screen.getByRole("textbox", { name }), {
@@ -392,6 +415,7 @@ describe("customer list", () => {
 
   it("waits for sign-in without querying customers", () => {
     mocks.readiness = { kind: "LOADING" };
+    mocks.authenticated = false;
     render(<CustomerCatalogue />);
     expect(mocks.queryArgs.has(LIST)).toBe(false);
     expect(screen.getByText("Loading customers…")).toBeInTheDocument();
@@ -545,7 +569,7 @@ describe("new customer", () => {
       expect(href()).toBe("/en/master-data/customers/customer-new"),
     );
     await nativeBack();
-    expect(href()).toBe(origin);
+    await waitFor(() => expect(href()).toBe(origin));
   });
 
   it("two create forms with the same draft send different request IDs; a transport retry reuses its own", async () => {
@@ -724,11 +748,7 @@ describe("new customer", () => {
     await waitFor(() =>
       expect(screen.getByTestId("customer-similar")).toHaveTextContent("NEW-2"),
     );
-    expect(
-      within(screen.getByTestId("customer-similar")).getByRole("link", {
-        name: "Use this customer",
-      }),
-    ).toHaveAttribute("href", "/master-data/customers/customer-b");
+    // An empty live answer is authoritative too: nothing to choose.
     mocks.queries.set(SIMILAR, { ok: true, value: [] });
     view.rerender(
       <DraftGuardProvider>
@@ -736,6 +756,58 @@ describe("new customer", () => {
       </DraftGuardProvider>,
     );
     expect(screen.queryByTestId("customer-similar")).toBeNull();
+    // When it lists the newer record again, choosing it opens that record.
+    mocks.queries.set(SIMILAR, {
+      ok: true,
+      value: [match("customer-b", "NEW-2")],
+    });
+    view.rerender(
+      <DraftGuardProvider>
+        <NewCustomerForm />
+      </DraftGuardProvider>,
+    );
+    await chooseExisting("/master-data/customers/customer-b");
+  });
+
+  it("choosing an existing customer replaces the form: Back restores the filtered list, Forward the customer", async () => {
+    const origin = `/en/master-data/customers?customers=${encodeURIComponent(
+      JSON.stringify({ search: "acm", status: "ALL" }),
+    )}#list`;
+    openFrom(origin, "/en/master-data/customers/new");
+    mocks.replace.mockImplementation((destination: string) =>
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/en${destination}`,
+      ),
+    );
+    mocks.queries.set(SIMILAR, {
+      ok: true,
+      value: [
+        {
+          customerId: "customer-a",
+          code: "C-0007",
+          name: "Acme",
+          status: "ACTIVE",
+        },
+      ],
+    });
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Acme");
+    await screen.findByTestId("customer-similar");
+    await chooseExisting("/master-data/customers/customer-a");
+    await waitFor(() =>
+      expect(href()).toBe("/en/master-data/customers/customer-a"),
+    );
+    await nativeBack();
+    await waitFor(() => expect(href()).toBe(origin));
+    await act(async () => {
+      window.history.forward();
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    });
+    await waitFor(() =>
+      expect(href()).toBe("/en/master-data/customers/customer-a"),
+    );
   });
 
   it("a superseded Save-time match never returns after the name goes away and back", async () => {
@@ -778,11 +850,7 @@ describe("new customer", () => {
     });
     expect(mocks.convexQuery).toHaveBeenCalledTimes(2);
     expect(create).not.toHaveBeenCalled();
-    expect(
-      within(screen.getByTestId("customer-similar")).getByRole("link", {
-        name: "Use this customer",
-      }),
-    ).toHaveAttribute("href", "/master-data/customers/customer-b");
+    await chooseExisting("/master-data/customers/customer-b");
   });
 
   it("editing the name retires a Save-time match even while the live hint never answers", async () => {
@@ -819,11 +887,7 @@ describe("new customer", () => {
     });
     expect(mocks.convexQuery).toHaveBeenCalledTimes(2);
     expect(create).not.toHaveBeenCalled();
-    expect(
-      within(screen.getByTestId("customer-similar")).getByRole("link", {
-        name: "Use this customer",
-      }),
-    ).toHaveAttribute("href", "/master-data/customers/customer-b");
+    await chooseExisting("/master-data/customers/customer-b");
   });
 
   it("a live error after a live match does not bring back the Save-time match", async () => {
@@ -960,12 +1024,14 @@ describe("new customer", () => {
       expect(href()).toBe("/en/master-data/customers/customer-new"),
     );
     await nativeBack();
-    expect(href()).toBe(LIST_ORIGIN);
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
     await act(async () => {
       window.history.forward();
       await new Promise<void>((resolve) => setTimeout(resolve, 30));
     });
-    expect(href()).toBe("/en/master-data/customers/customer-new");
+    await waitFor(() =>
+      expect(href()).toBe("/en/master-data/customers/customer-new"),
+    );
   });
 
   it("refuses an empty name without calling the server", async () => {
@@ -995,9 +1061,7 @@ describe("new customer", () => {
     type(/Customer name/, "บริษัท ไทยรุ่งเรือง");
     const hint = await screen.findByTestId("customer-similar");
     expect(hint).toHaveTextContent("A customer with this name already exists");
-    expect(
-      within(hint).getByRole("link", { name: "Use this customer" }),
-    ).toHaveAttribute("href", "/master-data/customers/customer-a");
+    await chooseExisting("/master-data/customers/customer-a");
     expect(mocks.queryArgs.get(SIMILAR)).toEqual({
       name: "บริษัท ไทยรุ่งเรือง",
     });
@@ -1162,6 +1226,20 @@ describe("customer detail", () => {
     );
   });
 
+  it("dials the phone number, not the digits in a label before it", () => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: {
+        ...base,
+        contact: { name: "Desk", phone: "24h hotline: 02-123-4567" },
+      },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(
+      screen.getByRole("link", { name: "24h hotline: 02-123-4567" }),
+    ).toHaveAttribute("href", "tel:021234567");
+  });
+
   it("shows an extension with no base number as plain text", () => {
     mocks.queries.set(GET, {
       ok: true,
@@ -1208,6 +1286,7 @@ describe("customer detail", () => {
 
   it("keeps its header and Back while sign-in settles", () => {
     mocks.readiness = { kind: "LOADING" };
+    mocks.authenticated = false;
     render(<CustomerDetail customerId="customer-a" />);
     expect(
       screen.getByRole("heading", { level: 1, name: "Customer details" }),
@@ -1258,7 +1337,7 @@ describe("customer detail", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(href()).toBe(DETAIL_URL);
     await nativeBack();
-    expect(href()).toBe(LIST_ORIGIN);
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
     expect(mutationFor(ARCHIVE)).not.toHaveBeenCalled();
   });
 
@@ -1283,7 +1362,7 @@ describe("customer detail", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(href()).toBe(DETAIL_URL));
     await nativeBack();
-    expect(href()).toBe(LIST_ORIGIN);
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
   });
 
   it("a refused archive keeps its confirmation open with the reason", async () => {
@@ -1481,6 +1560,27 @@ describe("edit customer", () => {
     render(<EditCustomerForm customerId="customer-a" />);
     expect(screen.getByTestId("customer-archived-edit")).toBeVisible();
     expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  });
+
+  it("a failing warehouse workspace read never unmounts an open customer editor", () => {
+    mocks.queries.set(GET, { ok: true, value: full });
+    const view = render(<EditCustomerForm customerId="customer-a" />);
+    type(/Contact name/, "Unsaved contact");
+    mocks.readiness = { kind: "ERROR", code: "WORKSPACE_UNAVAILABLE" };
+    view.rerender(
+      <DraftGuardProvider>
+        <EditCustomerForm customerId="customer-a" />
+      </DraftGuardProvider>,
+    );
+    expect(screen.getByTestId("customer-form")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Unsaved contact")).toBeInTheDocument();
+    mocks.readiness = { kind: "LOADING" };
+    view.rerender(
+      <DraftGuardProvider>
+        <EditCustomerForm customerId="customer-a" />
+      </DraftGuardProvider>,
+    );
+    expect(screen.getByDisplayValue("Unsaved contact")).toBeInTheDocument();
   });
 
   it("a live archive while editing keeps the unsaved draft and blocks saving", async () => {

@@ -846,20 +846,17 @@ function CustomerEditor({
 }
 
 /**
- * Dial the base number only. An extension ("ต่อ 89", "ext 89", "x89") after
- * the first digit is shown, not dialled; a label before it ("PBX") is ignored.
- * Returns undefined when nothing dialable remains.
+ * Dial the first run that reads as a phone number (at least seven digits,
+ * with spaces, dashes, dots or brackets). Labels ("PBX", "ติดต่อ",
+ * "24h hotline:") and extensions ("ต่อ 89", "ext 89") are shown, not
+ * dialled. Returns undefined when no such run exists.
  */
 function telHref(phone: string): string | undefined {
-  const start = phone.search(/[\d+]/u);
-  if (start < 0) return undefined;
-  // "ext. 89" with no base number before it is an extension alone.
-  // The marker must stand alone: "ติดต่อ" and "text" are ordinary labels.
-  if (/(?:^|[\s/(])(?:ต่อ|ext\.?|x|#)\s*$/iu.test(phone.slice(0, start)))
-    return undefined;
-  const base = phone.slice(start).split(/\s*(?:ต่อ|ext\.?|x|#)\s*/iu)[0] ?? "";
-  const digits = base.replace(/[^\d+]/gu, "");
-  return /\d/u.test(digits) ? `tel:${digits}` : undefined;
+  for (const run of phone.matchAll(/\+?\d[\d\s().-]*\d/gu)) {
+    const digits = run[0].replace(/[^\d+]/gu, "");
+    if (digits.replace("+", "").length >= 7) return `tel:${digits}`;
+  }
+  return undefined;
 }
 
 /** A mailto: link that keeps the literal "@" and encodes each side of it. */
@@ -1112,6 +1109,19 @@ function CustomerFormBody({
     );
   }
 
+  // Choosing an existing customer ends this task like a save does: the
+  // draft guard asks before discarding, then the customer replaces the form's
+  // entry, so Back returns to wherever the form was opened from.
+  function openExisting(existingId: string) {
+    void operation.run(
+      async () => existingId,
+      (chosen) =>
+        operation.complete(() =>
+          completeTask(customerPath(chosen), router.replace),
+        ),
+    );
+  }
+
   // Cancel consumes the task and restores the real origin; a directly
   // opened form falls back to its parent: the list, or the customer.
   function cancel() {
@@ -1258,10 +1268,13 @@ function CustomerFormBody({
                         </span>
                       ) : null}
                     </span>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={customerPath(match.customerId)}>
-                        {t("useThisCustomer")}
-                      </Link>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openExisting(match.customerId)}
+                    >
+                      {t("useThisCustomer")}
                     </Button>
                   </li>
                 ))}

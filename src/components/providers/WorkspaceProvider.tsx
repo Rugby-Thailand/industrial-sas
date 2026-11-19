@@ -39,6 +39,12 @@ export interface WorkspaceContextValue {
   readonly denied: boolean;
   readonly navigationPermissions: readonly string[];
   readonly permissionsReady: boolean;
+  /**
+   * The member is signed in to a configured backend. True even when the
+   * warehouse workspace read is pending, refused or failing: organization
+   * pages that authorize their own queries gate on this, not on readiness.
+   */
+  readonly authenticated: boolean;
   readonly selectWarehouse: (warehouseId: string) => void;
 }
 
@@ -56,6 +62,7 @@ const EMPTY_WORKSPACE: WorkspaceContextValue = Object.freeze({
   denied: false,
   navigationPermissions: [],
   permissionsReady: false,
+  authenticated: false,
   selectWarehouse: idleSelection,
 });
 
@@ -107,6 +114,7 @@ export function WorkspaceProvider({
   }, []);
 
   const value = useMemo<WorkspaceContextValue>(() => {
+    const authenticated = !isAuthenticationLoading && isAuthenticated;
     if (isAuthenticationLoading) {
       return {
         ...EMPTY_WORKSPACE,
@@ -127,6 +135,7 @@ export function WorkspaceProvider({
         ...EMPTY_WORKSPACE,
         readiness: { kind: "ERROR", code: failureCodeOf(queryState.error) },
         failed: true,
+        authenticated,
         selectWarehouse,
       };
     }
@@ -135,6 +144,7 @@ export function WorkspaceProvider({
         ...EMPTY_WORKSPACE,
         readiness: { kind: "LOADING" },
         loading: true,
+        authenticated,
         selectWarehouse,
       };
     }
@@ -144,6 +154,7 @@ export function WorkspaceProvider({
         ...EMPTY_WORKSPACE,
         readiness: { kind: "DENIED", requestId: outcome.requestId },
         denied: true,
+        authenticated,
         selectWarehouse,
       };
     }
@@ -161,6 +172,7 @@ export function WorkspaceProvider({
       failed: false,
       denied: false,
       permissionsReady: true,
+      authenticated,
       selectWarehouse,
     };
   }, [
