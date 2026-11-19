@@ -19,6 +19,7 @@ import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 export { ErrorNotice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { Panel } from "@/components/ui/Panel";
+import type { RequestIdentityPolicy } from "@/hooks/useRequestIdentity";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 
 export {
@@ -63,7 +64,8 @@ export function useUnitText(format: string | undefined) {
     tr: (en: string, th: string) => unitCopy(tr(en, th), format),
   };
 }
-export { useDraftKey } from "@/hooks/useDraftKey";
+import { useDraftKey } from "@/hooks/useDraftKey";
+export { useDraftKey };
 export { useCanManage } from "@/hooks/useCanManage";
 export function ViewOnlyNotice() {
   const { t } = useFGText();
@@ -308,11 +310,23 @@ export function useWriteError(storageFormat?: string) {
 }
 export function useOperation(scope?: string, storageFormat?: string) {
   const describeError = useWriteError(storageFormat);
-  return useAsyncOperation({
+  // Persisted scopes are per signed-in user; an unscoped operation stays in memory.
+  // The actor follows the first segment, as in pre-pilot keys such as
+  // `fg-product:<actor>:<warehouse>:new`, so pending IDs survive a deploy.
+  const [prefix = "", ...rest] = (scope ?? "").split(":");
+  const actorPrefix = useDraftKey(prefix);
+  const operation = useAsyncOperation({
     navigation: "write",
-    ...(scope === undefined ? {} : { scope }),
+    scope:
+      scope === undefined || actorPrefix === null
+        ? undefined
+        : [actorPrefix, ...rest].join(":"),
     describeError,
   });
+  // Every finished-goods command must declare its recovery policy.
+  const request: (key: string, policy: RequestIdentityPolicy) => string =
+    operation.request;
+  return { ...operation, request };
 }
 export { written } from "@/lib/convex/mutationOutcome";
 export { useUnsavedWarning } from "@/hooks/useUnsavedWarning";

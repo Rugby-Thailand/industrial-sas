@@ -358,7 +358,7 @@ function ActiveMove({
   const issueMutation = useMutation(fgRefs.reportMoveIssue);
   const move = detail.activeMove!;
   const op = useOperation(
-    `${actorScope}:${warehouseId}:${move._id}`,
+    `fg-move:${warehouseId}:${move._id}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const [physicalConfirmed, setPhysicalConfirmed] = useState(false);
@@ -406,7 +406,7 @@ function ActiveMove({
           written(
             await startMutation({
               ...args,
-              requestId: op.request(`start:${JSON.stringify(args)}`),
+              requestId: op.request(`start:${JSON.stringify(args)}`, "durable"),
             }),
           );
         } else if (kind === "complete") {
@@ -424,12 +424,16 @@ function ActiveMove({
               physicalConfirmed,
               requestId: op.request(
                 `complete:${scanMode ? "verified" : "acknowledged"}`,
+                "durable",
               ),
             }),
           );
         } else if (kind === "cancel") {
           written(
-            await cancelMutation({ ...base, requestId: op.request("cancel") }),
+            await cancelMutation({
+              ...base,
+              requestId: op.request("cancel", "durable"),
+            }),
           );
         } else if (kind === "return") {
           if (!returnAcknowledged || (returnScanMode && !returnCode))
@@ -444,7 +448,10 @@ function ActiveMove({
           written(
             await returnMutation({
               ...args,
-              requestId: op.request(`return:${JSON.stringify(args)}`),
+              requestId: op.request(
+                `return:${JSON.stringify(args)}`,
+                "durable",
+              ),
             }),
           );
         } else {
@@ -453,7 +460,7 @@ function ActiveMove({
             await issueMutation({
               ...base,
               issue: issue.trim(),
-              requestId: op.request(`issue:${issue.trim()}`),
+              requestId: op.request(`issue:${issue.trim()}`, "durable"),
             }),
           );
         }
@@ -481,13 +488,13 @@ function ActiveMove({
             ...base,
             code,
             method,
-            requestId: op.request(`verify:${code}:${method}`),
+            requestId: op.request(`verify:${code}:${method}`, "ephemeral"),
           }),
         );
         return true;
       },
       () => {
-        op.clearRequests();
+        op.clearRequests(`verify:${code}:${method}`);
       },
     );
     if (!result) throw new Error("Verification failed");

@@ -57,7 +57,6 @@ import {
   useFGText,
   useCanManage,
   useOperation,
-  useDraftKey,
   useUnsavedWarning,
   written,
 } from "./shared";
@@ -573,8 +572,7 @@ function AvailableEditor({
     batchManagementRefs.replacementLabels,
     receiptId ? { warehouseId, receiptId } : "skip",
   );
-  const scope = useDraftKey("batch-available");
-  const op = useOperation(`${scope}:${warehouseId}:${data.batch._id}`);
+  const op = useOperation(`batch-available:${warehouseId}:${data.batch._id}`);
   const reviewStep = useWorkflowStep(
     "batchReview",
     `batch-repack:${warehouseId}:${data.batch._id}`,
@@ -692,7 +690,10 @@ function AvailableEditor({
     await op.run(
       async () => {
         return written(
-          await save({ ...args, requestId: op.request(JSON.stringify(args)) }),
+          await save({
+            ...args,
+            requestId: op.request(JSON.stringify(args), "durable"),
+          }),
         );
       },
       (receipt) => {

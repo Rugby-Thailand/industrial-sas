@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
 import {
   Camera,
@@ -25,6 +25,7 @@ import { StickyActionBar } from "@/components/ui/StickyActionBar";
 import { ScanIcon } from "@/components/ui/ScanIcon";
 import { Link, useRouter } from "@/i18n/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { requireWritten } from "@/lib/convex/mutationOutcome";
 import { useUploadThing } from "@/lib/uploadthing";
 import {
   ErrorNotice,
@@ -34,7 +35,6 @@ import {
   useDraftKey,
   useOperation,
   ViewOnlyNotice,
-  written,
 } from "../shared";
 import { BarcodeCameraBox } from "../BarcodeCameraBox";
 import { AcquisitionModes } from "./AcquisitionModes";
@@ -45,11 +45,8 @@ import { ScanProgress } from "./ScanProgress";
 import { TicketCard } from "./TicketCard";
 import { TicketFieldScanner } from "./TicketFieldScanner";
 import { toDataUrl } from "./imageDataUrl";
-import {
-  MAX_JOB_TICKET_AI_DATA_URL,
-  MAX_JOB_TICKET_UPLOAD_BYTES,
-  prepareJobTicketPhoto,
-} from "./prepareJobTicketPhoto";
+import { useJobScanAcquisition } from "./useJobScanAcquisition";
+import { prepareJobTicketPhoto } from "./prepareJobTicketPhoto";
 import {
   MAX_JOB_SCAN_ITEMS,
   applyBarcode,
@@ -59,7 +56,6 @@ import {
   isComplete,
   ticketFieldError,
   duplicateTicketKeys,
-  mergeExtracted,
   newTicket,
   toPayload,
   pickedLocationPayload,
@@ -125,6 +121,7 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
   const t = useTranslations("JobScan");
   const router = useRouter();
   const canManage = useCanManage();
+  // Tickets are not persisted, so neither are their save IDs (see module map).
   const operation = useOperation();
   const extract = useAction(fgRefs.extractJobTicket);
   const save = useMutation(fgRefs.saveJobScans);
@@ -167,26 +164,20 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
       .map((ticket) => [ticket.key, ticket.values]),
   );
   const duplicatesReviewed = reviewedDuplicates === duplicateFingerprint;
-  const previewUrls = useRef(new Set<string>());
-  const photoOperations = useRef(new Map<string, AbortController>());
-  useEffect(() => {
-    const urls = previewUrls.current;
-    const operations = photoOperations.current;
-    return () => {
-      for (const controller of operations.values()) controller.abort();
-      operations.clear();
-      for (const url of urls) URL.revokeObjectURL(url);
-      urls.clear();
-    };
-  }, []);
-
-  const releasePreview = (ticket: TicketDraft) => {
-    photoOperations.current.get(ticket.key)?.abort();
-    photoOperations.current.delete(ticket.key);
-    if (!ticket.previewUrl) return;
-    URL.revokeObjectURL(ticket.previewUrl);
-    previewUrls.current.delete(ticket.previewUrl);
-  };
+  const acquisition = useJobScanAcquisition({
+    prepare: prepareJobTicketPhoto,
+    toDataUrl,
+    extract: (imageUrl) => extract({ warehouseId, imageUrl }),
+    upload: async (image) =>
+      (await startUpload([image], { warehouseId }))?.[0]?.serverData,
+    createObjectURL: (file) => URL.createObjectURL(file),
+    revokeObjectURL: (url) => URL.revokeObjectURL(url),
+    addTicket: (ticket) => setTickets((current) => [...current, ticket]),
+    updateTicket: (key, change) => update(key, change),
+    onUploadError: (error) => console.error("Job ticket upload failed", error),
+  });
+  const releasePreview = (ticket: TicketDraft) =>
+    acquisition.release(ticket.key);
   // Captured tickets survive in-app links, Back and search unless discarded;
   // a save in flight must finish first.
   function closeFieldScan() {
@@ -273,85 +264,13 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     setFeedback(t("barcodeAdded", { field: t(target.field), code }));
   }
 
-  async function onPhoto(file: File) {
+  function onPhoto(file: File) {
     if (
       acquisitionBlocked.current ||
       ticketsRef.current.length >= MAX_JOB_SCAN_ITEMS
     )
       return;
-    const previewUrl = URL.createObjectURL(file);
-    previewUrls.current.add(previewUrl);
-    const ticket = {
-      ...newTicket("AI"),
-      status: "reading" as const,
-      previewUrl,
-    };
-    setTickets((current) => [...current, ticket]);
-    const controller = new AbortController();
-    photoOperations.current.set(ticket.key, controller);
-    const current = () => !controller.signal.aborted;
-    let reading: Promise<Awaited<ReturnType<typeof extract>> | undefined> =
-      Promise.resolve(undefined);
-    try {
-      const image = await prepareJobTicketPhoto(file, {
-        signal: controller.signal,
-        onAiReady: async (aiFile) => {
-          // Dispatch AI before WebP encoding; never await the AI response here.
-          try {
-            const imageUrl = await toDataUrl(aiFile);
-            if (current() && imageUrl.length <= MAX_JOB_TICKET_AI_DATA_URL)
-              reading = extract({ warehouseId, imageUrl }).catch(
-                () => undefined,
-              );
-          } catch {
-            // A failed AI input must not prevent storing the photo.
-          }
-        },
-      });
-      if (!current()) return;
-      // AI and storage remain independent, including their different size limits.
-      const [uploaded, outcome] = await Promise.all([
-        image.size <= MAX_JOB_TICKET_UPLOAD_BYTES
-          ? startUpload([image], { warehouseId }).catch((error: unknown) => {
-              console.error("Job ticket upload failed", error);
-              return undefined;
-            })
-          : undefined,
-        reading,
-      ]);
-      if (!current()) return;
-      const attachment = uploaded?.[0]?.serverData;
-      const imageUrl = attachment?.url;
-      const result = outcome?.ok ? outcome.value : undefined;
-      update(ticket.key, (row) => ({
-        ...(result?.ok ? mergeExtracted(row, result.fields) : row),
-        status: "ready",
-        ...(imageUrl && attachment?.assetId
-          ? { imageUrl, imageAssetId: attachment.assetId }
-          : {}),
-        ...(result?.ok
-          ? { aiRaw: result.raw, aiUsageOperationId: result.aiUsageOperationId }
-          : {}),
-        notice: !result?.ok
-          ? result?.error.code === "RATE_LIMITED"
-            ? "aiRateLimited"
-            : "aiFailed"
-          : !imageUrl
-            ? "uploadFailed"
-            : result.mock
-              ? "aiMock"
-              : "aiFilled",
-      }));
-    } catch {
-      if (current())
-        update(ticket.key, (row) => ({
-          ...row,
-          status: "ready",
-          notice: "photoProcessingFailed",
-        }));
-    } finally {
-      photoOperations.current.delete(ticket.key);
-    }
+    return acquisition.acquire(file);
   }
 
   function onBarcode(code: string) {
@@ -460,10 +379,15 @@ function JobScanWorkflow({ warehouseId }: { warehouseId: string }) {
     closeFieldScan();
     const result = await operation.run(
       async () =>
-        written(
+        requireWritten(
           await save({
             ...payload,
-            requestId: operation.request(JSON.stringify(payload)),
+            // Convex keeps sent mutations pending across reconnects. A payload-keyed
+            // ID replays an identical retry and lets an edited batch mint anew.
+            requestId: operation.request(
+              `save:${JSON.stringify(payload)}`,
+              "ephemeral",
+            ),
           }),
         ),
       () => {

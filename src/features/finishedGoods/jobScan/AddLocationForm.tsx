@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { ROUTES } from "@/lib/navigation";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
+import { writeFailure } from "@/lib/convex/mutationOutcome";
 import { resolveWriteError } from "@/lib/resolveWriteError";
-import { useOperation, written } from "../shared";
+import { useOperation } from "../shared";
 import type { PickedLocation } from "./ticketDraft";
 
 export function AddLocationForm({
@@ -96,12 +97,12 @@ export function AddLocationForm({
       async () => {
         const result = await create({
           ...payload,
-          requestId: operation.request(JSON.stringify(payload)),
+          requestId: operation.request(JSON.stringify(payload), "durable"),
         });
         // A refusal or denial resolves for the current completion below,
         // which alone may mark its field.
-        if (!result.ok || !result.value.written)
-          return { kind: "UNWRITTEN", outcome: result } as const;
+        const failure = writeFailure(result);
+        if (failure) return { kind: "REFUSED", failure } as const;
         const resolved = await convex.query(fgRefs.resolveJobScanLocation, {
           warehouseId,
           code,
@@ -111,14 +112,12 @@ export function AddLocationForm({
         return { kind: "CREATED", location: resolved.value.location } as const;
       },
       (outcome) => {
-        if (outcome.kind === "UNWRITTEN") {
-          const result = outcome.outcome;
-          if (result.ok && !result.value.written)
-            setErrorField(result.value.error.field);
-          // Throws: the operation records its code and describes the error.
-          written(result);
-          return;
+        if (outcome.kind === "REFUSED") {
+          setErrorField(outcome.failure.field);
+          // The operation still describes the same copy key.
+          throw outcome.failure;
         }
+        operation.clearRequests();
         guard.settle();
         operation.complete(() =>
           onPick({

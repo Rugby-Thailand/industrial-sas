@@ -73,7 +73,10 @@ export function PackageAssignment({
   const canManage = useCanManage();
   const convex = useConvex();
   const key = `${scope}:${warehouseId}:${unitId ?? ""}:${batchId ?? ""}`;
-  const op = useOperation(key);
+  // useOperation adds the actor itself, matching `key`.
+  const op = useOperation(
+    `fg-package-assignment:${warehouseId}:${unitId ?? ""}:${batchId ?? ""}`,
+  );
   const [restored] = useState(() =>
     drafts.read(
       key,
@@ -324,7 +327,7 @@ export function PackageAssignment({
     const request =
       pendingRequest?.fingerprint === fingerprint
         ? pendingRequest
-        : { id: op.request(fingerprint), fingerprint };
+        : { id: op.request(fingerprint, "ephemeral"), fingerprint };
     // The assignment and its retry identity must survive together. The generic
     // request registry is a convenience; this required write is the durable owner.
     if (

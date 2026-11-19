@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   replace: vi.fn(),
 }));
+vi.mock("@/hooks/useDraftKey", () => ({
+  useDraftKey: (scope: string) => `${scope}:user-a`,
+}));
 vi.mock("@/i18n/navigation", () => ({
   Link: (props: ComponentProps<"a">) => <a {...props} />,
   useRouter: () => ({

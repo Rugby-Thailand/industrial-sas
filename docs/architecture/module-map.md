@@ -1,6 +1,6 @@
 # Module map
 
-Where a change belongs, what each area may import, and which tests prove its rules. This page describes the code as of 2026-11-09; when a row stops being true, fix the row.
+Where a change belongs, what each area may import, and which tests prove its rules. This page describes the code as of 2026-11-19; when a row stops being true, fix the row.
 
 ## Layers and allowed imports
 
@@ -14,6 +14,35 @@ Where a change belongs, what each area may import, and which tests prove its rul
 | `src/lib/convex/*Api.ts`                                                                                            | Typed client references (`clientRef`) per feature                                                                                                    | `convex/_generated/api`                                                                                                 | TypeScript                                                                                                                                  |
 | `src/features/<feature>/**`                                                                                         | Screens, drafts, data adapters for one feature                                                                                                       | `src/components`, `src/lib`, `src/hooks`, `convex/_generated`, `convex/model`; other backend modules **type-only**      | `module-boundaries` (frontend rule)                                                                                                         |
 | `src/lib/browser`, `src/lib/navigationGuard.ts`, `src/hooks/useWorkflowStep.ts`, `src/components/navigation`        | History ownership and the Back contract                                                                                                              | Leaf `appHistoryMarkers` ← `navigationGuard` ← `history` ← `appHistory`; no runtime cycle                               | `module-boundaries` (cycle rule), `pnpm check:navigation`, caller tests listed in [back-navigation.json](../contracts/back-navigation.json) |
+
+## Job-scan and public registration boundaries
+
+ESLint keeps `src/features/finishedGoods/jobScan` private, including
+its types. Route pages may import the exact `JobScanScreen` and `JobScanRecords`
+screen entries. Barcode consumers share `classifyTicketBarcode` directly from
+`convex/model/finishedGoods/jobScans`; they do not depend on ticket drafts.
+
+Public Convex registrations use `queryWithOrg`, `mutationWithOrg` or
+`actionWithOrg`, including local factories such as `storageBuildingQuery`.
+The guard audits named imports of raw constructors from `convex/server` and
+`convex/_generated/server`, and confines their use to exact registration owners.
+ESLint rejects namespace imports and raw constructor re-exports, including
+specifiers with `/./` or `//` segments. `module-boundaries` resolves every
+import path, so it also catches static, namespace and dynamic (string or
+template) access outside exact owners, and re-exports from an exact owner.
+Convex sources must be TypeScript (only the root `convex/_generated` is exempt), so no `.js` entry escapes these checks. Named `internal*` constructors and type-only imports remain
+allowed. The two sessionless public ingress exceptions are:
+
+- `convex/lib/clerkWebhook.ts#clerkWebhook`: verifies the Clerk webhook signature.
+- `convex/finishedGoods/attachments.ts#finalizeUpload`: verifies an HMAC receipt
+  for a provider callback before finalizing its existing organization-owned
+  intent ([review](../reviews/architecture-current-2026-11-09/ai-attachments.md)).
+
+The navigation cycle check follows runtime edges through intermediate frontend
+modules, starting at each of the four history-core modules. Only whole-statement `import type` / `export type` and import-type expressions
+are erased edges. Inline `import { type X }` / `export { type X }` retain runtime
+edges under `verbatimModuleSyntax`. In-memory fixtures prove that each boundary
+rejects violations, including constructor aliases and runtime cycles.
 
 ## Where common changes go
 
@@ -40,7 +69,38 @@ Three helpers write a business change, an audit row and an idempotency receipt i
 | Retired request          | —                                                      | Actor-scoped fence returns `REQUEST_RETIRED`                                     | —                                               |
 | Refusal                  | Returned with a DENIED audit row                       | Returned with a DENIED audit row                                                 | Returned as `Result`                            |
 
-On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`, which keeps one ID per payload key in draft storage (`fg-requests:<scope>`) until `clearRequests()`, so a retry after a lost response reuses it. `useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
+Client callers unwrap these outcomes in `src/lib/convex/mutationOutcome.ts`. `writeFailure()` builds one `WriteOutcomeError` for a denial or refusal: the existing copy key as `message`, plus the code, field, request ID and replay flag. `requireWritten()` throws it or returns the receipt, and `written()` returns only the document ID. The job-scan location and record editors read the refused field and `STALE_REVISION` from it.
+
+On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`, which keeps one ID per command key. Finished-goods `useOperation().request(key, policy)` requires a typed `"durable"` or `"ephemeral"` policy at every call; other `useAsyncOperation` callers get the durable default.
+
+- Ephemeral IDs and their cleanup never touch storage. They live for the mount, so a remount mints a new one.
+- Durable IDs are also stored in `fg-requests:<scope>` before dispatch whenever storage works. A mount keeps its live ID for a key; a stored ID is used only when the mount has none, such as after a remount. A mount never overwrites an ID another tab stored for the same key.
+- Success (`clearRequests()`) retires only the IDs this mount dispatched, and only while storage still holds that same ID, so another tab's pending or newer ID survives. `clearRequests(key)` retires one key the same way, as verification does.
+- `useOperation` scopes storage per signed-in user with `useDraftKey` and places the actor after the scope's first segment (`fg-product:<actor>:<warehouse>:new`). That is the layout the pre-pilot screens used, so IDs pending at deploy time are still found. Old un-actored per-device keys are intentionally ignored, and no storage scope is used while the actor is unavailable.
+- The document is the pre-pilot flat `{ [command key]: id }` map, so a tab still running an older bundle can read and write it during a rollout. Mint times sit under one reserved `@minted` entry that older bundles preserve and ignore. Invalid ID entries are dropped at the next write.
+- Missing scope, blocked/full storage and unreadable recovery documents fall back to the live in-memory ID, so writes keep working (a deliberate product decision); remount recovery cannot be guaranteed when persistence fails. Failed removal leaves stored IDs recoverable. An unreadable document is never rewritten or removed, because its owners cannot be established.
+- Stored IDs expire `REQUEST_ID_RETENTION_MS` (37 days) after their last `request()` call, and every call restamps the entry. The server keeps a receipt for `IDEMPOTENCY_RETENTION_MS` (30 days) from its commit, which follows that call; the 7-day margin covers a commit delayed by an offline tab, and keeping an ID longer is harmless. Retry buttons that resend a saved command without calling `request()` (three storage-layout dialogs) do not restamp; those commands carry an expected version. An entry an older bundle wrote counts as fresh until this bundle next writes that scope. Expired entries are ignored when read and dropped at the next write to that scope. Until then, an ID left by an abandoned mount stays stored unless the same key is dispatched again and succeeds. Keys contain the payload and, for most commands, its expected version, so a leftover ID cannot attach to a different command.
+
+`useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
+
+The 23 request sites in 12 finished-goods files have these policies (2026-11-14). TypeScript requires the second argument through `useOperation`; `useRequestIdentity.test.tsx` pins that required signature. Hook/operation tests cover dispatch with blocked storage, old and corrupt records, failed removal, quota, per-key clearing, actor isolation, durable remount recovery and ephemeral IDs staying out of storage. This is identity recovery for the same payload key, not persistence of a form or HR-style reconciliation.
+
+| File (under `src/features/finishedGoods`) | Calls | Policy and reason                                                                                                                                                                                                                                                        |
+| ----------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BatchManager.tsx`                        |     1 | Durable: physical repacking creates replacement units.                                                                                                                                                                                                                   |
+| `MoveScreen.tsx`                          | 5 + 1 | Durable: start, complete, cancel, return and issue change the move/inventory workflow. Ephemeral: verify repeats a destination check without moving stock.                                                                                                               |
+| `PackageScanScreen.tsx`                   |     1 | Ephemeral registry: the assignment draft is the durable owner. It stores the command and ID together before dispatch and refuses to dispatch when that write fails.                                                                                                      |
+| `PalletScreens.tsx`                       | 3 + 1 | Durable: measurements, storage confirmation and reservation cancellation affect physical inventory. Ephemeral: destination verification repeats the same check.                                                                                                          |
+| `PlacementEditor.tsx`                     |     2 | Durable: reserve a location or a move.                                                                                                                                                                                                                                   |
+| `ProductBatches.tsx`                      |     1 | Durable: cancel an inventory unit.                                                                                                                                                                                                                                       |
+| `ProductScreen.tsx`                       |     1 | Durable: product creation must recover its original ID.                                                                                                                                                                                                                  |
+| `StackScreen.tsx`                         | 2 + 1 | Durable: reserve a stack or stack move. Ephemeral: set stacking limits to the same values, guarded by expected settings.                                                                                                                                                 |
+| `jobScan/AddLocationForm.tsx`             |     1 | Durable: location creation must recover its original ID.                                                                                                                                                                                                                 |
+| `jobScan/JobScanRecordEditor.tsx`         |     1 | Ephemeral: content update is guarded by `expectedVersion`; a repeated committed correction is unchanged or refused as stale.                                                                                                                                             |
+| `jobScan/JobScanRecords.tsx`              |     1 | Ephemeral: remapping is guarded atomically by `expectedVersions`; a repeated committed assignment is refused as stale.                                                                                                                                                   |
+| `jobScan/JobScanScreen.tsx`               |     1 | Ephemeral: tickets are not persisted, so a stored ID could only replay an old receipt for a new, identical batch. Within the mount, payload-keyed IDs replay identical retries and an edited batch mints a new ID. Convex retains in-flight mutations across reconnects. |
+
+Totals: **16 durable + 7 ephemeral = 23**. The package-assignment ephemeral registry policy does not relax its existing required command persistence. Version-fenced edits may report stale after a lost response/remount; they cannot apply the original revision twice. A tab adopts another tab's stored ID for the same key only when it has no live ID of its own; this hook does not provide atomic cross-tab command locking. HR's owner, payload/revision recovery and retirement policy remain separate.
 
 ## Projections inside tenant mutations
 

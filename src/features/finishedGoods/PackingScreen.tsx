@@ -402,8 +402,10 @@ function PackingForm({
   const writeError = useTranslations("WriteError");
   const router = useRouter();
   const canManage = useCanManage();
-  const key = `${scope}:${warehouseId}:${batch ? `batch:${batch._id}` : `new:${product._id}${draftToken ? `:${draftToken}` : ""}`}`;
-  const op = useOperation(key);
+  const target = `${warehouseId}:${batch ? `batch:${batch._id}` : `new:${product._id}${draftToken ? `:${draftToken}` : ""}`}`;
+  const key = `${scope}:${target}`;
+  // useOperation adds the actor itself, matching `key`.
+  const op = useOperation(`fg-batch-packing:${target}`);
   const saveBatchDraft = useMutation(fgRefs.saveBatchDraft);
   const commitBatch = useMutation(fgRefs.commitBatch);
   const [draft, setDraft] = useState(() =>

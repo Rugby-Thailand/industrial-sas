@@ -13,7 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAsyncOperation } from "./useAsyncOperation";
 
 describe("useAsyncOperation", () => {
@@ -440,4 +440,80 @@ describe("live operation completion ownership", () => {
       expect(navigate).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("durable retry dispatch", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
+  const useCommand = () =>
+    useAsyncOperation({
+      scope: "org:actor:warehouse:durable-command",
+      describeError: (code) => `Recoverable: ${code}`,
+    });
+
+  it.each(["read", "write"])(
+    "dispatches with an in-memory durable ID when %s storage is blocked",
+    async (failure) => {
+      const blocked = vi
+        .spyOn(Storage.prototype, failure === "read" ? "getItem" : "setItem")
+        .mockImplementation(() => {
+          throw new DOMException("Blocked", "QuotaExceededError");
+        });
+      const send = vi.fn(async (_id: string) => "saved");
+      const completed = vi.fn();
+      const hook = renderHook(useCommand);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await act(async () => {
+          expect(
+            await hook.result.current.run(
+              () =>
+                send(hook.result.current.request("create:payload", "durable")),
+              completed,
+            ),
+          ).toBe("saved");
+        });
+      }
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(send.mock.calls[0]![0]).toBe(send.mock.calls[1]![0]);
+      expect(completed).toHaveBeenCalledTimes(2);
+      expect(hook.result.current.error).toBe("");
+      blocked.mockRestore();
+      expect(hook.result.current.request("create:payload", "durable")).toBe(
+        send.mock.calls[0]![0],
+      );
+    },
+  );
+
+  it("replays a lost-response create after remount even when later storage writes fail", async () => {
+    // A server receipt keyed by ID represents a committed inventory creation.
+    const receipts = new Map<string, string>();
+    const ids: string[] = [];
+    const send = async (id: string) => {
+      ids.push(id);
+      if (receipts.has(id)) return receipts.get(id)!;
+      receipts.set(id, "created-unit");
+      throw new Error("Response lost after commit");
+    };
+    const first = renderHook(useCommand);
+    await act(async () => {
+      await first.result.current.run(() =>
+        send(first.result.current.request("create:payload", "durable")),
+      );
+    });
+    first.unmount();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Full", "QuotaExceededError");
+    });
+    const next = renderHook(useCommand);
+    await act(async () => {
+      expect(
+        await next.result.current.run(() =>
+          send(next.result.current.request("create:payload", "durable")),
+        ),
+      ).toBe("created-unit");
+    });
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(ids[0]);
+    expect(receipts.size).toBe(1);
+  });
 });

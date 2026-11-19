@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   /** The editor's own subscription to its record's corrections and values. */
   history: { complete: true, items: [] } as Record<string, unknown>,
 }));
+vi.mock("@/hooks/useDraftKey", () => ({
+  useDraftKey: (scope: string) => `${scope}:user-a`,
+}));
 vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   Link: () => null,

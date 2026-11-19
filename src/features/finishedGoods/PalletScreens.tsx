@@ -248,7 +248,7 @@ function Measurement({
     useSearchParams()?.get("returnToUnit") === pallet._id;
   const key = `${draftScope}:${warehouseId}:${pallet._id}`;
   const op = useOperation(
-    key,
+    `fg-measure:${warehouseId}:${pallet._id}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const savedMeasurement = (): MeasurementDraft => ({
@@ -368,7 +368,7 @@ function Measurement({
         written(
           await mutate({
             ...args,
-            requestId: op.request(JSON.stringify(args)),
+            requestId: op.request(JSON.stringify(args), "durable"),
           }),
         );
       },
@@ -423,7 +423,6 @@ function Measurement({
                   setDirty(false);
                   drafts.remove(key);
                   op.setError("");
-                  op.clearRequests();
                 }}
               >
                 {tr(
@@ -862,7 +861,7 @@ function PalletDetailScreen({
   const verifyMutation = useMutation(fgRefs.verifyDestination);
   const storeMutation = useMutation(fgRefs.confirmStored);
   const op = useOperation(
-    undefined,
+    `fg-pallet-operations:${warehouseId}:${detail.pallet._id}`,
     detail.pallet.storageFormat ?? detail.product?.storageFormat,
   );
   const [cancel, setCancel] = useState(false);
@@ -885,29 +884,36 @@ function PalletDetailScreen({
             ...(placement ? { expectedPlacementId: placement._id } : {}),
             code,
             method,
-            requestId: op.request(`verify:${placement?._id}:${code}:${method}`),
+            requestId: op.request(
+              `verify:${placement?._id}:${code}:${method}`,
+              "ephemeral",
+            ),
           }),
         ),
-      () => op.clearRequests(),
+      () => op.clearRequests(`verify:${placement?._id}:${code}:${method}`),
     );
     if (result === null) throw new Error("Verification failed");
   }
   async function store() {
-    await op.run(async () => {
-      written(
-        await storeMutation({
-          warehouseId,
-          palletId: pallet._id,
-          ...(placement ? { expectedPlacementId: placement._id } : {}),
-          requestId: op.request(
-            `store:${placement?._id}:${upperCode}:${physicalStack}`,
-          ),
-          ...(placement?.supportPalletId
-            ? { palletCode: upperCode, physicalConfirmed: physicalStack }
-            : {}),
-        }),
-      );
-    });
+    await op.run(
+      async () => {
+        written(
+          await storeMutation({
+            warehouseId,
+            palletId: pallet._id,
+            ...(placement ? { expectedPlacementId: placement._id } : {}),
+            requestId: op.request(
+              `store:${placement?._id}:${upperCode}:${physicalStack}`,
+              "durable",
+            ),
+            ...(placement?.supportPalletId
+              ? { palletCode: upperCode, physicalConfirmed: physicalStack }
+              : {}),
+          }),
+        );
+      },
+      () => op.clearRequests(),
+    );
   }
   async function release() {
     await op.run(
@@ -917,11 +923,12 @@ function PalletDetailScreen({
             warehouseId,
             palletId: pallet._id,
             ...(placement ? { expectedPlacementId: placement._id } : {}),
-            requestId: op.request(`cancel:${placement?._id}`),
+            requestId: op.request(`cancel:${placement?._id}`, "durable"),
           }),
         );
       },
       () => {
+        op.clearRequests();
         op.complete(() =>
           completeTask(storagePath(pallet._id), router.replace),
         );
