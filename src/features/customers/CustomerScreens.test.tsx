@@ -785,6 +785,47 @@ describe("new customer", () => {
     ).toHaveAttribute("href", "/master-data/customers/customer-b");
   });
 
+  it("editing the name retires a Save-time match even while the live hint never answers", async () => {
+    const create = mutationFor(CREATE);
+    const match = (customerId: string, code: string) => ({
+      customerId,
+      code,
+      name: "Acme",
+      status: "ACTIVE",
+    });
+    // The live hint stays unavailable throughout, so only the name edit
+    // can retire the Save-time answer.
+    mocks.queries.delete(SIMILAR);
+    mocks.convexQuery
+      .mockResolvedValueOnce({
+        ok: true,
+        value: [match("customer-a", "OLD-1")],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: [match("customer-b", "NEW-2")],
+      });
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Acme");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(screen.getByTestId("customer-similar")).toHaveTextContent("OLD-1");
+    type(/Customer name/, "Beta");
+    type(/Customer name/, "Acme");
+    expect(screen.queryByTestId("customer-similar")).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(mocks.convexQuery).toHaveBeenCalledTimes(2);
+    expect(create).not.toHaveBeenCalled();
+    expect(
+      within(screen.getByTestId("customer-similar")).getByRole("link", {
+        name: "Use this customer",
+      }),
+    ).toHaveAttribute("href", "/master-data/customers/customer-b");
+  });
+
   it("a live error after a live match does not bring back the Save-time match", async () => {
     const match = (customerId: string, code: string) => ({
       customerId,
@@ -1104,6 +1145,16 @@ describe("customer detail", () => {
     expect(
       screen.getByRole("link", { name: "PBX 02-123-4567 ext 89" }),
     ).toHaveAttribute("href", "tel:021234567");
+  });
+
+  it("shows an extension with no base number as plain text", () => {
+    mocks.queries.set(GET, {
+      ok: true,
+      value: { ...base, contact: { name: "Desk", phone: "PBX ext. 89" } },
+    });
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(screen.getByText("PBX ext. 89")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "PBX ext. 89" })).toBeNull();
   });
 
   it("shows a phone with nothing dialable as plain text", () => {
