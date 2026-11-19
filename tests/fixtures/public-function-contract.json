@@ -2063,6 +2063,102 @@
       ]
     }
   },
+  "customers/provision:revokeOrgAdminGrants": {
+    "kind": "mutation",
+    "visibility": "internal",
+    "args": {
+      "type": "object",
+      "value": {
+        "cursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "value": {
+        "revoked": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "revokedOrgIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "organizations"
+            }
+          },
+          "optional": false
+        },
+        "unchanged": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "unchangedOrgIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "organizations"
+            }
+          },
+          "optional": false
+        },
+        "customized": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "customizedOrgIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "organizations"
+            }
+          },
+          "optional": false
+        },
+        "missing": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "missingOrgIds": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "id",
+              "tableName": "organizations"
+            }
+          },
+          "optional": false
+        },
+        "isDone": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": false
+        },
+        "continueCursor": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        }
+      }
+    }
+  },
   "customers/provision:upgradeOrgAdminRoles": {
     "kind": "mutation",
     "visibility": "internal",

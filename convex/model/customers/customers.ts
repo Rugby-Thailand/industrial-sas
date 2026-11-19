@@ -98,7 +98,8 @@ function optionalTextFields<Field extends string>(
 }
 
 export function validateCustomerFields(input: CustomerEditableInput) {
-  const { name, establishment } = input;
+  const { establishment } = input;
+  const name = input.name.trim();
   const normalizedName = normalizeCustomerName(name);
   if (!normalizedName || name.length > CUSTOMER_FIELD_LIMITS.name)
     return invalidField("name");

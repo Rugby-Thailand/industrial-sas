@@ -1,11 +1,13 @@
-import type { FunctionReturnType } from "convex/server";
+import { type FunctionReturnType } from "convex/server";
 import { describe, expect, it } from "vitest";
 
 import { api, internal } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { listCustomersPage } from "../../convex/customers/catalogue";
 import { provisionHrForOrganization } from "../../convex/lib/authorizationSeedConvex";
 import { DEFAULT_ORGANIZATION_SETTINGS } from "../../convex/lib/organizationDefaults";
 import {
+  AI_USAGE_PERMISSION_CODES,
   CUSTOMER_PERMISSION_CODES,
   HR_ADMIN_PERMISSION_CODES,
   PLANNER_PERMISSION_CODES,
@@ -582,7 +584,7 @@ describe("customer catalogue", () => {
     );
   });
 
-  it("trims optional text on create and update while preserving the inner text", async () => {
+  it("trims display names and optional text on create and update while preserving the inner text", async () => {
     const { actorA, create } = await setup();
     const { customerId } = await create({
       requestId: "trim-create",
@@ -608,7 +610,7 @@ describe("customer catalogue", () => {
     expect(
       allowed(await actorA.query(catalogue.getCustomer, { customerId })),
     ).toMatchObject({
-      name: " กิ่ง   Ａcme ",
+      name: "กิ่ง   Ａcme",
       normalizedName: "กิ่ง acme",
       legalNameTh: "บริษัท  กิ่ง",
       legalNameEn: "Ａcme  Co.",
@@ -635,7 +637,7 @@ describe("customer catalogue", () => {
           requestId: "trim-update",
           customerId,
           expectedVersion: 1,
-          name: "Customer",
+          name: "  Customer  Ｂ  ",
           legalNameTh: " \t ",
           legalNameEn: " Second  Ｃompany ",
           notes: ` ${notes} `,
@@ -648,9 +650,38 @@ describe("customer catalogue", () => {
       await actorA.query(catalogue.getCustomer, { customerId }),
     );
     expect(updated).not.toHaveProperty("legalNameTh");
-    expect(updated).toMatchObject({ legalNameEn: "Second  Ｃompany", notes });
+    expect(updated).toMatchObject({
+      name: "Customer  Ｂ",
+      legalNameEn: "Second  Ｃompany",
+      notes,
+    });
     expect(updated?.deliveryAddress).toEqual({ line: "Second  Address" });
     expect(updated?.contact).toEqual({ name: "New  Person" });
+  });
+
+  it("checks the display-name length after trimming surrounding whitespace", async () => {
+    const { actorA, create } = await setup();
+    const name = "ก".repeat(197) + "  Ａ";
+    const { customerId } = await create({
+      requestId: "trim-boundary",
+      name: ` \t${name} \n`,
+    });
+    expect(
+      allowed(await actorA.query(catalogue.getCustomer, { customerId })),
+    ).toMatchObject({ name });
+    const tooLong = allowed(
+      await actorA.mutation(writes.updateCustomer, {
+        requestId: "trim-too-long",
+        customerId,
+        expectedVersion: 1,
+        name: ` ${name}ก `,
+      }),
+    );
+    expect(tooLong).toEqual({
+      ok: false,
+      code: "FIELD_INVALID",
+      field: "name",
+    });
   });
 
   it("fully replaces editable fields and records private fields only as change markers", async () => {
@@ -911,6 +942,84 @@ describe("customer catalogue", () => {
     ).toBeLessThanOrEqual(19);
   });
 
+  it("settles an exactly full last filtered page without offering Next", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index >= 60 && index < 80,
+    );
+    const { result, requests, stats } = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+    );
+    expect(result).toMatchObject({
+      status: "ready",
+      isDone: true,
+      continueCursor: "",
+    });
+    expect(result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(60, 80),
+    );
+    expect(requests).toBe(5);
+    expect(stats.rangeDocs.customers).toBe(100);
+  });
+
+  it("carries a surplus match found during lookahead into the next page", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index >= 60 && index <= 80,
+    );
+    const first = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+    );
+    expect(first.result).toMatchObject({ status: "ready", isDone: false });
+    expect(first.result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(60, 80),
+    );
+    expect(first.requests).toBe(5);
+
+    const next = await settlePage<ListPage>(world, listCustomersPage, {
+      ...searchArgs,
+      cursor: first.result.continueCursor,
+    });
+    expect(next.result).toMatchObject({
+      status: "ready",
+      isDone: true,
+      continueCursor: "",
+    });
+    expect(next.result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(80, 81),
+    );
+    expect(next.stats.rangeDocs.customers ?? 0).toBe(0);
+  });
+
+  it("returns an empty terminal page when bounded lookahead cannot resolve a distant tail", async () => {
+    const world = await seedCustomerSearch((index) => index < 20);
+    const first = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+    );
+    expect(first.result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(0, 20),
+    );
+    expect(first.result).toMatchObject({ status: "ready", isDone: false });
+    expect(first.result.continueCursor).toBeTruthy();
+    expect(first.requests).toBe(2);
+    expect(first.stats.rangeDocs.customers).toBe(40);
+    const next = await settlePage<ListPage>(world, listCustomersPage, {
+      ...searchArgs,
+      cursor: first.result.continueCursor,
+    });
+    expect(next.result).toMatchObject({
+      status: "ready",
+      page: [],
+      isDone: true,
+      continueCursor: "",
+    });
+    expect(next.stats.rangeDocs.customers).toBe(60);
+  });
+
   it("invalidates a scan when an already-scanned customer becomes eligible", async () => {
     const world = await seedCustomerSearch((index) => index < 19);
     const { actorA, ids } = world;
@@ -944,10 +1053,7 @@ describe("customer catalogue", () => {
     });
     expect(stale.result).toMatchObject({ status: "reset", page: [] });
 
-    expect(
-      allowed(await actorA.query(catalogue.listCustomersPage, searchArgs))
-        .status,
-    ).toBe("ready");
+    expect(fresh.result.status).toBe("ready");
     expect(fresh.result.continueCursor).toBeTruthy();
     await actorA.mutation(writes.archiveCustomer, {
       requestId: "archive-new-match",
@@ -962,6 +1068,87 @@ describe("customer catalogue", () => {
         }),
       ),
     ).toMatchObject({ status: "reset", page: [] });
+  });
+
+  it("keeps a page-two cursor through notes, contact and address edits and resets it after a rename or archive", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index !== 19 && index !== 40,
+    );
+    const { actorA, ids } = world;
+    const { result: first } = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+    );
+    expect(first.continueCursor).toBeTruthy();
+    const secondPage = (cursor: string) =>
+      settlePage<ListPage>(world, listCustomersPage, { ...searchArgs, cursor });
+    const customerId = ids[21]!;
+    const update = async (
+      expectedVersion: number,
+      changes: Partial<CustomerEditableInput>,
+    ) =>
+      expect(
+        allowed(
+          await actorA.mutation(writes.updateCustomer, {
+            requestId: `edit-for-cursor-${expectedVersion}`,
+            customerId,
+            expectedVersion,
+            name: "Customer 21",
+            legalNameEn: "needle",
+            ...changes,
+          }),
+        ),
+      ).toEqual({ ok: true, customerId, replayed: false });
+
+    const notes = { notes: "New notes" };
+    const contact = { contact: { name: "New contact" } };
+    const deliveryAddress = {
+      deliveryAddress: { line: "New address", province: "Bangkok" },
+    };
+    const expectedIds = ids.slice(21, 40).concat(ids[41]!);
+    const edits: Partial<CustomerEditableInput>[] = [
+      notes,
+      { ...notes, ...contact },
+      { ...notes, ...contact, ...deliveryAddress },
+    ];
+    for (const [index, fields] of edits.entries()) {
+      await update(index + 1, fields);
+      const { result } = await secondPage(first.continueCursor);
+      expect(result.status).toBe("ready");
+      expect(result.page.map((row) => row.customerId)).toEqual(expectedIds);
+      expect(result.page[0]?.province).toBe(fields.deliveryAddress?.province);
+    }
+
+    await update(4, {
+      name: "Renamed customer",
+      ...notes,
+      ...contact,
+      ...deliveryAddress,
+    });
+    expect((await secondPage(first.continueCursor)).result).toMatchObject({
+      status: "reset",
+      page: [],
+    });
+    const { result: renamed } = await settlePage<ListPage>(
+      world,
+      listCustomersPage,
+      searchArgs,
+    );
+    expect(renamed.continueCursor).toBeTruthy();
+    expect(
+      allowed(
+        await actorA.mutation(writes.archiveCustomer, {
+          requestId: "archive-for-cursor",
+          customerId,
+          expectedVersion: 5,
+        }),
+      ),
+    ).toEqual({ ok: true, customerId, replayed: false });
+    expect((await secondPage(renamed.continueCursor)).result).toMatchObject({
+      status: "reset",
+      page: [],
+    });
   });
 
   it("carries surplus matches across page boundaries in index order", async () => {
@@ -1089,6 +1276,16 @@ describe("customer catalogue", () => {
 });
 
 describe("customer authorization upgrade", () => {
+  const planner = PLANNER_PERMISSION_CODES;
+  const plannerHr = [...planner, ...HR_ADMIN_PERMISSION_CODES];
+  const plannerAi = [...planner, ...AI_USAGE_PERMISSION_CODES];
+  const preCustomers = [...plannerHr, ...AI_USAGE_PERMISSION_CODES];
+  const current = [...preCustomers, ...CUSTOMER_PERMISSION_CODES];
+  const withCustomers = (codes: readonly string[]) => [
+    ...codes,
+    ...CUSTOMER_PERMISSION_CODES,
+  ];
+
   it.each([
     ["customers", "hr", "ai"],
     ["customers", "ai", "hr"],
@@ -1097,97 +1294,199 @@ describe("customer authorization upgrade", () => {
     ["ai", "customers", "hr"],
     ["ai", "hr", "customers"],
   ] as const)(
-    "upgrades exact defaults and preserves customized roles in migration order %s → %s → %s",
-    async (first, second, third) => {
-      const { t, roles, orgA, orgB } = await setup();
-      const roleA = roles.rolesA.get("ORG_ADMIN")!;
-      const roleB = roles.rolesB.get("ORG_ADMIN")!;
-      const plannerAndCustomers = [
-        ...PLANNER_PERMISSION_CODES,
-        ...CUSTOMER_PERMISSION_CODES,
-      ];
-      const plannerHrAndCustomers = [
-        ...plannerAndCustomers,
-        ...HR_ADMIN_PERMISSION_CODES,
-      ];
-      const fixture = await t.run(async (ctx) => {
-        const orgId = await ctx.db.insert("organizations", {
-          clerkOrganizationId: "org_renamed_with_hr",
-          name: "Renamed with HR",
-          status: "ACTIVE",
-          settings: DEFAULT_ORGANIZATION_SETTINGS,
-        });
-        const roleId = await ctx.db.insert("roles", {
-          orgId,
-          key: "ORG_ADMIN",
-          name: "Renamed with HR",
-          description: "Manages building and storage plans and HR attendance.",
-          seeded: true,
-          status: "ACTIVE",
-        });
-        for (const permissionCode of plannerHrAndCustomers)
-          await ctx.db.insert("rolePermissions", {
-            orgId,
-            roleId,
-            permissionCode,
-          });
-        for (const [orgId, roleId, keep] of [
-          [orgA, roleA, plannerAndCustomers],
-          [orgB, roleB, PLANNER_PERMISSION_CODES],
-        ] as const) {
-          const grants = await ctx.db
-            .query("rolePermissions")
-            .withIndex("by_orgId_roleId_permissionCode", (q) =>
-              q.eq("orgId", orgId).eq("roleId", roleId),
-            )
-            .collect();
-          for (const grant of grants)
-            if (!keep.includes(grant.permissionCode))
-              await ctx.db.delete("rolePermissions", grant._id);
-        }
-        await ctx.db.patch("roles", roleA, {
+    "preserves baseline eligibility in provisioner order %s → %s → %s",
+    async (...order) => {
+      const { t, orgA, orgB } = await setup();
+      const cases = [
+        { key: "legacy", codes: planner },
+        { key: "hr-stripped", codes: plannerAi },
+        { key: "hr-stripped-with-customers", codes: withCustomers(plannerAi) },
+        { key: "ai-stripped", codes: plannerHr },
+        { key: "ai-stripped-with-customers", codes: withCustomers(plannerHr) },
+        { key: "renamed", codes: preCustomers, name: "Renamed administrator" },
+        { key: "renamed-planner", codes: planner, name: "Renamed planner" },
+        {
+          key: "renamed-planner-with-customers",
+          codes: withCustomers(planner),
           name: "Renamed planner",
+        },
+        {
+          key: "renamed-hr-with-customers",
+          codes: withCustomers(plannerHr),
+          name: "Renamed administrator",
+        },
+        {
+          key: "custom-description",
+          codes: preCustomers,
+          description: "Restricted for this tenant.",
+        },
+        {
+          key: "partial",
+          codes: [...preCustomers, "masterData.customer.read"],
+        },
+        { key: "duplicate", codes: [...preCustomers, "aiUsage.read"] },
+        { key: "inactive", codes: preCustomers, status: "ARCHIVED" as const },
+        { key: "unseeded", codes: preCustomers, seeded: false },
+        { key: "no-description", codes: preCustomers },
+        {
+          key: "planner-description",
+          codes: preCustomers,
           description: "Manages building and storage plans.",
-        });
-        await ctx.db.patch("roles", roleB, {
-          description: "Manages building and storage plans.",
-        });
-        return { orgId, roleId };
-      });
+        },
+        {
+          key: "attendance-description",
+          codes: preCustomers,
+          description: "Manages building and storage plans and HR attendance.",
+        },
+        {
+          key: "all-permissions-description",
+          codes: preCustomers,
+          description: "Tenant administrator with every tenant permission.",
+        },
+        {
+          key: "system-admin-description",
+          codes: preCustomers,
+          description:
+            "Tenant system administrator; sensitive team HR and payroll access is separate.",
+        },
+      ];
+      const fixtures = new Map(
+        await t.run(async (ctx) => {
+          const fixtures: [
+            string,
+            { orgId: Id<"organizations">; roleId: Id<"roles"> },
+          ][] = [];
+          for (const fixture of cases) {
+            const orgId = await ctx.db.insert("organizations", {
+              clerkOrganizationId: `org_provision_${fixture.key}`,
+              name: fixture.key,
+              status: "ACTIVE",
+              settings: DEFAULT_ORGANIZATION_SETTINGS,
+            });
+            const roleId = await ctx.db.insert("roles", {
+              orgId,
+              key: "ORG_ADMIN",
+              name: fixture.name ?? "Organization administrator",
+              ...(fixture.description === undefined
+                ? {}
+                : { description: fixture.description }),
+              seeded: fixture.seeded ?? true,
+              status: fixture.status ?? "ACTIVE",
+            });
+            for (const permissionCode of fixture.codes)
+              await ctx.db.insert("rolePermissions", {
+                orgId,
+                roleId,
+                permissionCode,
+              });
+            fixtures.push([fixture.key, { orgId, roleId }]);
+          }
+          return fixtures;
+        }),
+      );
       const upgrade = internal.customers.provision.upgradeOrgAdminRoles;
+      const verify = internal.customers.provision.verifyOrgAdminGrants;
       const ai = internal.aiUsage.provision.organization;
-      for (const step of [first, second, third]) {
+      const provisionHr = async (orgId: Id<"organizations">) =>
+        (await t.run((ctx) => provisionHrForOrganization(ctx, orgId))).orgAdmin;
+      const eligible = [
+        "no-description",
+        "planner-description",
+        "attendance-description",
+        "all-permissions-description",
+        "system-admin-description",
+      ];
+      const expectedCodes = new Map(
+        cases.map(({ key, codes }) => [key, codes]),
+      );
+      const checked = new Set<string>();
+      for (const step of order) {
         if (step === "customers") {
-          expect(await t.mutation(upgrade, {})).toMatchObject({
-            upgraded: 1,
-            customized: 2,
+          const eligibleNow = new Set(eligible);
+          if (checked.has("ai")) {
+            eligibleNow.add("ai-stripped");
+            if (checked.has("hr") && order.indexOf("hr") < order.indexOf("ai"))
+              eligibleNow.add("legacy");
+          }
+          const expectedReview = cases
+            .filter(({ key }) => !eligibleNow.has(key))
+            .map(({ key }) => fixtures.get(key)!.orgId);
+          const before = await t.query(verify, {});
+          expect(
+            before.page
+              .filter(({ status }) => status === "eligible")
+              .map(({ orgId }) => orgId)
+              .sort(),
+          ).toEqual(
+            [...eligibleNow].map((key) => fixtures.get(key)!.orgId).sort(),
+          );
+          const first = await t.mutation(upgrade, {});
+          expect(first).toMatchObject({
+            upgraded: eligibleNow.size,
+            current: 2,
+            customized: expectedReview.length,
+            missing: 0,
           });
+          expect([...first.customizedOrgIds].sort()).toEqual(
+            expectedReview.sort(),
+          );
           expect(await t.mutation(upgrade, {})).toMatchObject({
             upgraded: 0,
-            current: 1,
-            customized: 2,
+            current: eligibleNow.size + 2,
+            customized: expectedReview.length,
           });
+          for (const key of eligibleNow) {
+            expectedCodes.set(key, current);
+          }
+          const after = await t.query(verify, {});
+          expect(
+            after.page.map(({ orgId, status }) => [orgId, status]),
+          ).toEqual(
+            before.page.map(({ orgId, status }) => [
+              orgId,
+              status === "eligible" ? "current" : status,
+            ]),
+          );
         } else {
-          const run = async (orgId: typeof orgA) =>
+          const run =
             step === "hr"
-              ? (await t.run((ctx) => provisionHrForOrganization(ctx, orgId)))
-                  .orgAdmin
-              : t.mutation(ai, { orgId });
-          expect(await run(orgA)).toBe("CUSTOMIZED");
-          expect(await run(fixture.orgId)).toBe("CUSTOMIZED");
-          expect(await run(orgB)).toBe("UPGRADED");
+              ? provisionHr
+              : (orgId: Id<"organizations">) => t.mutation(ai, { orgId });
+          expect(await run(orgA)).toBe("CURRENT");
           expect(await run(orgB)).toBe("CURRENT");
+          for (const { key } of cases) {
+            let expected = "CURRENT";
+            if (key === "hr-stripped" || key === "hr-stripped-with-customers")
+              expected = "CUSTOMIZED";
+            if (key === "legacy" || key === "renamed-planner") {
+              expected =
+                step === "hr" || checked.has("hr") ? "UPGRADED" : "CUSTOMIZED";
+              if (expected === "UPGRADED")
+                expectedCodes.set(
+                  key,
+                  step === "hr" ? plannerHr : preCustomers,
+                );
+            }
+            if (key === "ai-stripped" && step === "ai") {
+              expected = "UPGRADED";
+              expectedCodes.set(key, preCustomers);
+            }
+            if (step === "ai" && key === "ai-stripped-with-customers")
+              expected = "CUSTOMIZED";
+            if (step === "ai" && key === "renamed-hr-with-customers")
+              expected = "CUSTOMIZED";
+            if (key === "partial" || key === "renamed-planner-with-customers")
+              expected = "CUSTOMIZED";
+            const { orgId } = fixtures.get(key)!;
+            expect(await run(orgId), `${step}: ${key}`).toBe(expected);
+            if (expected === "UPGRADED")
+              expect(await run(orgId), `rerun ${step}: ${key}`).toBe("CURRENT");
+          }
         }
+        checked.add(step);
       }
-      for (const [orgId, roleId, expected] of [
-        [orgA, roleA, plannerAndCustomers],
-        [fixture.orgId, fixture.roleId, plannerHrAndCustomers],
-        [
-          orgB,
-          roleB,
-          [...plannerHrAndCustomers, "aiUsage.read", "aiUsage.configure"],
-        ],
-      ] as const) {
+      for (const { key } of cases) {
+        const { orgId, roleId } = fixtures.get(key)!;
         const grants = await t.run((ctx) =>
           ctx.db
             .query("rolePermissions")
@@ -1196,9 +1495,10 @@ describe("customer authorization upgrade", () => {
             )
             .collect(),
         );
-        expect(grants.map((grant) => grant.permissionCode).sort()).toEqual(
-          [...expected].sort(),
-        );
+        expect(
+          grants.map(({ permissionCode }) => permissionCode).sort(),
+          key,
+        ).toEqual([...expectedCodes.get(key)!].sort());
       }
     },
   );
@@ -1283,7 +1583,146 @@ describe("customer authorization upgrade", () => {
     expect(await t.query(verify, {})).toEqual(first);
   });
 
-  it("resumes bounded pages, upgrades older defaults, skips customizations and exposes grants", async () => {
+  it("revokes customer grants in resumable batches, leaves manually granted roles alone and preserves data", async () => {
+    const { t, actorA, actorB, create, roles, orgA, orgB } = await setup();
+    await create({
+      requestId: "customer-before-revocation",
+      name: "Saved customer",
+    });
+    const data = () =>
+      t.run(async (ctx) => ({
+        customers: await ctx.db.query("customers").collect(),
+        catalogueSignals: await ctx.db
+          .query("customerCatalogueSignals")
+          .collect(),
+      }));
+    const savedData = await data();
+    expect(savedData.customers).toHaveLength(1);
+    expect(savedData.catalogueSignals).toHaveLength(1);
+    const { customizedOrgId, missingOrgIds } = await t.run(async (ctx) => {
+      const roleA = roles.rolesA.get("ORG_ADMIN")!;
+      const grants = await ctx.db
+        .query("rolePermissions")
+        .withIndex("by_orgId_roleId_permissionCode", (q) =>
+          q.eq("orgId", orgA).eq("roleId", roleA),
+        )
+        .collect();
+      for (const grant of grants)
+        if (
+          CUSTOMER_PERMISSION_CODES.some(
+            (code) => code === grant.permissionCode,
+          )
+        )
+          await ctx.db.delete("rolePermissions", grant._id);
+
+      const missingOrgIds = [];
+      const customizedOrgId = await ctx.db.insert("organizations", {
+        clerkOrganizationId: "org_custom_grants",
+        name: "Manually granted customer access",
+        status: "ACTIVE",
+        settings: DEFAULT_ORGANIZATION_SETTINGS,
+      });
+      const roleId = await ctx.db.insert("roles", {
+        orgId: customizedOrgId,
+        key: "ORG_ADMIN",
+        name: "Organization administrator",
+        description: "Customer access approved separately.",
+        seeded: true,
+        status: "ACTIVE",
+      });
+      for (const permissionCode of current)
+        await ctx.db.insert("rolePermissions", {
+          orgId: customizedOrgId,
+          roleId,
+          permissionCode,
+        });
+      for (let i = 0; i < 49; i++)
+        missingOrgIds.push(
+          await ctx.db.insert("organizations", {
+            clerkOrganizationId: `org_custom_missing_${String(i).padStart(2, "0")}`,
+            name: "Missing administrator",
+            status: "ACTIVE",
+            settings: DEFAULT_ORGANIZATION_SETTINGS,
+          }),
+        );
+      return { customizedOrgId, missingOrgIds };
+    });
+    const { upgradeOrgAdminRoles, revokeOrgAdminGrants, verifyOrgAdminGrants } =
+      internal.customers.provision;
+    const first = await t.mutation(upgradeOrgAdminRoles, {});
+    expect(first).toMatchObject({
+      upgraded: 0,
+      customized: 1,
+      missing: 49,
+      isDone: false,
+    });
+    const args = { cursor: first.continueCursor };
+    expect(await t.mutation(upgradeOrgAdminRoles, args)).toMatchObject({
+      upgraded: 1,
+      current: 1,
+      isDone: true,
+    });
+    const verified = await t.query(verifyOrgAdminGrants, args);
+    expect(verified.page).toEqual([
+      { orgId: orgA, status: "current", hasCustomerGrants: true },
+      { orgId: orgB, status: "current", hasCustomerGrants: true },
+    ]);
+
+    const revokeFirst = await t.mutation(revokeOrgAdminGrants, {});
+    expect(revokeFirst).toEqual({
+      revoked: 0,
+      revokedOrgIds: [],
+      unchanged: 0,
+      unchangedOrgIds: [],
+      customized: 1,
+      customizedOrgIds: [customizedOrgId],
+      missing: 49,
+      missingOrgIds,
+      isDone: false,
+      continueCursor: first.continueCursor,
+    });
+    const revokeArgs = { cursor: revokeFirst.continueCursor };
+    expect(await t.mutation(revokeOrgAdminGrants, revokeArgs)).toMatchObject({
+      revoked: 2,
+      revokedOrgIds: [orgA, orgB],
+      unchanged: 0,
+      unchangedOrgIds: [],
+      customized: 0,
+      customizedOrgIds: [],
+      missing: 0,
+      missingOrgIds: [],
+      isDone: true,
+    });
+    expect((await t.query(verifyOrgAdminGrants, {})).page[0]).toEqual({
+      orgId: customizedOrgId,
+      status: "customized",
+      hasCustomerGrants: true,
+    });
+    expect((await t.query(verifyOrgAdminGrants, revokeArgs)).page).toEqual([
+      { orgId: orgA, status: "eligible", hasCustomerGrants: false },
+      { orgId: orgB, status: "eligible", hasCustomerGrants: false },
+    ]);
+    for (const actor of [actorA, actorB]) {
+      const workspace = allowed(
+        await actor.query(api.workspace.current.readCurrent, {}),
+      );
+      for (const code of CUSTOMER_PERMISSION_CODES)
+        expect(workspace.navigationPermissions).not.toContain(code);
+    }
+    expect(await data()).toEqual(savedData);
+
+    expect(await t.mutation(revokeOrgAdminGrants, {})).toEqual(revokeFirst);
+    expect(await t.mutation(revokeOrgAdminGrants, revokeArgs)).toMatchObject({
+      revoked: 0,
+      revokedOrgIds: [],
+      unchanged: 2,
+      unchangedOrgIds: [orgA, orgB],
+      isDone: true,
+    });
+    expect(await data()).toEqual(savedData);
+  });
+
+  it("resumes bounded batches, exposes upgraded grants and reports older defaults until HR and AI provisioning", async () => {
     const { actorA, actorB, t, roles, orgA, orgB } = await setup();
     const customerOnly = (code: string) =>
       CUSTOMER_PERMISSION_CODES.some((customerCode) => customerCode === code);
@@ -1363,8 +1802,9 @@ describe("customer authorization upgrade", () => {
     });
     const second = await t.mutation(upgrade, { cursor: first.continueCursor });
     expect(second).toMatchObject({
-      upgraded: 2,
-      customized: 0,
+      upgraded: 1,
+      current: 0,
+      customized: 1,
       missing: 1,
       isDone: true,
     });
@@ -1373,7 +1813,7 @@ describe("customer authorization upgrade", () => {
       fixtureOrgIds.slice(0, 4).sort(),
     );
     expect(first.missingOrgIds).toHaveLength(46);
-    expect(second.customizedOrgIds).toEqual([]);
+    expect(second.customizedOrgIds).toEqual([orgB]);
     expect(second.missingOrgIds).toHaveLength(1);
     expect([...first.missingOrgIds, ...second.missingOrgIds].sort()).toEqual(
       fixtureOrgIds.slice(4).sort(),
@@ -1383,20 +1823,21 @@ describe("customer authorization upgrade", () => {
       await t.mutation(upgrade, { cursor: first.continueCursor }),
     ).toMatchObject({
       upgraded: 0,
-      current: 2,
-      customizedOrgIds: [],
+      current: 1,
+      customizedOrgIds: [orgB],
       missingOrgIds: second.missingOrgIds,
       isDone: true,
     });
-    for (const actor of [actorA, actorB]) {
-      expect(
-        allowed(await actor.query(api.workspace.current.readCurrent, {}))
-          .navigationPermissions,
-      ).toEqual(expect.arrayContaining([...CUSTOMER_PERMISSION_CODES]));
-      expect(
-        allowed(await actor.query(catalogue.suggestCustomerCode, {})),
-      ).toBe("C-0001");
-    }
+    expect(
+      allowed(await actorA.query(api.workspace.current.readCurrent, {}))
+        .navigationPermissions,
+    ).toEqual(expect.arrayContaining([...CUSTOMER_PERMISSION_CODES]));
+    expect(allowed(await actorA.query(catalogue.suggestCustomerCode, {}))).toBe(
+      "C-0001",
+    );
+    expect(await actorB.query(catalogue.suggestCustomerCode, {})).toMatchObject(
+      { ok: false },
+    );
 
     expect(
       await t.run((ctx) => provisionHrForOrganization(ctx, orgB)),
@@ -1406,6 +1847,25 @@ describe("customer authorization upgrade", () => {
         orgId: orgB,
       }),
     ).toBe("UPGRADED");
+    expect(
+      await t.mutation(upgrade, { cursor: first.continueCursor }),
+    ).toMatchObject({
+      upgraded: 1,
+      current: 1,
+      customized: 0,
+      missing: 1,
+    });
+    expect(
+      await t.mutation(upgrade, { cursor: first.continueCursor }),
+    ).toMatchObject({
+      upgraded: 0,
+      current: 2,
+      customizedOrgIds: [],
+      missingOrgIds: second.missingOrgIds,
+    });
+    expect(allowed(await actorB.query(catalogue.suggestCustomerCode, {}))).toBe(
+      "C-0001",
+    );
     expect(
       allowed(await actorB.query(api.workspace.current.readCurrent, {}))
         .navigationPermissions,

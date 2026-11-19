@@ -72,6 +72,7 @@ export const listCustomersPage = queryWithOrg({
     const result = await paginatedOrderedScan(ctx, {
       scope: { entity: "customers", status, needle, exactTaxId },
       pageSize,
+      confirmNextMatch: Boolean(needle),
       cursor,
       scanCursor,
       generation: () => customerCatalogueGeneration(ctx.tenantDb),

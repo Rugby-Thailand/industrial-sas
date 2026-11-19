@@ -55,13 +55,14 @@ const success = ({ documentId, replayed }: MasterDataOutcome) => ({
 async function finishWrite(
   ctx: TenantFunctionContext,
   write: Result<MasterDataOutcome, MasterDataError>,
+  affectsCatalogue: boolean,
 ) {
   if (!write.ok)
     return failure(
       write.error.code,
       "field" in write.error ? write.error.field : undefined,
     );
-  if (!write.value.replayed)
+  if (affectsCatalogue && !write.value.replayed)
     await bumpCustomerCatalogueGeneration(ctx.tenantDb);
   return success(write.value);
 }
@@ -74,6 +75,15 @@ const targetCustomer = {
   table: "customers",
   id: ({ customerId }: { customerId: string }) => customerId,
 } as const;
+// Only changes to ordering or filter inputs invalidate a carried match.
+const catalogueFields = [
+  "status",
+  "normalizedName",
+  "code",
+  "legalNameTh",
+  "legalNameEn",
+  "taxId",
+] as const;
 const privateAuditFields = [
   "contact",
   "deliveryAddress",
@@ -140,6 +150,7 @@ export const createCustomer = mutationWithOrg({
           updatedByUserId: context.actorUserId,
         },
       }),
+      true,
     );
   },
 });
@@ -178,6 +189,11 @@ async function changeCustomer(
 
   const changes = patch(row, context.now);
   if (!changes.ok) return failure(changes.error.code, changes.error.field);
+  const affectsCatalogue = catalogueFields.some(
+    (field) =>
+      Object.hasOwn(changes.value, field) &&
+      changes.value[field] !== row[field],
+  );
 
   return finishWrite(
     ctx,
@@ -193,6 +209,7 @@ async function changeCustomer(
         version: row.version + 1,
       },
     }),
+    affectsCatalogue,
   );
 }
 

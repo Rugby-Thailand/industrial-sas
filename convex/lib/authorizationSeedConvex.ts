@@ -1,9 +1,8 @@
-import { type GenericMutationCtx, type GenericQueryCtx } from "convex/server";
+import { type GenericMutationCtx } from "convex/server";
 import type { GenericId } from "convex/values";
 
 import type { DataModel } from "../schema";
 import {
-  AI_USAGE_PERMISSION_CODES,
   CUSTOMER_PERMISSION_CODES,
   DEFAULT_ROLES,
   HR_ADMIN_PERMISSION_CODES,
@@ -102,110 +101,71 @@ export async function seedAuthorizationForOrganization(
   };
 }
 
-// Each provisioner adds its entire grant set. Intermediate seeded roles can
-// carry any of these exact combinations when operators run the jobs out of order.
-const planner = PLANNER_PERMISSION_CODES;
-const hr = HR_ADMIN_PERMISSION_CODES;
-const ai = AI_USAGE_PERMISSION_CODES;
-const customers = CUSTOMER_PERMISSION_CODES;
-const seededOrgAdminGrantSets = [
-  planner,
-  [...planner, ...hr],
-  [...planner, ...ai],
-  [...planner, ...customers],
-  [...planner, ...hr, ...ai],
-  [...planner, ...hr, ...customers],
-  [...planner, ...ai, ...customers],
-  [...planner, ...hr, ...ai, ...customers],
-];
-const orgAdminGrantReadLimit =
-  planner.length + hr.length + ai.length + customers.length + 1;
+export type HrRoleUpgrade = "UPGRADED" | "CURRENT" | "CUSTOMIZED" | "MISSING";
 
-type OrgAdminGrantState =
-  | { status: "MISSING" }
-  | { status: "CUSTOMIZED"; roleId: GenericId<"roles"> }
-  | {
-      status: "SEEDED";
-      roleId: GenericId<"roles">;
-      codes: ReadonlySet<string>;
-    };
+export interface HrProvisioningResult extends AuthorizationSeedResult {
+  /** What happened to the existing organization administrator role. */
+  readonly orgAdmin: HrRoleUpgrade;
+  readonly hrPermissionsAdded: number;
+}
 
-export async function readSeededOrgAdminGrants(
-  ctx: Pick<GenericQueryCtx<DataModel>, "db">,
+/**
+ * Idempotent HR provisioning for an organization created before HR existed.
+ *
+ * Inserts the permission catalogue and any missing default roles (including
+ * the HR roles), then upgrades ORG_ADMIN only when it is still the untouched
+ * seeded planner role: a seeded, active role whose grants are exactly the
+ * legacy planner set. A role an organization customized is reported, never
+ * silently broadened. Warehouse managers are never given HR codes.
+ */
+export async function provisionHrForOrganization(
+  ctx: GenericMutationCtx<DataModel>,
   orgId: GenericId<"organizations">,
-): Promise<OrgAdminGrantState> {
+): Promise<HrProvisioningResult> {
+  const seeded = await seedAuthorizationForOrganization(ctx, orgId);
   const role = await ctx.db
     .query("roles")
     .withIndex("by_orgId_key", (query) =>
       query.eq("orgId", orgId).eq("key", "ORG_ADMIN"),
     )
     .unique();
-  if (!role) return { status: "MISSING" };
-  const roleId = role._id;
-  if (
-    !role.seeded ||
-    role.status !== "ACTIVE" ||
-    // A renamed administrator was customized. Descriptions are not compared:
-    // seeds have shipped several, and older rows may have none.
-    role.name !== "Organization administrator"
-  )
-    return { status: "CUSTOMIZED", roleId };
-
+  if (role === null)
+    return { ...seeded, orgAdmin: "MISSING", hrPermissionsAdded: 0 };
   const grants = await ctx.db
     .query("rolePermissions")
     .withIndex("by_orgId_roleId_permissionCode", (query) =>
-      query.eq("orgId", orgId).eq("roleId", roleId),
+      query.eq("orgId", orgId).eq("roleId", role._id),
     )
-    .take(orgAdminGrantReadLimit);
+    .take(200);
   const codes = new Set(grants.map((grant) => grant.permissionCode));
-  const seeded =
-    grants.length === codes.size &&
-    seededOrgAdminGrantSets.some(
-      (baseline) =>
-        baseline.length === codes.size &&
-        baseline.every((code) => codes.has(code)),
-    );
-  return seeded
-    ? { status: "SEEDED", roleId, codes }
-    : { status: "CUSTOMIZED", roleId };
-}
-
-type OrgAdminRoleUpgrade = "UPGRADED" | "CURRENT" | "CUSTOMIZED" | "MISSING";
-
-export async function upgradeSeededOrgAdmin(
-  ctx: GenericMutationCtx<DataModel>,
-  orgId: GenericId<"organizations">,
-  permissionCodes: readonly string[],
-): Promise<OrgAdminRoleUpgrade> {
-  const admin = await readSeededOrgAdminGrants(ctx, orgId);
-  if (admin.status !== "SEEDED") return admin.status;
-  if (permissionCodes.every((code) => admin.codes.has(code))) return "CURRENT";
-
-  for (const permissionCode of permissionCodes) {
+  const target = [...PLANNER_PERMISSION_CODES, ...HR_ADMIN_PERMISSION_CODES];
+  // The customer pair affects CURRENT recognition only.
+  const currentSize = CUSTOMER_PERMISSION_CODES.every((code) => codes.has(code))
+    ? codes.size - CUSTOMER_PERMISSION_CODES.length
+    : codes.size;
+  if (
+    target.every((code) => codes.has(code)) &&
+    (currentSize === target.length ||
+      (currentSize === target.length + 2 &&
+        codes.has("aiUsage.read") &&
+        codes.has("aiUsage.configure")))
+  )
+    return { ...seeded, orgAdmin: "CURRENT", hrPermissionsAdded: 0 };
+  const legacyDefault =
+    role.seeded &&
+    role.status === "ACTIVE" &&
+    codes.size === PLANNER_PERMISSION_CODES.length &&
+    PLANNER_PERMISSION_CODES.every((code) => codes.has(code));
+  if (!legacyDefault)
+    return { ...seeded, orgAdmin: "CUSTOMIZED", hrPermissionsAdded: 0 };
+  let added = 0;
+  for (const permissionCode of HR_ADMIN_PERMISSION_CODES) {
     await ctx.db.insert("rolePermissions", {
       orgId,
-      roleId: admin.roleId,
+      roleId: role._id,
       permissionCode,
     });
+    added += 1;
   }
-  return "UPGRADED";
-}
-
-export interface HrProvisioningResult extends AuthorizationSeedResult {
-  readonly orgAdmin: OrgAdminRoleUpgrade;
-  readonly hrPermissionsAdded: number;
-}
-
-/** Idempotent HR provisioning for an organization created before HR existed. */
-export async function provisionHrForOrganization(
-  ctx: GenericMutationCtx<DataModel>,
-  orgId: GenericId<"organizations">,
-): Promise<HrProvisioningResult> {
-  const seeded = await seedAuthorizationForOrganization(ctx, orgId);
-  const orgAdmin = await upgradeSeededOrgAdmin(ctx, orgId, hr);
-  return {
-    ...seeded,
-    orgAdmin,
-    hrPermissionsAdded: orgAdmin === "UPGRADED" ? hr.length : 0,
-  };
+  return { ...seeded, orgAdmin: "UPGRADED", hrPermissionsAdded: added };
 }

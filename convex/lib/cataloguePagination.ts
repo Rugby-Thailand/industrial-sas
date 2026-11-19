@@ -393,6 +393,7 @@ export async function paginatedOrderedScan<T extends TenantIdentity>(
   options: {
     scope: unknown;
     pageSize: number;
+    confirmNextMatch: boolean;
     cursor?: string | undefined;
     scanCursor?: string | undefined;
     generation: () => Promise<number>;
@@ -401,7 +402,7 @@ export async function paginatedOrderedScan<T extends TenantIdentity>(
     matches: (document: T) => boolean;
   },
 ): Promise<CataloguePage<T>> {
-  const { pageSize, cursor, scanCursor } = options;
+  const { pageSize, cursor, scanCursor, confirmNextMatch } = options;
   if (![20, 50, 100].includes(pageSize)) return resetCataloguePage();
   const scope = catalogueScope(ctx, [options.scope, pageSize]);
   let currentGeneration: Promise<number> | undefined;
@@ -440,7 +441,11 @@ export async function paginatedOrderedScan<T extends TenantIdentity>(
   let exhausted = state?.exhausted ?? false;
   let scanned = state?.scanned ?? 0;
   const retained = state?.ids ?? [];
-  if (!exhausted && retained.length < pageSize) {
+  // Reserve one scan continuation for lookahead when a filtered page fills
+  // exactly. Each execution still reads at most one bounded native page.
+  const lookingAhead =
+    confirmNextMatch && resumed !== null && retained.length === pageSize;
+  if (!exhausted && (retained.length < pageSize || lookingAhead)) {
     try {
       const chunk = await options.read(range);
       if (chunk.pageStatus === "SplitRequired") {
@@ -466,7 +471,11 @@ export async function paginatedOrderedScan<T extends TenantIdentity>(
     }
   }
   const ids = [...new Set([...retained, ...incoming.keys()])];
-  if (ids.length < pageSize && !exhausted) {
+  if (
+    !exhausted &&
+    (ids.length < pageSize ||
+      (confirmNextMatch && ids.length === pageSize && !lookingAhead))
+  ) {
     const next: OrderedScanState = {
       scope,
       generation: await generation(),
