@@ -50,16 +50,18 @@ Both new tables, `customers` and `customerCatalogueSignals` (one generation coun
    pnpm exec convex run --prod customers/provision:revokeOrgAdminGrants '{}'
    # Repeat with the returned cursor until "isDone": true.
    pnpm exec convex run --prod customers/provision:verifyOrgAdminGrants '{}'
-   # Page through it, and note every organization still reporting hasCustomerGrants: true.
+   # Page through it, and note every organization still reporting
+   # hasCustomerRead: true or hasCustomerManage: true. Either grant alone
+   # still opens (read) or writes (manage) customer records.
    ```
 
-   This removes both customer grants from seeded administrators whose grants are exactly the current default. Within seconds those members lose the sidebar entry, and the pages and functions refuse them. Customer records stay untouched. The revoker is conservative: it does not touch any role it reports as `customized`. Such a role may still hold customer access, either granted by hand or granted by the upgrade before the organization renamed or changed it. The verify pass lists those organizations. Remove their grants deliberately, or go to step 2 if every write must stop now. To switch the feature back on, run `upgradeOrgAdminRoles` again. New organizations are still seeded with the grants until the code is reverted.
+   This removes both customer grants from seeded administrators whose grants are exactly the current default. Within seconds those members lose the sidebar entry, and the pages and functions refuse them. Customer records stay untouched. The revoker is conservative: it does not touch any role it reports as `customized`. Such a role may still hold customer access, either granted by hand or granted by the upgrade before the organization renamed or changed it. The verify pass lists those organizations. It checks each organization's `ORG_ADMIN` role, the only role the seed and the upgrade ever grant. A customer grant added to some other role by hand has to be found and removed by hand. Remove their grants deliberately, or go to step 2 if every write must stop now. To switch the feature back on, run `upgradeOrgAdminRoles` again. New organizations are still seeded with the grants until the code is reverted.
 
 2. **Remove the code and keep the data.** This step stops all customer reads and writes. Revert the PR's merge commit with `git revert -m 1 <merge-sha>` and merge the revert. The release pipeline backs up production, then deploys. On a local Convex backend holding documents in both tables, pushing the baseline schema succeeded (`Schema validation complete.`). The push deleted the five customer indexes, and both documents stayed readable. Customer data survives a code rollback and comes back when the change is applied again. Permission rows already granted are inert once the code is gone.
 
 Deleting customer data is not part of rollback. Steps 1 and 2 never need it, and the release pipeline's pre-deploy backup covers the period. If records ever must be erased, for example on a data-subject request, handle that as a separate reviewed data task with a rehearsed restore. Do not delete tables from the dashboard during an incident.
 
-A tab opened before step 1 or 2 keeps working only until its next query. After step 1 the server refuses it. After step 2 the functions no longer exist, and the page shows its load error.
+An already open tab is affected on its next server call. After step 1, members whose grants were revoked are refused. Members listed by the verify pass keep whatever their remaining grant allows. After step 2 the functions no longer exist for anyone, and the page shows its load error.
 
 ## Data handled
 

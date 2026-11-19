@@ -9284,7 +9284,7 @@
     {
       "id": "src/features/customers/CustomerScreens.tsx#CustomerFormBody:failure",
       "policy": "presentation",
-      "expectation": "The last refused save. It marks the refused field, shows a save error or version-conflict Notice with an explicit reload, and opens the refused field's inline section; it adds no foreground and keeps the draft.",
+      "expectation": "The last refused save. It marks the refused field, shows a save error or version-conflict Notice with an explicit reload, and opens the refused field's inline section; it adds no foreground and keeps the draft. A failed duplicate check adds an inline Button inside the same Notice that saves without the check on explicit request; it opens no foreground.",
       "uses": ["branch"],
       "render": [
         {
@@ -9298,12 +9298,23 @@
             "src/components/ui/Notice#Notice[role=alert]",
             "src/components/ui/button#Button"
           ],
+          "falsy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/ui/Notice#Notice[role=alert]",
+            "src/components/ui/button#Button"
+          ],
           "falsy": ["src/components/ui/Notice#Notice[role=alert]"]
         },
         {
           "shape": "conditional",
-          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
-          "falsy": ["src/components/ui/Notice#Notice[role=alert]"]
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
         }
       ],
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
@@ -9319,6 +9330,10 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "shows a duplicate code on the code field"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "a duplicate check failing synchronously offers an explicit save without checking"
         }
       ]
     },

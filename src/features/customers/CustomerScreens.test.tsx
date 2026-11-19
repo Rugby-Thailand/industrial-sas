@@ -36,6 +36,8 @@ const mocks = vi.hoisted(() => ({
   viewerPending: false,
   // The live duplicate hint fails with a query error (it never throws).
   hintError: undefined as Error | undefined,
+  // The optional code suggestion fails the same way.
+  suggestError: undefined as Error | undefined,
   // The imperative duplicate check a fast Save runs before creating.
   convexQuery: vi.fn(),
 }));
@@ -52,7 +54,11 @@ vi.mock("convex/react", () => ({
       Object.entries(queries).map(([key, { query, args }]) => {
         const name = getFunctionName(query);
         mocks.queryArgs.set(name, args);
-        return [key, mocks.hintError ?? mocks.queries.get(name)];
+        const error =
+          name === "customers/catalogue:suggestCustomerCode"
+            ? mocks.suggestError
+            : mocks.hintError;
+        return [key, error ?? mocks.queries.get(name)];
       }),
     ),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
@@ -202,6 +208,7 @@ beforeEach(() => {
   mocks.readiness = { kind: "READY_TO_QUERY" };
   mocks.viewerPending = false;
   mocks.hintError = undefined;
+  mocks.suggestError = undefined;
   mocks.convexQuery.mockReset();
   mocks.convexQuery.mockImplementation(async () => mocks.queries.get(SIMILAR));
 });
@@ -423,12 +430,24 @@ describe("customer list", () => {
         scanned: 0,
       },
     });
-    render(<CustomerCatalogue />);
+    const view = render(<CustomerCatalogue />);
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The customer list changed while it was loading",
     );
     fireEvent.click(screen.getByRole("button", { name: "Load again" }));
-    expect(screen.getByTestId("customer-list-changed")).toBeInTheDocument();
+    // The reload settles on a ready first page: the rows come back.
+    mocks.queries.set(LIST, page([summary]));
+    view.rerender(
+      <DraftGuardProvider>
+        <CustomerCatalogue />
+      </DraftGuardProvider>,
+    );
+    expect(screen.queryByTestId("customer-list-changed")).toBeNull();
+    expect(
+      within(screen.getByTestId("customer-table")).getByRole("link", {
+        name: full.name,
+      }),
+    ).toBeVisible();
   });
 });
 
@@ -579,6 +598,61 @@ describe("new customer", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
     });
     expect(create).toHaveBeenCalledOnce();
+  });
+
+  it("a failing code suggestion keeps the form and falls back to the generic hint", () => {
+    mocks.suggestError = new Error("query failed");
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Suggestion Down Co");
+    expect(screen.getByTestId("customer-form")).toBeInTheDocument();
+    expect(
+      screen.getByText("Leave blank to number it automatically."),
+    ).toBeVisible();
+    expect(screen.getByDisplayValue("Suggestion Down Co")).toBeInTheDocument();
+  });
+
+  it("a duplicate check failing synchronously offers an explicit save without checking", async () => {
+    const create = mutationFor(CREATE);
+    mocks.convexQuery.mockImplementation(() => {
+      throw new Error("cached failure");
+    });
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Cached Failure Co");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(screen.getByTestId("customer-save-error")).toHaveTextContent(
+      "Couldn't check for a customer with this name",
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save without checking" }),
+      );
+    });
+    expect(create).toHaveBeenCalledExactlyOnceWith({
+      requestId: expect.any(String),
+      name: "Cached Failure Co",
+    });
+  });
+
+  it("a retry that sends the same trimmed command keeps its request ID", async () => {
+    const create = mutationFor(CREATE);
+    create.mockRejectedValueOnce(new Error("reply lost"));
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Example Co ");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    type(/Customer name/, "Example Co");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    const [first, retry] = create.mock.calls.map(
+      ([args]) => args as { requestId: string; name: string },
+    );
+    expect(retry!.name).toBe(first!.name);
+    expect(retry!.requestId).toBe(first!.requestId);
   });
 
   it("a failing live duplicate hint keeps the form and its draft", async () => {

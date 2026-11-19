@@ -202,12 +202,16 @@ export const revokeOrgAdminGrants = internalMutation({
 
 async function verifyAdmin(ctx: QueryCtx, orgId: Id<"organizations">) {
   const admin = await readOrgAdminGrants(ctx, orgId);
-  if (admin.status !== "customized")
+  if (admin.status !== "customized") {
+    const current = admin.status === "current";
     return {
       orgId,
       status: admin.status,
-      hasCustomerGrants: admin.status === "current",
+      hasCustomerGrants: current,
+      hasCustomerRead: current,
+      hasCustomerManage: current,
     };
+  }
 
   // Customized roles can have more grants than the bounded eligibility read.
   const grants = await Promise.all(
@@ -223,10 +227,15 @@ async function verifyAdmin(ctx: QueryCtx, orgId: Id<"organizations">) {
         .first(),
     ),
   );
+  // Each grant is reported on its own: read alone still opens customer
+  // records, and manage alone still writes them.
+  const [read, manage] = grants.map((grant) => grant !== null);
   return {
     orgId,
     status: "customized" as const,
-    hasCustomerGrants: grants.every((grant) => grant !== null),
+    hasCustomerGrants: Boolean(read && manage),
+    hasCustomerRead: Boolean(read),
+    hasCustomerManage: Boolean(manage),
   };
 }
 
@@ -243,7 +252,10 @@ export const verifyOrgAdminGrants = internalQuery({
           v.literal("customized"),
           v.literal("missing"),
         ),
+        /** Both customer grants. */
         hasCustomerGrants: v.boolean(),
+        hasCustomerRead: v.boolean(),
+        hasCustomerManage: v.boolean(),
       }),
     ),
   }),

@@ -130,7 +130,8 @@ export function validateCustomerFields(input: CustomerEditableInput) {
   );
   if (!contact.ok) return contact;
   const email = contact.value?.email;
-  if (email !== undefined && !email.includes("@"))
+  // One plain mailbox: no spaces, separators or URL syntax around one "@".
+  if (email !== undefined && !/^[^\s@,;?#&/]+@[^\s@,;?#&/]+$/u.test(email))
     return invalidField("contact.email");
 
   // Undefined optional fields are part of the patch, so an edit can clear them.

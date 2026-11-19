@@ -914,6 +914,7 @@
     "save": "Save customer",
     "saveChanges": "Save changes",
     "saving": "Saving…",
+    "saveWithoutCheck": "Save without checking",
     "viewOnly": "View only. An administrator can add and edit customers.",
     "backToList": "Back to customers",
     "backToCustomer": "Back to customer",

@@ -201,6 +201,9 @@ describe("customer catalogue", () => {
     ],
     [{ establishment: { kind: "BRANCH", code: "1234" } }, "establishment.code"],
     [{ contact: { email: "missing-at" } }, "contact.email"],
+    // One plain mailbox: no URL syntax that would split a mailto: link.
+    [{ contact: { email: "orders?desk@example.org" } }, "contact.email"],
+    [{ contact: { email: "a@example.org, b@example.org" } }, "contact.email"],
     [{ contact: { phone: "1".repeat(33) } }, "contact.phone"],
     [{ contact: { name: "n".repeat(201) } }, "contact.name"],
     [{ contact: { email: `@${"x".repeat(254)}` } }, "contact.email"],
@@ -1605,14 +1608,34 @@ describe("customer authorization upgrade", () => {
       orgId: customized,
       status: "customized",
       hasCustomerGrants: true,
+      hasCustomerRead: true,
+      hasCustomerManage: true,
     });
     const args = { cursor: first.continueCursor };
     const second = await t.query(verify, args);
     expect(second.isDone).toBe(true);
     expect(second.page).toEqual([
-      { orgId: missing, status: "missing", hasCustomerGrants: false },
-      { orgId: orgA, status: "eligible", hasCustomerGrants: false },
-      { orgId: orgB, status: "current", hasCustomerGrants: true },
+      {
+        orgId: missing,
+        status: "missing",
+        hasCustomerGrants: false,
+        hasCustomerRead: false,
+        hasCustomerManage: false,
+      },
+      {
+        orgId: orgA,
+        status: "eligible",
+        hasCustomerGrants: false,
+        hasCustomerRead: false,
+        hasCustomerManage: false,
+      },
+      {
+        orgId: orgB,
+        status: "current",
+        hasCustomerGrants: true,
+        hasCustomerRead: true,
+        hasCustomerManage: true,
+      },
     ]);
     expect(await t.query(verify, args)).toEqual(second);
 
@@ -1627,11 +1650,91 @@ describe("customer authorization upgrade", () => {
       missing: 1,
     });
     expect((await t.query(verify, args)).page).toEqual([
-      { orgId: missing, status: "missing", hasCustomerGrants: false },
-      { orgId: orgA, status: "current", hasCustomerGrants: true },
-      { orgId: orgB, status: "current", hasCustomerGrants: true },
+      {
+        orgId: missing,
+        status: "missing",
+        hasCustomerGrants: false,
+        hasCustomerRead: false,
+        hasCustomerManage: false,
+      },
+      {
+        orgId: orgA,
+        status: "current",
+        hasCustomerGrants: true,
+        hasCustomerRead: true,
+        hasCustomerManage: true,
+      },
+      {
+        orgId: orgB,
+        status: "current",
+        hasCustomerGrants: true,
+        hasCustomerRead: true,
+        hasCustomerManage: true,
+      },
     ]);
     expect(await t.query(verify, {})).toEqual(first);
+  });
+
+  it("reports a customized administrator holding only one customer grant after revocation", async () => {
+    const { t } = await setup();
+    const [readOnly, manageOnly] = await t.run(async (ctx) => {
+      const orgs = [];
+      for (const [
+        index,
+        permissionCode,
+      ] of CUSTOMER_PERMISSION_CODES.entries()) {
+        const orgId = await ctx.db.insert("organizations", {
+          clerkOrganizationId: `org_partial_${index}`,
+          name: `Partial ${index}`,
+          status: "ACTIVE",
+          settings: DEFAULT_ORGANIZATION_SETTINGS,
+        });
+        const roleId = await ctx.db.insert("roles", {
+          orgId,
+          key: "ORG_ADMIN",
+          name: "Organization administrator",
+          description: "Customer access approved separately.",
+          seeded: true,
+          status: "ACTIVE",
+        });
+        await ctx.db.insert("rolePermissions", {
+          orgId,
+          roleId,
+          permissionCode,
+        });
+        orgs.push(orgId);
+      }
+      return orgs;
+    });
+    const revoke = internal.customers.provision.revokeOrgAdminGrants;
+    const verify = internal.customers.provision.verifyOrgAdminGrants;
+    let cursor: string | undefined;
+    do {
+      const batch = await t.mutation(revoke, cursor ? { cursor } : {});
+      cursor = batch.isDone ? undefined : batch.continueCursor;
+    } while (cursor);
+    const rows = [];
+    do {
+      const batch = await t.query(verify, cursor ? { cursor } : {});
+      rows.push(...batch.page);
+      cursor = batch.isDone ? undefined : batch.continueCursor;
+    } while (cursor);
+    // The conservative revoker leaves both roles alone; the verifier must
+    // still surface the residual access each one keeps.
+    expect(rows.find((row) => row.orgId === readOnly)).toEqual({
+      orgId: readOnly,
+      status: "customized",
+      hasCustomerGrants: false,
+      hasCustomerRead: true,
+      hasCustomerManage: false,
+    });
+    expect(rows.find((row) => row.orgId === manageOnly)).toEqual({
+      orgId: manageOnly,
+      status: "customized",
+      hasCustomerGrants: false,
+      hasCustomerRead: false,
+      hasCustomerManage: true,
+    });
   });
 
   it("revokes customer grants in resumable batches, leaves manually granted roles alone and preserves data", async () => {
@@ -1715,8 +1818,20 @@ describe("customer authorization upgrade", () => {
     });
     const verified = await t.query(verifyOrgAdminGrants, args);
     expect(verified.page).toEqual([
-      { orgId: orgA, status: "current", hasCustomerGrants: true },
-      { orgId: orgB, status: "current", hasCustomerGrants: true },
+      {
+        orgId: orgA,
+        status: "current",
+        hasCustomerGrants: true,
+        hasCustomerRead: true,
+        hasCustomerManage: true,
+      },
+      {
+        orgId: orgB,
+        status: "current",
+        hasCustomerGrants: true,
+        hasCustomerRead: true,
+        hasCustomerManage: true,
+      },
     ]);
 
     const revokeFirst = await t.mutation(revokeOrgAdminGrants, {});
@@ -1748,10 +1863,24 @@ describe("customer authorization upgrade", () => {
       orgId: customizedOrgId,
       status: "customized",
       hasCustomerGrants: true,
+      hasCustomerRead: true,
+      hasCustomerManage: true,
     });
     expect((await t.query(verifyOrgAdminGrants, revokeArgs)).page).toEqual([
-      { orgId: orgA, status: "eligible", hasCustomerGrants: false },
-      { orgId: orgB, status: "eligible", hasCustomerGrants: false },
+      {
+        orgId: orgA,
+        status: "eligible",
+        hasCustomerGrants: false,
+        hasCustomerRead: false,
+        hasCustomerManage: false,
+      },
+      {
+        orgId: orgB,
+        status: "eligible",
+        hasCustomerGrants: false,
+        hasCustomerRead: false,
+        hasCustomerManage: false,
+      },
     ]);
     for (const actor of [actorA, actorB]) {
       const workspace = allowed(

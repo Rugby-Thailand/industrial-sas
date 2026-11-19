@@ -543,7 +543,7 @@ function CustomerDetailContent({
                   ) : null}
                   {contact.email ? (
                     <a
-                      href={`mailto:${contact.email}`}
+                      href={`mailto:${encodeURIComponent(contact.email)}`}
                       className="-my-1 flex min-h-touch items-center gap-2 break-all text-link hover:underline md:my-0 md:min-h-0"
                     >
                       <Mail aria-hidden="true" className="size-4" />
@@ -750,12 +750,23 @@ export function NewCustomerForm() {
 
 function NewCustomerContent() {
   const create = useMutation(api.customers.writes.createCustomer);
-  const suggestion = useQuery(api.customers.catalogue.suggestCustomerCode, {});
+  // An optional hint: a failure falls back to the generic code hint (the
+  // server allocates a code for a blank field) and never unmounts the form.
+  const suggestion = useQueries({
+    code: { query: api.customers.catalogue.suggestCustomerCode, args: {} },
+  }).code as
+    | FunctionReturnType<typeof api.customers.catalogue.suggestCustomerCode>
+    | Error
+    | undefined;
   return (
     <CustomerFormBody
       mode="create"
       initial={EMPTY_CUSTOMER_DRAFT}
-      codeSuggestion={suggestion?.ok ? suggestion.value : undefined}
+      codeSuggestion={
+        suggestion instanceof Error || !suggestion?.ok
+          ? undefined
+          : suggestion.value
+      }
       submit={(draft, requestId) =>
         create({
           requestId,
@@ -963,7 +974,10 @@ function CustomerFormBody({
     latestVersion !== undefined &&
     failure?.code === "VERSION_CONFLICT";
 
-  async function save(event?: FormEvent<HTMLFormElement>) {
+  async function save(
+    event?: FormEvent<HTMLFormElement>,
+    options: { readonly skipDuplicateCheck?: boolean } = {},
+  ) {
     event?.preventDefault();
     if (operation.busy || blockedReason !== undefined) return;
     if (currentName === "") {
@@ -975,18 +989,31 @@ function CustomerFormBody({
     // Matches already on screen for this exact name count as reviewed; a
     // name the hint has not checked yet is checked before creating.
     const unchecked =
-      mode === "create" && matches.length === 0 && liveMatches === undefined;
+      mode === "create" &&
+      !options.skipDuplicateCheck &&
+      matches.length === 0 &&
+      liveMatches === undefined;
     const submitted = draft;
     await operation.run(
       async () => {
         if (unchecked) {
-          const found = await convex
-            .query(api.customers.catalogue.findSimilarCustomers, {
-              name: currentName,
-            })
-            .catch(() => undefined);
+          // The client can answer synchronously from a cached failure, so
+          // both a throw and a rejection count as "no answer".
+          let found:
+            | FunctionReturnType<
+                typeof api.customers.catalogue.findSimilarCustomers
+              >
+            | undefined;
+          try {
+            found = await convex.query(
+              api.customers.catalogue.findSimilarCustomers,
+              { name: currentName },
+            );
+          } catch {
+            found = undefined;
+          }
           // No answer is not "no duplicates": keep the draft and let the
-          // person retry instead of creating blind.
+          // person retry, or save without the check on purpose.
           if (!found?.ok) return { lookupFailed: true } as const;
           if (found.value.length > 0)
             return { duplicates: found.value } as const;
@@ -996,8 +1023,13 @@ function CustomerFormBody({
         if (!mounted.current) return { abandoned: true } as const;
         // A retry resends the first attempt's exact command, including the
         // version it expected, never a rebased one under the same ID.
+        // The identity follows the command actually sent (trimmed values,
+        // the create code), so drafts that send the same command share it.
         const command = identity.request(
-          JSON.stringify(submitted),
+          JSON.stringify([
+            mode === "create" ? submitted.code.trim() : null,
+            customerInput(submitted),
+          ]),
           expectedVersion,
         );
         return {
@@ -1402,7 +1434,22 @@ function CustomerFormBody({
             role="alert"
             title={failureMessage}
             testId="customer-save-error"
-          />
+          >
+            {failure?.code === "DUPLICATE_CHECK_FAILED" ? (
+              // The person, not a failed lookup, decides to create without
+              // the duplicate check. Duplicate names are allowed.
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-2"
+                onClick={() =>
+                  void save(undefined, { skipDuplicateCheck: true })
+                }
+              >
+                {t("saveWithoutCheck")}
+              </Button>
+            ) : null}
+          </Notice>
         ) : operation.error ? (
           <Notice
             tone="danger"
