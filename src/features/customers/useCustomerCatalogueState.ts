@@ -37,7 +37,8 @@ const options = {
       }
     },
     encode: (state: CustomerCatalogueState) => JSON.stringify(state),
-    readPreference: read,
+    // A remembered search from any earlier build is ignored, never restored.
+    readPreference: (value: unknown) => ({ ...read(value), search: "" }),
     // Only the status filter is remembered between visits. A search can be
     // an exact tax ID, so it lives only in this page's history entry.
     writePreference: (state: CustomerCatalogueState) => ({

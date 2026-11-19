@@ -4,9 +4,13 @@
 
 ## What changes on deploy
 
-- Additive schema only: the new `customers` table and its four indexes. No existing table, index or document changes.
+- Additive schema only: the new `customers` table (four indexes) and `customerCatalogueSignals` (one small row per organization, which advances when list order or membership can change). No existing table, index or document changes.
 - Two new organization-level permissions: `masterData.customer.read` and `masterData.customer.manage`. The release seed updates the global permission catalogue. **New** organizations get both grants on their seeded `ORG_ADMIN` role.
 - Existing organizations receive no grants on deploy, because seeding skips roles that already exist. Their admins don't see **ลูกค้า / Customers** until step 3 runs. The pages also refuse anyone without the grants. The feature stays hidden for those organizations until the upgrade, which is safe.
+
+## Access needed
+
+Every `convex run`, `export` and `import --prod` command below needs the production deployment's deploy key in `CONVEX_DEPLOY_KEY`, run from a clean checkout of the merged commit. The key lives with the Vercel production project, not in CI secrets.
 
 ## Release order
 
@@ -15,9 +19,9 @@
 3. Upgrade the seeded admin roles of existing organizations. This needs deployment administration access:
 
    ```sh
-   pnpm exec convex run --deployment prod customers/provision:upgradeOrgAdminRoles '{}'
+   pnpm exec convex run --prod customers/provision:upgradeOrgAdminRoles '{}'
    # Repeat with the returned cursor until "isDone": true:
-   pnpm exec convex run --deployment prod customers/provision:upgradeOrgAdminRoles '{"cursor":"<continueCursor>"}'
+   pnpm exec convex run --prod customers/provision:upgradeOrgAdminRoles '{"cursor":"<continueCursor>"}'
    ```
 
    Each call checks up to 50 organizations. Write down every `continueCursor` as a checkpoint. After an interruption, resume from the last checkpoint. A rerun is idempotent, so an organization that was already upgraded reports `current`. Batches also list the organization IDs counted as `customized` or `missing`.
@@ -25,7 +29,7 @@
 4. Verify the grants. The check is read-only:
 
    ```sh
-   pnpm exec convex run --deployment prod customers/provision:verifyOrgAdminGrants '{}'
+   pnpm exec convex run --prod customers/provision:verifyOrgAdminGrants '{}'
    # Page with "cursor" until "isDone": true.
    ```
 
@@ -38,13 +42,21 @@
 
 ## Rollback
 
-The schema change is additive, and the feature stays off until someone holds the grants. Choose the smallest step that fixes the problem:
+Both new tables, `customers` and `customerCatalogueSignals` (one generation counter per organization), are additive. No existing table changes. Choose the smallest step that fixes the problem.
 
-1. **Hide the feature.** Revert the UI commit (`feat(customers): customer list, detail, create and edit screens`) and merge the revert. The sidebar entry and routes disappear. Customer records, grants and the backend stay, so existing data is untouched and re-enabling is a plain re-revert.
-2. **Stop writes but keep reads.** In the same revert, also remove the four mutations in `convex/customers/writes.ts`. Pages that are already open then fail closed on Save and show the generic save error. No records change.
-3. **Full removal** only when no customer records need keeping. First export the records (`pnpm exec convex export` with the production backup flow), then delete the table's documents, then revert the backend commit. Convex refuses to drop a table definition that still holds documents, so the order matters.
+1. **Switch the feature off without a deploy.** Revoke the grants that the seed and the upgrade gave:
 
-Permission grants that already exist on roles are harmless after steps 1 and 2, because the permission codes stay in the catalogue. Pages already open after a frontend-only rollback keep working until the tab reloads. The backend they call is unchanged.
+   ```sh
+   pnpm exec convex run --prod customers/provision:revokeOrgAdminGrants '{}'
+   # Repeat with the returned cursor until "isDone": true.
+   ```
+
+   This removes both customer grants only from seeded administrators whose grants are exactly the current default. Within seconds the sidebar entry disappears, and the pages and functions refuse those members. Customer records stay untouched. Organizations listed as `customized` were granted by hand, so it leaves them alone. To switch the feature back on, run `upgradeOrgAdminRoles` again. Newly created organizations are still seeded with the grants until the code is reverted.
+
+2. **Remove the code and keep the data.** Revert the PR's merge commit with `git revert -m 1 <merge-sha>` and merge the revert. The release pipeline backs up production first, then deploys. On a local Convex backend holding documents in both tables, pushing the baseline schema succeeded (`Schema validation complete.`). The push deleted the five customer indexes, and both documents stayed readable. Customer data therefore survives a code rollback and comes back when the change is re-applied. Permission rows already granted are inert once the code is gone.
+3. **Delete the data**, only when it must not be kept. First export it: `pnpm exec convex export --prod --path backups/customers-<date>.zip`, stored with the release backups. Then clear both tables with the Convex dashboard's table delete, after step 2. Restore by importing that export with `pnpm exec convex import --prod --table <name>`.
+
+A tab opened before step 1 or 2 keeps working only until its next query. After step 1 the server refuses it. After step 2 the functions no longer exist, and the page shows its load error.
 
 ## Data handled
 

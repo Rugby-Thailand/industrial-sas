@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   ] as string[],
   replace: vi.fn(),
   readiness: { kind: "READY_TO_QUERY" } as { kind: string; requestId?: string },
+  viewerPending: false,
   // The imperative duplicate check a fast Save runs before creating.
   convexQuery: vi.fn(),
 }));
@@ -45,12 +46,16 @@ vi.mock("convex/react", () => ({
     mocks.queryArgs.set(name, args);
     // The server's own answer to "may this member manage customers?".
     if (name === "customers/catalogue:viewer")
-      return {
-        ok: true,
-        value: {
-          canManage: mocks.permissions.includes("masterData.customer.manage"),
-        },
-      };
+      return mocks.viewerPending
+        ? undefined
+        : {
+            ok: true,
+            value: {
+              canManage: mocks.permissions.includes(
+                "masterData.customer.manage",
+              ),
+            },
+          };
     return mocks.queries.get(name);
   },
 }));
@@ -180,6 +185,7 @@ beforeEach(() => {
   mocks.queries.set(SUGGEST, { ok: true, value: "C-0031" });
   mocks.queries.set(SIMILAR, { ok: true, value: [] });
   mocks.readiness = { kind: "READY_TO_QUERY" };
+  mocks.viewerPending = false;
   mocks.convexQuery.mockReset();
   mocks.convexQuery.mockImplementation(async () => mocks.queries.get(SIMILAR));
 });
@@ -362,10 +368,44 @@ describe("customer list", () => {
     expect(screen.getByText("Loading customers…")).toBeInTheDocument();
   });
 
-  it("reports a failed load as an alert", () => {
+  it("ignores a search remembered by an earlier build", () => {
+    window.localStorage.setItem(
+      "customers:org-a:user-a",
+      JSON.stringify({ search: "0105553012341", status: "ARCHIVED" }),
+    );
+    window.history.replaceState({}, "", "/en/master-data/customers");
+    mocks.queries.set(LIST, page([summary]));
+    render(<CustomerCatalogue />);
+    expect(
+      screen.getByRole("searchbox", { name: "Search name, code or tax ID" }),
+    ).toHaveValue("");
+    expect(mocks.queryArgs.get(LIST)).toMatchObject({
+      search: "",
+      status: "ARCHIVED",
+    });
+  });
+
+  it("shows a refused list read as an access decision, not a connection problem", () => {
     mocks.queries.set(LIST, {
       ok: false,
-      denial: { code: "DENIED", requestId: "r" },
+      denial: { code: "AUTHORIZATION_DENIED", requestId: "req-7" },
+    });
+    render(<CustomerCatalogue />);
+    expect(screen.queryByText("Customers could not be loaded")).toBeNull();
+    expect(screen.getByText(/req-7/)).toBeInTheDocument();
+  });
+
+  it("reports a failed load as an alert", () => {
+    // A continuation the server can no longer resume.
+    mocks.queries.set(LIST, {
+      ok: true,
+      value: {
+        status: "reset",
+        page: [],
+        isDone: false,
+        continueCursor: "",
+        scanned: 0,
+      },
     });
     render(<CustomerCatalogue />);
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -521,6 +561,79 @@ describe("new customer", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
     });
     expect(create).toHaveBeenCalledOnce();
+  });
+
+  it("a failed duplicate check keeps the draft and creates nothing until a retry succeeds", async () => {
+    const create = mutationFor(CREATE);
+    mocks.convexQuery.mockRejectedValueOnce(new Error("offline"));
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Offline Co");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(screen.getByTestId("customer-save-error")).toHaveTextContent(
+      "Couldn't check for a customer with this name",
+    );
+    expect(screen.getByDisplayValue("Offline Co")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(create).toHaveBeenCalledOnce();
+  });
+
+  it("a form closed while its duplicate check runs never starts a write", async () => {
+    const create = mutationFor(CREATE);
+    let answer!: (value: unknown) => void;
+    mocks.convexQuery.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const view = render(<NewCustomerForm />);
+    type(/Customer name/, "Closing Co");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    view.unmount();
+    await act(async () => {
+      answer({ ok: true, value: [] });
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("waits for the server's manage answer before showing an editable form", () => {
+    mocks.viewerPending = true;
+    render(<NewCustomerForm />);
+    expect(screen.queryByTestId("customer-form")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save customer" })).toBeNull();
+  });
+
+  it("Forward after saving and going Back reaches the customer, never the closed form", async () => {
+    openFrom(LIST_ORIGIN, "/en/master-data/customers/new");
+    mutationFor(CREATE);
+    mocks.replace.mockImplementation((destination: string) =>
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/en${destination}`,
+      ),
+    );
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Forward Co");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    await waitFor(() =>
+      expect(href()).toBe("/en/master-data/customers/customer-new"),
+    );
+    await nativeBack();
+    expect(href()).toBe(LIST_ORIGIN);
+    await act(async () => {
+      window.history.forward();
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    });
+    expect(href()).toBe("/en/master-data/customers/customer-new");
   });
 
   it("refuses an empty name without calling the server", async () => {
@@ -957,6 +1070,21 @@ describe("edit customer", () => {
       "Somchai Jaidee",
     );
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    // Archive and restore changed no editable field: the draft saves
+    // against the restored version, with the edit intact.
+    mutationFor(UPDATE).mockResolvedValue({
+      ok: true,
+      value: { ok: true, customerId: "customer-a", replayed: false },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    });
+    expect(mutationFor(UPDATE)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedVersion: 5,
+        contact: expect.objectContaining({ name: "Somchai Jaidee" }),
+      }),
+    );
   });
 
   it("freezes the fields while a save is pending, so a later edit cannot look saved", async () => {

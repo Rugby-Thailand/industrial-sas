@@ -927,7 +927,8 @@
       "CUSTOMER_ALREADY_ARCHIVED": "This customer is already archived.",
       "CUSTOMER_ALREADY_ACTIVE": "This customer is already active.",
       "DENIED": "You don't have permission to change customers.",
-      "UNKNOWN": "The change could not be saved. Check your connection and try again."
+      "UNKNOWN": "The change could not be saved. Check your connection and try again.",
+      "DUPLICATE_CHECK_FAILED": "Couldn't check for a customer with this name. Check your connection, then save again."
     },
     "fieldErrors": {
       "generic": "Check this value.",

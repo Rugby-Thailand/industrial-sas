@@ -93,7 +93,7 @@ Screenshots: [evidence/](evidence/).
 3. A tax ID with a bad checksum warns, and saving is still possible. Leading zeros survive.
 4. Two customers with the same name both save, and the form shows the match before saving.
 5. Archiving hides the customer from the default list, and the detail page still opens from a direct link.
-6. Codes are unique across orgs and archived rows, and access from another organization is denied.
+6. Codes are unique within an organization, archived rows included. Another organization may reuse a code, and it cannot read or change this organization's customers.
 7. Back after a failed edit on a phone keeps the draft (navigation contract cases).
 8. (v2) A scan whose name matches nothing still saves. An alias shared by two customers stays in review. A product reference that is a part number is never auto-linked.
 

@@ -71,9 +71,12 @@ export const ROUTES = Object.freeze({
   hrRoster: "/hr/roster",
 });
 
+/**
+ * Pages that need the warehouse workspace. Customer pages are organization
+ * records gated by their own grants, so they are deliberately not listed.
+ */
 export const PLANNER_PATHS: readonly string[] = Object.freeze([
   ROUTES.storageLayouts,
-  ROUTES.customers,
   ROUTES.finishedGoods,
 ]);
 

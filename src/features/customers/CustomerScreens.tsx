@@ -14,7 +14,14 @@ import {
   User,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
 import { api } from "../../../convex/_generated/api";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
@@ -147,9 +154,9 @@ function CatalogueContent() {
     hasRows: (value) => Boolean(value.page?.length),
   });
   const ready = outcome?.ok && outcome.value.status === "ready";
-  const failed = Boolean(
-    outcome && (!outcome.ok || outcome.value.status === "reset"),
-  );
+  const denied = outcome !== undefined && !outcome.ok;
+  const failed =
+    denied || (outcome?.ok === true && outcome.value.status === "reset");
   const customers = ready ? outcome.value.page : [];
   const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
   const clear = () => update({ search: "", status: "ACTIVE" });
@@ -179,7 +186,12 @@ function CatalogueContent() {
           emptyLabel={t("statusActive")}
         />
       </div>
-      {failed ? (
+      {outcome !== undefined && !outcome.ok ? (
+        // A refused read is an access decision, not a connection problem.
+        <LedgerPanelStatus
+          state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
+        />
+      ) : failed ? (
         <Notice
           tone="danger"
           role="alert"
@@ -747,8 +759,16 @@ function CustomerEditor({
   const t = useTranslations("Customers");
   const update = useMutation(api.customers.writes.updateCustomer);
   // The editor owns the version it was opened at. A newer saved version
-  // arriving while editing does not replace the draft; saving reports it.
+  // that changed an editable field does not replace the draft; saving
+  // reports the conflict. One that changed none (an archive and restore
+  // elsewhere) only moves the expected version, keeping the draft savable.
   const [baseline, setBaseline] = useState(customer);
+  const [formKey, setFormKey] = useState(0);
+  if (
+    customer.version !== baseline.version &&
+    sameEditableFields(customer, baseline)
+  )
+    setBaseline(customer);
   // A live archive never unmounts the editor: an unsaved draft stays until
   // its owner saves after restoring, or discards it explicitly.
   const archived = customer.status === "ARCHIVED";
@@ -762,12 +782,15 @@ function CustomerEditor({
         ]}
       />
       <CustomerFormBody
-        key={baseline.version}
+        key={formKey}
         mode="edit"
         initial={draftFromCustomer(baseline)}
         customerId={customer.customerId}
         latestVersion={customer.version}
-        onReloadLatest={() => setBaseline(customer)}
+        onReloadLatest={() => {
+          setBaseline(customer);
+          setFormKey((key) => key + 1);
+        }}
         blockedReason={archived ? t("archivedCannotEdit") : undefined}
         submit={(draft, requestId) =>
           update({
@@ -779,6 +802,16 @@ function CustomerEditor({
         }
       />
     </>
+  );
+}
+
+function sameEditableFields(
+  left: CustomerDetailRow,
+  right: CustomerDetailRow,
+): boolean {
+  return (
+    JSON.stringify(draftFromCustomer(left)) ===
+    JSON.stringify(draftFromCustomer(right))
   );
 }
 
@@ -837,6 +870,13 @@ function CustomerFormBody({
       ),
   );
   const nameRef = useRef<HTMLInputElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const operation = useAsyncOperation({
     scope: `customer-${mode}:${customerId ?? "new"}`,
     describeError: () => "UNKNOWN",
@@ -907,9 +947,15 @@ function CustomerFormBody({
               name: currentName,
             })
             .catch(() => undefined);
-          if (found?.ok && found.value.length > 0)
+          // No answer is not "no duplicates": keep the draft and let the
+          // person retry instead of creating blind.
+          if (!found?.ok) return { lookupFailed: true } as const;
+          if (found.value.length > 0)
             return { duplicates: found.value } as const;
         }
+        // The form may have closed while the check ran; a closed form
+        // never starts a write.
+        if (!mounted.current) return { abandoned: true } as const;
         return {
           written: await submit(
             submitted,
@@ -918,6 +964,11 @@ function CustomerFormBody({
         } as const;
       },
       (attempt) => {
+        if ("abandoned" in attempt) return;
+        if ("lookupFailed" in attempt) {
+          setFailure({ code: "DUPLICATE_CHECK_FAILED" });
+          return;
+        }
         if ("duplicates" in attempt) {
           setChecked({ name: currentName, matches: attempt.duplicates });
           return;
@@ -950,7 +1001,12 @@ function CustomerFormBody({
     else returnFromTask(customerPath(customerId), router.replace);
   }
 
-  if (access.ready && !access.canManage)
+  // The form mounts only once the server has said who may manage customers.
+  if (!access.ready)
+    return (
+      <LedgerPanelStatus state={{ kind: "LOADING" }} label={t("loading")} />
+    );
+  if (!access.canManage)
     return (
       <div className="max-w-3xl space-y-3">
         <Notice tone="muted" title={t("viewOnly")} />
