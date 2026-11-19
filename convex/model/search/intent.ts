@@ -40,6 +40,8 @@ export const PAGE_KEYS = [
   "planner.jobScanRecords",
   "planner.storageLayouts",
   "planner.newBuilding",
+  "planner.customers",
+  "planner.newCustomer",
   "planner.setup",
   "hr.today",
   "hr.time",

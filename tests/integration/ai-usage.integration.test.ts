@@ -10,6 +10,10 @@ import {
   responseUsage,
 } from "../../convex/lib/providerUsage";
 import { requestJobTicketProvider } from "../../convex/finishedGoods/jobScans";
+import {
+  AI_USAGE_PERMISSION_CODES,
+  CUSTOMER_PERMISSION_CODES,
+} from "../../convex/lib/permissions";
 
 const generation = (body: unknown) => {
   const decoded = decodeProviderUsage(body, "GENERATION_LOOKUP");
@@ -419,13 +423,18 @@ describe("AI usage ledger through authorized actions", () => {
   });
 
   it("upgrades only an unchanged seeded organization administrator, idempotently", async () => {
+    // Reconstruct the legacy role from before either feature shipped.
+    const laterGrants = new Set<string>([
+      ...AI_USAGE_PERMISSION_CODES,
+      ...CUSTOMER_PERMISSION_CODES,
+    ]);
     await world.t.run(async (ctx) => {
       const grants = await ctx.db
         .query("rolePermissions")
         .withIndex("by_orgId_permissionCode", (q) => q.eq("orgId", world.orgA))
         .collect();
       for (const grant of grants)
-        if (grant.permissionCode.startsWith("aiUsage."))
+        if (laterGrants.has(grant.permissionCode))
           await ctx.db.delete("rolePermissions", grant._id);
     });
     expect(
@@ -453,7 +462,7 @@ describe("AI usage ledger through authorized actions", () => {
         .collect();
       for (const grant of grants)
         if (
-          grant.permissionCode.startsWith("aiUsage.") ||
+          laterGrants.has(grant.permissionCode) ||
           grant.permissionCode === "masterData.storageLayout.manage"
         )
           await ctx.db.delete("rolePermissions", grant._id);
@@ -473,7 +482,8 @@ describe("AI usage ledger through authorized actions", () => {
           .collect()
       ).map((g) => g.permissionCode),
     );
-    expect(codes).not.toContain("aiUsage.read");
+    for (const code of AI_USAGE_PERMISSION_CODES)
+      expect(codes).not.toContain(code);
   });
 
   it("refuses retired manual FX settings and flags an over-capacity report as incomplete", async () => {

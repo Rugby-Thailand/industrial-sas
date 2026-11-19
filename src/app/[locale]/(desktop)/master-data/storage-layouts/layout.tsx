@@ -3,6 +3,7 @@ import {
   type RouteMessagesLayoutProps,
 } from "@/i18n/RouteMessages";
 
-export default function MasterDataLayout(props: RouteMessagesLayoutProps) {
+/** Storage-layout pages only; customer pages load their own messages. */
+export default function StorageLayoutsLayout(props: RouteMessagesLayoutProps) {
   return <RouteMessages scope="(desktop)/master-data" {...props} />;
 }

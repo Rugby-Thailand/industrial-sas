@@ -4,6 +4,8 @@ export const NAVIGATION_PERMISSION = Object.freeze({
   storageLayouts: "masterData.storageLayout.read",
   storageLayoutActivate: "masterData.storageLayout.activate",
   storageLayoutManage: "masterData.storageLayout.manage",
+  customers: "masterData.customer.read",
+  customerManage: "masterData.customer.manage",
 } as const);
 export type NavigationPermissionCode =
   (typeof NAVIGATION_PERMISSION)[keyof typeof NAVIGATION_PERMISSION];

@@ -2,6 +2,7 @@ import { internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { seedAuthorizationForOrganization } from "../lib/authorizationSeedConvex";
 import {
+  CUSTOMER_PERMISSION_CODES,
   HR_ADMIN_PERMISSION_CODES,
   PLANNER_PERMISSION_CODES,
 } from "../lib/permissions";
@@ -29,7 +30,13 @@ export const organization = internalMutation({
     const codes = new Set(grants.map((g) => g.permissionCode));
     const legacy = [...PLANNER_PERMISSION_CODES, ...HR_ADMIN_PERMISSION_CODES];
     const target = [...legacy, "aiUsage.read", "aiUsage.configure"];
-    if (codes.size === target.length && target.every((c) => codes.has(c)))
+    // The customer pair affects CURRENT recognition only.
+    const currentSize = CUSTOMER_PERMISSION_CODES.every((code) =>
+      codes.has(code),
+    )
+      ? codes.size - CUSTOMER_PERMISSION_CODES.length
+      : codes.size;
+    if (currentSize === target.length && target.every((c) => codes.has(c)))
       return "CURRENT";
     if (
       !role.seeded ||

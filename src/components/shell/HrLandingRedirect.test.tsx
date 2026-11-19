@@ -56,6 +56,18 @@ describe("landing for members without storage access", () => {
       { usage: { status: "READY", permissions: ["aiUsage.configure"] } },
     ],
     ["the page is not a storage page", { pathname: "/ai-usage" }],
+    // Customer pages are gated by customer grants, not warehouse access.
+    [
+      "an AI usage member opens the customer list",
+      { pathname: "/master-data/customers" },
+    ],
+    [
+      "an HR member opens a customer editor",
+      {
+        pathname: "/master-data/customers/c1/edit",
+        hr: { status: "READY", permissions: ["hr.self.access"] },
+      },
+    ],
   ])("does not redirect while %s", (_label, overrides) => {
     Object.assign(state, overrides);
     render(<HrLandingRedirect />);

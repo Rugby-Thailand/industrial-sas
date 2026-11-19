@@ -3,10 +3,12 @@ import type { GenericId } from "convex/values";
 
 import type { DataModel } from "../schema";
 import {
+  CUSTOMER_PERMISSION_CODES,
   DEFAULT_ROLES,
   HR_ADMIN_PERMISSION_CODES,
   PERMISSION_CATALOGUE,
   PLANNER_PERMISSION_CODES,
+  type PermissionDefinition,
 } from "./permissions";
 
 export interface AuthorizationSeedResult {
@@ -16,16 +18,16 @@ export interface AuthorizationSeedResult {
   readonly rolePermissionsInserted: number;
 }
 
-export async function seedAuthorizationForOrganization(
+export async function seedPermissionDefinitions(
   ctx: GenericMutationCtx<DataModel>,
-  orgId: GenericId<"organizations">,
-): Promise<AuthorizationSeedResult> {
+  definitions: readonly PermissionDefinition[],
+): Promise<
+  Pick<AuthorizationSeedResult, "permissionsInserted" | "permissionsUpdated">
+> {
   let permissionsInserted = 0;
   let permissionsUpdated = 0;
-  let rolesInserted = 0;
-  let rolePermissionsInserted = 0;
 
-  for (const definition of PERMISSION_CATALOGUE) {
+  for (const definition of definitions) {
     const existing = await ctx.db
       .query("permissions")
       .withIndex("by_code", (query) => query.eq("code", definition.code))
@@ -49,6 +51,20 @@ export async function seedAuthorizationForOrganization(
       permissionsUpdated += 1;
     }
   }
+
+  return { permissionsInserted, permissionsUpdated };
+}
+
+export async function seedAuthorizationForOrganization(
+  ctx: GenericMutationCtx<DataModel>,
+  orgId: GenericId<"organizations">,
+): Promise<AuthorizationSeedResult> {
+  const permissions = await seedPermissionDefinitions(
+    ctx,
+    PERMISSION_CATALOGUE,
+  );
+  let rolesInserted = 0;
+  let rolePermissionsInserted = 0;
 
   for (const definition of DEFAULT_ROLES) {
     const existing = await ctx.db
@@ -79,8 +95,7 @@ export async function seedAuthorizationForOrganization(
   }
 
   return {
-    permissionsInserted,
-    permissionsUpdated,
+    ...permissions,
     rolesInserted,
     rolePermissionsInserted,
   };
@@ -124,10 +139,14 @@ export async function provisionHrForOrganization(
     .take(200);
   const codes = new Set(grants.map((grant) => grant.permissionCode));
   const target = [...PLANNER_PERMISSION_CODES, ...HR_ADMIN_PERMISSION_CODES];
+  // The customer pair affects CURRENT recognition only.
+  const currentSize = CUSTOMER_PERMISSION_CODES.every((code) => codes.has(code))
+    ? codes.size - CUSTOMER_PERMISSION_CODES.length
+    : codes.size;
   if (
     target.every((code) => codes.has(code)) &&
-    (codes.size === target.length ||
-      (codes.size === target.length + 2 &&
+    (currentSize === target.length ||
+      (currentSize === target.length + 2 &&
         codes.has("aiUsage.read") &&
         codes.has("aiUsage.configure")))
   )

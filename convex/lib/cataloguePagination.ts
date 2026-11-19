@@ -1,6 +1,6 @@
 import type { GenericId } from "convex/values";
 import type { TenantFunctionContext } from "./tenantFunctions";
-import type { TenantIndexPage } from "./tenantDb";
+import { TENANT_INDEX_MAX_PAGE_SIZE, type TenantIndexPage } from "./tenantDb";
 
 export type CataloguePage<Row> = {
   status: "ready" | "scanning" | "reset";
@@ -51,6 +51,11 @@ export function decodeCatalogueCursor<T>(
     return null;
   }
 }
+const isCursorError = (error: unknown) =>
+  error instanceof Error &&
+  (/cursor/i.test(error.message) ||
+    ("code" in error && error.code === "INVALID_INDEX_QUERY"));
+
 export const resetCataloguePage = <R>(): CataloguePage<R> => ({
   status: "reset",
   page: [],
@@ -169,12 +174,7 @@ export async function paginatedScan<
   try {
     chunk = await options.read(state.raw, state.end);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (/cursor/i.test(error.message) ||
-        ("code" in error && error.code === "INVALID_INDEX_QUERY"))
-    )
-      return resetCataloguePage();
+    if (isCursorError(error)) return resetCataloguePage();
     throw error;
   }
   if (chunk.pageStatus === "SplitRequired") {
@@ -371,4 +371,154 @@ export function validNativeRange(value: unknown): value is NativeRangeState {
             item.end.length <= 4096,
         )))
   );
+}
+
+type OrderedScanState = {
+  scope: string;
+  generation: number;
+  range: Range;
+  ids: string[];
+  exhausted: boolean;
+  scanned: number;
+  offset: number;
+  kind: "page" | "scan";
+};
+
+/** Scan in index order using one bounded chunk and carry surplus matches
+ * through the native cursor boundary. Point-read retained IDs only when
+ * returning them, then verify their tenant and eligibility before projecting.
+ */
+export async function paginatedOrderedScan<T extends TenantIdentity>(
+  ctx: TenantFunctionContext,
+  options: {
+    scope: unknown;
+    pageSize: number;
+    confirmNextMatch: boolean;
+    cursor?: string | undefined;
+    scanCursor?: string | undefined;
+    generation: () => Promise<number>;
+    read: (range: Range) => Promise<TenantIndexPage<T>>;
+    get: (id: string) => Promise<T | null>;
+    matches: (document: T) => boolean;
+  },
+): Promise<CataloguePage<T>> {
+  const { pageSize, cursor, scanCursor, confirmNextMatch } = options;
+  if (![20, 50, 100].includes(pageSize)) return resetCataloguePage();
+  const scope = catalogueScope(ctx, [options.scope, pageSize]);
+  let currentGeneration: Promise<number> | undefined;
+  const generation = () => (currentGeneration ??= options.generation());
+
+  const decode = async (value: string, kind: OrderedScanState["kind"]) => {
+    const state = decodeCatalogueCursor<OrderedScanState>(value, scope);
+    if (
+      !state ||
+      state.kind !== kind ||
+      !state.range ||
+      !validNativeRange(state.range) ||
+      !Array.isArray(state.ids) ||
+      state.ids.length > TENANT_INDEX_MAX_PAGE_SIZE ||
+      !state.ids.every((id) => typeof id === "string") ||
+      new Set(state.ids).size !== state.ids.length ||
+      typeof state.exhausted !== "boolean" ||
+      !Number.isSafeInteger(state.scanned) ||
+      state.scanned < 0 ||
+      !Number.isSafeInteger(state.offset) ||
+      state.offset < 0 ||
+      state.generation !== (await generation())
+    )
+      return null;
+    return state;
+  };
+  const base = cursor ? await decode(cursor, "page") : null;
+  const resumed = scanCursor ? await decode(scanCursor, "scan") : null;
+  const offset = base?.offset ?? 0;
+  if ((cursor && !base) || (scanCursor && resumed?.offset !== offset))
+    return resetCataloguePage();
+
+  const state = resumed ?? base;
+  const incoming = new Map<string, T>();
+  let range = state?.range ?? {};
+  let exhausted = state?.exhausted ?? false;
+  let scanned = state?.scanned ?? 0;
+  const retained = state?.ids ?? [];
+  // Filtered pages need a surplus match or index exhaustion before they are
+  // ready. Continue lookahead one bounded native page per execution.
+  const scanTarget = pageSize + (confirmNextMatch ? 1 : 0);
+  if (!exhausted && retained.length < scanTarget) {
+    try {
+      const chunk = await options.read(range);
+      if (chunk.pageStatus === "SplitRequired") {
+        if (
+          !chunk.splitCursor ||
+          chunk.splitCursor === range.raw ||
+          chunk.splitCursor === range.end
+        )
+          throw new Error("CATALOGUE_READ_CAPACITY_EXCEEDED");
+        range = { raw: range.raw, end: chunk.splitCursor };
+      } else {
+        // A bounded split prefix ends at its explicit boundary. Resume the
+        // original index range there even if the prefix reports isDone.
+        exhausted = !range.end && chunk.isDone;
+        range = { raw: range.end ?? chunk.continueCursor };
+        scanned += chunk.page.length;
+        for (const row of chunk.page)
+          if (options.matches(row)) incoming.set(row._id, row);
+      }
+    } catch (error) {
+      if (isCursorError(error)) return resetCataloguePage();
+      throw error;
+    }
+  }
+  const ids = [...new Set([...retained, ...incoming.keys()])];
+  if (!exhausted && ids.length < scanTarget) {
+    const next: OrderedScanState = {
+      scope,
+      generation: await generation(),
+      range,
+      ids,
+      exhausted,
+      scanned,
+      offset,
+      kind: "scan",
+    };
+    return {
+      status: "scanning",
+      page: [],
+      isDone: false,
+      continueCursor: "",
+      scanCursor: JSON.stringify(next),
+      scanned,
+    };
+  }
+
+  const page: T[] = [];
+  const documents = await Promise.all(
+    ids.slice(0, pageSize).map((id) => incoming.get(id) ?? options.get(id)),
+  );
+  for (const row of documents) {
+    if (row === null || !options.matches(row)) return resetCataloguePage();
+    page.push(row);
+  }
+
+  const surplus = ids.slice(pageSize);
+  const isDone = exhausted && surplus.length === 0;
+  const next: OrderedScanState | null = isDone
+    ? null
+    : {
+        scope,
+        generation: await generation(),
+        range,
+        ids: surplus,
+        exhausted,
+        scanned: 0,
+        offset: offset + pageSize,
+        kind: "page",
+      };
+  return {
+    status: "ready",
+    page,
+    isDone,
+    continueCursor: next ? JSON.stringify(next) : "",
+    scanned,
+  };
 }

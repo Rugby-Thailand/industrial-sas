@@ -25,6 +25,15 @@ export const ROUTE_NAMESPACES = {
     "Table",
     "WriteError",
   ],
+  // Customer pages only: storage pages under master-data do not carry it.
+  "(desktop)/master-data/customers": [
+    "App",
+    "Workspace",
+    "Customers",
+    "Pagination",
+    "Panel",
+    "Table",
+  ],
   "(desktop)/finished-goods": [
     "App",
     "Workspace",

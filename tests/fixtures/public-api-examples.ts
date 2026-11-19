@@ -228,6 +228,15 @@ function example<K extends Kind>(
 export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("aiUsage/reports:summary", "query", () => ({})),
   example("aiUsage/dimensions:warehouseOptions", "query", () => ({})),
+  example("customers/catalogue:viewer", "query", () => ({})),
+  example("customers/writes:createCustomer", "mutation", () => ({
+    requestId: "public-customer-create",
+    name: "Public contract customer",
+    deliveryAddress: { line: "Private address", province: "Bangkok" },
+  })),
+  example("customers/catalogue:listCustomersPage", "query", () => ({
+    pageSize: 20,
+  })),
   example("hr/access:display", "query", () => ({})),
   example("hr/access:sitesPage", "query", () => ({ search: "a" })),
   example("hr/navigationIntent:interpret", "action", () => ({

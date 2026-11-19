@@ -20,6 +20,7 @@ export function PageHeader({
   helpText,
   description,
   summary,
+  meta,
   children,
   breadcrumbs,
   showBack = true,
@@ -33,6 +34,8 @@ export function PageHeader({
   readonly description?: string;
   /** Concise supporting text for the current task. */
   readonly summary?: string;
+  /** Short identifying facts under the title, such as a record code and status. */
+  readonly meta?: ReactNode;
   readonly children?: ReactNode;
   /** Pages above this one; top-level (sidebar) pages pass none. */
   readonly breadcrumbs?: readonly Crumb[];
@@ -72,6 +75,11 @@ export function PageHeader({
               <PageHelp title={title} description={resolvedHelpText} />
             )}
           </div>
+          {meta ? (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+              {meta}
+            </div>
+          ) : null}
           {summary ? (
             <p className="mt-1 max-w-prose text-sm leading-5 text-muted">
               {summary}

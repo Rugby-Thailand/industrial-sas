@@ -43,6 +43,7 @@ export function isHrPath(pathname: string): boolean {
 export const ROUTES = Object.freeze({
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
+  customers: "/master-data/customers",
   finishedGoods: "/finished-goods",
   jobScan: "/finished-goods/scan",
   jobScanRecords: "/finished-goods/scan/records",
@@ -70,6 +71,25 @@ export const ROUTES = Object.freeze({
   hrRoster: "/hr/roster",
 });
 
+/**
+ * Organization-record pages whose own queries authorize them. They need a
+ * signed-in member, never the warehouse workspace, so a refused or failing
+ * warehouse read must not replace them.
+ */
+export const ORGANIZATION_RECORD_PATHS: readonly string[] = Object.freeze([
+  ROUTES.customers,
+]);
+
+/** True for an organization-record page; accepts a path with or without its locale. */
+export function isOrganizationRecordPath(pathname: string): boolean {
+  const path = pathname.replace(/^\/(?:th|en)(?=\/|$)/u, "") || "/";
+  return ORGANIZATION_RECORD_PATHS.some((root) => isActivePath(path, root));
+}
+
+/**
+ * Pages that need the warehouse workspace. Customer pages are organization
+ * records gated by their own grants, so they are deliberately not listed.
+ */
 export const PLANNER_PATHS: readonly string[] = Object.freeze([
   ROUTES.storageLayouts,
   ROUTES.finishedGoods,
@@ -115,6 +135,12 @@ export interface StaticDestination {
 
 const STORAGE_READ = [NAVIGATION_PERMISSION.storageLayouts];
 const STORAGE_MANAGE = [NAVIGATION_PERMISSION.storageLayoutManage];
+const CUSTOMER_READ = [NAVIGATION_PERMISSION.customers];
+// The create form also reads customers (code suggestion, duplicate check).
+const CUSTOMER_MANAGE = [
+  NAVIGATION_PERMISSION.customers,
+  NAVIGATION_PERMISSION.customerManage,
+];
 
 export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
   {
@@ -225,6 +251,39 @@ export const STATIC_DESTINATIONS: readonly StaticDestination[] = Object.freeze([
       "add building",
     ],
     permissionCodes: STORAGE_MANAGE,
+  },
+  {
+    key: "planner.customers",
+    kind: "PAGE",
+    module: "planner",
+    href: ROUTES.customers,
+    labelKey: "customers",
+    aliases: [
+      "ลูกค้า",
+      "รายชื่อลูกค้า",
+      "ผู้ซื้อ",
+      "customers",
+      "customer list",
+      "clients",
+    ],
+    permissionCodes: CUSTOMER_READ,
+    menu: true,
+  },
+  {
+    key: "planner.newCustomer",
+    kind: "TASK",
+    module: "planner",
+    href: `${ROUTES.customers}/new`,
+    labelKey: "newCustomer",
+    parent: "planner.customers",
+    aliases: [
+      "เพิ่มลูกค้า",
+      "สร้างลูกค้า",
+      "ลูกค้าใหม่",
+      "new customer",
+      "add customer",
+    ],
+    permissionCodes: CUSTOMER_MANAGE,
   },
   {
     key: "planner.setup",
@@ -941,6 +1000,12 @@ export const hrPeriodPath = (periodId: string) =>
 
 export const storageBuildingPath = (buildingId: string): string =>
   `${ROUTES.storageLayouts}/${encodeURIComponent(buildingId)}`;
+
+export const customerPath = (customerId: string): string =>
+  `${ROUTES.customers}/${encodeURIComponent(customerId)}`;
+
+export const customerEditPath = (customerId: string): string =>
+  `${customerPath(customerId)}/edit`;
 
 export const storageFloorPath = (
   buildingId: string,

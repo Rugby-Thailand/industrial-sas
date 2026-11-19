@@ -3,6 +3,7 @@ import {
   MAX_LOT_CODE_LENGTH,
   normalizeCode,
 } from "../model/identifiers/normalization";
+import { canonicalArgumentText } from "../model/inventory/requestIdentity";
 import { fail, ok, type Result } from "../model/result";
 
 import {
@@ -131,11 +132,16 @@ export function describeAuditValue(value: unknown): string {
 
 export function insertedFields(
   document: Readonly<Record<string, unknown>>,
+  redactedFields: readonly string[] = [],
 ): readonly AuditChange[] {
   return Object.freeze(
     Object.entries(document)
       .filter(([, value]) => value !== undefined)
-      .map(([field, value]) => ({ field, to: describeAuditValue(value) })),
+      .map(([field, value]) =>
+        redactedFields.includes(field)
+          ? { field }
+          : { field, to: describeAuditValue(value) },
+      ),
   );
 }
 
@@ -153,11 +159,20 @@ export function removedFields(
 export function diffFields(
   before: Readonly<Record<string, unknown>>,
   after: Readonly<Record<string, unknown>>,
+  redactedFields: readonly string[] = [],
 ): readonly AuditChange[] {
   const changes: AuditChange[] = [];
   for (const [field, next] of Object.entries(after)) {
     const previous = before[field];
     if (previous === next) continue;
+    if (redactedFields.includes(field)) {
+      const oldValue = canonicalArgumentText(previous);
+      const newValue = canonicalArgumentText(next);
+      if (!oldValue.ok || !newValue.ok || oldValue.value !== newValue.value) {
+        changes.push({ field });
+      }
+      continue;
+    }
     changes.push({
       field,
       ...(previous === undefined ? {} : { from: describeAuditValue(previous) }),
@@ -177,6 +192,8 @@ export interface MasterDataWriteContext {
   readonly actorUserId: string;
   readonly warehouseId?: string;
   readonly deviceId?: string;
+  /** Report changes to these top-level fields without their values. */
+  readonly redactedAuditFields?: readonly string[];
 
   readonly now: number;
 }
@@ -225,7 +242,7 @@ export async function createMasterDataRow(
 
   await appendMasterDataAudit(input, {
     entityId: documentId,
-    changes: insertedFields(input.document),
+    changes: insertedFields(input.document, input.redactedAuditFields),
   });
 
   const resultHash = await resultIdentityDigest(table, documentId);
@@ -294,7 +311,7 @@ export async function updateMasterDataRow(
 
   await appendMasterDataAudit(input, {
     entityId: documentId,
-    changes: diffFields(before, input.patch),
+    changes: diffFields(before, input.patch, input.redactedAuditFields),
   });
 
   const resultHash = await resultIdentityDigest(table, documentId);

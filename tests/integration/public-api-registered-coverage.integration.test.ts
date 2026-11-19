@@ -96,7 +96,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(40);
+    expect(coveredModules).toHaveLength(42);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -117,9 +117,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 45 representative functions, not every public export
+    // The inventory covers 48 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(45);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(48);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -162,6 +162,7 @@ describe("representative registered coverage of every shipping public module", (
       if (
         !example.name.startsWith("hr/") &&
         !example.name.startsWith("aiUsage/") &&
+        !example.name.startsWith("customers/") &&
         example.name !== "workspace/current:readCurrent"
       ) {
         it("denies another tenant's warehouse without leaking its owner", async () => {
@@ -190,6 +191,27 @@ describe("representative registered payloads and safe HR capability gates", () =
   it("keeps batch, product, pallet and storage detail fields used by existing clients", async () => {
     const world = await createPublicApiWorld(MODULES);
     const expected: Readonly<Record<string, object>> = {
+      "customers/catalogue:viewer": { canManage: true },
+      "customers/catalogue:listCustomersPage": {
+        status: "ready",
+        page: [
+          {
+            customerId: expect.any(String),
+            code: "C-0001",
+            name: "Public contract customer",
+            status: "ACTIVE",
+            province: "Bangkok",
+          },
+        ],
+        isDone: true,
+        continueCursor: "",
+        scanned: 1,
+      },
+      "customers/writes:createCustomer": {
+        ok: true,
+        customerId: expect.any(String),
+        replayed: false,
+      },
       "finishedGoods/attachments:createIntent": { assetId: expect.any(String) },
       "aiUsage/reports:summary": {
         complete: true,
@@ -377,7 +399,10 @@ describe("representative registered payloads and safe HR capability gates", () =
         ok: true,
         requestId: expect.any(String),
       });
-      expect(allowedValue(outcome)).toMatchObject(expectedResult);
+      const value = allowedValue(outcome);
+      if (example.name === "customers/catalogue:listCustomersPage")
+        expect(value).toEqual(expectedResult);
+      else expect(value).toMatchObject(expectedResult);
       checked.push(example.name);
     }
     expect(checked.sort()).toEqual(Object.keys(expected).sort());

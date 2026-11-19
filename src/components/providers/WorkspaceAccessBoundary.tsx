@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useWorkspace } from "./WorkspaceProvider";
 import { useObservability } from "./ObservabilityProvider";
 import { observabilityEvent } from "@/lib/observability/event";
+import { isOrganizationRecordPath } from "@/lib/navigation";
 
 function QueryFailure() {
   const t = useTranslations("Panel");
@@ -43,7 +44,11 @@ export function WorkspaceAccessBoundary({
   const observability = useObservability();
   const resetKey = `${workspace.selectedWarehouseId ?? "none"}:${pathname}`;
 
-  if (workspace.failed) return <QueryFailure />;
+  // A failed warehouse workspace read replaces warehouse pages. An
+  // organization-record page (customers) authorizes its own queries, so it
+  // stays mounted, and with it any unsaved draft.
+  if (workspace.failed && !isOrganizationRecordPath(pathname))
+    return <QueryFailure />;
 
   return (
     <QueryErrorBoundary

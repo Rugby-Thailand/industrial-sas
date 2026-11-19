@@ -21,6 +21,7 @@ import {
 import {
   ConvexError,
   v,
+  type Infer,
   type PropertyValidators,
   type Validator,
   type Value,
@@ -83,11 +84,14 @@ type FunctionValidator =
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false;
 
-// Concrete validators define the public contract; v.any() keeps handler inference.
+// The handler may return void for null, but an authorized value is serialized
+// inside an object. Its concrete validator defines the wire type.
 type RegisteredReturn<ReturnsValidator extends FunctionValidator, ReturnValue> =
   IsAny<Awaited<ReturnValueForOptionalValidator<ReturnsValidator>>> extends true
     ? Awaited<ReturnValue>
-    : Awaited<ReturnValueForOptionalValidator<ReturnsValidator>>;
+    : ReturnsValidator extends Validator<unknown, "required", string>
+      ? Infer<ReturnsValidator>
+      : Awaited<ReturnValueForOptionalValidator<ReturnsValidator>>;
 
 export interface TenantFunctionContext {
   readonly requestId: string;
