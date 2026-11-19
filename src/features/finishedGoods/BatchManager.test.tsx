@@ -811,7 +811,7 @@ it("drops old weights when available quantities are redistributed without changi
 });
 
 it("does not clear the pending request when the repack commit resolves after unmount", async () => {
-  const requestKey = "fg-requests:batch-available:warehouse-a:batch-a:user-a";
+  const requestKey = "fg-requests:batch-available:user-a:warehouse-a:batch-a";
   const view = render(component("edit"));
   fireEvent.change(screen.getByLabelText("Quantity · 1"), {
     target: { value: "30" },

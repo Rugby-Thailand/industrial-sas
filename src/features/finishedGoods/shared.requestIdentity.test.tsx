@@ -62,7 +62,22 @@ it("isolates operation identities by actor and never persists a null actor scope
   hook.rerender();
   expect(hook.result.current.request("create", "durable")).toBe(first);
   expect(Object.keys(localStorage)).toEqual([
-    "fg-requests:add-location:warehouse-a:user-a",
-    "fg-requests:add-location:warehouse-a:user-b",
+    "fg-requests:add-location:user-a:warehouse-a",
+    "fg-requests:add-location:user-b:warehouse-a",
   ]);
+});
+
+it("keeps the pre-pilot actor-scoped key layout, so a deploy keeps pending IDs", () => {
+  auth.isLoaded = true;
+  auth.userId = "user-a";
+  const pending = crypto.randomUUID();
+  // The base version stored a flat map under `fg-product:<actor>:<warehouse>:new`.
+  localStorage.setItem(
+    "fg-requests:fg-product:user-a:warehouse-a:new",
+    JSON.stringify({ save: pending }),
+  );
+  const hook = renderHook(() => useOperation("fg-product:warehouse-a:new"), {
+    wrapper: intl,
+  });
+  expect(hook.result.current.request("save", "durable")).toBe(pending);
 });

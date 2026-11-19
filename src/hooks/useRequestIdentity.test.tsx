@@ -211,6 +211,30 @@ it("keeps ephemeral IDs in memory only, so a remount mints a new one", () => {
   expect(localStorage.length).toBe(0);
 });
 
+it("pins a live durable ID even if another tab stores a different one", () => {
+  const hook = renderHook(() => useRequestIdentity(scope));
+  const id = hook.result.current.request(key, "durable");
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({ version: 1, requests: { [key]: crypto.randomUUID() } }),
+  );
+  expect(hook.result.current.request(key, "durable")).toBe(id);
+});
+
+it("retires only its own commands on success, keeping another tab's pending ID", () => {
+  const tabA = renderHook(() => useRequestIdentity(scope));
+  const tabB = renderHook(() => useRequestIdentity(scope));
+  const pending = tabA.result.current.request("create:a", "durable");
+  tabB.result.current.request("create:b", "durable");
+  expect(tabB.result.current.clearRequests()).toBe(true);
+  tabA.unmount();
+  const remounted = renderHook(() => useRequestIdentity(scope));
+  expect(remounted.result.current.request("create:a", "durable")).toBe(pending);
+  expect(JSON.parse(localStorage.getItem(storageKey)!).requests).toEqual({
+    "create:a": pending,
+  });
+});
+
 it("defaults to the durable policy for callers outside finished goods", () => {
   const hook = renderHook(() => useRequestIdentity(scope));
   const id = hook.result.current.request(key);

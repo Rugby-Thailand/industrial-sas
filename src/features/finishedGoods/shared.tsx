@@ -311,10 +311,16 @@ export function useWriteError(storageFormat?: string) {
 export function useOperation(scope?: string, storageFormat?: string) {
   const describeError = useWriteError(storageFormat);
   // Persisted scopes are per signed-in user; an unscoped operation stays in memory.
-  const actorScope = useDraftKey(scope ?? "");
+  // The actor follows the first segment, as in pre-pilot keys such as
+  // `fg-product:<actor>:<warehouse>:new`, so pending IDs survive a deploy.
+  const [prefix = "", ...rest] = (scope ?? "").split(":");
+  const actorPrefix = useDraftKey(prefix);
   const operation = useAsyncOperation({
     navigation: "write",
-    scope: scope === undefined ? undefined : (actorScope ?? undefined),
+    scope:
+      scope === undefined || actorPrefix === null
+        ? undefined
+        : [actorPrefix, ...rest].join(":"),
     describeError,
   });
   // Every finished-goods command must declare its recovery policy.

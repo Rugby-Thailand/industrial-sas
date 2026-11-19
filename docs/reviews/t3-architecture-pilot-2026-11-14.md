@@ -1,8 +1,9 @@
 # T3 architecture pilot — implementation verification
 
-Branch: `feat/t3-architecture-pilot`  
-Implementation commit: `9b30dfedf717d56eae778c1510c3df60f882f63c`  
-Comparison base: `c30b1c5f71819d59b91648e69725b283eae7458a`
+- Branch: `feat/t3-architecture-pilot`
+- Implementation commit: `9b30dfedf717d56eae778c1510c3df60f882f63c`
+- Comparison base: `c30b1c5f71819d59b91648e69725b283eae7458a`
+- Later changes: [Audit fixes](#audit-fixes-2026-11-19)
 
 ## Delivered
 
@@ -31,8 +32,8 @@ attempts, an edited third attempt and success.
 
 The installed Convex client retains sent mutations across reconnects. The test's
 synthetic rejection exercises the caller's failure path; it is not a simulation
-of transport reconnection. Durable request IDs do not persist the job-scan form
-itself or provide atomic cross-tab locking.
+of transport reconnection. After the audit fixes, job-scan request IDs stay
+in memory: neither the form nor its IDs survive a remount.
 
 Codex independently reviewed the save correction and subscription test. Its
 suggestions to narrow the reconnect comment and cover an edited retry are
@@ -84,3 +85,32 @@ end-to-end suites were not rerun in this final pass.
 Ready for push and CI review. The implementation and verification note are
 committed on the pilot branch. Nothing has been pushed or deployed. The original
 workspace's unrelated edits remain untouched.
+
+## Audit fixes (2026-11-19)
+
+Two independent audits of `be5ab7a2` scored it 6.4/10 (gpt-6.2-sol) and 7.1/10
+(Claude Opus). These changes address their findings:
+
+- Ephemeral request IDs never touch storage, so the policy changes behavior: a
+  remount mints a new ID. Durable stays the default for other callers.
+- Job-scan saves are ephemeral. Tickets are not persisted, so a stored
+  payload-keyed ID could only replay an old receipt for a new, identical batch,
+  and it kept ticket content in localStorage. Identical retries within a mount
+  still share an ID; a new batch after success gets its own, even when storage
+  cleanup fails.
+- A mount keeps its live durable ID; a stored ID is used only when the mount
+  has none. Success retires only the keys that mount dispatched, so another
+  tab's pending ID survives.
+- `useOperation` places the actor after the scope's first segment, matching the
+  pre-pilot keys, so IDs pending at deploy time are still found.
+- `writeFailure()` builds every `WriteOutcomeError`; `requireWritten()` and
+  `written()` delegate to it. The job-scan location form and record editor read
+  the refused field and `STALE_REVISION` from it.
+- Boundary guards also reject `_generated/./server` specifiers, template-literal
+  dynamic imports and raw builder re-exports from exact owners.
+- The subscription test counts live owners instead of renders, and the
+  acquisition controller takes a ports getter.
+
+Unchanged by decision: durable commands still dispatch with an in-memory ID
+when storage is blocked or full (`8438ae4b`). Refusing before dispatch remains
+limited to the package assignment, whose draft is its durable owner.

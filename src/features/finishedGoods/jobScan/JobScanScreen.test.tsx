@@ -251,6 +251,26 @@ it("retains entered tickets and reuses the same request after a lost save respon
   );
 });
 
+it("gives an intentional identical batch its own request after a save succeeds", async () => {
+  // Even if storage cleanup fails, a finished batch's ID must not be reused.
+  vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+    throw new Error("Removal blocked");
+  });
+  start();
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Keep scanning at DEMO-L01" }),
+  );
+  addTicket();
+  fireEvent.click(screen.getByRole("button", { name: /Save 1/ }));
+  await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+  const [first, second] = mocks.save.mock.calls.map(([args]) => args);
+  // Same physical values, separate units: the server must insert both.
+  expect({ ...second, requestId: first.requestId }).toEqual(first);
+  expect(second.requestId).not.toBe(first.requestId);
+});
+
 it("blocks repeated identities until reviewed and invalidates review after an edit", () => {
   start();
   addTicket();

@@ -90,7 +90,7 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
         (ts.isIdentifier(node.expression) &&
           node.expression.text === "require")) &&
       node.arguments[0] !== undefined &&
-      ts.isStringLiteral(node.arguments[0])
+      ts.isStringLiteralLike(node.arguments[0])
     ) {
       found.push({
         specifier: node.arguments[0].text,
@@ -101,7 +101,7 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
       ts.isImportEqualsDeclaration(node) &&
       ts.isExternalModuleReference(node.moduleReference) &&
       node.moduleReference.expression &&
-      ts.isStringLiteral(node.moduleReference.expression)
+      ts.isStringLiteralLike(node.moduleReference.expression)
     ) {
       found.push({
         specifier: node.moduleReference.expression.text,
@@ -111,7 +111,7 @@ function importsOf(file: string, text = readFileSync(file, "utf8")) {
     } else if (
       ts.isImportTypeNode(node) &&
       ts.isLiteralTypeNode(node.argument) &&
-      ts.isStringLiteral(node.argument.literal)
+      ts.isStringLiteralLike(node.argument.literal)
     ) {
       found.push({
         specifier: node.argument.literal.text,
@@ -204,7 +204,9 @@ const RAW_PUBLIC_OWNERS: Readonly<Record<string, string>> = {
   "convex/finishedGoods/attachments.ts#finalizeUpload": "mutation",
 };
 
-/** Only the gaps in no-restricted-imports: indirect access and exact owner use. */
+const RAW_BUILDER = /^(query|mutation|action|httpAction)(Generic)?$/;
+
+/** Only the gaps in no-restricted-imports: indirect access, re-exports and exact owner use. */
 function registrationOwnerViolations(file: string, text: string): string[] {
   const rawModule = (specifier: string) =>
     specifier === "convex/server" ||
@@ -216,11 +218,35 @@ function registrationOwnerViolations(file: string, text: string): string[] {
         !typeOnly && indirect && rawModule(specifier),
     )
     .map(({ specifier }) => `${display(file)} indirectly imports ${specifier}`);
+  const source = importCache.get(file)!.source;
+  // An owner's allowed import must not become a module others can import.
+  for (const statement of source.statements) {
+    if (
+      !ts.isExportDeclaration(statement) ||
+      statement.isTypeOnly ||
+      !statement.moduleSpecifier ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      !rawModule(statement.moduleSpecifier.text)
+    )
+      continue;
+    const clause = statement.exportClause;
+    const reexported =
+      !clause ||
+      (ts.isNamedExports(clause) &&
+        clause.elements.some(
+          (element) =>
+            !element.isTypeOnly &&
+            RAW_BUILDER.test((element.propertyName ?? element.name).text),
+        ));
+    if (reexported)
+      violations.push(
+        `${display(file)} re-exports a raw builder from ${statement.moduleSpecifier.text}`,
+      );
+  }
   const owners = Object.entries(RAW_PUBLIC_OWNERS).filter(([owner]) =>
     owner.startsWith(`${display(file)}#`),
   );
   if (!owners.length) return violations;
-  const source = importCache.get(file)!.source;
   const bindings = new Map<string, string>();
   for (const statement of source.statements) {
     if (
@@ -234,10 +260,7 @@ function registrationOwnerViolations(file: string, text: string): string[] {
     if (named && ts.isNamedImports(named))
       for (const element of named.elements) {
         const builder = (element.propertyName ?? element.name).text;
-        if (
-          !element.isTypeOnly &&
-          /^(query|mutation|action|httpAction)(Generic)?$/.test(builder)
-        )
+        if (!element.isTypeOnly && RAW_BUILDER.test(builder))
           bindings.set(element.name.text, builder);
       }
   }
@@ -375,6 +398,7 @@ describe("module import boundaries", () => {
       ).not.toEqual([]);
     for (const text of [
       'import * as server from "convex/server";',
+      'import { query } from "../_generated/./server";',
       'export { query as hidden } from "../_generated/server.js";',
       'export * from "convex/server";',
     ])
@@ -420,6 +444,7 @@ describe("module import boundaries", () => {
   it("rejects dynamic private imports and raw constructors outside exact owners", () => {
     for (const text of [
       'const later = import("./jobScan/ticketDraft");',
+      "const later = import(`./jobScan/ticketDraft`);",
       'const draft = require("./jobScan/ticketDraft");',
       'import draft = require("./jobScan/ticketDraft");',
       'type Draft = import("./jobScan/ticketDraft").TicketDraft;',
@@ -429,6 +454,7 @@ describe("module import boundaries", () => {
       ).toHaveLength(1);
     for (const text of [
       'const server = import("convex/server");',
+      "const server = require(`../_generated/server`);",
       'const server = require("../_generated/server");',
       'import server = require("../_generated/server");',
     ])
@@ -467,6 +493,18 @@ describe("module import boundaries", () => {
           `${imported.replaceAll(builder, wrongBuilder)} export const ${owner} = register({});`,
         ),
       ).not.toEqual([]);
+      // Even an exact owner may not hand its builder to other modules.
+      const source = builder.endsWith("Generic")
+        ? "convex/server"
+        : "./../_generated/./server";
+      for (const text of [
+        `export { ${builder} } from "${source}";`,
+        `export { ${builder} as register } from "${source}";`,
+        `export * from "${source}";`,
+      ])
+        expect(
+          registrationOwnerViolations(join(ROOT, file!), text),
+        ).not.toEqual([]);
     }
   });
 

@@ -26,9 +26,10 @@ Public Convex registrations use `queryWithOrg`, `mutationWithOrg` or
 `actionWithOrg`, including local factories such as `storageBuildingQuery`.
 The guard audits named imports of raw constructors from `convex/server` and
 `convex/_generated/server`, and confines their use to exact registration owners.
-Namespace imports and raw constructor re-exports are rejected by ESLint;
-`module-boundaries` covers dynamic access and exact owner use so they
-cannot hide a bypass. Named `internal*` constructors and type-only imports remain
+ESLint rejects namespace imports and raw constructor re-exports, including
+specifiers with `/./` segments. `module-boundaries` covers dynamic access
+(string or template specifiers), re-exports from an exact owner and exact owner
+use, so they cannot hide a bypass. Named `internal*` constructors and type-only imports remain
 allowed. The two sessionless public ingress exceptions are:
 
 - `convex/lib/clerkWebhook.ts#clerkWebhook`: verifies the Clerk webhook signature.
@@ -69,7 +70,16 @@ Three helpers write a business change, an audit row and an idempotency receipt i
 
 Client callers unwrap these outcomes in `src/lib/convex/mutationOutcome.ts`. `writeFailure()` builds one `WriteOutcomeError` for a denial or refusal: the existing copy key as `message`, plus the code, field, request ID and replay flag. `requireWritten()` throws it or returns the receipt, and `written()` returns only the document ID. The job-scan location and record editors read the refused field and `STALE_REVISION` from it.
 
-On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`, which keeps one ID per command key in draft storage (`fg-requests:<scope>`) until `clearRequests()`. Finished-goods `useOperation().request(key, policy)` requires a typed `"durable"` or `"ephemeral"` policy at every call; other `useAsyncOperation` callers get the durable default. Durable IDs are stored per scope, so a remount or another tab reuses them. Ephemeral IDs never touch storage: they live for the mount, and a remount mints a new one. `useOperation` consistently derives an actor-scoped key with `useDraftKey`; no storage scope is used while the actor is unavailable. Old per-device keys and keys whose actor position changed are intentionally ignored. Durable requests honor stored IDs and persist new IDs before dispatch whenever storage works. Missing scope, blocked/full storage and unreadable recovery documents fall back to the live in-memory ID, so writes keep working; remount recovery cannot be guaranteed when persistence fails. Failed removal leaves stored IDs recoverable. Unreadable documents are preserved during requests and per-key clearing; whole-scope clearing after success may remove them. Verification clears only its own key, preserving uncertain inventory commands. Reloading a draft retains unresolved IDs; only success retires a whole scope. Version 1 documents use `requests` and ignore extra top-level keys; other objects are legacy flat maps, with invalid ID entries dropped. `useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
+On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`, which keeps one ID per command key. Finished-goods `useOperation().request(key, policy)` requires a typed `"durable"` or `"ephemeral"` policy at every call; other `useAsyncOperation` callers get the durable default.
+
+- Ephemeral IDs never touch storage. They live for the mount, so a remount mints a new one.
+- Durable IDs are also stored in `fg-requests:<scope>` before dispatch whenever storage works. A mount keeps its live ID for a key; a stored ID is used only when the mount has none, such as after a remount. Success (`clearRequests()`) retires only the keys that mount dispatched, so another tab's pending ID survives. `clearRequests(key)` retires one key, as verification does.
+- `useOperation` scopes storage per signed-in user with `useDraftKey` and places the actor after the scope's first segment (`fg-product:<actor>:<warehouse>:new`). That is the layout the pre-pilot screens used, so IDs pending at deploy time are still found. Old un-actored per-device keys are intentionally ignored, and no storage scope is used while the actor is unavailable.
+- Missing scope, blocked/full storage and unreadable recovery documents fall back to the live in-memory ID, so writes keep working (a deliberate product decision); remount recovery cannot be guaranteed when persistence fails. Failed removal leaves stored IDs recoverable. Unreadable documents are preserved during requests and per-key clearing; success may remove them.
+- An ID left by an abandoned mount stays stored until the same command key is dispatched again and succeeds. Keys contain the payload and, for most commands, its expected version, so a leftover ID cannot attach to a different command.
+- Version 1 documents use `requests` and ignore extra top-level keys; other objects are legacy flat maps, with invalid ID entries dropped.
+
+`useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
 
 The 23 request sites in 12 finished-goods files have these policies (2026-11-14). TypeScript requires the second argument through `useOperation`; `useRequestIdentity.test.tsx` pins that required signature. Hook/operation tests cover dispatch with blocked storage, old and corrupt records, failed removal, quota, per-key clearing, actor isolation, durable remount recovery and ephemeral IDs staying out of storage. This is identity recovery for the same payload key, not persistence of a form or HR-style reconciliation.
 
@@ -88,7 +98,7 @@ The 23 request sites in 12 finished-goods files have these policies (2026-11-14)
 | `jobScan/JobScanRecords.tsx`              |     1 | Ephemeral: remapping is guarded atomically by `expectedVersions`; a repeated committed assignment is refused as stale.                                                                                                                                                   |
 | `jobScan/JobScanScreen.tsx`               |     1 | Ephemeral: tickets are not persisted, so a stored ID could only replay an old receipt for a new, identical batch. Within the mount, payload-keyed IDs replay identical retries and an edited batch mints a new ID. Convex retains in-flight mutations across reconnects. |
 
-Totals: **16 durable + 7 ephemeral = 23**. The package-assignment ephemeral registry policy does not relax its existing required command persistence. Version-fenced edits may report stale after a lost response/remount; they cannot apply the original revision twice. Concurrent tabs share saved IDs once visible in storage, but this hook does not provide atomic cross-tab command locking. HR's owner, payload/revision recovery and retirement policy remain separate.
+Totals: **16 durable + 7 ephemeral = 23**. The package-assignment ephemeral registry policy does not relax its existing required command persistence. Version-fenced edits may report stale after a lost response/remount; they cannot apply the original revision twice. A tab adopts another tab's stored ID for the same key only when it has no live ID of its own; this hook does not provide atomic cross-tab command locking. HR's owner, payload/revision recovery and retirement policy remain separate.
 
 ## Projections inside tenant mutations
 
