@@ -8,8 +8,12 @@ import { createRequestIdentityRegistry } from "./requestIdentityRegistry";
  * ephemeral: in memory only; a remount mints a new ID.
  */
 export type RequestIdentityPolicy = "durable" | "ephemeral";
-/** The server's IDEMPOTENCY_RETENTION_MS: an older ID can no longer replay. */
-export const REQUEST_ID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Measured from the last dispatch. The server keeps a receipt for
+ * IDEMPOTENCY_RETENTION_MS (30 days) from its commit, which follows dispatch;
+ * the extra day covers a delayed commit. Keeping an ID longer is harmless.
+ */
+export const REQUEST_ID_RETENTION_MS = 31 * 24 * 60 * 60 * 1000;
 /**
  * The document stays the pre-pilot flat `{ [command key]: id }` map, so tabs
  * still running an older bundle read and write it during a rollout. Mint
@@ -34,7 +38,7 @@ function readRequests(scope: string): Requests | undefined {
       const requests: Requests = {};
       for (const [key, id] of Object.entries(value)) {
         if (typeof id !== "string" || !ID_PATTERN.test(id)) continue;
-        // An entry an older bundle wrote starts its retention when first read.
+        // An entry an older bundle wrote counts as fresh until it is stamped.
         const at = typeof minted[key] === "number" ? minted[key] : now;
         if (now - at < REQUEST_ID_RETENTION_MS) requests[key] = { id, at };
       }
@@ -79,8 +83,8 @@ export function useRequestIdentity(scope?: string) {
     // A live ID is pinned for this mount; storage only recovers after remount.
     const id = registry.request(key, { read: () => stored?.id ?? null });
     used.set(key, id);
-    // Never overwrite an ID another tab stored for the same key.
-    if (saved && !stored)
+    // Each dispatch restarts retention; another tab's ID for the key is kept.
+    if (saved && (!stored || stored.id === id))
       writeRequests(scope, { ...saved, [key]: { id, at: Date.now() } });
     return id;
   };

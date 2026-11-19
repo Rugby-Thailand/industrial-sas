@@ -88,8 +88,14 @@ workspace's unrelated edits remain untouched.
 
 ## Audit fixes (2026-11-19)
 
-Two independent audits of `be5ab7a2` scored it 6.4/10 (gpt-6.2-sol) and 7.1/10
-(Claude Opus). These changes address their findings:
+Independent gpt-6.2-sol and Claude Opus audits scored each round; the fixes
+below address their findings.
+
+| Audited head | gpt-6.2-sol | Claude Opus |
+| ------------ | ----------: | ----------: |
+| `be5ab7a2`   |         6.4 |         7.1 |
+| `da5f4a56`   |         7.2 |         8.3 |
+| `b6919bf0`   |         8.3 |         8.7 |
 
 - Ephemeral request IDs never touch storage, so the policy changes behavior: a
   remount mints a new ID. Durable stays the default for other callers.
@@ -109,13 +115,18 @@ Two independent audits of `be5ab7a2` scored it 6.4/10 (gpt-6.2-sol) and 7.1/10
 - Boundary guards reject `/./` and `//` path segments, template-literal dynamic
   imports and raw builder re-exports from exact owners. `module-boundaries`
   resolves every raw-module import path as a backstop to ESLint's pattern.
-- Stored durable IDs expire with the server's 30-day receipt retention. The
-  document stays the pre-pilot flat map, with mint times under one reserved
-  entry, so tabs on the old bundle keep working during the rollout.
+- Stored durable IDs expire 31 days after their last dispatch, outlasting the
+  server's 30-day receipts. The document stays the pre-pilot flat map, with
+  dispatch times under one reserved entry, so tabs on the old bundle keep
+  working during the rollout.
 - Success retires only IDs this mount dispatched and only while storage still
   holds them; a mount never overwrites another tab's ID for the same key, and
   unreadable documents are left untouched. Ephemeral cleanup stays in memory.
-- Convex sources must be TypeScript, so no `.js` entry escapes the guards.
+- Convex sources must be TypeScript (only the root `convex/_generated` is
+  exempt), so no `.js` entry escapes the guards. `export * as` re-exports of
+  raw builders are caught too.
+- Package assignment and packing pass their scope without the actor, so
+  `useOperation` adds it once, as the pre-pilot screens did.
 - The subscription test counts live owners instead of renders, and the
   acquisition controller takes a ports getter.
 

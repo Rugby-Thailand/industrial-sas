@@ -1,4 +1,12 @@
-import { readdirSync, readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 import ts from "typescript";
@@ -195,6 +203,24 @@ function navigationCycles(sources: ReadonlyMap<string, string>): string[] {
   return cycles;
 }
 
+/**
+ * Convex also bundles .js/.jsx/.mjs/.cjs entries, which ESLint's
+ * convex/**\/*.ts rules and the TypeScript source scan would not inspect.
+ * Only the root generated directory is exempt.
+ */
+function convexScripts(root: string): string[] {
+  const scripts = (directory: string): string[] =>
+    readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory())
+        return path === join(root, "_generated") ? [] : scripts(path);
+      return /\.(?:[cm]?jsx?|tsx|[cm]ts)$/.test(entry.name)
+        ? [relative(root, path).split(sep).join("/")]
+        : [];
+    });
+  return scripts(root);
+}
+
 /** Exact owners; the sessionless ingress reasons are recorded in module-map.md. */
 const RAW_PUBLIC_OWNERS: Readonly<Record<string, string>> = {
   "convex/lib/tenantFunctions.ts#queryWithOrg": "queryGeneric",
@@ -232,6 +258,7 @@ function registrationOwnerViolations(file: string, text: string): string[] {
     const clause = statement.exportClause;
     const reexported =
       !clause ||
+      ts.isNamespaceExport(clause) ||
       (ts.isNamedExports(clause) &&
         clause.elements.some(
           (element) =>
@@ -369,18 +396,17 @@ describe("module import boundaries", () => {
   });
 
   it("keeps Convex sources TypeScript-only, so the registration guards see every entry", () => {
-    // Convex also bundles .js/.jsx/.mjs/.cjs entries, which ESLint's
-    // convex/**/*.ts rules and the source scan below would not inspect.
-    const scripts = (directory: string): string[] =>
-      readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-        const path = join(directory, entry.name);
-        if (entry.isDirectory())
-          return entry.name === "_generated" ? [] : scripts(path);
-        return /\.(?:[cm]?jsx?|tsx|[cm]ts)$/.test(entry.name)
-          ? [display(path)]
-          : [];
-      });
-    expect(scripts(join(ROOT, "convex"))).toEqual([]);
+    expect(convexScripts(join(ROOT, "convex"))).toEqual([]);
+    const fixture = mkdtempSync(join(tmpdir(), "convex-sources-"));
+    try {
+      for (const file of ["_generated/api.js", "lib/_generated/entry.js"]) {
+        mkdirSync(dirname(join(fixture, file)), { recursive: true });
+        writeFileSync(join(fixture, file), "");
+      }
+      expect(convexScripts(fixture)).toEqual(["lib/_generated/entry.js"]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   it("registers public Convex functions only through tenant wrappers or exact reviewed owners", () => {
@@ -532,6 +558,7 @@ describe("module import boundaries", () => {
         `export { ${builder} } from "${source}";`,
         `export { ${builder} as register } from "${source}";`,
         `export * from "${source}";`,
+        `export * as server from "${source}";`,
       ])
         expect(
           registrationOwnerViolations(join(ROOT, file!), text),

@@ -73,7 +73,10 @@ export function PackageAssignment({
   const canManage = useCanManage();
   const convex = useConvex();
   const key = `${scope}:${warehouseId}:${unitId ?? ""}:${batchId ?? ""}`;
-  const op = useOperation(key);
+  // useOperation adds the actor itself, matching `key`.
+  const op = useOperation(
+    `fg-package-assignment:${warehouseId}:${unitId ?? ""}:${batchId ?? ""}`,
+  );
   const [restored] = useState(() =>
     drafts.read(
       key,

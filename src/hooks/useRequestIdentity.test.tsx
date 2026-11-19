@@ -227,8 +227,23 @@ it("defaults to the durable policy for callers outside finished goods", () => {
   expect(mount().result.current.request(key)).toBe(id);
 });
 
-it("expires stored IDs with the server's receipt retention", () => {
-  expect(REQUEST_ID_RETENTION_MS).toBe(IDEMPOTENCY_RETENTION_MS);
+it("restarts retention on each dispatch, outlasting the server's receipt", () => {
+  expect(REQUEST_ID_RETENTION_MS).toBeGreaterThan(IDEMPOTENCY_RETENTION_MS);
+  const legacy = crypto.randomUUID();
+  localStorage.setItem(storageKey, JSON.stringify({ [key]: legacy }));
+  const start = Date.now();
+  const now = vi.spyOn(Date, "now").mockReturnValue(start);
+  // Adopting an older bundle's entry stamps it; a later retry restamps it.
+  expect(mount().result.current.request(key, "durable")).toBe(legacy);
+  expect(document()["@minted"][key]).toBe(start);
+  now.mockReturnValue(start + REQUEST_ID_RETENTION_MS - 1);
+  expect(mount().result.current.request(key, "durable")).toBe(legacy);
+  expect(document()["@minted"][key]).toBe(start + REQUEST_ID_RETENTION_MS - 1);
+  now.mockReturnValue(start + 2 * REQUEST_ID_RETENTION_MS - 2);
+  expect(mount().result.current.request(key, "durable")).toBe(legacy);
+});
+
+it("expires stored IDs once retention has passed since their last dispatch", () => {
   const now = Date.now();
   const [expired, live] = [crypto.randomUUID(), crypto.randomUUID()];
   localStorage.setItem(

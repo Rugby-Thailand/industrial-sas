@@ -30,7 +30,7 @@ ESLint rejects namespace imports and raw constructor re-exports, including
 specifiers with `/./` or `//` segments. `module-boundaries` resolves every
 import path, so it also catches static, namespace and dynamic (string or
 template) access outside exact owners, and re-exports from an exact owner.
-Convex sources must be TypeScript, so no `.js` entry escapes these checks. Named `internal*` constructors and type-only imports remain
+Convex sources must be TypeScript (only the root `convex/_generated` is exempt), so no `.js` entry escapes these checks. Named `internal*` constructors and type-only imports remain
 allowed. The two sessionless public ingress exceptions are:
 
 - `convex/lib/clerkWebhook.ts#clerkWebhook`: verifies the Clerk webhook signature.
@@ -79,7 +79,7 @@ On the client, `useAsyncOperation` gets its request ID from `useRequestIdentity`
 - `useOperation` scopes storage per signed-in user with `useDraftKey` and places the actor after the scope's first segment (`fg-product:<actor>:<warehouse>:new`). That is the layout the pre-pilot screens used, so IDs pending at deploy time are still found. Old un-actored per-device keys are intentionally ignored, and no storage scope is used while the actor is unavailable.
 - The document is the pre-pilot flat `{ [command key]: id }` map, so a tab still running an older bundle can read and write it during a rollout. Mint times sit under one reserved `@minted` entry that older bundles preserve and ignore. Invalid ID entries are dropped at the next write.
 - Missing scope, blocked/full storage and unreadable recovery documents fall back to the live in-memory ID, so writes keep working (a deliberate product decision); remount recovery cannot be guaranteed when persistence fails. Failed removal leaves stored IDs recoverable. An unreadable document is never rewritten or removed, because its owners cannot be established.
-- Stored IDs expire after `REQUEST_ID_RETENTION_MS` (30 days), the server's `IDEMPOTENCY_RETENTION_MS`; an older ID could no longer replay. Entries an older bundle wrote start their retention when first read. Expired entries are ignored when read and dropped at the next write to that scope. Until then, an ID left by an abandoned mount stays stored unless the same key is dispatched again and succeeds. Keys contain the payload and, for most commands, its expected version, so a leftover ID cannot attach to a different command.
+- Stored IDs expire `REQUEST_ID_RETENTION_MS` (31 days) after their last dispatch, and every dispatch restamps the entry. The server keeps a receipt for `IDEMPOTENCY_RETENTION_MS` (30 days) from its commit, which follows dispatch, so the client does not forget an ID the server could still replay; keeping one longer is harmless. An entry an older bundle wrote counts as fresh until a dispatch stamps it. Expired entries are ignored when read and dropped at the next write to that scope. Until then, an ID left by an abandoned mount stays stored unless the same key is dispatched again and succeeds. Keys contain the payload and, for most commands, its expected version, so a leftover ID cannot attach to a different command.
 
 `useHrWrite` goes further: a module-level owner per command survives remounts while the promise is pending, and session storage keeps the request ID, payload and expected revision so a later mount can resend or reconcile the uncertain write instead of minting a new ID. Malformed stored recovery data is never read as a fresh command. Keep these separate unless both policies change together.
 
