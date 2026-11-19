@@ -89,13 +89,15 @@ workspace's unrelated edits remain untouched.
 ## Audit fixes (2026-11-19)
 
 Independent gpt-6.2-sol and Claude Opus audits scored each round; the fixes
-below address their findings.
+below address their findings. After round four, only wording, one test
+assertion and the retention margin changed.
 
 | Audited head | gpt-6.2-sol | Claude Opus |
 | ------------ | ----------: | ----------: |
 | `be5ab7a2`   |         6.4 |         7.1 |
 | `da5f4a56`   |         7.2 |         8.3 |
 | `b6919bf0`   |         8.3 |         8.7 |
+| `678db7ba`   |         8.6 |         8.9 |
 
 - Ephemeral request IDs never touch storage, so the policy changes behavior: a
   remount mints a new ID. Durable stays the default for other callers.
@@ -115,8 +117,8 @@ below address their findings.
 - Boundary guards reject `/./` and `//` path segments, template-literal dynamic
   imports and raw builder re-exports from exact owners. `module-boundaries`
   resolves every raw-module import path as a backstop to ESLint's pattern.
-- Stored durable IDs expire 31 days after their last dispatch, outlasting the
-  server's 30-day receipts. The document stays the pre-pilot flat map, with
+- Stored durable IDs expire 37 days after their last `request()` call,
+  outlasting the server's 30-day receipts by a margin for delayed commits. The document stays the pre-pilot flat map, with
   dispatch times under one reserved entry, so tabs on the old bundle keep
   working during the rollout.
 - Success retires only IDs this mount dispatched and only while storage still

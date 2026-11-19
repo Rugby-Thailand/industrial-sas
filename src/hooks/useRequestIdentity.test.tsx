@@ -227,8 +227,10 @@ it("defaults to the durable policy for callers outside finished goods", () => {
   expect(mount().result.current.request(key)).toBe(id);
 });
 
-it("restarts retention on each dispatch, outlasting the server's receipt", () => {
-  expect(REQUEST_ID_RETENTION_MS).toBeGreaterThan(IDEMPOTENCY_RETENTION_MS);
+it("restarts retention on each request, outlasting the server's receipt", () => {
+  expect(REQUEST_ID_RETENTION_MS - IDEMPOTENCY_RETENTION_MS).toBe(
+    7 * 24 * 60 * 60 * 1000,
+  );
   const legacy = crypto.randomUUID();
   localStorage.setItem(storageKey, JSON.stringify({ [key]: legacy }));
   const start = Date.now();
@@ -241,6 +243,14 @@ it("restarts retention on each dispatch, outlasting the server's receipt", () =>
   expect(document()["@minted"][key]).toBe(start + REQUEST_ID_RETENTION_MS - 1);
   now.mockReturnValue(start + 2 * REQUEST_ID_RETENTION_MS - 2);
   expect(mount().result.current.request(key, "durable")).toBe(legacy);
+  // A retry within the same open screen restamps too.
+  const open = mount();
+  open.result.current.request(key, "durable");
+  now.mockReturnValue(start + 2 * REQUEST_ID_RETENTION_MS + 1000);
+  expect(open.result.current.request(key, "durable")).toBe(legacy);
+  expect(document()["@minted"][key]).toBe(
+    start + 2 * REQUEST_ID_RETENTION_MS + 1000,
+  );
 });
 
 it("expires stored IDs once retention has passed since their last dispatch", () => {
