@@ -106,8 +106,11 @@ Two independent audits of `be5ab7a2` scored it 6.4/10 (gpt-6.2-sol) and 7.1/10
 - `writeFailure()` builds every `WriteOutcomeError`; `requireWritten()` and
   `written()` delegate to it. The job-scan location form and record editor read
   the refused field and `STALE_REVISION` from it.
-- Boundary guards also reject `_generated/./server` specifiers, template-literal
-  dynamic imports and raw builder re-exports from exact owners.
+- Boundary guards reject `/./` and `//` path segments, template-literal dynamic
+  imports and raw builder re-exports from exact owners. `module-boundaries`
+  resolves every raw-module import path as a backstop to ESLint's pattern.
+- Stored durable IDs expire with the server's 30-day receipt retention.
+  Unknown document versions are treated as unreadable rather than as flat maps.
 - The subscription test counts live owners instead of renders, and the
   acquisition controller takes a ports getter.
 

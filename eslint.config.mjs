@@ -18,9 +18,9 @@ const rawBuilders = (allowed = []) => [
   {
     patterns: [
       {
-        // `/./` segments resolve to the same module, so they must not evade the rule.
+        // `/./` and `//` resolve to the same module; module-boundaries normalizes the rest.
         regex:
-          "^(?:convex/server|(?:.*[/])?_generated(?:/\\.)*/server(?:\\.js)?)$",
+          "^(?:convex/server|(?:.*[/])?_generated(?:/+\\.)*/+server(?:\\.js)?)$",
         importNames: publicBuilders.filter((name) => !allowed.includes(name)),
         allowTypeImports: true,
         message: "Use tenant wrappers for public Convex functions.",

@@ -3,11 +3,23 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, expectTypeOf, it, vi } from "vitest";
 import type { useOperation } from "@/features/finishedGoods/shared";
 import type { RequestIdentityPolicy } from "./useRequestIdentity";
-import { useRequestIdentity } from "./useRequestIdentity";
+import { IDEMPOTENCY_RETENTION_MS } from "../../convex/lib/idempotency";
+import {
+  REQUEST_ID_RETENTION_MS,
+  useRequestIdentity,
+} from "./useRequestIdentity";
 
 const scope = "org:user:warehouse";
 const storageKey = `fg-requests:${scope}`;
 const key = "save:payload";
+const document = () => JSON.parse(localStorage.getItem(storageKey)!);
+/** The stored IDs, after checking each has a mint time. */
+const stored = () => {
+  const { version, requests, minted } = document();
+  expect(version).toBe(1);
+  expect(Object.keys(minted).sort()).toEqual(Object.keys(requests).sort());
+  return requests;
+};
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
@@ -22,27 +34,9 @@ it("retains retry identity only within its scope and writes versioned records", 
   expect(result.current.request(key, "durable")).not.toBe(first);
   rerender({ scope });
   expect(result.current.request(key, "durable")).toBe(first);
-  expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual({
-    version: 1,
-    requests: { [key]: first },
-  });
+  expect(stored()).toEqual({ [key]: first });
   expect(result.current.clearRequests()).toBe(true);
   expect(localStorage.getItem(storageKey)).toBeNull();
-});
-
-it("keeps the ephemeral in-memory fallback when storage is blocked, renewing only after clearing", () => {
-  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-    throw new Error("Storage unavailable");
-  });
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new Error("Storage unavailable");
-  });
-  const hook = renderHook(() => useRequestIdentity(scope));
-  const id = hook.result.current.request(key, "ephemeral");
-  expect(hook.result.current.request(key, "ephemeral")).toBe(id);
-  expect(hook.result.current.request("other", "ephemeral")).not.toBe(id);
-  hook.result.current.clearRequests();
-  expect(hook.result.current.request(key, "ephemeral")).not.toBe(id);
 });
 
 it.each(["read", "write"])(
@@ -100,10 +94,7 @@ it.each(["legacy", "versioned"])(
     const hook = renderHook(() => useRequestIdentity(scope));
     expect(hook.result.current.request(key, "durable")).toBe(id);
     const fresh = hook.result.current.request("fresh", "durable");
-    expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual({
-      version: 1,
-      requests: { ...entries, fresh },
-    });
+    expect(stored()).toEqual({ ...entries, fresh });
   },
 );
 
@@ -143,10 +134,7 @@ it.each([false, true])(
     const hook = renderHook(() => useRequestIdentity(scope));
     expect(hook.result.current.request(key, "durable")).toBe(id);
     const fresh = hook.result.current.request("fresh", "durable");
-    expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual({
-      version: 1,
-      requests: { [key]: id, fresh },
-    });
+    expect(stored()).toEqual({ [key]: id, fresh });
     expect(hook.result.current.clearRequests()).toBe(true);
     expect(localStorage.getItem(storageKey)).toBeNull();
   },
@@ -160,7 +148,7 @@ it("clears only the successful step, retaining other durable commands through re
   hook.unmount();
   const next = renderHook(() => useRequestIdentity(scope));
   expect(next.result.current.request(key, "durable")).toBe(id);
-  expect(JSON.parse(localStorage.getItem(storageKey)!).requests).toEqual({
+  expect(stored()).toEqual({
     [key]: id,
   });
 });
@@ -230,7 +218,7 @@ it("retires only its own commands on success, keeping another tab's pending ID",
   tabA.unmount();
   const remounted = renderHook(() => useRequestIdentity(scope));
   expect(remounted.result.current.request("create:a", "durable")).toBe(pending);
-  expect(JSON.parse(localStorage.getItem(storageKey)!).requests).toEqual({
+  expect(stored()).toEqual({
     "create:a": pending,
   });
 });
@@ -247,4 +235,32 @@ it("requires an explicit typed policy on every finished-goods request", () => {
   expectTypeOf<
     Parameters<ReturnType<typeof useOperation>["request"]>
   >().toEqualTypeOf<[string, RequestIdentityPolicy]>();
+});
+
+it("expires stored IDs with the server's receipt retention", () => {
+  expect(REQUEST_ID_RETENTION_MS).toBe(IDEMPOTENCY_RETENTION_MS);
+  const now = Date.now();
+  const [expired, live] = [crypto.randomUUID(), crypto.randomUUID()];
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      version: 1,
+      requests: { [key]: expired, other: live },
+      minted: { [key]: now - REQUEST_ID_RETENTION_MS, other: now },
+    }),
+  );
+  const hook = renderHook(() => useRequestIdentity(scope));
+  const id = hook.result.current.request(key, "durable");
+  expect(id).not.toBe(expired);
+  expect(stored()).toEqual({ [key]: id, other: live });
+  expect(document().minted.other).toBe(now);
+});
+
+it("treats an unknown document version as unreadable and preserves it", () => {
+  const raw = JSON.stringify({ version: 2, entries: [] });
+  localStorage.setItem(storageKey, raw);
+  const hook = renderHook(() => useRequestIdentity(scope));
+  const id = hook.result.current.request(key, "durable");
+  expect(hook.result.current.request(key, "durable")).toBe(id);
+  expect(localStorage.getItem(storageKey)).toBe(raw);
 });

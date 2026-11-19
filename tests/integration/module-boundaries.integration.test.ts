@@ -246,7 +246,6 @@ function registrationOwnerViolations(file: string, text: string): string[] {
   const owners = Object.entries(RAW_PUBLIC_OWNERS).filter(([owner]) =>
     owner.startsWith(`${display(file)}#`),
   );
-  if (!owners.length) return violations;
   const bindings = new Map<string, string>();
   for (const statement of source.statements) {
     if (
@@ -257,6 +256,11 @@ function registrationOwnerViolations(file: string, text: string): string[] {
     )
       continue;
     const named = statement.importClause?.namedBindings;
+    // A path ESLint's pattern does not normalize still resolves to the raw module.
+    if (named && ts.isNamespaceImport(named))
+      violations.push(
+        `${display(file)} imports raw module ${statement.moduleSpecifier.text} as a namespace`,
+      );
     if (named && ts.isNamedImports(named))
       for (const element of named.elements) {
         const builder = (element.propertyName ?? element.name).text;
@@ -264,6 +268,14 @@ function registrationOwnerViolations(file: string, text: string): string[] {
           bindings.set(element.name.text, builder);
       }
   }
+  if (!owners.length)
+    return [
+      ...violations,
+      ...[...bindings.values()].map(
+        (builder) =>
+          `${display(file)} imports raw builder ${builder} outside an exact registration owner`,
+      ),
+    ];
   const visit = (node: ts.Node) => {
     if (
       ts.isIdentifier(node) &&
@@ -399,6 +411,7 @@ describe("module import boundaries", () => {
     for (const text of [
       'import * as server from "convex/server";',
       'import { query } from "../_generated/./server";',
+      'import { query } from "../_generated//server";',
       'export { query as hidden } from "../_generated/server.js";',
       'export * from "convex/server";',
     ])
@@ -453,6 +466,9 @@ describe("module import boundaries", () => {
         jobScanViolations(join(SRC, "features/finishedGoods/probe.ts"), text),
       ).toHaveLength(1);
     for (const text of [
+      'import { query } from "../_generated//server";',
+      'import { query as q } from "./../_generated/./server.js";',
+      'import * as server from "../_generated//server";',
       'const server = import("convex/server");',
       "const server = require(`../_generated/server`);",
       'const server = require("../_generated/server");',
