@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { paginatedOrderedScan } from "../lib/cataloguePagination";
 import { grantedPermissionsAmong } from "../lib/navigationGrants";
+import { TENANT_INDEX_MAX_PAGE_SIZE } from "../lib/tenantDb";
 import { queryWithOrg } from "../lib/tenantFunctions";
 import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import {
@@ -86,7 +87,11 @@ export const listCustomersPage = queryWithOrg({
             status ? [{ field: "status", value: status }] : [],
           )
           .page({
-            limit: pageSize,
+            // A filtered search keeps only matching IDs, so it reads the
+            // largest bounded chunk the tenant index allows: fewer sequential
+            // calls through long unmatched stretches. An unfiltered page reads
+            // exactly the rows it shows.
+            limit: needle ? TENANT_INDEX_MAX_PAGE_SIZE : pageSize,
             ...(raw ? { cursor: raw } : {}),
             ...(end ? { endCursor: end } : {}),
           }),

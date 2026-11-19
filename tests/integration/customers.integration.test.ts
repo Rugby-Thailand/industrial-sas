@@ -78,12 +78,14 @@ type ListPage = Extract<ListOutcome, { ok: true }>["value"];
 async function seedCustomerSearch(
   matches: (index: number) => boolean,
   notes?: string,
+  count = 100,
 ) {
   const world = await setup();
+  const width = String(count - 1).length;
   const ids = await world.t.run(async (ctx) => {
     const ids = [];
-    for (let index = 0; index < 100; index++) {
-      const name = `Customer ${String(index).padStart(2, "0")}`;
+    for (let index = 0; index < count; index++) {
+      const name = `Customer ${String(index).padStart(width, "0")}`;
       ids.push(
         await ctx.db.insert("customers", {
           orgId: world.orgA,
@@ -935,10 +937,11 @@ describe("customer catalogue", () => {
       world.ids.slice(0, 19),
     );
     expect(measuredBudget.scannedRows).toBe(100);
+    // Filtered scans read 100-row bounded chunks: one call covers 100 rows.
     expect(
       measuredBudget.calls,
       JSON.stringify(measuredBudget),
-    ).toBeLessThanOrEqual(5);
+    ).toBeLessThanOrEqual(2);
     expect(
       measuredBudget.retainedIdReads,
       JSON.stringify(measuredBudget),
@@ -962,7 +965,7 @@ describe("customer catalogue", () => {
     expect(result.page.map((row) => row.customerId)).toEqual(
       world.ids.slice(60, 80),
     );
-    expect(requests).toBe(5);
+    expect(requests).toBeLessThanOrEqual(2);
     expect(stats.rangeDocs.customers).toBe(100);
   });
 
@@ -979,7 +982,7 @@ describe("customer catalogue", () => {
     expect(first.result.page.map((row) => row.customerId)).toEqual(
       world.ids.slice(60, 80),
     );
-    expect(first.requests).toBe(5);
+    expect(first.requests).toBeLessThanOrEqual(2);
 
     const next = await settlePage<ListPage>(world, listCustomersPage, {
       ...searchArgs,
@@ -1006,7 +1009,7 @@ describe("customer catalogue", () => {
         { ...searchArgs, ...(scanCursor ? { scanCursor } : {}) },
       );
       expect(stats.ranges.customers ?? 0).toBeLessThanOrEqual(1);
-      expect(stats.rangeDocs.customers ?? 0).toBeLessThanOrEqual(20);
+      expect(stats.rangeDocs.customers ?? 0).toBeLessThanOrEqual(100);
       expect(stats.gets.customers ?? 0).toBeLessThanOrEqual(20);
       if (value.status !== "scanning") {
         expect(value).toMatchObject({
@@ -1024,6 +1027,34 @@ describe("customer catalogue", () => {
       scanCursor = value.scanCursor;
     }
     throw new Error("Customer lookahead did not settle within five calls");
+  });
+
+  it("settles a 1,000-row long tail in bounded 100-row calls", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index < 20,
+      undefined,
+      1000,
+    );
+    let scanCursor: string | undefined;
+    for (let call = 1; call <= 11; call++) {
+      const { value, stats } = await measured<ListPage>(
+        world,
+        listCustomersPage,
+        { ...searchArgs, ...(scanCursor ? { scanCursor } : {}) },
+      );
+      // Every call stays bounded: one index range of at most 100 rows.
+      expect(stats.ranges.customers ?? 0).toBeLessThanOrEqual(1);
+      expect(stats.rangeDocs.customers ?? 0).toBeLessThanOrEqual(100);
+      if (value.status !== "scanning") {
+        expect(value).toMatchObject({ status: "ready", isDone: true });
+        expect(value.page.map((row) => row.customerId)).toEqual(
+          world.ids.slice(0, 20),
+        );
+        return;
+      }
+      scanCursor = value.scanCursor;
+    }
+    throw new Error("A 1,000-row long tail did not settle within 11 calls");
   });
 
   it("offers Next when the last indexed customer is the 21st match", async () => {
@@ -1061,20 +1092,22 @@ describe("customer catalogue", () => {
 
   it("invalidates a scan when an already-scanned customer becomes eligible", async () => {
     const world = await seedCustomerSearch(
-      (index) => index < 19 || index === 99,
+      (index) => index < 19 || index === 299,
+      undefined,
+      300,
     );
     const { actorA, ids } = world;
     const first = allowed(
       await actorA.query(catalogue.listCustomersPage, searchArgs),
     );
     expect(first.status).toBe("scanning");
-    expect(first.scanned).toBe(20);
+    expect(first.scanned).toBe(100);
     const update = allowed(
       await actorA.mutation(writes.updateCustomer, {
         requestId: "new-match",
         customerId: ids[19]!,
         expectedVersion: 1,
-        name: "Customer 19",
+        name: "Customer 019",
         legalNameEn: "needle",
       }),
     );
@@ -1251,9 +1284,10 @@ describe("customer catalogue", () => {
   it("advances bounded scan and page cursors in normalized-name order", async () => {
     const { actorA, actorB, t, orgA, userA } = await setup();
     await t.run(async (ctx) => {
-      for (let index = 59; index >= 0; index -= 1) {
-        const number = String(index).padStart(2, "0");
-        const name = `${number} ${index % 2 ? "needle" : "other"}`;
+      for (let index = 259; index >= 0; index -= 1) {
+        const number = String(index).padStart(3, "0");
+        // Sparse matches: a 100-row chunk holds 10, so pages need scanning.
+        const name = `${number} ${index % 10 === 1 ? "needle" : "other"}`;
         await ctx.db.insert("customers", {
           orgId: orgA,
           code: `FIXTURE-${number}`,
@@ -1283,7 +1317,7 @@ describe("customer catalogue", () => {
         }),
       );
       expect(result.status).not.toBe("reset");
-      expect(result.scanned - scanned).toBeLessThanOrEqual(20);
+      expect(result.scanned - scanned).toBeLessThanOrEqual(100);
       if (result.status === "scanning") {
         expect(result.page).toEqual([]);
         scanCursor = result.scanCursor;
@@ -1302,8 +1336,8 @@ describe("customer catalogue", () => {
     expect(scanning).toBeGreaterThan(0);
     expect(names).toEqual(
       Array.from(
-        { length: 30 },
-        (_, index) => `${String(index * 2 + 1).padStart(2, "0")} needle`,
+        { length: 26 },
+        (_, index) => `${String(index * 10 + 1).padStart(3, "0")} needle`,
       ),
     );
     if (!cursor) throw new Error("Missing continuation cursor");
