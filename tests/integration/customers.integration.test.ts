@@ -24,7 +24,7 @@ import {
   seedConvexAuthorization,
   seedSecondActorForOrgA,
 } from "../fixtures/convex-tenant-world";
-import { settlePage } from "../fixtures/query-read-stats";
+import { measured, settlePage } from "../fixtures/query-read-stats";
 
 const catalogue = api.customers.catalogue;
 const writes = api.customers.writes;
@@ -993,35 +993,73 @@ describe("customer catalogue", () => {
     expect(next.stats.rangeDocs.customers ?? 0).toBe(0);
   });
 
-  it("returns an empty terminal page when bounded lookahead cannot resolve a distant tail", async () => {
+  it("settles 20 of 100 early matches without offering Next after a long tail", async () => {
     const world = await seedCustomerSearch((index) => index < 20);
+    let scanCursor: string | undefined;
+    for (let call = 1; call <= 5; call++) {
+      const { value, stats } = await measured<ListPage>(
+        world,
+        listCustomersPage,
+        { ...searchArgs, ...(scanCursor ? { scanCursor } : {}) },
+      );
+      expect(stats.ranges.customers ?? 0).toBeLessThanOrEqual(1);
+      expect(stats.rangeDocs.customers ?? 0).toBeLessThanOrEqual(20);
+      expect(stats.gets.customers ?? 0).toBeLessThanOrEqual(20);
+      if (value.status !== "scanning") {
+        expect(value).toMatchObject({
+          status: "ready",
+          isDone: true,
+          continueCursor: "",
+          scanned: 100,
+        });
+        expect(value.page.map((row) => row.customerId)).toEqual(
+          world.ids.slice(0, 20),
+        );
+        return;
+      }
+      expect(value.scanCursor).toBeTruthy();
+      scanCursor = value.scanCursor;
+    }
+    throw new Error("Customer lookahead did not settle within five calls");
+  });
+
+  it("offers Next when the last indexed customer is the 21st match", async () => {
+    const world = await seedCustomerSearch(
+      (index) => index < 20 || index === 99,
+    );
     const first = await settlePage<ListPage>(
       world,
       listCustomersPage,
       searchArgs,
-    );
-    expect(first.result.page.map((row) => row.customerId)).toEqual(
-      world.ids.slice(0, 20),
+      5,
     );
     expect(first.result).toMatchObject({ status: "ready", isDone: false });
     expect(first.result.continueCursor).toBeTruthy();
-    expect(first.requests).toBe(2);
-    expect(first.stats.rangeDocs.customers).toBe(40);
+    expect(first.result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(0, 20),
+    );
+    expect(first.stats.rangeDocs.customers).toBe(100);
+
     const next = await settlePage<ListPage>(world, listCustomersPage, {
       ...searchArgs,
       cursor: first.result.continueCursor,
     });
     expect(next.result).toMatchObject({
       status: "ready",
-      page: [],
       isDone: true,
       continueCursor: "",
     });
-    expect(next.stats.rangeDocs.customers).toBe(60);
+    expect(next.result.page.map((row) => row.customerId)).toEqual(
+      world.ids.slice(99),
+    );
+    expect(next.requests).toBe(1);
+    expect(next.stats.rangeDocs.customers ?? 0).toBe(0);
   });
 
   it("invalidates a scan when an already-scanned customer becomes eligible", async () => {
-    const world = await seedCustomerSearch((index) => index < 19);
+    const world = await seedCustomerSearch(
+      (index) => index < 19 || index === 99,
+    );
     const { actorA, ids } = world;
     const first = allowed(
       await actorA.query(catalogue.listCustomersPage, searchArgs),
@@ -1039,6 +1077,11 @@ describe("customer catalogue", () => {
     );
     expect(update).toMatchObject({ ok: true, replayed: false });
 
+    const lookahead = allowed(
+      await actorA.query(catalogue.listCustomersPage, searchArgs),
+    );
+    expect(lookahead.status).toBe("scanning");
+    if (!lookahead.scanCursor) throw new Error("Missing lookahead scan cursor");
     const fresh = await settlePage<ListPage>(
       world,
       listCustomersPage,
@@ -1060,6 +1103,14 @@ describe("customer catalogue", () => {
       customerId: ids[19]!,
       expectedVersion: 2,
     });
+    expect(
+      allowed(
+        await actorA.query(catalogue.listCustomersPage, {
+          ...searchArgs,
+          scanCursor: lookahead.scanCursor,
+        }),
+      ),
+    ).toMatchObject({ status: "reset", page: [] });
     expect(
       allowed(
         await actorA.query(catalogue.listCustomersPage, {

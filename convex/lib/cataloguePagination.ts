@@ -441,11 +441,10 @@ export async function paginatedOrderedScan<T extends TenantIdentity>(
   let exhausted = state?.exhausted ?? false;
   let scanned = state?.scanned ?? 0;
   const retained = state?.ids ?? [];
-  // Reserve one scan continuation for lookahead when a filtered page fills
-  // exactly. Each execution still reads at most one bounded native page.
-  const lookingAhead =
-    confirmNextMatch && resumed !== null && retained.length === pageSize;
-  if (!exhausted && (retained.length < pageSize || lookingAhead)) {
+  // Filtered pages need a surplus match or index exhaustion before they are
+  // ready. Continue lookahead one bounded native page per execution.
+  const scanTarget = pageSize + (confirmNextMatch ? 1 : 0);
+  if (!exhausted && retained.length < scanTarget) {
     try {
       const chunk = await options.read(range);
       if (chunk.pageStatus === "SplitRequired") {
@@ -471,11 +470,7 @@ export async function paginatedOrderedScan<T extends TenantIdentity>(
     }
   }
   const ids = [...new Set([...retained, ...incoming.keys()])];
-  if (
-    !exhausted &&
-    (ids.length < pageSize ||
-      (confirmNextMatch && ids.length === pageSize && !lookingAhead))
-  ) {
+  if (!exhausted && ids.length < scanTarget) {
     const next: OrderedScanState = {
       scope,
       generation: await generation(),

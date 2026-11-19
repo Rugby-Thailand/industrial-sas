@@ -34,12 +34,27 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   readiness: { kind: "READY_TO_QUERY" } as { kind: string; requestId?: string },
   viewerPending: false,
+  // The live duplicate hint fails with a query error (it never throws).
+  hintError: undefined as Error | undefined,
   // The imperative duplicate check a fast Save runs before creating.
   convexQuery: vi.fn(),
 }));
 vi.mock("convex/react", () => ({
   useMutation: getTestMutation,
   useConvex: () => ({ query: mocks.convexQuery }),
+  useQueries: (
+    queries: Record<
+      string,
+      { query: Parameters<typeof getFunctionName>[0]; args: unknown }
+    >,
+  ) =>
+    Object.fromEntries(
+      Object.entries(queries).map(([key, { query, args }]) => {
+        const name = getFunctionName(query);
+        mocks.queryArgs.set(name, args);
+        return [key, mocks.hintError ?? mocks.queries.get(name)];
+      }),
+    ),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
     if (args === "skip") return undefined;
     const name = getFunctionName(ref);
@@ -186,6 +201,7 @@ beforeEach(() => {
   mocks.queries.set(SIMILAR, { ok: true, value: [] });
   mocks.readiness = { kind: "READY_TO_QUERY" };
   mocks.viewerPending = false;
+  mocks.hintError = undefined;
   mocks.convexQuery.mockReset();
   mocks.convexQuery.mockImplementation(async () => mocks.queries.get(SIMILAR));
 });
@@ -395,7 +411,7 @@ describe("customer list", () => {
     expect(screen.getByText(/req-7/)).toBeInTheDocument();
   });
 
-  it("reports a failed load as an alert", () => {
+  it("a list that changed under its cursor offers to load it again", () => {
     // A continuation the server can no longer resume.
     mocks.queries.set(LIST, {
       ok: true,
@@ -409,8 +425,10 @@ describe("customer list", () => {
     });
     render(<CustomerCatalogue />);
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Customers could not be loaded",
+      "The customer list changed while it was loading",
     );
+    fireEvent.click(screen.getByRole("button", { name: "Load again" }));
+    expect(screen.getByTestId("customer-list-changed")).toBeInTheDocument();
   });
 });
 
@@ -560,6 +578,24 @@ describe("new customer", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
     });
+    expect(create).toHaveBeenCalledOnce();
+  });
+
+  it("a failing live duplicate hint keeps the form and its draft", async () => {
+    mocks.hintError = new Error("query failed");
+    const create = mutationFor(CREATE);
+    render(<NewCustomerForm />);
+    type(/Customer name/, "Hint Down Co");
+    await waitFor(() =>
+      expect(mocks.queryArgs.get(SIMILAR)).toEqual({ name: "Hint Down Co" }),
+    );
+    expect(screen.getByTestId("customer-form")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Hint Down Co")).toBeInTheDocument();
+    // Save still checks for duplicates itself before creating.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save customer" }));
+    });
+    expect(mocks.convexQuery).toHaveBeenCalledOnce();
     expect(create).toHaveBeenCalledOnce();
   });
 
@@ -998,6 +1034,12 @@ describe("edit customer", () => {
     expect(screen.getByRole("textbox", { name: /Customer name/ })).toHaveValue(
       "My rename",
     );
+    // Nothing newer has arrived yet, so there is nothing to load.
+    expect(
+      screen.queryByRole("button", {
+        name: "Discard my edits and load the latest",
+      }),
+    ).toBeNull();
     mocks.queries.set(GET, {
       ok: true,
       value: { ...full, name: "Their rename", version: 4 },
@@ -1029,6 +1071,32 @@ describe("edit customer", () => {
     expect(mutationFor(UPDATE)).toHaveBeenLastCalledWith(
       expect.objectContaining({ expectedVersion: 4 }),
     );
+  });
+
+  it("a retry after a lost reply resends the first command, not one rebased on a newer version", async () => {
+    mocks.queries.set(GET, { ok: true, value: full });
+    mutationFor(UPDATE).mockRejectedValueOnce(new Error("reply lost"));
+    const view = render(<EditCustomerForm customerId="customer-a" />);
+    // A save with nothing changed: the landed write leaves every editable
+    // field identical, so the editor's expected version moves to 4.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    });
+    mocks.queries.set(GET, { ok: true, value: { ...full, version: 4 } });
+    view.rerender(
+      <DraftGuardProvider>
+        <EditCustomerForm customerId="customer-a" />
+      </DraftGuardProvider>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    });
+    const [first, retry] = mutationFor(UPDATE).mock.calls.map(
+      ([args]) => args as { requestId: string; expectedVersion: number },
+    );
+    expect(first!.expectedVersion).toBe(3);
+    expect(retry!.requestId).toBe(first!.requestId);
+    expect(retry!.expectedVersion).toBe(3);
   });
 
   it("an archived customer cannot be saved from the editor", () => {

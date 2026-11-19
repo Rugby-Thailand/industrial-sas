@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useConvex, useMutation, useQuery } from "convex/react";
+import { useConvex, useMutation, useQueries, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import {
   Archive,
   ArchiveRestore,
@@ -146,7 +147,7 @@ function CatalogueContent() {
         }
       : "skip",
   );
-  useCatalogueSync({
+  const sync = useCatalogueSync({
     outcome,
     continuation: scan,
     paging,
@@ -192,12 +193,24 @@ function CatalogueContent() {
           state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
         />
       ) : failed ? (
+        // The list changed under a continuation more often than the automatic
+        // reset allows; reloading from the first page is the person's call.
         <Notice
-          tone="danger"
+          tone="warning"
           role="alert"
           title={t("loadError")}
           body={t("loadErrorBody")}
-        />
+          testId="customer-list-changed"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2"
+            onClick={sync.retry}
+          >
+            {t("reload")}
+          </Button>
+        </Notice>
       ) : !ready ? (
         <LedgerPanelStatus state={{ kind: "LOADING" }} label={t("loading")} />
       ) : customers.length === 0 ? (
@@ -655,7 +668,10 @@ function LifecycleAction({
       async () =>
         (archived ? restore : archive)({
           ...args,
-          requestId: identity.request(JSON.stringify({ archived, ...args })),
+          requestId: identity.request(
+            JSON.stringify({ archived, ...args }),
+            undefined,
+          ).requestId,
         }),
       (outcome) => {
         // An answered attempt never reuses its identity.
@@ -787,16 +803,23 @@ function CustomerEditor({
         initial={draftFromCustomer(baseline)}
         customerId={customer.customerId}
         latestVersion={customer.version}
-        onReloadLatest={() => {
-          setBaseline(customer);
-          setFormKey((key) => key + 1);
-        }}
+        // Reload is offered once the newer saved version has arrived, so it
+        // never "reloads" the version that just conflicted.
+        {...(customer.version !== baseline.version
+          ? {
+              onReloadLatest: () => {
+                setBaseline(customer);
+                setFormKey((key) => key + 1);
+              },
+            }
+          : {})}
         blockedReason={archived ? t("archivedCannotEdit") : undefined}
-        submit={(draft, requestId) =>
+        expectedVersion={baseline.version}
+        submit={(draft, requestId, expectedVersion) =>
           update({
             requestId,
             customerId: customer.customerId,
-            expectedVersion: baseline.version,
+            expectedVersion: expectedVersion ?? baseline.version,
             ...customerInput(draft),
           })
         }
@@ -830,6 +853,7 @@ function CustomerFormBody({
   latestVersion,
   onReloadLatest,
   blockedReason,
+  expectedVersion,
   submit,
 }: {
   readonly mode: "create" | "edit";
@@ -841,9 +865,12 @@ function CustomerFormBody({
   readonly onReloadLatest?: () => void;
   /** Why saving cannot succeed right now (an archived customer); the draft stays. */
   readonly blockedReason?: string | undefined;
+  /** The version an edit expects; frozen per submission with its request ID. */
+  readonly expectedVersion?: number;
   readonly submit: (
     draft: CustomerDraft,
     requestId: string,
+    expectedVersion: number | undefined,
   ) => Promise<unknown>;
 }) {
   const t = useTranslations("Customers");
@@ -892,12 +919,23 @@ function CustomerFormBody({
     },
   });
   const settledName = useDebouncedSearch(draft.name, 400);
-  const similar = useQuery(
-    api.customers.catalogue.findSimilarCustomers,
+  // The live hint answers with an Error instead of throwing: a failed hint
+  // must not take the form, and its draft, down with it. Save then runs its
+  // own check, which refuses to create without an answer.
+  const hint = useQueries(
     mode === "create" && settledName.trim() !== ""
-      ? { name: settledName }
-      : "skip",
-  );
+      ? {
+          similar: {
+            query: api.customers.catalogue.findSimilarCustomers,
+            args: { name: settledName },
+          },
+        }
+      : {},
+  ).similar as
+    | FunctionReturnType<typeof api.customers.catalogue.findSimilarCustomers>
+    | Error
+    | undefined;
+  const similar = hint instanceof Error ? undefined : hint;
   const currentName = draft.name.trim();
   const liveMatches =
     settledName.trim() === currentName && similar?.ok
@@ -956,11 +994,14 @@ function CustomerFormBody({
         // The form may have closed while the check ran; a closed form
         // never starts a write.
         if (!mounted.current) return { abandoned: true } as const;
+        // A retry resends the first attempt's exact command, including the
+        // version it expected, never a rebased one under the same ID.
+        const command = identity.request(
+          JSON.stringify(submitted),
+          expectedVersion,
+        );
         return {
-          written: await submit(
-            submitted,
-            identity.request(JSON.stringify(submitted)),
-          ),
+          written: await submit(submitted, command.requestId, command.frozen),
         } as const;
       },
       (attempt) => {

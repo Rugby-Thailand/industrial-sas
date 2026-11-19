@@ -10,7 +10,7 @@
 
 ## Access needed
 
-Every `convex run`, `export` and `import --prod` command below needs the production deployment's deploy key in `CONVEX_DEPLOY_KEY`, run from a clean checkout of the merged commit. The key lives with the Vercel production project, not in CI secrets.
+Every `convex run --prod` command below needs the production deployment's deploy key in `CONVEX_DEPLOY_KEY`, run from a clean checkout of the merged commit. The key lives with the Vercel production project, not in CI secrets.
 
 ## Release order
 
@@ -44,17 +44,20 @@ Every `convex run`, `export` and `import --prod` command below needs the product
 
 Both new tables, `customers` and `customerCatalogueSignals` (one generation counter per organization), are additive. No existing table changes. Choose the smallest step that fixes the problem.
 
-1. **Switch the feature off without a deploy.** Revoke the grants that the seed and the upgrade gave:
+1. **Hide the feature for seeded administrators, without a deploy.** Revoke the grants that the seed and the upgrade gave:
 
    ```sh
    pnpm exec convex run --prod customers/provision:revokeOrgAdminGrants '{}'
    # Repeat with the returned cursor until "isDone": true.
+   pnpm exec convex run --prod customers/provision:verifyOrgAdminGrants '{}'
+   # Page through it, and note every organization still reporting hasCustomerGrants: true.
    ```
 
-   This removes both customer grants only from seeded administrators whose grants are exactly the current default. Within seconds the sidebar entry disappears, and the pages and functions refuse those members. Customer records stay untouched. Organizations listed as `customized` were granted by hand, so it leaves them alone. To switch the feature back on, run `upgradeOrgAdminRoles` again. Newly created organizations are still seeded with the grants until the code is reverted.
+   This removes both customer grants from seeded administrators whose grants are exactly the current default. Within seconds those members lose the sidebar entry, and the pages and functions refuse them. Customer records stay untouched. The revoker is conservative: it does not touch any role it reports as `customized`. Such a role may still hold customer access, either granted by hand or granted by the upgrade before the organization renamed or changed it. The verify pass lists those organizations. Remove their grants deliberately, or go to step 2 if every write must stop now. To switch the feature back on, run `upgradeOrgAdminRoles` again. New organizations are still seeded with the grants until the code is reverted.
 
-2. **Remove the code and keep the data.** Revert the PR's merge commit with `git revert -m 1 <merge-sha>` and merge the revert. The release pipeline backs up production first, then deploys. On a local Convex backend holding documents in both tables, pushing the baseline schema succeeded (`Schema validation complete.`). The push deleted the five customer indexes, and both documents stayed readable. Customer data therefore survives a code rollback and comes back when the change is re-applied. Permission rows already granted are inert once the code is gone.
-3. **Delete the data**, only when it must not be kept. First export it: `pnpm exec convex export --prod --path backups/customers-<date>.zip`, stored with the release backups. Then clear both tables with the Convex dashboard's table delete, after step 2. Restore by importing that export with `pnpm exec convex import --prod --table <name>`.
+2. **Remove the code and keep the data.** This step stops all customer reads and writes. Revert the PR's merge commit with `git revert -m 1 <merge-sha>` and merge the revert. The release pipeline backs up production, then deploys. On a local Convex backend holding documents in both tables, pushing the baseline schema succeeded (`Schema validation complete.`). The push deleted the five customer indexes, and both documents stayed readable. Customer data survives a code rollback and comes back when the change is applied again. Permission rows already granted are inert once the code is gone.
+
+Deleting customer data is not part of rollback. Steps 1 and 2 never need it, and the release pipeline's pre-deploy backup covers the period. If records ever must be erased, for example on a data-subject request, handle that as a separate reviewed data task with a rehearsed restore. Do not delete tables from the dashboard during an incident.
 
 A tab opened before step 1 or 2 keeps working only until its next query. After step 1 the server refuses it. After step 2 the functions no longer exist, and the page shows its load error.
 

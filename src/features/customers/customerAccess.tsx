@@ -46,18 +46,28 @@ export function useCustomerAccess(): {
 }
 
 /**
- * One command identity per submission, held in memory only: a transport
- * retry of the same submission reuses it, while another form, another draft
- * or any answered attempt gets a new one. No field value is ever persisted.
+ * One command per submission, held in memory only. A transport retry of the
+ * same submission resends the identical command: the same request ID and the
+ * same frozen arguments (an edit's expected version), so the server can
+ * replay it. Another form, another draft or any answered attempt starts a new
+ * command. No field value is ever persisted.
  */
 export function useSubmissionIdentity() {
-  const last = useRef<{ key: string; requestId: string } | null>(null);
+  const last = useRef<{
+    key: string;
+    requestId: string;
+    frozen: unknown;
+  } | null>(null);
   return {
-    request(key: string): string {
-      if (last.current?.key === key) return last.current.requestId;
+    request<T>(key: string, frozen: T): { requestId: string; frozen: T } {
+      if (last.current?.key === key)
+        return {
+          requestId: last.current.requestId,
+          frozen: last.current.frozen as T,
+        };
       const requestId = crypto.randomUUID();
-      last.current = { key, requestId };
-      return requestId;
+      last.current = { key, requestId, frozen };
+      return { requestId, frozen };
     },
     clear() {
       last.current = null;
