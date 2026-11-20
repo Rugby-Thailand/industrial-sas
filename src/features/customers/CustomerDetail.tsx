@@ -200,7 +200,9 @@ function CustomerDetailContent({
         <div className="grid gap-4 md:grid-cols-2">
           <DetailCard title={t("sectionDelivery")}>
             {address?.label ? (
-              <p className="font-medium text-text">{address.label}</p>
+              <p className="font-medium wrap-anywhere text-text">
+                {address.label}
+              </p>
             ) : null}
             {addressLines.length > 0 ? (
               <p className="flex gap-2 text-sm text-text">
@@ -208,7 +210,7 @@ function CustomerDetailContent({
                   aria-hidden="true"
                   className="mt-0.5 size-4 shrink-0 text-muted"
                 />
-                <span>
+                <span className="min-w-0 wrap-anywhere">
                   {addressLines.map((line) => (
                     <span key={line} className="block">
                       {line}
@@ -226,9 +228,12 @@ function CustomerDetailContent({
               contact?.email ? (
                 <div className="space-y-1 text-sm">
                   {contact.name || contact.role ? (
-                    <p className="flex items-center gap-2 text-text">
-                      <User aria-hidden="true" className="size-4 text-muted" />
-                      <span>
+                    <p className="flex gap-2 text-text">
+                      <User
+                        aria-hidden="true"
+                        className="mt-0.5 size-4 shrink-0 text-muted"
+                      />
+                      <span className="min-w-0 wrap-anywhere">
                         {[contact.name, contact.role]
                           .filter(Boolean)
                           .join(" · ")}
@@ -240,23 +245,32 @@ function CustomerDetailContent({
                       href={telHref(contact.phone)}
                       className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
                     >
-                      <Phone aria-hidden="true" className="size-4" />
-                      {contact.phone}
+                      <Phone aria-hidden="true" className="size-4 shrink-0" />
+                      <span className="min-w-0 wrap-anywhere">
+                        {contact.phone}
+                      </span>
                     </a>
                   ) : contact.phone ? (
                     // Nothing dialable: show it as written, without a link.
                     <p className="flex items-center gap-2 text-text">
-                      <Phone aria-hidden="true" className="size-4 text-muted" />
-                      {contact.phone}
+                      <Phone
+                        aria-hidden="true"
+                        className="size-4 shrink-0 text-muted"
+                      />
+                      <span className="min-w-0 wrap-anywhere">
+                        {contact.phone}
+                      </span>
                     </p>
                   ) : null}
                   {contact.email ? (
                     <a
                       href={mailtoHref(contact.email)}
-                      className="-my-1 flex min-h-touch items-center gap-2 break-all text-link hover:underline md:my-0 md:min-h-0"
+                      className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
                     >
-                      <Mail aria-hidden="true" className="size-4" />
-                      {contact.email}
+                      <Mail aria-hidden="true" className="size-4 shrink-0" />
+                      <span className="min-w-0 wrap-anywhere">
+                        {contact.email}
+                      </span>
                     </a>
                   ) : null}
                 </div>
@@ -311,7 +325,7 @@ function CustomerDetailContent({
         </div>
         {customer.notes ? (
           <DetailCard title={t("sectionNotes")}>
-            <p className="text-sm whitespace-pre-line text-text">
+            <p className="text-sm wrap-anywhere whitespace-pre-line text-text">
               {customer.notes}
             </p>
           </DetailCard>

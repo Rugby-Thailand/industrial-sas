@@ -9,6 +9,7 @@ import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { OutcomeGate } from "@/components/system/DataGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
+import { DescriptionList } from "@/components/ui/DescriptionList";
 import { Notice } from "@/components/ui/Notice";
 import { StatusBadge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { LOCALES } from "@/i18n/routing";
@@ -383,24 +384,7 @@ export function Facts({
   /** Label and value share one row even on phones (evidence cards). */
   readonly dense?: boolean;
 }) {
-  return (
-    <dl
-      className={
-        dense
-          ? "grid grid-cols-[minmax(5.5rem,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5 text-sm"
-          : "grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[max-content_1fr]"
-      }
-    >
-      {items.map((item) => (
-        <div key={item.label} className="contents">
-          <dt className="break-words text-muted">{item.label}</dt>
-          <dd className="min-w-0 font-medium break-words text-text">
-            {item.value}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <DescriptionList layout={dense ? "dense" : "rows"} items={items} />;
 }
 
 export function SectionTitle({

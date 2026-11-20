@@ -1066,7 +1066,9 @@ function RosterGrid({
           <tr>
             <th
               scope="col"
-              className="sticky left-0 z-10 min-w-48 border-b border-border bg-surface px-3 py-2 text-left font-medium text-muted"
+              // Phones keep a narrow pinned track so 2 (320px) to 3 (390px)
+              // whole day columns stay beside it; sm+ keeps the 12rem track.
+              className="sticky left-0 z-10 w-32 min-w-32 border-b border-border bg-surface px-2 py-2 text-left font-medium text-muted sm:w-auto sm:min-w-48 sm:px-3"
             >
               {t("employee")}
             </th>
@@ -1075,7 +1077,7 @@ function RosterGrid({
                 key={day.date}
                 scope="col"
                 title={day.holidayName}
-                className={`min-w-16 border-b border-border px-1 py-2 text-center font-medium ${day.holidayName ? "text-danger" : "text-muted"}`}
+                className={`w-16 min-w-16 border-b border-border px-1 py-2 text-center font-medium sm:w-auto ${day.holidayName ? "text-danger" : "text-muted"}`}
               >
                 <time dateTime={day.date} className="block tabular-nums">
                   {Number(day.date.slice(8))}
@@ -1092,12 +1094,12 @@ function RosterGrid({
             <tr key={employee.id}>
               <th
                 scope="row"
-                className="sticky left-0 z-10 border-b border-border bg-surface px-3 py-2 text-left"
+                className="sticky left-0 z-10 border-b border-border bg-surface px-2 py-2 text-left wrap-anywhere sm:px-3"
               >
-                <span className="block font-semibold text-text">
+                <span className="line-clamp-2 font-semibold text-text sm:line-clamp-none">
                   {employee.displayName}
                 </span>
-                <span className="block text-muted">
+                <span className="line-clamp-2 text-muted sm:line-clamp-none">
                   {employee.code}
                   {employee.departmentName
                     ? ` · ${employee.departmentName}`
@@ -1115,11 +1117,14 @@ function RosterGrid({
                       ? "bg-raised text-muted"
                       : "text-muted";
                 const content = (
-                  <span className="inline-flex items-center gap-1 truncate">
+                  <span className="inline-flex max-w-full min-w-0 items-center gap-1">
                     {cell.assignment?.kind === "SHIFT" ? (
                       <Swatch color={cell.assignment.color} />
                     ) : null}
-                    {text}
+                    {/* Phones wrap times at the dash inside the 4rem column. */}
+                    <span className="line-clamp-2 wrap-break-word sm:line-clamp-none sm:whitespace-nowrap">
+                      {text}
+                    </span>
                   </span>
                 );
                 const name = t("cellLabel", {
@@ -1130,7 +1135,7 @@ function RosterGrid({
                 return (
                   <td
                     key={cell.date}
-                    className={`border-b border-border p-0.5 text-center ${tone}`}
+                    className={`w-16 border-b border-border p-0.5 text-center sm:w-auto ${tone}`}
                   >
                     {assigning ? (
                       <button
