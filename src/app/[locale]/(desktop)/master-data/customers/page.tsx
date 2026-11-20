@@ -18,7 +18,7 @@ export default async function CustomersPage({
         summary={t("summary")}
         backFallbackHref={null}
       />
-      {/* New customer sits beside the search field. */}
+      {/* New customer sits in the catalogue toolbar, after the status filter. */}
       <CustomerCatalogue />
     </>
   );

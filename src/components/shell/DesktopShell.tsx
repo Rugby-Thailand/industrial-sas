@@ -113,12 +113,13 @@ export function DesktopShell({
                   </header>
                   <main
                     id={MAIN_ID}
-                    tabIndex={-1}
-                    className={
+                    tabIndex={0}
+                    className={cn(
+                      "min-w-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
                       usageReport
-                        ? "min-w-0 flex-1 overflow-auto bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
-                        : "min-w-0 flex-1 overflow-auto p-3 sm:p-4 lg:px-6 lg:py-4"
-                    }
+                        ? "bg-surface px-3.5 py-5 sm:px-6 sm:py-6 lg:px-9 lg:py-7"
+                        : "p-3 sm:p-4 lg:px-6 lg:py-4",
+                    )}
                   >
                     <NavigationContent>{children}</NavigationContent>
                   </main>

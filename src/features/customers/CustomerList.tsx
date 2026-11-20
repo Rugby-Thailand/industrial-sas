@@ -47,9 +47,8 @@ export function CustomerCatalogue() {
   );
 }
 
-export function NewCustomerAction() {
+function NewCustomerAction() {
   const t = useTranslations("Customers");
-  if (!useCustomerAccess().canManage) return null;
   return (
     <Button asChild className="shrink-0">
       <Link href={`${ROUTES.customers}/new`} data-testid="new-customer-action">
@@ -101,30 +100,35 @@ function CatalogueContent() {
   const clear = () => update({ search: "", status: "ACTIVE" });
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-        <CollectionToolbar
-          value={filters.search}
-          // A search-only patch: typing coalesces into one history entry.
-          onValueChange={(search) => update({ search })}
-          searchLabel={t("search")}
-          clearLabel={t("clearSearch")}
-          actions={<NewCustomerAction />}
-        />
-        <SelectControl
-          value={filters.status}
-          onValueChange={(status) =>
-            update({ status: status as CustomerStatusFilter })
-          }
-          options={[
-            { value: "ACTIVE", label: t("statusActive") },
-            { value: "ARCHIVED", label: t("statusArchived") },
-            { value: "ALL", label: t("statusAll") },
-          ]}
-          label={t("statusFilter")}
-          placeholder={t("statusFilter")}
-          emptyLabel={t("statusActive")}
-        />
-      </div>
+      <CollectionToolbar
+        value={filters.search}
+        // A search-only patch: typing coalesces into one history entry.
+        onValueChange={(search) => update({ search })}
+        searchLabel={t("search")}
+        clearLabel={t("clearSearch")}
+        actions={
+          // Full width on phones wraps status and Add below a full-width
+          // search, so the placeholder is never clipped.
+          <div className="flex w-full min-w-0 gap-2 sm:w-auto">
+            <SelectControl
+              value={filters.status}
+              onValueChange={(status) =>
+                update({ status: status as CustomerStatusFilter })
+              }
+              options={[
+                { value: "ACTIVE", label: t("statusActive") },
+                { value: "ARCHIVED", label: t("statusArchived") },
+                { value: "ALL", label: t("statusAll") },
+              ]}
+              label={t("statusFilter")}
+              placeholder={t("statusFilter")}
+              emptyLabel={t("statusActive")}
+              className="flex-1 sm:w-48 sm:flex-none"
+            />
+            {canManage ? <NewCustomerAction /> : null}
+          </div>
+        }
+      />
       {outcome !== undefined && !outcome.ok ? (
         // A refused read is an access decision, not a connection problem.
         <LedgerPanelStatus
@@ -188,7 +192,7 @@ function CatalogueContent() {
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <Link
                             href={customerPath(customer.customerId)}
-                            className="font-medium break-words text-text hover:text-link hover:underline focus-visible:outline-2 focus-visible:outline-link"
+                            className="min-w-0 font-medium wrap-anywhere text-text hover:text-link hover:underline focus-visible:outline-2 focus-visible:outline-link"
                           >
                             {customer.name}
                           </Link>
@@ -199,11 +203,11 @@ function CatalogueContent() {
                             />
                           ) : null}
                         </div>
-                        <div className="mt-0.5 font-mono text-xs text-muted">
+                        <div className="mt-0.5 font-mono text-xs wrap-anywhere text-muted">
                           {customer.code}
                         </div>
                       </TableCell>
-                      <TableCell className="align-top text-sm">
+                      <TableCell className="align-top text-sm wrap-anywhere">
                         {customer.province ?? (
                           <span className="text-muted">{DASH}</span>
                         )}
@@ -227,14 +231,14 @@ function CatalogueContent() {
                 >
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-medium break-words text-text">
+                      <span className="min-w-0 font-medium wrap-anywhere text-text">
                         {customer.name}
                       </span>
                       {customer.status === "ARCHIVED" ? (
                         <StatusBadge tone="muted" label={t("statusArchived")} />
                       ) : null}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted">
+                    <span className="mt-0.5 block text-xs wrap-anywhere text-muted">
                       <span className="font-mono">{customer.code}</span>
                       {customer.province ? ` · ${customer.province}` : null}
                     </span>

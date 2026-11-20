@@ -473,31 +473,33 @@ function CustomerFormBody({
               role="status"
               title={t("similarTitle")}
               body={t("similarBody")}
-              className="sm:col-span-2"
+              className="min-w-0 sm:col-span-2"
               testId="customer-similar"
             >
-              <ul className="mt-2 space-y-1">
+              <ul className="divide-y divide-border">
                 {matches.map((match) => (
                   <li
                     key={match.customerId}
-                    className="flex flex-wrap items-center justify-between gap-2"
+                    // Phones stack the action under the identity; sm+ puts it
+                    // beside, and long names or codes wrap rather than push it.
+                    className="flex flex-col items-start gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                   >
-                    <span className="min-w-0 text-sm text-text">
-                      {match.name}{" "}
-                      <span className="font-mono text-xs text-muted">
-                        {match.code}
+                    <span className="min-w-0 sm:flex-1">
+                      <span className="block text-sm font-medium wrap-anywhere text-text">
+                        {match.name}
                       </span>
-                      {match.status === "ARCHIVED" ? (
-                        <span className="text-xs text-muted">
-                          {" "}
-                          · {t("statusArchived")}
-                        </span>
-                      ) : null}
+                      <span className="mt-1 block text-xs wrap-anywhere text-muted">
+                        <span className="font-mono">{match.code}</span>
+                        {match.status === "ARCHIVED"
+                          ? ` · ${t("statusArchived")}`
+                          : null}
+                      </span>
                     </span>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      className="max-w-full"
                       onClick={() => openExisting(match.customerId)}
                     >
                       {t("useThisCustomer")}

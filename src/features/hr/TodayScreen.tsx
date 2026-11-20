@@ -204,7 +204,7 @@ function TodayView({ today }: { readonly today: TodayValue }) {
                     weekday: true,
                   })}
                 </h2>
-                <p className="truncate text-sm text-muted">
+                <p className="text-sm wrap-anywhere text-muted">
                   {today.employee.displayName} · {today.employee.code}
                 </p>
               </div>

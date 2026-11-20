@@ -16,7 +16,8 @@ const GRID_COLUMNS = {
 
 /**
  * Labelled facts for summaries and inspectors.
- * - `rows`: label beside value from `sm` (label above it on phones).
+ * - `rows`: label beside value from `sm`; on phones each label sits close
+ *   above its value and pairs are separated by the larger row gap.
  * - `dense`: label beside value at every width, for narrow evidence cards.
  * - `grid`: small label above each value in 2–4 columns (metrics).
  * - `stat`: a statistic strip; values are large tabular figures.
@@ -43,7 +44,7 @@ export function DescriptionList({
       className={cn(
         "min-w-0 text-sm",
         layout === "rows" &&
-          "grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_minmax(0,1fr)]",
+          "grid grid-cols-1 gap-y-3 sm:grid-cols-[max-content_minmax(0,1fr)] sm:gap-x-6",
         layout === "dense" &&
           "grid grid-cols-[minmax(5.5rem,max-content)_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5",
         stacked && cn("grid gap-x-4 gap-y-3", GRID_COLUMNS[columns]),
@@ -71,9 +72,20 @@ export function DescriptionList({
             </dd>
           </div>
         ) : (
-          <div key={key} className="contents">
+          // Phones (`rows`): the pair is one grid item, so the label stays
+          // tight to its value. From `sm`, and always for `dense`, the pair
+          // dissolves into the two-column grid.
+          <div
+            key={key}
+            className={layout === "rows" ? "min-w-0 sm:contents" : "contents"}
+          >
             <dt className="break-words text-muted">{item.label}</dt>
-            <dd className="min-w-0 font-medium break-words text-text">
+            <dd
+              className={cn(
+                "min-w-0 font-medium break-words text-text",
+                layout === "rows" && "mt-1 sm:mt-0",
+              )}
+            >
               {item.value}
             </dd>
           </div>
