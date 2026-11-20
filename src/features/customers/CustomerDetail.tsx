@@ -325,7 +325,7 @@ function CustomerDetailContent({
         </div>
         {customer.notes ? (
           <DetailCard title={t("sectionNotes")}>
-            <p className="text-sm whitespace-pre-line wrap-anywhere text-text">
+            <p className="text-sm wrap-anywhere whitespace-pre-line text-text">
               {customer.notes}
             </p>
           </DetailCard>
