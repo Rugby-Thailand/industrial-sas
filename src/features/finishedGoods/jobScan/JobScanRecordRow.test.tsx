@@ -1,7 +1,14 @@
 import { screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
+
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ children, ...props }: ComponentProps<"a">) => (
+    <a {...props}>{children}</a>
+  ),
+}));
+
 import { JobScanRecordRow } from "./JobScanRecordRow";
 
 type Record = ComponentProps<typeof JobScanRecordRow>["record"];
@@ -55,4 +62,20 @@ it.each([
 it("shows unmapped free text once, as the location", () => {
   show({ mapped: false, locationText: "Dock" });
   expect(screen.getAllByText("Dock")).toHaveLength(1);
+});
+
+it("links to the resolved customer when linked, and shows captured text when unlinked", () => {
+  show({
+    customer: "บจก.ไทยรุ่งเรือง",
+    customerId: "customer-a",
+    customerName: "บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด",
+    customerCode: "C-0007",
+  });
+  const link = screen.getByRole("link", {
+    name: "บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด (C-0007)",
+  });
+  expect(link).toHaveAttribute("href", "/master-data/customers/customer-a");
+
+  show({ customer: "Unmatched Buyer Co." });
+  expect(screen.getByText("Unmatched Buyer Co.")).toBeInTheDocument();
 });

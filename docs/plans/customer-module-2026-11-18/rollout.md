@@ -63,6 +63,21 @@ Deleting customer data is not part of rollback. Steps 1 and 2 never need it, and
 
 An already open tab is affected on its next server call. After step 1, members whose grants were revoked are refused. Members listed by the verify pass keep whatever their remaining grant allows. After step 2 the functions no longer exist for anyone, and the page shows its load error.
 
+## v2 Linking and historical backfill
+
+- **Additive schema only:** `customerAliases` table, optional `customerId` and `customerLinkSource` on `finishedGoodsProducts` and `finishedGoodsJobScans`, and reverse lookup indexes. No existing fields or captured text (`customer`, `customerReference`) are modified or overwritten.
+- **Live auto-linking:** starts automatically on new job scans once customers and approved aliases exist. Blank, unmatched, ambiguous, or archived matches continue saving without a link.
+- **Historical job-scan backfill (per warehouse):** after customer records exist, preview with a dry run first, then apply in resumable batches:
+
+  ```sh
+  pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":true}'
+  # Review matched / ambiguous / archived / unmatched counts, then apply:
+  pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":false}'
+  # Repeat with returned "cursor" until "isDone": true.
+  ```
+
+  Backfill skips voided scans and any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`).
+
 ## Data handled
 
 The detail query returns customer contact, address and tax ID, and only to members holding `masterData.customer.read`. The list query returns summary fields only: code, name, status and province. Audit records name changed contact, address, tax ID and notes fields without their values. The browser saves no customer field values: request identities live in memory, and the only preference remembered between visits is the list's status filter. A search is different. It stays in the page URL and its history entry, so Back can restore it. An exact tax-ID search is therefore visible in that URL, and it is copied along if someone shares the link.
