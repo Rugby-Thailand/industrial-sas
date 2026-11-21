@@ -8,21 +8,39 @@ import {
   MapPin,
   PencilLine,
   Phone,
+  Plus,
   User,
+  X,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useId, useState, type ReactNode } from "react";
+import { useFormatter, useTranslations } from "next-intl";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DescriptionList } from "@/components/ui/DescriptionList";
+import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TableScroller } from "@/components/ui/TableScroller";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 import { Link } from "@/i18n/navigation";
-import { customerEditPath, customerPath, ROUTES } from "@/lib/navigation";
+import {
+  customerEditPath,
+  customerPath,
+  productPath,
+  ROUTES,
+} from "@/lib/navigation";
 import { readCustomerWrite, type CustomerWriteFailure } from "./customerWrites";
 import {
   CustomerGate,
@@ -149,7 +167,12 @@ function CustomerDetailContent({
   readonly customer: CustomerDetailRow;
 }) {
   const t = useTranslations("Customers");
+  const format = useFormatter();
   const { canManage } = useCustomerAccess();
+  const activityOutcome = useQuery(api.customers.linking.getCustomerActivity, {
+    customerId: customer.customerId,
+  });
+  const activity = activityOutcome?.ok ? activityOutcome.value : undefined;
   const archived = customer.status === "ARCHIVED";
   const address = customer.deliveryAddress;
   const contact = customer.contact;
@@ -158,6 +181,7 @@ function CustomerDetailContent({
     [address?.subdistrict, address?.district].filter(Boolean).join(" "),
     [address?.province, address?.postcode].filter(Boolean).join(" "),
   ].filter((line): line is string => Boolean(line));
+  const showWarehouseSections = activity?.canViewWarehouseData === true;
   return (
     <>
       <PageHeader
@@ -198,148 +222,445 @@ function CustomerDetailContent({
           />
         ) : null}
         <div className="grid gap-4 md:grid-cols-2">
-          <DetailCard title={t("sectionDelivery")}>
-            {address?.label ? (
-              <p className="font-medium wrap-anywhere text-text">
-                {address.label}
-              </p>
-            ) : null}
-            {addressLines.length > 0 ? (
-              <p className="flex gap-2 text-sm text-text">
-                <MapPin
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-muted"
-                />
-                <span className="min-w-0 wrap-anywhere">
-                  {addressLines.map((line) => (
-                    <span key={line} className="block">
-                      {line}
-                    </span>
-                  ))}
-                </span>
-              </p>
-            ) : (
-              <p className="text-sm text-muted">{t("noDelivery")}</p>
-            )}
-            <div className="border-t border-border pt-3">
-              {contact?.name ||
-              contact?.role ||
-              contact?.phone ||
-              contact?.email ? (
-                <div className="space-y-1 text-sm">
-                  {contact.name || contact.role ? (
-                    <p className="flex gap-2 text-text">
-                      <User
-                        aria-hidden="true"
-                        className="mt-0.5 size-4 shrink-0 text-muted"
-                      />
-                      <span className="min-w-0 wrap-anywhere">
-                        {[contact.name, contact.role]
-                          .filter(Boolean)
-                          .join(" · ")}
+          <div className="min-w-0 space-y-4">
+            <DetailCard title={t("sectionDelivery")}>
+              {address?.label ? (
+                <p className="font-medium wrap-anywhere text-text">
+                  {address.label}
+                </p>
+              ) : null}
+              {addressLines.length > 0 ? (
+                <p className="flex gap-2 text-sm text-text">
+                  <MapPin
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-muted"
+                  />
+                  <span className="min-w-0 wrap-anywhere">
+                    {addressLines.map((line) => (
+                      <span key={line} className="block">
+                        {line}
                       </span>
-                    </p>
-                  ) : null}
-                  {contact.phone && telHref(contact.phone) ? (
-                    <a
-                      href={telHref(contact.phone)}
-                      className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
-                    >
-                      <Phone aria-hidden="true" className="size-4 shrink-0" />
-                      <span className="min-w-0 wrap-anywhere">
-                        {contact.phone}
-                      </span>
-                    </a>
-                  ) : contact.phone ? (
-                    // Nothing dialable: show it as written, without a link.
-                    <p className="flex items-center gap-2 text-text">
-                      <Phone
-                        aria-hidden="true"
-                        className="size-4 shrink-0 text-muted"
-                      />
-                      <span className="min-w-0 wrap-anywhere">
-                        {contact.phone}
-                      </span>
-                    </p>
-                  ) : null}
-                  {contact.email ? (
-                    <a
-                      href={mailtoHref(contact.email)}
-                      className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
-                    >
-                      <Mail aria-hidden="true" className="size-4 shrink-0" />
-                      <span className="min-w-0 wrap-anywhere">
-                        {contact.email}
-                      </span>
-                    </a>
-                  ) : null}
-                </div>
+                    ))}
+                  </span>
+                </p>
               ) : (
-                <p className="text-sm text-muted">{t("noContact")}</p>
+                <p className="text-sm text-muted">{t("noDelivery")}</p>
               )}
-            </div>
-          </DetailCard>
-          <DetailCard title={t("sectionTax")}>
-            <DescriptionList
-              layout="rows"
-              items={[
-                {
-                  id: "legalNameTh",
-                  label: t("legalNameTh"),
-                  value: customer.legalNameTh ?? DASH,
-                },
-                {
-                  id: "legalNameEn",
-                  label: t("legalNameEn"),
-                  value: customer.legalNameEn ?? DASH,
-                },
-                {
-                  id: "taxId",
-                  label: t("taxId"),
-                  value: customer.taxId ? (
-                    <span className="font-mono">{customer.taxId}</span>
+              <div className="border-t border-border pt-3">
+                {contact?.name ||
+                contact?.role ||
+                contact?.phone ||
+                contact?.email ? (
+                  <div className="space-y-1 text-sm">
+                    {contact.name || contact.role ? (
+                      <p className="flex gap-2 text-text">
+                        <User
+                          aria-hidden="true"
+                          className="mt-0.5 size-4 shrink-0 text-muted"
+                        />
+                        <span className="min-w-0 wrap-anywhere">
+                          {[contact.name, contact.role]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </p>
+                    ) : null}
+                    {contact.phone && telHref(contact.phone) ? (
+                      <a
+                        href={telHref(contact.phone)}
+                        className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
+                      >
+                        <Phone aria-hidden="true" className="size-4 shrink-0" />
+                        <span className="min-w-0 wrap-anywhere">
+                          {contact.phone}
+                        </span>
+                      </a>
+                    ) : contact.phone ? (
+                      // Nothing dialable: show it as written, without a link.
+                      <p className="flex items-center gap-2 text-text">
+                        <Phone
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-muted"
+                        />
+                        <span className="min-w-0 wrap-anywhere">
+                          {contact.phone}
+                        </span>
+                      </p>
+                    ) : null}
+                    {contact.email ? (
+                      <a
+                        href={mailtoHref(contact.email)}
+                        className="-my-1 flex min-h-touch items-center gap-2 text-link hover:underline md:my-0 md:min-h-0"
+                      >
+                        <Mail aria-hidden="true" className="size-4 shrink-0" />
+                        <span className="min-w-0 wrap-anywhere">
+                          {contact.email}
+                        </span>
+                      </a>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">{t("noContact")}</p>
+                )}
+              </div>
+            </DetailCard>
+            {showWarehouseSections ? (
+              <>
+                <DetailCard
+                  title={t("sectionRecentJobs")}
+                  action={
+                    activity.recentJobs.length > 0 ? (
+                      <Link
+                        href={ROUTES.jobScanRecords}
+                        className="text-sm text-link hover:underline"
+                      >
+                        {t("viewAllJobs")}
+                      </Link>
+                    ) : null
+                  }
+                >
+                  {activity.recentJobs.length === 0 ? (
+                    <p className="text-sm text-muted">{t("noLinkedJobs")}</p>
                   ) : (
-                    DASH
-                  ),
-                },
-                {
-                  id: "establishment",
-                  label: t("establishment"),
-                  value:
-                    customer.establishment?.kind === "HEAD_OFFICE"
-                      ? t("headOffice")
-                      : customer.establishment?.kind === "BRANCH"
-                        ? t("branch", { code: customer.establishment.code })
-                        : DASH,
-                },
-              ]}
-            />
-            {customer.taxIdChecksumValid === false ? (
-              <Notice
-                tone="warning"
-                title={t("taxIdChecksumWarning")}
-                testId="customer-tax-id-warning"
+                    <>
+                      <div className="hidden sm:block">
+                        <TableScroller
+                          label={t("sectionRecentJobs")}
+                          testId="customer-recent-jobs"
+                        >
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>{t("colJobNo")}</TableHead>
+                                <TableHead>{t("colPart")}</TableHead>
+                                <TableHead>{t("colWarehouse")}</TableHead>
+                                <TableHead>{t("colScannedAt")}</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {activity.recentJobs.map((job) => (
+                                <TableRow key={job.jobScanId}>
+                                  <TableCell className="font-mono text-xs text-text">
+                                    {job.factoryOrder}
+                                  </TableCell>
+                                  <TableCell className="text-xs wrap-anywhere text-text">
+                                    {job.partName ?? (
+                                      <span className="text-muted">{DASH}</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted">
+                                    {job.warehouseName}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted tabular-nums">
+                                    {format.dateTime(job.createdAt, {
+                                      dateStyle: "short",
+                                      timeStyle: "short",
+                                    })}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableScroller>
+                      </div>
+                      <ul
+                        className="divide-y divide-border sm:hidden"
+                        data-testid="customer-recent-jobs-mobile"
+                      >
+                        {activity.recentJobs.map((job) => (
+                          <li
+                            key={job.jobScanId}
+                            className="flex items-baseline justify-between gap-2 py-2 text-sm"
+                          >
+                            <span className="min-w-0">
+                              <span className="block font-mono text-xs font-medium text-text">
+                                {job.factoryOrder}
+                              </span>
+                              <span className="block text-xs wrap-anywhere text-muted">
+                                {[job.partName, job.warehouseName]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </span>
+                            </span>
+                            <span className="shrink-0 text-xs text-muted tabular-nums">
+                              {format.dateTime(job.createdAt, {
+                                dateStyle: "short",
+                              })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </DetailCard>
+                <DetailCard
+                  title={
+                    activity.linkedProducts.length > 0
+                      ? t("sectionProductsCount", {
+                          count: activity.linkedProducts.length,
+                        })
+                      : t("sectionProducts")
+                  }
+                >
+                  {activity.linkedProducts.length === 0 ? (
+                    <p className="text-sm text-muted">
+                      {t("noLinkedProducts")}
+                    </p>
+                  ) : (
+                    <ul
+                      className="divide-y divide-border"
+                      data-testid="customer-linked-products"
+                    >
+                      {activity.linkedProducts.map((product) => (
+                        <li key={product.productId}>
+                          <Link
+                            href={productPath(product.productId)}
+                            className="-mx-2 flex min-h-touch items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-raised focus-visible:outline-2 focus-visible:outline-link"
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium wrap-anywhere text-text">
+                                {product.name}
+                              </span>
+                              <span className="block text-xs text-muted">
+                                <span className="font-mono">{product.sku}</span>
+                                {product.warehouseName
+                                  ? ` · ${product.warehouseName}`
+                                  : null}
+                              </span>
+                            </span>
+                            {product.totalQuantity !== undefined ? (
+                              <span className="shrink-0 text-xs text-muted tabular-nums">
+                                {t("inStock", {
+                                  quantity: format.number(
+                                    product.totalQuantity,
+                                  ),
+                                  unit: product.unit,
+                                })}
+                              </span>
+                            ) : null}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DetailCard>
+              </>
+            ) : null}
+          </div>
+          <div className="min-w-0 space-y-4">
+            <DetailCard title={t("sectionTax")}>
+              <DescriptionList
+                layout="rows"
+                items={[
+                  {
+                    id: "legalNameTh",
+                    label: t("legalNameTh"),
+                    value: customer.legalNameTh ?? DASH,
+                  },
+                  {
+                    id: "legalNameEn",
+                    label: t("legalNameEn"),
+                    value: customer.legalNameEn ?? DASH,
+                  },
+                  {
+                    id: "taxId",
+                    label: t("taxId"),
+                    value: customer.taxId ? (
+                      <span className="font-mono">{customer.taxId}</span>
+                    ) : (
+                      DASH
+                    ),
+                  },
+                  {
+                    id: "establishment",
+                    label: t("establishment"),
+                    value:
+                      customer.establishment?.kind === "HEAD_OFFICE"
+                        ? t("headOffice")
+                        : customer.establishment?.kind === "BRANCH"
+                          ? t("branch", { code: customer.establishment.code })
+                          : DASH,
+                  },
+                ]}
+              />
+              {customer.taxIdChecksumValid === false ? (
+                <Notice
+                  tone="warning"
+                  title={t("taxIdChecksumWarning")}
+                  testId="customer-tax-id-warning"
+                />
+              ) : null}
+            </DetailCard>
+            {activity ? (
+              <CustomerAliasesCard
+                customerId={customer.customerId}
+                aliases={activity.aliases}
+                canEdit={canManage && !archived}
               />
             ) : null}
-          </DetailCard>
+            {customer.notes ? (
+              <DetailCard title={t("sectionNotes")}>
+                <p className="text-sm wrap-anywhere whitespace-pre-line text-text">
+                  {customer.notes}
+                </p>
+              </DetailCard>
+            ) : null}
+          </div>
         </div>
-        {customer.notes ? (
-          <DetailCard title={t("sectionNotes")}>
-            <p className="text-sm wrap-anywhere whitespace-pre-line text-text">
-              {customer.notes}
-            </p>
-          </DetailCard>
-        ) : null}
       </div>
     </>
   );
 }
 
+function CustomerAliasesCard({
+  customerId,
+  aliases,
+  canEdit,
+}: {
+  readonly customerId: Id<"customers">;
+  readonly aliases: readonly {
+    readonly aliasId: Id<"customerAliases">;
+    readonly alias: string;
+    readonly approvedAt: number;
+  }[];
+  readonly canEdit: boolean;
+}) {
+  const t = useTranslations("Customers");
+  const addAlias = useMutation(api.customers.linking.addCustomerAlias);
+  const removeAlias = useMutation(api.customers.linking.removeCustomerAlias);
+  const identity = useSubmissionIdentity();
+  const operation = useAsyncOperation({
+    scope: `customer-aliases:${customerId}`,
+    describeError: () => "UNKNOWN",
+    navigation: "write",
+  });
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleAdd(event: FormEvent) {
+    event.preventDefault();
+    if (operation.busy) return;
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    setError(null);
+    const { requestId } = identity.request(`add:${trimmed}`, undefined);
+    await operation.run(
+      async () => addAlias({ requestId, customerId, alias: trimmed }),
+      (outcome) => {
+        identity.clear();
+        if (!outcome || typeof outcome !== "object" || !("ok" in outcome)) {
+          setError(t("errors.UNKNOWN"));
+          return;
+        }
+        if (!outcome.ok) {
+          setError(t("errors.DENIED"));
+          return;
+        }
+        if (!outcome.value.ok) {
+          if (outcome.value.code === "DUPLICATE_KEY")
+            setError(t("aliasDuplicate"));
+          else if (outcome.value.code === "FIELD_INVALID")
+            setError(t("aliasInvalid"));
+          else setError(t("errors.UNKNOWN"));
+          return;
+        }
+        setDraft("");
+      },
+    );
+  }
+
+  async function handleRemove(aliasId: Id<"customerAliases">) {
+    if (operation.busy) return;
+    setError(null);
+    const { requestId } = identity.request(`remove:${aliasId}`, undefined);
+    await operation.run(
+      async () => removeAlias({ requestId, aliasId }),
+      (outcome) => {
+        identity.clear();
+        if (!outcome || typeof outcome !== "object" || !("ok" in outcome)) {
+          setError(t("errors.UNKNOWN"));
+          return;
+        }
+        if (!outcome.ok) {
+          setError(t("errors.DENIED"));
+          return;
+        }
+        if (!outcome.value.ok) setError(t("errors.UNKNOWN"));
+      },
+    );
+  }
+
+  return (
+    <DetailCard title={t("sectionAliases")}>
+      {aliases.length > 0 ? (
+        <ul
+          className="flex flex-wrap gap-2"
+          data-testid="customer-aliases-list"
+        >
+          {aliases.map((item) => (
+            <li
+              key={item.aliasId}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2.5 py-1 text-xs text-text"
+            >
+              <span className="wrap-anywhere">{item.alias}</span>
+              {canEdit ? (
+                <button
+                  type="button"
+                  disabled={operation.busy}
+                  aria-label={t("aliasRemove", { alias: item.alias })}
+                  onClick={() => void handleRemove(item.aliasId)}
+                  className="-mr-1 inline-flex size-5 items-center justify-center rounded text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-link"
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">{t("noAliases")}</p>
+      )}
+      <p className="text-xs text-muted">{t("aliasHint")}</p>
+      {error ? <Notice tone="danger" role="alert" title={error} /> : null}
+      {canEdit ? (
+        <form
+          onSubmit={(event) => void handleAdd(event)}
+          className="flex gap-2"
+        >
+          <Input
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              if (error) setError(null);
+            }}
+            placeholder={t("aliasPlaceholder")}
+            aria-label={t("aliasPlaceholder")}
+            maxLength={200}
+            disabled={operation.busy}
+            className="min-w-0 flex-1"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            disabled={operation.busy || !draft.trim()}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            {operation.busy ? t("aliasAdding") : t("aliasAdd")}
+          </Button>
+        </form>
+      ) : null}
+    </DetailCard>
+  );
+}
+
 function DetailCard({
   title,
+  action,
   children,
 }: {
   readonly title: string;
+  readonly action?: ReactNode;
   readonly children: ReactNode;
 }) {
   const id = useId();
@@ -348,9 +669,12 @@ function DetailCard({
       aria-labelledby={id}
       className="min-w-0 space-y-3 rounded-lg border border-border bg-surface p-4"
     >
-      <h2 id={id} className="text-lg leading-7 font-semibold text-text">
-        {title}
-      </h2>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 id={id} className="text-lg leading-7 font-semibold text-text">
+          {title}
+        </h2>
+        {action}
+      </div>
       {children}
     </section>
   );

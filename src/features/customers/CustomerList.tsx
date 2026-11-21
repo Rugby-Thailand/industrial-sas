@@ -2,8 +2,8 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
-import { ChevronRight, Plus } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { ChevronRight, Link2, Plus } from "lucide-react";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { api } from "../../../convex/_generated/api";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -61,9 +61,11 @@ function NewCustomerAction() {
 
 function CatalogueContent() {
   const t = useTranslations("Customers");
+  const format = useFormatter();
   const locale = useLocale();
   const { userId, orgId } = useAuth();
   const { canManage } = useCustomerAccess();
+  const review = useQuery(api.customers.linking.reviewSummary, {});
   const scope = `customers:${orgId ?? "null"}:${userId ?? "anonymous"}`;
   const { state: filters, update } = useCustomerCatalogueState(scope);
   const settled = useDebouncedSearch(filters.search);
@@ -98,8 +100,37 @@ function CatalogueContent() {
   const customers = ready ? outcome.value.page : [];
   const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
   const clear = () => update({ search: "", status: "ACTIVE" });
+  const showWarehouseColumns = Boolean(
+    (review?.ok && review.value.canViewWarehouseData) ||
+    customers.some(
+      (customer) =>
+        customer.linkedProductCount !== undefined ||
+        customer.latestJob !== undefined,
+    ),
+  );
+  const unresolvedNames = review?.ok ? review.value.unresolvedNameCount : 0;
+  const unresolvedScans = review?.ok ? review.value.unresolvedScanCount : 0;
   return (
     <div className="space-y-4">
+      {unresolvedScans > 0 ? (
+        <Notice
+          tone="accent"
+          title={t("reviewBannerTitle", {
+            names: unresolvedNames,
+            scans: unresolvedScans,
+          })}
+          testId="customer-review-banner"
+        >
+          <div className="mt-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={ROUTES.customerReview}>
+                <Link2 aria-hidden="true" className="size-4" />
+                {t("reviewBannerAction")}
+              </Link>
+            </Button>
+          </div>
+        </Notice>
+      ) : null}
       <CollectionToolbar
         value={filters.search}
         // A search-only patch: typing coalesces into one history entry.
@@ -179,10 +210,22 @@ function CatalogueContent() {
               <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[64%]">
+                    <TableHead
+                      className={showWarehouseColumns ? "w-[44%]" : "w-[64%]"}
+                    >
                       {t("colCustomer")}
                     </TableHead>
                     <TableHead>{t("colProvince")}</TableHead>
+                    {showWarehouseColumns ? (
+                      <>
+                        <TableHead className="w-[12%] text-right">
+                          {t("colProducts")}
+                        </TableHead>
+                        <TableHead className="w-[24%]">
+                          {t("colLatestJob")}
+                        </TableHead>
+                      </>
+                    ) : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -212,6 +255,37 @@ function CatalogueContent() {
                           <span className="text-muted">{DASH}</span>
                         )}
                       </TableCell>
+                      {showWarehouseColumns ? (
+                        <>
+                          <TableCell className="text-right align-top text-sm tabular-nums">
+                            {customer.linkedProductCount !== undefined ? (
+                              <>
+                                {format.number(customer.linkedProductCount)}
+                                {customer.linkedProductCountMore ? "+" : ""}
+                              </>
+                            ) : (
+                              <span className="text-muted">{DASH}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="align-top text-sm">
+                            {customer.latestJob ? (
+                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span className="font-mono text-xs text-text">
+                                  {customer.latestJob.factoryOrder}
+                                </span>
+                                <span className="text-xs text-muted tabular-nums">
+                                  {format.dateTime(
+                                    customer.latestJob.createdAt,
+                                    { dateStyle: "medium" },
+                                  )}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted">{DASH}</span>
+                            )}
+                          </TableCell>
+                        </>
+                      ) : null}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -241,6 +315,16 @@ function CatalogueContent() {
                     <span className="mt-0.5 block text-xs wrap-anywhere text-muted">
                       <span className="font-mono">{customer.code}</span>
                       {customer.province ? ` · ${customer.province}` : null}
+                      {customer.latestJob
+                        ? ` · ${t("latestJobMobile", {
+                            date: format.dateTime(
+                              customer.latestJob.createdAt,
+                              {
+                                dateStyle: "short",
+                              },
+                            ),
+                          })}`
+                        : null}
                     </span>
                   </span>
                   <ChevronRight

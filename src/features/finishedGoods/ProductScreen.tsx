@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Link, useRouter } from "@/i18n/navigation";
+import { CustomerPicker } from "@/features/customers/CustomerPicker";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
 import { ProductBatches } from "./ProductBatches";
 import { optimisticProductDetails } from "./optimisticProductDetails";
@@ -50,6 +51,7 @@ type ProductDraft = {
   unit: string;
   storageCondition: string;
   notes: string;
+  customerId: string;
   customerReference: string;
   productReference: string;
   savedProductId?: string;
@@ -66,6 +68,7 @@ function initialDraft(
     unit: product?.unit ?? (locale === "th" ? "ชิ้น" : "pieces"),
     storageCondition: product?.storageCondition ?? "ANY",
     notes: product?.notes ?? "",
+    customerId: product?.customerId ?? "",
     customerReference: product?.customerReference ?? "",
     productReference: product?.productReference ?? "",
     ...(product
@@ -78,6 +81,7 @@ function initialDraft(
             unit: product.unit,
             storageCondition: product.storageCondition,
             notes: product.notes ?? "",
+            customerId: product.customerId ?? "",
             customerReference: product.customerReference ?? "",
             productReference: product.productReference ?? "",
           },
@@ -103,6 +107,7 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
         "unit",
         "storageCondition",
         "notes",
+        "customerId",
         "customerReference",
         "productReference",
       ] as const) {
@@ -327,6 +332,13 @@ function ProductForm({
           (!form.sku.trim() || !form.name.trim() || !form.unit.trim())
         )
           throw new Error("INVALID_INPUT");
+        const initialCustomerId = product?.customerId ?? "";
+        const customerLink =
+          form.customerId === initialCustomerId
+            ? undefined
+            : form.customerId
+              ? ({ action: "SET", customerId: form.customerId } as const)
+              : ({ action: "CLEAR" } as const);
         const payload = {
           warehouseId,
           ...(productId.current ? { productId: productId.current } : {}),
@@ -340,6 +352,7 @@ function ProductForm({
           notes: form.notes,
           customerReference: form.customerReference,
           productReference: form.productReference,
+          ...(customerLink === undefined ? {} : { customerLink }),
           draft: !next && product?.status !== "ACTIVE",
         };
         return written(
@@ -388,6 +401,7 @@ function ProductForm({
         "unit",
         "storageCondition",
         "notes",
+        "customerId",
         "customerReference",
         "productReference",
       ] as const) {
@@ -611,6 +625,23 @@ function ProductForm({
                   {t("copy.references-optional")}
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <productForm.Field name="customerId">
+                    {(field) => (
+                      <div className="sm:col-span-2">
+                        <CustomerPicker
+                          label={t("copy.linked-customer")}
+                          value={field.state.value}
+                          onChange={(v) => {
+                            op.setError("");
+                            field.handleChange(v);
+                          }}
+                          unlinkedLabel={t("copy.no-linked-customer")}
+                          disabled={!canManage || busy}
+                          testId="product-customer-picker"
+                        />
+                      </div>
+                    )}
+                  </productForm.Field>
                   <productForm.Field name="customerReference">
                     {(field) => (
                       <Field

@@ -1001,6 +1001,26 @@
       ]
     },
     {
+      "file": "src/app/[locale]/(desktop)/master-data/customers/review/page.tsx",
+      "policy": "parent",
+      "parent": "/master-data/customers",
+      "targets": [
+        "src/features/customers/CustomerReviewQueue#CustomerReviewQueue"
+      ],
+      "expectation": "Back dismisses foreground/earlier workflow first (including the shared customer-picker Dialog), otherwise preserves the actual origin locale/query/hash; direct links fall back to /master-data/customers.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "links and skips unresolved names on the review queue with remember-alias off by default"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        }
+      ]
+    },
+    {
       "file": "src/app/[locale]/(desktop)/master-data/customers/page.tsx",
       "policy": "hub",
       "targets": [
@@ -9177,6 +9197,166 @@
         {
           "file": "src/features/hr/ShiftsRoster.test.tsx",
           "name": "roster employees page on the server and a selection survives moving between pages"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:error",
+      "policy": "presentation",
+      "expectation": "Inline error notice for an alias add/remove refusal inside the customer aliases card; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "renders linked jobs, linked products, and manages job-ticket aliases on customer detail"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:pickerTarget",
+      "policy": "overlay",
+      "expectation": "Holds the review group for which the shared CustomerPickerDialog is open; the shared Dialog owns its Back entry so native Back dismisses the picker before leaving the review queue.",
+      "integration": "dialog",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:$overlay:Dialog:pickerTarget",
+      "policy": "overlay",
+      "expectation": "Shared Dialog owning the review customer picker foreground entry: native Back closes it before leaving /master-data/customers/review.",
+      "integration": "dialog",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:customChoices",
+      "policy": "presentation",
+      "expectation": "Stores the customer chosen via CustomerPickerDialog for each review group so it appears as an inline radio option with remember-alias checkbox and Link button; no foreground.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div[role=radiogroup]", "input", "label", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "label",
+            "span",
+            "src/components/ui/CheckboxControl#CheckboxControl"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Link2", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewGroupCard:pickedId",
+      "policy": "presentation",
+      "expectation": "Selected candidate customer radio value in a review group card; shows the inline remember-alias checkbox and Link button once a customer is chosen; no foreground.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "label",
+            "span",
+            "src/components/ui/CheckboxControl#CheckboxControl"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Link2", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "links and skips unresolved names on the review queue with remember-alias off by default"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewGroupCard:errorCode",
+      "policy": "presentation",
+      "expectation": "Inline error notice for a refused link/skip decision on a review group card; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "links and skips unresolved names on the review queue with remember-alias off by default"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:search",
+      "policy": "presentation",
+      "expectation": "Search filter text inside the already-audited shared CustomerPickerDialog; filters the inline result list or shows loading/empty text without adding any foreground.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": ["button", "li", "lucide-react#Check", "span", "ul"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": ["button", "li", "lucide-react#Check", "p", "span", "ul"]
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
         }
       ]
     },

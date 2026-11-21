@@ -39,7 +39,11 @@ import {
 import type { CustomerDetailRow } from "./customerTypes";
 import { useDuplicateCheck } from "./useDuplicateCheck";
 
-export function NewCustomerForm() {
+export function NewCustomerForm({
+  initialName,
+}: {
+  readonly initialName?: string;
+} = {}) {
   const t = useTranslations("Customers");
   return (
     <>
@@ -49,13 +53,19 @@ export function NewCustomerForm() {
         breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
       />
       <CustomerGate loadingLabel={t("loading")}>
-        <NewCustomerContent />
+        <NewCustomerContent
+          {...(initialName === undefined ? {} : { initialName })}
+        />
       </CustomerGate>
     </>
   );
 }
 
-function NewCustomerContent() {
+function NewCustomerContent({
+  initialName,
+}: {
+  readonly initialName?: string;
+}) {
   const create = useMutation(api.customers.writes.createCustomer);
   // An optional hint: a failure falls back to the generic code hint (the
   // server allocates a code for a blank field) and never unmounts the form.
@@ -65,10 +75,13 @@ function NewCustomerContent() {
     | FunctionReturnType<typeof api.customers.catalogue.suggestCustomerCode>
     | Error
     | undefined;
+  const initialDraft = initialName
+    ? { ...EMPTY_CUSTOMER_DRAFT, name: initialName }
+    : EMPTY_CUSTOMER_DRAFT;
   return (
     <CustomerFormBody
       mode="create"
-      initial={EMPTY_CUSTOMER_DRAFT}
+      initial={initialDraft}
       codeSuggestion={
         suggestion instanceof Error || !suggestion?.ok
           ? undefined

@@ -7,6 +7,8 @@ import { useFormatter, useTranslations } from "next-intl";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
 import { IconButton } from "@/components/ui/IconButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Link } from "@/i18n/navigation";
+import { customerPath } from "@/lib/navigation";
 import type { RefValue } from "@/lib/convex/clientRef";
 import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { JobScanPhotoPreview } from "./JobScanPhotoPreview";
@@ -92,6 +94,21 @@ export function JobScanRecordRow({
               ` · ${format.number(record.quantity)}`}
           </p>
         )}
+        {record.customerId && record.customerName ? (
+          <p className="truncate text-xs sm:text-sm">
+            <Link
+              href={customerPath(record.customerId)}
+              className="text-link hover:underline"
+            >
+              {record.customerName}
+              {record.customerCode ? ` (${record.customerCode})` : null}
+            </Link>
+          </p>
+        ) : record.customer ? (
+          <p className="truncate text-xs text-muted sm:text-sm">
+            {record.customer}
+          </p>
+        ) : null}
       </div>
       <div className="col-span-3 col-start-2 row-start-2 min-w-0 space-y-2 lg:col-span-1 lg:col-start-4 lg:row-start-1">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

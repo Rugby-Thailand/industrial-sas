@@ -44,6 +44,7 @@ export const ROUTES = Object.freeze({
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
   customers: "/master-data/customers",
+  customerReview: "/master-data/customers/review",
   finishedGoods: "/finished-goods",
   jobScan: "/finished-goods/scan",
   jobScanRecords: "/finished-goods/scan/records",
@@ -1006,6 +1007,13 @@ export const customerPath = (customerId: string): string =>
 
 export const customerEditPath = (customerId: string): string =>
   `${customerPath(customerId)}/edit`;
+
+export const customerNewPath = (name?: string): string => {
+  const trimmed = name?.trim();
+  return trimmed
+    ? `${ROUTES.customers}/new?name=${encodeURIComponent(trimmed)}`
+    : `${ROUTES.customers}/new`;
+};
 
 export const storageFloorPath = (
   buildingId: string,
