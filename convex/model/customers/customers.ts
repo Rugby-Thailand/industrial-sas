@@ -3,6 +3,11 @@ import { fail, ok, type Result } from "../result";
 const ASCII_TAX_ID = /^[0-9]{13}$/;
 const BRANCH_CODE = /^[0-9]{5}$/;
 
+export const CUSTOMER_ALIAS_MAX_LENGTH = 200;
+
+export const CUSTOMER_LINK_SOURCES = ["AUTO", "MANUAL", "UNLINKED"] as const;
+export type CustomerLinkSource = (typeof CUSTOMER_LINK_SOURCES)[number];
+
 export const CUSTOMER_FIELD_LIMITS = {
   name: 200,
   legalNameTh: 200,
@@ -51,6 +56,79 @@ export function normalizeCustomerName(raw: string): string {
 export function normalizeTaxId(raw: string): string | null {
   const id = raw.replace(/[\s-]/gu, "");
   return ASCII_TAX_ID.test(id) ? id : null;
+}
+
+export function normalizeCustomerAlias(raw: string): string {
+  return normalizeCustomerName(raw);
+}
+
+export function validateCustomerAlias(
+  raw: string,
+): Result<{ alias: string; normalizedAlias: string }, FieldError> {
+  const alias = raw.trim();
+  const normalizedAlias = normalizeCustomerAlias(alias);
+  if (!normalizedAlias || alias.length > CUSTOMER_ALIAS_MAX_LENGTH)
+    return invalidField("alias");
+  return ok({ alias, normalizedAlias });
+}
+
+/**
+ * Comparable stem used ONLY for suggesting review candidates, never for
+ * automatic linking. Strips common Thai/English legal wrappers and spacing so
+ * e.g. "บจก.ไทยรุ่งเรือง บรรจุภัณฑ์" proposes "บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด".
+ */
+const THAI_LEGAL_WRAPPER = new RegExp(
+  [
+    "ห้างหุ้นส่วนจำกัด",
+    "จำกัด\\s*\\(มหาชน\\)",
+    "จำกัด",
+    "\\(มหาชน\\)",
+    "บริษัท",
+    "บจก\\.?",
+    "บมจ\\.?",
+    "หจก\\.?",
+  ]
+    .map((token) => token.normalize("NFKC"))
+    .join("|"),
+  "gu",
+);
+
+export function compactCustomerStem(raw: string): string {
+  return normalizeCustomerName(raw)
+    .replace(
+      /(?:^|\s)(?:co\.?,?\s*ltd\.?|company\s+limited|limited|ltd\.?|inc\.?|pcl\.?)(?=\s|$|\.)/gu,
+      " ",
+    )
+    .replace(THAI_LEGAL_WRAPPER, " ")
+    .replace(/[\s.,()ฯ/\\-]+/gu, "");
+}
+
+export type ExactCustomerMatch =
+  | { readonly kind: "UNMATCHED" }
+  | { readonly kind: "MATCHED"; readonly customerId: string }
+  | { readonly kind: "ARCHIVED"; readonly customerId: string }
+  | { readonly kind: "AMBIGUOUS"; readonly customerIds: readonly string[] };
+
+/**
+ * Exact matching links automatically ONLY when all canonical-name and
+ * approved-alias hits resolve to a single ACTIVE customer. Archived claims and
+ * multi-customer collisions stay unlinked for human review.
+ */
+export function classifyExactCustomerMatches(
+  hits: readonly {
+    readonly customerId: string;
+    readonly status: "ACTIVE" | "ARCHIVED";
+  }[],
+): ExactCustomerMatch {
+  const byId = new Map<string, "ACTIVE" | "ARCHIVED">();
+  for (const hit of hits) byId.set(hit.customerId, hit.status);
+  if (byId.size === 0) return { kind: "UNMATCHED" };
+  if (byId.size > 1)
+    return { kind: "AMBIGUOUS", customerIds: [...byId.keys()] };
+  const entry = [...byId.entries()][0]!;
+  const [customerId, status] = entry;
+  if (status === "ARCHIVED") return { kind: "ARCHIVED", customerId };
+  return { kind: "MATCHED", customerId };
 }
 
 export function isValidThaiTaxIdChecksum(id: string): boolean {

@@ -41,10 +41,22 @@ import {
   searchJobScans,
 } from "../lib/jobScanSearch";
 import { diffFields } from "../lib/masterDataStore";
+import { grantedPermissionsAmong } from "../lib/navigationGrants";
+import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
+import { normalizeCustomerName } from "../model/customers/customers";
+import {
+  resolveExactCustomerMatch,
+  type ResolvedExactCustomerMatch,
+} from "../customers/matching";
 const batchFormat = v.union(
   v.literal("PALLET"),
   v.literal("BOX"),
   v.literal("OTHER"),
+);
+const customerLinkArg = v.union(
+  v.object({ action: v.literal("KEEP") }),
+  v.object({ action: v.literal("SET"), customerId: v.id("customers") }),
+  v.object({ action: v.literal("CLEAR") }),
 );
 
 const READ = "masterData.storageLayout.read";
@@ -396,9 +408,31 @@ export const saveJobScans = mutationWithOrg({
       ).slice(0, 200);
       if (!locationText && !mapped) return failure("LOCATION_REQUIRED");
       let firstId = "";
+      const customerMatches = new Map<string, ResolvedExactCustomerMatch>();
       for (const item of args.items) {
+        const customerText = item.customer?.trim() || undefined;
+        let customerLink: {
+          customerId?: Id<"customers">;
+          customerLinkSource?: "AUTO";
+        } = {};
+        if (customerText) {
+          const key = normalizeCustomerName(customerText);
+          let match = customerMatches.get(key);
+          if (!match) {
+            match = await resolveExactCustomerMatch(ctx.tenantDb, customerText);
+            customerMatches.set(key, match);
+          }
+          if (match.kind === "MATCHED") {
+            customerLink = {
+              customerId: match.customerId,
+              customerLinkSource: "AUTO",
+            };
+          }
+        }
         const id = await ctx.tenantDb.insert(TABLE, {
           ...item,
+          customer: customerText,
+          ...customerLink,
           imageUrl: item.imageAssetId
             ? assets.get(item.imageAssetId)!.url
             : undefined,
@@ -441,6 +475,7 @@ export const updateJobScan = mutationWithOrg({
     requestId: v.string(),
     expectedVersion: v.number(),
     fields: correctionFields,
+    customerLink: v.optional(customerLinkArg),
   },
   returns: writeOutcomeValidator,
   permissionCode: MANAGE,
@@ -464,13 +499,53 @@ export const updateJobScan = mutationWithOrg({
       if (error) return failure(error);
       const detailError = jobTicketDetailError(args.fields);
       if (detailError) return failure(detailError.code, detailError.field);
+      const nextCustomerText = args.fields.customer?.trim() || undefined;
+      let nextCustomerId: Id<"customers"> | undefined = before.customerId;
+      let nextCustomerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
+        before.customerLinkSource;
+      if (args.customerLink?.action === "SET") {
+        const grants = await grantedPermissionsAmong(ctx, [
+          NAVIGATION_PERMISSION.customers,
+        ]);
+        if (!grants.includes(NAVIGATION_PERMISSION.customers))
+          return failure("ACCESS_DENIED", "customerId");
+        const target = await ctx.tenantDb.get<Doc<"customers">>(
+          "customers",
+          args.customerLink.customerId,
+        );
+        if (!target) return failure("NOT_FOUND", "customerId");
+        if (target.status === "ARCHIVED" && before.customerId !== target._id)
+          return failure("CUSTOMER_ARCHIVED", "customerId");
+        nextCustomerId = target._id;
+        nextCustomerLinkSource = "MANUAL";
+      } else if (args.customerLink?.action === "CLEAR") {
+        nextCustomerId = undefined;
+        nextCustomerLinkSource = "UNLINKED";
+      } else if (
+        nextCustomerText !== before.customer &&
+        before.customerLinkSource !== "MANUAL"
+      ) {
+        const match = await resolveExactCustomerMatch(
+          ctx.tenantDb,
+          nextCustomerText,
+        );
+        if (match.kind === "MATCHED") {
+          nextCustomerId = match.customerId;
+          nextCustomerLinkSource = "AUTO";
+        } else {
+          nextCustomerId = undefined;
+          nextCustomerLinkSource = undefined;
+        }
+      }
       // Materialize optional fields so deleting an old value is intentional,
       // version-checked and included in the immutable audit event.
       const fields = {
         factoryOrder: args.fields.factoryOrder.trim(),
         productBarcodeText: args.fields.productBarcodeText.trim(),
         partName: args.fields.partName?.trim() || undefined,
-        customer: args.fields.customer?.trim() || undefined,
+        customer: nextCustomerText,
+        customerId: nextCustomerId,
+        customerLinkSource: nextCustomerLinkSource,
         deliveryDate: args.fields.deliveryDate?.trim() || undefined,
         manufacturingDate: args.fields.manufacturingDate?.trim() || undefined,
         quantity: args.fields.quantity,
@@ -522,6 +597,17 @@ export const listJobScanCorrections = queryWithOrg({
         ],
       )
       .page({ limit: 50, order: "desc" });
+    const grants = await grantedPermissionsAmong(ctx, [
+      NAVIGATION_PERMISSION.customers,
+    ]);
+    const canReadCustomers = grants.includes(NAVIGATION_PERMISSION.customers);
+    const linkedCustomer =
+      canReadCustomers && record.customerId
+        ? await ctx.tenantDb.get<Doc<"customers">>(
+            "customers",
+            record.customerId,
+          )
+        : null;
     return {
       complete: history.isDone,
       items: history.page
@@ -546,6 +632,18 @@ export const listJobScanCorrections = queryWithOrg({
         productBarcodeText: record.productBarcodeText,
         partName: record.partName,
         customer: record.customer,
+        ...(record.customerId === undefined
+          ? {}
+          : { customerId: record.customerId }),
+        ...(record.customerLinkSource === undefined
+          ? {}
+          : { customerLinkSource: record.customerLinkSource }),
+        ...(linkedCustomer?.name === undefined
+          ? {}
+          : { customerName: linkedCustomer.name }),
+        ...(linkedCustomer?.code === undefined
+          ? {}
+          : { customerCode: linkedCustomer.code }),
         deliveryDate: record.deliveryDate,
         manufacturingDate: record.manufacturingDate,
         quantity: record.quantity,
@@ -720,10 +818,17 @@ export const listJobScans = queryWithOrg({
       100,
     );
     const needle = normalizeJobScanSearch(args.search ?? "");
+    const customerGrants = await grantedPermissionsAmong(ctx, [
+      NAVIGATION_PERMISSION.customers,
+    ]);
+    const canReadCustomers = customerGrants.includes(
+      NAVIGATION_PERMISSION.customers,
+    );
     // Parents are shared by many records: read each once per request.
     const cached = new Map<string, Promise<unknown>>();
     const parent = <T>(
-      table: "storageZones" | "storageBuildings" | "storageFloors",
+      table:
+        "storageZones" | "storageBuildings" | "storageFloors" | "customers",
       id: string | undefined,
     ): Promise<T | null> => {
       if (!id) return Promise.resolve(null);
@@ -811,13 +916,30 @@ export const listJobScans = queryWithOrg({
       hydrate,
     });
     async function view(scan: Doc<"finishedGoodsJobScans">) {
-      const { building, floor } = await parents(scan);
+      const [{ building, floor }, linkedCustomer] = await Promise.all([
+        parents(scan),
+        canReadCustomers && scan.customerId
+          ? parent<Doc<"customers">>("customers", scan.customerId)
+          : Promise.resolve(null),
+      ]);
       return {
         id: scan._id,
         factoryOrder: scan.factoryOrder,
         productBarcodeText: scan.productBarcodeText,
         partName: scan.partName,
         customer: scan.customer,
+        ...(scan.customerId === undefined
+          ? {}
+          : { customerId: scan.customerId }),
+        ...(scan.customerLinkSource === undefined
+          ? {}
+          : { customerLinkSource: scan.customerLinkSource }),
+        ...(linkedCustomer?.name === undefined
+          ? {}
+          : { customerName: linkedCustomer.name }),
+        ...(linkedCustomer?.code === undefined
+          ? {}
+          : { customerCode: linkedCustomer.code }),
         deliveryDate: scan.deliveryDate,
         manufacturingDate: scan.manufacturingDate,
         quantity: scan.quantity,

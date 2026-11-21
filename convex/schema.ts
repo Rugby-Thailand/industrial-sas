@@ -1,5 +1,9 @@
 import { aiUsageTables } from "./aiUsage/schema";
-import { customerFields } from "./customers/validators";
+import {
+  customerAliasFields,
+  customerFields,
+  customerLinkSource,
+} from "./customers/validators";
 import { hrPolicyTables } from "./hr/schema/policy";
 import { employeeOrgFields, hrOrgTables } from "./hr/schema/org";
 import {
@@ -714,6 +718,12 @@ const schema = defineSchema({
   customerCatalogueSignals: defineTable(
     tenantFields({ generation: v.number() }),
   ).index("by_orgId", byOrg()),
+  customerAliases: defineTable(tenantFields(customerAliasFields))
+    .index("by_orgId_normalizedAlias", byOrg("normalizedAlias"))
+    .index(
+      "by_orgId_customerId_normalizedAlias",
+      byOrg("customerId", "normalizedAlias"),
+    ),
   memberships: defineTable(
     tenantFields({
       accessRevision: v.optional(v.number()),
@@ -1014,6 +1024,8 @@ const schema = defineSchema({
       storageCondition: v.string(),
       notes: v.optional(v.string()),
       customerReference: v.optional(v.string()),
+      customerId: v.optional(v.id("customers")),
+      customerLinkSource: v.optional(customerLinkSource),
       productReference: v.optional(v.string()),
       status: v.union(
         v.literal("DRAFT"),
@@ -1029,7 +1041,12 @@ const schema = defineSchema({
     .index("by_orgId_warehouseId_sku", byOrg("warehouseId", "sku"))
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
     // Creation order: the resumable totals build's immutable scan position.
-    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    .index(
+      "by_orgId_warehouseId_customerId",
+      byOrg("warehouseId", "customerId"),
+    )
+    .index("by_orgId_customerId", byOrg("customerId")),
   finishedGoodsPallets: defineTable(
     tenantFields({
       legacyRecovery: v.optional(
@@ -1355,6 +1372,8 @@ const schema = defineSchema({
       deliveryDate: v.optional(v.string()),
       partName: v.optional(v.string()),
       customer: v.optional(v.string()),
+      customerId: v.optional(v.id("customers")),
+      customerLinkSource: v.optional(customerLinkSource),
       manufacturingDate: v.optional(v.string()),
       quantity: v.optional(v.number()),
       factoryQuantity: v.optional(v.number()),
@@ -1394,7 +1413,16 @@ const schema = defineSchema({
      * or created since the search watermark, whoever wrote them.
      */
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
-    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    .index("by_orgId_customerId_createdAt", byOrg("customerId", "createdAt"))
+    .index(
+      "by_orgId_warehouseId_customerId_createdAt",
+      byOrg("warehouseId", "customerId", "createdAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_customerLinkSource_createdAt",
+      byOrg("warehouseId", "customerLinkSource", "createdAt"),
+    ),
   /**
    * Derived substring-search index for saved job scans
    * (`convex/lib/jobScanSearch.ts`). One row per scan: its newest-first key,

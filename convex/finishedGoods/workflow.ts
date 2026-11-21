@@ -37,6 +37,9 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { inventoryWriter } from "../lib/inventoryWriter";
+import { diffFields } from "../lib/masterDataStore";
+import { grantedPermissionsAmong } from "../lib/navigationGrants";
+import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import { command, compact, created, failure, stamp } from "./commands";
 import { nextCode, palletOf, productOf, rows } from "./records";
 import {
@@ -71,11 +74,17 @@ const productFields = {
   customerReference: v.optional(v.string()),
   productReference: v.optional(v.string()),
 };
+const customerLinkArg = v.union(
+  v.object({ action: v.literal("KEEP") }),
+  v.object({ action: v.literal("SET"), customerId: v.id("customers") }),
+  v.object({ action: v.literal("CLEAR") }),
+);
 export const saveProduct = mutationWithOrg({
   writer: inventoryWriter,
   args: {
     ...warehouseArgs,
     ...productFields,
+    customerLink: v.optional(customerLinkArg),
     requestId: v.string(),
     productId: v.optional(v.id("finishedGoodsProducts")),
     expectedUpdatedAt: v.optional(v.number()),
@@ -198,6 +207,31 @@ export const saveProduct = mutationWithOrg({
             return failure("LOCATION_OCCUPIED", "storageCondition");
           }
         }
+        // Explicit customer link only: `customerReference` may be a part
+        // number and is never auto-linked. Omitted or KEEP preserves existing
+        // links on unrelated edits.
+        let customerId: Id<"customers"> | undefined = before?.customerId;
+        let customerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
+          before?.customerLinkSource;
+        if (args.customerLink?.action === "SET") {
+          const grants = await grantedPermissionsAmong(ctx, [
+            NAVIGATION_PERMISSION.customers,
+          ]);
+          if (!grants.includes(NAVIGATION_PERMISSION.customers))
+            return failure("ACCESS_DENIED", "customerId");
+          const target = await ctx.tenantDb.get<Doc<"customers">>(
+            "customers",
+            args.customerLink.customerId,
+          );
+          if (!target) return failure("NOT_FOUND", "customerId");
+          if (target.status === "ARCHIVED" && before?.customerId !== target._id)
+            return failure("CUSTOMER_ARCHIVED", "customerId");
+          customerId = target._id;
+          customerLinkSource = "MANUAL";
+        } else if (args.customerLink?.action === "CLEAR") {
+          customerId = undefined;
+          customerLinkSource = before?.customerId ? "UNLINKED" : undefined;
+        }
         const fields = {
           sku,
           name,
@@ -208,6 +242,8 @@ export const saveProduct = mutationWithOrg({
           storageCondition,
           notes: args.notes?.trim(),
           customerReference: args.customerReference?.trim(),
+          customerId,
+          customerLinkSource,
           productReference: args.productReference?.trim(),
           status: args.draft ? "DRAFT" : "ACTIVE",
           ...stamp(ctx),
@@ -216,8 +252,15 @@ export const saveProduct = mutationWithOrg({
             : {}),
         };
         if (before) {
+          const linkChanges = diffFields(before, {
+            customerId,
+            customerLinkSource,
+          });
           await ctx.tenantDb.patch("finishedGoodsProducts", before._id, fields);
-          return { documentId: before._id };
+          return {
+            documentId: before._id,
+            ...(linkChanges.length > 0 ? { changes: linkChanges } : {}),
+          };
         }
         return {
           documentId: await ctx.tenantDb.insert("finishedGoodsProducts", {
