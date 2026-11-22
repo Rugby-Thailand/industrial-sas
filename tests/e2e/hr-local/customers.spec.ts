@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { test, expect, convexAs } from "./fixtures";
+import { readHrFixture } from "./setup";
 
 /*
  * Customers v1 against the real local app, Convex functions and Clerk session
@@ -106,4 +107,80 @@ test.describe("customers on a 390px phone", () => {
     await expect(nameField).toHaveValue("Renamed on the phone");
     await expect(page.getByTestId("customer-version-conflict")).toBeVisible();
   });
+});
+
+test("a reviewer links a captured ticket name and the next ticket uses the saved alias", async ({
+  page,
+}) => {
+  const api = await convexAs(page);
+  const suffix = randomUUID().slice(0, 8);
+  const name = `Packaging ${suffix}`;
+  const captured = `Intake ${suffix}`;
+  const warehouseId = readHrFixture().warehouseId;
+  const created = await api.mutation("customers/writes:createCustomer", {
+    requestId: randomUUID(),
+    name,
+  });
+  expect(created.value.ok).toBe(true);
+  const save = async (order: string) => {
+    const result = await (
+      await convexAs(page)
+    ).mutation("finishedGoods/jobScans:saveJobScans", {
+      requestId: randomUUID(),
+      warehouseId,
+      locationText: "Dock",
+      items: [
+        {
+          source: "MANUAL",
+          customer: captured,
+          factoryOrder: order,
+          productBarcodeText: order,
+        },
+      ],
+    });
+    expect(result.value.written).toBe(true);
+  };
+  await save(`REVIEW-${suffix}`);
+  await page.goto("/en/master-data/customers/review");
+  const group = page.getByRole("article", { name: captured, exact: true });
+  await expect(
+    page.getByRole("heading", { name: "Names to review" }),
+  ).toBeVisible();
+  // Each batch is bounded and the fixture may already contain other warehouses.
+  await expect(async () => {
+    if (await group.isVisible()) return;
+    await page
+      .getByRole("button", { name: "Load more tickets" })
+      .click({ timeout: 1500 });
+    await expect(group).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 45000 });
+  await group
+    .getByRole("button", { name: /Choose (another )?customer/i })
+    .click();
+  const picker = page.getByRole("dialog");
+  await picker.getByRole("textbox").fill(name);
+  await picker.getByRole("button", { name: new RegExp(name) }).click();
+  await group.getByRole("checkbox").check();
+  await group
+    .getByRole("button", { name: "Link 1 ticket", exact: true })
+    .click();
+  await expect(group).toHaveCount(0);
+  await save(`AUTO-${suffix}`);
+  await page.goto(`/en/master-data/customers/${created.value.customerId}`);
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByText(`REVIEW-${suffix}`, { exact: true })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByText(`AUTO-${suffix}`, { exact: true })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText(captured, { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
 });

@@ -81,14 +81,14 @@ An already open tab is affected on its next server call. After step 1, members w
   pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":false,"cursor":"<continueCursor>"}'
   ```
 
-  Backfill skips voided scans and any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`). On apply (`dryRun: false`), exact unique matches link with `customerLinkSource: "AUTO"` and update `customerWarehouseActivity`; ambiguous, archived, and unmatched non-blank scans are stamped with `customerReviewPending: true` so they appear in the indexed review queue.
+  Backfill skips voided scans and any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`). The `updated` total includes both newly linked tickets and newly marked pending tickets. On apply (`dryRun: false`), exact unique matches link with `customerLinkSource: "AUTO"` and update `customerWarehouseActivity`; ambiguous, archived, and unmatched non-blank scans are stamped with `customerReviewPending: true` so they appear in the indexed review queue.
 
 ### v2 Rollback
 
-- **Revoking customer grants alone does not stop job-scan auto-linking.** `revokeOrgAdminGrants` hides customer pages, customer pickers, and the review queue, and strips `customerId`/`customerLinkSource` from finished-goods read responses for users without `masterData.customer.read`. Because `saveJobScans` auto-links new scans for warehouse operators automatically, stopping auto-linking requires a code revert.
-- **Safe code rollback after v2 writes exist:** Convex validates every existing document against `convex/schema.ts` on deploy. Once any document carries v2 optional fields (`customers.aliasSearchText`, `finishedGoodsProducts.customerId` / `customerLinkSource`, or `finishedGoodsJobScans.customerId` / `customerLinkSource` / `customerReviewPending`), reverting `convex/schema.ts` to drop those fields from existing tables will fail schema validation until those fields are cleared. Therefore:
-  1. **Immediate rollback (keeps all data intact):** revert the v2 application logic (matching calls in `saveJobScans`/`updateJobScan`, UI surfaces, and `convex/customers/linking.ts` / `backfill.ts`) while **retaining the additive optional fields in `convex/schema.ts`**.
-  2. **Schema field cleanup (only if permanently removing v2):** after step 1 is deployed and no writers set those fields, run a bounded migration unsetting the optional fields, then remove them from `convex/schema.ts` in a follow-up deploy.
+1. Pause automatic assignments on the production deployment with `pnpm exec convex env set --prod CUSTOMER_AUTO_LINK_PAUSED true`. New scans retain the captured name. Historical dry runs remain available and apply runs refuse while paused.
+2. To hide the module and its manual link actions, revoke customer grants as described above and verify the target administrators. Review custom roles individually. Keep the v2 backend, schema, and activity maintenance deployed. Warehouse operators can still correct or delete tickets while paused. Those changes continue to update the derived activity rows.
+3. To resume, remove the pause with `pnpm exec convex env remove --prod CUSTOMER_AUTO_LINK_PAUSED` and restore the intended grants. Inspect the latest job for a customer whose ticket changed during the pause, then dry-run the backfill for paused-period tickets. The queue also pages historical undecided tickets before backfill.
+4. A permanent removal needs a separately reviewed migration of populated optional fields and projections before dropping schema support. Rolling the backend back to the v1 implementation after v2 writes would leave stale summaries and can fail schema validation.
 
 ## Data handled
 
@@ -98,5 +98,5 @@ Browser storage and URLs:
 
 - Request identities live in memory, and the list status filter is the only customer-list preference saved between visits.
 - Customer list search stays in the page URL and browser history so Back can restore it (an exact tax-ID search is therefore visible in that URL).
-- Launching "Create new customer" from the review queue passes the captured job-ticket name in `?name=...` on `/master-data/customers/new` so the form prefills; that query string appears in browser history.
+- Opening “Create new customer” from review stores the captured name in this tab’s session storage and passes an opaque prefill token to the form. The URL contains only the token.
 - While editing an unsaved finished-goods product, the product form stores `customerId` (an opaque Convex document ID, not customer PII) alongside the other draft fields in local browser draft storage until saved or discarded.

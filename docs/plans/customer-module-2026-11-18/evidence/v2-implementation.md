@@ -1,6 +1,6 @@
 # Customers v2 — Implementation & Verification Evidence
 
-**Baseline commit on `main`:** `574b9d42`  
+**Baseline commit on `main`:** `574b9d42`
 **Feature branch:** `feat/customers-v2-linking`
 
 ## 1. Scope & Architecture Decisions
@@ -26,7 +26,7 @@ Measured via `tests/fixtures/query-read-stats.ts` (`measured`) in `tests/integra
 
 | Query                                                                          | Table                                             | Baseline (`574b9d42`) | HEAD (`feat/customers-v2-linking`) | Delta |
 | ------------------------------------------------------------------------------ | ------------------------------------------------- | --------------------: | ---------------------------------: | ----: |
-| `customers/catalogue:listCustomersPage` (`pageSize: 20, status: "ACTIVE"`)     | `customers`                                       |                 <= 21 |                              <= 21 |     0 |
+| `customers/catalogue:listCustomersPage` (`pageSize: 20, status: "ACTIVE"`)     | `customers`                                       |                    20 |                                 20 |     0 |
 | `customers/catalogue:listCustomersPage` (`pageSize: 20, status: "ACTIVE"`)     | `customerAliases`                                 |                     0 |                                  0 |     0 |
 | `customers/catalogue:listCustomersPage` (`pageSize: 20, status: "ACTIVE"`)     | `finishedGoodsProducts`                           |                     0 |                                  0 |     0 |
 | `customers/catalogue:listCustomersPage` (`pageSize: 20, status: "ACTIVE"`)     | `finishedGoodsJobScans`                           |                     0 |                                  0 |     0 |
@@ -35,7 +35,9 @@ Measured via `tests/fixtures/query-read-stats.ts` (`measured`) in `tests/integra
 | `customers/linking:listCustomerActivitySummaries` (20 zero-activity customers) | `customerWarehouseActivity`                       |                   N/A |                                  0 |     0 |
 | `customers/linking:listCustomerActivitySummaries` (20 zero-activity customers) | `finishedGoodsProducts` / `finishedGoodsJobScans` |                   N/A |                                  0 |     0 |
 
-Separating `listCustomerActivitySummaries` onto the compact `customerWarehouseActivity` table keeps `listCustomersPage` at **0% read-budget regression** relative to `574b9d42`, while zero-activity customers incur zero extra document reads and active customers read 1 summary row per active `(customer, warehouse)` instead of scanning raw products and job scans.
+The baseline measurement was replayed in an isolated export of `574b9d42` using its `measured` and `seedCustomerSearch` fixtures with 105 active customers. Its 53 existing catalogue integration tests also passed.
+
+Separating `listCustomerActivitySummaries` onto the compact `customerWarehouseActivity` table keeps `listCustomersPage` at **0% read-budget regression** relative to `574b9d42`, while zero-activity customers incur zero extra document reads and the populated 100-customer regression with three warehouse activity rows per customer reads 300 activity documents in 100 index ranges, with zero raw product or scan reads. A customer whose complete summary exceeds the request budget has an unavailable count.
 
 ## 3. Scale & Edge-Case Verification
 
@@ -46,8 +48,18 @@ Verified in `tests/integration/customers-linking.integration.test.ts` and `src/f
 - **Alias scale:** Alias #106 on a customer is indexed into `aliasSearchText` without calling `.paginate()` inside a mutation, matches `listCustomersPage` search, and paginates via `listCustomerAliasesPage`.
 - **UI regression coverage:** Preselected review candidate overridden by `CustomerPickerDialog` submits the chosen customer; empty review queue "Back to list" calls `returnFromTask` and restores filtered origin; cross-warehouse product and scan links carry `?warehouseId=`; `ProductScreen` freezes `customerLink` and `requestId` across lost-response retries even if live subscriptions advance.
 
-## 4. Rollback Compatibility
+The mixed-upgrade regression visits both incoming and legacy pending tickets exactly once. Two further cases place a ticket beyond the first 100 warehouses and drain the queue as an organization-wide and a warehouse-scoped reader. Alias additions that would exceed 16,000 normalized characters are refused before the link decision or alias changes. Removing an existing alias frees space for a retry.
 
-- See `docs/plans/customer-module-2026-11-18/rollout.md` ("v2 Rollback") for the exact two-step safe rollback procedure:
-  1. Revert v2 application logic (auto-linking, review queue, pickers, activity queries) while keeping the optional additive fields in `convex/schema.ts` so populated v2 documents continue passing Convex schema validation on deploy.
-  2. Only after writers are removed and optional fields are cleared by a migration, remove the fields from `convex/schema.ts`.
+To reproduce the data and permission checks:
+
+```sh
+pnpm exec vitest run tests/integration/customers-linking.integration.test.ts tests/integration/customer-review-queue.integration.test.ts tests/integration/customer-activity-reads.integration.test.ts
+```
+
+## 4. Pause and recovery
+
+The rollout guide documents the production automatic-link pause and grant changes. The registered-handler regression populates a linked ticket, pauses matching, saves an unmatched ticket, deletes the original, verifies the empty latest-job summary, then resumes and verifies the new latest ticket. Existing projections are maintained through the pause.
+
+The same sequence passed on a disposable local Convex deployment with the real deployment environment variable toggled during the rehearsal. The test account could continue saving and deleting tickets while matching was paused.
+
+The real local Clerk and Convex browser suite runs with `pnpm test:e2e:hr:local customers.spec.ts`. Mobile and desktop Chromium each passed the name-only save and reload, refused-edit draft protection, and review → remember alias → next ticket auto-link workflows.
