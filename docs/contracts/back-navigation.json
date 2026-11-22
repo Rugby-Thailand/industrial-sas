@@ -9309,9 +9309,9 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerJobsCard:paging",
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerJobsCard:cursors",
       "policy": "presentation",
-      "expectation": "Loads and accumulates scoped job pages in the existing linked jobs table and mobile list. Empty results and the continuation button render inside the same card.",
+      "expectation": "Pages through live warehouse-scoped jobs in the table and mobile list. Loading, denial, empty results, and Previous/Next controls stay in the same card without a browser history entry.",
       "uses": ["branch"],
       "render": [
         {
@@ -9320,6 +9320,47 @@
           "falsy": [
             "div",
             "li",
+            "span",
+            "src/components/ui/TableScroller#TableScroller",
+            "src/components/ui/table#Table",
+            "src/components/ui/table#TableBody",
+            "src/components/ui/table#TableCell",
+            "src/components/ui/table#TableHead",
+            "src/components/ui/table#TableHeader",
+            "src/components/ui/table#TableRow",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/TableScroller#TableScroller",
+            "src/components/ui/table#Table",
+            "src/components/ui/table#TableBody",
+            "src/components/ui/table#TableCell",
+            "src/components/ui/table#TableHead",
+            "src/components/ui/table#TableHeader",
+            "src/components/ui/table#TableRow",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "p",
             "span",
             "src/components/ui/TableScroller#TableScroller",
             "src/components/ui/table#Table",
@@ -9346,16 +9387,11 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:pagedCursor",
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:cursors",
       "policy": "presentation",
-      "expectation": "Inline cursor state for loading subsequent pages of linked products (including empty-page and denial status) inside CustomerProductsCard; opens no foreground surface.",
+      "expectation": "Pages through live warehouse-scoped products in the linked products list. Loading, denial, empty results, and Previous/Next controls stay in the same card without a browser history entry.",
       "uses": ["branch"],
       "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["div", "src/components/ui/button#Button"],
-          "falsy": []
-        },
         {
           "shape": "conditional",
           "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
@@ -9364,12 +9400,18 @@
         {
           "shape": "conditional",
           "truthy": ["p"],
+          "falsy": ["li", "p", "span", "src/i18n/navigation#Link", "ul"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
           "falsy": [
-            "div",
             "li",
             "p",
             "span",
-            "src/components/ui/button#Button",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
             "src/i18n/navigation#Link",
             "ul"
           ]
@@ -9379,116 +9421,19 @@
           "truthy": [
             "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
           ],
-          "falsy": [
-            "div",
-            "li",
-            "p",
-            "span",
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "keeps Load more for a scoped empty first slice and accumulates continued product pages"
+          "falsy": ["li", "p", "span", "src/i18n/navigation#Link", "ul"]
         },
         {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
-        }
-      ]
-    },
-    {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:pagingActive",
-      "policy": "presentation",
-      "expectation": "Activates inline pagination inside CustomerProductsCard (including empty-page and denial status) when the customer has more than the preview cap of linked products; opens no foreground surface.",
-      "uses": ["branch"],
-      "render": [
-        {
           "shape": "conditional",
-          "truthy": ["div", "src/components/ui/button#Button"],
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
-          "falsy": ["p"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["p"],
-          "falsy": [
-            "div",
-            "li",
-            "p",
-            "span",
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
-        },
-        {
-          "shape": "conditional",
-          "truthy": [
-            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
-          ],
-          "falsy": [
-            "div",
-            "li",
-            "p",
-            "span",
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
         }
       ],
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "keeps Load more for a scoped empty first slice and accumulates continued product pages"
-        },
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
-        }
-      ]
-    },
-    {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:earlierPages",
-      "policy": "presentation",
-      "expectation": "Keeps already-loaded linked product pages listed while CustomerProductsCard continues to the next page; opens no foreground surface.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
-          "falsy": ["p"]
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["p"],
-          "falsy": [
-            "div",
-            "li",
-            "p",
-            "span",
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link",
-            "ul"
-          ]
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "keeps Load more for a scoped empty first slice and accumulates continued product pages"
+          "name": "revisits live product pages after a deletion and clears rows on authorization denial"
         }
       ]
     },

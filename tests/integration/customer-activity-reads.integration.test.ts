@@ -47,7 +47,7 @@ type Activity = {
   hasMoreProducts: boolean;
 };
 type ProductsPage = {
-  items: { sku: string }[];
+  items: { sku: string; productId: Id<"finishedGoodsProducts"> }[];
   isDone: boolean;
   continueCursor: string;
 };
@@ -655,6 +655,21 @@ describe("customer activity reads stay truthful at high cardinality", () => {
       cursor = next.continueCursor;
     }
     expect(seen.size).toBe(30);
+
+    const deleted = page.items[0]!;
+    await world.t.run((ctx) =>
+      ctx.db.delete("finishedGoodsProducts", deleted.productId),
+    );
+    const revisited = allowed(
+      await world.actorA.query(linking.listCustomerProductsPage, {
+        customerId,
+        pageSize: 10,
+      }),
+    )!;
+    expect(revisited.items).toHaveLength(10);
+    expect(revisited.items.map(({ productId }) => productId)).not.toContain(
+      deleted.productId,
+    );
 
     await expect(
       world.actorA.query(linking.listCustomerProductsPage, {

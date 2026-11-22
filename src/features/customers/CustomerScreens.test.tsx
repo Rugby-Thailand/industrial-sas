@@ -1885,7 +1885,7 @@ describe("customer v2 linking, detail activity and review queue", () => {
       "/finished-goods/products/prod-1?warehouseId=wh-1",
     );
     expect(
-      screen.queryByRole("button", { name: "Load more linked jobs" }),
+      screen.queryByRole("button", { name: "Browse linked jobs by warehouse" }),
     ).toBeNull();
     expect(screen.getByTestId("customer-aliases-list")).toHaveTextContent(
       "บจก.ไทยรุ่งเรือง",
@@ -1946,7 +1946,7 @@ describe("customer v2 linking, detail activity and review queue", () => {
     });
     render(<CustomerDetail customerId="customer-a" />);
     const more = () =>
-      screen.getByRole("button", { name: "Load more linked jobs" });
+      screen.getByRole("button", { name: "Browse linked jobs by warehouse" });
     fireEvent.click(more());
     expect(mocks.queryArgs.get(jobsPage)).toEqual({ customerId: "customer-a" });
 
@@ -1967,7 +1967,7 @@ describe("customer v2 linking, detail activity and review queue", () => {
         ],
       },
     });
-    fireEvent.click(more());
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     expect(mocks.queryArgs.get(jobsPage)).toEqual({
       customerId: "customer-a",
       cursor: "next-warehouse",
@@ -1976,11 +1976,23 @@ describe("customer v2 linking, detail activity and review queue", () => {
       "OLDER-LINKED-JOB",
     );
     expect(
-      screen.queryByRole("button", { name: "Load more linked jobs" }),
+      screen.queryByRole("button", { name: "Browse linked jobs by warehouse" }),
     ).toBeNull();
+    mocks.queries.set(jobsPage, {
+      ok: true,
+      value: {
+        canViewWarehouseData: false,
+        items: [],
+        isDone: true,
+        continueCursor: "",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(mocks.queryArgs.get(jobsPage)).toEqual({ customerId: "customer-a" });
+    expect(screen.queryByTestId("customer-recent-jobs")).toBeNull();
   });
 
-  it("keeps Load more for a scoped empty first slice and accumulates continued product pages", () => {
+  it("revisits live product pages after a deletion and clears rows on authorization denial", () => {
     mocks.queries.set(GET, { ok: true, value: full });
     mocks.queries.set(ACTIVITY, {
       ok: true,
@@ -1997,7 +2009,7 @@ describe("customer v2 linking, detail activity and review queue", () => {
     render(<CustomerDetail customerId="customer-a" />);
     expect(screen.queryByText("No linked job tickets yet")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Load more linked jobs" }),
+      screen.getByRole("button", { name: "Browse linked jobs by warehouse" }),
     ).toBeVisible();
     // Out-of-scope rows filled the first slice: not "no products".
     expect(screen.queryByText("No linked products yet")).toBeNull();
@@ -2021,7 +2033,9 @@ describe("customer v2 linking, detail activity and review queue", () => {
         continueCursor: "cursor-1",
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Load more products" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Browse linked products" }),
+    );
     expect(screen.getByTestId("customer-linked-products")).toHaveTextContent(
       "Product A",
     );
@@ -2045,21 +2059,48 @@ describe("customer v2 linking, detail activity and review queue", () => {
         continueCursor: "",
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Load more products" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
       customerId: "customer-a",
       pageSize: 100,
       cursor: "cursor-1",
     });
     const list = screen.getByTestId("customer-linked-products");
-    expect(list).toHaveTextContent("Product A");
+    expect(list).not.toHaveTextContent("Product A");
     expect(list).toHaveTextContent("Product B");
     expect(
-      screen.getByRole("heading", { level: 2, name: "Products (2)" }),
+      screen.getByRole("heading", { level: 2, name: "Products (1)" }),
     ).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Load more products" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+
+    // The first page lost Product A while the second page was open.
+    mocks.queries.set(PRODUCTS_PAGE, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        items: [],
+        isDone: false,
+        continueCursor: "cursor-1",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
+      customerId: "customer-a",
+      pageSize: 100,
+    });
+    expect(screen.queryByTestId("customer-linked-products")).toBeNull();
+    expect(screen.getByTestId("customer-products-empty-page")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeVisible();
+
+    mocks.queries.set(PRODUCTS_PAGE, {
+      ok: false,
+      denial: { code: "AUTHORIZATION_DENIED", requestId: "revoked-products" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText(/revoked-products/)).toBeVisible();
+    expect(screen.queryByTestId("customer-linked-products")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
   });
 
   it("paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts", async () => {
@@ -2149,7 +2190,9 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "Products (1+)" }),
     ).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Load more products" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Browse linked products" }),
+    );
     expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
       customerId: "customer-a",
       pageSize: 100,
@@ -3130,7 +3173,9 @@ describe("customer v2 linking, detail activity and review queue", () => {
       ok: false,
       denial: { code: "AUTHORIZATION_DENIED", requestId: "req-prod-page" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Load more products" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Browse linked products" }),
+    );
     expect(screen.getByText(/req-prod-page/)).toBeInTheDocument();
 
     // Aliases forward to empty intermediate page, then back, then capacity error.

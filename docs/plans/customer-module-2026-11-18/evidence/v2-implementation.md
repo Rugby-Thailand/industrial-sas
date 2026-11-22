@@ -70,7 +70,7 @@ Verified in `tests/integration/customers-linking.integration.test.ts` and `src/f
 - **Alias scale:** Alias #106 on a customer is indexed into `aliasSearchText` without calling `.paginate()` inside a mutation, matches `listCustomersPage` search, and paginates via `listCustomerAliasesPage`.
 - **UI regression coverage:** Preselected review candidate overridden by `CustomerPickerDialog` submits the chosen customer; empty review queue "Back to list" calls `returnFromTask` and restores filtered origin; cross-warehouse product and scan links carry `?warehouseId=`; `ProductScreen` freezes `customerLink` and `requestId` across lost-response retries even if live subscriptions advance.
 
-The scoped paging regression places 520 hidden products and 320 newer hidden jobs ahead of visible records. Another case exercises tied jobs over a 105-warehouse scope.
+The scoped paging regression places 520 hidden products and 320 newer hidden jobs ahead of visible records. Another case exercises tied jobs over a 105-warehouse scope. The detail preview checks up to 99 authorized warehouses. It can read one job range and one product range per warehouse. Paging then follows the warehouse indexes. The UI labels the warehouse ordering and fetches each page live when the user moves forward or back.
 
 The mixed-upgrade regression visits both incoming and legacy pending tickets exactly once. Two further cases place a ticket beyond the first 100 warehouses and drain the queue as an organization-wide and a warehouse-scoped reader. Alias additions that would exceed 16,000 normalized characters are refused before the link decision or alias changes. Removing an existing alias frees space for a retry. Both alias entry points refuse a name claimed by another customer, and an alias saved from review receives its own redacted audit event.
 
@@ -95,3 +95,5 @@ pnpm test:e2e:hr:local customers.spec.ts --grep 'pausing and resuming' --project
 ```
 
 Recorded on 22 November 2026: `[hr-e2e] passed: 1 passed, 0 failed, 0 skipped`. The case creates a customer, confirms exact linking, changes the deployment flag, saves another ticket, deletes the original, checks the live summary and confirms a new ticket links after resuming.
+
+On 22 November 2026, the full customer browser suite reported `4 passed, 0 failed, 0 skipped` on each of `hr-desktop` and `hr-mobile` for the implementation at `33353153`. This includes the pause, deletion and resume case.

@@ -415,15 +415,29 @@ type CustomerJobPage = NonNullable<
 >;
 type CustomerJob = CustomerJobPage["items"][number];
 
-function mergeJobs(
-  earlier: readonly CustomerJob[],
-  next: readonly CustomerJob[],
-) {
-  const byId = new Map(earlier.map((job) => [job.jobScanId, job]));
-  for (const job of next) byId.set(job.jobScanId, job);
-  return [...byId.values()].sort(
-    (a, b) =>
-      b.createdAt - a.createdAt || a.jobScanId.localeCompare(b.jobScanId),
+function CustomerPageControls({
+  onPrevious,
+  onNext,
+  nextLabel,
+}: {
+  readonly onPrevious: (() => void) | undefined;
+  readonly onNext: (() => void) | undefined;
+  readonly nextLabel: string;
+}) {
+  const t = useTranslations("Customers");
+  return (
+    <div className="flex flex-wrap gap-2">
+      {onPrevious ? (
+        <Button type="button" size="sm" variant="outline" onClick={onPrevious}>
+          {t("previousPage")}
+        </Button>
+      ) : null}
+      {onNext ? (
+        <Button type="button" size="sm" variant="outline" onClick={onNext}>
+          {nextLabel}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -438,34 +452,45 @@ function CustomerJobsCard({
 }) {
   const t = useTranslations("Customers");
   const format = useFormatter();
-  const [paging, setPaging] = useState<{
-    cursor: string | null;
-    earlier: readonly CustomerJob[];
-  } | null>(null);
+  const [cursors, setCursors] = useState<(string | null)[]>([]);
+  const cursor = cursors.at(-1);
   const outcome = useQuery(
     api.customers.linking.listCustomerJobsPage,
-    paging
-      ? { customerId, ...(paging.cursor ? { cursor: paging.cursor } : {}) }
+    cursor !== undefined
+      ? { customerId, ...(cursor ? { cursor } : {}) }
       : "skip",
   );
-  const page = outcome?.ok ? outcome.value : null;
-  const loading = paging !== null && outcome === undefined;
+  const page = outcome?.ok ? outcome.value : undefined;
+  const loading = cursor !== undefined && outcome === undefined;
   const jobs =
-    (outcome && !outcome.ok) || page?.canViewWarehouseData === false
-      ? []
-      : mergeJobs(
-          initialJobs,
-          mergeJobs(paging?.earlier ?? [], page?.items ?? []),
-        );
-  const hasMore = paging
-    ? loading || Boolean(page && !page.isDone)
-    : hasMoreInitial;
-
+    cursor === undefined
+      ? initialJobs
+      : page?.canViewWarehouseData
+        ? page.items
+        : [];
+  const nextCursor =
+    cursor === undefined
+      ? hasMoreInitial
+        ? null
+        : undefined
+      : page?.canViewWarehouseData && !page.isDone
+        ? page.continueCursor || undefined
+        : undefined;
   return (
     <DetailCard title={t("sectionRecentJobs")}>
-      {jobs.length === 0 ? (
+      {loading ? (
+        <LedgerPanelStatus state={{ kind: "LOADING" }} />
+      ) : outcome && !outcome.ok ? (
+        <LedgerPanelStatus
+          state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
+        />
+      ) : jobs.length === 0 ? (
         <p className="text-sm text-muted">
-          {t(hasMore ? "recentJobsOutsidePreview" : "noLinkedJobs")}
+          {t(
+            nextCursor !== undefined
+              ? "recentJobsOutsidePreview"
+              : "noLinkedJobs",
+          )}
         </p>
       ) : (
         <>
@@ -538,38 +563,21 @@ function CustomerJobsCard({
           </ul>
         </>
       )}
-      {hasMore ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={loading}
-          onClick={() => {
-            if (!paging) setPaging({ cursor: null, earlier: [] });
-            else if (page && !page.isDone) {
-              setPaging({
-                cursor: page.continueCursor,
-                earlier: mergeJobs(paging.earlier, page.items),
-              });
-            }
-          }}
-        >
-          {t("viewAllJobs")}
-        </Button>
-      ) : null}
+      <CustomerPageControls
+        onPrevious={
+          cursors.length > 0
+            ? () => setCursors(cursors.slice(0, -1))
+            : undefined
+        }
+        onNext={
+          nextCursor !== undefined
+            ? () => setCursors([...cursors, nextCursor])
+            : undefined
+        }
+        nextLabel={t(cursor === undefined ? "browseLinkedJobs" : "nextPage")}
+      />
     </DetailCard>
   );
-}
-
-function mergeProducts(
-  earlier: readonly LinkedProductItem[],
-  next: readonly LinkedProductItem[],
-): readonly LinkedProductItem[] {
-  const seen = new Set(earlier.map((product) => product.productId));
-  return [
-    ...earlier,
-    ...next.filter((product) => !seen.has(product.productId)),
-  ];
 }
 
 function CustomerProductsCard({
@@ -583,64 +591,50 @@ function CustomerProductsCard({
 }) {
   const t = useTranslations("Customers");
   const format = useFormatter();
-  const [pagedCursor, setPagedCursor] = useState<string | null>(null);
-  const [pagingActive, setPagingActive] = useState(false);
-  // Pages already passed stay listed; only the current page is live.
-  const [earlierPages, setEarlierPages] = useState<
-    readonly LinkedProductItem[]
-  >([]);
-  const [pagingCustomerId, setPagingCustomerId] = useState(customerId);
-  if (pagingCustomerId !== customerId) {
-    setPagingCustomerId(customerId);
-    setPagingActive(false);
-    setPagedCursor(null);
-    setEarlierPages([]);
-  }
-  const pageOutcome = useQuery(
+  const [cursors, setCursors] = useState<(string | null)[]>([]);
+  const cursor = cursors.at(-1);
+  const outcome = useQuery(
     api.customers.linking.listCustomerProductsPage,
-    pagingActive
-      ? {
-          customerId,
-          pageSize: 100,
-          ...(pagedCursor ? { cursor: pagedCursor } : {}),
-        }
+    cursor !== undefined
+      ? { customerId, pageSize: 100, ...(cursor ? { cursor } : {}) }
       : "skip",
   );
-  const loadingPage = pagingActive && pageOutcome === undefined;
-  const pagedDenied =
-    pagingActive && pageOutcome !== undefined && !pageOutcome.ok;
-  const paged = pageOutcome?.ok ? pageOutcome.value : null;
+  const page = outcome?.ok ? outcome.value : undefined;
+  const loading = cursor !== undefined && outcome === undefined;
   const products =
-    pagedDenied || paged?.canViewWarehouseData === false
-      ? []
-      : !pagingActive
-        ? initialProducts
-        : paged
-          ? mergeProducts(earlierPages, paged.items)
-          : earlierPages.length > 0
-            ? earlierPages
-            : initialProducts;
-  // A page filtered by warehouse scope may be short or empty yet continue.
-  const hasMore = pagingActive
-    ? loadingPage || Boolean(paged && !paged.isDone && paged.continueCursor)
-    : hasMoreInitial;
-  const title =
-    products.length === 0
-      ? t("sectionProducts")
-      : hasMore
-        ? t("sectionProductsCountMore", { count: products.length })
-        : t("sectionProductsCount", { count: products.length });
-
+    cursor === undefined
+      ? initialProducts
+      : page?.canViewWarehouseData
+        ? page.items
+        : [];
+  const nextCursor =
+    cursor === undefined
+      ? hasMoreInitial
+        ? null
+        : undefined
+      : page?.canViewWarehouseData && !page.isDone
+        ? page.continueCursor || undefined
+        : undefined;
   return (
-    <DetailCard title={title}>
-      {pagedDenied ? (
+    <DetailCard
+      title={
+        products.length === 0
+          ? t("sectionProducts")
+          : cursor === undefined && hasMoreInitial
+            ? t("sectionProductsCountMore", { count: products.length })
+            : t("sectionProductsCount", { count: products.length })
+      }
+    >
+      {loading ? (
+        <LedgerPanelStatus state={{ kind: "LOADING" }} />
+      ) : outcome && !outcome.ok ? (
         <LedgerPanelStatus
           state={{
             kind: "DENIED",
-            requestId: pageOutcome.denial.requestId,
+            requestId: outcome.denial.requestId,
           }}
         />
-      ) : products.length === 0 && !hasMore ? (
+      ) : products.length === 0 && nextCursor === undefined ? (
         <p className="text-sm text-muted">{t("noLinkedProducts")}</p>
       ) : (
         <>
@@ -686,30 +680,23 @@ function CustomerProductsCard({
               {t("productsEmptyPage")}
             </p>
           )}
-          {hasMore ? (
-            <div className="pt-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={loadingPage}
-                onClick={() => {
-                  if (!pagingActive) {
-                    setPagingActive(true);
-                    setPagedCursor(null);
-                    setEarlierPages([]);
-                  } else if (paged && !paged.isDone && paged.continueCursor) {
-                    setEarlierPages(mergeProducts(earlierPages, paged.items));
-                    setPagedCursor(paged.continueCursor);
-                  }
-                }}
-              >
-                {t("loadMoreProducts")}
-              </Button>
-            </div>
-          ) : null}
         </>
       )}
+      <CustomerPageControls
+        onPrevious={
+          cursors.length > 0
+            ? () => setCursors(cursors.slice(0, -1))
+            : undefined
+        }
+        onNext={
+          nextCursor !== undefined
+            ? () => setCursors([...cursors, nextCursor])
+            : undefined
+        }
+        nextLabel={t(
+          cursor === undefined ? "browseLinkedProducts" : "nextPage",
+        )}
+      />
     </DetailCard>
   );
 }
