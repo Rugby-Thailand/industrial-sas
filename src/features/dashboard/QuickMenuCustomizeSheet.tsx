@@ -24,7 +24,7 @@ export interface QuickMenuEditorProps {
   readonly canEdit: boolean;
   readonly dirty: boolean;
   readonly pending: boolean;
-  readonly verifying: boolean;
+  readonly operation: "save" | "resend" | "verify";
   readonly save?: ((closeAfterSave?: boolean) => Promise<boolean>) | undefined;
   readonly discard: () => void;
   readonly status: string;
@@ -61,7 +61,7 @@ function QuickMenuEditor({
   canEdit,
   dirty,
   pending,
-  verifying,
+  operation,
   save,
   discard,
   status,
@@ -79,7 +79,11 @@ function QuickMenuEditor({
     discard,
     ...(save ? { save } : {}),
     ...(pending
-      ? { pendingStatusMessage: t(verifying ? "checking" : "saving") }
+      ? {
+          pendingStatusMessage: t(
+            operation === "verify" ? "checking" : "saving",
+          ),
+        }
       : {}),
     ...(dirty && status && !save ? { saveBlockedReason: status } : {}),
   });
@@ -212,7 +216,9 @@ function QuickMenuEditor({
                     variant="outline"
                     size="sm"
                     onClick={resend}
-                    disabled={pending}
+                    disabled={pending && operation !== "resend"}
+                    pending={pending && operation === "resend"}
+                    pendingLabel={t("saving")}
                   >
                     {t("resend")}
                   </Button>
@@ -225,7 +231,7 @@ function QuickMenuEditor({
                     disabled={pending}
                     onClick={dismissUnavailable}
                   >
-                    {t("keepLatest")}
+                    {t(dirty ? "discardEditsUseLatest" : "keepLatest")}
                   </Button>
                 )}
                 {resetInvalid && (
@@ -245,8 +251,8 @@ function QuickMenuEditor({
                     variant="outline"
                     size="sm"
                     onClick={verify}
-                    disabled={pending && !verifying}
-                    pending={pending && verifying}
+                    disabled={pending && operation !== "verify"}
+                    pending={pending && operation === "verify"}
                     pendingLabel={t("checking")}
                   >
                     {t("verify")}
@@ -295,7 +301,7 @@ function QuickMenuEditor({
             {t("cancel")}
           </Button>
         </SheetClose>
-        {(save || (pending && !verifying)) && (
+        {(save || (pending && operation === "save")) && (
           <Button
             type="button"
             disabled={!dirty}

@@ -588,7 +588,17 @@ function createGuardMachine(deps: MachineDeps) {
         setIntent(null);
       }
       if (restoring || removing) {
-        options.onCancel?.();
+        // Resetting the final draft can already be consuming its empty buffer
+        // when the user closes the editor. Finish that close on its popstate.
+        if (
+          removing &&
+          !afterRemove &&
+          !active() &&
+          !options.entry &&
+          options.isValid
+        )
+          proceed(action, NOTHING_COVERED, options);
+        else options.onCancel?.();
         return;
       }
       if (!options.entry) {

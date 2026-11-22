@@ -34,7 +34,10 @@ import {
   type QuickMenuKey as MenuKey,
 } from "../../../convex/model/home/quickMenu";
 
-import { QuickMenuCustomizeSheet } from "./QuickMenuCustomizeSheet";
+import {
+  QuickMenuCustomizeSheet,
+  type QuickMenuEditorProps,
+} from "./QuickMenuCustomizeSheet";
 import { quickMenuTile } from "./quickMenuCatalog";
 import {
   inspectQuickMenuCommand,
@@ -159,7 +162,8 @@ export function DashboardLiveContent() {
     readonly command: QuickMenuCommand;
     readonly status: "NOT_FOUND" | "CONFLICT" | "INVALID_INPUT";
   }>();
-  const [verifying, setVerifying] = useState(false);
+  const [operation, setOperation] =
+    useState<QuickMenuEditorProps["operation"]>("save");
   const [recovery, setRecovery] = useState<{
     readonly owner: string;
     readonly state: QuickMenuRecoveryState;
@@ -313,16 +317,20 @@ export function DashboardLiveContent() {
     setCheckedReceipt(undefined);
   };
 
+  function loadSavedDraft() {
+    if (!snapshot || !snapshotOwner) return;
+    setDraft({
+      owner: snapshotOwner,
+      baseVersion: snapshot.version,
+      baseKeys: pinned,
+      pinned,
+    });
+  }
+
   function setSheetOpen(next: boolean) {
     if (next && !snapshot) return;
-    if (next && snapshot && snapshotOwner) {
-      setDraft({
-        owner: snapshotOwner,
-        baseVersion: snapshot.version,
-        baseKeys: pinned,
-        pinned,
-      });
-    } else discard();
+    if (next) loadSavedDraft();
+    else discard();
     setOpen(next);
   }
 
@@ -387,7 +395,7 @@ export function DashboardLiveContent() {
       pinnedKeys: activeDraft.pinned,
     };
     setMessage("");
-    setVerifying(false);
+    setOperation("save");
     return (
       (await op
         .run(
@@ -453,10 +461,7 @@ export function DashboardLiveContent() {
     !!command &&
     (receiptForCommand === "CONFLICT" ||
       receiptForCommand === "INVALID_INPUT" ||
-      (receiptForCommand === "NOT_FOUND" &&
-        (snapshot.version > command.expectedVersion ||
-          atLimit ||
-          command.pinnedKeys.some((key) => !available.includes(key)))));
+      (receiptForCommand === "NOT_FOUND" && !canResend));
 
   function dismissUnavailable() {
     if (!canDismissUnavailable || !command || !snapshotOwner || op.busy) return;
@@ -464,6 +469,7 @@ export function DashboardLiveContent() {
     const owner = snapshotOwner;
     try {
       removeQuickMenuCommand(target);
+      loadSavedDraft();
       setMessage("");
       op.setError("");
       setCheckedReceipt(undefined);
@@ -514,7 +520,7 @@ export function DashboardLiveContent() {
     const owner = snapshotOwner;
     setMessage("");
     setCheckedReceipt(undefined);
-    setVerifying(false);
+    setOperation("resend");
     void op
       .run(
         () => issue(target, true),
@@ -542,7 +548,7 @@ export function DashboardLiveContent() {
     const owner = snapshotOwner;
     setMessage("");
     setCheckedReceipt(undefined);
-    setVerifying(true);
+    setOperation("verify");
     void op.run(
       async () => {
         try {
@@ -570,7 +576,7 @@ export function DashboardLiveContent() {
           return;
         }
         if (receipt === "CONFLICT" || receipt === "INVALID_INPUT") {
-          setMessage(t("checkError"));
+          setMessage(t("receiptCannotReplay"));
           setCheckedReceipt({ command: target, status: receipt });
           return;
         }
@@ -596,7 +602,7 @@ export function DashboardLiveContent() {
         : recoveryInvalid
           ? t("invalidRecovery")
           : recoveryUnavailable
-            ? t("checkError")
+            ? t("storageUnavailable")
             : atLimit
               ? t("versionLimit")
               : stale
@@ -667,7 +673,7 @@ export function DashboardLiveContent() {
         canEdit={canSave && !op.busy}
         dirty={dirty}
         pending={op.busy}
-        verifying={verifying}
+        operation={operation}
         save={canSave ? save : undefined}
         discard={discard}
         status={status}
@@ -677,7 +683,9 @@ export function DashboardLiveContent() {
             : undefined
         }
         verify={command ? verify : undefined}
-        resend={canResend ? resend : undefined}
+        resend={
+          canResend || (op.busy && operation === "resend") ? resend : undefined
+        }
         dismissUnavailable={
           canDismissUnavailable ? dismissUnavailable : undefined
         }

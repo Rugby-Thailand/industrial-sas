@@ -544,38 +544,49 @@ describe("Dashboard quick menus", () => {
     ).toBeVisible();
   });
 
-  it("lets a member keep a newer menu after an older save has no receipt", async () => {
-    startAtHome();
-    storeQuickMenuCommand(command);
-    mocks.current = current({
-      ...snapshot,
-      version: command.expectedVersion + 1,
-    });
-    mocks.verify.mockResolvedValue({
-      ok: true,
-      value: { status: "NOT_FOUND" },
-    });
-    renderHome();
-    const editor = await openEditor();
-    expect(
-      within(editor).queryByRole("button", {
-        name: "Use the current saved menu",
-      }),
-    ).toBeNull();
-    fireEvent.click(
-      within(editor).getByRole("button", { name: "Check save status" }),
-    );
-    fireEvent.click(
-      await within(editor).findByRole("button", {
-        name: "Use the current saved menu",
-      }),
-    );
-    expect(readQuickMenuCommand(clerkScope, actorUserId)).toBeNull();
-    expect(
-      within(editor).getByRole("button", { name: "Unpin Announcements" }),
-    ).toBeEnabled();
-    expect(mocks.save).not.toHaveBeenCalled();
-  });
+  it.each([1, 3])(
+    "loads saved version %i into a stale open editor after a missing receipt",
+    async (version) => {
+      startAtHome();
+      mocks.verify.mockResolvedValue({
+        ok: true,
+        value: { status: "NOT_FOUND" },
+      });
+      const view = renderHome();
+      const editor = await openEditor();
+      fireEvent.click(
+        within(editor).getByRole("button", { name: "Unpin Announcements" }),
+      );
+      storeQuickMenuCommand(command);
+      act(() => window.dispatchEvent(new StorageEvent("storage")));
+      mocks.current = current({
+        ...snapshot,
+        version,
+        pinnedKeys: ["hr.announcements"],
+      });
+      view.rerender(ui());
+      const useSaved = { name: "Discard my edits and use the saved menu" };
+      expect(within(editor).queryByRole("button", useSaved)).toBeNull();
+      fireEvent.click(
+        within(editor).getByRole("button", { name: "Check save status" }),
+      );
+      fireEvent.click(await within(editor).findByRole("button", useSaved));
+      expect(readQuickMenuCommand(clerkScope, actorUserId)).toBeNull();
+      expect(
+        within(editor).getByRole("button", { name: "Unpin Announcements" }),
+      ).toBeEnabled();
+      expect(
+        within(editor).getByRole("button", { name: "Pin Notifications" }),
+      ).toBeEnabled();
+      expect(
+        within(editor).getByRole("button", { name: "Save" }),
+      ).toBeDisabled();
+      expect(mocks.save).not.toHaveBeenCalled();
+      fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(location()).toBe(HOME));
+      expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
 
   it("removes only the damaged recovery record for the current account", async () => {
     startAtHome();
