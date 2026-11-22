@@ -9,6 +9,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { PackagePlus } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { Button } from "@/components/ui/button";
 import { SelectControl } from "@/components/ui/SelectControl";
 import {
@@ -135,19 +136,27 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
 export function ProductScreen({
   productId,
   resumePalletId,
+  requestedWarehouseId,
 }: {
   productId?: string;
   resumePalletId?: string;
+  requestedWarehouseId?: string;
 }) {
   const canManage = useCanManage();
+  const { warehouses } = useWorkspace();
   const { t } = useFGText();
   const fgCrumb = useFGCrumb();
   const draftScope = useDraftKey("fg-product");
   if (!draftScope) return <Loading />;
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId) =>
-        productId ? (
+      {(activeWarehouseId) => {
+        const warehouseId =
+          requestedWarehouseId &&
+          warehouses.some((warehouse) => warehouse.id === requestedWarehouseId)
+            ? requestedWarehouseId
+            : activeWarehouseId;
+        return productId ? (
           <ProductLoader
             key={`${draftScope}:${warehouseId}:${productId}`}
             draftScope={draftScope}
@@ -169,8 +178,8 @@ export function ProductScreen({
             />
             <ViewOnlyNotice />
           </>
-        )
-      }
+        );
+      }}
     </QueryGate>
   );
 }
@@ -306,6 +315,10 @@ function ProductForm({
       ? duplicateCatalogue.value
       : undefined;
   const productId = useRef(product?._id ?? form.savedProductId);
+  const pendingCommand = useRef<{
+    readonly formKey: string;
+    readonly command: Parameters<typeof saveProduct>[0];
+  } | null>(null);
   const navigationDraft = useNavigationDraft({
     dirty: dirty && storageWarning,
     pending: busy,
@@ -326,19 +339,21 @@ function ProductForm({
         if (!canManage) throw new Error("ACCESS_DENIED");
         // The server replays an accepted request before checking its version.
         // A live query can advance after a lost response, so an unchanged
-        // retry must still send the original token and request identity.
+        // retry must still send the frozen command (including customerLink
+        // and requestId) instead of recomputing from live subscription state.
         if (
           next &&
           (!form.sku.trim() || !form.name.trim() || !form.unit.trim())
         )
           throw new Error("INVALID_INPUT");
-        const initialCustomerId = product?.customerId ?? "";
+        const initialCustomerId = form.baseValues?.customerId ?? "";
         const customerLink =
           form.customerId === initialCustomerId
             ? undefined
             : form.customerId
               ? ({ action: "SET", customerId: form.customerId } as const)
               : ({ action: "CLEAR" } as const);
+        const draftFlag = !next && product?.status !== "ACTIVE";
         const payload = {
           warehouseId,
           ...(productId.current ? { productId: productId.current } : {}),
@@ -353,17 +368,35 @@ function ProductForm({
           customerReference: form.customerReference,
           productReference: form.productReference,
           ...(customerLink === undefined ? {} : { customerLink }),
-          draft: !next && product?.status !== "ACTIVE",
+          draft: draftFlag,
         };
-        return written(
-          await saveProduct({
-            ...payload,
-            requestId: op.request(
-              `product:${JSON.stringify(payload)}`,
-              "durable",
-            ),
-          }),
-        );
+        const formKey = JSON.stringify({
+          sku: form.sku,
+          name: form.name,
+          unit: form.unit,
+          storageCondition: form.storageCondition,
+          notes: form.notes,
+          customerId: form.customerId,
+          customerReference: form.customerReference,
+          productReference: form.productReference,
+          expectedUpdatedAt: form.expectedUpdatedAt,
+          next,
+          packing,
+        });
+        const frozen =
+          pendingCommand.current?.formKey === formKey
+            ? pendingCommand.current.command
+            : {
+                ...payload,
+                requestId: op.request(
+                  `product:${JSON.stringify(payload)}`,
+                  "durable",
+                ),
+              };
+        pendingCommand.current = { formKey, command: frozen };
+        const result = await saveProduct(frozen);
+        pendingCommand.current = null;
+        return written(result);
       },
       (id) => {
         productId.current = id;
@@ -636,6 +669,8 @@ function ProductForm({
                             field.handleChange(v);
                           }}
                           unlinkedLabel={t("copy.no-linked-customer")}
+                          searchPlaceholder={t("copy.search-customer")}
+                          loadMoreLabel={t("copy.load-more-customers")}
                           disabled={!canManage || busy}
                           testId="product-customer-picker"
                         />

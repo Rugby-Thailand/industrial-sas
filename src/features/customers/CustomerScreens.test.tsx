@@ -124,6 +124,7 @@ import { trackAppHistory } from "@/lib/browser/appHistory";
 import { CustomerCatalogue } from "./CustomerList";
 import { CustomerDetail, EditCustomerForm } from "./CustomerDetail";
 import { NewCustomerForm } from "./CustomerForm";
+import { CustomerPicker } from "./CustomerPicker";
 import { CustomerReviewQueue } from "./CustomerReviewQueue";
 
 const READ = "masterData.customer.read";
@@ -1712,7 +1713,16 @@ describe("edit customer", () => {
 
 describe("customer v2 linking, detail activity and review queue", () => {
   const REVIEW_SUMMARY = getFunctionName(api.customers.linking.reviewSummary);
+  const ACTIVITY_SUMMARIES = getFunctionName(
+    api.customers.linking.listCustomerActivitySummaries,
+  );
   const ACTIVITY = getFunctionName(api.customers.linking.getCustomerActivity);
+  const ALIASES_PAGE = getFunctionName(
+    api.customers.linking.listCustomerAliasesPage,
+  );
+  const PRODUCTS_PAGE = getFunctionName(
+    api.customers.linking.listCustomerProductsPage,
+  );
   const UNRESOLVED = getFunctionName(api.customers.linking.listUnresolvedNames);
   const OPTIONS = getFunctionName(api.customers.linking.searchCustomerOptions);
   const ADD_ALIAS = ADD_ALIAS_REF;
@@ -1743,6 +1753,20 @@ describe("customer v2 linking, detail activity and review queue", () => {
             name: "บริษัท ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด",
             status: "ACTIVE",
             province: "ชลบุรี",
+          },
+        ],
+        isDone: true,
+        continueCursor: "",
+        scanned: 1,
+      },
+    });
+    mocks.queries.set(ACTIVITY_SUMMARIES, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        summaries: [
+          {
+            customerId: "customer-a",
             linkedProductCount: 4,
             latestJob: {
               jobScanId: "scan-1",
@@ -1752,9 +1776,6 @@ describe("customer v2 linking, detail activity and review queue", () => {
             },
           },
         ],
-        isDone: true,
-        continueCursor: "",
-        scanned: 1,
       },
     });
     render(<CustomerCatalogue />);
@@ -1770,6 +1791,33 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(within(table).getByText("FO-2511-0423")).toBeInTheDocument();
   });
 
+  it("shows partial review banner counts when reviewSummary reports hasMore", () => {
+    mocks.queries.set(REVIEW_SUMMARY, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        canReview: true,
+        unresolvedNameCount: 12,
+        unresolvedScanCount: 300,
+        hasMore: true,
+      },
+    });
+    mocks.queries.set(LIST, {
+      ok: true,
+      value: {
+        status: "ready",
+        page: [],
+        isDone: true,
+        continueCursor: "",
+        scanned: 0,
+      },
+    });
+    render(<CustomerCatalogue />);
+    expect(screen.getByTestId("customer-review-banner")).toHaveTextContent(
+      "12+ names from 300+ job tickets not linked to a customer",
+    );
+  });
+
   it("renders linked jobs, linked products, and manages job-ticket aliases on customer detail", async () => {
     mocks.queries.set(GET, { ok: true, value: full });
     mocks.queries.set(ACTIVITY, {
@@ -1783,6 +1831,7 @@ describe("customer v2 linking, detail activity and review queue", () => {
             approvedAt: 1_763_300_000_000,
           },
         ],
+        hasMoreAliases: false,
         recentJobs: [
           {
             jobScanId: "scan-1",
@@ -1826,6 +1875,15 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(screen.getByTestId("customer-linked-products")).toHaveTextContent(
       "TRR-BX5",
     );
+    expect(
+      screen.getByRole("link", { name: /กล่องลูกฟูก 5 ชั้น/ }),
+    ).toHaveAttribute(
+      "href",
+      "/finished-goods/products/prod-1?warehouseId=wh-1",
+    );
+    expect(
+      screen.getByRole("link", { name: "View scan records" }),
+    ).toHaveAttribute("href", "/finished-goods/scan/records?warehouseId=wh-1");
     expect(screen.getByTestId("customer-aliases-list")).toHaveTextContent(
       "บจก.ไทยรุ่งเรือง",
     );
@@ -1855,6 +1913,132 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(mutationFor(REMOVE_ALIAS)).toHaveBeenCalledWith(
       expect.objectContaining({ aliasId: "alias-1" }),
     );
+  });
+
+  it("paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts", async () => {
+    openFrom(LIST_ORIGIN, DETAIL_URL);
+    mocks.queries.set(GET, { ok: true, value: full });
+    mocks.queries.set(ACTIVITY, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        aliases: [
+          {
+            aliasId: "alias-1",
+            alias: "Alias One",
+            approvedAt: 1_763_300_000_000,
+          },
+        ],
+        hasMoreAliases: true,
+        recentJobs: [],
+        hasMoreJobs: false,
+        linkedProducts: [
+          {
+            productId: "prod-1",
+            sku: "SKU-1",
+            name: "Product One",
+            unit: "pcs",
+            status: "ACTIVE",
+            warehouseId: "wh-2",
+            warehouseName: "Chonburi",
+            totalQuantity: 10,
+          },
+        ],
+        hasMoreProducts: true,
+      },
+    });
+    mocks.queries.set(PRODUCTS_PAGE, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        items: [
+          {
+            productId: "prod-1",
+            sku: "SKU-1",
+            name: "Product One",
+            unit: "pcs",
+            status: "ACTIVE",
+            warehouseId: "wh-2",
+            warehouseName: "Chonburi",
+            totalQuantity: 10,
+          },
+          {
+            productId: "prod-2",
+            sku: "SKU-2",
+            name: "Product Two",
+            unit: "pcs",
+            status: "ACTIVE",
+            warehouseId: "wh-2",
+            warehouseName: "Chonburi",
+            totalQuantity: 20,
+          },
+        ],
+        isDone: true,
+        continueCursor: "",
+      },
+    });
+    mocks.queries.set(ALIASES_PAGE, {
+      ok: true,
+      value: {
+        items: [
+          {
+            aliasId: "alias-1",
+            alias: "Alias One",
+            approvedAt: 1_763_300_000_000,
+          },
+          {
+            aliasId: "alias-2",
+            alias: "Alias Two",
+            approvedAt: 1_763_300_000_100,
+          },
+        ],
+        isDone: true,
+        continueCursor: "",
+      },
+    });
+    mutationFor(ADD_ALIAS).mockRejectedValueOnce(new Error("offline"));
+
+    render(<CustomerDetail customerId="customer-a" />);
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Products (1+)" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Load more products" }));
+    expect(mocks.queryArgs.get(PRODUCTS_PAGE)).toEqual({
+      customerId: "customer-a",
+      pageSize: 100,
+    });
+    expect(screen.getByTestId("customer-linked-products")).toHaveTextContent(
+      "Product Two",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more names" }));
+    expect(mocks.queryArgs.get(ALIASES_PAGE)).toEqual({
+      customerId: "customer-a",
+      pageSize: 100,
+    });
+    expect(screen.getByTestId("customer-aliases-list")).toHaveTextContent(
+      "Alias Two",
+    );
+
+    // Transport failure shows alert notice and keeps the typed alias draft.
+    const aliasInput = screen.getByRole("textbox", {
+      name: "Add a name seen on job tickets",
+    });
+    fireEvent.change(aliasInput, { target: { value: "Unsaved Alias" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add name" }));
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Check your connection/,
+    );
+    expect(aliasInput).toHaveValue("Unsaved Alias");
+
+    // Dirty alias draft asks before native Back leaves customer detail.
+    await nativeBack();
+    expect(
+      await screen.findByRole("dialog", { name: "Discard changes?" }),
+    ).toBeVisible();
+    expect(href()).toBe(DETAIL_URL);
   });
 
   it("links and skips unresolved names on the review queue with remember-alias off by default", async () => {
@@ -1985,15 +2169,19 @@ describe("customer v2 linking, detail activity and review queue", () => {
     });
     mocks.queries.set(OPTIONS, {
       ok: true,
-      value: [
-        {
-          customerId: "customer-b",
-          code: "C-0012",
-          name: "บริษัท อีสเทิร์นออโต้พาร์ท จำกัด",
-          province: "ระยอง",
-          status: "ACTIVE",
-        },
-      ],
+      value: {
+        items: [
+          {
+            customerId: "customer-b",
+            code: "C-0012",
+            name: "บริษัท อีสเทิร์นออโต้พาร์ท จำกัด",
+            province: "ระยอง",
+            status: "ACTIVE",
+          },
+        ],
+        hasMore: true,
+        scanCursor: "cursor-page-2",
+      },
     });
 
     render(<CustomerReviewQueue />);
@@ -2019,7 +2207,7 @@ describe("customer v2 linking, detail activity and review queue", () => {
     );
     expect(href()).toBe(REVIEW_URL);
 
-    // Reopen, search, and pick a customer.
+    // Reopen, search, load more, and pick a customer.
     fireEvent.click(screen.getByRole("button", { name: "Choose customer" }));
     const reopened = await screen.findByRole("dialog", {
       name: "Choose a customer",
@@ -2031,6 +2219,13 @@ describe("customer v2 linking, detail activity and review queue", () => {
       { target: { value: "C-0012" } },
     );
     expect(mocks.queryArgs.get(OPTIONS)).toEqual({ search: "C-0012" });
+    fireEvent.click(
+      within(reopened).getByRole("button", { name: "Load more customers" }),
+    );
+    expect(mocks.queryArgs.get(OPTIONS)).toEqual({
+      search: "C-0012",
+      scanCursor: "cursor-page-2",
+    });
     fireEvent.click(
       within(reopened).getByRole("button", {
         name: /บริษัท อีสเทิร์นออโต้พาร์ท จำกัด/,
@@ -2044,5 +2239,271 @@ describe("customer v2 linking, detail activity and review queue", () => {
     expect(screen.getByTestId("review-link-button")).toHaveTextContent(
       "Link 1 ticket",
     );
+  });
+
+  it("overrides a preselected review candidate with another customer chosen from CustomerPickerDialog and submits the new customer", async () => {
+    openFrom(LIST_URL, REVIEW_URL);
+    mocks.queries.set(UNRESOLVED, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        canReview: true,
+        hasMore: false,
+        groups: [
+          {
+            normalizedName: "siam box",
+            displayName: "Siam Box",
+            scanCount: 1,
+            latestAt: 1_763_380_800_000,
+            warehouses: [{ warehouseId: "wh-1", name: "Bang Phli" }],
+            scans: [
+              {
+                jobScanId: "scan-5",
+                warehouseId: "wh-1",
+                warehouseName: "Bang Phli",
+                factoryOrder: "FO-500",
+                capturedName: "Siam Box",
+                createdAt: 1_763_380_800_000,
+                version: 1,
+              },
+            ],
+            matchKind: "SIMILAR",
+            candidates: [
+              {
+                customerId: "customer-a",
+                code: "C-0001",
+                name: "Siam Box A",
+                status: "ACTIVE",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    mocks.queries.set(OPTIONS, {
+      ok: true,
+      value: {
+        items: [
+          {
+            customerId: "customer-b",
+            code: "C-0002",
+            name: "Siam Box B",
+            status: "ACTIVE",
+          },
+        ],
+        hasMore: false,
+      },
+    });
+    mutationFor(RESOLVE).mockResolvedValue({
+      ok: true,
+      value: { ok: true, updatedCount: 1, replayed: false },
+    });
+
+    render(<CustomerReviewQueue />);
+    expect(screen.getByRole("radio", { name: /Siam Box A/ })).toBeChecked();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose another customer" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Choose a customer",
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Siam Box B/ }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Choose a customer" }),
+      ).toBeNull(),
+    );
+    expect(screen.getByRole("radio", { name: /Siam Box B/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Siam Box A/ })).not.toBeChecked();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("review-link-button"));
+    });
+    expect(mutationFor(RESOLVE)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "LINK",
+        customerId: "customer-b",
+      }),
+    );
+  });
+
+  it("paginates review queue batches with scanCursor and keeps the queue open while hasMore is true", () => {
+    openFrom(LIST_URL, REVIEW_URL);
+    mocks.queries.set(UNRESOLVED, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        canReview: true,
+        hasMore: true,
+        scanCursor: '{"w":1}',
+        groups: [],
+      },
+    });
+
+    render(<CustomerReviewQueue />);
+    expect(screen.queryByText("No names awaiting review")).toBeNull();
+    expect(screen.getByTestId("review-empty-batch")).toBeVisible();
+    fireEvent.click(screen.getByTestId("review-load-more"));
+    expect(mocks.queryArgs.get(UNRESOLVED)).toEqual({ scanCursor: '{"w":1}' });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Back to first batch" }),
+    );
+    expect(mocks.queryArgs.get(UNRESOLVED)).toEqual({});
+  });
+
+  it("empty review queue Back to list restores the filtered customer list origin and consumes the task entry", async () => {
+    openFrom(LIST_ORIGIN, REVIEW_URL);
+    mocks.queries.set(UNRESOLVED, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        canReview: true,
+        hasMore: false,
+        groups: [],
+      },
+    });
+    render(<CustomerReviewQueue />);
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Back to customers" }),
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    });
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    // Direct entry falls back to /master-data/customers via replace.
+    cleanup();
+    window.history.replaceState(null, "", REVIEW_URL);
+    render(<CustomerReviewQueue />);
+    fireEvent.click(screen.getByRole("button", { name: "Back to customers" }));
+    expect(mocks.replace).toHaveBeenCalledWith("/master-data/customers");
+  });
+
+  it("review queue Back policy covers explicit picker close followed by next Back, pending write protection, and Forward", async () => {
+    openFrom(LIST_ORIGIN, REVIEW_URL);
+    mocks.queries.set(UNRESOLVED, {
+      ok: true,
+      value: {
+        canViewWarehouseData: true,
+        canReview: true,
+        hasMore: false,
+        groups: [
+          {
+            normalizedName: "pending co",
+            displayName: "Pending Co",
+            scanCount: 1,
+            latestAt: 1_763_380_800_000,
+            warehouses: [{ warehouseId: "wh-1", name: "Bang Phli" }],
+            scans: [
+              {
+                jobScanId: "scan-p",
+                warehouseId: "wh-1",
+                warehouseName: "Bang Phli",
+                factoryOrder: "FO-700",
+                capturedName: "Pending Co",
+                createdAt: 1_763_380_800_000,
+                version: 1,
+              },
+            ],
+            matchKind: "SIMILAR",
+            candidates: [
+              {
+                customerId: "customer-a",
+                code: "C-0001",
+                name: "Pending Co Ltd",
+                status: "ACTIVE",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    mocks.queries.set(OPTIONS, {
+      ok: true,
+      value: { items: [], hasMore: false },
+    });
+    let resolveWrite!: (value: unknown) => void;
+    mutationFor(RESOLVE).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveWrite = resolve;
+      }),
+    );
+
+    render(<CustomerReviewQueue />);
+    // Explicit Cancel button closes dialog; next native Back returns to filtered list origin.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Choose another customer" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Choose a customer",
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Choose a customer" }),
+      ).toBeNull(),
+    );
+    await nativeBack();
+    await waitFor(() => expect(href()).toBe(LIST_ORIGIN));
+    // Forward returns to the review queue.
+    await act(async () => {
+      window.history.forward();
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    });
+    await waitFor(() => expect(href()).toBe(REVIEW_URL));
+
+    // Pending write keeps the review queue open on native Back.
+    fireEvent.click(screen.getByTestId("review-link-button"));
+    await nativeBack();
+    expect(href()).toBe(REVIEW_URL);
+    await act(async () => {
+      resolveWrite({
+        ok: true,
+        value: { ok: true, updatedCount: 1, replayed: false },
+      });
+    });
+  });
+
+  it("searchable CustomerPicker filters options and loads more customers past the first page", () => {
+    mocks.queries.set(OPTIONS, {
+      ok: true,
+      value: {
+        items: [
+          {
+            customerId: "customer-a",
+            code: "C-0001",
+            name: "Acme Packaging",
+            status: "ACTIVE",
+          },
+        ],
+        hasMore: true,
+        scanCursor: "picker-cursor-2",
+      },
+    });
+    const onChange = vi.fn();
+    render(
+      <CustomerPicker
+        label="Customer"
+        value=""
+        onChange={onChange}
+        unlinkedLabel="Not linked"
+        searchPlaceholder="Search customer name or code"
+        loadMoreLabel="Load more customers"
+        testId="standalone-customer-picker"
+      />,
+    );
+    fireEvent.change(screen.getByTestId("standalone-customer-picker-search"), {
+      target: { value: "C-0105" },
+    });
+    expect(mocks.queryArgs.get(OPTIONS)).toEqual({ search: "C-0105" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load more customers" }),
+    );
+    expect(mocks.queryArgs.get(OPTIONS)).toEqual({
+      search: "C-0105",
+      scanCursor: "picker-cursor-2",
+    });
   });
 });

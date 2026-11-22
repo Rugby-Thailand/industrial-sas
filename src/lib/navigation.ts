@@ -1075,8 +1075,10 @@ export function visibleDesktopNavigation(
 }
 
 export const FG_PATH = ROUTES.finishedGoods;
-export const productPath = (id: string) =>
-  `${FG_PATH}/products/${encodeURIComponent(id)}`;
+export const productPath = (id: string, warehouseId?: string) =>
+  warehouseId
+    ? `${FG_PATH}/products/${encodeURIComponent(id)}?warehouseId=${encodeURIComponent(warehouseId)}`
+    : `${FG_PATH}/products/${encodeURIComponent(id)}`;
 export const unitCorrectionPath = (productId: string, unitId: string) =>
   `${productPath(productId)}?editUnit=${encodeURIComponent(unitId)}`;
 export const batchPath = (id: string) =>

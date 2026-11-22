@@ -65,19 +65,38 @@ An already open tab is affected on its next server call. After step 1, members w
 
 ## v2 Linking and historical backfill
 
-- **Additive schema only:** `customerAliases` table, optional `customerId` and `customerLinkSource` on `finishedGoodsProducts` and `finishedGoodsJobScans`, and reverse lookup indexes. No existing fields or captured text (`customer`, `customerReference`) are modified or overwritten.
-- **Live auto-linking:** starts automatically on new job scans once customers and approved aliases exist. Blank, unmatched, ambiguous, or archived matches continue saving without a link.
-- **Historical job-scan backfill (per warehouse):** after customer records exist, preview with a dry run first, then apply in resumable batches:
+- **Additive schema only:** `customerAliases` and `customerWarehouseActivity` tables, optional `aliasSearchText` on `customers`, optional `customerId` and `customerLinkSource` on `finishedGoodsProducts` and `finishedGoodsJobScans`, optional `customerReviewPending` on `finishedGoodsJobScans`, and reverse lookup indexes. No existing fields or captured text (`customer`, `customerReference`) are modified or overwritten.
+- **Live auto-linking:** starts automatically on new job scans once customers and approved aliases exist. Blank, unmatched, ambiguous, or archived matches continue saving without a link and mark `customerReviewPending: true` when non-blank.
+- **Historical job-scan backfill (per warehouse):** after customer records exist, run a **complete** dry-run pass through `isDone: true` first to inspect warehouse totals, then restart from the beginning for the apply pass:
 
   ```sh
+  # Pass 1 — complete read-only preview across the warehouse:
   pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":true}'
-  # Review matched / ambiguous / archived / unmatched counts, then apply:
+  # Repeat passing the returned "continueCursor" as "cursor" until "isDone": true:
+  pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":true,"cursor":"<continueCursor>"}'
+
+  # Pass 2 — restart from the beginning to apply matches and index pending review rows:
   pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":false}'
-  # Repeat with returned "cursor" until "isDone": true.
+  # Checkpoint every returned "continueCursor" and pass it back as "cursor" until "isDone": true:
+  pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":false,"cursor":"<continueCursor>"}'
   ```
 
-  Backfill skips voided scans and any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`).
+  Backfill skips voided scans and any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`). On apply (`dryRun: false`), exact unique matches link with `customerLinkSource: "AUTO"` and update `customerWarehouseActivity`; ambiguous, archived, and unmatched non-blank scans are stamped with `customerReviewPending: true` so they appear in the indexed review queue.
+
+### v2 Rollback
+
+- **Revoking customer grants alone does not stop job-scan auto-linking.** `revokeOrgAdminGrants` hides customer pages, customer pickers, and the review queue, and strips `customerId`/`customerLinkSource` from finished-goods read responses for users without `masterData.customer.read`. Because `saveJobScans` auto-links new scans for warehouse operators automatically, stopping auto-linking requires a code revert.
+- **Safe code rollback after v2 writes exist:** Convex validates every existing document against `convex/schema.ts` on deploy. Once any document carries v2 optional fields (`customers.aliasSearchText`, `finishedGoodsProducts.customerId` / `customerLinkSource`, or `finishedGoodsJobScans.customerId` / `customerLinkSource` / `customerReviewPending`), reverting `convex/schema.ts` to drop those fields from existing tables will fail schema validation until those fields are cleared. Therefore:
+  1. **Immediate rollback (keeps all data intact):** revert the v2 application logic (matching calls in `saveJobScans`/`updateJobScan`, UI surfaces, and `convex/customers/linking.ts` / `backfill.ts`) while **retaining the additive optional fields in `convex/schema.ts`**.
+  2. **Schema field cleanup (only if permanently removing v2):** after step 1 is deployed and no writers set those fields, run a bounded migration unsetting the optional fields, then remove them from `convex/schema.ts` in a follow-up deploy.
 
 ## Data handled
 
-The detail query returns customer contact, address and tax ID, and only to members holding `masterData.customer.read`. The list query returns summary fields only: code, name, status and province. Audit records name changed contact, address, tax ID and notes fields without their values. The browser saves no customer field values: request identities live in memory, and the only preference remembered between visits is the list's status filter. A search is different. It stays in the page URL and its history entry, so Back can restore it. An exact tax-ID search is therefore visible in that URL, and it is copied along if someone shares the link.
+The detail query returns customer contact, address and tax ID, and only to members holding `masterData.customer.read`. The list query returns summary fields only: code, name, status and province; per-page product counts and latest-job summaries are fetched separately for members who also hold `masterData.storageLayout.read`. On finished-goods products and job-scan lists/corrections, `customerId`, `customerLinkSource`, `customerName`, `customerCode`, and link-change history entries are returned only to members holding `masterData.customer.read`. Audit records name changed contact, address, tax ID, notes, and alias fields without storing raw sensitive values.
+
+Browser storage and URLs:
+
+- Request identities live in memory, and the list status filter is the only customer-list preference saved between visits.
+- Customer list search stays in the page URL and browser history so Back can restore it (an exact tax-ID search is therefore visible in that URL).
+- Launching "Create new customer" from the review queue passes the captured job-ticket name in `?name=...` on `/master-data/customers/new` so the form prefills; that query string appears in browser history.
+- While editing an unsaved finished-goods product, the product form stores `customerId` (an opaque Convex document ID, not customer PII) alongside the other draft fields in local browser draft storage until saved or discarded.

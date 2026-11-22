@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { api, internal } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
+import { listCustomersPage } from "../../convex/customers/catalogue";
+import { listCustomerActivitySummaries } from "../../convex/customers/linking";
 import { compactCustomerStem } from "../../convex/model/customers/customers";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
   type ConvexTestModuleMap,
 } from "../fixtures/convex-tenant-world";
+import { measured } from "../fixtures/query-read-stats";
 
 const MODULES: ConvexTestModuleMap = {
   "../convex/customers/backfill.ts": () =>
@@ -18,14 +21,26 @@ const MODULES: ConvexTestModuleMap = {
     import("../../convex/customers/linking"),
   "../convex/customers/writes.ts": () =>
     import("../../convex/customers/writes"),
+  "../convex/finishedGoods/batches.ts": () =>
+    import("../../convex/finishedGoods/batches"),
+  "../convex/finishedGoods/batchManagement.ts": () =>
+    import("../../convex/finishedGoods/batchManagement"),
+  "../convex/finishedGoods/catalogue.ts": () =>
+    import("../../convex/finishedGoods/catalogue"),
   "../convex/finishedGoods/jobScans.ts": () =>
     import("../../convex/finishedGoods/jobScans"),
+  "../convex/finishedGoods/summaryMaintenance.ts": () =>
+    import("../../convex/finishedGoods/summaryMaintenance"),
   "../convex/finishedGoods/workflow.ts": () =>
     import("../../convex/finishedGoods/workflow"),
 };
 const catalogue = api.customers.catalogue;
 const linking = api.customers.linking;
 const writes = api.customers.writes;
+const fgCatalogue = api.finishedGoods.catalogue;
+const fgBatches = api.finishedGoods.batches;
+const fgBatchMgmt = api.finishedGoods.batchManagement;
+const fgSummaryMaint = api.finishedGoods.summaryMaintenance;
 const jobScans = api.finishedGoods.jobScans;
 const workflow = api.finishedGoods.workflow;
 
@@ -221,7 +236,7 @@ describe("customer v2 linking model and backend", () => {
     }));
 
     expect(loaded.canonical).toMatchObject({
-      customer: "บริษัท  ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด",
+      customer: "  บริษัท  ไทยรุ่งเรืองบรรจุภัณฑ์ จำกัด ",
       customerId: acmeId,
       customerLinkSource: "AUTO",
     });
@@ -232,13 +247,19 @@ describe("customer v2 linking model and backend", () => {
     });
     expect(loaded.unmatched?.customerId).toBeUndefined();
     expect(loaded.unmatched?.customerLinkSource).toBeUndefined();
+    expect(loaded.unmatched?.customerReviewPending).toBe(true);
     expect(loaded.unmatched?.customer).toBe("Weird AI Text /// 999 ???");
     expect(loaded.ambigName?.customerId).toBeUndefined();
+    expect(loaded.ambigName?.customerReviewPending).toBe(true);
     expect(loaded.ambigAlias?.customerId).toBeUndefined();
+    expect(loaded.ambigAlias?.customerReviewPending).toBe(true);
     expect(loaded.archived?.customerId).toBeUndefined();
+    expect(loaded.archived?.customerReviewPending).toBe(true);
     expect(loaded.blank?.customerId).toBeUndefined();
+    expect(loaded.blank?.customerReviewPending).toBeUndefined();
 
-    // Alias search finds the customer in listCustomersPage and shows latest job.
+    // Alias search finds the customer in listCustomersPage (v1 summary fields only)
+    // and listCustomerActivitySummaries reports its latest job.
     const searched = allowed(
       await actorA.query(catalogue.listCustomersPage, {
         search: "บจก.ไทยรุ่ง",
@@ -249,11 +270,26 @@ describe("customer v2 linking model and backend", () => {
     expect(searched.page).toHaveLength(1);
     expect(searched.page[0]).toMatchObject({
       customerId: acmeId,
-      latestJob: {
-        jobScanId: scanAlias,
-        factoryOrder: "FO-002",
-        warehouseId: alpha,
-      },
+    });
+    expect(searched.page[0]).not.toHaveProperty("latestJob");
+    const summaries = allowed(
+      await actorA.query(linking.listCustomerActivitySummaries, {
+        customerIds: [acmeId],
+      }),
+    );
+    expect(summaries).toMatchObject({
+      canViewWarehouseData: true,
+      summaries: [
+        {
+          customerId: acmeId,
+          linkedProductCount: 0,
+          latestJob: {
+            jobScanId: scanAlias,
+            factoryOrder: "FO-002",
+            warehouseId: alpha,
+          },
+        },
+      ],
     });
 
     // Idempotency replay of scanUnmatched after a customer is created later still replays cleanly.
@@ -872,5 +908,855 @@ describe("customer v2 linking model and backend", () => {
       }),
     );
     expect(denied).toEqual({ ok: false, code: "ACCESS_DENIED" });
+
+    // Customer-only user cannot attach an exampleJobScanId to an alias.
+    const deniedExample = allowed(
+      await customerOnly.mutation(linking.addCustomerAlias, {
+        requestId: "denied-example-scan",
+        customerId,
+        alias: "Scoped Alias",
+        exampleJobScanId: scanId,
+      }),
+    );
+    expect(deniedExample).toEqual({
+      ok: false,
+      code: "ACCESS_DENIED",
+      field: "exampleJobScanId",
+    });
+  });
+
+  it("enforces reverse permissions: warehouse-only staff cannot read or clear customer links across finished-goods queries and mutations", async () => {
+    const { t, orgA, actorA, warehouses, createCustomer, saveScan } =
+      await setup();
+    const alpha = warehouses.alphaA;
+    const customerId = await createCustomer(
+      actorA,
+      "Confidential Buyer Co",
+      "rev-cust-1",
+    );
+
+    // Seed a linked product, batch, pallet, and linked job scan with correction history.
+    const prodWrite = allowed(
+      await actorA.mutation(workflow.saveProduct, {
+        warehouseId: alpha,
+        requestId: "rev-prod-1",
+        sku: "SKU-REV-1",
+        name: "Confidential Box",
+        unit: "PCS",
+        storageFormat: "PALLET",
+        defaultQuantity: 10,
+        storageCondition: "ANY",
+        customerReference: "PART-REF-42",
+        customerLink: { action: "SET", customerId },
+        draft: false,
+      }),
+    );
+    expect(prodWrite.written).toBe(true);
+    const productId = (prodWrite as { written: true; documentId: string })
+      .documentId as Id<"finishedGoodsProducts">;
+
+    const batchWrite = allowed(
+      await actorA.mutation(fgBatches.saveBatchDraft, {
+        warehouseId: alpha,
+        productId,
+        requestId: "rev-batch-1",
+        storageFormat: "PALLET",
+        totalQuantity: 10,
+        packages: [
+          {
+            quantity: 10,
+            dimensionsChecked: true,
+            lengthMm: 1000,
+            widthMm: 1000,
+            heightMm: 1000,
+          },
+        ],
+      }),
+    );
+    const batchId = (batchWrite as { written: true; documentId: string })
+      .documentId as Id<"finishedGoodsBatches">;
+
+    const palletWrite = allowed(
+      await actorA.mutation(workflow.createPallet, {
+        warehouseId: alpha,
+        productId,
+        requestId: "rev-pallet-1",
+      }),
+    );
+    const palletId = (palletWrite as { written: true; documentId: string })
+      .documentId as Id<"finishedGoodsPallets">;
+
+    allowed(
+      await actorA.mutation(fgSummaryMaint.prepare, { warehouseId: alpha }),
+    );
+
+    const scanId = await saveScan(
+      actorA,
+      alpha,
+      "rev-scan-1",
+      "FO-REV-1",
+      "Confidential Buyer Co",
+    );
+    const scanBefore = await t.run((ctx) => ctx.db.get(scanId));
+    allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        warehouseId: alpha,
+        jobScanId: scanId,
+        requestId: "rev-scan-corr",
+        expectedVersion: scanBefore!.version ?? 1,
+        fields: {
+          factoryOrder: "FO-REV-1",
+          productBarcodeText: "BC-FO-REV-1",
+          customer: "Confidential Buyer Co",
+          partName: "Box Updated",
+        },
+        customerLink: { action: "SET", customerId },
+      }),
+    );
+
+    // Create a warehouse-only manager (storageLayout.read + manage, NO customer grants).
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        clerkUserId: "user_warehouse_only",
+        displayName: "Warehouse Only",
+        status: "ACTIVE",
+      });
+      const roleId = await ctx.db.insert("roles", {
+        orgId: orgA,
+        key: "WAREHOUSE_ONLY",
+        name: "Warehouse only",
+        status: "ACTIVE",
+        seeded: false,
+      });
+      await ctx.db.insert("rolePermissions", {
+        orgId: orgA,
+        roleId,
+        permissionCode: "masterData.storageLayout.read",
+      });
+      await ctx.db.insert("rolePermissions", {
+        orgId: orgA,
+        roleId,
+        permissionCode: "masterData.storageLayout.manage",
+      });
+      const membershipId = await ctx.db.insert("memberships", {
+        orgId: orgA,
+        userId,
+        clerkMembershipId: "mem_warehouse_only",
+        status: "ACTIVE",
+        scopeMode: "ORG_WIDE",
+        effectiveFrom: 0,
+      });
+      await ctx.db.insert("membershipRoles", {
+        orgId: orgA,
+        membershipId,
+        roleId,
+        grantedAt: 0,
+      });
+    });
+
+    const whOnly = t.withIdentity({
+      subject: "user_warehouse_only",
+      org_id: "org_fixture_a",
+    });
+
+    // All product read surfaces strip customerId & customerLinkSource while keeping customerReference.
+    const gotProduct = allowed(
+      await whOnly.query(workflow.getProduct, {
+        warehouseId: alpha,
+        productId,
+      }),
+    );
+    expect(gotProduct).toMatchObject({ customerReference: "PART-REF-42" });
+    expect(gotProduct).not.toHaveProperty("customerId");
+    expect(gotProduct).not.toHaveProperty("customerLinkSource");
+
+    const gotPallet = allowed(
+      await whOnly.query(workflow.getPallet, { warehouseId: alpha, palletId }),
+    );
+    expect(gotPallet?.product).not.toHaveProperty("customerId");
+    expect(gotPallet?.product).not.toHaveProperty("customerLinkSource");
+
+    const foundSku = allowed(
+      await whOnly.query(fgCatalogue.findSku, {
+        warehouseId: alpha,
+        sku: "SKU-REV-1",
+      }),
+    );
+    expect(foundSku).not.toHaveProperty("customerId");
+    expect(foundSku).not.toHaveProperty("customerLinkSource");
+
+    const cataloguePage = allowed(
+      await whOnly.query(fgCatalogue.page, {
+        warehouseId: alpha,
+        tab: "products",
+        pageSize: 20,
+        search: "",
+        locale: "en",
+        filters: {
+          record: "",
+          unit: "",
+          quantity: { min: "", max: "" },
+          formats: [],
+          progress: [],
+          statuses: [],
+          lot: "",
+          measurement: "",
+          length: { min: "", max: "" },
+          width: { min: "", max: "" },
+          height: { min: "", max: "" },
+          sort: "",
+        },
+      }),
+    );
+    expect(cataloguePage.products).toHaveLength(1);
+    expect(cataloguePage.products[0]).not.toHaveProperty("customerId");
+    expect(cataloguePage.products[0]).not.toHaveProperty("customerLinkSource");
+
+    const gotBatch = allowed(
+      await whOnly.query(fgBatches.getBatch, { warehouseId: alpha, batchId }),
+    );
+    expect(gotBatch?.product).not.toHaveProperty("customerId");
+    const gotBatchMgmt = allowed(
+      await whOnly.query(fgBatchMgmt.get, { warehouseId: alpha, batchId }),
+    );
+    expect(gotBatchMgmt?.product).not.toHaveProperty("customerId");
+
+    // Job-scan list and correction history strip customer link metadata & history diffs.
+    const listedScans = allowed(
+      await whOnly.query(jobScans.listJobScans, {
+        warehouseId: alpha,
+        filter: "ALL",
+        pageSize: 20,
+      }),
+    );
+    expect(listedScans.items).toHaveLength(1);
+    expect(listedScans.items[0]).not.toHaveProperty("customerId");
+    expect(listedScans.items[0]).not.toHaveProperty("customerLinkSource");
+    expect(listedScans.items[0]).not.toHaveProperty("customerName");
+    expect(listedScans.items[0]).not.toHaveProperty("customerCode");
+
+    const corrections = allowed(
+      await whOnly.query(jobScans.listJobScanCorrections, {
+        warehouseId: alpha,
+        jobScanId: scanId,
+      }),
+    );
+    expect(corrections?.current).not.toHaveProperty("customerId");
+    expect(corrections?.current).not.toHaveProperty("customerLinkSource");
+    const leakedDiffFields = (corrections?.items ?? []).flatMap((item) =>
+      item.changes.map((c) => c.field),
+    );
+    expect(leakedDiffFields).not.toContain("customerId");
+    expect(leakedDiffFields).not.toContain("customerLinkSource");
+    expect(leakedDiffFields).toContain("partName");
+
+    // Warehouse-only staff are DENIED CLEAR on both saveProduct and updateJobScan.
+    const prodDoc = await t.run((ctx) => ctx.db.get(productId));
+    expect(
+      allowed(
+        await whOnly.mutation(workflow.saveProduct, {
+          warehouseId: alpha,
+          productId,
+          expectedUpdatedAt: prodDoc!.updatedAt,
+          requestId: "wh-clear-prod",
+          sku: "SKU-REV-1",
+          name: "Confidential Box",
+          unit: "PCS",
+          storageCondition: "ANY",
+          customerLink: { action: "CLEAR" },
+          draft: false,
+        }),
+      ),
+    ).toMatchObject({
+      written: false,
+      error: { code: "ACCESS_DENIED", field: "customerId" },
+    });
+
+    const scanDoc = await t.run((ctx) => ctx.db.get(scanId));
+    expect(
+      allowed(
+        await whOnly.mutation(jobScans.updateJobScan, {
+          warehouseId: alpha,
+          jobScanId: scanId,
+          requestId: "wh-clear-scan",
+          expectedVersion: scanDoc!.version ?? 1,
+          fields: {
+            factoryOrder: "FO-REV-1",
+            productBarcodeText: "BC-FO-REV-1",
+            customer: "Confidential Buyer Co",
+          },
+          customerLink: { action: "CLEAR" },
+        }),
+      ),
+    ).toMatchObject({
+      written: false,
+      error: { code: "ACCESS_DENIED", field: "customerId" },
+    });
+
+    // Unrelated edits by warehouse-only staff preserve existing customer links.
+    expect(
+      allowed(
+        await whOnly.mutation(workflow.saveProduct, {
+          warehouseId: alpha,
+          productId,
+          expectedUpdatedAt: prodDoc!.updatedAt,
+          requestId: "wh-edit-prod",
+          sku: "SKU-REV-1",
+          name: "Confidential Box Renamed",
+          unit: "PCS",
+          storageCondition: "ANY",
+          draft: false,
+        }),
+      ).written,
+    ).toBe(true);
+    expect((await t.run((ctx) => ctx.db.get(productId)))?.customerId).toBe(
+      customerId,
+    );
+  });
+
+  it("hardens alias redaction, deletion replay, review validation, per-scan audits, and replay authorization", async () => {
+    const { t, orgA, actorA, warehouses, createCustomer, saveScan } =
+      await setup();
+    const alpha = warehouses.alphaA;
+    const bravo = warehouses.bravoA;
+    const customerId = await createCustomer(actorA, "Audit Target Co", "at-1");
+
+    // Seed a scan in bravo (which actorA does NOT have access to if scoped, or create a scoped user).
+    const alphaScan1 = await saveScan(
+      actorA,
+      alpha,
+      "aud-s1",
+      "FO-A1",
+      "Group Alpha",
+    );
+    const alphaScan2 = await saveScan(
+      actorA,
+      alpha,
+      "aud-s2",
+      "FO-A2",
+      "Group Alpha",
+    );
+    const otherNameScan = await saveScan(
+      actorA,
+      alpha,
+      "aud-s3",
+      "FO-A3",
+      "Different Name",
+    );
+
+    // Alias add + remove redact raw alias text in auditEvents, and remove replays cleanly!
+    const added = allowed(
+      await actorA.mutation(linking.addCustomerAlias, {
+        requestId: "alias-redact-add",
+        customerId,
+        alias: "Secret OCR Nickname 123",
+        exampleJobScanId: alphaScan1,
+      }),
+    );
+    expect(added.ok).toBe(true);
+    if (!added.ok) throw new Error(added.code);
+    const aliasId = added.aliasId as Id<"customerAliases">;
+
+    // getCustomerActivity omits exampleJobScanId from public aliases.
+    const activity = allowed(
+      await actorA.query(linking.getCustomerActivity, { customerId }),
+    );
+    expect(activity?.aliases).toEqual([
+      {
+        aliasId,
+        alias: "Secret OCR Nickname 123",
+        approvedAt: expect.any(Number),
+      },
+    ]);
+    expect(activity?.aliases[0]).not.toHaveProperty("exampleJobScanId");
+
+    // Delete alias and replay the exact same requestId — must succeed with replayed: true!
+    const removed1 = allowed(
+      await actorA.mutation(linking.removeCustomerAlias, {
+        requestId: "alias-redact-remove",
+        aliasId,
+      }),
+    );
+    expect(removed1).toEqual({ ok: true, aliasId, replayed: false });
+    const removed2 = allowed(
+      await actorA.mutation(linking.removeCustomerAlias, {
+        requestId: "alias-redact-remove",
+        aliasId,
+      }),
+    );
+    expect(removed2).toEqual({ ok: true, aliasId, replayed: true });
+
+    const aliasAudits = await t.run((ctx) =>
+      ctx.db
+        .query("auditEvents")
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("action"), "customer.alias.add"),
+            q.eq(q.field("action"), "customer.alias.remove"),
+          ),
+        )
+        .collect(),
+    );
+    expect(aliasAudits).toHaveLength(2);
+    expect(JSON.stringify(aliasAudits)).not.toContain(
+      "Secret OCR Nickname 123",
+    );
+
+    // resolveUnresolvedScans rejects mixed-name batches and unrelated aliasText.
+    expect(
+      allowed(
+        await actorA.mutation(linking.resolveUnresolvedScans, {
+          requestId: "res-mixed",
+          action: "LINK",
+          customerId,
+          scans: [
+            { jobScanId: alphaScan1, expectedVersion: 1 },
+            { jobScanId: otherNameScan, expectedVersion: 1 },
+          ],
+        }),
+      ),
+    ).toEqual({ ok: false, code: "MIXED_NAME_GROUP" });
+
+    expect(
+      allowed(
+        await actorA.mutation(linking.resolveUnresolvedScans, {
+          requestId: "res-bad-alias",
+          action: "LINK",
+          customerId,
+          rememberAlias: true,
+          aliasText: "Completely Unrelated Alias",
+          scans: [{ jobScanId: alphaScan1, expectedVersion: 1 }],
+        }),
+      ),
+    ).toEqual({ ok: false, code: "FIELD_INVALID", field: "aliasText" });
+
+    // Resolving a valid 2-scan group writes per-ticket audit events and returns aliasId on replay.
+    const res1 = allowed(
+      await actorA.mutation(linking.resolveUnresolvedScans, {
+        requestId: "res-valid-group",
+        action: "LINK",
+        customerId,
+        rememberAlias: true,
+        aliasText: "Group Alpha",
+        scans: [
+          { jobScanId: alphaScan1, expectedVersion: 1 },
+          { jobScanId: alphaScan2, expectedVersion: 1 },
+        ],
+      }),
+    );
+    expect(res1).toMatchObject({
+      ok: true,
+      updatedCount: 2,
+      aliasId: expect.any(String),
+      replayed: false,
+    });
+    const resReplay = allowed(
+      await actorA.mutation(linking.resolveUnresolvedScans, {
+        requestId: "res-valid-group",
+        action: "LINK",
+        customerId,
+        rememberAlias: true,
+        aliasText: "Group Alpha",
+        scans: [
+          { jobScanId: alphaScan1, expectedVersion: 1 },
+          { jobScanId: alphaScan2, expectedVersion: 1 },
+        ],
+      }),
+    );
+    expect(resReplay).toEqual({
+      ok: true,
+      updatedCount: 2,
+      aliasId: res1.ok ? res1.aliasId : undefined,
+      replayed: true,
+    });
+
+    const reviewAudits = await t.run((ctx) =>
+      ctx.db
+        .query("auditEvents")
+        .filter((q) => q.eq(q.field("action"), "customer.review.link"))
+        .collect(),
+    );
+    expect(reviewAudits.map((e) => e.entityId).sort()).toEqual(
+      [alphaScan1, alphaScan2].sort(),
+    );
+
+    // Attempting to resolve an already-resolved scan fails with ALREADY_RESOLVED.
+    expect(
+      allowed(
+        await actorA.mutation(linking.resolveUnresolvedScans, {
+          requestId: "res-already",
+          action: "SKIP",
+          scans: [{ jobScanId: alphaScan1, expectedVersion: 2 }],
+        }),
+      ),
+    ).toEqual({ ok: false, code: "ALREADY_RESOLVED" });
+
+    // Warehouse-scoped manager (only bravo) is denied resolving alpha scans AND denied exampleJobScanId from alpha.
+    await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        clerkUserId: "user_bravo_only",
+        displayName: "Bravo Only",
+        status: "ACTIVE",
+      });
+      const roleId = await ctx.db.insert("roles", {
+        orgId: orgA,
+        key: "BRAVO_MANAGER",
+        name: "Bravo manager",
+        status: "ACTIVE",
+        seeded: false,
+      });
+      for (const permissionCode of [
+        "masterData.customer.read",
+        "masterData.customer.manage",
+        "masterData.storageLayout.read",
+        "masterData.storageLayout.manage",
+      ]) {
+        await ctx.db.insert("rolePermissions", {
+          orgId: orgA,
+          roleId,
+          permissionCode,
+        });
+      }
+      const membershipId = await ctx.db.insert("memberships", {
+        orgId: orgA,
+        userId,
+        clerkMembershipId: "mem_bravo_only",
+        status: "ACTIVE",
+        scopeMode: "WAREHOUSE_SCOPED",
+        effectiveFrom: 0,
+      });
+      await ctx.db.insert("membershipWarehouses", {
+        orgId: orgA,
+        membershipId,
+        warehouseId: bravo,
+      });
+      await ctx.db.insert("membershipRoles", {
+        orgId: orgA,
+        membershipId,
+        roleId,
+        grantedAt: 0,
+      });
+    });
+    const bravoOnly = t.withIdentity({
+      subject: "user_bravo_only",
+      org_id: "org_fixture_a",
+    });
+
+    // Even replaying an existing requestId for alpha scans is refused for bravoOnly!
+    expect(
+      allowed(
+        await bravoOnly.mutation(linking.resolveUnresolvedScans, {
+          requestId: "res-valid-group",
+          action: "LINK",
+          customerId,
+          rememberAlias: true,
+          aliasText: "Group Alpha",
+          scans: [
+            { jobScanId: alphaScan1, expectedVersion: 1 },
+            { jobScanId: alphaScan2, expectedVersion: 1 },
+          ],
+        }),
+      ),
+    ).toEqual({ ok: false, code: "ACCESS_DENIED" });
+
+    expect(
+      allowed(
+        await bravoOnly.mutation(linking.addCustomerAlias, {
+          requestId: "bravo-cross-wh-alias",
+          customerId,
+          alias: "Cross WH Alias",
+          exampleJobScanId: alphaScan1,
+        }),
+      ),
+    ).toEqual({ ok: false, code: "ACCESS_DENIED", field: "exampleJobScanId" });
+  });
+
+  it("preserves UNLINKED decisions across text edits, refreshes activity on delete, and keeps repeated CLEAR as UNLINKED", async () => {
+    const { t, actorA, warehouses, createCustomer, saveScan } = await setup();
+    const alpha = warehouses.alphaA;
+    const cust = await createCustomer(actorA, "Preserve Co", "pres-c1");
+    const scanId = await saveScan(
+      actorA,
+      alpha,
+      "pres-scan-1",
+      "FO-PRES-1",
+      "Preserve Co",
+    );
+
+    // Explicit CLEAR sets UNLINKED and clears activity latestJob.
+    let doc = await t.run((ctx) => ctx.db.get(scanId));
+    allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        warehouseId: alpha,
+        jobScanId: scanId,
+        requestId: "pres-clear",
+        expectedVersion: doc!.version ?? 1,
+        fields: {
+          factoryOrder: "FO-PRES-1",
+          productBarcodeText: "BC-FO-PRES-1",
+          customer: "Preserve Co",
+        },
+        customerLink: { action: "CLEAR" },
+      }),
+    );
+    doc = await t.run((ctx) => ctx.db.get(scanId));
+    expect(doc?.customerId).toBeUndefined();
+    expect(doc?.customerLinkSource).toBe("UNLINKED");
+    expect(doc?.customerReviewPending).toBeUndefined();
+
+    // Changing text on an UNLINKED scan under KEEP/omitted must NOT auto-relink!
+    allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        warehouseId: alpha,
+        jobScanId: scanId,
+        requestId: "pres-keep-unlinked",
+        expectedVersion: doc!.version ?? 1,
+        fields: {
+          factoryOrder: "FO-PRES-1",
+          productBarcodeText: "BC-FO-PRES-1",
+          customer: "  Preserve Co  ",
+        },
+      }),
+    );
+    doc = await t.run((ctx) => ctx.db.get(scanId));
+    expect(doc?.customerId).toBeUndefined();
+    expect(doc?.customerLinkSource).toBe("UNLINKED");
+
+    // Re-linking and then deleting the scan refreshes customerWarehouseActivity.
+    allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        warehouseId: alpha,
+        jobScanId: scanId,
+        requestId: "pres-relink",
+        expectedVersion: doc!.version ?? 1,
+        fields: {
+          factoryOrder: "FO-PRES-1",
+          productBarcodeText: "BC-FO-PRES-1",
+          customer: "Preserve Co",
+        },
+        customerLink: { action: "SET", customerId: cust },
+      }),
+    );
+    let summary = allowed(
+      await actorA.query(linking.listCustomerActivitySummaries, {
+        customerIds: [cust],
+      }),
+    );
+    expect(summary.summaries[0]?.latestJob?.jobScanId).toBe(scanId);
+
+    allowed(
+      await actorA.mutation(jobScans.deleteJobScans, {
+        warehouseId: alpha,
+        requestId: "pres-delete",
+        ids: [scanId],
+      }),
+    );
+    summary = allowed(
+      await actorA.query(linking.listCustomerActivitySummaries, {
+        customerIds: [cust],
+      }),
+    );
+    expect(summary.summaries[0]?.latestJob).toBeUndefined();
+
+    // Repeated CLEAR on saveProduct retains customerLinkSource: "UNLINKED".
+    const p1 = allowed(
+      await actorA.mutation(workflow.saveProduct, {
+        warehouseId: alpha,
+        requestId: "pres-p-create",
+        sku: "SKU-PRES-1",
+        name: "Pres Product",
+        unit: "PCS",
+        storageCondition: "ANY",
+        customerLink: { action: "SET", customerId: cust },
+        draft: false,
+      }),
+    );
+    const productId = (p1 as { written: true; documentId: string })
+      .documentId as Id<"finishedGoodsProducts">;
+    let pDoc = await t.run((ctx) => ctx.db.get(productId));
+    for (let i = 1; i <= 2; i += 1) {
+      allowed(
+        await actorA.mutation(workflow.saveProduct, {
+          warehouseId: alpha,
+          productId,
+          expectedUpdatedAt: pDoc!.updatedAt,
+          requestId: `pres-p-clear-${i}`,
+          sku: "SKU-PRES-1",
+          name: "Pres Product",
+          unit: "PCS",
+          storageCondition: "ANY",
+          customerLink: { action: "CLEAR" },
+          draft: false,
+        }),
+      );
+      pDoc = await t.run((ctx) => ctx.db.get(productId));
+      expect(pDoc?.customerId).toBeUndefined();
+      expect(pDoc?.customerLinkSource).toBe("UNLINKED");
+    }
+  });
+
+  it("handles scale cleanly: 105+ blank scans never hide pending tickets, 105+ customers & aliases stay searchable and paginated, and listCustomersPage keeps zero extra reads", async () => {
+    const world = await setup();
+    const { t, orgA, actorA, warehouses, createCustomer, saveScan } = world;
+    const alpha = warehouses.alphaA;
+
+    // 1. Seed 1 older unresolved scan followed by 105 blank scans.
+    const olderPendingId = await saveScan(
+      actorA,
+      alpha,
+      "scale-pending-old",
+      "FO-OLD-PENDING",
+      "Older Unresolved Buyer",
+    );
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      for (let i = 0; i < 105; i += 1) {
+        await ctx.db.insert("finishedGoodsJobScans", {
+          orgId: orgA,
+          warehouseId: alpha,
+          factoryOrder: `FO-BLANK-${i}`,
+          productBarcodeText: `BC-BLANK-${i}`,
+          locationText: "DOCK-1",
+          mapped: false,
+          source: "AI",
+          version: 1,
+          createdAt: now + 1000 + i,
+          createdByUserId: world.userA,
+          updatedAt: now + 1000 + i,
+          updatedByUserId: world.userA,
+        });
+      }
+    });
+
+    const summary = allowed(await actorA.query(linking.reviewSummary, {}));
+    expect(summary.unresolvedScanCount).toBe(1);
+    const queue = allowed(await actorA.query(linking.listUnresolvedNames, {}));
+    expect(queue.groups).toHaveLength(1);
+    expect(queue.groups[0]?.scans[0]?.jobScanId).toBe(olderPendingId);
+
+    // 2. Seed 105 active customers; verify customer #105 is found by exact code immediately and by substring via scanCursor.
+    const customerIds: Id<"customers">[] = [];
+    for (let i = 1; i <= 105; i += 1) {
+      const id = await createCustomer(
+        actorA,
+        `Scale Customer ${String(i).padStart(3, "0")}`,
+        `scale-cust-${i}`,
+        { code: `SC-${String(i).padStart(4, "0")}` },
+      );
+      customerIds.push(id);
+    }
+    const target105 = customerIds[104]!;
+
+    const exactCodeHit = allowed(
+      await actorA.query(linking.searchCustomerOptions, { search: "SC-0105" }),
+    );
+    expect(exactCodeHit.items.some((c) => c.customerId === target105)).toBe(
+      true,
+    );
+
+    // Substring search continues past 100 via scanCursor.
+    const subPage1 = allowed(
+      await actorA.query(linking.searchCustomerOptions, { search: "0105" }),
+    );
+    let foundBySub = subPage1.items.some((c) => c.customerId === target105);
+    let nextCursor = subPage1.scanCursor;
+    while (!foundBySub && nextCursor) {
+      const next = allowed(
+        await actorA.query(linking.searchCustomerOptions, {
+          search: "0105",
+          scanCursor: nextCursor,
+        }),
+      );
+      foundBySub = next.items.some((c) => c.customerId === target105);
+      nextCursor = next.scanCursor;
+    }
+    expect(foundBySub).toBe(true);
+
+    // 3. Seed 105 aliases on customer #1 and verify alias #105 matches listCustomersPage AND paginates via listCustomerAliasesPage.
+    const firstCustomer = customerIds[0]!;
+    await t.run(async (ctx) => {
+      for (let i = 1; i <= 105; i += 1) {
+        await ctx.db.insert("customerAliases", {
+          orgId: orgA,
+          customerId: firstCustomer,
+          alias: `Shared Prefix Alias ${String(i).padStart(3, "0")}`,
+          normalizedAlias: `shared prefix alias ${String(i).padStart(3, "0")}`,
+          approvedAt: i,
+          approvedByUserId: world.userA,
+        });
+      }
+    });
+    // Adding alias #106 via mutation syncs aliasSearchText across all pages.
+    allowed(
+      await actorA.mutation(linking.addCustomerAlias, {
+        requestId: "scale-alias-106",
+        customerId: firstCustomer,
+        alias: "Needle Tail Alias 106",
+      }),
+    );
+    let aliasScanCursor: string | undefined;
+    let aliasSearchPage = allowed(
+      await actorA.query(catalogue.listCustomersPage, {
+        search: "needle tail alias 106",
+        pageSize: 20,
+      }),
+    );
+    while (
+      aliasSearchPage.status === "scanning" &&
+      aliasSearchPage.scanCursor
+    ) {
+      aliasScanCursor = aliasSearchPage.scanCursor;
+      aliasSearchPage = allowed(
+        await actorA.query(catalogue.listCustomersPage, {
+          search: "needle tail alias 106",
+          pageSize: 20,
+          scanCursor: aliasScanCursor,
+        }),
+      );
+    }
+    expect(aliasSearchPage.status).toBe("ready");
+    expect(aliasSearchPage.page.map((c) => c.customerId)).toEqual([
+      firstCustomer,
+    ]);
+
+    const aliasPage1 = allowed(
+      await actorA.query(linking.listCustomerAliasesPage, {
+        customerId: firstCustomer,
+        pageSize: 60,
+      }),
+    );
+    expect(aliasPage1?.items).toHaveLength(60);
+    expect(aliasPage1?.isDone).toBe(false);
+    const aliasPage2 = allowed(
+      await actorA.query(linking.listCustomerAliasesPage, {
+        customerId: firstCustomer,
+        pageSize: 60,
+        cursor: aliasPage1!.continueCursor,
+      }),
+    );
+    expect(aliasPage2?.items).toHaveLength(46);
+    expect(aliasPage2?.isDone).toBe(true);
+
+    // 4. Whole-query read budget across ALL tables: listCustomersPage reads ZERO warehouse/product/scan/alias tables!
+    const page20 = await measured(world, listCustomersPage, {
+      pageSize: 20,
+      status: "ACTIVE",
+    });
+    expect(page20.value).toMatchObject({ status: "ready" });
+    expect(page20.stats.rangeDocs.customers).toBeLessThanOrEqual(21);
+    expect(page20.stats.rangeDocs.customerAliases ?? 0).toBe(0);
+    expect(page20.stats.rangeDocs.finishedGoodsProducts ?? 0).toBe(0);
+    expect(page20.stats.rangeDocs.finishedGoodsJobScans ?? 0).toBe(0);
+    expect(page20.stats.rangeDocs.customerWarehouseActivity ?? 0).toBe(0);
+    expect(page20.stats.rangeDocs.warehouses ?? 0).toBe(0);
+
+    // Separate batched activity summary reads 0 docs for 20 zero-activity customers.
+    const summary20 = await measured(world, listCustomerActivitySummaries, {
+      customerIds: customerIds.slice(0, 20),
+    });
+    expect(summary20.value).toMatchObject({ canViewWarehouseData: true });
+    expect(summary20.stats.rangeDocs.customerWarehouseActivity ?? 0).toBe(0);
+    expect(summary20.stats.rangeDocs.finishedGoodsProducts ?? 0).toBe(0);
+    expect(summary20.stats.rangeDocs.finishedGoodsJobScans ?? 0).toBe(0);
   });
 });

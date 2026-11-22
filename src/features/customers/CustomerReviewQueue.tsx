@@ -23,8 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { customerNewPath, ROUTES } from "@/lib/navigation";
+import { returnFromTask } from "@/lib/taskNavigation";
 import { CustomerGate, useSubmissionIdentity } from "./customerAccess";
 
 interface ReviewCandidate {
@@ -76,9 +77,15 @@ export function CustomerReviewQueue() {
 
 function ReviewQueueContent() {
   const t = useTranslations("Customers");
-  const outcome = useQuery(api.customers.linking.listUnresolvedNames, {});
+  const router = useRouter();
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const activeCursor = cursorStack.at(-1);
+  const outcome = useQuery(
+    api.customers.linking.listUnresolvedNames,
+    activeCursor === undefined ? {} : { scanCursor: activeCursor },
+  );
   const [pickerTarget, setPickerTarget] = useState<ReviewGroup | null>(null);
-  const [customChoices, setCustomChoices] = useState<
+  const [selectedByGroup, setSelectedByGroup] = useState<
     Record<string, ReviewCandidate>
   >({});
 
@@ -98,7 +105,8 @@ function ReviewQueueContent() {
     );
   }
 
-  const { canViewWarehouseData, canReview, groups } = outcome.value;
+  const { canViewWarehouseData, canReview, groups, hasMore, scanCursor } =
+    outcome.value;
   if (!canViewWarehouseData) {
     return (
       <Notice
@@ -108,14 +116,18 @@ function ReviewQueueContent() {
       />
     );
   }
-  if (groups.length === 0) {
+  if (groups.length === 0 && !hasMore && cursorStack.length === 0) {
     return (
       <EmptyState
         title={t("reviewEmptyTitle")}
         body={t("reviewEmptyBody")}
         action={
-          <Button asChild variant="outline">
-            <Link href={ROUTES.customers}>{t("backToList")}</Link>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => returnFromTask(ROUTES.customers, router.replace)}
+          >
+            {t("backToList")}
           </Button>
         }
       />
@@ -127,24 +139,65 @@ function ReviewQueueContent() {
       {!canReview ? (
         <Notice tone="muted" title={t("viewOnly")} testId="review-view-only" />
       ) : null}
-      <div className="space-y-4" data-testid="review-queue-list">
-        {groups.map((group) => (
-          <ReviewGroupCard
-            key={group.normalizedName}
-            group={group}
-            canReview={canReview}
-            customChoice={customChoices[group.normalizedName]}
-            onChooseOther={() => setPickerTarget(group)}
-          />
-        ))}
-      </div>
+      {groups.length === 0 ? (
+        <Notice
+          tone="muted"
+          title={t("reviewEmptyBatch")}
+          testId="review-empty-batch"
+        />
+      ) : (
+        <div className="space-y-4" data-testid="review-queue-list">
+          {groups.map((group) => (
+            <ReviewGroupCard
+              key={group.normalizedName}
+              group={group}
+              canReview={canReview}
+              selectedCustomer={selectedByGroup[group.normalizedName]}
+              onSelectCustomer={(customer) =>
+                setSelectedByGroup((current) => ({
+                  ...current,
+                  [group.normalizedName]: customer,
+                }))
+              }
+              onChooseOther={() => setPickerTarget(group)}
+            />
+          ))}
+        </div>
+      )}
+      {hasMore || cursorStack.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          {cursorStack.length > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setCursorStack([])}
+            >
+              {t("reviewBackToFirst")}
+            </Button>
+          ) : null}
+          {hasMore && scanCursor ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setCursorStack((current) => [...current, scanCursor])
+              }
+              data-testid="review-load-more"
+            >
+              {t("reviewLoadMore")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <CustomerPickerDialog
         group={pickerTarget}
         onClose={() => setPickerTarget(null)}
         onSelect={(customer) => {
           if (!pickerTarget) return;
           const key = pickerTarget.normalizedName;
-          setCustomChoices((current) => ({ ...current, [key]: customer }));
+          setSelectedByGroup((current) => ({ ...current, [key]: customer }));
           setPickerTarget(null);
         }}
       />
@@ -155,12 +208,14 @@ function ReviewQueueContent() {
 function ReviewGroupCard({
   group,
   canReview,
-  customChoice,
+  selectedCustomer,
+  onSelectCustomer,
   onChooseOther,
 }: {
   readonly group: ReviewGroup;
   readonly canReview: boolean;
-  readonly customChoice?: ReviewCandidate | undefined;
+  readonly selectedCustomer?: ReviewCandidate | undefined;
+  readonly onSelectCustomer: (customer: ReviewCandidate) => void;
   readonly onChooseOther: () => void;
 }) {
   const t = useTranslations("Customers");
@@ -177,11 +232,6 @@ function ReviewGroupCard({
   const activeCandidates = group.candidates.filter(
     (candidate) => candidate.status === "ACTIVE",
   );
-  const defaultSelected =
-    group.matchKind === "SIMILAR" && activeCandidates.length === 1
-      ? activeCandidates[0]!.customerId
-      : "";
-  const [pickedId, setPickedId] = useState<string>(defaultSelected);
   // Per plan: a decision applies to the listed tickets only by default.
   const [rememberAlias, setRememberAlias] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -189,18 +239,20 @@ function ReviewGroupCard({
     null,
   );
 
-  const visibleCandidates: readonly ReviewCandidate[] = customChoice
+  const visibleCandidates: readonly ReviewCandidate[] = selectedCustomer
     ? activeCandidates.some(
-        (candidate) => candidate.customerId === customChoice.customerId,
+        (candidate) => candidate.customerId === selectedCustomer.customerId,
       )
       ? activeCandidates
-      : [customChoice, ...activeCandidates]
+      : [selectedCustomer, ...activeCandidates]
     : activeCandidates;
 
+  const defaultCandidate =
+    group.matchKind === "SIMILAR" && activeCandidates.length === 1
+      ? activeCandidates[0]
+      : undefined;
   const effectiveSelectedId =
-    customChoice && !visibleCandidates.some((c) => c.customerId === pickedId)
-      ? customChoice.customerId
-      : pickedId || (customChoice ? customChoice.customerId : "");
+    selectedCustomer?.customerId ?? defaultCandidate?.customerId ?? "";
 
   const reasonLabel =
     group.matchKind === "AMBIGUOUS"
@@ -253,13 +305,15 @@ function ReviewGroupCard({
   }
 
   const errorMessage =
-    errorCode === "STALE_REVISION"
+    errorCode === "STALE_REVISION" || errorCode === "MIXED_NAME_GROUP"
       ? t("reviewErrorStale")
-      : errorCode === "ACCESS_DENIED" || errorCode === "DENIED"
-        ? t("reviewErrorDenied")
-        : errorCode || operation.error
-          ? t("reviewErrorUnknown")
-          : null;
+      : errorCode === "ALREADY_RESOLVED"
+        ? t("reviewErrorAlreadyResolved")
+        : errorCode === "ACCESS_DENIED" || errorCode === "DENIED"
+          ? t("reviewErrorDenied")
+          : errorCode || operation.error
+            ? t("reviewErrorUnknown")
+            : null;
 
   return (
     <article
@@ -338,7 +392,7 @@ function ReviewGroupCard({
                     value={candidate.customerId}
                     checked={checked}
                     disabled={!canReview || operation.busy}
-                    onChange={() => setPickedId(candidate.customerId)}
+                    onChange={() => onSelectCustomer(candidate)}
                     className="mt-1 size-4 accent-primary"
                   />
                   <span className="min-w-0 flex-1">
@@ -435,20 +489,28 @@ function CustomerPickerDialog({
 }) {
   const t = useTranslations("Customers");
   const [search, setSearch] = useState("");
+  const [scanCursor, setScanCursor] = useState<string | undefined>(undefined);
   const outcome = useQuery(
     api.customers.linking.searchCustomerOptions,
-    group ? { search } : "skip",
+    group
+      ? { search, ...(scanCursor === undefined ? {} : { scanCursor }) }
+      : "skip",
   );
-  const options = outcome?.ok ? outcome.value : [];
+  const options = outcome?.ok ? outcome.value.items : [];
+  const hasMore = Boolean(outcome?.ok && outcome.value.hasMore);
+  const nextCursor = outcome?.ok ? outcome.value.scanCursor : undefined;
+
+  function resetAndClose() {
+    setSearch("");
+    setScanCursor(undefined);
+    onClose();
+  }
 
   return (
     <Dialog
       open={group !== null}
       onOpenChange={(open) => {
-        if (!open) {
-          setSearch("");
-          onClose();
-        }
+        if (!open) resetAndClose();
       }}
     >
       <DialogContent closeLabel={t("reviewPickerClose")}>
@@ -468,7 +530,10 @@ function CustomerPickerDialog({
             />
             <Input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setScanCursor(undefined);
+              }}
               placeholder={t("reviewPickerSearch")}
               aria-label={t("reviewPickerSearch")}
               className="pl-9"
@@ -479,50 +544,60 @@ function CustomerPickerDialog({
               state={{ kind: "LOADING" }}
               label={t("loading")}
             />
-          ) : options.length === 0 ? (
+          ) : options.length === 0 && !hasMore ? (
             <p className="py-4 text-center text-sm text-muted">
               {t("reviewPickerEmpty")}
             </p>
           ) : (
-            <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-md border border-border">
-              {options.map((customer) => (
-                <li key={customer.customerId}>
-                  <button
-                    type="button"
-                    className="flex min-h-touch w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
-                    onClick={() => {
-                      setSearch("");
-                      onSelect(customer);
-                    }}
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium wrap-anywhere text-text">
-                        {customer.name}
-                      </span>
-                      <span className="block text-xs text-muted">
-                        <span className="font-mono">{customer.code}</span>
-                        {customer.province ? ` · ${customer.province}` : null}
-                      </span>
-                    </span>
-                    <Check
-                      aria-hidden="true"
-                      className="size-4 shrink-0 text-muted"
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {options.length > 0 ? (
+                <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-md border border-border">
+                  {options.map((customer) => (
+                    <li key={customer.customerId}>
+                      <button
+                        type="button"
+                        className="flex min-h-touch w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
+                        onClick={() => {
+                          setSearch("");
+                          setScanCursor(undefined);
+                          onSelect(customer);
+                        }}
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium wrap-anywhere text-text">
+                            {customer.name}
+                          </span>
+                          <span className="block text-xs text-muted">
+                            <span className="font-mono">{customer.code}</span>
+                            {customer.province
+                              ? ` · ${customer.province}`
+                              : null}
+                          </span>
+                        </span>
+                        <Check
+                          aria-hidden="true"
+                          className="size-4 shrink-0 text-muted"
+                        />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {hasMore && nextCursor ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setScanCursor(nextCursor)}
+                >
+                  {t("reviewPickerLoadMore")}
+                </Button>
+              ) : null}
+            </>
           )}
         </div>
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setSearch("");
-              onClose();
-            }}
-          >
+          <Button type="button" variant="outline" onClick={resetAndClose}>
             {t("cancel")}
           </Button>
         </DialogFooter>

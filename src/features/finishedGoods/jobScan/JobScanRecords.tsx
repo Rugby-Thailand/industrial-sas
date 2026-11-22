@@ -9,6 +9,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { QueryGate } from "@/components/system/QueryGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
@@ -53,8 +54,13 @@ const hasRecordRows = (value: object) =>
   "items" in value && Array.isArray(value.items) && value.items.length > 0;
 
 /** The header stays in place while the session and warehouse load. */
-export function JobScanRecordsScreen() {
+export function JobScanRecordsScreen({
+  requestedWarehouseId,
+}: {
+  readonly requestedWarehouseId?: string;
+} = {}) {
   const t = useTranslations("JobScan");
+  const { warehouses } = useWorkspace();
   const viewScope = useDraftKey("job-scan-records");
   const loadingLabel = t("recordList.loading");
   return (
@@ -67,14 +73,23 @@ export function JobScanRecordsScreen() {
       />
       {viewScope ? (
         <QueryGate scope="WAREHOUSE" loadingLabel={loadingLabel}>
-          {(warehouseId) => (
-            <Records
-              key={`${viewScope}:${warehouseId}`}
-              warehouseId={warehouseId}
-              viewKey={`${viewScope}:${warehouseId}`}
-              loadingLabel={loadingLabel}
-            />
-          )}
+          {(activeWarehouseId) => {
+            const warehouseId =
+              requestedWarehouseId &&
+              warehouses.some(
+                (warehouse) => warehouse.id === requestedWarehouseId,
+              )
+                ? requestedWarehouseId
+                : activeWarehouseId;
+            return (
+              <Records
+                key={`${viewScope}:${warehouseId}`}
+                warehouseId={warehouseId}
+                viewKey={`${viewScope}:${warehouseId}`}
+                loadingLabel={loadingLabel}
+              />
+            );
+          }}
         </QueryGate>
       ) : (
         <Loading label={loadingLabel} />

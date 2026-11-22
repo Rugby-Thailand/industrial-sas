@@ -22,6 +22,10 @@ import {
   type PackedUnit,
 } from "../model/finishedGoods/packing";
 import { validDimension } from "../model/finishedGoods/placement";
+import {
+  canReadCustomers,
+  projectProductCustomerFields,
+} from "../customers/warehouseScope";
 import { command, compact, created, failure, stamp } from "./commands";
 import { firstActiveMove, nextCode, palletOf, productOf } from "./records";
 const READ = "masterData.storageLayout.read";
@@ -367,7 +371,13 @@ export const getBatch = queryWithOrg({
     if (!batch) return null;
     const product = await productOf(ctx, batch);
     if (!product) return null;
-    return { ...(await detail(ctx, batch)), product };
+    return {
+      ...(await detail(ctx, batch)),
+      product: projectProductCustomerFields(
+        product,
+        await canReadCustomers(ctx),
+      ),
+    };
   },
 });
 /** Immutable revision rows are fetched only when history is opened. */

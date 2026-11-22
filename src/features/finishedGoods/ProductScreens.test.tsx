@@ -30,9 +30,11 @@ import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
+  canReadCustomers: false,
   authLoaded: true,
   actorId: "user-a",
   warehouseId: "warehouse-a",
+  extraWarehouses: [] as { id: string; code: string; name: string }[],
   push: vi.fn(),
   replace: vi.fn(),
   save: vi.fn<
@@ -61,9 +63,16 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => {
     ...actual,
     useWorkspace: () => ({
       ...finishedGoodsWorkspace,
-      navigationPermissions: mocks.canManage
-        ? finishedGoodsWorkspace.navigationPermissions
-        : ["masterData.storageLayout.read"],
+      warehouses: [
+        ...finishedGoodsWorkspace.warehouses,
+        ...mocks.extraWarehouses,
+      ],
+      navigationPermissions: [
+        ...(mocks.canManage
+          ? finishedGoodsWorkspace.navigationPermissions
+          : ["masterData.storageLayout.read"]),
+        ...(mocks.canReadCustomers ? ["masterData.customer.read"] : []),
+      ],
     }),
   };
 });
@@ -169,6 +178,8 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/");
   localStorage.clear();
   mocks.canManage = true;
+  mocks.canReadCustomers = false;
+  mocks.extraWarehouses = [];
   mocks.authLoaded = true;
   mocks.actorId = "user-a";
   mocks.warehouseId = "warehouse-a";
@@ -2167,3 +2178,93 @@ it.each(["warehouse", "actor"] as const)(
     expect(screen.getByText(finishedGoodsList.products[0]!.name)).toBeVisible();
   },
 );
+
+describe("product screen customer v2 linking", () => {
+  it("opens cross-warehouse product links using requestedWarehouseId when authorized", () => {
+    mocks.extraWarehouses = [
+      { id: "warehouse-b", code: "WH-B", name: "Warehouse B" },
+    ];
+    renderWithIntl(
+      <ProductScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+      { locale: "en", workspace: false },
+    );
+    expect(mocks.query).toHaveBeenCalledWith(
+      "finishedGoods/workflow:getProduct",
+      {
+        warehouseId: "warehouse-b",
+        productId: "product-a",
+      },
+    );
+  });
+
+  it("preserves frozen customerLink and requestId when retrying saveProduct after a lost response even if live product updates", async () => {
+    mocks.canReadCustomers = true;
+    let liveProduct = { ...finishedGoodProduct };
+    const fallback = mocks.query.getMockImplementation()!;
+    mocks.query.mockImplementation((name, args) => {
+      if (name.endsWith(":getProduct")) return querySuccess(liveProduct);
+      if (name.endsWith(":searchCustomerOptions")) {
+        return querySuccess({
+          items: [
+            {
+              customerId: "cust-1",
+              code: "C-0001",
+              name: "Acme Packaging",
+              status: "ACTIVE",
+            },
+          ],
+          hasMore: false,
+        });
+      }
+      return fallback(name, args);
+    });
+    mocks.save
+      .mockRejectedValueOnce(new Error("Connection lost"))
+      .mockResolvedValueOnce(savedProductOutcome);
+
+    const view = renderWithIntl(<ProductScreen productId="product-a" />, {
+      locale: "en",
+      workspace: false,
+    });
+    // Expand references and select customer cust-1.
+    fireEvent.click(screen.getByText("References (optional)"));
+    chooseOption("Customer", "Acme Packaging (C-0001)");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save product details" }),
+    );
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    const firstArgs = mocks.save.mock.calls[0]![0];
+    expect(firstArgs).toMatchObject({
+      customerLink: { action: "SET", customerId: "cust-1" },
+    });
+
+    // Simulate live subscription advancing with the server-applied customerId
+    // before the user retries the lost response.
+    liveProduct = {
+      ...finishedGoodProduct,
+      customerId: "cust-1",
+      customerLinkSource: "MANUAL",
+      updatedAt: finishedGoodProduct.updatedAt + 1000,
+    };
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+        <ProductScreen productId="product-a" />
+      </NextIntlClientProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save product details" }),
+    );
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+    const retryArgs = mocks.save.mock.calls[1]![0];
+    expect(retryArgs.requestId).toBe(firstArgs.requestId);
+    expect(retryArgs).toMatchObject({
+      customerLink: { action: "SET", customerId: "cust-1" },
+    });
+  });
+});

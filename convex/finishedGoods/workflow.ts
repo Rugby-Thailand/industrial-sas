@@ -38,8 +38,11 @@ import {
 } from "../lib/tenantFunctions";
 import { inventoryWriter } from "../lib/inventoryWriter";
 import { diffFields } from "../lib/masterDataStore";
-import { grantedPermissionsAmong } from "../lib/navigationGrants";
-import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
+import { adjustCustomerProductCount } from "../customers/activitySummary";
+import {
+  canReadCustomers,
+  projectProductCustomerFields,
+} from "../customers/warehouseScope";
 import { command, compact, created, failure, stamp } from "./commands";
 import { nextCode, palletOf, productOf, rows } from "./records";
 import {
@@ -209,16 +212,18 @@ export const saveProduct = mutationWithOrg({
         }
         // Explicit customer link only: `customerReference` may be a part
         // number and is never auto-linked. Omitted or KEEP preserves existing
-        // links on unrelated edits.
+        // links on unrelated edits. Both SET and CLEAR require customer read.
         let customerId: Id<"customers"> | undefined = before?.customerId;
         let customerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
           before?.customerLinkSource;
-        if (args.customerLink?.action === "SET") {
-          const grants = await grantedPermissionsAmong(ctx, [
-            NAVIGATION_PERMISSION.customers,
-          ]);
-          if (!grants.includes(NAVIGATION_PERMISSION.customers))
+        if (
+          args.customerLink?.action === "SET" ||
+          args.customerLink?.action === "CLEAR"
+        ) {
+          if (!(await canReadCustomers(ctx)))
             return failure("ACCESS_DENIED", "customerId");
+        }
+        if (args.customerLink?.action === "SET") {
           const target = await ctx.tenantDb.get<Doc<"customers">>(
             "customers",
             args.customerLink.customerId,
@@ -230,7 +235,7 @@ export const saveProduct = mutationWithOrg({
           customerLinkSource = "MANUAL";
         } else if (args.customerLink?.action === "CLEAR") {
           customerId = undefined;
-          customerLinkSource = before?.customerId ? "UNLINKED" : undefined;
+          customerLinkSource = "UNLINKED";
         }
         const fields = {
           sku,
@@ -257,17 +262,52 @@ export const saveProduct = mutationWithOrg({
             customerLinkSource,
           });
           await ctx.tenantDb.patch("finishedGoodsProducts", before._id, fields);
+          if (before.customerId !== customerId) {
+            if (before.customerId) {
+              await adjustCustomerProductCount(
+                ctx.tenantDb,
+                args.warehouseId,
+                before.customerId,
+                -1,
+              );
+            }
+            if (customerId) {
+              await adjustCustomerProductCount(
+                ctx.tenantDb,
+                args.warehouseId,
+                customerId,
+                1,
+              );
+            }
+          }
           return {
             documentId: before._id,
             ...(linkChanges.length > 0 ? { changes: linkChanges } : {}),
           };
         }
+        const documentId = await ctx.tenantDb.insert("finishedGoodsProducts", {
+          ...compact(fields),
+          warehouseId: args.warehouseId,
+          ...created(ctx),
+        });
+        if (customerId) {
+          await adjustCustomerProductCount(
+            ctx.tenantDb,
+            args.warehouseId,
+            customerId,
+            1,
+          );
+        }
+        const createChanges = diffFields(
+          {
+            customerId: undefined,
+            customerLinkSource: undefined,
+          },
+          { customerId, customerLinkSource },
+        );
         return {
-          documentId: await ctx.tenantDb.insert("finishedGoodsProducts", {
-            ...compact(fields),
-            warehouseId: args.warehouseId,
-            ...created(ctx),
-          }),
+          documentId,
+          ...(createChanges.length > 0 ? { changes: createChanges } : {}),
         };
       },
     ),
@@ -1548,7 +1588,9 @@ async function detail(
   }
   return {
     pallet,
-    product,
+    product: product
+      ? projectProductCustomerFields(product, await canReadCustomers(ctx))
+      : null,
     placement,
     destination: resolved,
     stackChildren: await stackChildren(ctx, pallet._id),
@@ -1616,7 +1658,11 @@ export const getProduct = queryWithOrg({
   permissionCode: READ,
   target: { table: "finishedGoodsProducts" },
   warehouseId: (a) => a.warehouseId,
-  handler: productOf,
+  handler: async (ctx, args) => {
+    const product = await productOf(ctx, args);
+    if (!product) return null;
+    return projectProductCustomerFields(product, await canReadCustomers(ctx));
+  },
 });
 export const reserve = mutationWithOrg({
   writer: inventoryWriter,

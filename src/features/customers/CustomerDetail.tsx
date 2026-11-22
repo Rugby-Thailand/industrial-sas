@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
+import { useNavigationDraft } from "@/components/navigation/navigationDraft";
 import { Link } from "@/i18n/navigation";
 import {
   customerEditPath,
@@ -182,6 +183,10 @@ function CustomerDetailContent({
     [address?.province, address?.postcode].filter(Boolean).join(" "),
   ].filter((line): line is string => Boolean(line));
   const showWarehouseSections = activity?.canViewWarehouseData === true;
+  const recentJobsHref =
+    activity && activity.recentJobs.length > 0
+      ? `${ROUTES.jobScanRecords}?warehouseId=${encodeURIComponent(activity.recentJobs[0]!.warehouseId)}`
+      : ROUTES.jobScanRecords;
   return (
     <>
       <PageHeader
@@ -311,7 +316,7 @@ function CustomerDetailContent({
                   action={
                     activity.recentJobs.length > 0 ? (
                       <Link
-                        href={ROUTES.jobScanRecords}
+                        href={recentJobsHref}
                         className="text-sm text-link hover:underline"
                       >
                         {t("viewAllJobs")}
@@ -393,57 +398,11 @@ function CustomerDetailContent({
                     </>
                   )}
                 </DetailCard>
-                <DetailCard
-                  title={
-                    activity.linkedProducts.length > 0
-                      ? t("sectionProductsCount", {
-                          count: activity.linkedProducts.length,
-                        })
-                      : t("sectionProducts")
-                  }
-                >
-                  {activity.linkedProducts.length === 0 ? (
-                    <p className="text-sm text-muted">
-                      {t("noLinkedProducts")}
-                    </p>
-                  ) : (
-                    <ul
-                      className="divide-y divide-border"
-                      data-testid="customer-linked-products"
-                    >
-                      {activity.linkedProducts.map((product) => (
-                        <li key={product.productId}>
-                          <Link
-                            href={productPath(product.productId)}
-                            className="-mx-2 flex min-h-touch items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-raised focus-visible:outline-2 focus-visible:outline-link"
-                          >
-                            <span className="min-w-0">
-                              <span className="block text-sm font-medium wrap-anywhere text-text">
-                                {product.name}
-                              </span>
-                              <span className="block text-xs text-muted">
-                                <span className="font-mono">{product.sku}</span>
-                                {product.warehouseName
-                                  ? ` · ${product.warehouseName}`
-                                  : null}
-                              </span>
-                            </span>
-                            {product.totalQuantity !== undefined ? (
-                              <span className="shrink-0 text-xs text-muted tabular-nums">
-                                {t("inStock", {
-                                  quantity: format.number(
-                                    product.totalQuantity,
-                                  ),
-                                  unit: product.unit,
-                                })}
-                              </span>
-                            ) : null}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </DetailCard>
+                <CustomerProductsCard
+                  customerId={customer.customerId}
+                  initialProducts={activity.linkedProducts}
+                  hasMoreInitial={activity.hasMoreProducts}
+                />
               </>
             ) : null}
           </div>
@@ -495,6 +454,7 @@ function CustomerDetailContent({
               <CustomerAliasesCard
                 customerId={customer.customerId}
                 aliases={activity.aliases}
+                hasMoreAliases={activity.hasMoreAliases}
                 canEdit={canManage && !archived}
               />
             ) : null}
@@ -512,9 +472,121 @@ function CustomerDetailContent({
   );
 }
 
+type LinkedProductItem = {
+  readonly productId: Id<"finishedGoodsProducts">;
+  readonly sku: string;
+  readonly name: string;
+  readonly unit: string;
+  readonly status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  readonly warehouseId: Id<"warehouses">;
+  readonly warehouseName: string;
+  readonly customerReference?: string;
+  readonly totalQuantity?: number;
+};
+
+function CustomerProductsCard({
+  customerId,
+  initialProducts,
+  hasMoreInitial,
+}: {
+  readonly customerId: Id<"customers">;
+  readonly initialProducts: readonly LinkedProductItem[];
+  readonly hasMoreInitial: boolean;
+}) {
+  const t = useTranslations("Customers");
+  const format = useFormatter();
+  const [pagedCursor, setPagedCursor] = useState<string | null>(null);
+  const [pagingActive, setPagingActive] = useState(false);
+  const pageOutcome = useQuery(
+    api.customers.linking.listCustomerProductsPage,
+    pagingActive
+      ? {
+          customerId,
+          pageSize: 100,
+          ...(pagedCursor ? { cursor: pagedCursor } : {}),
+        }
+      : "skip",
+  );
+  const paged = pageOutcome?.ok ? pageOutcome.value : null;
+  const products = pagingActive && paged ? paged.items : initialProducts;
+  const hasMore = pagingActive
+    ? Boolean(paged && !paged.isDone)
+    : hasMoreInitial;
+  const title =
+    products.length === 0
+      ? t("sectionProducts")
+      : hasMore
+        ? t("sectionProductsCountMore", { count: products.length })
+        : t("sectionProductsCount", { count: products.length });
+
+  return (
+    <DetailCard title={title}>
+      {products.length === 0 ? (
+        <p className="text-sm text-muted">{t("noLinkedProducts")}</p>
+      ) : (
+        <>
+          <ul
+            className="divide-y divide-border"
+            data-testid="customer-linked-products"
+          >
+            {products.map((product) => (
+              <li key={product.productId}>
+                <Link
+                  href={productPath(product.productId, product.warehouseId)}
+                  className="-mx-2 flex min-h-touch items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-raised focus-visible:outline-2 focus-visible:outline-link"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium wrap-anywhere text-text">
+                      {product.name}
+                    </span>
+                    <span className="block text-xs text-muted">
+                      <span className="font-mono">{product.sku}</span>
+                      {product.warehouseName
+                        ? ` · ${product.warehouseName}`
+                        : null}
+                    </span>
+                  </span>
+                  {product.totalQuantity !== undefined ? (
+                    <span className="shrink-0 text-xs text-muted tabular-nums">
+                      {t("inStock", {
+                        quantity: format.number(product.totalQuantity),
+                        unit: product.unit,
+                      })}
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {hasMore ? (
+            <div className="pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!pagingActive) {
+                    setPagingActive(true);
+                    setPagedCursor(null);
+                  } else if (paged && !paged.isDone) {
+                    setPagedCursor(paged.continueCursor);
+                  }
+                }}
+              >
+                {t("loadMoreProducts")}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </DetailCard>
+  );
+}
+
 function CustomerAliasesCard({
   customerId,
   aliases,
+  hasMoreAliases,
   canEdit,
 }: {
   readonly customerId: Id<"customers">;
@@ -523,6 +595,7 @@ function CustomerAliasesCard({
     readonly alias: string;
     readonly approvedAt: number;
   }[];
+  readonly hasMoreAliases: boolean;
   readonly canEdit: boolean;
 }) {
   const t = useTranslations("Customers");
@@ -536,6 +609,33 @@ function CustomerAliasesCard({
   });
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pagingActive, setPagingActive] = useState(false);
+  const [aliasCursor, setAliasCursor] = useState<string | null>(null);
+  const aliasPageOutcome = useQuery(
+    api.customers.linking.listCustomerAliasesPage,
+    pagingActive
+      ? {
+          customerId,
+          pageSize: 100,
+          ...(aliasCursor ? { cursor: aliasCursor } : {}),
+        }
+      : "skip",
+  );
+  const pagedAliases = aliasPageOutcome?.ok ? aliasPageOutcome.value : null;
+  const visibleAliases =
+    pagingActive && pagedAliases ? pagedAliases.items : aliases;
+  const hasMore = pagingActive
+    ? Boolean(pagedAliases && !pagedAliases.isDone)
+    : hasMoreAliases;
+
+  useNavigationDraft({
+    dirty: canEdit && draft.trim().length > 0,
+    pending: operation.busy,
+    discard: () => {
+      setDraft("");
+      setError(null);
+    },
+  });
 
   async function handleAdd(event: FormEvent) {
     event.preventDefault();
@@ -590,38 +690,63 @@ function CustomerAliasesCard({
     );
   }
 
+  const displayError = error ?? (operation.error ? t("errors.UNKNOWN") : null);
+
   return (
     <DetailCard title={t("sectionAliases")}>
-      {aliases.length > 0 ? (
-        <ul
-          className="flex flex-wrap gap-2"
-          data-testid="customer-aliases-list"
-        >
-          {aliases.map((item) => (
-            <li
-              key={item.aliasId}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2.5 py-1 text-xs text-text"
-            >
-              <span className="wrap-anywhere">{item.alias}</span>
-              {canEdit ? (
-                <button
-                  type="button"
-                  disabled={operation.busy}
-                  aria-label={t("aliasRemove", { alias: item.alias })}
-                  onClick={() => void handleRemove(item.aliasId)}
-                  className="-mr-1 inline-flex size-5 items-center justify-center rounded text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-link"
-                >
-                  <X aria-hidden="true" className="size-3.5" />
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+      {visibleAliases.length > 0 ? (
+        <>
+          <ul
+            className="flex flex-wrap gap-2"
+            data-testid="customer-aliases-list"
+          >
+            {visibleAliases.map((item) => (
+              <li
+                key={item.aliasId}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2.5 py-1 text-xs text-text"
+              >
+                <span className="wrap-anywhere">{item.alias}</span>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    disabled={operation.busy}
+                    aria-label={t("aliasRemove", { alias: item.alias })}
+                    onClick={() => void handleRemove(item.aliasId)}
+                    className="-mr-1 inline-flex size-5 items-center justify-center rounded text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-link"
+                  >
+                    <X aria-hidden="true" className="size-3.5" />
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {hasMore ? (
+            <div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!pagingActive) {
+                    setPagingActive(true);
+                    setAliasCursor(null);
+                  } else if (pagedAliases && !pagedAliases.isDone) {
+                    setAliasCursor(pagedAliases.continueCursor);
+                  }
+                }}
+              >
+                {t("loadMoreAliases")}
+              </Button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <p className="text-sm text-muted">{t("noAliases")}</p>
       )}
       <p className="text-xs text-muted">{t("aliasHint")}</p>
-      {error ? <Notice tone="danger" role="alert" title={error} /> : null}
+      {displayError ? (
+        <Notice tone="danger" role="alert" title={displayError} />
+      ) : null}
       {canEdit ? (
         <form
           onSubmit={(event) => void handleAdd(event)}

@@ -5,6 +5,7 @@ import { internalMutation } from "../_generated/server";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
 import { normalizeCustomerName } from "../model/customers/customers";
+import { recordCustomerJobLink } from "./activitySummary";
 import {
   resolveExactCustomerMatch,
   type ResolvedExactCustomerMatch,
@@ -118,9 +119,20 @@ export const backfillJobScanCustomers = internalMutation({
           await tenantDb.patch("finishedGoodsJobScans", scan._id, {
             customerId: match.customerId,
             customerLinkSource: "AUTO",
+            customerReviewPending: undefined,
             version: (scan.version ?? 1) + 1,
             updatedAt: nextUpdatedAt,
           });
+          await recordCustomerJobLink(
+            tenantDb,
+            args.warehouseId,
+            match.customerId,
+            {
+              jobScanId: scan._id,
+              factoryOrder: scan.factoryOrder,
+              createdAt: scan.createdAt,
+            },
+          );
           await tenantDb.insert("auditEvents", {
             occurredAt: nextUpdatedAt,
             actorKind: "SYSTEM",
@@ -137,12 +149,19 @@ export const backfillJobScanCustomers = internalMutation({
           });
           updated += 1;
         }
-      } else if (match.kind === "AMBIGUOUS") {
-        ambiguous += 1;
-      } else if (match.kind === "ARCHIVED") {
-        archived += 1;
       } else {
-        unmatched += 1;
+        if (match.kind === "AMBIGUOUS") {
+          ambiguous += 1;
+        } else if (match.kind === "ARCHIVED") {
+          archived += 1;
+        } else {
+          unmatched += 1;
+        }
+        if (!args.dryRun && scan.customerReviewPending !== true) {
+          await tenantDb.patch("finishedGoodsJobScans", scan._id, {
+            customerReviewPending: true,
+          });
+        }
       }
     }
 

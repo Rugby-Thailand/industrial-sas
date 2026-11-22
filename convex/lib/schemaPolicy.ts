@@ -14,6 +14,7 @@ export const TENANT_TABLES = [
   "customers",
   "customerCatalogueSignals",
   "customerAliases",
+  "customerWarehouseActivity",
   "memberships",
   "membershipRoles",
   "membershipWarehouses",
@@ -336,6 +337,11 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   {
     table: "customerAliases",
     key: ["orgId", "customerId", "normalizedAlias"],
+    condition: ALWAYS,
+  },
+  {
+    table: "customerWarehouseActivity",
+    key: ["orgId", "customerId", "warehouseId"],
     condition: ALWAYS,
   },
   { table: "memberships", key: ["orgId", "userId"], condition: ALWAYS },

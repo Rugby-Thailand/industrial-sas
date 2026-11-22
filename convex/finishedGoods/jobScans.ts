@@ -41,13 +41,17 @@ import {
   searchJobScans,
 } from "../lib/jobScanSearch";
 import { diffFields } from "../lib/masterDataStore";
-import { grantedPermissionsAmong } from "../lib/navigationGrants";
-import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import { normalizeCustomerName } from "../model/customers/customers";
+import {
+  isReviewPendingScan,
+  recordCustomerJobLink,
+  refreshCustomerLatestJob,
+} from "../customers/activitySummary";
 import {
   resolveExactCustomerMatch,
   type ResolvedExactCustomerMatch,
 } from "../customers/matching";
+import { canReadCustomers } from "../customers/warehouseScope";
 const batchFormat = v.union(
   v.literal("PALLET"),
   v.literal("BOX"),
@@ -410,16 +414,16 @@ export const saveJobScans = mutationWithOrg({
       let firstId = "";
       const customerMatches = new Map<string, ResolvedExactCustomerMatch>();
       for (const item of args.items) {
-        const customerText = item.customer?.trim() || undefined;
+        const matchText = item.customer?.trim();
         let customerLink: {
           customerId?: Id<"customers">;
           customerLinkSource?: "AUTO";
         } = {};
-        if (customerText) {
-          const key = normalizeCustomerName(customerText);
+        if (matchText) {
+          const key = normalizeCustomerName(matchText);
           let match = customerMatches.get(key);
           if (!match) {
-            match = await resolveExactCustomerMatch(ctx.tenantDb, customerText);
+            match = await resolveExactCustomerMatch(ctx.tenantDb, matchText);
             customerMatches.set(key, match);
           }
           if (match.kind === "MATCHED") {
@@ -429,21 +433,39 @@ export const saveJobScans = mutationWithOrg({
             };
           }
         }
-        const id = await ctx.tenantDb.insert(TABLE, {
-          ...item,
-          customer: customerText,
+        const reviewPending = isReviewPendingScan({
+          customer: item.customer,
           ...customerLink,
+        });
+        const stamps = created(ctx);
+        const factoryOrder = item.factoryOrder.trim();
+        const id = (await ctx.tenantDb.insert(TABLE, {
+          ...item,
+          ...customerLink,
+          ...(reviewPending ? { customerReviewPending: true as const } : {}),
           imageUrl: item.imageAssetId
             ? assets.get(item.imageAssetId)!.url
             : undefined,
-          factoryOrder: item.factoryOrder.trim(),
+          factoryOrder,
           productBarcodeText: item.productBarcodeText.trim(),
           warehouseId: args.warehouseId,
           locationText,
           mapped: Boolean(mapped),
           ...(mapped ?? {}),
-          ...created(ctx),
-        });
+          ...stamps,
+        })) as Id<"finishedGoodsJobScans">;
+        if (customerLink.customerId) {
+          await recordCustomerJobLink(
+            ctx.tenantDb,
+            args.warehouseId,
+            customerLink.customerId,
+            {
+              jobScanId: id,
+              factoryOrder,
+              createdAt: stamps.createdAt,
+            },
+          );
+        }
         if (item.imageAssetId)
           await ctx.tenantDb.patch("jobTicketAssets", item.imageAssetId, {
             state: "ATTACHED",
@@ -503,12 +525,14 @@ export const updateJobScan = mutationWithOrg({
       let nextCustomerId: Id<"customers"> | undefined = before.customerId;
       let nextCustomerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
         before.customerLinkSource;
-      if (args.customerLink?.action === "SET") {
-        const grants = await grantedPermissionsAmong(ctx, [
-          NAVIGATION_PERMISSION.customers,
-        ]);
-        if (!grants.includes(NAVIGATION_PERMISSION.customers))
+      if (
+        args.customerLink?.action === "SET" ||
+        args.customerLink?.action === "CLEAR"
+      ) {
+        if (!(await canReadCustomers(ctx)))
           return failure("ACCESS_DENIED", "customerId");
+      }
+      if (args.customerLink?.action === "SET") {
         const target = await ctx.tenantDb.get<Doc<"customers">>(
           "customers",
           args.customerLink.customerId,
@@ -523,7 +547,8 @@ export const updateJobScan = mutationWithOrg({
         nextCustomerLinkSource = "UNLINKED";
       } else if (
         nextCustomerText !== before.customer &&
-        before.customerLinkSource !== "MANUAL"
+        before.customerLinkSource !== "MANUAL" &&
+        before.customerLinkSource !== "UNLINKED"
       ) {
         const match = await resolveExactCustomerMatch(
           ctx.tenantDb,
@@ -537,6 +562,14 @@ export const updateJobScan = mutationWithOrg({
           nextCustomerLinkSource = undefined;
         }
       }
+      const nextReviewPending = isReviewPendingScan({
+        voided: before.voided,
+        customer: nextCustomerText,
+        customerId: nextCustomerId,
+        customerLinkSource: nextCustomerLinkSource,
+      })
+        ? (true as const)
+        : undefined;
       // Materialize optional fields so deleting an old value is intentional,
       // version-checked and included in the immutable audit event.
       const fields = {
@@ -554,16 +587,38 @@ export const updateJobScan = mutationWithOrg({
         storageFormat: args.fields.storageFormat,
       };
       const changes = diffFields(before, fields);
-      if (changes.length) {
+      if (
+        changes.length ||
+        before.customerReviewPending !== nextReviewPending
+      ) {
         const now = Math.max(Date.now(), before.updatedAt + 1);
         await ctx.tenantDb.patch(TABLE, before._id, {
           ...fields,
+          customerReviewPending: nextReviewPending,
           version: version + 1,
           correctedAt: now,
           correctedByUserId: ctx.tenant.actor._id,
           updatedAt: now,
           updatedByUserId: ctx.tenant.actor._id,
         });
+        if (before.customerId && before.customerId !== nextCustomerId) {
+          await refreshCustomerLatestJob(
+            ctx.tenantDb,
+            args.warehouseId,
+            before.customerId,
+          );
+        }
+        if (
+          nextCustomerId &&
+          (before.customerId !== nextCustomerId ||
+            before.factoryOrder !== fields.factoryOrder)
+        ) {
+          await refreshCustomerLatestJob(
+            ctx.tenantDb,
+            args.warehouseId,
+            nextCustomerId,
+          );
+        }
       }
       return { documentId: before._id, changes };
     }),
@@ -597,17 +652,18 @@ export const listJobScanCorrections = queryWithOrg({
         ],
       )
       .page({ limit: 50, order: "desc" });
-    const grants = await grantedPermissionsAmong(ctx, [
-      NAVIGATION_PERMISSION.customers,
-    ]);
-    const canReadCustomers = grants.includes(NAVIGATION_PERMISSION.customers);
+    const allowCustomerRead = await canReadCustomers(ctx);
     const linkedCustomer =
-      canReadCustomers && record.customerId
+      allowCustomerRead && record.customerId
         ? await ctx.tenantDb.get<Doc<"customers">>(
             "customers",
             record.customerId,
           )
         : null;
+    const customerLinkAuditFields = new Set([
+      "customerId",
+      "customerLinkSource",
+    ]);
     return {
       complete: history.isDone,
       items: history.page
@@ -615,15 +671,22 @@ export const listJobScanCorrections = queryWithOrg({
           (event) =>
             event.action === "finishedGoods.jobScan.correct" &&
             event.outcome === "ALLOWED" &&
-            event.warehouseId === args.warehouseId &&
-            (event.changes?.length ?? 0) > 0,
+            event.warehouseId === args.warehouseId,
         )
-        .map((event) => ({
-          id: event._id,
-          at: event.occurredAt,
-          actorUserId: event.actorUserId,
-          changes: event.changes ?? [],
-        })),
+        .map((event) => {
+          const visibleChanges = allowCustomerRead
+            ? (event.changes ?? [])
+            : (event.changes ?? []).filter(
+                (change) => !customerLinkAuditFields.has(change.field),
+              );
+          return {
+            id: event._id,
+            at: event.occurredAt,
+            actorUserId: event.actorUserId,
+            changes: visibleChanges,
+          };
+        })
+        .filter((item) => item.changes.length > 0),
       // The correction editor's live baseline: the list row stops updating
       // once another session moves the record off the visible page.
       current: {
@@ -632,18 +695,18 @@ export const listJobScanCorrections = queryWithOrg({
         productBarcodeText: record.productBarcodeText,
         partName: record.partName,
         customer: record.customer,
-        ...(record.customerId === undefined
-          ? {}
-          : { customerId: record.customerId }),
-        ...(record.customerLinkSource === undefined
-          ? {}
-          : { customerLinkSource: record.customerLinkSource }),
-        ...(linkedCustomer?.name === undefined
-          ? {}
-          : { customerName: linkedCustomer.name }),
-        ...(linkedCustomer?.code === undefined
-          ? {}
-          : { customerCode: linkedCustomer.code }),
+        ...(allowCustomerRead && record.customerId !== undefined
+          ? { customerId: record.customerId }
+          : {}),
+        ...(allowCustomerRead && record.customerLinkSource !== undefined
+          ? { customerLinkSource: record.customerLinkSource }
+          : {}),
+        ...(allowCustomerRead && linkedCustomer?.name !== undefined
+          ? { customerName: linkedCustomer.name }
+          : {}),
+        ...(allowCustomerRead && linkedCustomer?.code !== undefined
+          ? { customerCode: linkedCustomer.code }
+          : {}),
         deliveryDate: record.deliveryDate,
         manufacturingDate: record.manufacturingDate,
         quantity: record.quantity,
@@ -749,11 +812,13 @@ export const deleteJobScans = mutationWithOrg({
       );
       if (invalidSelection) return invalidSelection;
       const ids = [...new Set(args.ids)];
+      const affectedCustomers = new Set<Id<"customers">>();
       for (const id of ids) {
         const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
           TABLE,
           id,
         );
+        if (scan?.customerId) affectedCustomers.add(scan.customerId);
         if (scan?.imageAssetId) {
           const asset = await ctx.tenantDb.get<Doc<"jobTicketAssets">>(
             "jobTicketAssets",
@@ -767,6 +832,13 @@ export const deleteJobScans = mutationWithOrg({
             });
         }
         await ctx.tenantDb.delete(TABLE, id);
+      }
+      for (const customerId of affectedCustomers) {
+        await refreshCustomerLatestJob(
+          ctx.tenantDb,
+          args.warehouseId,
+          customerId,
+        );
       }
       return { documentId: ids[0]! };
     }),
@@ -818,12 +890,7 @@ export const listJobScans = queryWithOrg({
       100,
     );
     const needle = normalizeJobScanSearch(args.search ?? "");
-    const customerGrants = await grantedPermissionsAmong(ctx, [
-      NAVIGATION_PERMISSION.customers,
-    ]);
-    const canReadCustomers = customerGrants.includes(
-      NAVIGATION_PERMISSION.customers,
-    );
+    const allowCustomerRead = await canReadCustomers(ctx);
     // Parents are shared by many records: read each once per request.
     const cached = new Map<string, Promise<unknown>>();
     const parent = <T>(
@@ -918,7 +985,7 @@ export const listJobScans = queryWithOrg({
     async function view(scan: Doc<"finishedGoodsJobScans">) {
       const [{ building, floor }, linkedCustomer] = await Promise.all([
         parents(scan),
-        canReadCustomers && scan.customerId
+        allowCustomerRead && scan.customerId
           ? parent<Doc<"customers">>("customers", scan.customerId)
           : Promise.resolve(null),
       ]);
@@ -928,18 +995,18 @@ export const listJobScans = queryWithOrg({
         productBarcodeText: scan.productBarcodeText,
         partName: scan.partName,
         customer: scan.customer,
-        ...(scan.customerId === undefined
-          ? {}
-          : { customerId: scan.customerId }),
-        ...(scan.customerLinkSource === undefined
-          ? {}
-          : { customerLinkSource: scan.customerLinkSource }),
-        ...(linkedCustomer?.name === undefined
-          ? {}
-          : { customerName: linkedCustomer.name }),
-        ...(linkedCustomer?.code === undefined
-          ? {}
-          : { customerCode: linkedCustomer.code }),
+        ...(allowCustomerRead && scan.customerId !== undefined
+          ? { customerId: scan.customerId }
+          : {}),
+        ...(allowCustomerRead && scan.customerLinkSource !== undefined
+          ? { customerLinkSource: scan.customerLinkSource }
+          : {}),
+        ...(allowCustomerRead && linkedCustomer?.name !== undefined
+          ? { customerName: linkedCustomer.name }
+          : {}),
+        ...(allowCustomerRead && linkedCustomer?.code !== undefined
+          ? { customerCode: linkedCustomer.code }
+          : {}),
         deliveryDate: scan.deliveryDate,
         manufacturingDate: scan.manufacturingDate,
         quantity: scan.quantity,

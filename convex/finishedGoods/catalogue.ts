@@ -24,6 +24,10 @@ import {
   type FilterRow,
 } from "./catalogueFilters";
 import { readProductSummary as readSummary } from "../lib/finishedGoodsSummary";
+import {
+  canReadCustomers,
+  projectProductCustomerFields,
+} from "../customers/warehouseScope";
 import type { TenantIndexPage } from "../lib/tenantDb";
 
 const READ = "masterData.storageLayout.read";
@@ -420,6 +424,7 @@ export const page = queryWithOrg({
       finishedGoodsGeneration(ctx.tenantDb, warehouseId, ready.generation ?? 0);
     const limit = sorted ? 50 : remainingScanCapacity(scanCursor, pageSize);
     if (tab === "products") {
+      const allowCustomerRead = await canReadCustomers(ctx);
       const result = await paginatedScan(ctx, {
         scope,
         pageSize,
@@ -455,7 +460,12 @@ export const page = queryWithOrg({
             }
           : {}),
       });
-      return { ...result, products: result.page, pallets: [] };
+      const projected = allowCustomerRead
+        ? result.page
+        : result.page.map((product) =>
+            projectProductCustomerFields(product, false),
+          );
+      return { ...result, page: projected, products: projected, pallets: [] };
     }
     const result = await paginatedScan(ctx, {
       scope,
@@ -513,7 +523,8 @@ export const findSku = queryWithOrg({
         ],
       )
       .first();
-    return product?._id === args.excludeProductId ? null : product;
+    if (!product || product._id === args.excludeProductId) return null;
+    return projectProductCustomerFields(product, await canReadCustomers(ctx));
   },
 });
 export const productSummary = queryWithOrg({

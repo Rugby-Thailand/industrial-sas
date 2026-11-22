@@ -1017,6 +1017,14 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "empty review queue Back to list restores the filtered customer list origin and consumes the task entry"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "review queue Back policy covers explicit picker close followed by next Back, pending write protection, and Forward"
         }
       ]
     },
@@ -9247,9 +9255,255 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:customChoices",
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:pagedCursor",
       "policy": "presentation",
-      "expectation": "Stores the customer chosen via CustomerPickerDialog for each review group so it appears as an inline radio option with remember-alias checkbox and Link button; no foreground.",
+      "expectation": "Inline cursor state for loading subsequent pages of linked products inside CustomerProductsCard; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "div",
+            "li",
+            "span",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:pagingActive",
+      "policy": "presentation",
+      "expectation": "Activates inline pagination inside CustomerProductsCard when the customer has more than the preview cap of linked products; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "div",
+            "li",
+            "span",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:pagingActive",
+      "policy": "presentation",
+      "expectation": "Activates inline pagination inside CustomerAliasesCard when a customer has more than 50 aliases so all aliases remain reachable and removable; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "button",
+            "div",
+            "li",
+            "lucide-react#X",
+            "span",
+            "src/components/ui/button#Button",
+            "ul"
+          ],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:aliasCursor",
+      "policy": "presentation",
+      "expectation": "Inline cursor state for loading subsequent alias pages inside CustomerAliasesCard; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "button",
+            "div",
+            "li",
+            "lucide-react#X",
+            "span",
+            "src/components/ui/button#Button",
+            "ul"
+          ],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerPicker.tsx#CustomerPicker:search",
+      "policy": "presentation",
+      "expectation": "Inline search filter text for CustomerPicker inside product and job-scan forms; filters dropdown options and optional load-more button without opening a foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "searchable CustomerPicker filters options and loads more customers past the first page"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerPicker.tsx#CustomerPicker:scanCursor",
+      "policy": "presentation",
+      "expectation": "Inline continuation cursor for CustomerPicker to load customers past the first query page; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "searchable CustomerPicker filters options and loads more customers past the first page"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:cursorStack",
+      "policy": "presentation",
+      "expectation": "Inline batch pagination cursor stack for loading more unresolved review tickets and returning to the first batch; controls inline batch loading/empty/card presentation without opening any foreground surface.",
+      "uses": ["branch", "return"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "div",
+            "lucide-react#Link2",
+            "lucide-react#Plus",
+            "lucide-react#Users",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "label",
+            "span",
+            "src/components/ui/CheckboxControl#CheckboxControl"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": ["ReviewGroupCard", "div"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "paginates review queue batches with scanCursor and keeps the queue open while hasMore is true"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:selectedByGroup",
+      "policy": "presentation",
+      "expectation": "Single authoritative map of chosen candidate customers per review group updated by both inline radios and CustomerPickerDialog; renders inline radio, remember-alias checkbox, and Link button without opening any foreground.",
       "uses": ["branch"],
       "render": [
         {
@@ -9276,36 +9530,7 @@
       "cases": [
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
-        }
-      ]
-    },
-    {
-      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewGroupCard:pickedId",
-      "policy": "presentation",
-      "expectation": "Selected candidate customer radio value in a review group card; shows the inline remember-alias checkbox and Link button once a customer is chosen; no foreground.",
-      "uses": ["branch"],
-      "render": [
-        {
-          "shape": "conditional",
-          "truthy": [
-            "label",
-            "span",
-            "src/components/ui/CheckboxControl#CheckboxControl"
-          ],
-          "falsy": []
-        },
-        {
-          "shape": "conditional",
-          "truthy": ["lucide-react#Link2", "src/components/ui/button#Button"],
-          "falsy": []
-        }
-      ],
-      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
-      "cases": [
-        {
-          "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "links and skips unresolved names on the review queue with remember-alias off by default"
+          "name": "overrides a preselected review candidate with another customer chosen from CustomerPickerDialog and submits the new customer"
         },
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
@@ -9336,20 +9561,97 @@
     {
       "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:search",
       "policy": "presentation",
-      "expectation": "Search filter text inside the already-audited shared CustomerPickerDialog; filters the inline result list or shows loading/empty text without adding any foreground.",
+      "expectation": "Search filter text inside the already-audited shared CustomerPickerDialog; filters the inline result list and optional load-more button without adding any foreground.",
       "uses": ["branch"],
       "render": [
         {
           "shape": "conditional",
+          "truthy": ["button", "li", "lucide-react#Check", "span", "ul"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
           "truthy": ["p"],
-          "falsy": ["button", "li", "lucide-react#Check", "span", "ul"]
+          "falsy": [
+            "button",
+            "li",
+            "lucide-react#Check",
+            "span",
+            "src/components/ui/button#Button",
+            "ul"
+          ]
         },
         {
           "shape": "conditional",
           "truthy": [
             "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
           ],
-          "falsy": ["button", "li", "lucide-react#Check", "p", "span", "ul"]
+          "falsy": [
+            "button",
+            "li",
+            "lucide-react#Check",
+            "p",
+            "span",
+            "src/components/ui/button#Button",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:scanCursor",
+      "policy": "presentation",
+      "expectation": "Inline continuation cursor inside the already-audited shared CustomerPickerDialog to load more customers past the first page; adds no foreground.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["button", "li", "lucide-react#Check", "span", "ul"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "button",
+            "li",
+            "lucide-react#Check",
+            "span",
+            "src/components/ui/button#Button",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "li",
+            "lucide-react#Check",
+            "p",
+            "span",
+            "src/components/ui/button#Button",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
         }
       ],
       "tests": ["src/features/customers/CustomerScreens.test.tsx"],
@@ -10090,6 +10392,18 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "shows a likely duplicate before saving and links to the existing customer"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:$task:returnFromTask:ROUTES.customers",
+      "intent": "return",
+      "expectation": "Empty review queue Back-to-list button consumes the review queue task entry and restores the real filtered customer list origin; a directly opened review queue replaces itself with /master-data/customers.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "empty review queue Back to list restores the filtered customer list origin and consumes the task entry"
         }
       ]
     }

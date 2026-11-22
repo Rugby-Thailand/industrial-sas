@@ -14,6 +14,63 @@ export interface AllowedCustomerWarehouses {
   readonly complete: boolean;
 }
 
+/** Whether the current member holds `masterData.customer.read`. */
+export async function canReadCustomers(
+  ctx: TenantFunctionContext,
+): Promise<boolean> {
+  const grants = await grantedPermissionsAmong(ctx, [
+    NAVIGATION_PERMISSION.customers,
+  ]);
+  return grants.includes(NAVIGATION_PERMISSION.customers);
+}
+
+/**
+ * Strip customer-link metadata from a finished-goods product document when the
+ * caller does not hold `masterData.customer.read`. Keeps `customerReference`
+ * untouched for warehouse staff.
+ */
+export function projectProductCustomerFields<
+  T extends {
+    customerId?: Id<"customers">;
+    customerLinkSource?: "AUTO" | "MANUAL" | "UNLINKED";
+  },
+>(product: T, allowCustomerRead: boolean): T {
+  if (allowCustomerRead) return product;
+  const {
+    customerId: _customerId,
+    customerLinkSource: _customerLinkSource,
+    ...rest
+  } = product;
+  return rest as T;
+}
+
+/**
+ * Exact warehouse access check for mutations and single-record validation.
+ * Never truncates at a 100-warehouse list cap.
+ */
+export async function canAccessWarehouse(
+  ctx: TenantFunctionContext,
+  warehouseId: Id<"warehouses">,
+): Promise<boolean> {
+  const warehouse = await ctx.tenantDb.get<Doc<"warehouses">>(
+    "warehouses",
+    warehouseId,
+  );
+  if (!warehouse || warehouse.status !== "ACTIVE") return false;
+  if (ctx.tenant.membership.scopeMode === "ORG_WIDE") return true;
+  const membershipWarehouse = await ctx.tenantDb
+    .byIndex<Doc<"membershipWarehouses">>(
+      "membershipWarehouses",
+      "by_orgId_membershipId_warehouseId",
+      [
+        { field: "membershipId", value: ctx.tenant.membership._id },
+        { field: "warehouseId", value: warehouseId },
+      ],
+    )
+    .unique();
+  return membershipWarehouse !== null;
+}
+
 /**
  * Active warehouses the current member may read or manage for linked jobs and
  * products. Customers themselves are organization records; linked warehouse

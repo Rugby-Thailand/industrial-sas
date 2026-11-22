@@ -79,9 +79,6 @@ export const customerSummary = v.object({
   name: v.string(),
   status: customerStatus,
   province: v.optional(v.string()),
-  linkedProductCount: v.optional(v.number()),
-  linkedProductCountMore: v.optional(v.boolean()),
-  latestJob: v.optional(customerLatestJob),
 });
 
 export const customerDetailFields = {

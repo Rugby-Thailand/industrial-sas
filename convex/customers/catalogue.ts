@@ -18,10 +18,6 @@ import {
   customerStatus,
   customerSummary,
 } from "./validators";
-import {
-  allowedCustomerWarehouses,
-  type AllowedCustomerWarehouses,
-} from "./warehouseScope";
 
 const readCustomers = {
   permissionCode: NAVIGATION_PERMISSION.customers,
@@ -30,6 +26,7 @@ const readCustomers = {
 
 function customerDetail({
   codeSequenceKey: _codeSequenceKey,
+  aliasSearchText: _aliasSearchText,
   ...row
 }: Doc<"customers">) {
   return { ...row, customerId: row._id };
@@ -60,159 +57,6 @@ export const viewer = queryWithOrg({
   },
 });
 
-const ALIAS_PREFIX_LIMIT = TENANT_INDEX_MAX_PAGE_SIZE;
-const ALIAS_SCAN_LIMIT = TENANT_INDEX_MAX_PAGE_SIZE;
-const PRODUCT_COUNT_CAP = TENANT_INDEX_MAX_PAGE_SIZE - 1;
-const JOB_PEEK_LIMIT = 10;
-
-async function aliasMatchedCustomers(
-  tenantDb: Parameters<typeof customerCatalogueGeneration>[0],
-  needle: string,
-): Promise<ReadonlySet<string>> {
-  if (!needle) return new Set();
-  const [prefixHits, orgSample] = await Promise.all([
-    tenantDb
-      .byIndex<Doc<"customerAliases">>(
-        "customerAliases",
-        "by_orgId_normalizedAlias",
-        [],
-        {
-          field: "normalizedAlias",
-          lower: { value: needle, inclusive: true },
-        },
-      )
-      .take(ALIAS_PREFIX_LIMIT),
-    tenantDb
-      .byIndex<Doc<"customerAliases">>(
-        "customerAliases",
-        "by_orgId_normalizedAlias",
-        [],
-      )
-      .take(ALIAS_SCAN_LIMIT),
-  ]);
-  const ids = new Set<string>();
-  for (const row of prefixHits) {
-    if (!row.normalizedAlias.startsWith(needle)) break;
-    ids.add(row.customerId);
-  }
-  for (const row of orgSample) {
-    if (row.normalizedAlias.includes(needle)) ids.add(row.customerId);
-  }
-  return ids;
-}
-
-async function customerPageActivity(
-  tenantDb: Parameters<typeof customerCatalogueGeneration>[0],
-  customerId: Doc<"customers">["_id"],
-  allowed: AllowedCustomerWarehouses,
-) {
-  if (!allowed.hasWarehouseRead || allowed.warehouses.length === 0) return {};
-  const productsPromise =
-    allowed.orgWide || allowed.warehouses.length > 5
-      ? tenantDb
-          .byIndex<Doc<"finishedGoodsProducts">>(
-            "finishedGoodsProducts",
-            "by_orgId_customerId",
-            [{ field: "customerId", value: customerId }],
-          )
-          .take(PRODUCT_COUNT_CAP + 1)
-          .then((rows) => {
-            const visible = rows.filter((row) =>
-              allowed.byId.has(row.warehouseId),
-            );
-            return {
-              count: Math.min(visible.length, PRODUCT_COUNT_CAP),
-              more: rows.length > PRODUCT_COUNT_CAP,
-            };
-          })
-      : Promise.all(
-          allowed.warehouses.map((warehouse) =>
-            tenantDb
-              .byIndex<Doc<"finishedGoodsProducts">>(
-                "finishedGoodsProducts",
-                "by_orgId_warehouseId_customerId",
-                [
-                  { field: "warehouseId", value: warehouse._id },
-                  { field: "customerId", value: customerId },
-                ],
-              )
-              .take(PRODUCT_COUNT_CAP + 1),
-          ),
-        ).then((groups) => {
-          const total = groups.reduce((sum, rows) => sum + rows.length, 0);
-          return {
-            count: Math.min(total, PRODUCT_COUNT_CAP),
-            more:
-              total > PRODUCT_COUNT_CAP ||
-              groups.some((rows) => rows.length > PRODUCT_COUNT_CAP),
-          };
-        });
-
-  const latestJobPromise =
-    allowed.orgWide || allowed.warehouses.length > 5
-      ? tenantDb
-          .byIndex<Doc<"finishedGoodsJobScans">>(
-            "finishedGoodsJobScans",
-            "by_orgId_customerId_createdAt",
-            [{ field: "customerId", value: customerId }],
-          )
-          .take(JOB_PEEK_LIMIT, "desc")
-          .then(
-            (rows) =>
-              rows.find(
-                (row) => !row.voided && allowed.byId.has(row.warehouseId),
-              ) ?? null,
-          )
-      : Promise.all(
-          allowed.warehouses.map((warehouse) =>
-            tenantDb
-              .byIndex<Doc<"finishedGoodsJobScans">>(
-                "finishedGoodsJobScans",
-                "by_orgId_warehouseId_customerId_createdAt",
-                [
-                  { field: "warehouseId", value: warehouse._id },
-                  { field: "customerId", value: customerId },
-                ],
-              )
-              .take(5, "desc"),
-          ),
-        ).then((groups) => {
-          let newest: Doc<"finishedGoodsJobScans"> | null = null;
-          for (const rows of groups) {
-            const candidate = rows.find((row) => !row.voided);
-            if (
-              candidate &&
-              (!newest || candidate.createdAt > newest.createdAt)
-            )
-              newest = candidate;
-          }
-          return newest;
-        });
-
-  const [products, latest] = await Promise.all([
-    productsPromise,
-    latestJobPromise,
-  ]);
-  return {
-    ...(products.count > 0
-      ? {
-          linkedProductCount: products.count,
-          ...(products.more ? { linkedProductCountMore: true } : {}),
-        }
-      : {}),
-    ...(latest
-      ? {
-          latestJob: {
-            jobScanId: latest._id,
-            factoryOrder: latest.factoryOrder,
-            createdAt: latest.createdAt,
-            warehouseId: latest.warehouseId,
-          },
-        }
-      : {}),
-  };
-}
-
 export const listCustomersPage = queryWithOrg({
   ...readCustomers,
   args: {
@@ -227,7 +71,6 @@ export const listCustomersPage = queryWithOrg({
     const { status, cursor, scanCursor, pageSize } = args;
     const needle = normalizeCustomerName(args.search ?? "");
     const exactTaxId = normalizeTaxId(args.search ?? "");
-    const aliasMatches = await aliasMatchedCustomers(ctx.tenantDb, needle);
     const result = await paginatedOrderedScan(ctx, {
       scope: { entity: "customers", status, needle, exactTaxId },
       pageSize,
@@ -261,15 +104,12 @@ export const listCustomersPage = queryWithOrg({
           normalizeCustomerName(row.code).includes(needle) ||
           normalizeCustomerName(row.legalNameTh ?? "").includes(needle) ||
           normalizeCustomerName(row.legalNameEn ?? "").includes(needle) ||
-          aliasMatches.has(row._id) ||
+          (row.aliasSearchText?.includes(needle) ?? false) ||
           (exactTaxId !== null && row.taxId === exactTaxId)),
     });
-    const allowed =
-      result.status === "ready" && result.page.length > 0
-        ? await allowedCustomerWarehouses(ctx)
-        : null;
-    const page = await Promise.all(
-      result.page.map(async ({ _id, code, name, status, deliveryAddress }) => ({
+    return {
+      ...result,
+      page: result.page.map(({ _id, code, name, status, deliveryAddress }) => ({
         customerId: _id,
         code,
         name,
@@ -277,14 +117,7 @@ export const listCustomersPage = queryWithOrg({
         ...(deliveryAddress?.province === undefined
           ? {}
           : { province: deliveryAddress.province }),
-        ...(allowed
-          ? await customerPageActivity(ctx.tenantDb, _id, allowed)
-          : {}),
       })),
-    );
-    return {
-      ...result,
-      page,
     };
   },
 });

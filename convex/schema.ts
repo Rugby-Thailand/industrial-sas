@@ -709,6 +709,8 @@ const schema = defineSchema({
       ...customerFields,
       // Decimal length followed by digits sorts sequence codes numerically.
       codeSequenceKey: v.optional(v.string()),
+      // Derived newline-joined normalized aliases for zero-extra-read search.
+      aliasSearchText: v.optional(v.string()),
     }),
   )
     .index("by_orgId_code", byOrg("code"))
@@ -723,6 +725,24 @@ const schema = defineSchema({
     .index(
       "by_orgId_customerId_normalizedAlias",
       byOrg("customerId", "normalizedAlias"),
+    ),
+  customerWarehouseActivity: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      customerId: v.id("customers"),
+      linkedProductCount: v.number(),
+      latestJobScanId: v.optional(v.id("finishedGoodsJobScans")),
+      latestJobFactoryOrder: v.optional(v.string()),
+      latestJobCreatedAt: v.optional(v.number()),
+    }),
+  )
+    .index(
+      "by_orgId_customerId_warehouseId",
+      byOrg("customerId", "warehouseId"),
+    )
+    .index(
+      "by_orgId_warehouseId_customerId",
+      byOrg("warehouseId", "customerId"),
     ),
   memberships: defineTable(
     tenantFields({
@@ -1374,6 +1394,7 @@ const schema = defineSchema({
       customer: v.optional(v.string()),
       customerId: v.optional(v.id("customers")),
       customerLinkSource: v.optional(customerLinkSource),
+      customerReviewPending: v.optional(v.literal(true)),
       manufacturingDate: v.optional(v.string()),
       quantity: v.optional(v.number()),
       factoryQuantity: v.optional(v.number()),
@@ -1422,6 +1443,10 @@ const schema = defineSchema({
     .index(
       "by_orgId_warehouseId_customerLinkSource_createdAt",
       byOrg("warehouseId", "customerLinkSource", "createdAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_customerReviewPending_createdAt",
+      byOrg("warehouseId", "customerReviewPending", "createdAt"),
     ),
   /**
    * Derived substring-search index for saved job scans
