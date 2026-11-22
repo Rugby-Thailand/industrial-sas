@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { CustomerPicker } from "@/features/customers/CustomerPicker";
 import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { writeFailure } from "@/lib/convex/mutationOutcome";
 import type { RefValue } from "@/lib/convex/clientRef";
@@ -34,7 +35,10 @@ import {
 
 type Record = RefValue<typeof fgRefs.listJobScans>["items"][number];
 /** The saved values and version a correction is based on. */
-type Snapshot = Pick<Record, TicketField | "storageFormat" | "version">;
+type Snapshot = Pick<
+  Record,
+  TicketField | "storageFormat" | "version" | "customerId"
+>;
 function recordDraft(record: Snapshot): TicketDraft {
   const values: TicketDraft["values"] = {};
   for (const field of [...REQUIRED_FIELDS, ...DETAIL_FIELDS]) {
@@ -66,18 +70,21 @@ export function JobScanRecordEditor({
     useState<Parameters<typeof save>[0]>();
   const [baseline, setBaseline] = useState<Snapshot>(record);
   const [ticket, setTicket] = useState(() => recordDraft(record));
+  const [customerId, setCustomerId] = useState(() => record.customerId ?? "");
   // A STALE_REVISION refusal proves a newer version before this editor sees it.
   const [conflict, setConflict] = useState(false);
   const dirty =
     JSON.stringify(ticket.values) !==
       JSON.stringify(recordDraft(baseline).values) ||
-    ticket.storageFormat !== baseline.storageFormat;
+    ticket.storageFormat !== baseline.storageFormat ||
+    customerId !== (baseline.customerId ?? "");
   const guard = useNavigationDraft({
     foregroundScope: draftScope,
     dirty,
     pending: op.busy,
     discard: () => {
       setTicket(recordDraft(record));
+      setCustomerId(record.customerId ?? "");
       setPendingCommand(undefined);
     },
   });
@@ -106,11 +113,19 @@ export function JobScanRecordEditor({
     )
       return;
     const { source: _source, ...fields } = toPayload(ticket);
+    const baselineCustomerId = baseline.customerId ?? "";
+    const customerLink =
+      customerId === baselineCustomerId
+        ? undefined
+        : customerId
+          ? ({ action: "SET", customerId } as const)
+          : ({ action: "CLEAR" } as const);
     const args = {
       warehouseId,
       jobScanId: record.id,
       expectedVersion: baseline.version,
       fields,
+      ...(customerLink === undefined ? {} : { customerLink }),
     };
     const command = pendingCommand ?? {
       ...args,
@@ -173,6 +188,7 @@ export function JobScanRecordEditor({
                 onClick={() => {
                   setBaseline(current);
                   setTicket(recordDraft(current));
+                  setCustomerId(current.customerId ?? "");
                   setConflict(false);
                   op.setError("");
                 }}
@@ -238,6 +254,15 @@ export function JobScanRecordEditor({
               ]}
               placeholder={t("formatUnset")}
               emptyLabel={t("formatUnset")}
+            />
+            <CustomerPicker
+              label={t("customerId")}
+              value={customerId}
+              onChange={setCustomerId}
+              unlinkedLabel={t("customerUnlinked")}
+              searchPlaceholder={t("customerSearch")}
+              disabled={op.busy || Boolean(pendingCommand)}
+              testId="job-scan-customer-picker"
             />
           </fieldset>
           <ErrorNotice message={op.error} />

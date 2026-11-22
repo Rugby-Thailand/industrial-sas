@@ -2,8 +2,8 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
-import { ChevronRight, Plus } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { ChevronRight, Link2, Plus } from "lucide-react";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { api } from "../../../convex/_generated/api";
 import { CollectionToolbar } from "@/components/system/CollectionToolbar";
 import { CursorPagination } from "@/components/system/CursorPagination";
@@ -61,9 +61,11 @@ function NewCustomerAction() {
 
 function CatalogueContent() {
   const t = useTranslations("Customers");
+  const format = useFormatter();
   const locale = useLocale();
   const { userId, orgId } = useAuth();
   const { canManage } = useCustomerAccess();
+  const review = useQuery(api.customers.linking.reviewSummary, {});
   const scope = `customers:${orgId ?? "null"}:${userId ?? "anonymous"}`;
   const { state: filters, update } = useCustomerCatalogueState(scope);
   const settled = useDebouncedSearch(filters.search);
@@ -98,8 +100,52 @@ function CatalogueContent() {
   const customers = ready ? outcome.value.page : [];
   const filtered = settled.trim() !== "" || filters.status !== "ACTIVE";
   const clear = () => update({ search: "", status: "ACTIVE" });
+  const canViewWarehouseData = Boolean(
+    review?.ok && review.value.canViewWarehouseData,
+  );
+  const activitySummaries = useQuery(
+    api.customers.linking.listCustomerActivitySummaries,
+    canViewWarehouseData && customers.length > 0
+      ? { customerIds: customers.map((customer) => customer.customerId) }
+      : "skip",
+  );
+  const activityByCustomerId = new Map(
+    activitySummaries?.ok
+      ? activitySummaries.value.summaries.map((item) => [item.customerId, item])
+      : [],
+  );
+  const showWarehouseColumns = canViewWarehouseData;
+  const unresolvedNames = review?.ok ? review.value.unresolvedNameCount : 0;
+  const unresolvedScans = review?.ok ? review.value.unresolvedScanCount : 0;
+  const reviewHasMore = Boolean(review?.ok && review.value.hasMore);
   return (
     <div className="space-y-4">
+      {unresolvedScans > 0 || reviewHasMore ? (
+        <Notice
+          tone="accent"
+          title={
+            unresolvedScans === 0
+              ? t("reviewTitle")
+              : t(
+                  reviewHasMore ? "reviewBannerTitleMore" : "reviewBannerTitle",
+                  {
+                    names: unresolvedNames,
+                    scans: unresolvedScans,
+                  },
+                )
+          }
+          testId="customer-review-banner"
+        >
+          <div className="mt-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={ROUTES.customerReview}>
+                <Link2 aria-hidden="true" className="size-4" />
+                {t("reviewBannerAction")}
+              </Link>
+            </Button>
+          </div>
+        </Notice>
+      ) : null}
       <CollectionToolbar
         value={filters.search}
         // A search-only patch: typing coalesces into one history entry.
@@ -179,41 +225,86 @@ function CatalogueContent() {
               <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[64%]">
+                    <TableHead
+                      className={showWarehouseColumns ? "w-[44%]" : "w-[64%]"}
+                    >
                       {t("colCustomer")}
                     </TableHead>
                     <TableHead>{t("colProvince")}</TableHead>
+                    {showWarehouseColumns ? (
+                      <>
+                        <TableHead className="w-[12%] text-right">
+                          {t("colProducts")}
+                        </TableHead>
+                        <TableHead className="w-[24%]">
+                          {t("colLatestJob")}
+                        </TableHead>
+                      </>
+                    ) : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {customers.map((customer) => (
-                    <TableRow key={customer.customerId}>
-                      <TableCell className="align-top">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <Link
-                            href={customerPath(customer.customerId)}
-                            className="min-w-0 font-medium wrap-anywhere text-text hover:text-link hover:underline focus-visible:outline-2 focus-visible:outline-link"
-                          >
-                            {customer.name}
-                          </Link>
-                          {customer.status === "ARCHIVED" ? (
-                            <StatusBadge
-                              tone="muted"
-                              label={t("statusArchived")}
-                            />
-                          ) : null}
-                        </div>
-                        <div className="mt-0.5 font-mono text-xs wrap-anywhere text-muted">
-                          {customer.code}
-                        </div>
-                      </TableCell>
-                      <TableCell className="align-top text-sm wrap-anywhere">
-                        {customer.province ?? (
-                          <span className="text-muted">{DASH}</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {customers.map((customer) => {
+                    const summary = activityByCustomerId.get(
+                      customer.customerId,
+                    );
+                    return (
+                      <TableRow key={customer.customerId}>
+                        <TableCell className="align-top">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <Link
+                              href={customerPath(customer.customerId)}
+                              className="min-w-0 font-medium wrap-anywhere text-text hover:text-link hover:underline focus-visible:outline-2 focus-visible:outline-link"
+                            >
+                              {customer.name}
+                            </Link>
+                            {customer.status === "ARCHIVED" ? (
+                              <StatusBadge
+                                tone="muted"
+                                label={t("statusArchived")}
+                              />
+                            ) : null}
+                          </div>
+                          <div className="mt-0.5 font-mono text-xs wrap-anywhere text-muted">
+                            {customer.code}
+                          </div>
+                        </TableCell>
+                        <TableCell className="align-top text-sm wrap-anywhere">
+                          {customer.province ?? (
+                            <span className="text-muted">{DASH}</span>
+                          )}
+                        </TableCell>
+                        {showWarehouseColumns ? (
+                          <>
+                            <TableCell className="text-right align-top text-sm tabular-nums">
+                              {summary !== undefined ? (
+                                format.number(summary.linkedProductCount)
+                              ) : (
+                                <span className="text-muted">{DASH}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="align-top text-sm">
+                              {summary?.latestJob ? (
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-mono text-xs text-text">
+                                    {summary.latestJob.factoryOrder}
+                                  </span>
+                                  <span className="text-xs text-muted tabular-nums">
+                                    {format.dateTime(
+                                      summary.latestJob.createdAt,
+                                      { dateStyle: "medium" },
+                                    )}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-muted">{DASH}</span>
+                              )}
+                            </TableCell>
+                          </>
+                        ) : null}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableScroller>
@@ -223,33 +314,49 @@ function CatalogueContent() {
             aria-label={t("tableLabel")}
             data-testid="customer-cards"
           >
-            {customers.map((customer) => (
-              <li key={customer.customerId}>
-                <Link
-                  href={customerPath(customer.customerId)}
-                  className="flex min-h-touch items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="min-w-0 font-medium wrap-anywhere text-text">
-                        {customer.name}
+            {customers.map((customer) => {
+              const summary = activityByCustomerId.get(customer.customerId);
+              return (
+                <li key={customer.customerId}>
+                  <Link
+                    href={customerPath(customer.customerId)}
+                    className="flex min-h-touch items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="min-w-0 font-medium wrap-anywhere text-text">
+                          {customer.name}
+                        </span>
+                        {customer.status === "ARCHIVED" ? (
+                          <StatusBadge
+                            tone="muted"
+                            label={t("statusArchived")}
+                          />
+                        ) : null}
                       </span>
-                      {customer.status === "ARCHIVED" ? (
-                        <StatusBadge tone="muted" label={t("statusArchived")} />
-                      ) : null}
+                      <span className="mt-0.5 block text-xs wrap-anywhere text-muted">
+                        <span className="font-mono">{customer.code}</span>
+                        {customer.province ? ` · ${customer.province}` : null}
+                        {summary?.latestJob
+                          ? ` · ${t("latestJobMobile", {
+                              date: format.dateTime(
+                                summary.latestJob.createdAt,
+                                {
+                                  dateStyle: "short",
+                                },
+                              ),
+                            })}`
+                          : null}
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-xs wrap-anywhere text-muted">
-                      <span className="font-mono">{customer.code}</span>
-                      {customer.province ? ` · ${customer.province}` : null}
-                    </span>
-                  </span>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-4 shrink-0 text-muted"
-                  />
-                </Link>
-              </li>
-            ))}
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-4 shrink-0 text-muted"
+                    />
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

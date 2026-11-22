@@ -1,3 +1,5 @@
+import { resolveExplicitCustomerLink } from "../customers/matching";
+import { customerLinkArg } from "../customers/validators";
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
   heldPlacement,
@@ -37,6 +39,12 @@ import {
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
 import { inventoryWriter } from "../lib/inventoryWriter";
+import { diffFields } from "../lib/masterDataStore";
+import { adjustCustomerProductCount } from "../customers/activitySummary";
+import {
+  canReadCustomers,
+  projectProductCustomerFields,
+} from "../customers/warehouseScope";
 import { command, compact, created, failure, stamp } from "./commands";
 import { nextCode, palletOf, productOf, rows } from "./records";
 import {
@@ -71,11 +79,13 @@ const productFields = {
   customerReference: v.optional(v.string()),
   productReference: v.optional(v.string()),
 };
+
 export const saveProduct = mutationWithOrg({
   writer: inventoryWriter,
   args: {
     ...warehouseArgs,
     ...productFields,
+    customerLink: v.optional(customerLinkArg),
     requestId: v.string(),
     productId: v.optional(v.id("finishedGoodsProducts")),
     expectedUpdatedAt: v.optional(v.number()),
@@ -198,6 +208,16 @@ export const saveProduct = mutationWithOrg({
             return failure("LOCATION_OCCUPIED", "storageCondition");
           }
         }
+        // Explicit customer link only: `customerReference` may be a part
+        // number and is never auto-linked. Omitted or KEEP preserves existing
+        // links on unrelated edits. Both SET and CLEAR require customer read.
+        const link = await resolveExplicitCustomerLink(
+          ctx,
+          args.customerLink,
+          before,
+        );
+        if (!link.ok) return failure(link.code, "customerId");
+        const { customerId, customerLinkSource } = link;
         const fields = {
           sku,
           name,
@@ -208,6 +228,8 @@ export const saveProduct = mutationWithOrg({
           storageCondition,
           notes: args.notes?.trim(),
           customerReference: args.customerReference?.trim(),
+          customerId,
+          customerLinkSource,
           productReference: args.productReference?.trim(),
           status: args.draft ? "DRAFT" : "ACTIVE",
           ...stamp(ctx),
@@ -216,15 +238,57 @@ export const saveProduct = mutationWithOrg({
             : {}),
         };
         if (before) {
+          const linkChanges = diffFields(before, {
+            customerId,
+            customerLinkSource,
+          });
           await ctx.tenantDb.patch("finishedGoodsProducts", before._id, fields);
-          return { documentId: before._id };
+          if (before.customerId !== customerId) {
+            if (before.customerId) {
+              await adjustCustomerProductCount(
+                ctx.tenantDb,
+                args.warehouseId,
+                before.customerId,
+                -1,
+              );
+            }
+            if (customerId) {
+              await adjustCustomerProductCount(
+                ctx.tenantDb,
+                args.warehouseId,
+                customerId,
+                1,
+              );
+            }
+          }
+          return {
+            documentId: before._id,
+            ...(linkChanges.length > 0 ? { changes: linkChanges } : {}),
+          };
         }
+        const documentId = await ctx.tenantDb.insert("finishedGoodsProducts", {
+          ...compact(fields),
+          warehouseId: args.warehouseId,
+          ...created(ctx),
+        });
+        if (customerId) {
+          await adjustCustomerProductCount(
+            ctx.tenantDb,
+            args.warehouseId,
+            customerId,
+            1,
+          );
+        }
+        const createChanges = diffFields(
+          {
+            customerId: undefined,
+            customerLinkSource: undefined,
+          },
+          { customerId, customerLinkSource },
+        );
         return {
-          documentId: await ctx.tenantDb.insert("finishedGoodsProducts", {
-            ...compact(fields),
-            warehouseId: args.warehouseId,
-            ...created(ctx),
-          }),
+          documentId,
+          ...(createChanges.length > 0 ? { changes: createChanges } : {}),
         };
       },
     ),
@@ -1505,7 +1569,9 @@ async function detail(
   }
   return {
     pallet,
-    product,
+    product: product
+      ? projectProductCustomerFields(product, await canReadCustomers(ctx))
+      : null,
     placement,
     destination: resolved,
     stackChildren: await stackChildren(ctx, pallet._id),
@@ -1573,7 +1639,11 @@ export const getProduct = queryWithOrg({
   permissionCode: READ,
   target: { table: "finishedGoodsProducts" },
   warehouseId: (a) => a.warehouseId,
-  handler: productOf,
+  handler: async (ctx, args) => {
+    const product = await productOf(ctx, args);
+    if (!product) return null;
+    return projectProductCustomerFields(product, await canReadCustomers(ctx));
+  },
 });
 export const reserve = mutationWithOrg({
   writer: inventoryWriter,

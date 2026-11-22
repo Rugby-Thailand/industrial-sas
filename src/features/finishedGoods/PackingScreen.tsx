@@ -29,6 +29,7 @@ import {
 import { Link, useRouter } from "@/i18n/navigation";
 import { batchManagementRefs } from "@/lib/convex/batchManagementApi";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
+import { useEffectiveWarehouse } from "@/lib/workspace/useEffectiveWarehouse";
 import {
   MAX_FG_PACKAGES,
   quantityPrecision,
@@ -46,8 +47,9 @@ import {
   Loading,
   Missing,
   ViewOnlyNotice,
-  FG_PATH,
   panel,
+  batchPath,
+  productPackingPath,
   productPath,
   palletPath,
   storagePath,
@@ -280,52 +282,87 @@ function readDraft(key: string, fallback: Draft, productId: string): Draft {
 }
 const optionalNumber = (value: string) =>
   value.trim() ? Number(value) : undefined;
-const batchPath = (id: string) => `${FG_PATH}/batches/${id}`;
 
 export function PackingScreen({
   productId,
   batchId,
   draftToken,
+  requestedWarehouseId,
 }: {
   productId?: string;
   batchId?: string;
   draftToken?: string | undefined;
+  requestedWarehouseId?: string | undefined;
 }) {
   const scope = useDraftKey("fg-batch-packing");
   if (!scope) return <Loading />;
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId) =>
-        batchId ? (
-          <BatchLoader
-            key={`${scope}:${warehouseId}:${batchId}`}
-            scope={scope}
-            warehouseId={warehouseId}
-            batchId={batchId}
-          />
-        ) : productId ? (
-          <ProductLoader
-            key={`${scope}:${warehouseId}:${productId}:${draftToken ?? ""}`}
-            scope={scope}
-            warehouseId={warehouseId}
-            productId={productId}
-            draftToken={draftToken}
-          />
-        ) : (
-          <Missing />
-        )
-      }
+      {(activeWarehouseId) => (
+        <PackingWarehouseView
+          scope={scope}
+          activeWarehouseId={activeWarehouseId}
+          {...(productId ? { productId } : {})}
+          {...(batchId ? { batchId } : {})}
+          {...(draftToken ? { draftToken } : {})}
+          {...(requestedWarehouseId ? { requestedWarehouseId } : {})}
+        />
+      )}
     </QueryGate>
   );
 }
+
+function PackingWarehouseView({
+  scope,
+  activeWarehouseId,
+  productId,
+  batchId,
+  draftToken,
+  requestedWarehouseId,
+}: {
+  scope: string;
+  activeWarehouseId: string;
+  productId?: string;
+  batchId?: string;
+  draftToken?: string | undefined;
+  requestedWarehouseId?: string | undefined;
+}) {
+  const { warehouseId, crossWarehouseId } = useEffectiveWarehouse(
+    activeWarehouseId,
+    requestedWarehouseId,
+  );
+  return batchId ? (
+    <BatchLoader
+      key={`${scope}:${warehouseId}:${batchId}`}
+      scope={scope}
+      warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
+      batchId={batchId}
+    />
+  ) : productId ? (
+    <ProductLoader
+      key={`${scope}:${warehouseId}:${productId}:${draftToken ?? ""}`}
+      scope={scope}
+      warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
+      productId={productId}
+      draftToken={draftToken}
+    />
+  ) : (
+    <Missing />
+  );
+}
+
 function ProductLoader({
   scope,
   warehouseId,
+  crossWarehouseId,
   productId,
   draftToken,
 }: {
   scope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   productId: string;
   draftToken?: string | undefined;
 }) {
@@ -342,6 +379,7 @@ function ProductLoader({
     <PackingForm
       scope={scope}
       warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
       product={result.value}
       draftToken={draftToken}
     />
@@ -350,10 +388,12 @@ function ProductLoader({
 function BatchLoader({
   scope,
   warehouseId,
+  crossWarehouseId,
   batchId,
 }: {
   scope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   batchId: string;
 }) {
   const result = useQuery(fgRefs.getBatch, { warehouseId, batchId });
@@ -370,6 +410,7 @@ function BatchLoader({
     <PackingForm
       scope={scope}
       warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
       product={product}
       batch={batch}
       batchEditable={editable}
@@ -380,6 +421,7 @@ function BatchLoader({
 function PackingForm({
   scope,
   warehouseId,
+  crossWarehouseId,
   product,
   batch,
   batchEditable = true,
@@ -388,6 +430,7 @@ function PackingForm({
 }: {
   scope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   product: Product;
   batch?: Batch;
   batchEditable?: boolean;
@@ -397,7 +440,7 @@ function PackingForm({
   const { t, tr, locale } = useFGText();
   const crumbs = [
     useFGCrumb(),
-    { label: product.name, href: productPath(product._id) },
+    { label: product.name, href: productPath(product._id, crossWarehouseId) },
   ];
   const writeError = useTranslations("WriteError");
   const router = useRouter();
@@ -658,7 +701,10 @@ function PackingForm({
                 !drafts.remove(key)
               )
                 setStorageWarning(true);
-              completeTask(batchPath(result.batchId), router.replace);
+              completeTask(
+                batchPath(result.batchId, crossWarehouseId),
+                router.replace,
+              );
             }
           };
           // Keep the review mounted until its owner consumes the entry. A
@@ -691,7 +737,7 @@ function PackingForm({
           title={t("copy.check-existing-batches-before-starting-again")}
         />
         <Button asChild>
-          <Link href={productPath(product._id)}>
+          <Link href={productPath(product._id, crossWarehouseId)}>
             {t("copy.review-product-batches")}
           </Link>
         </Button>
@@ -723,7 +769,8 @@ function PackingForm({
           <Button
             onClick={() => {
               if (batch) persist(initialDraft(product, batch));
-              else if (currentBatch) router.push(batchPath(currentBatch._id));
+              else if (currentBatch)
+                router.push(batchPath(currentBatch._id, crossWarehouseId));
             }}
           >
             {t("copy.load-latest-batch")}
@@ -751,10 +798,11 @@ function PackingForm({
           {...(replacementLabels?.ok && replacementLabels.value
             ? { labelMap: replacementLabels.value }
             : {})}
-          productHref={productPath(product._id)}
+          productHref={productPath(product._id, crossWarehouseId)}
           onReviewBatch={() => {
             if (batch) persist(initialDraft(product, batch));
-            else if (draft.batchId) router.push(batchPath(draft.batchId));
+            else if (draft.batchId)
+              router.push(batchPath(draft.batchId, crossWarehouseId));
           }}
           onPrepareAnother={() => {
             const blank = initialDraft(product);
@@ -769,7 +817,12 @@ function PackingForm({
                 setStorageWarning(true);
                 return;
               }
-              router.push(`${productPath(product._id)}/packing`);
+              router.push(
+                productPackingPath(
+                  product._id,
+                  crossWarehouseId ? { warehouseId: crossWarehouseId } : {},
+                ),
+              );
             }
           }}
         />

@@ -12,6 +12,10 @@ import {
   validatePacking,
   MAX_FG_PACKAGES,
 } from "../model/finishedGoods/packing";
+import {
+  canReadCustomers,
+  projectProductCustomerFields,
+} from "../customers/warehouseScope";
 import { command, compact, created, failure, stamp } from "./commands";
 import {
   firstActiveMove,
@@ -69,7 +73,14 @@ export const get = queryWithOrg({
     const units = await Promise.all(
       (await activeUnits(ctx, batch._id)).map((p) => unitState(ctx, p)),
     );
-    return { batch, product, units };
+    return {
+      batch,
+      product: projectProductCustomerFields(
+        product,
+        await canReadCustomers(ctx),
+      ),
+      units,
+    };
   },
 });
 export const repackAvailable = mutationWithOrg({

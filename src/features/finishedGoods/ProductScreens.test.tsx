@@ -30,9 +30,12 @@ import type { fgRefs } from "@/lib/convex/finishedGoodsApi";
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
+  canReadCustomers: false,
   authLoaded: true,
   actorId: "user-a",
   warehouseId: "warehouse-a",
+  extraWarehouses: [] as { id: string; code: string; name: string }[],
+  selectWarehouse: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
   save: vi.fn<
@@ -61,9 +64,17 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => {
     ...actual,
     useWorkspace: () => ({
       ...finishedGoodsWorkspace,
-      navigationPermissions: mocks.canManage
-        ? finishedGoodsWorkspace.navigationPermissions
-        : ["masterData.storageLayout.read"],
+      warehouses: [
+        ...finishedGoodsWorkspace.warehouses,
+        ...mocks.extraWarehouses,
+      ],
+      selectWarehouse: mocks.selectWarehouse,
+      navigationPermissions: [
+        ...(mocks.canManage
+          ? finishedGoodsWorkspace.navigationPermissions
+          : ["masterData.storageLayout.read"]),
+        ...(mocks.canReadCustomers ? ["masterData.customer.read"] : []),
+      ],
     }),
   };
 });
@@ -169,9 +180,12 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/");
   localStorage.clear();
   mocks.canManage = true;
+  mocks.canReadCustomers = false;
+  mocks.extraWarehouses = [];
   mocks.authLoaded = true;
   mocks.actorId = "user-a";
   mocks.warehouseId = "warehouse-a";
+  mocks.selectWarehouse.mockReset();
   mocks.push.mockReset();
   mocks.replace.mockReset();
   mocks.save.mockReset().mockResolvedValue(savedProductOutcome);
@@ -2167,3 +2181,277 @@ it.each(["warehouse", "actor"] as const)(
     expect(screen.getByText(finishedGoodsList.products[0]!.name)).toBeVisible();
   },
 );
+
+describe("product screen customer v2 linking", () => {
+  it("opens cross-warehouse product links using requestedWarehouseId when authorized", () => {
+    mocks.extraWarehouses = [
+      { id: "warehouse-b", code: "WH-B", name: "Warehouse B" },
+    ];
+    renderWithIntl(
+      <ProductScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+      { locale: "en", workspace: false },
+    );
+    expect(mocks.query).toHaveBeenCalledWith(
+      "finishedGoods/workflow:getProduct",
+      {
+        warehouseId: "warehouse-b",
+        productId: "product-a",
+      },
+    );
+  });
+
+  it("preserves frozen customerLink and requestId when retrying saveProduct after a lost response even if live product updates", async () => {
+    mocks.canReadCustomers = true;
+    let liveProduct = { ...finishedGoodProduct };
+    const fallback = mocks.query.getMockImplementation()!;
+    mocks.query.mockImplementation((name, args) => {
+      if (name.endsWith(":getProduct")) return querySuccess(liveProduct);
+      if (name.endsWith(":searchCustomerOptions")) {
+        return querySuccess({
+          items: [
+            {
+              customerId: "cust-1",
+              code: "C-0001",
+              name: "Acme Packaging",
+              status: "ACTIVE",
+            },
+          ],
+          hasMore: false,
+        });
+      }
+      return fallback(name, args);
+    });
+    mocks.save
+      .mockRejectedValueOnce(new Error("Connection lost"))
+      .mockResolvedValueOnce(savedProductOutcome);
+
+    const view = renderWithIntl(<ProductScreen productId="product-a" />, {
+      locale: "en",
+      workspace: false,
+    });
+    // Expand references and select customer cust-1.
+    fireEvent.click(screen.getByText("References (optional)"));
+    chooseOption("Customer", "Acme Packaging (C-0001)");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save product details" }),
+    );
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    const firstArgs = mocks.save.mock.calls[0]![0];
+    expect(firstArgs).toMatchObject({
+      customerLink: { action: "SET", customerId: "cust-1" },
+    });
+
+    // Simulate live subscription advancing with the server-applied customerId
+    // before the user retries the lost response.
+    liveProduct = {
+      ...finishedGoodProduct,
+      customerId: "cust-1",
+      customerLinkSource: "MANUAL",
+      updatedAt: finishedGoodProduct.updatedAt + 1000,
+    };
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messagesFor("en")}>
+        <ProductScreen productId="product-a" />
+      </NextIntlClientProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save product details" }),
+    );
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+    const retryArgs = mocks.save.mock.calls[1]![0];
+    expect(retryArgs.requestId).toBe(firstArgs.requestId);
+    expect(retryArgs).toMatchObject({
+      customerLink: { action: "SET", customerId: "cust-1" },
+    });
+  });
+
+  it("syncs cross-warehouse product links into packing and yields when the user switches warehouse", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/en/finished-goods/products/product-a?warehouseId=warehouse-b",
+    );
+    mocks.extraWarehouses = [
+      { id: "warehouse-b", code: "WH-B", name: "Warehouse B" },
+    ];
+    const view = renderWithIntl(
+      <ProductScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+      { locale: "en", workspace: false, preserveProviders: true },
+    );
+
+    await waitFor(() =>
+      expect(mocks.selectWarehouse).toHaveBeenCalledWith("warehouse-b"),
+    );
+    expect(mocks.query).toHaveBeenCalledWith(
+      "finishedGoods/workflow:getProduct",
+      {
+        warehouseId: "warehouse-b",
+        productId: "product-a",
+      },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Prepare more goods" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^\/finished-goods\/products\/product-a\/packing\?draft=[0-9a-f-]+&warehouseId=warehouse-b$/,
+        ),
+      ),
+    );
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        warehouseId: "warehouse-b",
+        productId: "product-a",
+      }),
+    );
+
+    // Duplicate SKU link preserves cross-warehouse context while honoring the request.
+    fireEvent.change(screen.getByRole("textbox", { name: "SKU" }), {
+      target: { value: "EXISTING-SKU" },
+    });
+    mocks.save.mockResolvedValueOnce(writeFailure("DUPLICATE_KEY", "sku"));
+    const fallback = mocks.query.getMockImplementation()!;
+    mocks.query.mockImplementation((name, args) =>
+      name.endsWith(":findSku")
+        ? querySuccess({ ...finishedGoodProduct, _id: "product-existing" })
+        : fallback(name, args),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save product details" }),
+    );
+    expect(
+      await screen.findByRole("link", { name: "Open existing product" }),
+    ).toHaveAttribute(
+      "href",
+      "/finished-goods/products/product-existing?warehouseId=warehouse-b",
+    );
+
+    // Workspace syncs to warehouse-b, then user explicitly switches back to warehouse-a.
+    mocks.warehouseId = "warehouse-b";
+    view.rerender(
+      <ProductScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+    );
+    mocks.query.mockClear();
+    mocks.save.mockClear().mockResolvedValue(savedProductOutcome);
+    mocks.replace.mockClear();
+
+    mocks.warehouseId = "warehouse-a";
+    view.rerender(
+      <ProductScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        new URLSearchParams(window.location.search).get("warehouseId"),
+      ).toBeNull(),
+    );
+    expect(mocks.query).toHaveBeenCalledWith(
+      "finishedGoods/workflow:getProduct",
+      {
+        warehouseId: "warehouse-a",
+        productId: "product-a",
+      },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Prepare more goods" }));
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^\/finished-goods\/products\/product-a\/packing\?draft=[0-9a-f-]+$/,
+        ),
+      ),
+    );
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        warehouseId: "warehouse-a",
+        productId: "product-a",
+      }),
+    );
+  });
+
+  it("shows resolved customer names in product conflict diffs only when customer read access is granted", async () => {
+    mocks.canReadCustomers = true;
+    let liveProduct = { ...finishedGoodProduct };
+    const fallback = mocks.query.getMockImplementation()!;
+    mocks.query.mockImplementation((name, args) => {
+      if (name.endsWith(":getProduct")) return querySuccess(liveProduct);
+      if (name.endsWith(":getCustomer")) {
+        return querySuccess({
+          _id: "cust-2",
+          customerId: "cust-2",
+          code: "C-0002",
+          name: "Thai Box",
+          status: "ACTIVE",
+        });
+      }
+      if (name.endsWith(":searchCustomerOptions")) {
+        return querySuccess({
+          items: [
+            {
+              customerId: "cust-1",
+              code: "C-0001",
+              name: "Acme Packaging",
+              status: "ACTIVE",
+            },
+          ],
+          hasMore: false,
+        });
+      }
+      return fallback(name, args);
+    });
+
+    const view = renderWithIntl(<ProductScreen productId="product-a" />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    liveProduct = {
+      ...finishedGoodProduct,
+      customerId: "cust-2",
+      customerLinkSource: "MANUAL",
+      updatedAt: finishedGoodProduct.updatedAt + 100,
+    };
+    view.rerender(<ProductScreen productId="product-a" />);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Customer");
+    expect(alert).toHaveTextContent("Not linked → Thai Box (C-0002)");
+    view.unmount();
+
+    // Without customer read permission, customerId conflict is hidden and getCustomer is not queried.
+    mocks.canReadCustomers = false;
+    mocks.query.mockClear();
+    liveProduct = { ...finishedGoodProduct };
+    const restricted = renderWithIntl(<ProductScreen productId="product-a" />, {
+      locale: "en",
+      workspace: false,
+      preserveProviders: true,
+    });
+    liveProduct = {
+      ...finishedGoodProduct,
+      customerId: "cust-2",
+      updatedAt: finishedGoodProduct.updatedAt + 200,
+    };
+    restricted.rerender(<ProductScreen productId="product-a" />);
+    const restrictedAlert = screen.getByRole("alert");
+    expect(restrictedAlert).not.toHaveTextContent(/Customer|Thai Box|cust-2/i);
+    expect(
+      mocks.query.mock.calls.some(([name]) => name.endsWith(":getCustomer")),
+    ).toBe(false);
+  });
+});

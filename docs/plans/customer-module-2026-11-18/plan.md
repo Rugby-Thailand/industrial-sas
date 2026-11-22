@@ -1,12 +1,12 @@
 # ลูกค้า / Customers — module plan
 
-**Date:** 2026-11-18 · **Status:** v1 implemented (2026-11-19); v2 and Later deferred · **Preview:** [index.html](index.html)
+**Date:** 2026-11-18 · **Status:** v1 and v2 implemented (2026-11-21); Later deferred · **Preview:** [index.html](index.html)
 
 **Research:** [codebase-fit.md](../../research/customer-module-2026-11-18/codebase-fit.md) (gpt-6.2-sol) · [domain-ux.md](../../research/customer-module-2026-11-18/domain-ux.md) (gpt-6.2-astra)
 
 ## Goal
 
-Today a customer is only a string. Job scans keep the name the AI copied from the ticket, and products keep a free-text `customerReference` (`convex/schema.ts:796`, `:955`). The goal is one customer record per organization, so staff can answer two questions: which jobs and products belong to this customer, and where do we deliver?
+Today a customer is only a string. Job scans keep the name the AI copied from the ticket, and products keep a free-text `customerReference` (`convex/schema.ts:1022`, `:1370`). The goal is one customer record per organization, so staff can answer two questions: which jobs and products belong to this customer, and where do we deliver?
 
 Scanning must never wait on customer data. Sales and accounting are future modules, so this module stays a clean master record. Do not add balances, credit terms or invoices to make it look complete.
 
@@ -99,7 +99,7 @@ Screenshots: [evidence/](evidence/).
 
 ## Deferral triggers
 
-- **v2 linking** starts once v1 has real customer records and at least one reviewer has named the aliases seen on job tickets; matching before that would auto-link against guesses.
+- **v2 linking** implemented on 2026-11-21: optional `customerId`/`customerLinkSource` on job scans and products, `customerAliases`, exact active auto-link in `saveJobScans`, explicit pickers on products and job-scan corrections, customer detail activity (recent jobs, linked products, aliases), alias search and list summary columns, `/master-data/customers/review`, and dry-run/resumable backfill (`customers/backfill:backfillJobScanCustomers`).
 - **Later** items each wait for an observed need: a customer with a second delivery site, a confirmed duplicate pair, or a request for sales or accounting fields.
 
 ## Out of scope

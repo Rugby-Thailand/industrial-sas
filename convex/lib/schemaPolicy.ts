@@ -13,6 +13,8 @@ export const TENANT_TABLES = [
   "warehouses",
   "customers",
   "customerCatalogueSignals",
+  "customerAliases",
+  "customerWarehouseActivity",
   "memberships",
   "membershipRoles",
   "membershipWarehouses",
@@ -332,6 +334,16 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
   { table: "permissions", key: ["code"], condition: ALWAYS },
   { table: "warehouses", key: ["orgId", "code"], condition: ALWAYS },
   { table: "customers", key: ["orgId", "code"], condition: ALWAYS },
+  {
+    table: "customerAliases",
+    key: ["orgId", "customerId", "normalizedAlias"],
+    condition: ALWAYS,
+  },
+  {
+    table: "customerWarehouseActivity",
+    key: ["orgId", "customerId", "warehouseId"],
+    condition: ALWAYS,
+  },
   { table: "memberships", key: ["orgId", "userId"], condition: ALWAYS },
   {
     table: "memberships",
@@ -422,6 +434,7 @@ export type LookupContract = {
 };
 
 export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
+  { table: "customerAliases", key: ["orgId", "normalizedAlias"] },
   { table: "hrDepartments", key: ["orgId", "managerEmployeeId"] },
   { table: "supportGrants", key: ["orgId", "ticketRef"] },
   { table: "storagePositions", key: ["orgId", "zoneId", "status"] },

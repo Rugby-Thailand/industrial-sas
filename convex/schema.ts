@@ -1,5 +1,9 @@
 import { aiUsageTables } from "./aiUsage/schema";
-import { customerFields } from "./customers/validators";
+import {
+  customerAliasFields,
+  customerFields,
+  customerLinkSource,
+} from "./customers/validators";
 import { hrPolicyTables } from "./hr/schema/policy";
 import { employeeOrgFields, hrOrgTables } from "./hr/schema/org";
 import {
@@ -705,6 +709,8 @@ const schema = defineSchema({
       ...customerFields,
       // Decimal length followed by digits sorts sequence codes numerically.
       codeSequenceKey: v.optional(v.string()),
+      // Derived newline-joined normalized aliases for zero-extra-read search.
+      aliasSearchText: v.optional(v.string()),
     }),
   )
     .index("by_orgId_code", byOrg("code"))
@@ -714,6 +720,30 @@ const schema = defineSchema({
   customerCatalogueSignals: defineTable(
     tenantFields({ generation: v.number() }),
   ).index("by_orgId", byOrg()),
+  customerAliases: defineTable(tenantFields(customerAliasFields))
+    .index("by_orgId_normalizedAlias", byOrg("normalizedAlias"))
+    .index(
+      "by_orgId_customerId_normalizedAlias",
+      byOrg("customerId", "normalizedAlias"),
+    ),
+  customerWarehouseActivity: defineTable(
+    tenantFields({
+      warehouseId: v.id("warehouses"),
+      customerId: v.id("customers"),
+      linkedProductCount: v.number(),
+      latestJobScanId: v.optional(v.id("finishedGoodsJobScans")),
+      latestJobFactoryOrder: v.optional(v.string()),
+      latestJobCreatedAt: v.optional(v.number()),
+    }),
+  )
+    .index(
+      "by_orgId_customerId_warehouseId",
+      byOrg("customerId", "warehouseId"),
+    )
+    .index(
+      "by_orgId_warehouseId_customerId",
+      byOrg("warehouseId", "customerId"),
+    ),
   memberships: defineTable(
     tenantFields({
       accessRevision: v.optional(v.number()),
@@ -1014,6 +1044,8 @@ const schema = defineSchema({
       storageCondition: v.string(),
       notes: v.optional(v.string()),
       customerReference: v.optional(v.string()),
+      customerId: v.optional(v.id("customers")),
+      customerLinkSource: v.optional(customerLinkSource),
       productReference: v.optional(v.string()),
       status: v.union(
         v.literal("DRAFT"),
@@ -1029,7 +1061,12 @@ const schema = defineSchema({
     .index("by_orgId_warehouseId_sku", byOrg("warehouseId", "sku"))
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
     // Creation order: the resumable totals build's immutable scan position.
-    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    .index(
+      "by_orgId_warehouseId_customerId",
+      byOrg("warehouseId", "customerId"),
+    )
+    .index("by_orgId_customerId", byOrg("customerId")),
   finishedGoodsPallets: defineTable(
     tenantFields({
       legacyRecovery: v.optional(
@@ -1355,6 +1392,14 @@ const schema = defineSchema({
       deliveryDate: v.optional(v.string()),
       partName: v.optional(v.string()),
       customer: v.optional(v.string()),
+      customerId: v.optional(v.id("customers")),
+      customerLinkSource: v.optional(customerLinkSource),
+      /**
+       * v2 review classification of an undecided ticket: `true` = named and
+       * waiting in "Names to review"; `false` = nothing to review (blank or
+       * voided). Missing on decided rows and on legacy rows v2 never saw.
+       */
+      customerReviewPending: v.optional(v.boolean()),
       manufacturingDate: v.optional(v.string()),
       quantity: v.optional(v.number()),
       factoryQuantity: v.optional(v.number()),
@@ -1394,7 +1439,36 @@ const schema = defineSchema({
      * or created since the search watermark, whoever wrote them.
      */
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
-    .index("by_orgId_warehouseId", byOrg("warehouseId")),
+    .index("by_orgId_warehouseId", byOrg("warehouseId"))
+    /**
+     * Customer activity reads only live scans: `voided` is fixed as missing so
+     * voided rows never consume a bounded read. Legacy scans omit `voided`.
+     */
+    .index(
+      "by_orgId_customerId_voided_createdAt",
+      byOrg("customerId", "voided", "createdAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_customerId_voided_createdAt",
+      byOrg("warehouseId", "customerId", "voided", "createdAt"),
+    )
+    /**
+     * Legacy review stream: rows with neither a link decision nor a v2 review
+     * classification. Backfill drains it; live saves never enter it.
+     */
+    .index(
+      "by_orgId_warehouseId_linkSource_reviewPending_createdAt",
+      byOrg(
+        "warehouseId",
+        "customerLinkSource",
+        "customerReviewPending",
+        "createdAt",
+      ),
+    )
+    .index(
+      "by_orgId_warehouseId_customerReviewPending_createdAt",
+      byOrg("warehouseId", "customerReviewPending", "createdAt"),
+    ),
   /**
    * Derived substring-search index for saved job scans
    * (`convex/lib/jobScanSearch.ts`). One row per scan: its newest-first key,

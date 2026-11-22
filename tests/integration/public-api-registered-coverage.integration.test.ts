@@ -96,7 +96,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(42);
+    expect(coveredModules).toHaveLength(43);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -117,9 +117,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 48 representative functions, not every public export
+    // The inventory covers 49 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(48);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(49);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -211,6 +211,13 @@ describe("representative registered payloads and safe HR capability gates", () =
         ok: true,
         customerId: expect.any(String),
         replayed: false,
+      },
+      "customers/linking:reviewSummary": {
+        canViewWarehouseData: true,
+        canReview: true,
+        unresolvedNameCount: 0,
+        unresolvedScanCount: 0,
+        hasMore: false,
       },
       "finishedGoods/attachments:createIntent": { assetId: expect.any(String) },
       "aiUsage/reports:summary": {

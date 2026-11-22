@@ -5,6 +5,27 @@ export const customerStatus = v.union(
   v.literal("ARCHIVED"),
 );
 
+export const customerLinkArg = v.union(
+  v.object({ action: v.literal("KEEP") }),
+  v.object({ action: v.literal("SET"), customerId: v.id("customers") }),
+  v.object({ action: v.literal("CLEAR") }),
+);
+
+export const customerLinkSource = v.union(
+  v.literal("AUTO"),
+  v.literal("MANUAL"),
+  v.literal("UNLINKED"),
+);
+
+export const customerAliasFields = {
+  customerId: v.id("customers"),
+  alias: v.string(),
+  normalizedAlias: v.string(),
+  exampleJobScanId: v.optional(v.id("finishedGoodsJobScans")),
+  approvedAt: v.number(),
+  approvedByUserId: v.id("users"),
+};
+
 const establishment = v.union(
   v.object({ kind: v.literal("HEAD_OFFICE") }),
   v.object({ kind: v.literal("BRANCH"), code: v.string() }),
@@ -50,6 +71,13 @@ export const customerFields = {
   archivedAt: v.optional(v.number()),
   archivedByUserId: v.optional(v.id("users")),
 };
+
+export const customerLatestJob = v.object({
+  jobScanId: v.id("finishedGoodsJobScans"),
+  factoryOrder: v.string(),
+  createdAt: v.number(),
+  warehouseId: v.id("warehouses"),
+});
 
 export const customerSummary = v.object({
   customerId: v.id("customers"),

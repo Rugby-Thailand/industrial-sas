@@ -9,6 +9,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { PackagePlus } from "lucide-react";
 import { QueryGate } from "@/components/system/QueryGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { Button } from "@/components/ui/button";
 import { SelectControl } from "@/components/ui/SelectControl";
 import {
@@ -20,7 +21,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Link, useRouter } from "@/i18n/navigation";
+import { api } from "../../../convex/_generated/api";
+import { NAVIGATION_PERMISSION } from "../../../convex/model/authorization/navigationPermissions";
+import { CustomerPicker } from "@/features/customers/CustomerPicker";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
+import { useEffectiveWarehouse } from "@/lib/workspace/useEffectiveWarehouse";
 import { ProductBatches } from "./ProductBatches";
 import { optimisticProductDetails } from "./optimisticProductDetails";
 import {
@@ -34,6 +39,7 @@ import {
   Status,
   Steps,
   measurePath,
+  productPackingPath,
   productPath,
   useFGText,
   useDraftKey,
@@ -50,6 +56,7 @@ type ProductDraft = {
   unit: string;
   storageCondition: string;
   notes: string;
+  customerId: string;
   customerReference: string;
   productReference: string;
   savedProductId?: string;
@@ -66,6 +73,7 @@ function initialDraft(
     unit: product?.unit ?? (locale === "th" ? "ชิ้น" : "pieces"),
     storageCondition: product?.storageCondition ?? "ANY",
     notes: product?.notes ?? "",
+    customerId: product?.customerId ?? "",
     customerReference: product?.customerReference ?? "",
     productReference: product?.productReference ?? "",
     ...(product
@@ -78,6 +86,7 @@ function initialDraft(
             unit: product.unit,
             storageCondition: product.storageCondition,
             notes: product.notes ?? "",
+            customerId: product.customerId ?? "",
             customerReference: product.customerReference ?? "",
             productReference: product.productReference ?? "",
           },
@@ -103,6 +112,7 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
         "unit",
         "storageCondition",
         "notes",
+        "customerId",
         "customerReference",
         "productReference",
       ] as const) {
@@ -130,53 +140,83 @@ function readDraft(key: string, fallback: ProductDraft): ProductDraft {
 export function ProductScreen({
   productId,
   resumePalletId,
+  requestedWarehouseId,
 }: {
   productId?: string;
   resumePalletId?: string;
+  requestedWarehouseId?: string;
 }) {
-  const canManage = useCanManage();
-  const { t } = useFGText();
-  const fgCrumb = useFGCrumb();
   const draftScope = useDraftKey("fg-product");
   if (!draftScope) return <Loading />;
   return (
     <QueryGate scope="WAREHOUSE">
-      {(warehouseId) =>
-        productId ? (
-          <ProductLoader
-            key={`${draftScope}:${warehouseId}:${productId}`}
-            draftScope={draftScope}
-            warehouseId={warehouseId}
-            productId={productId}
-            {...(resumePalletId ? { resumePalletId } : {})}
-          />
-        ) : canManage ? (
-          <ProductForm
-            key={`${draftScope}:${warehouseId}`}
-            draftScope={draftScope}
-            warehouseId={warehouseId}
-          />
-        ) : (
-          <>
-            <Heading
-              title={t("copy.create-finished-good")}
-              breadcrumbs={[fgCrumb]}
-            />
-            <ViewOnlyNotice />
-          </>
-        )
-      }
+      {(activeWarehouseId) => (
+        <ProductWarehouseView
+          draftScope={draftScope}
+          activeWarehouseId={activeWarehouseId}
+          {...(productId ? { productId } : {})}
+          {...(resumePalletId ? { resumePalletId } : {})}
+          {...(requestedWarehouseId ? { requestedWarehouseId } : {})}
+        />
+      )}
     </QueryGate>
   );
 }
+
+function ProductWarehouseView({
+  draftScope,
+  activeWarehouseId,
+  productId,
+  resumePalletId,
+  requestedWarehouseId,
+}: {
+  draftScope: string;
+  activeWarehouseId: string;
+  productId?: string;
+  resumePalletId?: string;
+  requestedWarehouseId?: string;
+}) {
+  const canManage = useCanManage();
+  const { t } = useFGText();
+  const fgCrumb = useFGCrumb();
+  const { warehouseId, crossWarehouseId } = useEffectiveWarehouse(
+    activeWarehouseId,
+    requestedWarehouseId,
+  );
+  return productId ? (
+    <ProductLoader
+      key={`${draftScope}:${warehouseId}:${productId}`}
+      draftScope={draftScope}
+      warehouseId={warehouseId}
+      productId={productId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
+      {...(resumePalletId ? { resumePalletId } : {})}
+    />
+  ) : canManage ? (
+    <ProductForm
+      key={`${draftScope}:${warehouseId}`}
+      draftScope={draftScope}
+      warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
+    />
+  ) : (
+    <>
+      <Heading title={t("copy.create-finished-good")} breadcrumbs={[fgCrumb]} />
+      <ViewOnlyNotice />
+    </>
+  );
+}
+
 function ProductLoader({
   draftScope,
   warehouseId,
+  crossWarehouseId,
   productId,
   resumePalletId,
 }: {
   draftScope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   productId: string;
   resumePalletId?: string;
 }) {
@@ -221,6 +261,7 @@ function ProductLoader({
       key={`${draftScope}:${warehouseId}:${productId}:${resumePalletId ?? "new-pallet"}`}
       draftScope={draftScope}
       warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
       product={result.value}
       {...(resumePalletId ? { resumePalletId } : {})}
     />
@@ -229,16 +270,22 @@ function ProductLoader({
 function ProductForm({
   draftScope,
   warehouseId,
+  crossWarehouseId,
   product,
   resumePalletId,
 }: {
   draftScope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   product?: Product;
   resumePalletId?: string;
 }) {
   const fgCrumb = useFGCrumb();
   const { t, tr, locale } = useFGText();
+  const { navigationPermissions } = useWorkspace();
+  const canReadCustomers = navigationPermissions.includes(
+    NAVIGATION_PERMISSION.customers,
+  );
   const canManage = useCanManage();
   const router = useRouter();
   const saveProduct = useMutation(fgRefs.saveProduct).withOptimisticUpdate(
@@ -301,6 +348,10 @@ function ProductForm({
       ? duplicateCatalogue.value
       : undefined;
   const productId = useRef(product?._id ?? form.savedProductId);
+  const pendingCommand = useRef<{
+    readonly formKey: string;
+    readonly command: Parameters<typeof saveProduct>[0];
+  } | null>(null);
   const navigationDraft = useNavigationDraft({
     dirty: dirty && storageWarning,
     pending: busy,
@@ -321,12 +372,21 @@ function ProductForm({
         if (!canManage) throw new Error("ACCESS_DENIED");
         // The server replays an accepted request before checking its version.
         // A live query can advance after a lost response, so an unchanged
-        // retry must still send the original token and request identity.
+        // retry must still send the frozen command (including customerLink
+        // and requestId) instead of recomputing from live subscription state.
         if (
           next &&
           (!form.sku.trim() || !form.name.trim() || !form.unit.trim())
         )
           throw new Error("INVALID_INPUT");
+        const initialCustomerId = form.baseValues?.customerId ?? "";
+        const customerLink =
+          form.customerId === initialCustomerId
+            ? undefined
+            : form.customerId
+              ? ({ action: "SET", customerId: form.customerId } as const)
+              : ({ action: "CLEAR" } as const);
+        const draftFlag = !next && product?.status !== "ACTIVE";
         const payload = {
           warehouseId,
           ...(productId.current ? { productId: productId.current } : {}),
@@ -340,17 +400,36 @@ function ProductForm({
           notes: form.notes,
           customerReference: form.customerReference,
           productReference: form.productReference,
-          draft: !next && product?.status !== "ACTIVE",
+          ...(customerLink === undefined ? {} : { customerLink }),
+          draft: draftFlag,
         };
-        return written(
-          await saveProduct({
-            ...payload,
-            requestId: op.request(
-              `product:${JSON.stringify(payload)}`,
-              "durable",
-            ),
-          }),
-        );
+        const formKey = JSON.stringify({
+          sku: form.sku,
+          name: form.name,
+          unit: form.unit,
+          storageCondition: form.storageCondition,
+          notes: form.notes,
+          customerId: form.customerId,
+          customerReference: form.customerReference,
+          productReference: form.productReference,
+          expectedUpdatedAt: form.expectedUpdatedAt,
+          next,
+          packing,
+        });
+        const frozen =
+          pendingCommand.current?.formKey === formKey
+            ? pendingCommand.current.command
+            : {
+                ...payload,
+                requestId: op.request(
+                  `product:${JSON.stringify(payload)}`,
+                  "durable",
+                ),
+              };
+        pendingCommand.current = { formKey, command: frozen };
+        const result = await saveProduct(frozen);
+        pendingCommand.current = null;
+        return written(result);
       },
       (id) => {
         productId.current = id;
@@ -363,7 +442,12 @@ function ProductForm({
           navigationDraft.settle(() =>
             completeTask(
               next && packing
-                ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
+                ? productPackingPath(id, {
+                    ...(product ? { draft: crypto.randomUUID() } : {}),
+                    ...(crossWarehouseId
+                      ? { warehouseId: crossWarehouseId }
+                      : {}),
+                  })
                 : next && resumePalletId
                   ? measurePath(resumePalletId)
                   : FG_PATH,
@@ -388,6 +472,7 @@ function ProductForm({
         "unit",
         "storageCondition",
         "notes",
+        "customerId",
         "customerReference",
         "productReference",
       ] as const) {
@@ -448,12 +533,15 @@ function ProductForm({
                 "unit",
                 "storageCondition",
                 "notes",
+                "customerId",
                 "customerReference",
                 "productReference",
               ] as const
             )
               .filter(
-                (field) => latestValues[field] !== form.baseValues?.[field],
+                (field) =>
+                  (field !== "customerId" || canReadCustomers) &&
+                  latestValues[field] !== form.baseValues?.[field],
               )
               .map((field) => (
                 <div key={field}>
@@ -465,19 +553,45 @@ function ProductForm({
                         unit: t("copy.counting-unit-78d38c"),
                         storageCondition: t("copy.storage-condition"),
                         notes: t("copy.storage-notes"),
+                        customerId: t("copy.linked-customer"),
                         customerReference: t("copy.customer-reference"),
                         productReference: t("copy.product-reference"),
                       }[field]
                     }
                   </dt>
                   <dd className="break-words">
-                    {form.baseValues?.[field] || "—"} →{" "}
-                    {latestValues[field] || "—"}
-                    {form[field] !== latestValues[field] && (
-                      <span className="block text-muted">
-                        {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
-                        {form[field] || "—"}
-                      </span>
+                    {field === "customerId" ? (
+                      <>
+                        <ProductCustomerConflictValue
+                          customerId={form.baseValues?.customerId}
+                          unlinkedLabel={t("copy.no-linked-customer")}
+                        />{" "}
+                        →{" "}
+                        <ProductCustomerConflictValue
+                          customerId={latestValues.customerId}
+                          unlinkedLabel={t("copy.no-linked-customer")}
+                        />
+                        {form.customerId !== latestValues.customerId && (
+                          <span className="block text-muted">
+                            {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
+                            <ProductCustomerConflictValue
+                              customerId={form.customerId}
+                              unlinkedLabel={t("copy.no-linked-customer")}
+                            />
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {form.baseValues?.[field] || "—"} →{" "}
+                        {latestValues[field] || "—"}
+                        {form[field] !== latestValues[field] && (
+                          <span className="block text-muted">
+                            {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
+                            {form[field] || "—"}
+                          </span>
+                        )}
+                      </>
                     )}
                   </dd>
                 </div>
@@ -515,7 +629,7 @@ function ProductForm({
           <ErrorNotice message={op.error} />
           {op.errorCode === "DUPLICATE_KEY" && op.error && duplicateProduct ? (
             <Button asChild variant="outline">
-              <Link href={productPath(duplicateProduct._id)}>
+              <Link href={productPath(duplicateProduct._id, crossWarehouseId)}>
                 {t("copy.open-existing-product")}
               </Link>
             </Button>
@@ -611,6 +725,24 @@ function ProductForm({
                   {t("copy.references-optional")}
                 </summary>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <productForm.Field name="customerId">
+                    {(field) => (
+                      <div className="sm:col-span-2">
+                        <CustomerPicker
+                          label={t("copy.linked-customer")}
+                          value={field.state.value}
+                          onChange={(v) => {
+                            op.setError("");
+                            field.handleChange(v);
+                          }}
+                          unlinkedLabel={t("copy.no-linked-customer")}
+                          searchPlaceholder={t("copy.search-customer")}
+                          disabled={!canManage || busy}
+                          testId="product-customer-picker"
+                        />
+                      </div>
+                    )}
+                  </productForm.Field>
                   <productForm.Field name="customerReference">
                     {(field) => (
                       <Field
@@ -755,4 +887,27 @@ function ProductForm({
       ) : null}
     </>
   );
+}
+
+function ProductCustomerConflictValue({
+  customerId,
+  unlinkedLabel,
+}: {
+  readonly customerId: string | undefined;
+  readonly unlinkedLabel: string;
+}) {
+  const outcome = useQuery(
+    api.customers.catalogue.getCustomer,
+    customerId ? { customerId } : "skip",
+  );
+  if (!customerId) return <>{unlinkedLabel}</>;
+  const customer = outcome?.ok ? outcome.value : null;
+  if (
+    customer &&
+    typeof customer.name === "string" &&
+    typeof customer.code === "string"
+  ) {
+    return <>{`${customer.name} (${customer.code})`}</>;
+  }
+  return <>{customerId}</>;
 }

@@ -9,6 +9,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CursorPagination } from "@/components/system/CursorPagination";
 import { QueryGate } from "@/components/system/QueryGate";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
+import { useEffectiveWarehouse } from "@/lib/workspace/useEffectiveWarehouse";
 import { useCursorPagination } from "@/hooks/useCursorPagination";
 import { useCatalogueSync } from "@/hooks/useCatalogueSync";
 import { useWorkflowStep } from "@/hooks/useWorkflowStep";
@@ -53,7 +54,11 @@ const hasRecordRows = (value: object) =>
   "items" in value && Array.isArray(value.items) && value.items.length > 0;
 
 /** The header stays in place while the session and warehouse load. */
-export function JobScanRecordsScreen() {
+export function JobScanRecordsScreen({
+  requestedWarehouseId,
+}: {
+  readonly requestedWarehouseId?: string;
+} = {}) {
   const t = useTranslations("JobScan");
   const viewScope = useDraftKey("job-scan-records");
   const loadingLabel = t("recordList.loading");
@@ -67,12 +72,12 @@ export function JobScanRecordsScreen() {
       />
       {viewScope ? (
         <QueryGate scope="WAREHOUSE" loadingLabel={loadingLabel}>
-          {(warehouseId) => (
-            <Records
-              key={`${viewScope}:${warehouseId}`}
-              warehouseId={warehouseId}
-              viewKey={`${viewScope}:${warehouseId}`}
+          {(activeWarehouseId) => (
+            <JobScanRecordsWarehouseView
+              viewScope={viewScope}
+              activeWarehouseId={activeWarehouseId}
               loadingLabel={loadingLabel}
+              {...(requestedWarehouseId ? { requestedWarehouseId } : {})}
             />
           )}
         </QueryGate>
@@ -80,6 +85,31 @@ export function JobScanRecordsScreen() {
         <Loading label={loadingLabel} />
       )}
     </PageContainer>
+  );
+}
+
+function JobScanRecordsWarehouseView({
+  viewScope,
+  activeWarehouseId,
+  loadingLabel,
+  requestedWarehouseId,
+}: {
+  readonly viewScope: string;
+  readonly activeWarehouseId: string;
+  readonly loadingLabel: string;
+  readonly requestedWarehouseId?: string;
+}) {
+  const { warehouseId } = useEffectiveWarehouse(
+    activeWarehouseId,
+    requestedWarehouseId,
+  );
+  return (
+    <Records
+      key={`${viewScope}:${warehouseId}`}
+      warehouseId={warehouseId}
+      viewKey={`${viewScope}:${warehouseId}`}
+      loadingLabel={loadingLabel}
+    />
   );
 }
 

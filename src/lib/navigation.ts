@@ -44,6 +44,7 @@ export const ROUTES = Object.freeze({
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
   customers: "/master-data/customers",
+  customerReview: "/master-data/customers/review",
   finishedGoods: "/finished-goods",
   jobScan: "/finished-goods/scan",
   jobScanRecords: "/finished-goods/scan/records",
@@ -1007,6 +1008,15 @@ export const customerPath = (customerId: string): string =>
 export const customerEditPath = (customerId: string): string =>
   `${customerPath(customerId)}/edit`;
 
+export const customerNewPath = (options?: {
+  readonly prefill?: string;
+}): string => {
+  const token = options?.prefill?.trim();
+  return token && /^[A-Za-z0-9_-]{8,64}$/.test(token)
+    ? `${ROUTES.customers}/new?prefill=${encodeURIComponent(token)}`
+    : `${ROUTES.customers}/new`;
+};
+
 export const storageFloorPath = (
   buildingId: string,
   floorNumber: number,
@@ -1067,12 +1077,28 @@ export function visibleDesktopNavigation(
 }
 
 export const FG_PATH = ROUTES.finishedGoods;
-export const productPath = (id: string) =>
-  `${FG_PATH}/products/${encodeURIComponent(id)}`;
+export const productPath = (id: string, warehouseId?: string) =>
+  warehouseId
+    ? `${FG_PATH}/products/${encodeURIComponent(id)}?warehouseId=${encodeURIComponent(warehouseId)}`
+    : `${FG_PATH}/products/${encodeURIComponent(id)}`;
+export const productPackingPath = (
+  id: string,
+  options: {
+    readonly draft?: string;
+    readonly warehouseId?: string;
+  } = {},
+) => {
+  const query = new URLSearchParams();
+  if (options.draft) query.set("draft", options.draft);
+  if (options.warehouseId) query.set("warehouseId", options.warehouseId);
+  return `${FG_PATH}/products/${encodeURIComponent(id)}/packing${query.size ? `?${query}` : ""}`;
+};
 export const unitCorrectionPath = (productId: string, unitId: string) =>
   `${productPath(productId)}?editUnit=${encodeURIComponent(unitId)}`;
-export const batchPath = (id: string) =>
-  `${FG_PATH}/batches/${encodeURIComponent(id)}`;
+export const batchPath = (id: string, warehouseId?: string) =>
+  warehouseId
+    ? `${FG_PATH}/batches/${encodeURIComponent(id)}?warehouseId=${encodeURIComponent(warehouseId)}`
+    : `${FG_PATH}/batches/${encodeURIComponent(id)}`;
 export const palletPath = (id: string) =>
   `${FG_PATH}/pallets/${encodeURIComponent(id)}`;
 export const measurePath = (id: string) => `${palletPath(id)}/measure`;

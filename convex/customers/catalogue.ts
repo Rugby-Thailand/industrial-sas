@@ -26,6 +26,7 @@ const readCustomers = {
 
 function customerDetail({
   codeSequenceKey: _codeSequenceKey,
+  aliasSearchText: _aliasSearchText,
   ...row
 }: Doc<"customers">) {
   return { ...row, customerId: row._id };
@@ -103,6 +104,7 @@ export const listCustomersPage = queryWithOrg({
           normalizeCustomerName(row.code).includes(needle) ||
           normalizeCustomerName(row.legalNameTh ?? "").includes(needle) ||
           normalizeCustomerName(row.legalNameEn ?? "").includes(needle) ||
+          (row.aliasSearchText?.includes(needle) ?? false) ||
           (exactTaxId !== null && row.taxId === exactTaxId)),
     });
     return {

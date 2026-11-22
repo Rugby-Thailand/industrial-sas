@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
+
 import { useMutation, useQueries } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useTranslations } from "next-intl";
@@ -37,9 +39,20 @@ import {
   useSubmissionIdentity,
 } from "./customerAccess";
 import type { CustomerDetailRow } from "./customerTypes";
+import {
+  reviewPrefillScope,
+  clearReviewPrefillName,
+  readReviewPrefillName,
+} from "./reviewPrefill";
 import { useDuplicateCheck } from "./useDuplicateCheck";
 
-export function NewCustomerForm() {
+export function NewCustomerForm({
+  initialName,
+  prefillToken,
+}: {
+  readonly initialName?: string;
+  readonly prefillToken?: string;
+} = {}) {
   const t = useTranslations("Customers");
   return (
     <>
@@ -49,13 +62,24 @@ export function NewCustomerForm() {
         breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
       />
       <CustomerGate loadingLabel={t("loading")}>
-        <NewCustomerContent />
+        <NewCustomerContent
+          {...(initialName === undefined ? {} : { initialName })}
+          {...(prefillToken === undefined ? {} : { prefillToken })}
+        />
       </CustomerGate>
     </>
   );
 }
 
-function NewCustomerContent() {
+function NewCustomerContent({
+  initialName,
+  prefillToken,
+}: {
+  readonly initialName?: string;
+  readonly prefillToken?: string;
+}) {
+  const { userId, orgId } = useAuth();
+  const scope = reviewPrefillScope(userId, orgId);
   const create = useMutation(api.customers.writes.createCustomer);
   // An optional hint: a failure falls back to the generic code hint (the
   // server allocates a code for a blank field) and never unmounts the form.
@@ -65,10 +89,21 @@ function NewCustomerContent() {
     | FunctionReturnType<typeof api.customers.catalogue.suggestCustomerCode>
     | Error
     | undefined;
+  const [resolvedInitialName] = useState(
+    () => initialName ?? readReviewPrefillName(prefillToken, scope),
+  );
+  const initialDraft = resolvedInitialName
+    ? { ...EMPTY_CUSTOMER_DRAFT, name: resolvedInitialName }
+    : EMPTY_CUSTOMER_DRAFT;
   return (
     <CustomerFormBody
       mode="create"
-      initial={EMPTY_CUSTOMER_DRAFT}
+      initial={initialDraft}
+      {...(prefillToken === undefined
+        ? {}
+        : {
+            onDisposePrefill: () => clearReviewPrefillName(prefillToken, scope),
+          })}
       codeSuggestion={
         suggestion instanceof Error || !suggestion?.ok
           ? undefined
@@ -166,6 +201,7 @@ const SECTION_ORDER: readonly CustomerSection[] = [
 function CustomerFormBody({
   mode,
   initial,
+  onDisposePrefill,
   codeSuggestion,
   customerId,
   latestVersion,
@@ -176,6 +212,7 @@ function CustomerFormBody({
 }: {
   readonly mode: "create" | "edit";
   readonly initial: CustomerDraft;
+  readonly onDisposePrefill?: () => void;
   readonly codeSuggestion?: string | undefined;
   /** The customer being edited; a create form has none. */
   readonly customerId?: string;
@@ -326,6 +363,7 @@ function CustomerFormBody({
           return;
         }
         setDirty(false);
+        onDisposePrefill?.();
         // Completion consumes the form's entry: Back from the customer
         // returns to wherever the form was opened from.
         operation.complete(() =>
@@ -339,6 +377,7 @@ function CustomerFormBody({
   // draft guard asks before discarding, then the customer replaces the form's
   // entry, so Back returns to wherever the form was opened from.
   function openExisting(existingId: string) {
+    onDisposePrefill?.();
     void operation.run(
       async () => existingId,
       (chosen) =>
@@ -351,6 +390,7 @@ function CustomerFormBody({
   // Cancel consumes the task and restores the real origin; a directly
   // opened form falls back to its parent: the list, or the customer.
   function cancel() {
+    onDisposePrefill?.();
     if (customerId === undefined)
       returnFromTask(ROUTES.customers, router.replace);
     else returnFromTask(customerPath(customerId), router.replace);
