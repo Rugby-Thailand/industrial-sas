@@ -31,7 +31,8 @@ export interface QuickMenuEditorProps {
   readonly readRetry?: (() => void) | undefined;
   readonly verify?: (() => void) | undefined;
   readonly resend?: (() => void) | undefined;
-  readonly dismissSuperseded?: (() => void) | undefined;
+  readonly resetInvalid?: (() => void) | undefined;
+  readonly dismissUnavailable?: (() => void) | undefined;
 }
 
 export function QuickMenuCustomizeSheet(props: QuickMenuEditorProps) {
@@ -67,7 +68,8 @@ function QuickMenuEditor({
   readRetry,
   verify,
   resend,
-  dismissSuperseded,
+  dismissUnavailable,
+  resetInvalid,
 }: QuickMenuEditorProps) {
   const t = useTranslations("Home");
   const labels = useTranslations("Navigation");
@@ -187,51 +189,70 @@ function QuickMenuEditor({
         {status && (
           <div className="space-y-2 rounded-lg border border-border bg-raised p-3">
             <p role="status">{status}</p>
-            {readRetry && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={readRetry}
-                disabled={pending}
-              >
-                {t("retry")}
-              </Button>
-            )}
-            {resend && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={resend}
-                disabled={pending}
-              >
-                {t("resend")}
-              </Button>
-            )}
-            {dismissSuperseded && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={dismissSuperseded}
-              >
-                {t("keepLatest")}
-              </Button>
-            )}
-            {verify && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={verify}
-                disabled={pending && !verifying}
-                pending={pending && verifying}
-                pendingLabel={t("checking")}
-              >
-                {t("verify")}
-              </Button>
+            {(readRetry ||
+              resend ||
+              dismissUnavailable ||
+              resetInvalid ||
+              verify) && (
+              <div className="flex flex-wrap gap-2">
+                {readRetry && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={readRetry}
+                    disabled={pending}
+                  >
+                    {t("retry")}
+                  </Button>
+                )}
+                {resend && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={resend}
+                    disabled={pending}
+                  >
+                    {t("resend")}
+                  </Button>
+                )}
+                {dismissUnavailable && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={dismissUnavailable}
+                  >
+                    {t("keepLatest")}
+                  </Button>
+                )}
+                {resetInvalid && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={resetInvalid}
+                    disabled={pending}
+                  >
+                    {t("resetRecovery")}
+                  </Button>
+                )}
+                {verify && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={verify}
+                    disabled={pending && !verifying}
+                    pending={pending && verifying}
+                    pendingLabel={t("checking")}
+                  >
+                    {t("verify")}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         )}

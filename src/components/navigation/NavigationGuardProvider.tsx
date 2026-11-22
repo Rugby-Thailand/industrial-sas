@@ -65,7 +65,7 @@ function summarize(entries: ReadonlyMap<string, DraftRegistration>): Summary {
     pending: pendingEntries.length > 0,
     ...(pendingStatusMessage ? { pendingStatusMessage } : {}),
     saveable: sole?.save !== undefined,
-    ...(sole?.save !== undefined && sole.saveBlockedReason
+    ...(sole?.saveBlockedReason
       ? { saveBlockedReason: sole.saveBlockedReason }
       : {}),
   };

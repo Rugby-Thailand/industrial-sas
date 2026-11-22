@@ -1244,6 +1244,14 @@
         {
           "file": "src/features/dashboard/DashboardScreen.test.tsx",
           "name": "retires a revoked Customize entry without popping a newer foreground"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "explains why a stale draft cannot be saved in the leave prompt"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "saves edits from the leave prompt and consumes Customize before the next Back"
         }
       ]
     },
@@ -1281,6 +1289,14 @@
         {
           "file": "src/features/dashboard/DashboardScreen.test.tsx",
           "name": "retires a revoked Customize entry without popping a newer foreground"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "explains why a stale draft cannot be saved in the leave prompt"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "saves edits from the leave prompt and consumes Customize before the next Back"
         }
       ]
     },

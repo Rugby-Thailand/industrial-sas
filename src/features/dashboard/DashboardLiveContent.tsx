@@ -37,11 +37,13 @@ import {
 import { QuickMenuCustomizeSheet } from "./QuickMenuCustomizeSheet";
 import { quickMenuTile } from "./quickMenuCatalog";
 import {
-  readQuickMenuCommand,
+  inspectQuickMenuCommand,
+  removeInvalidQuickMenuCommand,
   removeQuickMenuCommand,
   sameClerkScope,
   storeQuickMenuCommand,
   type QuickMenuCommand,
+  type QuickMenuRecoveryState,
 } from "./quickMenuStore";
 
 const currentRef = clientRef(api.workspace.quickMenus.current);
@@ -75,10 +77,30 @@ const DEFINITIVE_ROLLBACK_CODES = new Set([
   "ACTOR_SCOPE_MISMATCH",
 ]);
 
+const DETERMINISTIC_RESEND_REFUSALS = new Set([
+  "REQUEST_ID_INVALID",
+  "PINNED_KEYS_INVALID",
+  "VERSION_INVALID",
+  "VERSION_LIMIT",
+  "VERSION_STALE",
+  "PIN_NOT_AVAILABLE",
+  "REQUEST_ARGUMENT_CONFLICT",
+]);
+
 function equalKeys(left: readonly MenuKey[], right: readonly MenuKey[]) {
   return (
     left.length === right.length &&
     left.every((key, index) => key === right[index])
+  );
+}
+
+function sameCommand(left: QuickMenuCommand, right: QuickMenuCommand) {
+  return (
+    left.requestId === right.requestId &&
+    sameClerkScope(left.expectedClerkScope, right.expectedClerkScope) &&
+    left.expectedActorUserId === right.expectedActorUserId &&
+    left.expectedVersion === right.expectedVersion &&
+    equalKeys(left.pinnedKeys, right.pinnedKeys)
   );
 }
 
@@ -133,12 +155,14 @@ export function DashboardLiveContent() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [revocationEpoch, setRevocationEpoch] = useState(0);
   const [message, setMessage] = useState("");
-  const [unconfirmedRequest, setUnconfirmedRequest] = useState<string>();
+  const [checkedReceipt, setCheckedReceipt] = useState<{
+    readonly command: QuickMenuCommand;
+    readonly status: "NOT_FOUND" | "CONFLICT" | "INVALID_INPUT";
+  }>();
   const [verifying, setVerifying] = useState(false);
   const [recovery, setRecovery] = useState<{
     readonly owner: string;
-    readonly command: QuickMenuCommand | null;
-    readonly unavailable?: boolean;
+    readonly state: QuickMenuRecoveryState;
   } | null>(null);
   const snapshotOwner = snapshot
     ? JSON.stringify([
@@ -182,7 +206,7 @@ export function DashboardLiveContent() {
       setOpen(false);
       setDraft(null);
       setMessage("");
-      setUnconfirmedRequest(undefined);
+      setCheckedReceipt(undefined);
       setRevocationEpoch((epoch) => epoch + 1);
       if (
         changedClerk ||
@@ -223,17 +247,13 @@ export function DashboardLiveContent() {
   useEffect(() => {
     if (snapshotOwner === undefined || snapshot === null) return;
     const sync = () => {
-      try {
-        setRecovery({
-          owner: snapshotOwner,
-          command: readQuickMenuCommand(
-            snapshot.clerkScope,
-            snapshot.actorUserId,
-          ),
-        });
-      } catch {
-        setRecovery({ owner: snapshotOwner, command: null, unavailable: true });
-      }
+      setRecovery({
+        owner: snapshotOwner,
+        state: inspectQuickMenuCommand(
+          snapshot.clerkScope,
+          snapshot.actorUserId,
+        ),
+      });
     };
     sync();
     window.addEventListener("storage", sync);
@@ -250,8 +270,11 @@ export function DashboardLiveContent() {
   }, [convex]);
 
   const recoveryReady = !!snapshotOwner && recovery?.owner === snapshotOwner;
-  const command = recoveryReady ? recovery.command : null;
-  const recoveryUnavailable = recoveryReady && !!recovery.unavailable;
+  const recoveryState = recoveryReady ? recovery.state : null;
+  const command =
+    recoveryState?.status === "command" ? recoveryState.command : null;
+  const recoveryInvalid = recoveryState?.status === "invalid";
+  const recoveryUnavailable = recoveryState?.status === "unavailable";
   const activeDraft = draft?.owner === operationOwner ? draft : null;
   const available = snapshot?.availableKeys ?? EMPTY_KEYS;
   const pinned = (snapshot?.pinnedKeys ?? EMPTY_KEYS).filter((key) =>
@@ -264,14 +287,18 @@ export function DashboardLiveContent() {
     !!activeDraft && !!snapshot && snapshot.version !== activeDraft.baseVersion;
   const atLimit = !!snapshot && snapshot.version >= snapshot.maxVersion;
   const canSave =
-    !!snapshot &&
-    recoveryReady &&
-    !command &&
-    !recoveryUnavailable &&
-    !stale &&
-    !atLimit;
+    !!snapshot && recoveryState?.status === "empty" && !stale && !atLimit;
   const readFailed = current.status === "error";
-  const retryRead = () => setReadRetryAttempt(nextReadAttempt());
+  const retryRead = () => {
+    if (recoveryUnavailable) {
+      setMessage("");
+      op.setError("");
+    }
+    setReadRetryAttempt(nextReadAttempt());
+    if (snapshot && snapshotOwner) {
+      refreshRecovery(snapshotOwner, snapshot.clerkScope, snapshot.actorUserId);
+    }
+  };
   const badgeStatus =
     pinned.some((key) => quickMenuTile(key).badge !== undefined) &&
     !unreadSummary
@@ -283,7 +310,7 @@ export function DashboardLiveContent() {
   const discard = () => {
     setDraft(null);
     setMessage("");
-    setUnconfirmedRequest(undefined);
+    setCheckedReceipt(undefined);
   };
 
   function setSheetOpen(next: boolean) {
@@ -311,24 +338,16 @@ export function DashboardLiveContent() {
     });
   }
 
-  function refreshRecovery(owner: string, entry: QuickMenuCommand) {
-    try {
-      const pending = readQuickMenuCommand(
-        entry.expectedClerkScope,
-        entry.expectedActorUserId,
-      );
-      setRecovery((current) =>
-        current?.owner === owner ? { owner, command: pending } : current,
-      );
-      return pending;
-    } catch {
-      setRecovery((current) =>
-        current?.owner === owner
-          ? { owner, command: null, unavailable: true }
-          : current,
-      );
-      return undefined;
-    }
+  function refreshRecovery(
+    owner: string,
+    scope: QuickMenuCommand["expectedClerkScope"],
+    actorUserId: string,
+  ) {
+    const state = inspectQuickMenuCommand(scope, actorUserId);
+    setRecovery((current) =>
+      current?.owner === owner ? { owner, state } : current,
+    );
+    return state;
   }
 
   async function issue(entry: QuickMenuCommand, retry: boolean) {
@@ -339,8 +358,14 @@ export function DashboardLiveContent() {
         removeQuickMenuCommand(entry);
         return true;
       }
-      // A refusal of a recovery attempt cannot settle the original attempt.
-      if (!retry) removeQuickMenuCommand(entry);
+      // Initial refusals never wrote; post-receipt resend refusals only release
+      // when the server proves this exact payload cannot commit.
+      if (
+        !retry ||
+        (outcome !== null && DETERMINISTIC_RESEND_REFUSALS.has(outcome.code))
+      ) {
+        removeQuickMenuCommand(entry);
+      }
       throw new Error(outcome?.code ?? "ACCESS_DENIED");
     } catch (error) {
       if (!retry && DEFINITIVE_ROLLBACK_CODES.has(operationErrorCode(error))) {
@@ -353,6 +378,7 @@ export function DashboardLiveContent() {
   async function save(closeAfterSave = false) {
     if (!snapshot || !snapshotOwner || !activeDraft || !canSave || !dirty)
       return false;
+    const owner = snapshotOwner;
     const next: QuickMenuCommand = {
       requestId: crypto.randomUUID(),
       expectedClerkScope: snapshot.clerkScope,
@@ -367,21 +393,33 @@ export function DashboardLiveContent() {
         .run(
           async () => {
             // Recheck storage immediately before issuing a mutation. A tab may
-            // have created a command since our last storage event.
-            const pending = readQuickMenuCommand(
-              snapshot.clerkScope,
-              snapshot.actorUserId,
+            // have created or damaged a record since our last storage event.
+            const pending = inspectQuickMenuCommand(
+              next.expectedClerkScope,
+              next.expectedActorUserId,
             );
-            if (pending) {
-              setRecovery({ owner: snapshotOwner, command: pending });
-              throw new Error("RECOVERY_PENDING");
+            if (pending.status !== "empty") {
+              setRecovery({ owner, state: pending });
+              throw new Error(
+                pending.status === "command"
+                  ? "RECOVERY_PENDING"
+                  : pending.status === "invalid"
+                    ? "INVALID_RECOVERY"
+                    : "STORAGE_UNAVAILABLE",
+              );
             }
             storeQuickMenuCommand(next);
             return issue(next, false);
           },
           closeAfterSave ? finish : discard,
         )
-        .finally(() => refreshRecovery(snapshotOwner, next))) === true
+        .finally(() =>
+          refreshRecovery(
+            owner,
+            next.expectedClerkScope,
+            next.expectedActorUserId,
+          ),
+        )) === true
     );
   }
 
@@ -394,76 +432,155 @@ export function DashboardLiveContent() {
       finish();
   }
 
+  const receiptForCommand =
+    command && checkedReceipt && sameCommand(checkedReceipt.command, command)
+      ? checkedReceipt.status
+      : null;
+
   const canResend =
     !!snapshot &&
     !!command &&
-    command.requestId === unconfirmedRequest &&
+    receiptForCommand === "NOT_FOUND" &&
     snapshot.version === command.expectedVersion &&
     !atLimit &&
     command.pinnedKeys.every((key) => available.includes(key));
 
-  // A save based on an older version can no longer commit. After checking its
-  // receipt the member can release just this command and keep editing.
-  const superseded =
-    !!command &&
-    command.requestId === unconfirmedRequest &&
+  // After a legitimate scoped receipt check proves this payload cannot be
+  // replayed (CONFLICT/INVALID_INPUT, or NOT_FOUND blocked by version, limit,
+  // or lost grants), the member can explicitly release just this command.
+  const canDismissUnavailable =
     !!snapshot &&
-    !atLimit &&
-    snapshot.version > command.expectedVersion;
-  function dismissSuperseded() {
-    if (!superseded || !command || !snapshotOwner || op.busy) return;
+    !!command &&
+    (receiptForCommand === "CONFLICT" ||
+      receiptForCommand === "INVALID_INPUT" ||
+      (receiptForCommand === "NOT_FOUND" &&
+        (snapshot.version > command.expectedVersion ||
+          atLimit ||
+          command.pinnedKeys.some((key) => !available.includes(key)))));
+
+  function dismissUnavailable() {
+    if (!canDismissUnavailable || !command || !snapshotOwner || op.busy) return;
+    const target = command;
+    const owner = snapshotOwner;
     try {
-      removeQuickMenuCommand(command);
-      refreshRecovery(snapshotOwner, command);
+      removeQuickMenuCommand(target);
       setMessage("");
-      setUnconfirmedRequest(undefined);
+      op.setError("");
+      setCheckedReceipt(undefined);
+      refreshRecovery(
+        owner,
+        target.expectedClerkScope,
+        target.expectedActorUserId,
+      );
     } catch {
+      refreshRecovery(
+        owner,
+        target.expectedClerkScope,
+        target.expectedActorUserId,
+      );
+      setMessage(t("checkError"));
+    }
+  }
+
+  function resetInvalid() {
+    if (
+      !snapshot ||
+      !snapshotOwner ||
+      op.busy ||
+      recoveryState?.status !== "invalid"
+    )
+      return;
+    const owner = snapshotOwner;
+    const invalidKey = recoveryState.key;
+    try {
+      removeInvalidQuickMenuCommand(
+        snapshot.clerkScope,
+        snapshot.actorUserId,
+        invalidKey,
+      );
+      setMessage("");
+      op.setError("");
+      setCheckedReceipt(undefined);
+      refreshRecovery(owner, snapshot.clerkScope, snapshot.actorUserId);
+    } catch {
+      setRecovery({ owner, state: { status: "unavailable" } });
       setMessage(t("checkError"));
     }
   }
 
   function resend() {
     if (!command || !snapshotOwner || !canResend) return;
+    const target = command;
+    const owner = snapshotOwner;
     setMessage("");
-    setUnconfirmedRequest(undefined);
+    setCheckedReceipt(undefined);
     setVerifying(false);
-    void op.run(
-      () => issue(command, true),
-      () => {
-        if (refreshRecovery(snapshotOwner, command) === null)
-          finishRecovered(command);
-      },
-    );
+    void op
+      .run(
+        () => issue(target, true),
+        () => {
+          const next = refreshRecovery(
+            owner,
+            target.expectedClerkScope,
+            target.expectedActorUserId,
+          );
+          if (next.status === "empty") finishRecovered(target);
+        },
+      )
+      .finally(() =>
+        refreshRecovery(
+          owner,
+          target.expectedClerkScope,
+          target.expectedActorUserId,
+        ),
+      );
   }
 
   function verify() {
     if (!snapshot || !snapshotOwner || !command) return;
+    const target = command;
+    const owner = snapshotOwner;
     setMessage("");
-    setUnconfirmedRequest(undefined);
+    setCheckedReceipt(undefined);
     setVerifying(true);
     void op.run(
       async () => {
         try {
-          const result = await convex.query(receiptRef, command);
+          const result = await convex.query(receiptRef, target);
           if (!result.ok) throw new Error("RECEIPT_DENIED");
-          if (result.value.status === "NOT_FOUND") return false;
-          if (result.value.status !== "CONFIRMED")
-            throw new Error(result.value.status);
-          removeQuickMenuCommand(command);
-          return true;
+          const receipt = result.value?.status;
+          if (
+            receipt === "NOT_FOUND" ||
+            receipt === "CONFLICT" ||
+            receipt === "INVALID_INPUT"
+          ) {
+            return receipt;
+          }
+          if (receipt !== "CONFIRMED") throw new Error(String(receipt));
+          removeQuickMenuCommand(target);
+          return "CONFIRMED" as const;
         } catch (error) {
           throw new Error("VERIFICATION_FAILED", { cause: error });
         }
       },
-      (confirmed) => {
-        if (!confirmed) {
+      (receipt) => {
+        if (receipt === "NOT_FOUND") {
           setMessage(t("unconfirmed"));
-          setUnconfirmedRequest(command.requestId);
+          setCheckedReceipt({ command: target, status: "NOT_FOUND" });
           return;
         }
-        const next = refreshRecovery(snapshotOwner, command);
+        if (receipt === "CONFLICT" || receipt === "INVALID_INPUT") {
+          setMessage(t("checkError"));
+          setCheckedReceipt({ command: target, status: receipt });
+          return;
+        }
+        const next = refreshRecovery(
+          owner,
+          target.expectedClerkScope,
+          target.expectedActorUserId,
+        );
         retryRead();
-        if (next === null) finishRecovered(command);
+        if (next.status === "empty") finishRecovered(target);
       },
     );
   }
@@ -476,16 +593,18 @@ export function DashboardLiveContent() {
         ? op.errorCode === "VERIFICATION_FAILED"
           ? t("checkError")
           : t("recovery")
-        : recoveryUnavailable
-          ? t("checkError")
-          : atLimit
-            ? t("versionLimit")
-            : stale
-              ? t("stale")
-              : snapshot
-                ? op.error ||
-                  (badgeStatus === "error" ? t("badgesUnavailable") : "")
-                : t("loading"));
+        : recoveryInvalid
+          ? t("invalidRecovery")
+          : recoveryUnavailable
+            ? t("checkError")
+            : atLimit
+              ? t("versionLimit")
+              : stale
+                ? t("stale")
+                : snapshot
+                  ? op.error ||
+                    (badgeStatus === "error" ? t("badgesUnavailable") : "")
+                  : t("loading"));
 
   return (
     <Sheet
@@ -559,7 +678,10 @@ export function DashboardLiveContent() {
         }
         verify={command ? verify : undefined}
         resend={canResend ? resend : undefined}
-        dismissSuperseded={superseded ? dismissSuperseded : undefined}
+        dismissUnavailable={
+          canDismissUnavailable ? dismissUnavailable : undefined
+        }
+        resetInvalid={recoveryInvalid ? resetInvalid : undefined}
       />
     </Sheet>
   );

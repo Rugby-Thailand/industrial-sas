@@ -313,6 +313,56 @@ describe("Dashboard quick menus", () => {
     await waitFor(() => expect(location()).toBe(ORIGIN));
   });
 
+  it("explains why a stale draft cannot be saved in the leave prompt", async () => {
+    startAtHome();
+    const view = renderHome();
+    const editor = await openEditor();
+    fireEvent.click(
+      within(editor).getByRole("button", { name: "Unpin Announcements" }),
+    );
+    mocks.current = current({ ...snapshot, version: snapshot.version + 1 });
+    view.rerender(ui());
+    fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));
+    const prompt = await screen.findByRole("dialog", {
+      name: "Save changes before leaving?",
+    });
+    expect(
+      within(prompt).getByText(/Quick menus changed while you were editing/),
+    ).toBeVisible();
+    expect(
+      within(prompt).queryByRole("button", { name: "Save and continue" }),
+    ).toBeNull();
+    fireEvent.click(
+      within(prompt).getByRole("button", { name: "Keep editing" }),
+    );
+    expect(
+      within(editor).getByRole("button", { name: "Pin Announcements" }),
+    ).toBeVisible();
+  });
+
+  it("saves edits from the leave prompt and consumes Customize before the next Back", async () => {
+    startAtHome(ORIGIN);
+    mocks.save.mockResolvedValue({ ok: true, value: { ok: true, version: 3 } });
+    renderHome();
+    const editor = await openEditor();
+    fireEvent.click(
+      within(editor).getByRole("button", { name: "Unpin Announcements" }),
+    );
+    fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Save and continue" }),
+    );
+    await waitFor(() => expect(location()).toBe(HOME));
+    expect(mocks.save).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        expectedVersion: 2,
+        pinnedKeys: ["planner.finishedGoods", "hr.notifications"],
+      }),
+    );
+    act(() => window.history.back());
+    await waitFor(() => expect(location()).toBe(ORIGIN));
+  });
+
   it("preserves the editor draft on read retry and retires it on access loss", async () => {
     startAtHome(ORIGIN);
     const view = renderHome();
@@ -509,7 +559,7 @@ describe("Dashboard quick menus", () => {
     const editor = await openEditor();
     expect(
       within(editor).queryByRole("button", {
-        name: "Keep the newer saved menu",
+        name: "Use the current saved menu",
       }),
     ).toBeNull();
     fireEvent.click(
@@ -517,13 +567,106 @@ describe("Dashboard quick menus", () => {
     );
     fireEvent.click(
       await within(editor).findByRole("button", {
-        name: "Keep the newer saved menu",
+        name: "Use the current saved menu",
       }),
     );
     expect(readQuickMenuCommand(clerkScope, actorUserId)).toBeNull();
     expect(
       within(editor).getByRole("button", { name: "Unpin Announcements" }),
     ).toBeEnabled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("removes only the damaged recovery record for the current account", async () => {
+    startAtHome();
+    storeQuickMenuCommand(command);
+    const damaged = localStorage.key(0)!;
+    localStorage.setItem(damaged, "{");
+    const other = {
+      ...command,
+      expectedClerkScope: { ...clerkScope, clerkOrgId: "org-b" },
+    };
+    storeQuickMenuCommand(other);
+    renderHome();
+    const editor = await openEditor();
+    fireEvent.click(
+      await within(editor).findByRole("button", {
+        name: "Remove damaged record",
+      }),
+    );
+    expect(localStorage.getItem(damaged)).toBeNull();
+    expect(readQuickMenuCommand(other.expectedClerkScope, actorUserId)).toEqual(
+      other,
+    );
+    expect(
+      within(editor).getByRole("button", { name: "Unpin Announcements" }),
+    ).toBeEnabled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("releases the checked command when its retry loses a version race", async () => {
+    startAtHome();
+    storeQuickMenuCommand(command);
+    mocks.verify.mockResolvedValue({
+      ok: true,
+      value: { status: "NOT_FOUND" },
+    });
+    mocks.save.mockResolvedValue({
+      ok: true,
+      value: { ok: false, code: "VERSION_STALE", currentVersion: 3 },
+    });
+    renderHome();
+    const editor = await openEditor();
+    fireEvent.click(
+      within(editor).getByRole("button", { name: "Check save status" }),
+    );
+    fireEvent.click(
+      await within(editor).findByRole("button", {
+        name: "Retry the same save",
+      }),
+    );
+    await waitFor(() =>
+      expect(readQuickMenuCommand(clerkScope, actorUserId)).toBeNull(),
+    );
+    expect(
+      within(editor).getByRole("button", { name: "Unpin Announcements" }),
+    ).toBeEnabled();
+  });
+
+  it("preserves a recovery record repaired by another tab before local reset", async () => {
+    startAtHome();
+    storeQuickMenuCommand(command);
+    const key = localStorage.key(0)!;
+    localStorage.setItem(key, "null");
+    renderHome();
+    const editor = await openEditor();
+    const reset = await within(editor).findByRole("button", {
+      name: "Remove damaged record",
+    });
+    storeQuickMenuCommand(command);
+    fireEvent.click(reset);
+    expect(readQuickMenuCommand(clerkScope, actorUserId)).toEqual(command);
+    expect(
+      await within(editor).findByRole("button", { name: "Check save status" }),
+    ).toBeEnabled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("lets the member dismiss a conflicting receipt without sending a mutation", async () => {
+    startAtHome();
+    storeQuickMenuCommand(command);
+    mocks.verify.mockResolvedValue({ ok: true, value: { status: "CONFLICT" } });
+    renderHome();
+    const editor = await openEditor();
+    fireEvent.click(
+      within(editor).getByRole("button", { name: "Check save status" }),
+    );
+    fireEvent.click(
+      await within(editor).findByRole("button", {
+        name: "Use the current saved menu",
+      }),
+    );
+    expect(readQuickMenuCommand(clerkScope, actorUserId)).toBeNull();
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
