@@ -287,68 +287,78 @@ describe("credential classification", () => {
 });
 
 describe("upload callback release credential parity", () => {
-  const answer = (stdout: string, status = 0) => ({
-    pid: 1,
-    output: [null, stdout, ""],
-    stdout,
-    stderr: "",
-    signal: null,
-    status,
-  });
-  it("privately reads only the reviewed deployment token before backend deployment", () => {
+  const result = (value: unknown) =>
+    Response.json({ status: "success", value });
+  it("reads one variable from the pinned deployment without following redirects", async () => {
     for (const env of [production, staging]) {
-      const execute = vi.fn(() => answer(env.UPLOADTHING_TOKEN + "\n"));
-      expect(verifyUploadthingBackendEnvironment(env, execute)).toBe(true);
-      expect(execute).toHaveBeenCalledWith(
-        process.execPath,
-        [
-          expect.stringContaining("node_modules/convex/bin/main.js"),
-          "env",
-          "get",
-          "UPLOADTHING_TOKEN",
-        ],
+      const request = vi.fn(async () =>
+        result({ name: "UPLOADTHING_TOKEN", value: env.UPLOADTHING_TOKEN }),
+      );
+      expect(
+        await verifyUploadthingBackendEnvironment(
+          { ...env, NEXT_PUBLIC_CONVEX_URL: "https://wrong.invalid" },
+          request,
+        ),
+      ).toBeNull();
+      expect(request).toHaveBeenCalledWith(
+        env.NEXT_PUBLIC_CONVEX_URL + "/api/query",
         expect.objectContaining({
-          env,
-          stdio: ["ignore", "pipe", "pipe"],
-          timeout: 20_000,
-          maxBuffer: 65_536,
+          method: "POST",
+          redirect: "error",
+          signal: expect.any(AbortSignal),
+          headers: {
+            Authorization: "Convex " + env.CONVEX_DEPLOY_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            path: "_system/cli/queryEnvironmentVariables:get",
+            args: { name: "UPLOADTHING_TOKEN" },
+            format: "json",
+          }),
         }),
       );
-      expect(JSON.stringify(execute.mock.calls[0]?.slice(0, 2))).not.toContain(
-        env.UPLOADTHING_TOKEN,
-      );
     }
   });
-  it("refuses missing, mismatched, failed or truncated reads without exposing diagnostics", () => {
-    for (const result of [
-      answer(""),
-      answer("other-app-token\n"),
-      answer("token\n", 1),
-      {
-        ...answer(production.UPLOADTHING_TOKEN),
-        error: new Error("private credential diagnostic"),
-      },
-    ]) {
+  it("distinguishes read errors, missing credentials, and a real mismatch", async () => {
+    for (const [response, message] of [
+      [new Response("private", { status: 401 }), "denied"],
+      [new Response("private", { status: 503 }), "rejected"],
+      [
+        Response.json({ status: "error", errorMessage: "private" }),
+        "query failed",
+      ],
+      [result(null), "missing"],
+      [
+        result({ name: "WRONG", value: production.UPLOADTHING_TOKEN }),
+        "invalid",
+      ],
+      [result({ name: "UPLOADTHING_TOKEN", value: "different" }), "must match"],
+    ] as const) {
       expect(
-        verifyUploadthingBackendEnvironment(production, () => result),
-      ).toBe(false);
+        await verifyUploadthingBackendEnvironment(
+          production,
+          async () => response,
+        ),
+      ).toContain(message);
     }
     expect(
-      verifyUploadthingBackendEnvironment(production, () => {
-        throw new Error("private credential diagnostic");
+      await verifyUploadthingBackendEnvironment(production, async () => {
+        throw Error("private");
       }),
-    ).toBe(false);
+    ).toContain("Could not read");
   });
-  it("never contacts a deployment when provenance or target selection is invalid", () => {
-    const execute = vi.fn(() => answer(production.UPLOADTHING_TOKEN));
+  it("never contacts a deployment when provenance or target selection is invalid", async () => {
+    const request = vi.fn();
     for (const env of [
       { ...production, RELEASE_SHA: "" },
       { ...production, CONVEX_DEPLOY_KEY: staging.CONVEX_DEPLOY_KEY },
       { ...production, CONVEX_DEPLOYMENT: "dev:local" },
     ]) {
-      expect(verifyUploadthingBackendEnvironment(env, execute)).toBe(false);
+      expect(await verifyUploadthingBackendEnvironment(env, request)).toContain(
+        "Invalid release",
+      );
     }
-    expect(execute).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 });
 
@@ -358,10 +368,7 @@ it("the real pre-deploy CLI refuses backend credential mismatch without logging 
     const preload = path.join(directory, "private-reader.mjs");
     writeFileSync(
       preload,
-      `import childProcess from "node:child_process";
-import {syncBuiltinESMExports} from "node:module";
-childProcess.spawnSync = () => ({status: 0, stdout: "DIFFERENT_PRIVATE_BACKEND_TOKEN\\n", stderr: "PRIVATE_CLI_DIAGNOSTIC"});
-syncBuiltinESMExports();`,
+      `globalThis.fetch = async () => Response.json({status: "success", value: {name: "UPLOADTHING_TOKEN", value: "DIFFERENT_PRIVATE_BACKEND_TOKEN"}, diagnostic: "PRIVATE_CLI_DIAGNOSTIC"});`,
     );
     const run = spawnSync(
       process.execPath,

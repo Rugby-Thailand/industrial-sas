@@ -20,11 +20,12 @@ if (!result.ok) {
     console.error(`${label}   - ${problem}`);
   process.exit(1);
 }
-if (phase === "pre" && !verifyUploadthingBackendEnvironment(process.env)) {
-  console.error(
-    `${label} Refusing backend deployment: UPLOADTHING_TOKEN must match between Next and the reviewed Convex deployment. Verify the server configuration and retry. Values are never printed.`,
-  );
-  process.exit(1);
+if (phase === "pre") {
+  const problem = await verifyUploadthingBackendEnvironment(process.env);
+  if (problem) {
+    console.error(`${label} Refusing backend deployment: ${problem}`);
+    process.exit(1);
+  }
 }
 console.log(`${label} ${result.target} build environment verified.`);
 for (const note of result.notes) console.log(`${label}   ${note}`);

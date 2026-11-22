@@ -1,45 +1,49 @@
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { loadTargets, validateBuildEnvironment } from "./env-contract.mjs";
 
-import { validateBuildEnvironment } from "./env-contract.mjs";
-
-/** Read-only release prerequisite. Capture the CLI output privately: its stdout
- * contains a server credential and its errors must never reach build logs.
- * The reviewed target/key contract is checked before starting the child.
- * Convex selects that exact deployment from the validated deployment key; its
- * CLI deliberately rejects --deployment when CONVEX_DEPLOY_KEY is set.
+/** Run the Convex CLI's single-variable system query over HTTPS. The reviewed
+ * target supplies the host. Only fixed diagnostic messages may reach build logs.
  * @param {Record<string, string | undefined>} env
- * @param {(command: string, args: string[], options: import("node:child_process").SpawnSyncOptionsWithStringEncoding) => import("node:child_process").SpawnSyncReturns<string>} [execute]
+ * @param {typeof fetch} [request]
  */
-export function verifyUploadthingBackendEnvironment(env, execute = spawnSync) {
-  const validated = validateBuildEnvironment(env, "pre");
-  if (!validated.ok) return false;
+export async function verifyUploadthingBackendEnvironment(
+  env,
+  request = fetch,
+) {
+  const targets = loadTargets();
+  const checked = validateBuildEnvironment(env, "pre", targets);
+  if (!checked.ok || !checked.target) return "Invalid release environment.";
+  const deployment = targets.targets[checked.target].convexDeployment;
+  const name = "UPLOADTHING_TOKEN";
   try {
-    const result = execute(
-      process.execPath,
-      [
-        fileURLToPath(
-          new URL("../../../node_modules/convex/bin/main.js", import.meta.url),
-        ),
-        "env",
-        "get",
-        "UPLOADTHING_TOKEN",
-      ],
+    const response = await request(
+      `https://${deployment}.convex.cloud/api/query`,
       {
-        env,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        timeout: 20_000,
-        maxBuffer: 65_536,
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(20_000),
+        headers: {
+          Authorization: `Convex ${env.CONVEX_DEPLOY_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path: "_system/cli/queryEnvironmentVariables:get",
+          args: { name },
+          format: "json",
+        }),
       },
     );
-    return (
-      !result.error &&
-      result.status === 0 &&
-      typeof result.stdout === "string" &&
-      result.stdout.replace(/\r?\n$/, "") === env.UPLOADTHING_TOKEN
-    );
+    if (response.status === 401 || response.status === 403)
+      return "Convex denied the production or staging deployment key.";
+    if (!response.ok) return "Convex rejected the environment query.";
+    const result = await response.json();
+    if (result?.status !== "success") return "Convex environment query failed.";
+    if (result.value === null) return "UPLOADTHING_TOKEN is missing in Convex.";
+    if (result.value?.name !== name || typeof result.value.value !== "string")
+      return "Convex returned an invalid environment query response.";
+    if (result.value.value !== env[name])
+      return "UPLOADTHING_TOKEN must match between Next and the reviewed Convex deployment.";
+    return null;
   } catch {
-    return false;
+    return "Could not read the reviewed Convex environment over HTTPS.";
   }
 }
