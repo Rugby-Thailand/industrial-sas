@@ -1,4 +1,7 @@
-import { registerTestMutation } from "@tests/fixtures/convex-mutation";
+import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,9 +14,8 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
 }));
-vi.mock("convex/react", async () => ({
-  useMutation: (await import("@tests/fixtures/convex-mutation"))
-    .getTestMutation,
+vi.mock("convex/react", () => ({
+  useMutation: getTestMutation,
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     args === "skip" ? undefined : mocks.queries.get(getFunctionName(ref)),
 }));
