@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import { api } from "../../convex/_generated/api";
+import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
   createConvexTenantWorld,
@@ -11,6 +11,12 @@ async function setup() {
   const world = await createConvexTenantWorld({
     "../convex/customers/linking.ts": () =>
       import("../../convex/customers/linking"),
+    "../convex/customers/backfill.ts": () =>
+      import("../../convex/customers/backfill"),
+    "../convex/customers/writes.ts": () =>
+      import("../../convex/customers/writes"),
+    "../convex/finishedGoods/jobScans.ts": () =>
+      import("../../convex/finishedGoods/jobScans"),
   });
   const auth = await seedConvexAuthorization(world, { roleA: "ORG_ADMIN" });
   const actor = world.t.withIdentity({
@@ -70,7 +76,70 @@ async function setup() {
     throw new Error("Queue did not finish");
   }
 
-  return { world, auth, actor, insertScan, drainQueue };
+  async function saveBatch(
+    requestId: string,
+    customers: readonly (string | undefined)[],
+  ) {
+    const result = await actor.mutation(
+      api.finishedGoods.jobScans.saveJobScans,
+      {
+        warehouseId: world.warehouses.alphaA,
+        requestId,
+        locationText: "DOCK-1",
+        items: customers.map((customer, i) => ({
+          factoryOrder: `FO-${requestId}-${i}`,
+          productBarcodeText: `BC-${requestId}-${i}`,
+          source: "AI" as const,
+          ...(customer === undefined ? {} : { customer }),
+        })),
+      },
+    );
+    if (!result.ok || !result.value.written)
+      throw new Error("Job scan save failed");
+  }
+
+  async function firstPage() {
+    const result = await actor.query(
+      api.customers.linking.listUnresolvedNames,
+      {},
+    );
+    if (!result.ok) throw new Error("Queue access denied");
+    return result.value;
+  }
+
+  async function legacyRemaining() {
+    const page = await world.t.query(
+      internal.customers.backfill.listCustomerBackfillWarehouses,
+      {},
+    );
+    return page.warehouses.find(
+      (row) => row.warehouseId === world.warehouses.alphaA,
+    )?.legacyRemaining;
+  }
+
+  async function backfill(warehouseId: Id<"warehouses">) {
+    let cursor: string | undefined;
+    for (;;) {
+      const step = await world.t.mutation(
+        internal.customers.backfill.backfillJobScanCustomers,
+        { warehouseId, dryRun: false, ...(cursor ? { cursor } : {}) },
+      );
+      if (step.isDone) return;
+      cursor = step.continueCursor;
+    }
+  }
+
+  return {
+    world,
+    auth,
+    actor,
+    insertScan,
+    drainQueue,
+    saveBatch,
+    firstPage,
+    legacyRemaining,
+    backfill,
+  };
 }
 
 it("counts and traverses mixed indexed and legacy tickets exactly once", async () => {
@@ -122,3 +191,145 @@ it.each(["ORG_WIDE", "WAREHOUSE_SCOPED"] as const)(
     expect(await drainQueue()).toEqual([scan]);
   },
 );
+
+it("keeps 150 newly saved blank tickets out of the review banner and queue", async () => {
+  const { actor, saveBatch, firstPage, legacyRemaining, drainQueue } =
+    await setup();
+  await saveBatch("named", ["Unknown Buyer"]);
+  for (let batch = 0; batch < 3; batch += 1) {
+    await saveBatch(
+      `blank-${batch}`,
+      Array.from({ length: 50 }, () => "  "),
+    );
+  }
+
+  expect(
+    await actor.query(api.customers.linking.reviewSummary, {}),
+  ).toMatchObject({
+    ok: true,
+    value: { unresolvedNameCount: 1, unresolvedScanCount: 1, hasMore: false },
+  });
+  const page = await firstPage();
+  expect(page.hasMore).toBe(false);
+  expect(page.groups.map((group) => group.displayName)).toEqual([
+    "Unknown Buyer",
+  ]);
+  expect(await drainQueue()).toHaveLength(1);
+  expect(await legacyRemaining()).toBe(false);
+});
+
+it("drains historical blank, voided and named tickets after backfill", async () => {
+  const { world, actor, insertScan, firstPage, legacyRemaining, backfill } =
+    await setup();
+  const warehouse = world.warehouses.alphaA;
+  const named = await insertScan(warehouse, 1, "Historic Buyer");
+  const voided = await insertScan(warehouse, 2, "Voided Buyer");
+  await world.t.run((ctx) => ctx.db.patch(voided, { voided: true }));
+  for (let i = 3; i < 153; i += 1) {
+    await insertScan(warehouse, i, i % 2 ? undefined : " ");
+  }
+
+  // Before backfill the legacy stream is still read so nothing is hidden.
+  expect(await legacyRemaining()).toBe(true);
+  expect((await firstPage()).hasMore).toBe(true);
+
+  await backfill(warehouse);
+
+  expect(await legacyRemaining()).toBe(false);
+  const page = await firstPage();
+  expect(page.hasMore).toBe(false);
+  expect(
+    page.groups.flatMap((group) => group.scans.map((s) => s.jobScanId)),
+  ).toEqual([named]);
+  expect(
+    await actor.query(api.customers.linking.reviewSummary, {}),
+  ).toMatchObject({
+    ok: true,
+    value: { unresolvedNameCount: 1, unresolvedScanCount: 1, hasMore: false },
+  });
+  const [namedDoc, voidedDoc] = await world.t.run(async (ctx) => [
+    await ctx.db.get(named),
+    await ctx.db.get(voided),
+  ]);
+  expect(namedDoc).toMatchObject({ customerReviewPending: true, version: 1 });
+  expect(voidedDoc).toMatchObject({
+    customer: "Voided Buyer",
+    customerReviewPending: false,
+    version: 1,
+  });
+});
+
+it("lets a retired blank ticket be named later and auto-linked or reviewed", async () => {
+  const { world, actor, saveBatch, firstPage } = await setup();
+  await saveBatch("blanks", [undefined, undefined]);
+  const created = await actor.mutation(api.customers.writes.createCustomer, {
+    requestId: "customer-1",
+    name: "Siam Packaging",
+  });
+  if (!created.ok || !created.value.ok) throw new Error("Customer not created");
+  const [first, second] = await world.t.run((ctx) =>
+    ctx.db.query("finishedGoodsJobScans").collect(),
+  );
+  expect(first?.customerReviewPending).toBe(false);
+
+  const rename = async (
+    scan: NonNullable<typeof first>,
+    customer: string | undefined,
+    requestId: string,
+  ) => {
+    const current = await world.t.run((ctx) => ctx.db.get(scan._id));
+    const result = await actor.mutation(
+      api.finishedGoods.jobScans.updateJobScan,
+      {
+        warehouseId: scan.warehouseId,
+        jobScanId: scan._id,
+        requestId,
+        expectedVersion: current!.version ?? 1,
+        fields: {
+          factoryOrder: scan.factoryOrder,
+          productBarcodeText: scan.productBarcodeText,
+          ...(customer === undefined ? {} : { customer }),
+        },
+      },
+    );
+    if (!result.ok || !result.value.written) throw new Error("Update failed");
+    return world.t.run((ctx) => ctx.db.get(scan._id));
+  };
+
+  expect(await rename(first!, "Siam Packaging", "rename-1")).toMatchObject({
+    customerId: created.value.customerId,
+    customerLinkSource: "AUTO",
+  });
+  expect(
+    (await world.t.run((ctx) => ctx.db.get(first!._id)))?.customerReviewPending,
+  ).toBeUndefined();
+  expect(await rename(second!, "Someone New", "rename-2")).toMatchObject({
+    customerReviewPending: true,
+  });
+  expect((await firstPage()).groups.map((group) => group.displayName)).toEqual([
+    "Someone New",
+  ]);
+  expect(await rename(second!, undefined, "rename-3")).toMatchObject({
+    customerReviewPending: false,
+  });
+  expect((await firstPage()).groups).toEqual([]);
+});
+
+it("classifies an unchanged legacy ticket without a correction", async () => {
+  const { world, actor, insertScan } = await setup();
+  const scan = await insertScan(world.warehouses.alphaA, 1);
+  const result = await actor.mutation(
+    api.finishedGoods.jobScans.updateJobScan,
+    {
+      warehouseId: world.warehouses.alphaA,
+      jobScanId: scan,
+      requestId: "noop",
+      expectedVersion: 1,
+      fields: { factoryOrder: "FO-1", productBarcodeText: "BC-1" },
+    },
+  );
+  expect(result.ok).toBe(true);
+  const doc = await world.t.run((ctx) => ctx.db.get(scan));
+  expect(doc).toMatchObject({ customerReviewPending: false, version: 1 });
+  expect(doc?.correctedAt).toBeUndefined();
+});

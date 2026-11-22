@@ -1,12 +1,13 @@
-import { TENANT_INDEX_MAX_PAGE_SIZE } from "../lib/tenantDb";
+import type { Doc, Id } from "../_generated/dataModel";
+import {
+  TENANT_INDEX_MAX_CURSOR_LENGTH,
+  TENANT_INDEX_MAX_PAGE_SIZE,
+  type TenantIndexReader,
+} from "../lib/tenantDb";
+import type { TenantFunctionContext } from "../lib/tenantFunctions";
+import { allowedCustomerWarehouses } from "./warehouseScope";
 
-/**
- * Bounded keyset reads for customer activity (summaries, detail, product
- * pages). Every read is a `take()` of at most one tenant page, so one request
- * may continue through several ranges without `.paginate()`, and a shared
- * budget caps the documents any request can scan.
- */
-
+/** Bounded keyset reads for the internal activity summary scan. */
 export type ScanKey = string | number;
 
 /** Resume point: last consumed key plus IDs already consumed at that key. */
@@ -100,30 +101,99 @@ function withPosition(position: ScanPosition | undefined) {
   return position === undefined ? {} : { position };
 }
 
-const MAX_CURSOR_IDS = 100;
-
-/** Opaque cursor for a numeric `_creationTime` keyset position. */
-export function encodeScanCursor(position: ScanPosition | undefined): string {
-  return position === undefined ? "" : JSON.stringify(position);
+interface WarehousePagePosition {
+  readonly customerId: string;
+  readonly key: string;
+  readonly warehouseId?: string;
+  readonly nativeCursor?: string;
 }
 
-export function decodeScanCursor(
-  raw: string | undefined,
-): ScanPosition | undefined {
-  if (raw === undefined || raw === "") return undefined;
+function warehousePagePosition(raw: string | undefined, customerId: string) {
+  if (!raw) return undefined;
   try {
-    const value = JSON.parse(raw) as Partial<ScanPosition> | null;
-    if (
-      typeof value?.k === "number" &&
-      Number.isFinite(value.k) &&
-      Array.isArray(value.ids) &&
-      value.ids.length <= MAX_CURSOR_IDS &&
-      value.ids.every((id) => typeof id === "string")
-    ) {
-      return { k: value.k, ids: value.ids };
+    if (raw.length <= TENANT_INDEX_MAX_CURSOR_LENGTH * 2) {
+      const position = JSON.parse(raw) as WarehousePagePosition;
+      if (
+        position.customerId === customerId &&
+        typeof position.key === "string" &&
+        (position.nativeCursor === undefined ||
+          (typeof position.nativeCursor === "string" &&
+            typeof position.warehouseId === "string"))
+      )
+        return position;
     }
   } catch {
     // Rejected below.
   }
   throw new Error("INVALID_CURSOR");
+}
+
+/** Native cursors are issued only for ranges inside an authorized warehouse. */
+export async function pageWarehouseActivity<
+  T extends Doc<"finishedGoodsProducts"> | Doc<"finishedGoodsJobScans">,
+>(
+  ctx: TenantFunctionContext,
+  customerId: Id<"customers">,
+  cursor: string | undefined,
+  limit: number,
+  range: (warehouseId: Id<"warehouses">) => TenantIndexReader<T>,
+  order: "asc" | "desc",
+) {
+  const start = warehousePagePosition(cursor, customerId);
+  const allowed = await allowedCustomerWarehouses(ctx, start);
+  const finish = (position?: Omit<WarehousePagePosition, "customerId">) => ({
+    canViewWarehouseData: allowed.hasWarehouseRead,
+    isDone: position === undefined,
+    continueCursor: position ? JSON.stringify({ customerId, ...position }) : "",
+  });
+  const keyOf = (warehouse: Doc<"warehouses">) =>
+    allowed.orgWide ? warehouse.code : warehouse._id;
+  const items: { row: T; warehouseName: string }[] = [];
+  if (!allowed.hasWarehouseRead) return { items, ...finish() };
+
+  let usedNativePage = false;
+  for (const warehouse of allowed.warehouses) {
+    const key = keyOf(warehouse);
+    const nativeCursor =
+      start?.key === key && start.warehouseId === warehouse._id
+        ? start.nativeCursor
+        : undefined;
+    const reader = range(warehouse._id);
+    const remaining = limit - items.length;
+    if (usedNativePage || remaining === 0) {
+      // Convex allows one native pagination call per query. Small subsequent
+      // ranges can still fill the page without needing a cursor within them.
+      const rows = await reader.take(
+        Math.min(remaining + 1, TENANT_INDEX_MAX_PAGE_SIZE),
+        order,
+      );
+      if (rows.length > remaining || rows.length === TENANT_INDEX_MAX_PAGE_SIZE)
+        return { items, ...finish({ key }) };
+      items.push(
+        ...rows.map((row) => ({ row, warehouseName: warehouse.name })),
+      );
+      continue;
+    }
+    if (!nativeCursor && !(await reader.first())) continue;
+    const page = await reader.page({
+      limit: remaining,
+      order,
+      ...(nativeCursor && { cursor: nativeCursor }),
+    });
+    usedNativePage = true;
+    items.push(
+      ...page.page.map((row) => ({ row, warehouseName: warehouse.name })),
+    );
+    if (!page.isDone) {
+      return {
+        items,
+        ...finish({
+          key,
+          warehouseId: warehouse._id,
+          nativeCursor: page.continueCursor,
+        }),
+      };
+    }
+  }
+  return { items, ...finish(allowed.nextStart) };
 }

@@ -180,6 +180,54 @@ describe("customer v2 linking model and backend", () => {
     ).toEqual([customerId]);
   });
 
+  it("refuses another customer's exact name as an alias without modifying the review ticket", async () => {
+    const { t, actorA, warehouses, createCustomer, saveScan } = await setup();
+    const scanId = await saveScan(
+      actorA,
+      warehouses.alphaA,
+      "collision-original",
+      "FO-C1",
+      "Acme",
+    );
+    const owner = await createCustomer(actorA, "Acme", "collision-owner");
+    const other = await createCustomer(
+      actorA,
+      "Other customer",
+      "collision-other",
+    );
+    expect(
+      allowed(
+        await actorA.mutation(linking.addCustomerAlias, {
+          requestId: "collision-direct",
+          customerId: other,
+          alias: " acme ",
+        }),
+      ),
+    ).toMatchObject({ ok: false, code: "ALIAS_CONFLICT" });
+    expect(
+      allowed(
+        await actorA.mutation(linking.resolveUnresolvedScans, {
+          requestId: "collision-review",
+          action: "LINK",
+          customerId: other,
+          rememberAlias: true,
+          scans: [{ jobScanId: scanId, expectedVersion: 1 }],
+        }),
+      ),
+    ).toMatchObject({ ok: false, code: "ALIAS_CONFLICT" });
+    expect(
+      (await t.run((ctx) => ctx.db.get(scanId)))?.customerId,
+    ).toBeUndefined();
+    const next = await saveScan(
+      actorA,
+      warehouses.alphaA,
+      "collision-next",
+      "FO-C2",
+      "Acme",
+    );
+    expect((await t.run((ctx) => ctx.db.get(next)))?.customerId).toBe(owner);
+  });
+
   it("auto-links exact active canonical names and approved aliases on scan save while keeping unmatched, ambiguous, archived and blank scans unlinked", async () => {
     const { t, actorA, warehouses, createCustomer, saveScan } = await setup();
     const alpha = warehouses.alphaA;
@@ -235,13 +283,29 @@ describe("customer v2 linking model and backend", () => {
         alias: "Nickname X",
       }),
     );
-    allowed(
-      await actorA.mutation(linking.addCustomerAlias, {
-        requestId: "shared-alias-2",
+    expect(
+      allowed(
+        await actorA.mutation(linking.addCustomerAlias, {
+          requestId: "shared-alias-2",
+          customerId: dup2,
+          alias: "nickname x",
+        }),
+      ),
+    ).toMatchObject({ ok: false, code: "ALIAS_CONFLICT" });
+    // Rows approved before collision checks can still disagree; never guess their owner.
+    await t.run(async (ctx) => {
+      const first = (await ctx.db.query("customerAliases").collect()).find(
+        (row) => row.customerId === dup1,
+      )!;
+      await ctx.db.insert("customerAliases", {
+        orgId: first.orgId,
         customerId: dup2,
         alias: "nickname x",
-      }),
-    );
+        normalizedAlias: first.normalizedAlias,
+        approvedAt: first.approvedAt,
+        approvedByUserId: first.approvedByUserId,
+      });
+    });
 
     const scanCanonical = await saveScan(
       actorA,
@@ -318,7 +382,8 @@ describe("customer v2 linking model and backend", () => {
     expect(loaded.archived?.customerId).toBeUndefined();
     expect(loaded.archived?.customerReviewPending).toBe(true);
     expect(loaded.blank?.customerId).toBeUndefined();
-    expect(loaded.blank?.customerReviewPending).toBeUndefined();
+    // Blank tickets are classified on save so they never enter the legacy stream.
+    expect(loaded.blank?.customerReviewPending).toBe(false);
 
     // Alias search finds the customer in listCustomersPage (v1 summary fields only)
     // and listCustomerActivitySummaries reports its latest job.
@@ -530,7 +595,7 @@ describe("customer v2 linking model and backend", () => {
         fields: {
           factoryOrder: "FO-10",
           productBarcodeText: "BC-FO-10",
-          customer: "Beta Co",
+          customer: "  Beta Co  ",
         },
       }),
     );
@@ -600,6 +665,22 @@ describe("customer v2 linking model and backend", () => {
     doc = await t.run((ctx) => ctx.db.get(scanId));
     expect(doc?.customerId).toBeUndefined();
     expect(doc?.customerLinkSource).toBe("UNLINKED");
+    allowed(
+      await actorA.mutation(jobScans.updateJobScan, {
+        warehouseId: alpha,
+        jobScanId: scanId,
+        requestId: "corr-blank",
+        expectedVersion: doc!.version!,
+        fields: {
+          factoryOrder: "FO-10",
+          productBarcodeText: "BC-FO-10",
+          customer: "  ",
+        },
+      }),
+    );
+    expect(
+      (await t.run((ctx) => ctx.db.get(scanId)))?.customer,
+    ).toBeUndefined();
   });
 
   it("groups unresolved names, links with optional alias remembrance, skips, enforces versions and warehouse scope", async () => {
@@ -686,6 +767,18 @@ describe("customer v2 linking model and backend", () => {
       replayed: false,
     });
     expect(resolved.ok && resolved.aliasId).toBeTruthy();
+    const aliasEvents = await t.run(async (ctx) =>
+      (await ctx.db.query("auditEvents").collect()).filter(
+        (event) =>
+          event.requestId === "res-link" &&
+          event.action === "customer.alias.add",
+      ),
+    );
+    expect(aliasEvents).toHaveLength(1);
+    expect(aliasEvents[0]).toMatchObject({
+      entityId: resolved.ok ? resolved.aliasId : undefined,
+      changes: [{ field: "customerId", to: customerId }, { field: "alias" }],
+    });
 
     // Future scan with that remembered alias auto-links!
     const futureScan = await saveScan(
@@ -840,7 +933,8 @@ describe("customer v2 linking model and backend", () => {
       cursor = step.continueCursor;
     }
     expect(batches).toBeGreaterThanOrEqual(4);
-    expect(totalUpdated).toBe(4);
+    // Two links, two pending stamps, and the voided ticket retired.
+    expect(totalUpdated).toBe(5);
 
     const [m1, m2, amb, unm, voi, dec, blk, audits] = await t.run(
       async (ctx) => [
@@ -868,9 +962,12 @@ describe("customer v2 linking model and backend", () => {
     expect(amb?.customerId).toBeUndefined();
     expect(unm?.customerId).toBeUndefined();
     expect(voi?.customerId).toBeUndefined();
+    expect(voi?.customerReviewPending).toBe(false);
+    expect(voi?.version ?? 1).toBe(1);
     expect(dec).toMatchObject({ customerLinkSource: "UNLINKED" });
     expect(dec?.customerId).toBeUndefined();
     expect(blk?.customerId).toBeUndefined();
+    expect(blk?.customerReviewPending).toBe(false);
     expect(audits).toHaveLength(2);
     expect((audits[0] as Doc<"auditEvents">).actorKind).toBe("SYSTEM");
 

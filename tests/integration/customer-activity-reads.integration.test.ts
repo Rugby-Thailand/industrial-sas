@@ -472,11 +472,11 @@ describe("customer activity reads stay truthful at high cardinality", () => {
     const alpha = warehouses.alphaA;
     const bravo = warehouses.bravoA;
     const customerId = await world.createCustomer("Scoped Buyer", "scoped-1");
-    // 21 readable warehouses: more than the exact per-warehouse fan-out.
+    // 21 readable warehouses exceed the old detail fan-out cutoff.
     const extra = await world.insertWarehouses(20, "ACTIVE");
     const reader = await world.scopedReader([bravo, ...extra]);
 
-    await world.insertProducts(alpha, customerId, "ALPHA", 120);
+    await world.insertProducts(alpha, customerId, "ALPHA", 520);
     await world.insertProducts(bravo, customerId, "BRAVO", 3);
     await world.insertScans([
       {
@@ -485,7 +485,7 @@ describe("customer activity reads stay truthful at high cardinality", () => {
         factoryOrder: "FO-BRAVO",
         createdAt: 100,
       },
-      ...Array.from({ length: 60 }, (_, i) => ({
+      ...Array.from({ length: 320 }, (_, i) => ({
         warehouseId: alpha,
         customerId,
         factoryOrder: `FO-ALPHA-${i}`,
@@ -509,6 +509,17 @@ describe("customer activity reads stay truthful at high cardinality", () => {
     ]);
     expect(activity.hasMoreProducts).toBe(false);
 
+    const hiddenProducts = await world.t.run((ctx) =>
+      ctx.db
+        .query("finishedGoodsProducts")
+        .withIndex("by_orgId_warehouseId_customerId", (q) =>
+          q
+            .eq("orgId", world.orgA)
+            .eq("warehouseId", alpha)
+            .eq("customerId", customerId),
+        )
+        .collect(),
+    );
     const skus: string[] = [];
     let cursor: string | undefined;
     for (let pages = 0; pages < 10; pages += 1) {
@@ -519,11 +530,85 @@ describe("customer activity reads stay truthful at high cardinality", () => {
           ...(cursor ? { cursor } : {}),
         })) as Outcome<ProductsPage | null>,
       )!;
+      const position = JSON.parse(page.continueCursor || "{}");
+      expect(position).not.toHaveProperty("k");
+      expect(position).not.toHaveProperty("ids");
+      // convex-test stores the native index values as JSON within its cursor.
+      const nativeKeys: string[] = position.nativeCursor
+        ? JSON.parse(position.nativeCursor)
+        : [];
+      for (const product of hiddenProducts) {
+        expect(JSON.stringify(page)).not.toContain(product._id);
+        expect(nativeKeys).not.toContain(JSON.stringify(product._id));
+        expect(nativeKeys).not.toContain(JSON.stringify(product._creationTime));
+      }
+      if (position.nativeCursor) expect(position.warehouseId).toBe(bravo);
       skus.push(...page.items.map((item) => item.sku));
       if (page.isDone) break;
       cursor = page.continueCursor;
     }
     expect(skus).toEqual(["BRAVO-000", "BRAVO-001", "BRAVO-002"]);
+  });
+
+  it("pages tied older jobs beyond the warehouse inventory boundary within customer and warehouse scope", async () => {
+    const world = await setup();
+    const customerId = await world.createCustomer(
+      "Large Scope Buyer",
+      "large-scope",
+    );
+    const otherCustomerId = await world.createCustomer(
+      "Other Buyer",
+      "other-buyer",
+    );
+    const warehouses = (await world.insertWarehouses(105, "ACTIVE")).sort();
+    const lastWarehouse = warehouses.at(-1)!;
+    const reader = await world.scopedReader(warehouses);
+    const [hiddenJob, otherJob, ...visibleJobs] = await world.insertScans([
+      {
+        warehouseId: world.warehouses.alphaA,
+        customerId,
+        factoryOrder: "HIDDEN",
+        createdAt: 973412345678,
+      },
+      {
+        warehouseId: lastWarehouse,
+        customerId: otherCustomerId,
+        factoryOrder: "OTHER",
+        createdAt: 876512345678,
+      },
+      ...Array.from({ length: 23 }, (_, i) => ({
+        warehouseId: lastWarehouse,
+        customerId,
+        factoryOrder: `TIED-${i}`,
+        createdAt: 100,
+      })),
+    ]);
+    const detail = allowed(
+      await reader.query(linking.getCustomerActivity, { customerId }),
+    )!;
+    expect(detail.recentJobs).toEqual([]);
+    expect(detail.hasMoreJobs).toBe(true);
+
+    const found: string[] = [];
+    let cursor: string | undefined;
+    let done = false;
+    for (let i = 0; i < 5 && !done; i += 1) {
+      const page = allowed(
+        await reader.query(linking.listCustomerJobsPage, {
+          customerId,
+          ...(cursor && { cursor }),
+        }),
+      )!;
+      expect(JSON.stringify(page)).not.toMatch(
+        new RegExp(`${hiddenJob}|${otherJob}|973412345678|876512345678`),
+      );
+      found.push(...page.items.map((job) => job.jobScanId));
+      if (cursor) expect(page.continueCursor).not.toBe(cursor);
+      cursor = page.continueCursor;
+      done = page.isDone;
+    }
+    expect(done).toBe(true);
+    expect(found.sort()).toEqual(visibleJobs.sort());
   });
 
   it("reads one product page plus one lookahead row and rejects foreign cursors", async () => {
@@ -540,6 +625,17 @@ describe("customer activity reads stay truthful at high cardinality", () => {
     expect(page.items).toHaveLength(10);
     expect(page.isDone).toBe(false);
     expect(first.stats.rangeDocs.finishedGoodsProducts).toBe(11);
+
+    const otherCustomer = await world.createCustomer(
+      "Other Buyer",
+      "paged-other",
+    );
+    await expect(
+      world.actorA.query(linking.listCustomerProductsPage, {
+        customerId: otherCustomer,
+        cursor: page.continueCursor,
+      }),
+    ).rejects.toThrow();
 
     const seen = new Set(page.items.map((item) => item.sku));
     let cursor = page.continueCursor;

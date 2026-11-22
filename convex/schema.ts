@@ -1394,7 +1394,12 @@ const schema = defineSchema({
       customer: v.optional(v.string()),
       customerId: v.optional(v.id("customers")),
       customerLinkSource: v.optional(customerLinkSource),
-      customerReviewPending: v.optional(v.literal(true)),
+      /**
+       * v2 review classification of an undecided ticket: `true` = named and
+       * waiting in "Names to review"; `false` = nothing to review (blank or
+       * voided). Missing on decided rows and on legacy rows v2 never saw.
+       */
+      customerReviewPending: v.optional(v.boolean()),
       manufacturingDate: v.optional(v.string()),
       quantity: v.optional(v.number()),
       factoryQuantity: v.optional(v.number()),
@@ -1447,9 +1452,18 @@ const schema = defineSchema({
       "by_orgId_warehouseId_customerId_voided_createdAt",
       byOrg("warehouseId", "customerId", "voided", "createdAt"),
     )
+    /**
+     * Legacy review stream: rows with neither a link decision nor a v2 review
+     * classification. Backfill drains it; live saves never enter it.
+     */
     .index(
-      "by_orgId_warehouseId_customerLinkSource_createdAt",
-      byOrg("warehouseId", "customerLinkSource", "createdAt"),
+      "by_orgId_warehouseId_linkSource_reviewPending_createdAt",
+      byOrg(
+        "warehouseId",
+        "customerLinkSource",
+        "customerReviewPending",
+        "createdAt",
+      ),
     )
     .index(
       "by_orgId_warehouseId_customerReviewPending_createdAt",

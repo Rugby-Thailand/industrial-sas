@@ -9,16 +9,16 @@
   - Added `customerAliases` (unique per `(orgId, customerId, normalizedAlias)` and lookup index `by_orgId_normalizedAlias`).
   - Added `customerWarehouseActivity` (compact materialized per-`(orgId, customerId, warehouseId)` summary holding `linkedProductCount`, `latestJobScanId`, `latestJobFactoryOrder`, and `latestJobCreatedAt`).
   - Added optional `aliasSearchText` on `customers` (maintained incrementally on alias add/remove without paginated mutation scans) so `listCustomersPage` searches aliases with zero extra table reads.
-  - Added optional `customerId`, `customerLinkSource` on `finishedGoodsProducts` and `finishedGoodsJobScans`, plus sparse `customerReviewPending: v.optional(v.literal(true))` and index `by_orgId_warehouseId_customerReviewPending_createdAt` on `finishedGoodsJobScans`.
-  - Raw captured text (`finishedGoodsJobScans.customer` and `finishedGoodsProducts.customerReference`) is preserved verbatim; product `customerReference` is never auto-linked.
+  - Added optional `customerId`, `customerLinkSource` on `finishedGoodsProducts` and `finishedGoodsJobScans`, plus optional boolean `customerReviewPending` and indexed ranges for pending and unclassified tickets on `finishedGoodsJobScans`.
+  - A link decision preserves the captured ticket text and product reference. A deliberate ticket text correction trims the replacement and clears a blank value, consistent with the previous correction API. Products link only through an explicit customer selection.
 - **Reverse permission isolation:**
   - Warehouse-only members (without `masterData.customer.read`) never receive `customerId`, `customerLinkSource`, `customerName`, `customerCode`, or customer-link correction diffs from `listJobScans`, `listJobScanCorrections`, `getProduct`, `getPallet`, `catalogue.findSku`, `catalogue.page`, `batches.getBatch`, or `batchManagement.get`.
-  - Both `SET` and `CLEAR` on `saveProduct` and `updateJobScan` require `masterData.customer.read`; unrelated edits by warehouse-only staff preserve existing links.
+  - Both `SET` and `CLEAR` on `saveProduct` and `updateJobScan` use the same target and permission checks. An unrelated edit preserves the link.
 - **Out-of-scope warehouse & review hardening:**
   - Exact warehouse scope checks (`canAccessWarehouse`) are enforced before writes and before idempotency replay in `resolveUnresolvedScans`, and on `addCustomerAlias(exampleJobScanId)`.
   - `resolveUnresolvedScans` validates single-name group membership (`MIXED_NAME_GROUP`), pending state (`ALREADY_RESOLVED`), version match (`STALE_REVISION`), and `aliasText` alignment before writing; records per-ticket `auditEvents` with `warehouseId`; and returns the original `aliasId` on idempotent replay.
   - `removeCustomerAlias` uses `checkIdempotency` + `verifiedResultIdentity` so idempotent replays return `{ ok: true, aliasId, replayed: true }` after deletion, and both alias add/remove redact raw alias text in `auditEvents`.
-  - `getCustomerActivity` omits `exampleJobScanId` from public aliases and pairs with `listCustomerAliasesPage` and `listCustomerProductsPage` for bounded continuation past the preview cap.
+  - `getCustomerActivity` omits `exampleJobScanId` from public aliases and pairs with customer-specific jobs, products and alias queries for bounded continuation beyond the preview. Jobs and products page through authorized warehouse indexes.
 
 ## 2. Measured Whole-Query Read Budget (Baseline `574b9d42` vs HEAD)
 
@@ -65,11 +65,14 @@ Separating `listCustomerActivitySummaries` onto the compact `customerWarehouseAc
 Verified in `tests/integration/customers-linking.integration.test.ts` and `src/features/customers/CustomerScreens.test.tsx`:
 
 - **Blank-scan immunity:** 105 blank scans created after 1 older unresolved named scan do not hide the unresolved scan in `reviewSummary` or `listUnresolvedNames` (backed by sparse `by_orgId_warehouseId_customerReviewPending_createdAt`).
+- **Blank tickets leave the legacy stream:** 150 blank tickets saved through `saveJobScans` are stamped `customerReviewPending: false`. The banner reports one named ticket with `hasMore: false`, and the queue is one page. Backfill retires 150 historical blank/voided tickets, leaving `listCustomerBackfillWarehouses` at `legacyRemaining: false` and one queue page. A retired blank ticket named later auto-links or enters review (`tests/integration/customer-review-queue.integration.test.ts`).
 - **Picker scale:** Customer #105 is returned on page 1 of `searchCustomerOptions` by exact code/name/alias and reachable by substring via `scanCursor` continuation.
 - **Alias scale:** Alias #106 on a customer is indexed into `aliasSearchText` without calling `.paginate()` inside a mutation, matches `listCustomersPage` search, and paginates via `listCustomerAliasesPage`.
 - **UI regression coverage:** Preselected review candidate overridden by `CustomerPickerDialog` submits the chosen customer; empty review queue "Back to list" calls `returnFromTask` and restores filtered origin; cross-warehouse product and scan links carry `?warehouseId=`; `ProductScreen` freezes `customerLink` and `requestId` across lost-response retries even if live subscriptions advance.
 
-The mixed-upgrade regression visits both incoming and legacy pending tickets exactly once. Two further cases place a ticket beyond the first 100 warehouses and drain the queue as an organization-wide and a warehouse-scoped reader. Alias additions that would exceed 16,000 normalized characters are refused before the link decision or alias changes. Removing an existing alias frees space for a retry.
+The scoped paging regression places 520 hidden products and 320 newer hidden jobs ahead of visible records. Another case exercises tied jobs over a 105-warehouse scope.
+
+The mixed-upgrade regression visits both incoming and legacy pending tickets exactly once. Two further cases place a ticket beyond the first 100 warehouses and drain the queue as an organization-wide and a warehouse-scoped reader. Alias additions that would exceed 16,000 normalized characters are refused before the link decision or alias changes. Removing an existing alias frees space for a retry. Both alias entry points refuse a name claimed by another customer, and an alias saved from review receives its own redacted audit event.
 
 To reproduce the data and permission checks:
 

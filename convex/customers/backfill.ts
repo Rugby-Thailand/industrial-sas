@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
-import { internalMutation } from "../_generated/server";
+import { internalMutation, internalQuery } from "../_generated/server";
 import { inventoryWriter } from "../lib/inventoryWriter";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
@@ -22,8 +22,12 @@ const MAX_BATCH_SIZE = 100;
  * ambiguous, archived and unmatched counts, then run with `dryRun: false` and
  * pass `continueCursor` back in as `cursor` until `isDone` is true.
  *
- * Skips voided scans and any row that already carries a customer link or an
- * explicit link decision (`AUTO`, `MANUAL`, or `UNLINKED`).
+ * Skips any row that already carries a customer link or an explicit link
+ * decision (`AUTO`, `MANUAL`, or `UNLINKED`). Apply classifies every other row,
+ * which drains the legacy review stream: blank and voided tickets are stamped
+ * `customerReviewPending: false` (retired, captured text untouched) and
+ * unresolved named tickets `true`. Classification stamps leave `version`
+ * alone so open ticket editors stay current; only new links bump it.
  */
 export const backfillJobScanCustomers = internalMutation({
   args: {
@@ -94,11 +98,18 @@ export const backfillJobScanCustomers = internalMutation({
     const cache = new Map<string, ResolvedExactCustomerMatch>();
     const now = Date.now();
 
+    const classify = async (
+      scan: Doc<"finishedGoodsJobScans">,
+      state: boolean,
+    ) => {
+      if (args.dryRun || scan.customerReviewPending === state) return;
+      await tenantDb.patch("finishedGoodsJobScans", scan._id, {
+        customerReviewPending: state,
+      });
+      updated += 1;
+    };
+
     for (const scan of page.page as Doc<"finishedGoodsJobScans">[]) {
-      if (scan.voided) {
-        skippedVoided += 1;
-        continue;
-      }
       if (
         scan.customerId !== undefined ||
         scan.customerLinkSource !== undefined
@@ -107,13 +118,12 @@ export const backfillJobScanCustomers = internalMutation({
         continue;
       }
       const captured = scan.customer?.trim();
-      if (!captured) {
-        skippedBlank += 1;
-        continue;
-      }
-      const key = normalizeCustomerName(captured);
-      if (!key) {
-        skippedBlank += 1;
+      const key = captured ? normalizeCustomerName(captured) : "";
+      if (scan.voided || !captured || !key) {
+        if (scan.voided) skippedVoided += 1;
+        else skippedBlank += 1;
+        // Blank tickets stay editable: naming one later re-runs auto-link.
+        await classify(scan, false);
         continue;
       }
 
@@ -168,12 +178,7 @@ export const backfillJobScanCustomers = internalMutation({
         } else {
           unmatched += 1;
         }
-        if (!args.dryRun && scan.customerReviewPending !== true) {
-          await tenantDb.patch("finishedGoodsJobScans", scan._id, {
-            customerReviewPending: true,
-          });
-          updated += 1;
-        }
+        await classify(scan, true);
       }
     }
 
@@ -188,6 +193,78 @@ export const backfillJobScanCustomers = internalMutation({
       skippedDecided,
       skippedBlank,
       updated,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+const DEFAULT_WAREHOUSE_PAGE = 50;
+
+/**
+ * Rollout inventory: every warehouse (all organizations, any status) with
+ * whether it still holds legacy job scans the backfill has not classified.
+ * Page with `cursor` until `isDone`; run the backfill for each warehouse whose
+ * `legacyRemaining` is true, then list again to confirm all are drained.
+ */
+export const listCustomerBackfillWarehouses = internalQuery({
+  args: {
+    cursor: v.optional(v.string()),
+    numItems: v.optional(v.number()),
+  },
+  returns: v.object({
+    warehouses: v.array(
+      v.object({
+        warehouseId: v.id("warehouses"),
+        orgId: v.string(),
+        code: v.string(),
+        name: v.string(),
+        status: v.string(),
+        legacyRemaining: v.boolean(),
+      }),
+    ),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const numItems = args.numItems ?? DEFAULT_WAREHOUSE_PAGE;
+    if (
+      !Number.isInteger(numItems) ||
+      numItems < 1 ||
+      numItems > MAX_BATCH_SIZE
+    )
+      throw new Error(
+        `numItems must be an integer from 1 to ${MAX_BATCH_SIZE}`,
+      );
+    const page = await ctx.db
+      .query("warehouses")
+      .paginate({ cursor: args.cursor ?? null, numItems });
+    const warehouses = await Promise.all(
+      page.page.map(async (warehouse) => {
+        const legacy = await ctx.db
+          .query("finishedGoodsJobScans")
+          .withIndex(
+            "by_orgId_warehouseId_linkSource_reviewPending_createdAt",
+            (q) =>
+              q
+                .eq("orgId", warehouse.orgId)
+                .eq("warehouseId", warehouse._id)
+                .eq("customerLinkSource", undefined)
+                .eq("customerReviewPending", undefined),
+          )
+          .first();
+        return {
+          warehouseId: warehouse._id,
+          orgId: String(warehouse.orgId),
+          code: warehouse.code,
+          name: warehouse.name,
+          status: String(warehouse.status),
+          legacyRemaining: legacy !== null,
+        };
+      }),
+    );
+    return {
+      warehouses,
       isDone: page.isDone,
       continueCursor: page.continueCursor,
     };

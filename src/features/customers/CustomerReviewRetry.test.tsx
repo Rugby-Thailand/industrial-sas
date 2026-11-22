@@ -6,6 +6,7 @@ import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider"
 
 const mocks = vi.hoisted(() => ({
   queries: new Map<string, unknown>(),
+  warehouses: [{ id: "wh-1" }, { id: "wh-2" }],
   auth: { userId: "user-a", orgId: "org-a" as string | null },
   push: vi.fn(),
   replace: vi.fn(),
@@ -25,7 +26,7 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
     failed: false,
     permissionsReady: true,
     navigationPermissions: [],
-    warehouses: [],
+    warehouses: mocks.warehouses,
   }),
 }));
 vi.mock("next/navigation", () => ({
@@ -104,6 +105,7 @@ async function link() {
 
 beforeEach(() => {
   mocks.queries.clear();
+  mocks.warehouses = [{ id: "wh-1" }, { id: "wh-2" }];
   mocks.auth = { userId: "user-a", orgId: "org-a" };
 });
 afterEach(cleanup);
@@ -163,6 +165,11 @@ describe("review retry ownership", () => {
     [
       "the member switches org",
       () => (mocks.auth = { userId: "user-a", orgId: "org-b" }),
+      queue([]),
+    ],
+    [
+      "warehouse access narrows",
+      () => (mocks.warehouses = [{ id: "wh-2" }]),
       queue([]),
     ],
     ["review access is revoked", () => undefined, queue([], false)],

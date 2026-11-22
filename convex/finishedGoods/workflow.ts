@@ -1,3 +1,5 @@
+import { resolveExplicitCustomerLink } from "../customers/matching";
+import { customerLinkArg } from "../customers/validators";
 import { createQueryDocumentReader } from "../lib/queryDocumentReader";
 import {
   heldPlacement,
@@ -77,11 +79,7 @@ const productFields = {
   customerReference: v.optional(v.string()),
   productReference: v.optional(v.string()),
 };
-const customerLinkArg = v.union(
-  v.object({ action: v.literal("KEEP") }),
-  v.object({ action: v.literal("SET"), customerId: v.id("customers") }),
-  v.object({ action: v.literal("CLEAR") }),
-);
+
 export const saveProduct = mutationWithOrg({
   writer: inventoryWriter,
   args: {
@@ -213,30 +211,13 @@ export const saveProduct = mutationWithOrg({
         // Explicit customer link only: `customerReference` may be a part
         // number and is never auto-linked. Omitted or KEEP preserves existing
         // links on unrelated edits. Both SET and CLEAR require customer read.
-        let customerId: Id<"customers"> | undefined = before?.customerId;
-        let customerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
-          before?.customerLinkSource;
-        if (
-          args.customerLink?.action === "SET" ||
-          args.customerLink?.action === "CLEAR"
-        ) {
-          if (!(await canReadCustomers(ctx)))
-            return failure("ACCESS_DENIED", "customerId");
-        }
-        if (args.customerLink?.action === "SET") {
-          const target = await ctx.tenantDb.get<Doc<"customers">>(
-            "customers",
-            args.customerLink.customerId,
-          );
-          if (!target) return failure("NOT_FOUND", "customerId");
-          if (target.status === "ARCHIVED" && before?.customerId !== target._id)
-            return failure("CUSTOMER_ARCHIVED", "customerId");
-          customerId = target._id;
-          customerLinkSource = "MANUAL";
-        } else if (args.customerLink?.action === "CLEAR") {
-          customerId = undefined;
-          customerLinkSource = "UNLINKED";
-        }
+        const link = await resolveExplicitCustomerLink(
+          ctx,
+          args.customerLink,
+          before,
+        );
+        if (!link.ok) return failure(link.code, "customerId");
+        const { customerId, customerLinkSource } = link;
         const fields = {
           sku,
           name,

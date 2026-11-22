@@ -1,3 +1,4 @@
+import { customerLinkArg } from "../customers/validators";
 import type { ImageProviderOutcome as JobTicketProviderOutcome } from "../lib/imageProvider";
 import { requestImageProvider as requestJobTicketProvider } from "../lib/imageProvider";
 export {
@@ -43,13 +44,14 @@ import {
 import { diffFields } from "../lib/masterDataStore";
 import { normalizeCustomerName } from "../model/customers/customers";
 import {
-  isReviewPendingScan,
+  customerReviewState,
   recordCustomerJobLink,
   refreshCustomerLatestJob,
 } from "../customers/activitySummary";
 import {
   autoLinkPaused,
   resolveExactCustomerMatch,
+  resolveExplicitCustomerLink,
   type ResolvedExactCustomerMatch,
 } from "../customers/matching";
 import { canReadCustomers } from "../customers/warehouseScope";
@@ -57,11 +59,6 @@ const batchFormat = v.union(
   v.literal("PALLET"),
   v.literal("BOX"),
   v.literal("OTHER"),
-);
-const customerLinkArg = v.union(
-  v.object({ action: v.literal("KEEP") }),
-  v.object({ action: v.literal("SET"), customerId: v.id("customers") }),
-  v.object({ action: v.literal("CLEAR") }),
 );
 
 const READ = "masterData.storageLayout.read";
@@ -434,7 +431,9 @@ export const saveJobScans = mutationWithOrg({
             };
           }
         }
-        const reviewPending = isReviewPendingScan({
+        // Every live save is classified, so blank tickets never enter the
+        // legacy review stream and named unmatched ones enter the indexed one.
+        const reviewPending = customerReviewState({
           customer: item.customer,
           ...customerLink,
         });
@@ -443,7 +442,9 @@ export const saveJobScans = mutationWithOrg({
         const id = (await ctx.tenantDb.insert(TABLE, {
           ...item,
           ...customerLink,
-          ...(reviewPending ? { customerReviewPending: true as const } : {}),
+          ...(reviewPending === undefined
+            ? {}
+            : { customerReviewPending: reviewPending }),
           imageUrl: item.imageAssetId
             ? assets.get(item.imageAssetId)!.url
             : undefined,
@@ -526,31 +527,19 @@ export const updateJobScan = mutationWithOrg({
       const nextCustomerText =
         submittedCustomerText?.trim() === before.customer?.trim()
           ? before.customer
-          : submittedCustomerText;
-      let nextCustomerId: Id<"customers"> | undefined = before.customerId;
-      let nextCustomerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
-        before.customerLinkSource;
+          : submittedCustomerText?.trim() || undefined;
+      const explicit = await resolveExplicitCustomerLink(
+        ctx,
+        args.customerLink,
+        before,
+      );
+      if (!explicit.ok) return failure(explicit.code, "customerId");
+      let {
+        customerId: nextCustomerId,
+        customerLinkSource: nextCustomerLinkSource,
+      } = explicit;
       if (
-        args.customerLink?.action === "SET" ||
-        args.customerLink?.action === "CLEAR"
-      ) {
-        if (!(await canReadCustomers(ctx)))
-          return failure("ACCESS_DENIED", "customerId");
-      }
-      if (args.customerLink?.action === "SET") {
-        const target = await ctx.tenantDb.get<Doc<"customers">>(
-          "customers",
-          args.customerLink.customerId,
-        );
-        if (!target) return failure("NOT_FOUND", "customerId");
-        if (target.status === "ARCHIVED" && before.customerId !== target._id)
-          return failure("CUSTOMER_ARCHIVED", "customerId");
-        nextCustomerId = target._id;
-        nextCustomerLinkSource = "MANUAL";
-      } else if (args.customerLink?.action === "CLEAR") {
-        nextCustomerId = undefined;
-        nextCustomerLinkSource = "UNLINKED";
-      } else if (
+        (!args.customerLink || args.customerLink.action === "KEEP") &&
         nextCustomerText !== before.customer &&
         before.customerLinkSource !== "MANUAL" &&
         before.customerLinkSource !== "UNLINKED"
@@ -566,14 +555,12 @@ export const updateJobScan = mutationWithOrg({
           nextCustomerLinkSource = undefined;
         }
       }
-      const nextReviewPending = isReviewPendingScan({
+      const nextReviewPending = customerReviewState({
         voided: before.voided,
         customer: nextCustomerText,
         customerId: nextCustomerId,
         customerLinkSource: nextCustomerLinkSource,
-      })
-        ? (true as const)
-        : undefined;
+      });
       // Materialize optional fields so deleting an old value is intentional,
       // version-checked and included in the immutable audit event.
       const fields = {
@@ -592,9 +579,14 @@ export const updateJobScan = mutationWithOrg({
       };
       const changes = diffFields(before, fields);
       if (
-        changes.length ||
+        !changes.length &&
         before.customerReviewPending !== nextReviewPending
       ) {
+        // Classification only: no correction, so open editors stay current.
+        await ctx.tenantDb.patch(TABLE, before._id, {
+          customerReviewPending: nextReviewPending,
+        });
+      } else if (changes.length) {
         const now = Math.max(Date.now(), before.updatedAt + 1);
         await ctx.tenantDb.patch(TABLE, before._id, {
           ...fields,

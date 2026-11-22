@@ -10,6 +10,7 @@ import { useId, useState } from "react";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { CheckboxControl } from "@/components/ui/CheckboxControl";
@@ -64,6 +65,13 @@ interface ReviewGroup {
 }
 
 export function CustomerReviewQueue() {
+  const { userId, orgId } = useAuth();
+  const { warehouses } = useWorkspace();
+  const queueScope = JSON.stringify([
+    userId,
+    orgId,
+    warehouses.map(({ id }) => id),
+  ]);
   const t = useTranslations("Customers");
   return (
     <>
@@ -73,7 +81,7 @@ export function CustomerReviewQueue() {
         breadcrumbs={[{ label: t("title"), href: ROUTES.customers }]}
       />
       <CustomerGate loadingLabel={t("reviewLoading")}>
-        <ReviewQueueContent />
+        <ReviewQueueContent key={queueScope} />
       </CustomerGate>
     </>
   );

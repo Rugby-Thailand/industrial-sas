@@ -21,6 +21,20 @@ export function isReviewPendingScan(scan: {
   );
 }
 
+/**
+ * Stored `customerReviewPending` value: `true` for a ticket waiting in review,
+ * `false` for an undecided ticket with nothing to review (blank or voided), so
+ * it leaves the legacy stream, and `undefined` once a link decision exists.
+ */
+export function customerReviewState(
+  scan: Parameters<typeof isReviewPendingScan>[0],
+): boolean | undefined {
+  if (isReviewPendingScan(scan)) return true;
+  return scan.customerId === undefined && scan.customerLinkSource === undefined
+    ? false
+    : undefined;
+}
+
 /** Alias rows and their search text are written together in each mutation. */
 export function appendSearchableAlias(
   customer: Doc<"customers">,

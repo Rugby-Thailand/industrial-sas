@@ -66,7 +66,18 @@ An already open tab is affected on its next server call. After step 1, members w
 ## v2 Linking and historical backfill
 
 - **Additive schema only:** `customerAliases` and `customerWarehouseActivity` tables, optional `aliasSearchText` on `customers`, optional `customerId` and `customerLinkSource` on `finishedGoodsProducts` and `finishedGoodsJobScans`, optional `customerReviewPending` on `finishedGoodsJobScans`, and reverse lookup indexes. No existing fields or captured text (`customer`, `customerReference`) are modified or overwritten.
-- **Live auto-linking:** starts automatically on new job scans once customers and approved aliases exist. Blank, unmatched, ambiguous, or archived matches continue saving without a link and mark `customerReviewPending: true` when non-blank.
+- **Live auto-linking:** starts automatically on new job scans once customers and approved aliases exist. Blank, unmatched, ambiguous, or archived matches continue saving without a link. Every save and correction classifies the ticket: `customerReviewPending: true` for a named undecided ticket (indexed review queue) and `false` for a blank or voided one, so it never enters the legacy review stream or the banner. The captured text is kept as entered. Naming a blank ticket later re-runs auto-link, or moves it to review when nothing matches. Clearing the name retires it again.
+- **Legacy review stream:** tickets saved before this backend carry neither a link decision nor a classification. The review banner and queue still read them, newest first, through `by_orgId_warehouseId_linkSource_reviewPending_createdAt`, so no undecided name is hidden before backfill. Blank legacy tickets still cost reads there until the backfill retires them.
+- **Order:** deploy this backend first. Every scan saved or corrected after the deploy is classified, so backfill only has to cover rows written before it. Rerunning is idempotent.
+- **Enumerate warehouses:** list every warehouse in every organization (any status), with whether it still holds unclassified legacy tickets:
+
+  ```sh
+  pnpm exec convex run --prod customers/backfill:listCustomerBackfillWarehouses '{}'
+  # Repeat with the returned "continueCursor" as "cursor" until "isDone": true:
+  pnpm exec convex run --prod customers/backfill:listCustomerBackfillWarehouses '{"cursor":"<continueCursor>"}'
+  ```
+
+  Record each `warehouseId` with `legacyRemaining: true`. Backfill also re-resolves already-indexed pending tickets. To link those after customers were added, run it for every listed warehouse, not only the ones with `legacyRemaining: true`.
 - **Historical job-scan backfill (per warehouse):** after customer records exist, run a **complete** dry-run pass through `isDone: true` first to inspect warehouse totals, then restart from the beginning for the apply pass:
 
   ```sh
@@ -75,19 +86,24 @@ An already open tab is affected on its next server call. After step 1, members w
   # Repeat passing the returned "continueCursor" as "cursor" until "isDone": true:
   pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":true,"cursor":"<continueCursor>"}'
 
-  # Pass 2 — restart from the beginning to apply matches and index pending review rows:
+  # Pass 2 — restart from the beginning to apply matches and classify every remaining row:
   pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":false}'
   # Checkpoint every returned "continueCursor" and pass it back as "cursor" until "isDone": true:
   pnpm exec convex run --prod customers/backfill:backfillJobScanCustomers '{"warehouseId":"<warehouseId>","dryRun":false,"cursor":"<continueCursor>"}'
   ```
 
-  Backfill skips voided scans and any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`). The `updated` total includes both newly linked tickets and newly marked pending tickets. On apply (`dryRun: false`), exact unique matches link with `customerLinkSource: "AUTO"` and update `customerWarehouseActivity`; ambiguous, archived, and unmatched non-blank scans are stamped with `customerReviewPending: true` so they appear in the indexed review queue.
+  Backfill skips any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`) and reports it as `skippedDecided`. On apply (`dryRun: false`), exact unique matches link with `customerLinkSource: "AUTO"` and update `customerWarehouseActivity`. Ambiguous, archived, and unmatched named tickets are stamped `customerReviewPending: true` so they appear in the indexed queue. Blank and voided tickets (`skippedBlank`, `skippedVoided`) are stamped `false`, which retires them from the legacy stream without changing their captured text. The `updated` total counts new links and new stamps, so a rerun reports `0`.
+
+  The pass is deterministic: it walks the warehouse's scans in a fixed index order, and each batch is one transaction. A stopped run resumes from its last checkpointed cursor, and restarting from the beginning is safe.
+- **Versions and open editors:** a classification stamp does not change the ticket's `version` or correction history, so a ticket editor open during backfill still saves. A new automatic link increments `version`. An editor open on that ticket gets `STALE_REVISION` and must reload before saving. A correction that only reclassifies a legacy ticket (no field changed) stamps the classification without recording a correction.
+- **Verify drained:** list the warehouses again. Every warehouse should report `legacyRemaining: false`. Rows saved by an older backend during a rolling deploy show up here; rerun that warehouse's apply pass. The review banner then counts only indexed pending tickets.
+- **Paused auto-link:** while `CUSTOMER_AUTO_LINK_PAUSED` is set, apply runs refuse (`CUSTOMER_AUTO_LINK_PAUSED`) and dry runs still work. Saves and edits during the pause still classify tickets: named ones become pending and blank ones are retired, so the legacy stream does not grow. A captured-name correction on an `AUTO` ticket during the pause removes that link and makes the ticket pending. After resuming, run the apply pass for each affected warehouse to auto-link the tickets that became pending during the pause.
 
 ### v2 Rollback
 
 1. Pause automatic assignments on the production deployment with `pnpm exec convex env set --prod CUSTOMER_AUTO_LINK_PAUSED true`. New scans retain the captured name. Historical dry runs remain available and apply runs refuse while paused.
 2. To hide the module and its manual link actions, revoke customer grants as described above and verify the target administrators. Review custom roles individually. Keep the v2 backend, schema, and activity maintenance deployed. Warehouse operators can still correct or delete tickets while paused. Those changes continue to update the derived activity rows.
-3. To resume, remove the pause with `pnpm exec convex env remove --prod CUSTOMER_AUTO_LINK_PAUSED` and restore the intended grants. Inspect the latest job for a customer whose ticket changed during the pause, then dry-run the backfill for paused-period tickets. The queue also pages historical undecided tickets before backfill.
+3. To resume, remove the pause with `pnpm exec convex env remove --prod CUSTOMER_AUTO_LINK_PAUSED` and restore the intended grants. Inspect the latest job for a customer whose ticket changed during the pause. Then enumerate the warehouses and dry-run, then apply, the backfill for each one that received tickets or edits during the pause. The queue also pages historical undecided tickets before backfill.
 4. A permanent removal needs a separately reviewed migration of populated optional fields and projections before dropping schema support. Rolling the backend back to the v1 implementation after v2 writes would leave stale summaries and can fail schema validation.
 
 ## Data handled

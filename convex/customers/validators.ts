@@ -5,6 +5,12 @@ export const customerStatus = v.union(
   v.literal("ARCHIVED"),
 );
 
+export const customerLinkArg = v.union(
+  v.object({ action: v.literal("KEEP") }),
+  v.object({ action: v.literal("SET"), customerId: v.id("customers") }),
+  v.object({ action: v.literal("CLEAR") }),
+);
+
 export const customerLinkSource = v.union(
   v.literal("AUTO"),
   v.literal("MANUAL"),
