@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -19,10 +20,10 @@ import type { DialogCompletionHandle } from "@/components/ui/dialog";
 import { useRouter } from "@/i18n/navigation";
 import {
   destinationHref,
-  hasNavigationPermission,
-  targetPermissions,
+  canOpenTarget,
   type DestinationTarget,
 } from "@/lib/navigation";
+import { MODULE_ENTRY_PERMISSION } from "../../../../convex/model/home/quickMenu";
 import { guardedNavigate } from "@/lib/navigationGuard";
 import type { PageSearchContext } from "@/lib/search/resolveIntent";
 
@@ -52,7 +53,9 @@ export function useGrantedPermissions(): readonly string[] {
   return useMemo(
     () => [
       ...new Set([
-        ...(storage ?? []),
+        ...(storage === null
+          ? []
+          : [MODULE_ENTRY_PERMISSION.planner, ...storage]),
         ...(hrGrants ?? []),
         ...(usageGrants ?? []),
       ]),
@@ -76,7 +79,27 @@ export function GlobalSearchProvider({
   // Lives with the provider, so a choice survives the dialog body unmounting.
   const completion = useRef<DialogCompletionHandle>(null);
   const hr = useHrAccess();
+  const workspace = useWorkspace();
   const granted = useGrantedPermissions();
+  const mounted = useRef(true);
+  const latest = useRef({
+    granted,
+    identityKey: hr.identityKey ?? null,
+    orgId: workspace.organization?.id ?? null,
+  });
+  useLayoutEffect(() => {
+    latest.current = {
+      granted,
+      identityKey: hr.identityKey ?? null,
+      orgId: workspace.organization?.id ?? null,
+    };
+  });
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [state, setState] = useState<{ open: boolean; mode: SearchMode }>({
     open: false,
     mode: "SEARCH",
@@ -114,25 +137,35 @@ export function GlobalSearchProvider({
     (target: DestinationTarget, trail: string) => {
       const href = destinationHref(target);
       // Only app-built, permitted destinations are ever pushed.
-      if (
-        href === null ||
-        !hasNavigationPermission(targetPermissions(target), granted)
-      )
-        return false;
+      if (href === null || !canOpenTarget(target, granted)) return false;
+      const originPathname = window.location.pathname;
+      const originIdentity = latest.current.identityKey;
+      const originOrgId = latest.current.orgId;
+      const isValid = () =>
+        mounted.current &&
+        window.location.pathname === originPathname &&
+        latest.current.identityKey === originIdentity &&
+        latest.current.orgId === originOrgId &&
+        canOpenTarget(target, latest.current.granted);
       // The dialog consumes its own entry (retaining the underlay's draft)
       // before the guarded push asks about leaving. Closing and pushing
       // together would traverse while the push is pending, and Next's restore
       // of the origin would cancel it. Results render only inside the
       // dialog, so its handle is mounted.
       completion.current?.complete(() => {
+        if (!isValid()) return;
         // Normally already closed by its own Back; never left open otherwise.
         setState((current) =>
           current.open ? { ...current, open: false } : current,
         );
-        guardedNavigate(() => {
-          setAnnouncement(t("navigating", { trail }));
-          router.push(href);
-        });
+        guardedNavigate(
+          () => {
+            if (!isValid()) return;
+            setAnnouncement(t("navigating", { trail }));
+            router.push(href);
+          },
+          { isValid },
+        );
       });
       return true;
     },

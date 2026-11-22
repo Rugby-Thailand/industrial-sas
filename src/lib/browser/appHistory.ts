@@ -4,7 +4,7 @@ import {
   workflowRouteChanged,
   WORKFLOW_CONTROLLERS_EVENT,
 } from "./workflowControllers";
-import { updateBrowserQuery } from "./history";
+import { removeBrowserQueryKeys, updateBrowserQuery } from "./history";
 
 export const APP_ROUTE_ORIGIN_KEY = "appRouteOrigin";
 export const APP_HISTORY_KEY = "appNavigationIndex";
@@ -76,6 +76,7 @@ function replacementMetadata(
   for (const key of destination.searchParams.keys()) {
     const scope: unknown = previous?.[`${key}Origin`];
     const ownIndex: unknown = previous?.[`${key}OriginIndex`];
+    const entry: unknown = previous?.[`${key}Entry`];
     if (
       destination.searchParams.get(key) === "1" &&
       unchangedQuery(current, destination, key) &&
@@ -87,6 +88,9 @@ function replacementMetadata(
     ) {
       kept[`${key}Origin`] = scope;
       kept[`${key}OriginIndex`] = ownIndex;
+      if (typeof entry === "string" && entry.length > 0) {
+        kept[`${key}Entry`] = entry;
+      }
     }
   }
   const editor: unknown = previous?.hrEmployeeEditorOrigin;
@@ -149,6 +153,7 @@ let installed: Tracker | null = null;
 let activeOwner: object | null = null;
 let index = 0;
 const writeListeners = new Set<() => void>();
+const replacementListeners = new Set<() => void>();
 
 /**
  * Observe tracked writes that create or move to another entry: every push,
@@ -160,6 +165,18 @@ export function subscribeHistoryWrites(listener: () => void): () => void {
   writeListeners.add(listener);
   return () => {
     writeListeners.delete(listener);
+  };
+}
+
+/**
+ * Observe tracked `history.replaceState` writes, including same-URL and
+ * metadata-only replacements, so workflow step owners can recheck entry
+ * markers and topmost ordering immediately.
+ */
+export function subscribeHistoryReplacements(listener: () => void): () => void {
+  replacementListeners.add(listener);
+  return () => {
+    replacementListeners.delete(listener);
   };
 }
 
@@ -179,6 +196,10 @@ export function subscribeHistoryChanges(listener: () => void): () => void {
 
 function notifyWrite() {
   for (const listener of [...writeListeners]) listener();
+}
+
+function notifyReplacement() {
+  for (const listener of [...replacementListeners]) listener();
 }
 
 function install(history: History): Tracker {
@@ -243,6 +264,7 @@ function install(history: History): Tracker {
     );
     index = next;
     if (url != null && !sameLocation) notifyWrite();
+    notifyReplacement();
   };
   history.pushState = push;
   history.replaceState = replace;
@@ -302,21 +324,21 @@ export function trackAppHistory(): () => void {
           ? [value]
           : [];
       });
-      missing.forEach((key) => destination.searchParams.delete(key));
+      const destinationSearch = removeBrowserQueryKeys(
+        window.location.search,
+        missing,
+      );
+      const destinationHash = window.location.hash;
       const restore = () => {
         if (
           activeOwner !== owner ||
           window.location.pathname !== destination.pathname
         )
           return;
-        updateBrowserQuery(
-          (query) => {
-            for (const key of [...query.keys()]) query.delete(key);
-            for (const [key, value] of destination.searchParams)
-              query.append(key, value);
-          },
-          { hash: destination.hash },
-        );
+        updateBrowserQuery(() => {}, {
+          rawSearch: destinationSearch,
+          hash: destinationHash,
+        });
       };
       if (indices.length === 0) {
         restore();

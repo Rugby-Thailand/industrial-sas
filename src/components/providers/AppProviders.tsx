@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { AppEnvironment } from "@/lib/environment";
 import { ThemeProvider } from "next-themes";
 
 import {
@@ -47,7 +48,13 @@ export function EnvironmentAwareWorkspaceProvider({
   );
 }
 
-export function AppProviders({ children }: { readonly children: ReactNode }) {
+export function AppProviders({
+  children,
+  environment,
+}: {
+  readonly children: ReactNode;
+  readonly environment: AppEnvironment;
+}) {
   return (
     <ThemeProvider
       attribute="class"
@@ -55,7 +62,7 @@ export function AppProviders({ children }: { readonly children: ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <EnvironmentProvider>
+      <EnvironmentProvider environment={environment}>
         <ObservabilityProvider>
           <IdentityProvider>
             <ConvexClientProvider>

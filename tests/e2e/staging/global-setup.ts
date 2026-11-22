@@ -40,6 +40,7 @@ export interface SetupDependencies {
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<void>;
   testingSetup?: () => Promise<void>;
+  includeHomeHrBadges?: boolean;
   onProgress?: (phase: StagingSetupPhase) => void;
 }
 function definitelyRejected(error: unknown) {
@@ -169,10 +170,12 @@ export async function provisionStagingFixture(
     }
     deps.onProgress?.("prepare-backend");
     step = "BACKEND_PREPARE";
-    const prepared = deps.run(
-      "staging/e2eFixture:prepare",
-      ownershipArgs(state),
-    ) as {
+    const prepared = deps.run("staging/e2eFixture:prepare", {
+      ...ownershipArgs(state),
+      ...(deps.includeHomeHrBadges === true
+        ? { includeHomeHrBadges: true }
+        : {}),
+    }) as {
       runWarehouseId?: string;
       forbiddenWarehouseId?: string;
       otherTenantWarehouseId?: string;
@@ -217,6 +220,7 @@ export default async function globalSetup(): Promise<void> {
   await provisionStagingFixture({
     clerk: stagingClerk(),
     run: convexRun,
+    includeHomeHrBadges: true,
     onProgress: reportStagingSetupPhase,
     testingSetup: () =>
       clerkSetup({

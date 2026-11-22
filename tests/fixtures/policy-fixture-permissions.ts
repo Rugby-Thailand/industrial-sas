@@ -43,6 +43,8 @@ export const FIXTURE_PERMISSIONS = Object.freeze([
   definition("fixture.device.manage", "ORG"),
   definition("fixture.organization.update", "ORG", ["STEP_UP"]),
   definition("fixture.warehouse.manage", "ORG", ["STEP_UP"]),
+  definition("fixture.orgThreshold.approve", "ORG", ["THRESHOLD"]),
+  definition("fixture.orgMakerChecker.approve", "ORG", ["MAKER_CHECKER"]),
   definition("fixture.receipt.post", "WAREHOUSE"),
   definition("fixture.label.print", "WAREHOUSE"),
   definition("fixture.task.override", "WAREHOUSE", ["THRESHOLD"]),

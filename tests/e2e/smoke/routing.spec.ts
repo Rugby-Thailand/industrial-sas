@@ -6,6 +6,7 @@ import { expect, expectNoAxeViolations, test } from "../support/fixtures";
  */
 
 const PRIVATE_ROUTES = [
+  "/dashboard",
   "/master-data/storage-layouts",
   "/master-data/storage-layouts/new",
   "/finished-goods",
@@ -59,6 +60,10 @@ test.describe("locale routing", () => {
     await expect(page.getByText(SIGN_IN.th.unavailable)).toBeVisible();
     await expect(page.locator("input[type=password]")).toHaveCount(0);
     await expect(page.getByRole("textbox")).toHaveCount(0);
+    await page
+      .getByRole("link", { name: "เกี่ยวกับโยงกิจ", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/th\/about$/);
   });
 
   test("an open redirect cannot be smuggled through returnTo", async ({
@@ -76,7 +81,7 @@ test.describe("locale routing", () => {
 
 test.describe("public and not-found pages", () => {
   for (const [path, heading] of [
-    ["/en/about", "Warehouse and storage planning"],
+    ["/en/about", "Industrial management software"],
     ["/th/privacy", null],
     ["/en/terms", null],
   ] as const) {

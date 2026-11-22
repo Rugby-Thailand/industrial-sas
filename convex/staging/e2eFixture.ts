@@ -248,12 +248,128 @@ async function ensureWarehouse(
   });
 }
 
+/** Unread events seeded for Home badges; one per event, so each tile shows 1. */
+export const HOME_HR_BADGE_EVENTS = [
+  "ANNOUNCEMENT_PUBLISHED",
+  "LEAVE_DECIDED",
+  "PAYSLIP_PUBLISHED",
+] as const;
+export const HOME_HR_EMPLOYEE_CODE = "E2E-HOME";
+
+/**
+ * Opt-in Home badge state for the run identity: the HR_EMPLOYEE role
+ * (`hr.self.access`), one linked employee at the run warehouse and one
+ * unread notification per `HOME_HR_BADGE_EVENTS` (total 3). Re-preparing
+ * marks them unread again, so the total starts at 3 on every run.
+ */
+async function seedHomeHrBadges(
+  ctx: MutationCtx,
+  orgId: Id<"organizations">,
+  membershipId: Id<"memberships">,
+  userId: Id<"users">,
+  warehouseId: Id<"warehouses">,
+) {
+  const role = await ctx.db
+    .query("roles")
+    .withIndex("by_orgId_key", (q) =>
+      q.eq("orgId", orgId).eq("key", "HR_EMPLOYEE"),
+    )
+    .unique();
+  if (role === null) throw new Error("Seeded HR_EMPLOYEE role missing.");
+  const grant = await ctx.db
+    .query("membershipRoles")
+    .withIndex("by_orgId_membershipId_roleId", (q) =>
+      q
+        .eq("orgId", orgId)
+        .eq("membershipId", membershipId)
+        .eq("roleId", role._id),
+    )
+    .unique();
+  if (grant === null)
+    await ctx.db.insert("membershipRoles", {
+      orgId,
+      membershipId,
+      roleId: role._id,
+      grantedAt: Date.now(),
+    });
+  const now = Date.now();
+  const linked = await ctx.db
+    .query("hrEmployees")
+    .withIndex("by_orgId_userId", (q) =>
+      q.eq("orgId", orgId).eq("userId", userId),
+    )
+    .take(2);
+  if (
+    linked.length > 1 ||
+    linked.some(
+      (row) =>
+        row.code !== HOME_HR_EMPLOYEE_CODE || row.warehouseId !== warehouseId,
+    )
+  )
+    throw new E2eFixtureRefusal("Run identity has an unrelated employee.");
+  const employeeId =
+    linked[0]?._id ??
+    (await ctx.db.insert("hrEmployees", {
+      orgId,
+      warehouseId,
+      code: HOME_HR_EMPLOYEE_CODE,
+      displayName: "E2E Home employee",
+      userId,
+      employmentStartDate: "2020-01-01",
+      status: "ACTIVE",
+      version: 1,
+      createdAt: now,
+      createdByUserId: userId,
+      updatedAt: now,
+      updatedByUserId: userId,
+    }));
+  const unreadNotificationIds: Id<"hrNotifications">[] = [];
+  for (const [offset, event] of HOME_HR_BADGE_EVENTS.entries()) {
+    const eventKey = `e2e-home:${event}`;
+    const existing = await ctx.db
+      .query("hrNotifications")
+      .withIndex("by_orgId_employeeId_eventKey", (q) =>
+        q
+          .eq("orgId", orgId)
+          .eq("employeeId", employeeId)
+          .eq("eventKey", eventKey),
+      )
+      .unique();
+    if (existing === null) {
+      unreadNotificationIds.push(
+        await ctx.db.insert("hrNotifications", {
+          orgId,
+          employeeId,
+          event,
+          title: `E2E ${event}`,
+          eventKey,
+          unread: true,
+          createdAt: now + offset,
+        }),
+      );
+    } else {
+      await ctx.db.patch("hrNotifications", existing._id, {
+        unread: true,
+        readAt: undefined,
+      });
+      unreadNotificationIds.push(existing._id);
+    }
+  }
+  return { employeeId, unreadNotificationIds };
+}
+
 export const prepare = internalMutation({
-  args: ownershipArgs,
+  args: { ...ownershipArgs, includeHomeHrBadges: v.optional(v.boolean()) },
   returns: v.object({
     runWarehouseId: v.id("warehouses"),
     forbiddenWarehouseId: v.id("warehouses"),
     otherTenantWarehouseId: v.id("warehouses"),
+    homeHrBadges: v.optional(
+      v.object({
+        employeeId: v.id("hrEmployees"),
+        unreadNotificationIds: v.array(v.id("hrNotifications")),
+      }),
+    ),
   }),
   handler: async (ctx, args) => {
     assertE2eFixtureTarget();
@@ -331,7 +447,22 @@ export const prepare = internalMutation({
       OTHER_TENANT_WAREHOUSE_CODE,
       names.other,
     );
-    return { runWarehouseId, forbiddenWarehouseId, otherTenantWarehouseId };
+    const homeHrBadges =
+      args.includeHomeHrBadges === true
+        ? await seedHomeHrBadges(
+            ctx,
+            primary._id,
+            membership._id,
+            membership.userId,
+            runWarehouseId,
+          )
+        : undefined;
+    return {
+      runWarehouseId,
+      forbiddenWarehouseId,
+      otherTenantWarehouseId,
+      ...(homeHrBadges === undefined ? {} : { homeHrBadges }),
+    };
   },
 });
 
@@ -358,6 +489,10 @@ const WAREHOUSE_TABLES: readonly (readonly [TableNames, string])[] = [
 ];
 /** Exact run-owned organizations; no expiry is assumed. */
 const OWNED_ORGANIZATION_TABLES: readonly (readonly [TableNames, string])[] = [
+  ["homeQuickMenuPreferences", "by_orgId_userId"],
+  ["hrNotificationBatches", "by_orgId_employeeId"],
+  ["hrNotifications", "by_orgId_employeeId_createdAt"],
+  ["hrEmployees", "by_orgId_code"],
   ["auditEvents", "by_orgId_occurredAt"],
   ["idempotencyRecords", "by_orgId_expiresAt"],
   ["membershipRoles", "by_orgId_membershipId_roleId"],

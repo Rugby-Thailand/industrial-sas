@@ -794,7 +794,7 @@ describe("normal search tasks and periods", () => {
   it("opens the version written in the text and never falls back to the latest", async () => {
     state.access = {
       ...state.access,
-      permissions: ["hr.period.close", "hr.period.export"],
+      permissions: ["hr.self.access", "hr.period.close", "hr.period.export"],
     };
     state.queries.set(ref(hrRefs.searchPeriodsByRange), () => ({
       ok: true,

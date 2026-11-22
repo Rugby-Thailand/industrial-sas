@@ -1,6 +1,7 @@
 {
   "version": 1,
   "destinations": {
+    "dashboard": "/dashboard",
     "storageLayouts": "/master-data/storage-layouts",
     "finishedGoods": "/finished-goods",
     "jobScan": "/finished-goods/scan",
@@ -46,6 +47,10 @@
     "src/features/finishedGoods/shared.tsx#Heading"
   ],
   "hubs": [
+    {
+      "id": "src/features/dashboard/DashboardScreen.tsx#DashboardScreen",
+      "reason": "Installed Home is a direct workspace hub. The visible editor owns Back first, followed by the actual browser origin."
+    },
     {
       "id": "src/app/[locale]/(auth)/sign-in/SignInScreen.tsx#SignInScreen",
       "reason": "Authentication is an entry point; the Clerk flow and explicit Home link own exit."
@@ -227,6 +232,7 @@
       "functions": [
         "Sheet",
         "SheetTrigger",
+        "SheetClose",
         "SheetPortal",
         "SheetOverlay",
         "SheetContent",
@@ -315,6 +321,34 @@
     }
   ],
   "routes": [
+    {
+      "file": "src/app/[locale]/(desktop)/dashboard/page.tsx",
+      "policy": "hub",
+      "targets": ["src/features/dashboard/DashboardScreen#DashboardScreen"],
+      "expectation": "Localized Home accepts direct launches and preserves the actual origin. The header has a null fallback on direct entry.",
+      "tests": [
+        "src/features/dashboard/DashboardScreen.test.tsx",
+        "tests/e2e/navigation/home-quick-menu.spec.ts"
+      ],
+      "cases": [
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "shows setup without starting Convex when the environment is unconfigured"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "explicit Cancel consumes Customize before Back restores the exact origin"
+        },
+        {
+          "file": "tests/e2e/navigation/home-quick-menu.spec.ts",
+          "name": "opens the Android launch URL as a direct Home hub with an unread badge"
+        },
+        {
+          "file": "tests/e2e/navigation/home-quick-menu.spec.ts",
+          "name": "Home tile history restores the exact URL through header Back, Forward and reload"
+        }
+      ]
+    },
     {
       "file": "src/app/[locale]/(auth)/sign-in/[...sign-in]/page.tsx",
       "policy": "auth",
@@ -1176,6 +1210,128 @@
     }
   ],
   "states": [
+    {
+      "id": "src/features/dashboard/DashboardLiveContent.tsx#DashboardLiveContent:open",
+      "policy": "overlay",
+      "integration": "sheet",
+      "expectation": "The mounted customization Sheet owns its open state. Native Back or Cancel asks before discarding a draft. Successful writes consume the Sheet entry through the live operation.",
+      "tests": ["src/features/dashboard/DashboardScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "explicit Cancel consumes Customize before Back restores the exact origin"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "protects dirty Customize on native Back and closes on explicit discard"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "holds pending Save through Back and consumes Customize when the live save completes"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "preserves the editor draft on read retry and retires it on access loss"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "native Back and Forward restore the clean Customize entry in the same visit"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "remount removes an orphaned Customize entry while preserving the base URL"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "retires a revoked Customize entry without popping a newer foreground"
+        }
+      ]
+    },
+    {
+      "id": "src/features/dashboard/DashboardLiveContent.tsx#DashboardLiveContent:$overlay:Sheet:open",
+      "policy": "overlay",
+      "integration": "sheet",
+      "expectation": "The mounted customization Sheet owns its open state. Native Back or Cancel asks before discarding a draft. Successful writes consume the Sheet entry through the live operation.",
+      "tests": ["src/features/dashboard/DashboardScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "explicit Cancel consumes Customize before Back restores the exact origin"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "protects dirty Customize on native Back and closes on explicit discard"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "holds pending Save through Back and consumes Customize when the live save completes"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "preserves the editor draft on read retry and retires it on access loss"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "native Back and Forward restore the clean Customize entry in the same visit"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "remount removes an orphaned Customize entry while preserving the base URL"
+        },
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "retires a revoked Customize entry without popping a newer foreground"
+        }
+      ]
+    },
+    {
+      "id": "src/features/dashboard/DashboardLiveContent.tsx#DashboardLiveContent:readRetryAttempt",
+      "policy": "presentation",
+      "expectation": "Changes the active query subscription after a retry. Its loading, error, no-pins, notification count and configuration states render inline in Home. The separate shared Sheet owns the editor.",
+      "uses": ["branch", "return"],
+      "render": [
+        {
+          "shape": "and",
+          "truthy": ["span"],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": ["div", "div[role=status]", "span"],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": ["p"],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [
+            "src/components/ui/Notice#Notice",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/dashboard/DashboardScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/dashboard/DashboardScreen.test.tsx",
+          "name": "preserves the editor draft on read retry and retires it on access loss"
+        }
+      ]
+    },
     {
       "id": "src/components/providers/ConvexClientProvider.tsx#ConvexClientProvider:client",
       "policy": "presentation",

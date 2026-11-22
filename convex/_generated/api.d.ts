@@ -94,6 +94,7 @@ import type * as model_finishedGoods_placement from "../model/finishedGoods/plac
 import type * as model_finishedGoods_scanning from "../model/finishedGoods/scanning.js";
 import type * as model_gs1_checkDigit from "../model/gs1/checkDigit.js";
 import type * as model_guards from "../model/guards.js";
+import type * as model_home_quickMenu from "../model/home/quickMenu.js";
 import type * as model_hr_announcementsSchema from "../model/hr/announcementsSchema.js";
 import type * as model_hr_attendance from "../model/hr/attendance.js";
 import type * as model_hr_calendar from "../model/hr/calendar.js";
@@ -139,6 +140,7 @@ import type * as storageLayouts_pdImport from "../storageLayouts/pdImport.js";
 import type * as storageLayouts_writes from "../storageLayouts/writes.js";
 import type * as storageLayouts_zones from "../storageLayouts/zones.js";
 import type * as workspace_current from "../workspace/current.js";
+import type * as workspace_quickMenus from "../workspace/quickMenus.js";
 
 import type {
   ApiFromModules,
@@ -233,6 +235,7 @@ declare const fullApi: ApiFromModules<{
   "model/finishedGoods/scanning": typeof model_finishedGoods_scanning;
   "model/gs1/checkDigit": typeof model_gs1_checkDigit;
   "model/guards": typeof model_guards;
+  "model/home/quickMenu": typeof model_home_quickMenu;
   "model/hr/announcementsSchema": typeof model_hr_announcementsSchema;
   "model/hr/attendance": typeof model_hr_attendance;
   "model/hr/calendar": typeof model_hr_calendar;
@@ -278,6 +281,7 @@ declare const fullApi: ApiFromModules<{
   "storageLayouts/writes": typeof storageLayouts_writes;
   "storageLayouts/zones": typeof storageLayouts_zones;
   "workspace/current": typeof workspace_current;
+  "workspace/quickMenus": typeof workspace_quickMenus;
 }>;
 
 /**

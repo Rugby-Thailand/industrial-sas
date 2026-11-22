@@ -14,8 +14,8 @@ export default async function LocaleRootPage({
   if (!hasLocale(routing.locales, locale)) notFound();
   const access = await readAppAccess();
   redirect(
-    access === "APP"
-      ? `/${locale}${ROUTES.storageLayouts}`
+    access !== "SIGN_IN"
+      ? `/${locale}${ROUTES.dashboard}`
       : `/${locale}${ROUTES.signIn}`,
   );
 }

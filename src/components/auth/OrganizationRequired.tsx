@@ -1,12 +1,15 @@
 import { OrganizationList } from "@clerk/nextjs";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Notice } from "@/components/ui/Notice";
 
-export async function OrganizationRequired() {
+export async function OrganizationRequired({
+  returnTo,
+}: {
+  readonly returnTo: string;
+}) {
   const t = await getTranslations("Access");
-  const locale = await getLocale();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-6 p-6">
@@ -17,10 +20,7 @@ export async function OrganizationRequired() {
         title={t("organizationRequiredBody")}
         testId="organization-required"
       />
-      <OrganizationList
-        hidePersonal
-        afterSelectOrganizationUrl={`/${locale}/master-data/storage-layouts`}
-      />
+      <OrganizationList hidePersonal afterSelectOrganizationUrl={returnTo} />
     </main>
   );
 }

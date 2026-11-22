@@ -9,6 +9,15 @@ it("retains task IDs, filters and floor selection for sign-in", () => {
   );
 });
 it.each([
+  "/th/dashboard",
+  "/th/hr/leave/abc?from=home#date",
+  "/th/ai-usage?period=7",
+])("restores a localized workspace destination %s", (path) => {
+  expect(plannerReturnPath(path, "th")).toBe(path);
+});
+it.each([
+  "/th/dashboard-preview",
+  "/th/dashboard/account",
   "https://evil.example",
   "//evil.example",
   "/th/sign-in",

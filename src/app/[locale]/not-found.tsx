@@ -18,7 +18,7 @@ export default async function LocaleNotFound() {
         summary={t("body")}
       />
       <Link
-        href={ROUTES.storageLayouts}
+        href={ROUTES.dashboard}
         className="flex min-h-touch w-fit items-center rounded-md border border-border-strong px-4 font-medium text-text"
       >
         {t("backHome")}

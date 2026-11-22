@@ -11,6 +11,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 import { useWorkspace } from "./WorkspaceProvider";
 import { useObservability } from "./ObservabilityProvider";
+import { LOCALES } from "@/i18n/routing";
+import { ROUTES } from "@/lib/navigation";
 import { observabilityEvent } from "@/lib/observability/event";
 
 function QueryFailure() {
@@ -43,7 +45,12 @@ export function WorkspaceAccessBoundary({
   const observability = useObservability();
   const resetKey = `${workspace.selectedWarehouseId ?? "none"}:${pathname}`;
 
-  if (workspace.failed) return <QueryFailure />;
+  // Home authorizes its own cross-module read. A failed warehouse query
+  // must not unmount an HR member's Home or discard an open shortcut draft.
+  const onHome = LOCALES.some(
+    (locale) => pathname === `/${locale}${ROUTES.dashboard}`,
+  );
+  if (workspace.failed && !onHome) return <QueryFailure />;
 
   return (
     <QueryErrorBoundary

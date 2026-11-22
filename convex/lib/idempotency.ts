@@ -18,6 +18,8 @@ export interface IdempotencyRecord {
   readonly requestHash: string;
   readonly resultRef?: string;
   readonly resultHash?: string;
+  /** The actor who wrote the record, when the operation is actor-owned. */
+  readonly actorUserId?: string;
 }
 
 export type IdempotencyError =

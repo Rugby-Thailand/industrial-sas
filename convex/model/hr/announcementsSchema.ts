@@ -95,7 +95,11 @@ export const hrAnnouncementTables = {
       "by_orgId_employeeId_announcementId",
       byOrg("employeeId", "announcementId"),
     )
-    .index("by_orgId_employeeId_eventKey", byOrg("employeeId", "eventKey")),
+    .index("by_orgId_employeeId_eventKey", byOrg("employeeId", "eventKey"))
+    .index(
+      "by_orgId_employeeId_unread_event_createdAt",
+      byOrg("employeeId", "unread", "event", "createdAt"),
+    ),
   hrNotificationBatches: defineTable(
     tenantFields({
       employeeId: v.id("hrEmployees"),

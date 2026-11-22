@@ -1,4 +1,4 @@
-/** Only planner routes in the current locale can become a post-sign-in destination. */
+/** Only supported workspace routes in the current locale can become a post-sign-in destination. */
 export function plannerReturnPath(
   value: unknown,
   locale: string,
@@ -13,7 +13,10 @@ export function plannerReturnPath(
   if (!value.startsWith(prefix)) return undefined;
   const path = value.split(/[?#]/)[0]!;
   const root = path.slice(prefix.length);
-  if (!/^(finished-goods|master-data\/storage-layouts|setup)(\/|$)/.test(root))
+  if (
+    !/^(dashboard|ai-usage)$/.test(root) &&
+    !/^(finished-goods|master-data\/storage-layouts|setup|hr)(\/|$)/.test(root)
+  )
     return undefined;
   const parsed = new URL(value, "https://planner.invalid");
   if (parsed.pathname !== path) return undefined;

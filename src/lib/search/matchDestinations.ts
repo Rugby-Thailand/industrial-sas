@@ -10,6 +10,7 @@
 import { normalizeSearchText } from "../../../convex/model/search/text";
 import {
   STATIC_DESTINATIONS,
+  effectiveDestinationPermissions,
   hasNavigationPermission,
   type StaticDestination,
 } from "../navigation";
@@ -78,7 +79,7 @@ export function matchDestinations(
   for (const destination of STATIC_DESTINATIONS) {
     if (
       !hasNavigationPermission(
-        destination.permissionCodes,
+        effectiveDestinationPermissions(destination),
         granted,
         destination.permissionMode ?? "ALL",
       )

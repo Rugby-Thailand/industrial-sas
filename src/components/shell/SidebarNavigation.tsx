@@ -1,5 +1,5 @@
 import { Spinner } from "@/components/ui/spinner";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, House, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
@@ -7,6 +7,7 @@ import { useAiUsageAccess } from "@/components/providers/AiUsageAccessProvider";
 import { useHrAccess } from "@/components/providers/HrAccessProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
+import { HOME_ELIGIBILITY_PERMISSIONS } from "../../../convex/model/home/quickMenu";
 import { useGrantedPermissions } from "@/components/shell/search/GlobalSearchProvider";
 import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
 import {
@@ -28,6 +29,7 @@ import {
 import { usePathname } from "@/i18n/navigation";
 import {
   activeNavigationHref,
+  ROUTES,
   visibleDesktopNavigation,
   type NavigationItem,
 } from "@/lib/navigation";
@@ -66,13 +68,17 @@ export function SidebarNavigation({
     workspace.permissionsReady || workspace.denied || workspace.failed;
   const hrSettled = hr.status !== "LOADING";
   const usageSettled = usage.status !== "LOADING";
-  const sections = visibleDesktopNavigation(useGrantedPermissions());
+  const granted = useGrantedPermissions();
+  const showHome = HOME_ELIGIBILITY_PERMISSIONS.some((code) =>
+    granted.includes(code),
+  );
+  const sections = visibleDesktopNavigation(granted);
   const navigationLoading =
     !(workspaceSettled && hrSettled && usageSettled) && sections.length === 0;
-  const activeHref = activeNavigationHref(
-    pathname,
-    sections.flatMap((section) => section.items.map((item) => item.href)),
-  );
+  const activeHref = activeNavigationHref(pathname, [
+    ROUTES.dashboard,
+    ...sections.flatMap((section) => section.items.map((item) => item.href)),
+  ]);
   const row: RowProps = { activeHref, collapsed, onNavigate };
   const { isMobile, openMobile } = useSidebar();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -87,6 +93,7 @@ export function SidebarNavigation({
   return (
     <nav
       id={id}
+      tabIndex={-1}
       aria-label={t("primary")}
       className="flex min-h-0 flex-1 flex-col"
     >
@@ -94,6 +101,19 @@ export function SidebarNavigation({
         ref={contentRef}
         className={cn("gap-6 px-4 py-4", collapsed && "px-2")}
       >
+        {showHome && (
+          <SidebarMenu aria-label={t("home")}>
+            <NavigationLeaf
+              item={{
+                href: ROUTES.dashboard,
+                labelKey: "home",
+                permissionCodes: [],
+              }}
+              Icon={House}
+              {...row}
+            />
+          </SidebarMenu>
+        )}
         {navigationLoading ? (
           <p
             role="status"
@@ -115,6 +135,7 @@ export function SidebarNavigation({
           const labelId = `${labelPrefix}-${section.labelKey}`;
           return (
             <SidebarGroup
+              data-module-menu=""
               key={section.labelKey}
               className="p-0 [&+&]:border-t [&+&]:border-sidebar-border [&+&]:pt-5"
             >

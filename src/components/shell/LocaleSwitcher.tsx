@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useTransition } from "react";
+import { useId, useLayoutEffect, useRef, useTransition } from "react";
 
 // eslint-disable-next-line no-restricted-imports -- SelectControl cannot render the flag-only current value; this reuses the shared Select primitives unchanged
 import {
@@ -27,17 +27,40 @@ export function LocaleSwitcher() {
   const controlId = useId();
   const labelId = `${controlId}-label`;
   const currentId = `${controlId}-current`;
+  const mounted = useRef(true);
+  const latest = useRef({ locale, pathname });
+  useLayoutEffect(() => {
+    latest.current = { locale, pathname };
+  });
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const choose = (next: string) => {
     if (next === locale) return;
     // The URL the user chose from; a guard prompt or its history buffer must
     // not change which query or hash the new language opens.
+    const originLocale = locale;
+    const originPathname = pathname;
+    const originWindowPathname = window.location.pathname;
     const href = `${pathname}${window.location.search}${window.location.hash}`;
-    guardedNavigate(() => {
-      startTransition(() => {
-        router.replace(href, { locale: next as AppLocale });
-      });
-    });
+    const isValid = () =>
+      mounted.current &&
+      latest.current.locale === originLocale &&
+      latest.current.pathname === originPathname &&
+      window.location.pathname === originWindowPathname;
+    guardedNavigate(
+      () => {
+        if (!isValid()) return;
+        startTransition(() => {
+          router.replace(href, { locale: next as AppLocale });
+        });
+      },
+      { isValid },
+    );
   };
 
   return (

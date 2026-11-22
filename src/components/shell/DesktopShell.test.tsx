@@ -1,3 +1,4 @@
+import { useOpenAllMenus } from "./useOpenAllMenus";
 import {
   act,
   fireEvent,
@@ -154,6 +155,11 @@ function Destination() {
   );
 }
 
+function HomeMenusButton() {
+  const openMenus = useOpenAllMenus();
+  return <button onClick={openMenus}>All menus</button>;
+}
+
 const originalMatchMedia = window.matchMedia;
 beforeEach(() => {
   state.mobile = false;
@@ -225,6 +231,33 @@ it("skips to the shell's main region without adding an unmanaged fragment histor
 });
 
 describe("sidebar hierarchy", () => {
+  it.each([false, true])(
+    "opens All menus from Home and focuses a module destination (mobile=%s)",
+    async (mobile) => {
+      state.mobile = mobile;
+      state.pathname = "/dashboard";
+      renderWithIntl(
+        <DesktopShell>
+          <HomeMenusButton />
+        </DesktopShell>,
+        { locale: "en" },
+      );
+      fireEvent.click(screen.getByRole("button", { name: "All menus" }));
+      const nav = await screen.findByRole("navigation", {
+        name: "Primary navigation",
+      });
+      expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      await waitFor(() =>
+        expect(
+          within(nav).getByRole("link", { name: "Finished goods" }),
+        ).toHaveFocus(),
+      );
+    },
+  );
+
   it.each([
     [false, "/finished-goods"],
     [false, "/finished-goods/scan"],
@@ -347,13 +380,12 @@ describe("sidebar hierarchy", () => {
     ).toBeNull();
   });
 
-  it("keeps review-only destinations reachable under their parent without self access", () => {
+  it("hides the HR menu without the grant required by HR access display", () => {
     state.hrPermissions = ["hr.team.review"];
     renderShell();
-    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
-    expect(screen.getByRole("link", { name: "Review leave" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
     expect(
-      screen.queryByRole("link", { name: "My leave", hidden: true }),
+      screen.queryByRole("link", { name: "Review leave", hidden: true }),
     ).toBeNull();
   });
 

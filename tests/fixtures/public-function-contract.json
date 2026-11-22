@@ -12965,6 +12965,123 @@
       ]
     }
   },
+  "hr/notifications:unreadSummary": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "expectedClerkScope": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "clerkOrgId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              },
+              "clerkUserId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        },
+        "readRetryAttempt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
   "hr/payslips:detail": {
     "kind": "mutation",
     "visibility": "public",
@@ -21211,6 +21328,12 @@
             "type": "string"
           },
           "optional": false
+        },
+        "includeHomeHrBadges": {
+          "fieldType": {
+            "type": "boolean"
+          },
+          "optional": true
         }
       }
     },
@@ -21237,6 +21360,31 @@
             "tableName": "warehouses"
           },
           "optional": false
+        },
+        "homeHrBadges": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "employeeId": {
+                "fieldType": {
+                  "type": "id",
+                  "tableName": "hrEmployees"
+                },
+                "optional": false
+              },
+              "unreadNotificationIds": {
+                "fieldType": {
+                  "type": "array",
+                  "value": {
+                    "type": "id",
+                    "tableName": "hrNotifications"
+                  }
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
         }
       }
     }
@@ -27093,6 +27241,399 @@
                     "optional": false
                   }
                 }
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "workspace/quickMenus:current": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "expectedClerkScope": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "clerkOrgId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              },
+              "clerkUserId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": true
+        },
+        "readRetryAttempt": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": true
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "workspace/quickMenus:receiptStatus": {
+    "kind": "query",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedClerkScope": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "clerkOrgId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              },
+              "clerkUserId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": false
+        },
+        "expectedActorUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "pinnedKeys": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
+              },
+              "optional": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": false
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "denial": {
+              "fieldType": {
+                "type": "object",
+                "value": {
+                  "kind": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "code": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "AUTHORIZATION_DENIED"
+                    },
+                    "optional": false
+                  },
+                  "requestId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "message": {
+                    "fieldType": {
+                      "type": "literal",
+                      "value": "This request was denied. Quote the request ID when asking for help."
+                    },
+                    "optional": false
+                  }
+                }
+              },
+              "optional": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  "workspace/quickMenus:save": {
+    "kind": "mutation",
+    "visibility": "public",
+    "args": {
+      "type": "object",
+      "value": {
+        "requestId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedClerkScope": {
+          "fieldType": {
+            "type": "object",
+            "value": {
+              "clerkOrgId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              },
+              "clerkUserId": {
+                "fieldType": {
+                  "type": "string"
+                },
+                "optional": false
+              }
+            }
+          },
+          "optional": false
+        },
+        "expectedActorUserId": {
+          "fieldType": {
+            "type": "string"
+          },
+          "optional": false
+        },
+        "expectedVersion": {
+          "fieldType": {
+            "type": "number"
+          },
+          "optional": false
+        },
+        "pinnedKeys": {
+          "fieldType": {
+            "type": "array",
+            "value": {
+              "type": "string"
+            }
+          },
+          "optional": false
+        }
+      }
+    },
+    "returns": {
+      "type": "union",
+      "value": [
+        {
+          "type": "object",
+          "value": {
+            "ok": {
+              "fieldType": {
+                "type": "literal",
+                "value": true
+              },
+              "optional": false
+            },
+            "requestId": {
+              "fieldType": {
+                "type": "string"
+              },
+              "optional": false
+            },
+            "value": {
+              "fieldType": {
+                "type": "any"
               },
               "optional": false
             }

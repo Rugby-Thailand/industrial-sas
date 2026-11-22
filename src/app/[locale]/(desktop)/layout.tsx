@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { OrganizationRequired } from "@/components/auth/OrganizationRequired";
 import { WorkspaceAccessBoundary } from "@/components/providers/WorkspaceAccessBoundary";
 import { DesktopShell } from "@/components/shell/DesktopShell";
+import { ROUTES } from "@/lib/navigation";
 import { readAppAccess } from "@/lib/auth/appAccess";
 import { plannerReturnPath, RETURN_PATH_HEADER } from "@/lib/auth/returnPath";
 
@@ -19,16 +20,22 @@ export default async function DesktopLayout({
   const { locale } = await params;
   setRequestLocale(locale);
   const access = await readAppAccess();
-  if (access === "SIGN_IN") {
+  if (access !== "APP") {
     const returnTo = plannerReturnPath(
       (await headers()).get(RETURN_PATH_HEADER),
       locale,
     );
+    if (access === "ORGANIZATION_REQUIRED") {
+      return (
+        <OrganizationRequired
+          returnTo={returnTo ?? `/${locale}${ROUTES.dashboard}`}
+        />
+      );
+    }
     redirect(
       `/${locale}/sign-in${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
     );
   }
-  if (access === "ORGANIZATION_REQUIRED") return <OrganizationRequired />;
   return (
     <WorkspaceAccessBoundary>
       <DesktopShell>{children}</DesktopShell>

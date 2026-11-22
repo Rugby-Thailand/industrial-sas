@@ -2,6 +2,12 @@
 
 The production workflow installs the Convex backend before promoting the frontend. Tabs with an older frontend can remain open after either step. Public validator compatibility is checked by `tests/integration/public-function-contract.integration.test.ts`; passing that check does not prove that a runtime behavior change is compatible.
 
+## Home quick menus
+
+Deploy the preference table, the employee unread-event index and the four Home functions on Convex before promoting the frontend. Verify the index is ready, then launch the installed app at `/th/dashboard`, save a different pin order and check it after reload. Mark an employee notification read in another tab and verify the matching tile and inbox count update together.
+
+Rolling back only the frontend restores the old 404 at the installed start URL. Keep the Home APIs, index and user preferences available during recovery. Retain backend compatibility for at least 30 days after promotion. Before retiring an endpoint, verify seven consecutive days without calls from older clients. Preserve saved preferences across frontend rollback and redeployment.
+
 ## Storage actions release: optimistic concurrency
 
 This release adds optional version arguments to existing write validators so old requests remain decodable, but edits without an observed version deliberately fail closed. They must not silently overwrite another user's changes.

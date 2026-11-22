@@ -98,10 +98,12 @@ function Sheet({
   defaultOpen = false,
   onOpenChange,
   backPending = false,
+  backRevocationEpoch,
   completionRef,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Root> & {
   backPending?: boolean;
+  backRevocationEpoch?: number;
   completionRef?: React.Ref<SheetCompletionHandle>;
 }) {
   const [local, setLocal] = React.useState(defaultOpen);
@@ -111,9 +113,18 @@ function Sheet({
       setLocal(next);
       onOpenChange?.(next);
     },
-    { blocked: backPending },
+    {
+      blocked: backPending,
+      ...(backRevocationEpoch === undefined
+        ? {}
+        : { revocationEpoch: backRevocationEpoch }),
+    },
   );
-  useCompletionHandle(completionRef, disclosure.complete);
+  useCompletionHandle(
+    completionRef,
+    disclosure.complete,
+    disclosure.completeOwned,
+  );
   return (
     <DraftForegroundContext.Provider value={disclosure.scope}>
       <SheetPrimitive.Root
@@ -130,6 +141,10 @@ function SheetTrigger({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
+}
+
+function SheetClose(props: React.ComponentProps<typeof SheetPrimitive.Close>) {
+  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
 function SheetPortal({
@@ -245,6 +260,7 @@ function SheetDescription({
 export {
   Sheet,
   SheetTrigger,
+  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,

@@ -22,6 +22,8 @@ export interface TransitionOptions {
   readonly preserveDraftScope?: string;
   readonly entry?: { claim?: () => boolean };
   readonly onCancel?: () => void;
+  /** Re-evaluated before an approved continuation runs; false cancels without running. */
+  readonly isValid?: () => boolean;
 }
 
 export interface NavigationGuardOwner {
@@ -30,6 +32,7 @@ export interface NavigationGuardOwner {
     options?: TransitionOptions,
   ) => void;
   readonly cancelTransition?: (intentOwner: object) => void;
+  readonly cancelForegroundApprovals?: (foregroundScope: string) => void;
   readonly isTraversing: () => boolean;
 }
 
@@ -75,6 +78,10 @@ export function guardedNavigate(
 ): void {
   const current = owner;
   if (current === null) {
+    if (options?.isValid && !options.isValid()) {
+      options.onCancel?.();
+      return;
+    }
     announceNavigationIntent();
     action();
     return;
@@ -184,4 +191,9 @@ export function safeInternalReturnHref(
 /** Revoke only this owner's requested transition; unrelated navigation remains owned. */
 export function cancelGuardedTransition(intentOwner: object): void {
   owner?.cancelTransition?.(intentOwner);
+}
+
+/** Revoke any prompt, active save attempt, or queued buffer-removal approval owned by this foreground scope. */
+export function cancelForegroundApprovals(foregroundScope: string): void {
+  owner?.cancelForegroundApprovals?.(foregroundScope);
 }

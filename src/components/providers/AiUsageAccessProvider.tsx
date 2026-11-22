@@ -1,6 +1,6 @@
 "use client";
 
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery_experimental } from "convex/react";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import { api } from "../../../convex/_generated/api";
@@ -34,13 +34,15 @@ export function AiUsageAccessProvider({
   readonly children: ReactNode;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const outcome = useQuery(
-    aiUsageAccessRef,
-    !isLoading && isAuthenticated ? {} : "skip",
-  );
+  const query = useQuery_experimental({
+    query: aiUsageAccessRef,
+    args: !isLoading && isAuthenticated ? {} : "skip",
+  });
+  const failed = query.status === "error";
+  const outcome = query.status === "success" ? query.data : undefined;
   const value = useMemo<AiUsageAccessValue>(() => {
     if (isLoading) return { ...UNAVAILABLE, status: "LOADING" };
-    if (!isAuthenticated) return UNAVAILABLE;
+    if (!isAuthenticated || failed) return UNAVAILABLE;
     if (outcome === undefined) return { ...UNAVAILABLE, status: "LOADING" };
     if (!outcome.ok) return { ...UNAVAILABLE, status: "NONE" };
     return {
@@ -48,7 +50,7 @@ export function AiUsageAccessProvider({
       permissions: outcome.value.permissions,
       organizationName: outcome.value.organizationName,
     };
-  }, [isAuthenticated, isLoading, outcome]);
+  }, [failed, isAuthenticated, isLoading, outcome]);
   return (
     <AiUsageAccessContext.Provider value={value}>
       {children}

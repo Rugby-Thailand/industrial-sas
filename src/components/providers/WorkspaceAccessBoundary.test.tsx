@@ -82,6 +82,19 @@ describe("WorkspaceAccessBoundary", () => {
     },
   );
 
+  it("keeps Home mounted while the separate warehouse query fails", () => {
+    boundaryMocks.pathname = "/th/dashboard";
+    boundaryMocks.failed = true;
+    renderWithIntl(
+      <WorkspaceAccessBoundary>
+        <span>Open shortcut draft</span>
+      </WorkspaceAccessBoundary>,
+      { workspace: false },
+    );
+    expect(screen.getByText("Open shortcut draft")).toBeVisible();
+    expect(screen.queryByTestId("workspace-query-error")).toBeNull();
+  });
+
   it("reports failures and resets when the warehouse route changes", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     let shouldThrow = true;

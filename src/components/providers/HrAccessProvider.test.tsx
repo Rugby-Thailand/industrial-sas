@@ -7,20 +7,23 @@ import { HrAccessProvider, useHrAccess } from "./HrAccessProvider";
 const mock = vi.hoisted(() => ({ employeeId: "employee-one" }));
 vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
-  useQuery: () => ({
-    ok: true,
-    value: {
-      permissions: ["hr.self.access"],
-      organizationId: "org-one",
-      actorUserId: "actor-one",
-      organizationName: "Test organization",
-      timezone: "Asia/Bangkok",
-      timezoneSupported: true,
-      employee: mock.employeeId
-        ? { id: mock.employeeId, code: "SAME-CODE", displayName: "Same name" }
-        : undefined,
-      sites: [],
-      sitesComplete: true,
+  useQuery_experimental: () => ({
+    status: "success",
+    data: {
+      ok: true,
+      value: {
+        permissions: ["hr.self.access"],
+        organizationId: "org-one",
+        actorUserId: "actor-one",
+        organizationName: "Test organization",
+        timezone: "Asia/Bangkok",
+        timezoneSupported: true,
+        employee: mock.employeeId
+          ? { id: mock.employeeId, code: "SAME-CODE", displayName: "Same name" }
+          : undefined,
+        sites: [],
+        sitesComplete: true,
+      },
     },
   }),
 }));

@@ -165,6 +165,16 @@ const schema = defineSchema({
       updatedAt: v.number(),
     }),
   ).index("by_orgId_userId", byOrg("userId")),
+  /** Per member and organization: the ordered Home quick-menu pins. */
+  homeQuickMenuPreferences: defineTable(
+    tenantFields({
+      userId: v.id("users"),
+      pinnedKeys: v.array(v.string()),
+      version: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  ).index("by_orgId_userId", byOrg("userId")),
   hrHolidays: defineTable(
     tenantFields({
       warehouseId: v.id("warehouses"),

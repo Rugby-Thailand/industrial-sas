@@ -1,3 +1,8 @@
+import {
+  parse,
+  TYPE,
+  type MessageFormatElement,
+} from "@formatjs/icu-messageformat-parser";
 import { describe, expect, it } from "vitest";
 
 import { ALL_CATALOGUES, messagesFor } from "./messages";
@@ -23,12 +28,23 @@ function flatten(value: Json, prefix = ""): ReadonlyMap<string, string> {
   return entries;
 }
 
-const PLACEHOLDER = /\{(\w+)[^}]*\}/g;
-
-const placeholdersOf = (message: string): readonly string[] =>
-  [...message.matchAll(PLACEHOLDER)]
-    .map((match) => match[1] ?? "")
-    .sort((left, right) => left.localeCompare(right));
+/** Plural branches can repeat arguments and contain ordinary words in braces. */
+function placeholdersOf(message: string): readonly string[] {
+  const argumentsUsed = new Set<string>();
+  function visit(elements: readonly MessageFormatElement[]) {
+    for (const element of elements) {
+      if (element.type === TYPE.literal || element.type === TYPE.pound)
+        continue;
+      argumentsUsed.add(element.value);
+      if ("options" in element)
+        for (const option of Object.values(element.options))
+          visit(option.value);
+      if (element.type === TYPE.tag) visit(element.children);
+    }
+  }
+  visit(parse(message));
+  return [...argumentsUsed].sort();
+}
 
 const FLATTENED = new Map(
   LOCALES.map((locale) => [
@@ -49,6 +65,17 @@ describe("message catalogues", () => {
       );
     }
   });
+  it("delivers the Home editor and its setup fallback in both languages", () => {
+    for (const locale of LOCALES) {
+      const scoped = pickMessages(
+        ALL_CATALOGUES[locale],
+        ROUTE_NAMESPACES["(desktop)/dashboard"],
+      );
+      expect(scoped.Home).toEqual(ALL_CATALOGUES[locale].Home);
+      expect(scoped.Setup).toEqual(ALL_CATALOGUES[locale].Setup);
+    }
+  });
+
   it("declares a catalogue for every routed locale", () => {
     for (const locale of LOCALES) {
       expect(FLATTENED.get(locale)?.size ?? 0).toBeGreaterThan(0);
