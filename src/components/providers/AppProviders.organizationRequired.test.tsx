@@ -10,6 +10,7 @@ import type { DataModel } from "../../../convex/schema";
 import { display } from "../../../convex/hr/access";
 import { readCurrent } from "../../../convex/workspace/current";
 import { access } from "../../../convex/aiUsage/reports";
+import { viewer } from "../../../convex/customers/catalogue";
 import { createConvexTenantWorld } from "../../../tests/fixtures/convex-tenant-world";
 import { messagesFor } from "@/i18n/messages";
 import { EnvironmentAwareWorkspaceProvider } from "./AppProviders";
@@ -57,6 +58,7 @@ it("keeps the organization chooser visible to an authenticated user with no acti
     ["workspace/current:readCurrent", readCurrent],
     ["hr/access:display", display],
     ["aiUsage/reports:access", access],
+    ["customers/catalogue:viewer", viewer],
   ] as const) {
     const runtime = query as unknown as {
       _handler: (ctx: GenericQueryCtx<DataModel>, args: {}) => Promise<unknown>;
@@ -114,7 +116,7 @@ it("keeps the organization chooser visible to an authenticated user with no acti
               fallback={() => <div data-testid="root-crash" />}
             >
               <EnvironmentAwareWorkspaceProvider>
-                {await OrganizationRequired()}
+                {await OrganizationRequired({ returnTo: "/th/dashboard" })}
               </EnvironmentAwareWorkspaceProvider>
             </QueryErrorBoundary>
           </ConvexProvider>

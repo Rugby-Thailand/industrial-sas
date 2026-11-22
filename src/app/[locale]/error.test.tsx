@@ -52,7 +52,7 @@ describe("locale error boundary", () => {
     // Access is unknown outside the shell, so the start page is named
     // neutrally; the start route redirects each member by permission.
     const start = screen.getByRole("link", { name: "ไปหน้าเริ่มต้น" });
-    expect(start).toHaveAttribute("href", "/master-data/storage-layouts");
+    expect(start).toHaveAttribute("href", "/dashboard");
     // Retrying is the primary action; the start page is the way out.
     const again = screen.getByRole("button", { name: "ลองใหม่" });
     expect(again).toHaveAttribute("data-variant", "default");
@@ -73,7 +73,7 @@ describe("locale error boundary", () => {
   });
 
   it("offers retry alone when the start page itself failed", () => {
-    navigation.pathname = "/master-data/storage-layouts";
+    navigation.pathname = "/dashboard";
     vi.mocked(useObservability).mockReturnValue(recordingPort());
     renderWithIntl(<LocaleError error={new Error("boom")} retry={vi.fn()} />, {
       locale: "en",

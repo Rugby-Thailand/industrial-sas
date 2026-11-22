@@ -13,6 +13,10 @@ export const PUBLIC_API_ACTOR = {
   subject: "user_fixture_a",
   org_id: "org_fixture_a",
 };
+export const PUBLIC_API_CLERK_SCOPE = {
+  clerkOrgId: PUBLIC_API_ACTOR.org_id,
+  clerkUserId: PUBLIC_API_ACTOR.subject,
+};
 export const PUBLIC_API_FOREIGN_ACTOR = {
   subject: "user_fixture_a",
   org_id: "org_fixture_b",
@@ -275,6 +279,7 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
   example("hr/leave:self", "query", () => ({})),
   example("hr/announcements:self", "query", () => ({})),
   example("hr/notifications:list", "query", () => ({})),
+  example("hr/notifications:unreadSummary", "query", () => ({})),
   example("hr/payslips:list", "query", () => ({})),
   example("hr/org:getCompanyProfile", "query", () => ({})),
   example("hr/roster:shifts", "query", (world) => ({
@@ -385,6 +390,21 @@ export const PUBLIC_API_EXAMPLES: readonly PublicApiExample[] = [
     scan: "PUBLIC-UNKNOWN-LOCATION",
   })),
   example("workspace/current:readCurrent", "query", () => ({})),
+  example("workspace/quickMenus:current", "query", () => ({})),
+  example("workspace/quickMenus:save", "mutation", (w) => ({
+    requestId: "public-home-quick-menu-save",
+    expectedClerkScope: PUBLIC_API_CLERK_SCOPE,
+    expectedActorUserId: w.userA,
+    expectedVersion: 0,
+    pinnedKeys: ["admin.aiUsage", "planner.finishedGoods"],
+  })),
+  example("workspace/quickMenus:receiptStatus", "query", (w) => ({
+    requestId: "public-home-quick-menu-save",
+    expectedClerkScope: PUBLIC_API_CLERK_SCOPE,
+    expectedActorUserId: w.userA,
+    expectedVersion: 0,
+    pinnedKeys: ["admin.aiUsage", "planner.finishedGoods"],
+  })),
 ];
 
 export async function invokePublicExample(

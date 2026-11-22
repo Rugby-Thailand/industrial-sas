@@ -1,3 +1,5 @@
+import { CustomerNavigationAccessProvider } from "@/components/providers/CustomerNavigationAccessProvider";
+import { useOpenAllMenus } from "./useOpenAllMenus";
 import {
   act,
   fireEvent,
@@ -37,6 +39,7 @@ const state = vi.hoisted(() => ({
   warehouseId: "wh-1",
   // An HR-only member: the warehouse workspace is refused.
   workspaceDenied: false,
+  customerCanManage: false,
   actorKey: "org-a:user-a",
   hrPermissions: [
     "hr.self.access",
@@ -55,6 +58,14 @@ const state = vi.hoisted(() => ({
 // Search queries nothing until text is typed; static page results need none.
 vi.mock("convex/react", () => ({
   useQuery: () => undefined,
+  useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }),
+  useQuery_experimental: ({ args }: { args: unknown }) =>
+    args === "skip"
+      ? { status: "pending" }
+      : {
+          status: "success",
+          data: { ok: true, value: { canManage: state.customerCanManage } },
+        },
   useAction: () => state.action,
   useConvex: () => ({
     query: state.oneShot,
@@ -140,6 +151,8 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
           selectedWarehouseId: undefined,
           selectable: false,
           denied: true,
+          permissionsReady: false,
+          navigationPermissions: [],
         }
       : {}),
   }),
@@ -186,6 +199,11 @@ function Destination() {
   );
 }
 
+function HomeMenusButton() {
+  const openMenus = useOpenAllMenus();
+  return <button onClick={openMenus}>All menus</button>;
+}
+
 const originalMatchMedia = window.matchMedia;
 beforeEach(() => {
   state.mobile = false;
@@ -199,6 +217,7 @@ beforeEach(() => {
   state.organizationId = "org-a";
   state.warehouseId = "wh-1";
   state.workspaceDenied = false;
+  state.customerCanManage = false;
   state.actorKey = "org-a:user-a";
   state.selectWarehouse.mockReset();
   state.push.mockReset();
@@ -258,6 +277,33 @@ it("skips to the shell's main region without adding an unmanaged fragment histor
 });
 
 describe("sidebar hierarchy", () => {
+  it.each([false, true])(
+    "opens All menus from Home and focuses a module destination (mobile=%s)",
+    async (mobile) => {
+      state.mobile = mobile;
+      state.pathname = "/dashboard";
+      renderWithIntl(
+        <DesktopShell>
+          <HomeMenusButton />
+        </DesktopShell>,
+        { locale: "en" },
+      );
+      fireEvent.click(screen.getByRole("button", { name: "All menus" }));
+      const nav = await screen.findByRole("navigation", {
+        name: "Primary navigation",
+      });
+      expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      await waitFor(() =>
+        expect(
+          within(nav).getByRole("link", { name: "Finished goods" }),
+        ).toHaveFocus(),
+      );
+    },
+  );
+
   it.each([
     [false, "/finished-goods"],
     [false, "/finished-goods/scan"],
@@ -440,13 +486,12 @@ describe("sidebar hierarchy", () => {
     ).toBeNull();
   });
 
-  it("keeps review-only destinations reachable under their parent without self access", () => {
+  it("hides the HR menu without the grant required by HR access display", () => {
     state.hrPermissions = ["hr.team.review"];
     renderShell();
-    fireEvent.click(screen.getByRole("button", { name: "Leave" }));
-    expect(screen.getByRole("link", { name: "Review leave" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
     expect(
-      screen.queryByRole("link", { name: "My leave", hidden: true }),
+      screen.queryByRole("link", { name: "Review leave", hidden: true }),
     ).toBeNull();
   });
 
@@ -545,6 +590,46 @@ describe("sidebar hierarchy", () => {
     expect(
       screen.getByRole("complementary", { name: "Primary navigation" }),
     ).toContainElement(screen.getByTestId("sidebar-search"));
+  });
+
+  it("shows customer-only Home navigation and searches customer actions without warehouse grants", async () => {
+    state.workspaceDenied = true;
+    state.hrPermissions = [];
+    state.customerCanManage = true;
+    state.pathname = "/dashboard";
+    renderWithIntl(
+      <CustomerNavigationAccessProvider>
+        {shell()}
+      </CustomerNavigationAccessProvider>,
+      { locale: "en" },
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Primary navigation" });
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      within(nav).getByRole("link", { name: "Customers" }),
+    ).toHaveAttribute("href", "/master-data/customers");
+    expect(
+      within(nav).queryByRole("link", { name: "Finished goods" }),
+    ).toBeNull();
+    expect(
+      within(nav).queryByRole("link", { name: "Storage layouts" }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Search pages/ }));
+    const dialog = await screen.findByTestId("global-search");
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Search" }), {
+      target: { value: "new customer" },
+    });
+    fireEvent.click(
+      await screen.findByRole("option", { name: /New customer/ }),
+    );
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith("/master-data/customers/new"),
+    );
   });
 
   it("finds hidden subpages through search without expanding the sidebar, then reveals the selected route", async () => {

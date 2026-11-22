@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
-import { ROUTES } from "@/lib/navigation";
+import { START_HREF } from "@/components/shell/pageRecovery";
 
 /**
  * An unknown address, rendered outside the signed-in shell: the product
  * wordmark keeps the app recognisable, and the one way out is the start
  * route. Who is signed in, and what they may open, is not known here, so the
- * action names the start page neutrally; the start route itself redirects
- * each member to a page they can open. The header's language button (it
+ * action names the start page neutrally; Home shows each member their permitted
+ * destinations. The header's language button (it
  * needs no shell) opens the same address in the other language, for a
  * reader who followed a link in a language they do not read.
  */
@@ -41,7 +41,7 @@ export default async function LocaleNotFound() {
           summary={t("body")}
         />
         <Button asChild className="w-fit">
-          <Link href={ROUTES.storageLayouts} data-testid="not-found-action">
+          <Link href={START_HREF} data-testid="not-found-action">
             {t("action")}
           </Link>
         </Button>

@@ -85,6 +85,17 @@ describe("message catalogues", () => {
       );
     }
   });
+  it("delivers the Home editor and its setup fallback in both languages", () => {
+    for (const locale of LOCALES) {
+      const scoped = pickMessages(
+        ALL_CATALOGUES[locale],
+        ROUTE_NAMESPACES["(desktop)/dashboard"],
+      );
+      expect(scoped.Home).toEqual(ALL_CATALOGUES[locale].Home);
+      expect(scoped.Setup).toEqual(ALL_CATALOGUES[locale].Setup);
+    }
+  });
+
   it("declares a catalogue for every routed locale", () => {
     for (const locale of LOCALES) {
       expect(FLATTENED.get(locale)?.size ?? 0).toBeGreaterThan(0);

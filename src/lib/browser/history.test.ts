@@ -6,10 +6,24 @@ import {
   trackAppHistory,
 } from "./appHistory";
 import {
+  removeBrowserQueryKeys,
   subscribeBrowserQuery,
   updateBrowserQuery,
   updateHistoryMetadata,
 } from "./history";
+it("restores unrelated query fields byte-for-byte when retiring a foreground", () => {
+  history.replaceState(
+    null,
+    "",
+    "/en/dashboard?q=a%20b&tag=%2f&flag&%6Fverlay=1&tag=two#mine",
+  );
+  updateBrowserQuery(() => {}, {
+    rawSearch: removeBrowserQueryKeys(location.search, ["overlay"]),
+  });
+  expect(location.search + location.hash).toBe(
+    "?q=a%20b&tag=%2f&flag&tag=two#mine",
+  );
+});
 it("query writes retain unrelated URL and history state while allowing router synchronization", () => {
   history.replaceState(
     { __NA: true, _N: true, guard: "kept", cataloguePagination: { page: 3 } },

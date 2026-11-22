@@ -6,7 +6,7 @@ import { PublicInfoNav } from "@/components/system/PublicInfoNav";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "@/i18n/navigation";
-import { isClerkConfigured } from "@/lib/clerkConfiguration";
+import { clerkIdentityConfigured } from "@/lib/auth/appAccess";
 import { ROUTES } from "@/lib/navigation";
 import { plannerReturnPath } from "@/lib/auth/returnPath";
 
@@ -21,19 +21,14 @@ export default async function SignInScreen({
   const returnTo = plannerReturnPath((await searchParams).returnTo, locale);
   setRequestLocale(locale);
   const t = await getTranslations("SignIn");
-  const identityConfigured = isClerkConfigured(
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    process.env.CLERK_SECRET_KEY,
-  );
-
-  if (identityConfigured) {
+  if (clerkIdentityConfigured()) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-4 px-4 py-8">
         <PageHeader title={t("title")} showBack={false} />
         <SignIn
           routing="path"
           path={`/${locale}/sign-in`}
-          fallbackRedirectUrl={`/${locale}${ROUTES.storageLayouts}`}
+          fallbackRedirectUrl={`/${locale}${ROUTES.dashboard}`}
           {...(returnTo ? { forceRedirectUrl: returnTo } : {})}
           appearance={{
             elements: {
@@ -78,10 +73,10 @@ export default async function SignInScreen({
       />
       <SetupChecklist />
       <Link
-        href={ROUTES.storageLayouts}
+        href="/about"
         className="flex min-h-touch w-fit items-center rounded-md border border-border-strong px-4 font-medium text-text"
       >
-        {t("backHome")}
+        {t("viewAbout")}
       </Link>
       <PublicInfoNav />
     </main>

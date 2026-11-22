@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 
+import AxeBuilder from "@axe-core/playwright";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import type { Page } from "@playwright/test";
 import { ConvexHttpClient } from "convex/browser";
@@ -28,17 +29,28 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-const th = JSON.parse(readFileSync("messages/th.json", "utf8")).StorageLayouts;
+const messages = JSON.parse(readFileSync("messages/th.json", "utf8"));
+const th = messages.StorageLayouts;
 const WAREHOUSE_KEY = "industrial-sas.warehouse";
 let completedFlow: FlowResult | undefined;
 
-async function signIn(page: Page) {
+async function signIn(page: Page, returnTo?: string) {
   const state = readReadyFixtureState();
   let phase = "STAGING_SIGN_IN_TESTING_TOKEN_FAILED";
   try {
     await setupClerkTestingToken({ page });
     phase = "STAGING_SIGN_IN_NAVIGATION_FAILED";
-    await page.goto("/th/sign-in");
+    if (returnTo) {
+      await page.goto(returnTo);
+      await expect
+        .poll(() => {
+          const url = new URL(page.url());
+          return [url.pathname, url.searchParams.get("returnTo")];
+        })
+        .toEqual(["/th/sign-in", returnTo]);
+    } else {
+      await page.goto("/th/sign-in");
+    }
     phase = "STAGING_SIGN_IN_LOAD_FAILED";
     await clerk.loaded({ page });
     phase = "STAGING_SIGN_IN_TICKET_FAILED";
@@ -47,6 +59,14 @@ async function signIn(page: Page) {
     expect(await page.evaluate(() => window.Clerk.user?.id)).toBe(
       state.clerkUserId,
     );
+    if (returnTo) {
+      phase = "STAGING_SIGN_IN_CLEAR_ORGANIZATION_FAILED";
+      await page.evaluate(async () => {
+        await window.Clerk.setActive({ organization: null });
+      });
+      await page.goto(returnTo);
+      return state;
+    }
     phase = "STAGING_SIGN_IN_ORGANIZATION_FAILED";
     await page.evaluate(async (organization) => {
       await window.Clerk.setActive({ organization });
@@ -223,6 +243,86 @@ test("pages all batch revisions on desktop and mobile and preserves Close, Back 
     },
     new URL(page.url()).origin,
   );
+});
+
+test("Home preserves the localized return URL and updates unread badges after a second-tab read", async ({
+  page,
+  context,
+}) => {
+  const target = "/th/dashboard?source=home%20staging&tag=1&tag=2";
+  await page.emulateMedia({ colorScheme: "light" });
+  const fixture = await signIn(page, target);
+  let phase = "STAGING_HOME_ORGANIZATION_PICKER_FAILED";
+  try {
+    await expect(page.getByTestId("organization-required")).toBeVisible();
+    await page
+      .getByText(organizationName(fixture.runId, "primary"), { exact: true })
+      .click();
+    await expect
+      .poll(() => {
+        const { pathname, search } = new URL(page.url());
+        return pathname + search;
+      })
+      .toBe(target);
+
+    phase = "STAGING_HOME_BADGE_INITIAL_FAILED";
+    const menus = page.getByRole("region", {
+      name: messages.Home.quickMenus,
+      exact: true,
+    });
+    const notificationTile = (count: number) =>
+      menus.getByRole("link", {
+        name:
+          messages.Navigation.hrNotifications +
+          ", " +
+          messages.Home.unread.replace("{count}", String(count)),
+        exact: true,
+      });
+    const execute = await convexAs(page);
+    const unread = (await execute("query", "hr/notifications:unreadSummary", {
+      expectedClerkScope: {
+        clerkOrgId: fixture.clerkOrganizationId,
+        clerkUserId: fixture.clerkUserId,
+      },
+      readRetryAttempt: 0,
+    })) as { ok: boolean; value?: { total: number } };
+    expect(unread.ok).toBe(true);
+    const initial = unread.value?.total ?? 0;
+    expect(initial).toBeGreaterThan(1);
+    await expect(notificationTile(initial)).toBeVisible();
+
+    phase = "STAGING_HOME_MARK_ONE_FAILED";
+    const secondTab = await context.newPage();
+    try {
+      await setupClerkTestingToken({ page: secondTab });
+      await secondTab.goto("/th/hr/notifications");
+      await secondTab
+        .getByRole("button", {
+          name: messages.Hr.notifications.markRead,
+          exact: true,
+        })
+        .first()
+        .click();
+      phase = "STAGING_HOME_BADGE_LIVE_UPDATE_FAILED";
+      await expect(notificationTile(initial - 1)).toBeVisible();
+    } finally {
+      await secondTab.close();
+    }
+
+    phase = "STAGING_HOME_LIGHT_ACCESSIBILITY_FAILED";
+    const checkAccessibility = async () => {
+      const report = await new AxeBuilder({ page }).analyze();
+      expect(report.violations.map(({ id }) => id)).toEqual([]);
+    };
+    await expect(page.locator("html")).toHaveClass(/\blight\b/);
+    await checkAccessibility();
+    phase = "STAGING_HOME_DARK_ACCESSIBILITY_FAILED";
+    await page.getByTestId("theme-toggle").click();
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+    await checkAccessibility();
+  } catch {
+    throw new Error(phase);
+  }
 });
 
 test("is denied in the forbidden warehouse and the other tenant", async ({

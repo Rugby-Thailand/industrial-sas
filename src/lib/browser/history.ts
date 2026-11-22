@@ -54,6 +54,23 @@ export function getServerBrowserQuery(): BrowserQuerySnapshot {
   return serverSnapshot;
 }
 
+/** Remove owned fields without re-encoding their neighbours or collapsing duplicate keys. */
+export function removeBrowserQueryKeys(
+  search: string,
+  keys: readonly string[],
+): string {
+  const removed = new Set(keys);
+  const fields = search
+    .replace(/^\?/, "")
+    .split("&")
+    .filter((field) => {
+      const name = new URLSearchParams(field).keys().next().value;
+      return name === undefined || !removed.has(name);
+    });
+  const result = fields.join("&");
+  return result ? `?${result}` : "";
+}
+
 /** Change only owned query parameters, preserving the hash and other features' state. */
 export function updateBrowserQuery(
   change: (query: URLSearchParams) => void,
@@ -62,16 +79,24 @@ export function updateBrowserQuery(
     metadata?: Record<string, unknown>;
     event?: string;
     hash?: string;
+    /** Exact serialized search captured for a workflow traversal. */
+    rawSearch?: string;
   } = {},
 ) {
   const url = new URL(window.location.href);
   const previousHash = url.hash;
-  const previousQuery = url.searchParams.toString();
-  change(url.searchParams);
+  const previousSearch = url.search;
+  if (options.rawSearch !== undefined) url.search = options.rawSearch;
+  else {
+    const previousQuery = url.searchParams.toString();
+    change(url.searchParams);
+    // An equivalent URLSearchParams write still canonicalizes spaces and bare keys.
+    if (url.searchParams.toString() === previousQuery)
+      url.search = previousSearch;
+  }
   if (options.hash !== undefined) url.hash = options.hash;
   const state = { ...window.history.state, ...options.metadata };
-  const changed =
-    url.searchParams.toString() !== previousQuery || url.hash !== previousHash;
+  const changed = url.search !== previousSearch || url.hash !== previousHash;
   const push = options.mode === "push" && changed;
   const index = appHistoryIndex();
   if (push && index !== undefined) state[APP_HISTORY_KEY] = index + 1;

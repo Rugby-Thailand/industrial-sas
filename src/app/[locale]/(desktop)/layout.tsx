@@ -10,6 +10,7 @@ import {
   SIDEBAR_COOKIE_NAME,
   sidebarOpenFromCookie,
 } from "@/components/ui/sidebarState";
+import { ROUTES } from "@/lib/navigation";
 import { readAppAccess } from "@/lib/auth/appAccess";
 import { plannerReturnPath, RETURN_PATH_HEADER } from "@/lib/auth/returnPath";
 
@@ -23,16 +24,22 @@ export default async function DesktopLayout({
   const { locale } = await params;
   setRequestLocale(locale);
   const access = await readAppAccess();
-  if (access === "SIGN_IN") {
+  if (access !== "APP") {
     const returnTo = plannerReturnPath(
       (await headers()).get(RETURN_PATH_HEADER),
       locale,
     );
+    if (access === "ORGANIZATION_REQUIRED") {
+      return (
+        <OrganizationRequired
+          returnTo={returnTo ?? `/${locale}${ROUTES.dashboard}`}
+        />
+      );
+    }
     redirect(
       `/${locale}/sign-in${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
     );
   }
-  if (access === "ORGANIZATION_REQUIRED") return <OrganizationRequired />;
   // The member's last sidebar choice, so the first render already matches it.
   const sidebarOpen = sidebarOpenFromCookie(
     (await cookies()).get(SIDEBAR_COOKIE_NAME)?.value,

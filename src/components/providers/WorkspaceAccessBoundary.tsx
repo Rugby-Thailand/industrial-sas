@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 
+import { isHomePath } from "./isHomePath";
 import { useWorkspace } from "./WorkspaceProvider";
 import { useObservability } from "./ObservabilityProvider";
 import { observabilityEvent } from "@/lib/observability/event";
@@ -44,10 +45,13 @@ export function WorkspaceAccessBoundary({
   const observability = useObservability();
   const resetKey = `${workspace.selectedWarehouseId ?? "none"}:${pathname}`;
 
-  // A failed warehouse workspace read replaces warehouse pages. An
-  // organization-record page (customers) authorizes its own queries, so it
-  // stays mounted, and with it any unsaved draft.
-  if (workspace.failed && !isOrganizationRecordPath(pathname))
+  // Home and organization records authorize their own reads. Keep their
+  // content and drafts mounted during a warehouse read failure.
+  if (
+    workspace.failed &&
+    !isHomePath(pathname) &&
+    !isOrganizationRecordPath(pathname)
+  )
     return <QueryFailure />;
 
   return (

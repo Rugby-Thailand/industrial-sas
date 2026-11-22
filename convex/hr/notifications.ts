@@ -12,6 +12,13 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import {
+  HR_NOTIFICATION_EVENTS,
+  UNREAD_BADGE_CAP,
+  ZERO_UNREAD_COUNTS,
+  type HrNotificationEvent,
+  type HrUnreadSummary,
+} from "../model/home/quickMenu";
 import { fail, hrCommand, linkedEmployee } from "./shared";
 
 type Notification = Doc<"hrNotifications">;
@@ -99,6 +106,71 @@ export const list = queryWithOrg({
     };
   },
 });
+/**
+ * Unread counts per event for Home badges: four bounded reads of
+ * `UNREAD_BADGE_CAP` rows each. A count equal to the cap means "at least".
+ * Reading never marks anything read.
+ */
+export const unreadSummary = queryWithOrg({
+  args: {
+    expectedClerkScope: v.optional(
+      v.object({ clerkOrgId: v.string(), clerkUserId: v.string() }),
+    ),
+    readRetryAttempt: v.optional(v.number()),
+  },
+  returns: v.any(),
+  permissionCode: HR_PERMISSION.selfAccess,
+  preconditions: {
+    expectedClerkScope: (args) => args.expectedClerkScope,
+    readRetryAttempt: (args) => args.readRetryAttempt,
+  },
+  target: { table: "hrNotifications" },
+  handler: async (ctx): Promise<HrUnreadSummary> => {
+    const clerkScope = {
+      clerkOrgId: ctx.tenant.organization.clerkOrganizationId,
+      clerkUserId: ctx.tenant.actor.clerkUserId,
+    };
+    const employee = await linkedEmployee(ctx);
+    if (!employee)
+      return {
+        clerkScope,
+        linked: false,
+        counts: ZERO_UNREAD_COUNTS,
+        total: 0,
+      };
+    const entries = await Promise.all(
+      HR_NOTIFICATION_EVENTS.map(
+        async (event): Promise<[HrNotificationEvent, number]> => [
+          event,
+          (
+            await ctx.tenantDb
+              .byIndex<Notification>(
+                "hrNotifications",
+                "by_orgId_employeeId_unread_event_createdAt",
+                [
+                  { field: "employeeId", value: employee._id },
+                  { field: "unread", value: true },
+                  { field: "event", value: event },
+                ],
+              )
+              .take(UNREAD_BADGE_CAP)
+          ).length,
+        ],
+      ),
+    );
+    const counts = Object.fromEntries(entries) as Record<
+      HrNotificationEvent,
+      number
+    >;
+    return {
+      clerkScope,
+      linked: true,
+      counts,
+      total: entries.reduce((sum, [, count]) => sum + count, 0),
+    };
+  },
+});
+
 export const markOne = mutationWithOrg({
   args: { requestId: v.string(), notificationId: v.string() },
   returns: v.any(),

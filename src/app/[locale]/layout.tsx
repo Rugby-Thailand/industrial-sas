@@ -12,6 +12,8 @@ import type { ReactNode } from "react";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { WebVitals } from "@/components/system/WebVitals";
 import { pickMessages, SHELL_NAMESPACES } from "@/i18n/clientMessages";
+import { currentAppEnvironment } from "@/lib/environment";
+import { clerkIdentityConfigured } from "@/lib/auth/appAccess";
 import { routing } from "@/i18n/routing";
 
 import "../globals.css";
@@ -91,7 +93,12 @@ export default async function LocaleLayout({
         <NextIntlClientProvider
           messages={pickMessages(messages, SHELL_NAMESPACES)}
         >
-          <AppProviders>
+          <AppProviders
+            environment={{
+              ...currentAppEnvironment(),
+              identityConfigured: clerkIdentityConfigured(),
+            }}
+          >
             <WebVitals />
             {children}
           </AppProviders>

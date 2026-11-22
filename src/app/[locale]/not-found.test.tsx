@@ -63,7 +63,7 @@ describe("locale not-found page", () => {
       expect(screen.queryByText(/ที่อยู่|address/)).toBeNull();
       expect(screen.getByRole("link", { name: action })).toHaveAttribute(
         "href",
-        "/master-data/storage-layouts",
+        "/dashboard",
       );
     },
   );

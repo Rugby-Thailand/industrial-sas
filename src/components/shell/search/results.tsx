@@ -20,6 +20,7 @@ import {
   HR_CODES,
   STATIC_DESTINATIONS,
   activeNavigationHref,
+  canOpenTarget,
   destinationTrail,
   hasNavigationPermission,
   type DestinationTarget,
@@ -79,10 +80,9 @@ export interface SearchResult {
 
 /** Whether search finds employees too, or only pages (the placeholder scope). */
 export function searchesPeople(granted: readonly string[]): boolean {
-  return hasNavigationPermission(
-    [HR_CODES.review, HR_CODES.admin],
-    granted,
-    "ANY",
+  return (
+    granted.includes(HR_CODES.self) &&
+    hasNavigationPermission([HR_CODES.review, HR_CODES.admin], granted, "ANY")
   );
 }
 
@@ -245,11 +245,7 @@ export function usePlaceResults(
   const labels = useResultLabels();
   return useMemo(() => {
     const permitted = (destination: StaticDestination) =>
-      hasNavigationPermission(
-        destination.permissionCodes,
-        granted,
-        destination.permissionMode ?? "ALL",
-      );
+      canOpenTarget({ key: destination.key }, granted);
     const menu = STATIC_DESTINATIONS.filter(
       (destination) => destination.menu === true && permitted(destination),
     );
@@ -605,6 +601,7 @@ export function useRecordResults(
   );
   const canSearch =
     enabled &&
+    granted.includes(HR_CODES.self) &&
     (query.text !== null || query.codes.length > 0 || query.range !== null) &&
     hasNavigationPermission(
       [HR_CODES.review, HR_CODES.admin, HR_CODES.close],

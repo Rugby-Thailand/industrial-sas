@@ -98,6 +98,26 @@ describe("WorkspaceAccessBoundary", () => {
     },
   );
 
+  it("keeps Home mounted while the separate warehouse query fails", () => {
+    boundaryMocks.pathname = "/th/dashboard";
+    const home = () => (
+      <WorkspaceAccessBoundary>
+        <span>Open shortcut draft</span>
+      </WorkspaceAccessBoundary>
+    );
+    const view = renderWithIntl(home(), {
+      workspace: false,
+      preserveProviders: true,
+    });
+    const shortcutDraft = screen.getByText("Open shortcut draft");
+
+    boundaryMocks.failed = true;
+    view.rerender(home());
+
+    expect(screen.getByText("Open shortcut draft")).toBe(shortcutDraft);
+    expect(screen.queryByTestId("workspace-query-error")).toBeNull();
+  });
+
   it("still replaces a warehouse page when the warehouse read fails", () => {
     boundaryMocks.failed = true;
     boundaryMocks.pathname = "/en/master-data/storage-layouts";

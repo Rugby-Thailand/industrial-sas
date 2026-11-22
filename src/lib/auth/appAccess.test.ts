@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resolveAppAccess } from "./appAccess";
+import { clerkIdentityConfigured, resolveAppAccess } from "./appAccess";
 
 describe("private application access", () => {
   it("sends an anonymous browser to sign in", () => {
@@ -41,5 +41,21 @@ describe("private application access", () => {
         orgId: undefined,
       }),
     ).toBe("SIGN_IN");
+  });
+});
+
+describe("server identity setup", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("requires both keys before rendering the Clerk sign-in flow", () => {
+    vi.stubEnv(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+      `pk_test_${Buffer.from("unit.clerk.accounts.dev$").toString("base64")}`,
+    );
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+    expect(clerkIdentityConfigured()).toBe(false);
+    vi.stubEnv("CLERK_SECRET_KEY", "test-fixture");
+    expect(clerkIdentityConfigured()).toBe(true);
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    expect(clerkIdentityConfigured()).toBe(false);
   });
 });

@@ -46,6 +46,7 @@ export {
 
 interface Summary {
   readonly pending: boolean;
+  readonly pendingStatusMessage?: string;
   /** Exactly one dirty entry, and it can save. */
   readonly saveable: boolean;
   readonly saveBlockedReason?: string;
@@ -60,14 +61,19 @@ function summarize(
 ): Summary {
   const values = [...entries.values()];
   const dirty = [...entries].filter(([, entry]) => entry.dirty);
+  const pendingEntries = values.filter((entry) => entry.pending);
   const soleId = dirty.length === 1 ? dirty[0]?.[0] : undefined;
   const sole = soleId === undefined ? undefined : entries.get(soleId);
   const description =
     soleId === undefined ? undefined : descriptions.get(soleId);
+  const solePending =
+    pendingEntries.length === 1 ? pendingEntries[0] : undefined;
+  const pendingStatusMessage = solePending?.pendingStatusMessage?.trim();
   return {
-    pending: values.some((entry) => entry.pending),
+    pending: pendingEntries.length > 0,
+    ...(pendingStatusMessage ? { pendingStatusMessage } : {}),
     saveable: sole?.save !== undefined,
-    ...(sole?.save !== undefined && sole.saveBlockedReason
+    ...(sole?.saveBlockedReason
       ? { saveBlockedReason: sole.saveBlockedReason }
       : {}),
     ...(sole?.save === undefined && description?.trim()
@@ -78,6 +84,7 @@ function summarize(
 
 const sameSummary = (a: Summary, b: Summary) =>
   a.pending === b.pending &&
+  a.pendingStatusMessage === b.pendingStatusMessage &&
   a.saveable === b.saveable &&
   a.saveBlockedReason === b.saveBlockedReason &&
   a.discardDescription === b.discardDescription;
@@ -125,6 +132,7 @@ export function NavigationGuardProvider({
         setFailed(false);
         setPrompt(open);
       },
+      onSaving: (next) => setSaving(next),
     }),
   );
 
@@ -148,10 +156,8 @@ export function NavigationGuardProvider({
   const keepDisabled = saving;
 
   async function saveAndContinue() {
-    if (saving) return;
     const attempt = machine.beginSave();
     if (!attempt) return;
-    setSaving(true);
     setFailed(false);
     let saved = false;
     try {
@@ -159,7 +165,6 @@ export function NavigationGuardProvider({
     } catch {
       saved = false;
     }
-    setSaving(false);
     // The owner decides from its current registrations and intent.
     if (machine.finishSave(attempt, saved)) setFailed(true);
   }
@@ -194,7 +199,7 @@ export function NavigationGuardProvider({
               className="text-sm text-warning"
               data-testid="navigation-guard-pending"
             >
-              {labels.pending}
+              {summary.pendingStatusMessage ?? labels.pending}
             </p>
           ) : null}
           {summary.saveBlockedReason ? (
@@ -281,6 +286,7 @@ function anchorScope(marker: unknown): string | undefined {
 interface MachineDeps {
   readonly onSummary: (summary: Summary) => void;
   readonly onPrompt: (open: boolean) => void;
+  readonly onSaving: (saving: boolean) => void;
 }
 
 /** The action the open prompt would continue. Identity marks one request. */
@@ -289,10 +295,15 @@ interface Intent {
   readonly options?: TransitionOptions | undefined;
 }
 
+function createIntent(action: Transition, options?: TransitionOptions): Intent {
+  return options === undefined ? { action } : { action, options };
+}
+
 /** One Save and continue: its prompt intent and the registration it saves. */
 interface SaveAttempt {
   readonly intent: Intent;
   readonly id: string;
+  readonly foregroundScope?: string | undefined;
   readonly save: () => Promise<boolean>;
   /** The registration reported clean after the attempt began. */
   cleared: boolean;
@@ -307,6 +318,8 @@ interface SaveAttempt {
 interface Approval {
   readonly action: Transition;
   readonly covered: ReadonlyMap<string, DraftRegistration>;
+  readonly options?: TransitionOptions | undefined;
+  readonly foregroundScope?: string | undefined;
 }
 
 const NOTHING_COVERED: ReadonlyMap<string, DraftRegistration> = new Map();
@@ -537,11 +550,23 @@ function createGuardMachine(deps: MachineDeps) {
    */
   function continueApproved(approval: Approval | undefined): boolean {
     if (approval === undefined) return false;
-    for (const [id, entry] of entries)
+    if (approval.options?.isValid && !approval.options.isValid()) {
+      approval.options.onCancel?.();
+      return false;
+    }
+    for (const [id, entry] of entries) {
+      if (
+        approval.options?.preserveDraftScope &&
+        !entry.pending &&
+        retained(entry, approval.options.preserveDraftScope)
+      )
+        continue;
       if (approval.covered.get(id) !== entry) {
-        if (intent === null) setIntent({ action: approval.action });
+        if (intent === null)
+          setIntent(createIntent(approval.action, approval.options));
         return false;
       }
+    }
     executingApproval = approval;
     try {
       approval.action();
@@ -592,14 +617,25 @@ function createGuardMachine(deps: MachineDeps) {
   function proceed(
     action: Transition,
     covered: ReadonlyMap<string, DraftRegistration> = NOTHING_COVERED,
+    options?: TransitionOptions,
+    foregroundScope?: string,
   ) {
     // A permitted navigation supersedes any request still awaiting a decision.
     if (intent !== null) setIntent(null);
+    if (options?.isValid && !options.isValid()) {
+      options.onCancel?.();
+      if (!active()) removeBuffer();
+      return;
+    }
     announceNavigationIntent();
-    removeBuffer({ action, covered });
+    removeBuffer({ action, covered, options, foregroundScope });
   }
 
   function requestTransition(action: Transition, options?: TransitionOptions) {
+    if (options?.isValid && !options.isValid()) {
+      options.onCancel?.();
+      return;
+    }
     // Canonical entry points may be nested (shell -> warehouse store, task
     // completion -> router). One decision covers only the exact registrations
     // it already approved, never work reported during the continuation.
@@ -618,14 +654,28 @@ function createGuardMachine(deps: MachineDeps) {
         setIntent(null);
       }
       if (restoring || removing) {
-        options.onCancel?.();
+        // Resetting the final draft can already be consuming its empty buffer
+        // when the user closes the editor. Finish that close on its popstate.
+        if (
+          removing &&
+          !afterRemove &&
+          !active() &&
+          !options.entry &&
+          options.isValid
+        )
+          proceed(action, NOTHING_COVERED, options);
+        else options.onCancel?.();
         return;
       }
       if (!options.entry) {
-        proceed(() => {
-          rearmAfterTraversal = options.preserveDraftScope;
-          action();
-        }, new Map(entries));
+        proceed(
+          () => {
+            rearmAfterTraversal = options.preserveDraftScope;
+            action();
+          },
+          new Map(entries),
+          options,
+        );
         return;
       }
       if (options.entry && onBuffer() && buffer?.retainedScope === undefined) {
@@ -646,14 +696,14 @@ function createGuardMachine(deps: MachineDeps) {
       return;
     }
     if (!active()) {
-      proceed(action);
+      proceed(action, NOTHING_COVERED, options);
       return;
     }
     // A newer request supersedes an approval still waiting for its buffer
     // removal, whatever that approval covered: only this request continues.
     afterRemove = undefined;
     if (intent !== null) intent.options?.onCancel?.();
-    setIntent({ action, options });
+    setIntent(createIntent(action, options));
   }
 
   function sync() {
@@ -693,6 +743,7 @@ function createGuardMachine(deps: MachineDeps) {
         before.pending === entry.pending &&
         before.save === entry.save &&
         before.saveBlockedReason === entry.saveBlockedReason &&
+        before.pendingStatusMessage === entry.pendingStatusMessage &&
         before.workflowScope === entry.workflowScope &&
         before.foregroundScope === entry.foregroundScope
       ) {
@@ -735,6 +786,11 @@ function createGuardMachine(deps: MachineDeps) {
   function discard(): boolean {
     const current = intent;
     if (current === null || attempt !== null) return false;
+    if (current.options?.isValid && !current.options.isValid()) {
+      setIntent(null);
+      current.options.onCancel?.();
+      return false;
+    }
     const values = [...selectedEntries(current.options).values()];
     if (values.some((entry) => entry.pending)) return false;
     // Disposed work may report clean only after the transition: it is
@@ -743,26 +799,51 @@ function createGuardMachine(deps: MachineDeps) {
     for (const entry of values) if (entry.dirty) entry.discard();
     if (current.options?.preserveDraftScope) {
       setIntent(null);
-      proceed(() => {
-        rearmAfterTraversal = current.options?.preserveDraftScope;
-        current.action();
-      }, covered);
-    } else proceed(current.action, covered);
+      proceed(
+        () => {
+          rearmAfterTraversal = current.options?.preserveDraftScope;
+          current.action();
+        },
+        covered,
+        current.options,
+      );
+    } else proceed(current.action, covered, current.options);
     return true;
   }
 
-  /** Begin saving the sole dirty draft for the open prompt. */
+  /** Begin saving the sole dirty draft for the open prompt in one atomic capture. */
   function beginSave(): Pick<SaveAttempt, "save"> | undefined {
-    if (intent === null || attempt !== null) return undefined;
-    const values = [...selectedEntries(intent.options)];
+    const currentIntent = intent;
+    if (currentIntent === null || attempt !== null) return undefined;
+    if (currentIntent.options?.isValid && !currentIntent.options.isValid()) {
+      setIntent(null);
+      currentIntent.options.onCancel?.();
+      return undefined;
+    }
+    const values = [...selectedEntries(currentIntent.options)];
     const dirty = values.filter(([, entry]) => entry.dirty);
     const sole = dirty.length === 1 ? dirty[0] : undefined;
     if (sole === undefined || values.some(([, entry]) => entry.pending))
       return undefined;
     const [id, entry] = sole;
-    if (entry.save === undefined || entry.saveBlockedReason) return undefined;
-    attempt = { intent, id, save: entry.save, cleared: false, renewed: false };
-    return attempt;
+    const runSave = entry.save;
+    if (runSave === undefined || entry.saveBlockedReason) return undefined;
+    let invoked = false;
+    const nextAttempt: SaveAttempt = {
+      intent: currentIntent,
+      id,
+      foregroundScope: entry.foregroundScope,
+      save: () => {
+        if (invoked) return Promise.resolve(false);
+        invoked = true;
+        return runSave();
+      },
+      cleared: false,
+      renewed: false,
+    };
+    attempt = nextAttempt;
+    deps.onSaving(true);
+    return nextAttempt;
   }
 
   /**
@@ -776,6 +857,7 @@ function createGuardMachine(deps: MachineDeps) {
     if (attempt === null || attempt !== token) return false;
     const finished = attempt;
     attempt = null;
+    deps.onSaving(false);
     const current = finished.intent === intent;
     if (!saved) return current;
     // Its React cleanup may report clean later (Floor does): until then its
@@ -784,6 +866,16 @@ function createGuardMachine(deps: MachineDeps) {
       settled.add(finished.id);
       entries.delete(finished.id);
       publish();
+    }
+    if (
+      current &&
+      finished.intent.options?.isValid &&
+      !finished.intent.options.isValid()
+    ) {
+      setIntent(null);
+      finished.intent.options.onCancel?.();
+      if (!active()) removeBuffer();
+      return false;
     }
     if (
       current &&
@@ -799,8 +891,47 @@ function createGuardMachine(deps: MachineDeps) {
       removeBuffer();
       return false;
     }
-    proceed(finished.intent.action);
+    proceed(
+      finished.intent.action,
+      NOTHING_COVERED,
+      finished.intent.options,
+      finished.foregroundScope,
+    );
     return false;
+  }
+
+  /** Detach active save attempts, prompts, and queued removals belonging to a revoked foreground. */
+  function cancelForegroundApprovals(rawScope: string) {
+    const targetScope = rawScope.startsWith("foreground:")
+      ? rawScope.slice("foreground:".length)
+      : rawScope;
+    const prefixedScope = `foreground:${targetScope}`;
+    const matches = (options?: TransitionOptions, foregroundScope?: string) =>
+      options?.preserveDraftScope === prefixedScope ||
+      foregroundScope === targetScope;
+    if (
+      attempt !== null &&
+      matches(attempt.intent.options, attempt.foregroundScope)
+    ) {
+      attempt = null;
+      deps.onSaving(false);
+    }
+    if (
+      intent !== null &&
+      intent.options?.preserveDraftScope === prefixedScope
+    ) {
+      const cancelled = intent;
+      setIntent(null);
+      cancelled.options?.onCancel?.();
+    }
+    if (
+      afterRemove !== undefined &&
+      matches(afterRemove.options, afterRemove.foregroundScope)
+    ) {
+      const cancelled = afterRemove;
+      afterRemove = undefined;
+      cancelled.options?.onCancel?.();
+    }
   }
 
   function onPopState(event: PopStateEvent) {
@@ -1096,9 +1227,11 @@ function createGuardMachine(deps: MachineDeps) {
       return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    const originPathname = window.location.pathname;
     // A drawer link consumes its foreground entry before it routes.
     requestTransition(
       registeredLinkNavigation(anchor) ?? (() => navigate(destination)),
+      { isValid: () => window.location.pathname === originPathname },
     );
   }
 
@@ -1118,6 +1251,7 @@ function createGuardMachine(deps: MachineDeps) {
         intent.options.onCancel?.();
         setIntent(null);
       },
+      cancelForegroundApprovals,
       isTraversing: traversing,
     });
     const unsubscribe = subscribeHistoryWrites(onHistoryWrite);
@@ -1147,7 +1281,10 @@ function createGuardMachine(deps: MachineDeps) {
         finishRemoval();
       }
       // Its prompt and any save in flight belong to this connection only.
-      attempt = null;
+      if (attempt !== null) {
+        attempt = null;
+        deps.onSaving(false);
+      }
       overtaken = null;
       if (intent !== null) setIntent(null);
       release();

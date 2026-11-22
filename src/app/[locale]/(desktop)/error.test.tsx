@@ -123,7 +123,7 @@ describe("desktop page error boundary", () => {
   it.each([
     ["/finished-goods/scan", "/finished-goods", "Finished goods"],
     ["/hr/leave/review/request-1", "/hr/leave/review", "Review leave"],
-    ["/hr/today", "/master-data/storage-layouts", "Buildings & spots"],
+    ["/hr/today", "/dashboard", "Home"],
   ])(
     "sends a failure at %s to %s, never to the failed page itself",
     (pathname, href, hub) => {
@@ -144,7 +144,7 @@ describe("desktop page error boundary", () => {
     // The parent the member may open, not the review queue they may not.
     ["/hr/leave/review/request-1", "/hr/leave", "Leave", "Leave"],
     // Their own start page, never Buildings & spots, which would redirect.
-    ["/hr/customize", "/hr/today", "Today", undefined],
+    ["/hr/customize", "/dashboard", "Home", undefined],
   ])(
     "chooses the way out of %s from an HR-only member's own menu: %s",
     (pathname, href, name, crumb) => {
@@ -171,7 +171,7 @@ describe("desktop page error boundary", () => {
   it("offers retry alone when an HR-only member's start page failed, rather than a page that redirects back to it", () => {
     access.storage = [];
     access.hr = [HR_SELF];
-    navigation.pathname = "/hr/today";
+    navigation.pathname = "/dashboard";
     renderError("en");
 
     expect(screen.queryByRole("link")).toBeNull();
@@ -186,11 +186,11 @@ describe("desktop page error boundary", () => {
 
     expect(
       screen.getByRole("link", { name: "ไปหน้าเริ่มต้น" }),
-    ).toHaveAttribute("href", "/master-data/storage-layouts");
+    ).toHaveAttribute("href", "/dashboard");
   });
 
   it("offers retry as the only action when the start page itself failed", () => {
-    navigation.pathname = "/master-data/storage-layouts";
+    navigation.pathname = "/dashboard";
     renderError("en");
 
     expect(screen.queryByRole("link")).toBeNull();

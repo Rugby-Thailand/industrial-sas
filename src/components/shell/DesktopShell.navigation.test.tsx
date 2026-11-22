@@ -32,6 +32,8 @@ const route = vi.hoisted(() => ({
   replace: vi.fn(),
   locale: "en" as "en" | "th",
   mobile: true,
+  auth: { userId: "user-a", orgId: "org-a" },
+  aiUsageOnly: false,
 }));
 const routeEvent = "test-router-commit";
 function subscribeRoute(listener: () => void) {
@@ -105,19 +107,23 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
-    userId: "user-a",
-    orgId: "org-a",
+    ...route.auth,
     getToken: async () => "test-token",
   }),
 }));
 vi.mock("@/components/providers/AiUsageAccessProvider", () => ({
-  useAiUsageAccess: () => ({ status: "READY", permissions: [] }),
+  useAiUsageAccess: () => ({
+    status: "READY",
+    permissions: route.aiUsageOnly ? ["aiUsage.read"] : [],
+  }),
 }));
 vi.mock("@/components/providers/HrAccessProvider", () => ({
   useHrAccess: () => ({
     status: "READY",
-    permissions: ["hr.self.access", "hr.team.review", "hr.admin.manage"],
-    identityKey: "org-a:user-a",
+    permissions: route.aiUsageOnly
+      ? []
+      : ["hr.self.access", "hr.team.review", "hr.admin.manage"],
+    identityKey: route.aiUsageOnly ? null : "org-a:user-a",
     organizationName: "Demo Co",
     today: "2026-10-13",
     timezone: "Asia/Bangkok",
@@ -128,7 +134,7 @@ vi.mock("@/components/providers/HrAccessProvider", () => ({
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
   useWorkspace: () => ({
     readiness: { kind: "READY_TO_QUERY" },
-    organization: { id: "org-a", name: "Demo Co" },
+    organization: route.aiUsageOnly ? null : { id: "org-a", name: "Demo Co" },
     warehouses: [{ id: "wh-1", code: "WH-1", name: "Main warehouse" }],
     selectedWarehouseId: "wh-1",
     selectable: true,
@@ -137,7 +143,7 @@ vi.mock("@/components/providers/WorkspaceProvider", () => ({
     failed: false,
     denied: false,
     navigationPermissions: ["masterData.storageLayout.read"],
-    permissionsReady: true,
+    permissionsReady: !route.aiUsageOnly,
     selectWarehouse: vi.fn(),
   }),
 }));
@@ -286,6 +292,8 @@ const originalMatchMedia = window.matchMedia;
 beforeEach(() => {
   route.locale = "en";
   route.mobile = true;
+  route.auth = { userId: "user-a", orgId: "org-a" };
+  route.aiUsageOnly = false;
   window.history.replaceState(
     { __NA: true, appNavigationIndex: 0 },
     "",
@@ -481,6 +489,41 @@ it.each([
       expect(window.location.pathname).toBe(`/${locale}${destination}`),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  },
+);
+
+it.each(["orgId", "userId"] as const)(
+  "cancels a mobile Home selection when Clerk %s changes during drawer Back",
+  async (field) => {
+    route.aiUsageOnly = true;
+    const shell = () => (
+      <DesktopShell>
+        <Destination />
+      </DesktopShell>
+    );
+    const view = renderWithIntl(shell(), {
+      locale: "en",
+      preserveProviders: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    const drawer = await screen.findByRole("dialog", {
+      name: "Primary navigation",
+    });
+    const back = vi
+      .spyOn(window.history, "back")
+      .mockImplementationOnce(() => {});
+    try {
+      fireEvent.click(within(drawer).getByRole("link", { name: "Home" }));
+      expect(back).toHaveBeenCalledOnce();
+      route.auth[field] = "switched";
+      view.rerender(shell());
+    } finally {
+      back.mockRestore();
+      act(() => window.history.back());
+    }
+    await waitFor(() => expect(drawer).not.toBeInTheDocument());
+    expect(route.push).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/en/finished-goods/scan");
   },
 );
 

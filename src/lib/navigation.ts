@@ -2,6 +2,7 @@ import {
   HR_PERMISSION,
   NAVIGATION_PERMISSION,
 } from "../../convex/model/authorization/navigationPermissions";
+import { MODULE_ENTRY_PERMISSION } from "../../convex/model/home/quickMenu";
 import { isIsoDate } from "../../convex/model/hr/calendar";
 import {
   SETTINGS_SECTIONS,
@@ -41,6 +42,7 @@ export function isHrPath(pathname: string): boolean {
 }
 
 export const ROUTES = Object.freeze({
+  dashboard: "/dashboard",
   aiUsage: "/ai-usage",
   storageLayouts: "/master-data/storage-layouts",
   customers: "/master-data/customers",
@@ -732,13 +734,24 @@ export function destinationTrail(key: StaticDestinationKey): readonly string[] {
   return [section, ...trail];
 }
 
+/** Warehouse and module destinations also require their module’s entry grant. */
+export function effectiveDestinationPermissions(
+  entry: StaticDestination,
+): readonly string[] {
+  const modulePermission = MODULE_ENTRY_PERMISSION[entry.module];
+  return isOrganizationRecordPath(entry.href) ||
+    entry.permissionCodes.includes(modulePermission)
+    ? entry.permissionCodes
+    : [modulePermission, ...entry.permissionCodes];
+}
+
 const menuItems = (module: StaticDestination["module"]): NavigationItem[] =>
   STATIC_DESTINATIONS.filter(
     (entry) => entry.module === module && entry.menu === true,
   ).map((entry) => ({
     href: entry.href,
     labelKey: entry.labelKey,
-    permissionCodes: entry.permissionCodes,
+    permissionCodes: effectiveDestinationPermissions(entry),
     ...(entry.permissionMode === undefined
       ? {}
       : { permissionMode: entry.permissionMode }),
@@ -829,6 +842,28 @@ export function targetPermissions(
     default:
       return staticDestination(target.key).permissionCodes;
   }
+}
+
+/** Recheck the module and page grants at the point of dispatch. */
+export function canOpenTarget(
+  target: DestinationTarget,
+  granted: readonly string[],
+): boolean {
+  const entry = DESTINATION_BY_KEY.get(target.key as StaticDestinationKey);
+  if (entry)
+    return (
+      (isOrganizationRecordPath(entry.href) ||
+        granted.includes(MODULE_ENTRY_PERMISSION[entry.module])) &&
+      hasNavigationPermission(
+        entry.permissionCodes,
+        granted,
+        entry.permissionMode ?? "ALL",
+      )
+    );
+  return (
+    granted.includes(HR_CODES.self) &&
+    hasNavigationPermission(targetPermissions(target), granted)
+  );
 }
 
 /** The locale-free URL of a destination, or null when a parameter is invalid. */

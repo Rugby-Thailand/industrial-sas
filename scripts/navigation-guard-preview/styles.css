@@ -1,55 +1,56 @@
-html {
+@import "../../src/app/globals.css";
+@source "../../src";
+
+:root {
+  --font-geist: system-ui;
+  --font-geist-mono: monospace;
+}
+html:has(.navigation-fixture) {
   overflow-x: clip;
 }
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-body {
+.navigation-fixture {
   font: 16px system-ui;
   margin: 0;
   padding: 24px;
   color: #18252b;
   background: white;
 }
-main {
+.navigation-fixture main {
   max-width: 720px;
   margin: auto;
 }
-nav,
-label {
+.navigation-fixture nav,
+.navigation-fixture label {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   margin: 16px 0;
 }
-button,
-input,
-select {
+.navigation-fixture button,
+.navigation-fixture input,
+.navigation-fixture select {
   font: inherit;
   padding: 12px;
   margin: 4px;
 }
-button {
+.navigation-fixture button {
   cursor: pointer;
 }
-button:disabled {
+.navigation-fixture button:disabled {
   cursor: default;
   opacity: 0.5;
 }
-[data-slot="dialog-overlay"] {
+body:has(.navigation-fixture) [data-slot="dialog-overlay"] {
   position: fixed;
   z-index: 50;
   inset: 0;
   background: #0006;
 }
-[data-slot="dialog-content"] {
+body:has(.navigation-fixture) [data-slot="dialog-content"] {
   position: fixed;
   z-index: 50;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
   background: white;
   padding: 24px;
   width: min(500px, 80vw);
@@ -58,20 +59,15 @@ button:disabled {
   box-sizing: border-box;
   border: 1px solid #aaa;
 }
-[data-slot="dialog-content"] > button[data-size="icon"] {
+body:has(.navigation-fixture)
+  [data-slot="dialog-content"]
+  > button[data-size="icon"] {
   position: absolute;
   z-index: 1;
   top: 2px;
   right: 2px;
 }
-[data-slot="dialog-footer"] {
+body:has(.navigation-fixture) [data-slot="dialog-footer"] {
   display: flex;
   flex-wrap: wrap;
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
 }

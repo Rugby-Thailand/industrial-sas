@@ -193,7 +193,10 @@ export function useAiSearch(input: {
         return settle(IDLE);
       settle({
         status: "DONE",
-        outcome: resolved,
+        outcome:
+          resolved.kind === "NAVIGATE"
+            ? { kind: "NO_MATCH", incomplete: false }
+            : resolved,
         dropped: answer.intent.dropped,
       });
     } catch {
