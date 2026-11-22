@@ -24,7 +24,7 @@ import {
   HR_CODES,
   destinationHref,
   hasNavigationPermission,
-  targetPermissions,
+  canOpenTarget,
   type DestinationTarget,
   type StaticDestinationKey,
 } from "../navigation";
@@ -158,8 +158,7 @@ export type IntentOutcome =
   | { readonly kind: "UNAVAILABLE" };
 
 const allowed = (target: DestinationTarget, granted: readonly string[]) =>
-  destinationHref(target) !== null &&
-  hasNavigationPermission(targetPermissions(target), granted);
+  destinationHref(target) !== null && canOpenTarget(target, granted);
 
 const pageChoice = (
   key: StaticDestinationKey,
@@ -316,8 +315,8 @@ async function resolveEmployeeTask(
   input: ResolverInput,
   task: "REVIEW" | "EDIT",
 ): Promise<IntentOutcome> {
-  const permission = task === "REVIEW" ? HR_CODES.review : HR_CODES.admin;
-  if (!hasNavigationPermission([permission], input.granted))
+  const page = task === "REVIEW" ? "hr.review" : "hr.employees";
+  if (!canOpenTarget({ key: page }, input.granted))
     return { kind: "NO_MATCH", incomplete: false };
   const ref = employeeRef(input);
   const date = task === "REVIEW" ? dateRef(input) : ({ kind: "NONE" } as const);
@@ -424,7 +423,7 @@ export function periodVersion(
 
 async function resolvePeriod(input: ResolverInput): Promise<IntentOutcome> {
   const { granted, intent, context } = input;
-  if (!hasNavigationPermission([HR_CODES.close], granted))
+  if (!canOpenTarget({ key: "hr.periods" }, granted))
     return { kind: "NO_MATCH", incomplete: false };
   const canExport = hasNavigationPermission([HR_CODES.export], granted);
   const periods = pageChoice("hr.periods", granted);

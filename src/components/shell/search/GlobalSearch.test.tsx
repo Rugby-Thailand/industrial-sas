@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   access: {} as Record<string, unknown>,
   workspace: {} as Record<string, unknown>,
+  customerGrants: [] as string[],
   pathname: "/hr/today",
 }));
 
@@ -42,6 +43,12 @@ vi.mock("@clerk/nextjs", () => ({
 vi.mock("@/components/providers/HrAccessProvider", () => ({
   useHrAccess: () => state.access,
 }));
+vi.mock("@/components/providers/CustomerNavigationAccessProvider", () => ({
+  useCustomerNavigationAccess: () => ({
+    permissions: state.customerGrants,
+    loading: false,
+  }),
+}));
 vi.mock("@/components/providers/WorkspaceProvider", () => ({
   useWorkspace: () => state.workspace,
 }));
@@ -57,6 +64,7 @@ import {
   GlobalSearchProvider,
   useSearchControls,
 } from "./GlobalSearchProvider";
+import { rememberRecent, readRecent, recentStorageKey } from "./recent";
 import { usePageSearchContext } from "./pageContext";
 
 const ref = (reference: Parameters<typeof getFunctionName>[0]) =>
@@ -122,6 +130,7 @@ const grounded = (fields: Record<string, unknown>) => ({
 beforeEach(() => {
   // Recent destinations are remembered per member; each test starts fresh.
   window.localStorage.clear();
+  state.customerGrants = [];
   state.queries.clear();
   state.queryCalls.length = 0;
   state.action.mockReset();
@@ -384,6 +393,46 @@ describe("global search dialog", () => {
       release();
     }
   });
+
+  it.each(["orgId", "userId"] as const)(
+    "cancels a held customer search selection when Clerk %s changes",
+    async (field) => {
+      state.access = { status: "NONE", permissions: [], sites: [] };
+      state.customerGrants = ["masterData.customer.read"];
+      const originKey = recentStorageKey(state.auth.userId, state.auth.orgId);
+      let held: (() => void) | undefined;
+      const release = registerNavigationGuardOwner({
+        requestTransition: (next, options) => {
+          if (options?.preserveDraftScope) next();
+          else held = next;
+        },
+        isTraversing: () => false,
+      });
+      const search = () => (
+        <GlobalSearchProvider>
+          <Opener />
+        </GlobalSearchProvider>
+      );
+      try {
+        const view = renderWithIntl(search(), {
+          locale: "en",
+          preserveProviders: true,
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Open SEARCH" }));
+        await screen.findByRole("dialog");
+        await type("customers");
+        fireEvent.click(screen.getByRole("option", { name: /Customers/ }));
+        await waitFor(() => expect(held).toBeDefined());
+        state.auth[field] = "switched";
+        view.rerender(search());
+        act(() => held?.());
+        expect(state.push).not.toHaveBeenCalled();
+        expect(readRecent(originKey)).toEqual([]);
+      } finally {
+        release();
+      }
+    },
+  );
 
   it("hides AI Search from members without HR access", async () => {
     state.access = { status: "NONE", permissions: [], sites: [] };
@@ -1672,6 +1721,27 @@ describe("recent destinations", () => {
     within(group)
       .getAllByRole("option")
       .map((option) => option.textContent);
+
+  it("hides recent places, shortcuts and employee results after loss of HR entry", async () => {
+    state.access = {
+      ...state.access,
+      permissions: ["hr.team.review", "hr.period.close"],
+    };
+    rememberRecent(recentStorageKey(state.auth.userId, state.auth.orgId), {
+      key: "hr.review",
+    });
+    renderSearch();
+    await open();
+    expect(screen.queryByRole("group", { name: "Recent" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Go to" })).toBeNull();
+    await type("EMP-DEMO-002");
+    expect(
+      state.queryCalls.some(
+        (call) => call.name === ref(hrRefs.searchReviewEmployees),
+      ),
+    ).toBe(false);
+    expect(screen.queryByRole("option", { name: /Review|Periods/ })).toBeNull();
+  });
 
   it("offers places opened from search first, newest first, for this member and organization only", async () => {
     state.queries.set(ref(hrRefs.searchReviewEmployees), () =>

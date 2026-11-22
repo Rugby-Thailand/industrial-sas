@@ -20,7 +20,11 @@ export async function OrganizationRequired({
         title={t("organizationRequiredBody")}
         testId="organization-required"
       />
-      <OrganizationList hidePersonal afterSelectOrganizationUrl={returnTo} />
+      <OrganizationList
+        hidePersonal
+        afterSelectOrganizationUrl={returnTo}
+        afterCreateOrganizationUrl={returnTo}
+      />
     </main>
   );
 }

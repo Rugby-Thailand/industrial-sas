@@ -16,6 +16,7 @@ import type {
   ModelIntent,
 } from "../../convex/model/search/intent";
 import { HR_PERMISSION } from "../../convex/model/authorization/navigationPermissions";
+import { MODULE_ENTRY_PERMISSION } from "../../convex/model/home/quickMenu";
 import { NAVIGATION_PERMISSION } from "../../convex/model/authorization/navigationPermissions";
 import { readReferences } from "../../convex/model/search/references";
 import { normalizeSearchText } from "../../convex/model/search/text";
@@ -35,6 +36,7 @@ export type Persona = "EMPLOYEE" | "SUPERVISOR" | "ADMIN" | "STORAGE";
 const SELF = HR_PERMISSION.selfAccess;
 const ALL_HR = Object.values(HR_PERMISSION);
 const STORAGE = [
+  MODULE_ENTRY_PERMISSION.planner,
   NAVIGATION_PERMISSION.storageLayouts,
   NAVIGATION_PERMISSION.storageLayoutManage,
 ];

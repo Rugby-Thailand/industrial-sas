@@ -41,9 +41,16 @@ vi.mock("@clerk/nextjs", () => ({
   }) => <a href={forceRedirectUrl ?? fallbackRedirectUrl}>Continue</a>,
   OrganizationList: ({
     afterSelectOrganizationUrl,
+    afterCreateOrganizationUrl,
   }: {
     afterSelectOrganizationUrl: string;
-  }) => <a href={afterSelectOrganizationUrl}>Select organization</a>,
+    afterCreateOrganizationUrl: string;
+  }) => (
+    <>
+      <a href={afterSelectOrganizationUrl}>Select organization</a>
+      <a href={afterCreateOrganizationUrl}>Create organization</a>
+    </>
+  ),
 }));
 
 it.each([
@@ -84,7 +91,12 @@ it("preserves the exact private destination while the member selects an organiza
   const result = await DesktopLayout({ params, children: null });
   expect(result.type).toBe(OrganizationRequired);
   render(await OrganizationRequired(result.props));
-  expect(screen.getByRole("link")).toHaveAttribute("href", request.returnTo);
+  for (const name of ["Select organization", "Create organization"]) {
+    expect(screen.getByRole("link", { name })).toHaveAttribute(
+      "href",
+      request.returnTo,
+    );
+  }
 });
 it("sends a signed-out app launch back to the same localized Home after sign-in", async () => {
   vi.mocked(readAppAccess).mockResolvedValue("SIGN_IN");

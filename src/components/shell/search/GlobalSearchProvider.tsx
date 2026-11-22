@@ -92,17 +92,16 @@ export function GlobalSearchProvider({
   const workspace = useWorkspace();
   const granted = useGrantedPermissions();
   const mounted = useRef(true);
-  const latest = useRef({
+  const navigationContext = {
     granted,
+    userId,
+    orgId,
     identityKey: hr.identityKey ?? null,
-    orgId: workspace.organization?.id ?? null,
-  });
+    workspaceOrgId: workspace.organization?.id ?? null,
+  };
+  const latest = useRef(navigationContext);
   useLayoutEffect(() => {
-    latest.current = {
-      granted,
-      identityKey: hr.identityKey ?? null,
-      orgId: workspace.organization?.id ?? null,
-    };
+    latest.current = navigationContext;
   });
   useLayoutEffect(() => {
     mounted.current = true;
@@ -149,13 +148,14 @@ export function GlobalSearchProvider({
       // Only app-built, permitted destinations are ever pushed.
       if (href === null || !canOpenTarget(target, granted)) return false;
       const originPathname = window.location.pathname;
-      const originIdentity = latest.current.identityKey;
-      const originOrgId = latest.current.orgId;
+      const origin = latest.current;
       const isValid = () =>
         mounted.current &&
         window.location.pathname === originPathname &&
-        latest.current.identityKey === originIdentity &&
-        latest.current.orgId === originOrgId &&
+        latest.current.userId === origin.userId &&
+        latest.current.orgId === origin.orgId &&
+        latest.current.identityKey === origin.identityKey &&
+        latest.current.workspaceOrgId === origin.workspaceOrgId &&
         canOpenTarget(target, latest.current.granted);
       // The dialog consumes its own entry (retaining the underlay's draft)
       // before the guarded push asks about leaving. Closing and pushing

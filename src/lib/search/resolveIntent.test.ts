@@ -106,6 +106,29 @@ describe("AI navigation evaluation set (mocked model, local pipeline)", () => {
 describe("resolution rules", () => {
   const base = EVAL_CASES.find((test) => test.id === "review-code-date")!;
 
+  it("omits review and period suggestions when the HR entry grant is missing", async () => {
+    const test = EVAL_CASES.find(
+      (entry) => entry.ideal.unsupportedTopic === "OVERTIME_APPROVAL",
+    )!;
+    const outcome = await resolveIntent({
+      intent: groundIntent(test.ideal, {
+        query: test.query,
+        today: EVAL_TODAY,
+        context: contextFlags(null),
+      }),
+      today: EVAL_TODAY,
+      granted: [HR_CODES.review, HR_CODES.close],
+      ownCode: null,
+      context: null,
+      lookups: evalLookups("SUPERVISOR"),
+    });
+    expect(outcome).toEqual({
+      kind: "UNSUPPORTED",
+      topic: "OVERTIME_APPROVAL",
+      suggestions: [],
+    });
+  });
+
   it("does not auto-open when the protected search is incomplete", async () => {
     const lookups = evalLookups("SUPERVISOR");
     const outcome = await resolveIntent({

@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Menu, PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -253,19 +254,18 @@ function AppSidebar({
   const workspace = useWorkspace();
   const hr = useHrAccess();
   const mounted = useRef(true);
-  const context = useRef({
+  const { userId, orgId } = useAuth();
+  const navigationContext = {
     isMobile,
     pathname,
-    orgId: workspace.organization?.id ?? null,
+    userId,
+    orgId,
+    workspaceOrgId: workspace.organization?.id ?? null,
     identityKey: hr.identityKey ?? null,
-  });
+  };
+  const context = useRef(navigationContext);
   useLayoutEffect(() => {
-    context.current = {
-      isMobile,
-      pathname,
-      orgId: workspace.organization?.id ?? null,
-      identityKey: hr.identityKey ?? null,
-    };
+    context.current = navigationContext;
   });
   useLayoutEffect(() => {
     mounted.current = true;
@@ -277,18 +277,16 @@ function AppSidebar({
   // so the drawer's native Back cannot restore the origin over it.
   const navigateFromDrawer = useCallback(
     (href: string) => {
-      const origin = {
-        pathname: context.current.pathname,
-        windowPathname: window.location.pathname,
-        orgId: context.current.orgId,
-        identityKey: context.current.identityKey,
-      };
+      const origin = context.current;
+      const originPath = window.location.pathname;
       const isValid = () =>
         mounted.current &&
         context.current.isMobile &&
         context.current.pathname === origin.pathname &&
-        window.location.pathname === origin.windowPathname &&
+        window.location.pathname === originPath &&
+        context.current.userId === origin.userId &&
         context.current.orgId === origin.orgId &&
+        context.current.workspaceOrgId === origin.workspaceOrgId &&
         context.current.identityKey === origin.identityKey;
       // Drawer links render only inside the drawer, so its handle is mounted.
       drawer.current?.complete(() => {
