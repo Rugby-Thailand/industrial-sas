@@ -14,8 +14,9 @@ vi.mock("next-intl/server", () => ({
   setRequestLocale: () => {},
   getTranslations: async () => (key: string) => key,
 }));
-vi.mock("@/lib/auth/appAccess", () => ({
-  readAppAccess: async () => "SIGN_IN",
+vi.mock(import("@/lib/auth/appAccess"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  readAppAccess: async () => "SIGN_IN" as const,
 }));
 vi.mock("@/components/auth/OrganizationRequired", () => ({
   OrganizationRequired: () => null,
@@ -34,6 +35,7 @@ import DesktopLayout from "@/app/[locale]/(desktop)/layout";
 import SignInScreen from "@/app/[locale]/(auth)/sign-in/SignInScreen";
 
 it.each([
+  "/th/dashboard",
   "/th/master-data/storage-layouts?floor=2",
   "/th/hr/leave",
   "/th/ai-usage?period=today&feature=search",

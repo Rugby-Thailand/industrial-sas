@@ -11,6 +11,10 @@ import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getTestMutation,
+  registerTestMutation,
+} from "@tests/fixtures/convex-mutation";
+import {
   configuredEnvironment,
   renderWithIntl,
 } from "@tests/fixtures/intl-render";
@@ -23,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
 import { trackAppHistory } from "@/lib/browser/appHistory";
+import { api } from "../../../convex/_generated/api";
 import {
   MAX_QUICK_MENU_VERSION,
   ZERO_UNREAD_COUNTS,
@@ -58,7 +63,7 @@ vi.mock("convex/react", () => {
       return { isAuthenticated: true, isLoading: false };
     },
     useConvex: () => client,
-    useMutation: () => mocks.save,
+    useMutation: getTestMutation,
     useQuery_experimental: ({
       query,
       args,
@@ -161,6 +166,7 @@ beforeEach(() => {
   mocks.unread = unread(1, 100);
   mocks.calls = [];
   mocks.save.mockReset();
+  registerTestMutation(api.workspace.quickMenus.save, mocks.save);
   mocks.verify.mockReset();
   localStorage.clear();
   vi.stubGlobal(
