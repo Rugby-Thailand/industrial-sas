@@ -158,6 +158,74 @@ export function assertAuthorizationDeclaration(
   return definition;
 }
 
+export interface AnyAuthorizationDeclaration {
+  readonly permissionCodes: readonly string[];
+  readonly targetTable: string;
+  readonly hasWarehouseSelector: boolean;
+  readonly hasPolicy: boolean;
+  readonly entitlementKey?: string;
+}
+
+/** Most alternatives an OR gate may name; each costs one grant evaluation. */
+export const MAX_ANY_PERMISSION_CODES = 8;
+
+/**
+ * An OR gate ("any of these codes") is restricted to plain organization
+ * reads and writes: one code wins, so a code needing a warehouse target,
+ * step-up, a threshold or maker-checker facts could be bypassed by another.
+ * Each code is also checked as an ordinary declaration.
+ */
+export function assertAnyAuthorizationDeclaration(
+  kind: TenantFunctionKind,
+  declaration: AnyAuthorizationDeclaration,
+): readonly PermissionDefinition[] {
+  const { permissionCodes } = declaration;
+  const refusal = (problem: string): AuthorizationDeclarationError =>
+    new AuthorizationDeclarationError(
+      `${kind}WithOrg cannot register anyPermissionCodes: ${problem}`,
+    );
+
+  if (kind === "action") throw refusal("actions take one permission code.");
+  if (declaration.hasWarehouseSelector)
+    throw refusal("a warehouse selector needs one WAREHOUSE permission.");
+  if (declaration.hasPolicy)
+    throw refusal("a policy callback needs one permission code.");
+  if (declaration.entitlementKey !== undefined)
+    throw refusal("an entitlement key needs one permission code.");
+  if (
+    !Array.isArray(permissionCodes) ||
+    permissionCodes.length === 0 ||
+    permissionCodes.length > MAX_ANY_PERMISSION_CODES
+  )
+    throw refusal(
+      `between 1 and ${MAX_ANY_PERMISSION_CODES} codes are required.`,
+    );
+  if (new Set(permissionCodes).size !== permissionCodes.length)
+    throw refusal("a code is listed twice.");
+
+  return Object.freeze(
+    permissionCodes.map((permissionCode) => {
+      const definition = assertAuthorizationDeclaration(kind, {
+        permissionCode,
+        targetTable: declaration.targetTable,
+        hasWarehouseSelector: false,
+        hasPolicy: false,
+      });
+      if (definition.scope !== "ORG")
+        throw refusal(`"${permissionCode}" is not an ORG permission.`);
+      if (
+        definition.requiresStepUp ||
+        definition.requiresThreshold ||
+        definition.requiresMakerChecker
+      )
+        throw refusal(
+          `"${permissionCode}" needs step-up, threshold or maker-checker facts.`,
+        );
+      return definition;
+    }),
+  );
+}
+
 function isBoundedKey(
   value: unknown,
   maxLength = MAX_ENTITLEMENT_KEY_LENGTH,

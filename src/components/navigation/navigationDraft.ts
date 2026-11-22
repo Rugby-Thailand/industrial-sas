@@ -34,6 +34,8 @@ export interface DraftRegistration {
   readonly saveBlockedReason?: string;
   /** Localized plain text for this draft; shown only for a sole no-save draft. */
   readonly discardDescription?: string;
+  /** Shown instead of the generic pending-write notice when this sole pending entry explains its work. */
+  readonly pendingStatusMessage?: string;
 }
 
 export interface NavigationDraftControl {
@@ -89,7 +91,13 @@ export function useNavigationDraft(
     () => latest.current.save?.() ?? Promise.resolve(false),
     [],
   );
-  const { dirty, pending, saveBlockedReason, discardDescription } = entry;
+  const {
+    dirty,
+    pending,
+    saveBlockedReason,
+    discardDescription,
+    pendingStatusMessage,
+  } = entry;
   const saveable = entry.save !== undefined;
   useLayoutEffect(() => {
     if (owner === null) {
@@ -114,6 +122,7 @@ export function useNavigationDraft(
       ...(saveable ? { save } : {}),
       ...(saveBlockedReason ? { saveBlockedReason } : {}),
       ...(discardDescription ? { discardDescription } : {}),
+      ...(pendingStatusMessage ? { pendingStatusMessage } : {}),
     });
   }, [
     owner,
@@ -125,6 +134,7 @@ export function useNavigationDraft(
     saveable,
     saveBlockedReason,
     discardDescription,
+    pendingStatusMessage,
     entry.workflowScope,
     foregroundScope,
   ]);

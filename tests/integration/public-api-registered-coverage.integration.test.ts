@@ -96,7 +96,7 @@ describe("representative registered coverage of every shipping public module", (
       ...new Set(PUBLIC_API_EXAMPLES.map(({ name }) => name.split(":")[0])),
     ].sort();
     expect(coveredModules).toEqual(publicModules);
-    expect(coveredModules).toHaveLength(43);
+    expect(coveredModules).toHaveLength(44);
     expect(new Set(PUBLIC_API_EXAMPLES.map(({ kind }) => kind))).toEqual(
       new Set(["query", "mutation", "action"]),
     );
@@ -117,9 +117,9 @@ describe("representative registered coverage of every shipping public module", (
       "storageLayouts/fg1Import:preflight",
       "storageLayouts/pdImport:preflight",
     ]);
-    // The inventory covers 49 representative functions, not every public export
+    // The inventory covers 53 representative functions, not every public export
     // or every successful payload hidden behind nested v.any() validators.
-    expect(PUBLIC_API_EXAMPLES).toHaveLength(49);
+    expect(PUBLIC_API_EXAMPLES).toHaveLength(53);
     expect(publicEntries.length).toBeGreaterThan(PUBLIC_API_EXAMPLES.length);
   });
 
@@ -163,7 +163,7 @@ describe("representative registered coverage of every shipping public module", (
         !example.name.startsWith("hr/") &&
         !example.name.startsWith("aiUsage/") &&
         !example.name.startsWith("customers/") &&
-        example.name !== "workspace/current:readCurrent"
+        !example.name.startsWith("workspace/")
       ) {
         it("denies another tenant's warehouse without leaking its owner", async () => {
           const world = await createPublicApiWorld(MODULES);
@@ -278,6 +278,14 @@ describe("representative registered payloads and safe HR capability gates", () =
       "hr/leave:self": { ok: false, code: "HR_NOT_LINKED" },
       "hr/announcements:self": { ok: false, code: "HR_NOT_LINKED" },
       "hr/notifications:list": { ok: false, code: "HR_NOT_LINKED" },
+      "hr/notifications:unreadSummary": {
+        clerkScope: {
+          clerkOrgId: "org_fixture_a",
+          clerkUserId: "user_fixture_a",
+        },
+        linked: false,
+        total: 0,
+      },
       "hr/payslips:list": { ok: false, code: "HR_NOT_LINKED" },
       "hr/org:getCompanyProfile": { profile: null },
       "hr/roster:shifts": { ok: true, complete: true, items: [] },
@@ -385,6 +393,23 @@ describe("representative registered payloads and safe HR capability gates", () =
         navigationPermissions: expect.any(Array),
         complete: true,
       },
+      "workspace/quickMenus:current": {
+        clerkScope: {
+          clerkOrgId: "org_fixture_a",
+          clerkUserId: "user_fixture_a",
+        },
+        actorUserId: world.userA,
+        customized: false,
+        version: 0,
+      },
+      "workspace/quickMenus:save": {
+        ok: true,
+        replayed: false,
+        version: 1,
+        pinnedKeys: ["admin.aiUsage", "planner.finishedGoods"],
+      },
+      // Runs after save in inventory order, so the receipt exists.
+      "workspace/quickMenus:receiptStatus": { status: "CONFIRMED", version: 1 },
     };
     const checked: string[] = [];
     expect(Object.keys(expected).sort()).toEqual(

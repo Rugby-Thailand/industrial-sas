@@ -45,6 +45,7 @@ That is not stylistic. Three things depend on it:
 | `finishedGoods/placement.ts`             | Millimetre boxes and surfaces, overlap and placement errors, and first-fit placement    |
 | `finishedGoods/scanning.ts`              | Scan-assignment types and group/fill checks; imports `Doc`/`Id` types from `_generated` |
 | `gs1/checkDigit.ts`                      | The GS1 modulo-10 check digit (GTIN, SSCC)                                              |
+| `home/quickMenu.ts`                      | Home quick-menu catalog, module entry permissions, pin bounds and public payload types  |
 | `hr/calendar.ts`                         | ISO business dates, local minutes, and instants in fixed-offset organization zones      |
 | `hr/schedule.ts`                         | One-shift-per-day schedules and the planned day they produce                            |
 | `hr/attendance.ts`                       | One employee day's status, effective interval, minutes, and certification validity      |

@@ -962,3 +962,56 @@ describe("bounded truthful cleanup", () => {
     }
   });
 });
+
+describe("opt-in Home HR badge fixture", () => {
+  it("seeds a linked HR self member with three unread badges, resets them and cleans up", async () => {
+    const world = await syntheticWorld();
+    stub(STAGING);
+    const args = { ...world.args, includeHomeHrBadges: true };
+    const prepared = await world.t.mutation(
+      internal.staging.e2eFixture.prepare,
+      args,
+    );
+    expect(prepared.homeHrBadges?.unreadNotificationIds).toHaveLength(3);
+    const summary = () =>
+      world.t
+        .withIdentity(world.manager)
+        .query(api.hr.notifications.unreadSummary, {});
+    expect(await summary()).toMatchObject({
+      ok: true,
+      value: { linked: true, total: 3 },
+    });
+    const marked = await world.t
+      .withIdentity(world.manager)
+      .mutation(api.hr.notifications.markOne, {
+        requestId: "e2e-home-mark-one",
+        notificationId: prepared.homeHrBadges!.unreadNotificationIds[0]!,
+      });
+    expect(marked).toMatchObject({ ok: true, value: { written: true } });
+    expect(await summary()).toMatchObject({ value: { total: 2 } });
+    // Re-preparing restores the same rows to unread instead of adding more.
+    const again = await world.t.mutation(
+      internal.staging.e2eFixture.prepare,
+      args,
+    );
+    expect(again.homeHrBadges).toEqual(prepared.homeHrBadges);
+    expect(await summary()).toMatchObject({ value: { total: 3 } });
+    // The default mode stays without badge state.
+    expect((await prepare(world)).homeHrBadges).toBeUndefined();
+
+    let result = { deleted: 0, done: false };
+    for (let pass = 0; pass < 10 && !result.done; pass += 1)
+      result = await world.t.mutation(
+        internal.staging.e2eFixture.cleanup,
+        world.args,
+      );
+    expect(result.done).toBe(true);
+    const owned = new Set<string>([world.ids.orgA, world.ids.orgB]);
+    const left = await world.t.run(async (ctx) => [
+      ...(await ctx.db.query("hrEmployees").collect()),
+      ...(await ctx.db.query("hrNotifications").collect()),
+      ...(await ctx.db.query("homeQuickMenuPreferences").collect()),
+    ]);
+    expect(left.filter((row) => owned.has(row.orgId))).toEqual([]);
+  });
+});

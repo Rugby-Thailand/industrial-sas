@@ -31,8 +31,10 @@ import type { DataModel } from "../schema";
 import {
   AUTHORIZATION_DENIAL_CODE,
   AUTHORIZATION_DENIAL_MESSAGE,
+  AuthorizationDeclarationError,
   NO_AUTHORIZATION_POLICY_FACTS,
   appendAuthorizationAudit,
+  assertAnyAuthorizationDeclaration,
   assertAuthorizationDeclaration,
   decideAuthorization,
   resolveAuthorizationFacts,
@@ -78,6 +80,12 @@ import {
   createQueryTenantStorage,
 } from "./tenantStorage";
 import type { DenialReason } from "./validators";
+import {
+  MAX_CLERK_ID_LENGTH,
+  isReadRetryAttempt,
+  type PreconditionFailureCode,
+  type QuickMenuClerkScope,
+} from "../model/home/quickMenu";
 
 type FunctionValidator =
   PropertyValidators | Validator<unknown, "required", string> | void;
@@ -152,16 +160,43 @@ export interface TenantFunctionTarget<Args> {
   readonly id?: (args: Args) => string | undefined;
 }
 
+/**
+ * Exactly one gate: a single `permissionCode`, or `anyPermissionCodes`, a
+ * restricted OR gate of plain ORG codes (queries and mutations only; see
+ * `assertAnyAuthorizationDeclaration`). The first granted code wins and is
+ * `ctx.permission`; a denied mutation audits the first code.
+ */
+type PermissionGate =
+  | { readonly permissionCode: string; readonly anyPermissionCodes?: never }
+  | {
+      readonly anyPermissionCodes: readonly string[];
+      readonly permissionCode?: never;
+    };
+
+/**
+ * Checked after the session resolves and before authorization, so a
+ * mismatch writes no audit row and touches no document. A selector that
+ * returns undefined skips its check.
+ */
+export interface TenantPreconditions<Args> {
+  /** The Clerk organization and user the caller believes is active. */
+  readonly expectedClerkScope?: (args: Args) => QuickMenuClerkScope | undefined;
+  /** The Convex user ID the caller believes is acting. */
+  readonly expectedActorUserId?: (args: Args) => string | undefined;
+  /** An optional bounded integer used only to restart a live read. */
+  readonly readRetryAttempt?: (args: Args) => number | undefined;
+}
+
 type TenantFunctionDefinition<
   ArgsValidator extends FunctionValidator,
   ReturnsValidator extends FunctionValidator,
   ReturnValue,
   OneOrZeroArgs extends ArgsArrayForOptionalValidator<ArgsValidator>,
-> = {
+> = PermissionGate & {
   readonly args?: ArgsValidator;
   readonly returns?: ReturnsValidator;
 
-  readonly permissionCode: string;
+  readonly preconditions?: TenantPreconditions<OneOrZeroArgs[0]>;
 
   readonly target: TenantFunctionTarget<OneOrZeroArgs[0]>;
 
@@ -216,15 +251,15 @@ type TenantActionDefinition<
   ReturnsValidator extends FunctionValidator,
   ReturnValue,
   OneOrZeroArgs extends ArgsArrayForOptionalValidator<ArgsValidator>,
-> = Omit<
-  TenantFunctionDefinition<
-    ArgsValidator,
-    ReturnsValidator,
-    ReturnValue,
-    OneOrZeroArgs
-  >,
-  "handler" | "policy"
-> & {
+> = {
+  readonly args?: ArgsValidator;
+  readonly returns?: ReturnsValidator;
+  readonly permissionCode: string;
+  readonly target: TenantFunctionTarget<OneOrZeroArgs[0]>;
+  readonly entitlementKey?: string;
+  readonly warehouseId?: (args: OneOrZeroArgs[0]) => WarehouseId | undefined;
+  readonly installationId?: (args: OneOrZeroArgs[0]) => string | undefined;
+
   /** A persisted per-actor quota, consumed only after authorization passes. */
   readonly rateLimit?: ActionRateLimit;
   readonly handler: (
@@ -334,7 +369,11 @@ function outcomeReturns(
 }
 
 interface AuthorizationSpec<Args extends readonly unknown[]> {
+  /** The single code, or the first OR alternative (audited on denial). */
   readonly permission: PermissionDefinition;
+  /** Present for an OR gate: every alternative, in declaration order. */
+  readonly alternatives?: readonly PermissionDefinition[];
+  readonly preconditions?: TenantPreconditions<Args[0]>;
   readonly target: TenantFunctionTarget<Args[0]>;
   readonly entitlementKey?: string;
   readonly installationId?: (args: Args[0]) => string | undefined;
@@ -353,7 +392,7 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   readonly args: Args;
   readonly audit: boolean;
   readonly lookups?: ReturnType<typeof createConvexAuthorizationLookups>;
-}): Promise<boolean> {
+}): Promise<PermissionDefinition | null> {
   const { rawContext, requestId, tenant, tenantDb, spec, args, audit } = input;
   // A document's server creation time is a trusted lower bound on now. For
   // memberships already effective at creation, with no expiry, the verdict is
@@ -361,10 +400,11 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   // Expiring/future memberships, step-up, policies and audited writes retain
   // the real clock. Membership/role changes still invalidate cached queries.
   const membership = tenant.membership;
+  const candidates = spec.alternatives ?? [spec.permission];
   const now =
     !audit &&
     spec.policy === undefined &&
-    !spec.permission.requiresStepUp &&
+    !candidates.some((candidate) => candidate.requiresStepUp) &&
     membership.effectiveTo === undefined &&
     membership.effectiveFrom <= membership._creationTime
       ? membership._creationTime
@@ -375,8 +415,6 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
   const targetWarehouseId = tenant.warehouse?._id;
   const lookups =
     input.lookups ?? createConvexAuthorizationLookups(rawContext, requestId);
-  const permission = spec.permission;
-
   // Both of these exist only to fill in the audit row, so they are not read on a
   // path that cannot write one. Neither is an input to the decision: a device
   // grants nothing, and a target is what the attempt was aimed at.
@@ -395,23 +433,23 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
       })
     : undefined;
 
-  const facts = await resolveAuthorizationFacts({
-    permission,
-    orgId,
-    actorUserId,
-    membershipId: tenant.membership._id,
-    ...(targetWarehouseId === undefined ? {} : { targetWarehouseId }),
-    ...(spec.entitlementKey === undefined
-      ? {}
-      : { entitlementKey: spec.entitlementKey }),
-    now,
-    lookups,
-  });
+  const denialReasonFor = async (
+    permission: PermissionDefinition,
+  ): Promise<DenialReason | undefined> => {
+    const facts = await resolveAuthorizationFacts({
+      permission,
+      orgId,
+      actorUserId,
+      membershipId: tenant.membership._id,
+      ...(targetWarehouseId === undefined ? {} : { targetWarehouseId }),
+      ...(spec.entitlementKey === undefined
+        ? {}
+        : { entitlementKey: spec.entitlementKey }),
+      now,
+      lookups,
+    });
 
-  let reason: DenialReason | undefined;
-  if (!facts.ok) {
-    reason = facts.reason;
-  } else {
+    if (!facts.ok) return facts.reason;
     let policyFacts = NO_AUTHORIZATION_POLICY_FACTS;
     if (spec.policy !== undefined) {
       try {
@@ -433,7 +471,21 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
       ...(targetWarehouseId === undefined ? {} : { targetWarehouseId }),
       now,
     });
-    reason = decision.allowed ? undefined : decision.reason;
+    return decision.allowed ? undefined : decision.reason;
+  };
+
+  // An OR gate evaluates each alternative in order; the first allowed one
+  // wins. A denial reports the first alternative's reason.
+  let winner: PermissionDefinition | null = null;
+  let reason: DenialReason | undefined;
+  for (const candidate of candidates) {
+    const candidateReason = await denialReasonFor(candidate);
+    if (candidateReason === undefined) {
+      winner = candidate;
+      reason = undefined;
+      break;
+    }
+    reason ??= candidateReason;
   }
 
   if (audit) {
@@ -441,7 +493,7 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
       requestId,
       occurredAt: now,
       actorUserId,
-      permissionCode: permission.code,
+      permissionCode: (winner ?? spec.permission).code,
       entityTable: spec.target.table,
       ...(entityId === undefined ? {} : { entityId }),
       ...(targetWarehouseId === undefined
@@ -453,7 +505,7 @@ async function authorizeTenantRequest<Args extends readonly unknown[]>(input: {
     });
   }
 
-  return reason === undefined;
+  return winner;
 }
 
 async function resolveDeviceCorrelation(input: {
@@ -511,6 +563,40 @@ function refuseProjectedSourceWrites(
   };
 }
 
+const isBoundedClerkId = (value: unknown): value is string =>
+  typeof value === "string" &&
+  value.length > 0 &&
+  value.length <= MAX_CLERK_ID_LENGTH;
+
+/** The first failed precondition, or null; reads nothing from the database. */
+export function preconditionFailure<Args>(
+  preconditions: TenantPreconditions<Args> | undefined,
+  args: Args,
+  tenant: ActiveTenantContext,
+): { readonly code: PreconditionFailureCode; readonly field?: string } | null {
+  if (preconditions === undefined) return null;
+  const attempt = preconditions.readRetryAttempt?.(args);
+  if (attempt !== undefined && !isReadRetryAttempt(attempt))
+    return { code: "INVALID_INPUT", field: "readRetryAttempt" };
+  const scope = preconditions.expectedClerkScope?.(args);
+  if (scope !== undefined) {
+    if (
+      !isBoundedClerkId(scope.clerkOrgId) ||
+      !isBoundedClerkId(scope.clerkUserId)
+    )
+      return { code: "INVALID_INPUT", field: "expectedClerkScope" };
+    if (
+      scope.clerkOrgId !== tenant.organization.clerkOrganizationId ||
+      scope.clerkUserId !== tenant.actor.clerkUserId
+    )
+      return { code: "TENANT_SCOPE_MISMATCH" };
+  }
+  const actorUserId = preconditions.expectedActorUserId?.(args);
+  if (actorUserId !== undefined && actorUserId !== tenant.actor._id)
+    return { code: "ACTOR_SCOPE_MISMATCH" };
+  return null;
+}
+
 async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
   rawContext: RawTenantContext,
   args: Args,
@@ -545,6 +631,15 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       throw new SafeTenantFunctionFailure(toPublicDenial(resolved.denial));
     }
 
+    const precondition = preconditionFailure(
+      spec.preconditions,
+      args[0],
+      resolved.context,
+    );
+    if (precondition !== null) {
+      throw new SafeTenantFunctionFailure({ ...precondition, requestId });
+    }
+
     const sourceDb = createTenantDocumentAccess(
       { orgId: resolved.context.organization._id, requestId },
       storageFactory(rawContext, requestId),
@@ -569,7 +664,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       contextLookups,
       !audit,
     );
-    const allowed = await authorizeTenantRequest({
+    const granted = await authorizeTenantRequest({
       rawContext,
       requestId,
       tenant: resolved.context,
@@ -579,7 +674,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
       audit,
       lookups: authorizationLookups,
     });
-    if (!allowed) {
+    if (granted === null) {
       return Object.freeze({
         ok: false as const,
         requestId,
@@ -604,7 +699,7 @@ async function runTenantHandler<Args extends readonly unknown[], ReturnValue>(
         rawContext.db,
         resolved.context.organization._id,
       ),
-      permission: spec.permission,
+      permission: granted,
       ...("scheduler" in rawContext ? { scheduler: rawContext.scheduler } : {}),
     });
 
@@ -662,7 +757,7 @@ export const actionAuthorizationPreflight = internalMutationGeneric({
         { orgId: resolved.context.organization._id, requestId },
         createMutationTenantStorage(ctx, requestId),
       );
-      const allowed = await authorizeTenantRequest({
+      const granted = await authorizeTenantRequest({
         rawContext: ctx,
         requestId,
         tenant: resolved.context,
@@ -684,7 +779,7 @@ export const actionAuthorizationPreflight = internalMutationGeneric({
         audit: true,
       });
 
-      if (!allowed) return { ok: false as const };
+      if (granted === null) return { ok: false as const };
       if (args.rateLimit === undefined)
         return { ok: true as const, context: resolved.context };
       assertActionRateLimit(args.rateLimit);
@@ -816,7 +911,9 @@ async function runTenantAction<Args extends readonly unknown[], ReturnValue>(
 function authorizationSpecOf<Args extends readonly unknown[]>(
   kind: TenantFunctionKind,
   definition: {
-    readonly permissionCode: string;
+    readonly permissionCode?: string;
+    readonly anyPermissionCodes?: readonly string[];
+    readonly preconditions?: TenantPreconditions<Args[0]>;
     readonly target: TenantFunctionTarget<Args[0]>;
     readonly entitlementKey?: string;
     readonly warehouseId?: (args: Args[0]) => WarehouseId | undefined;
@@ -827,18 +924,42 @@ function authorizationSpecOf<Args extends readonly unknown[]>(
     ) => AuthorizationPolicyFacts | Promise<AuthorizationPolicyFacts>;
   },
 ): AuthorizationSpec<Args> {
-  const permission = assertAuthorizationDeclaration(kind, {
-    permissionCode: definition.permissionCode,
+  const shared = {
     targetTable: definition.target.table,
     hasWarehouseSelector: definition.warehouseId !== undefined,
     hasPolicy: definition.policy !== undefined,
     ...(definition.entitlementKey === undefined
       ? {}
       : { entitlementKey: definition.entitlementKey }),
-  });
+  };
+  if (
+    (definition.permissionCode === undefined) ===
+    (definition.anyPermissionCodes === undefined)
+  ) {
+    throw new AuthorizationDeclarationError(
+      `${kind}WithOrg needs exactly one of permissionCode or anyPermissionCodes.`,
+    );
+  }
+  const alternatives =
+    definition.anyPermissionCodes === undefined
+      ? undefined
+      : assertAnyAuthorizationDeclaration(kind, {
+          ...shared,
+          permissionCodes: definition.anyPermissionCodes,
+        });
+  const permission =
+    alternatives?.[0] ??
+    assertAuthorizationDeclaration(kind, {
+      ...shared,
+      permissionCode: definition.permissionCode!,
+    });
 
   return Object.freeze({
     permission,
+    ...(alternatives === undefined ? {} : { alternatives }),
+    ...(definition.preconditions === undefined
+      ? {}
+      : { preconditions: definition.preconditions }),
     target: definition.target,
     ...(definition.entitlementKey === undefined
       ? {}

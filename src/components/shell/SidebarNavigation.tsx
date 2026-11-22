@@ -3,12 +3,15 @@ import {
   ChevronDown,
   ChevronRight,
   CloudOff,
+  House,
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
 import { NavigationPendingIndicator } from "@/components/shell/NavigationPendingIndicator";
+import { HOME_ELIGIBILITY_PERMISSIONS } from "../../../convex/model/home/quickMenu";
+import { useGrantedPermissions } from "@/components/shell/search/GlobalSearchProvider";
 import { SidebarNavigationLink } from "@/components/shell/SidebarNavigationLink";
 import {
   groupSidebarItems,
@@ -30,7 +33,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { usePathname } from "@/i18n/navigation";
-import { activeNavigationHref, type NavigationItem } from "@/lib/navigation";
+import {
+  activeNavigationHref,
+  ROUTES,
+  type NavigationItem,
+} from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 /** Every destination row and submenu toggle, nested rows included. */
@@ -60,14 +67,18 @@ export function SidebarNavigation({
   const pathname = usePathname();
   const labelPrefix = useId();
   const { sections, settled } = useVisibleNavigation();
+  const granted = useGrantedPermissions();
+  const showHome = HOME_ELIGIBILITY_PERMISSIONS.some((code) =>
+    granted.includes(code),
+  );
   const navigationLoading = !settled && sections.length === 0;
   // A stalled connection is announced by the shell's notice; the menu's
   // placeholder then says when it fills, quietly and without motion.
   const waiting = useConnectionStall() !== null;
-  const activeHref = activeNavigationHref(
-    pathname,
-    sections.flatMap((section) => section.items.map((item) => item.href)),
-  );
+  const activeHref = activeNavigationHref(pathname, [
+    ...(showHome ? [ROUTES.dashboard] : []),
+    ...sections.flatMap((section) => section.items.map((item) => item.href)),
+  ]);
   const row: RowProps = { activeHref, collapsed, onNavigate };
   const { isMobile, openMobile } = useSidebar();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -84,6 +95,7 @@ export function SidebarNavigation({
   return (
     <nav
       id={id}
+      tabIndex={-1}
       aria-label={t("primary")}
       className="relative flex min-h-0 flex-1 flex-col"
     >
@@ -92,6 +104,19 @@ export function SidebarNavigation({
         // The overflow strip below supplies the rest of the bottom gap.
         className={cn("gap-6 px-4 pt-4 pb-2", collapsed && "px-2 pb-4")}
       >
+        {showHome && (
+          <SidebarMenu aria-label={t("home")}>
+            <NavigationLeaf
+              item={{
+                href: ROUTES.dashboard,
+                labelKey: "home",
+                permissionCodes: [],
+              }}
+              Icon={House}
+              {...row}
+            />
+          </SidebarMenu>
+        )}
         {navigationLoading ? (
           <p
             key={waiting ? "waiting" : "loading"}
@@ -119,6 +144,7 @@ export function SidebarNavigation({
           const labelId = `${labelPrefix}-${section.labelKey}`;
           return (
             <SidebarGroup
+              data-module-menu=""
               key={section.labelKey}
               className="p-0 [&+&]:border-t [&+&]:border-sidebar-border [&+&]:pt-5"
             >

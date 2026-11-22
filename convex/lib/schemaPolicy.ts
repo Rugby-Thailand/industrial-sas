@@ -70,6 +70,7 @@ export const TENANT_TABLES = [
   "hrEmployeePayments",
   "hrEmploymentEvents",
   "hrShortcutPreferences",
+  "homeQuickMenuPreferences",
   "hrPolicyDrafts",
   "hrPolicyVersions",
   "hrLeaveAccounts",
@@ -405,6 +406,11 @@ export const UNIQUENESS_CONTRACTS: readonly UniquenessContract[] = [
     condition: ALWAYS,
   },
   {
+    table: "homeQuickMenuPreferences",
+    key: ["orgId", "userId"],
+    condition: ALWAYS,
+  },
+  {
     table: "hrEmployees",
     key: ["orgId", "userId"],
     condition: whenPresent("userId"),
@@ -445,6 +451,11 @@ export const BOUNDED_LOOKUP_CONTRACTS: readonly LookupContract[] = [
   { table: "hrCorrectionRequests", key: ["orgId", "dayId"] },
   { table: "hrPeriods", key: ["orgId", "warehouseId"] },
   { table: "hrPeriodRows", key: ["orgId", "versionId"] },
+  // Home unread badges: one `.take(UNREAD_BADGE_CAP)` per event.
+  {
+    table: "hrNotifications",
+    key: ["orgId", "employeeId", "unread", "event"],
+  },
 ] as const;
 
 export type IndexFacts = {

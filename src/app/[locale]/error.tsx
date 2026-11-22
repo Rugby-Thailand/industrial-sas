@@ -19,7 +19,7 @@ export default function LocaleError({
   const t = useTranslations("Error");
   const observability = useObservability();
   // Outside the shell the member's access is unknown, so the way out is the
-  // start route (it redirects by permission), named neutrally, unless it is
+  // shared Home page, named neutrally, unless it is
   // the page that failed.
   const startFailed = usePathname() === START_HREF;
 

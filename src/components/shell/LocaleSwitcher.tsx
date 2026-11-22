@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { useLayoutEffect, useRef, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -26,16 +26,39 @@ export function LocaleSwitcher() {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const mounted = useRef(true);
+  const latest = useRef({ locale, pathname });
+  useLayoutEffect(() => {
+    latest.current = { locale, pathname };
+  });
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const choose = () => {
     // The URL the user chose from; a guard prompt or its history buffer must
     // not change which query or hash the new language opens.
+    const originLocale = locale;
+    const originPathname = pathname;
+    const originWindowPathname = window.location.pathname;
     const href = `${pathname}${window.location.search}${window.location.hash}`;
-    guardedNavigate(() => {
-      startTransition(() => {
-        router.replace(href, { locale: next });
-      });
-    });
+    const isValid = () =>
+      mounted.current &&
+      latest.current.locale === originLocale &&
+      latest.current.pathname === originPathname &&
+      window.location.pathname === originWindowPathname;
+    guardedNavigate(
+      () => {
+        if (!isValid()) return;
+        startTransition(() => {
+          router.replace(href, { locale: next });
+        });
+      },
+      { isValid },
+    );
   };
 
   return (

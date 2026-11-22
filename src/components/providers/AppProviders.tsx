@@ -1,13 +1,18 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { ThemeProvider } from "next-themes";
 
+import type { AppEnvironment } from "@/lib/environment";
+
 import { AiUsageAccessProvider } from "./AiUsageAccessProvider";
+import { CustomerNavigationAccessProvider } from "./CustomerNavigationAccessProvider";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { EnvironmentProvider, useAppEnvironment } from "./EnvironmentProvider";
 import { IdentityProvider } from "./IdentityProvider";
 import { HrAccessProvider } from "./HrAccessProvider";
+import { isHomePath } from "./isHomePath";
 import {
   UnavailableWorkspaceProvider,
   WorkspaceProvider,
@@ -19,10 +24,16 @@ export function EnvironmentAwareWorkspaceProvider({
   readonly children: ReactNode;
 }) {
   const environment = useAppEnvironment();
+  // Home authorizes its cross-module data independently of shell access reads.
+  const allowPartialAccess = isHomePath(usePathname());
   return environment.backendConfigured && environment.identityConfigured ? (
     <WorkspaceProvider>
-      <HrAccessProvider>
-        <AiUsageAccessProvider>{children}</AiUsageAccessProvider>
+      <HrAccessProvider allowPartialAccess={allowPartialAccess}>
+        <AiUsageAccessProvider allowPartialAccess={allowPartialAccess}>
+          <CustomerNavigationAccessProvider>
+            {children}
+          </CustomerNavigationAccessProvider>
+        </AiUsageAccessProvider>
       </HrAccessProvider>
     </WorkspaceProvider>
   ) : (
@@ -46,7 +57,13 @@ const INERT_SCRIPT = { type: "text/plain" } as const;
 const clientScriptProps = () => INERT_SCRIPT;
 const serverScriptProps = () => undefined;
 
-export function AppProviders({ children }: { readonly children: ReactNode }) {
+export function AppProviders({
+  children,
+  environment,
+}: {
+  readonly children: ReactNode;
+  readonly environment: AppEnvironment;
+}) {
   // Hydration uses the server value, so the server's script is adopted as is.
   const scriptProps = useSyncExternalStore(
     subscribe,
@@ -61,7 +78,7 @@ export function AppProviders({ children }: { readonly children: ReactNode }) {
       disableTransitionOnChange
       {...(scriptProps === undefined ? {} : { scriptProps })}
     >
-      <EnvironmentProvider>
+      <EnvironmentProvider environment={environment}>
         <IdentityProvider>
           <ConvexClientProvider>
             <EnvironmentAwareWorkspaceProvider>

@@ -8,7 +8,7 @@ pnpm exec playwright install chromium firefox webkit
 PLAYWRIGHT_REQUIRE_BUILD=1 pnpm test:e2e:navigation
 ```
 
-Playwright runs on Node. The production Next 16.3.8 build and server run on
+Playwright runs on Node. The production Next.js build and server run on
 Bun, without dotenv loading, at `http://127.0.0.1:3265`. The server always starts
 a fresh instance; it cannot reuse a developer's server. Output belongs to this
 app's `.next`, independent of the normal application's `.next`.
@@ -38,15 +38,20 @@ calls the public draft `settle` handoff and registers B in the same JavaScript
 task after the provider queued native Back. It never patches history traversal,
 fabricates popstate, or synchronizes the guard using a timer.
 
-Eight critical scenarios run in desktop Chromium, mobile Chromium, Firefox and
-WebKit. The CI navigation matrix leg explicitly installs all three engines and
-builds this app separately. Shared reporting retains synthetic failure artifacts
-and zero retries. Exhaustive continuation races belong to provider unit tests.
+Navigation scenarios run in desktop Chromium, mobile Chromium, Firefox and
+WebKit. Axe runs in the two Chromium projects. The CI navigation matrix leg
+installs all three engines and builds this app separately. Shared reporting
+retains synthetic failure artifacts and uses zero retries. Exhaustive
+continuation races belong to provider unit tests.
 
-This is framework/history integration coverage, not authenticated application
-coverage. Clerk, Convex, auth/backend middleware, theme/search/sidebar providers,
-real Floor forms and mutations, HR backend lists, Scan, telemetry and production
-headers are omitted. Fixture drafts exercise the provider contract and Floor's
-true-returning React-clean save pattern; they do not prove two-registration
-reachability in the real Floor screen. Authenticated Floor/HR/Scan verification
-requires separate test credentials and isolated data.
+The Home scenarios mount the production dashboard route and its desktop shell,
+theme, sidebar, search, and history providers. The Storage round trip mounts the
+existing building workspace with synthetic records. Both use the production CSS
+and PostCSS configuration. Legacy navigation-fixture styling is scoped to the
+older generic routes and their portal dialogs.
+
+The preview aliases Clerk identity and Convex hooks to credential-free
+substitutes. Only the Home preference mutation accepts a write. It posts to
+the synthetic response and updates tab-local fixture data so a reload can
+verify readback. This browser suite tests application behavior with those
+boundaries. Trusted staging tests exercise Clerk and Convex directly.

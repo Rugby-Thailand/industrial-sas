@@ -69,9 +69,11 @@ function Organization() {
   const [content, setContent] = useState<ReactNode>(null);
   useEffect(() => {
     let active = true;
-    void OrganizationRequired().then((node) => {
-      if (active) setContent(node);
-    });
+    void OrganizationRequired({ returnTo: `/${locale}/dashboard` }).then(
+      (node) => {
+        if (active) setContent(node);
+      },
+    );
     return () => {
       active = false;
     };

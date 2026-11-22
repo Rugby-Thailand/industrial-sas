@@ -8,7 +8,12 @@ import { guardedNavigate } from "@/lib/navigationGuard";
 export function useBackDisclosure(
   open: boolean,
   change: (open: boolean) => void,
-  options: { managed?: boolean; blocked?: boolean; draftScope?: string } = {},
+  options: {
+    managed?: boolean;
+    blocked?: boolean;
+    draftScope?: string;
+    revocationEpoch?: number;
+  } = {},
 ) {
   const id = useId().replaceAll(":", "");
   const scope = options.draftScope ?? id;
@@ -36,6 +41,9 @@ export function useBackDisclosure(
     {
       priority: 100,
       blocked: !!options.blocked,
+      ...(options.revocationEpoch === undefined
+        ? {}
+        : { revocationEpoch: options.revocationEpoch }),
       onForward: () => {
         if (managed && !latest.current.open) latest.current.change(true);
       },
@@ -55,7 +63,7 @@ export function useBackDisclosure(
     previous.current = open;
   });
   useLayoutEffect(() => {
-    if (!managed || !options.blocked) return;
+    if (!managed || !options.blocked || !step.active) return;
     const preventDeparture = (event: PopStateEvent) => {
       if (!new URLSearchParams(window.location.search).has(`overlay${id}`)) {
         event.stopImmediatePropagation();
@@ -64,15 +72,17 @@ export function useBackDisclosure(
     };
     window.addEventListener("popstate", preventDeparture, true);
     return () => window.removeEventListener("popstate", preventDeparture, true);
-  }, [managed, options.blocked, id]);
+  }, [managed, options.blocked, step.active, id]);
   return {
     scope,
     complete: step.complete,
+    completeOwned: step.completeOwned,
     onOpenChange: (next: boolean) => {
       if (!next && options.blocked) return;
       if (!next && managed && step.active)
         guardedNavigate(() => change(false), {
           preserveDraftScope: `foreground:${scope}`,
+          isValid: () => latest.current.open,
         });
       else change(next);
     },

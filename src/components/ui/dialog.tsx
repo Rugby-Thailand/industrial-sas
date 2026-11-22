@@ -15,6 +15,11 @@ export type DialogCompletionHandle = {
    * Back has been processed: a successor (route, editor, dialog) never races it.
    */
   complete: (action: () => void, onCancel?: () => void) => void;
+  /**
+   * Consume only when this foreground currently owns the active topmost entry;
+   * otherwise cancel without traversing or running a fallback guarded transition.
+   */
+  completeOwned?: (action: () => void, onCancel?: () => void) => boolean;
 };
 
 /**
@@ -24,15 +29,18 @@ export type DialogCompletionHandle = {
 export function useCompletionHandle(
   completionRef: React.Ref<DialogCompletionHandle> | undefined,
   complete: DialogCompletionHandle["complete"],
+  completeOwned?: DialogCompletionHandle["completeOwned"],
 ) {
-  const latest = React.useRef(complete);
+  const latest = React.useRef({ complete, completeOwned });
   React.useLayoutEffect(() => {
-    latest.current = complete;
+    latest.current = { complete, completeOwned };
   });
   React.useImperativeHandle(
     completionRef,
     () => ({
-      complete: (action, onCancel) => latest.current(action, onCancel),
+      complete: (action, onCancel) => latest.current.complete(action, onCancel),
+      completeOwned: (action, onCancel) =>
+        latest.current.completeOwned?.(action, onCancel) ?? false,
     }),
     [],
   );
@@ -44,12 +52,14 @@ function Dialog({
   onOpenChange,
   managedBack = true,
   backPending = false,
+  backRevocationEpoch,
   draftScope,
   completionRef,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root> & {
   managedBack?: boolean;
   backPending?: boolean;
+  backRevocationEpoch?: number;
   draftScope?: string;
   completionRef?: React.Ref<DialogCompletionHandle>;
 }) {
@@ -63,10 +73,17 @@ function Dialog({
     {
       managed: managedBack,
       blocked: backPending,
+      ...(backRevocationEpoch === undefined
+        ? {}
+        : { revocationEpoch: backRevocationEpoch }),
       ...(draftScope ? { draftScope } : {}),
     },
   );
-  useCompletionHandle(completionRef, disclosure.complete);
+  useCompletionHandle(
+    completionRef,
+    disclosure.complete,
+    disclosure.completeOwned,
+  );
   return (
     <DraftForegroundContext.Provider value={disclosure.scope}>
       <DialogPrimitive.Root

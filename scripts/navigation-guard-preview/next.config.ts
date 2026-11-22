@@ -13,6 +13,7 @@ const config: NextConfig = {
       // and a mutation boundary that cannot contact any backend.
       "@/components/providers/WorkspaceProvider": "./storageWorkspaceStub.ts",
       "convex/react": "./storageConvexStub.ts",
+      "@clerk/nextjs": "./clerkStub.tsx",
       "@/*": "../../src/*",
       "next-intl/config": "../../src/i18n/request.ts",
     },

@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { HR_PERMISSION } from "../../../convex/model/authorization/navigationPermissions";
+import {
+  availableQuickMenuKeys,
+  QUICK_MENU_CATALOG,
+  QUICK_MENU_PERMISSION_CODES,
+} from "../../../convex/model/home/quickMenu";
 import { PAGE_KEYS } from "../../../convex/model/search/intent";
 import {
   DESKTOP_NAVIGATION,
   FOCUS_TARGET_IDS,
   STATIC_DESTINATIONS,
+  canOpenTarget,
   destinationHref,
   destinationTrail,
   readEmployeesUrl,
@@ -47,6 +53,33 @@ describe("destination registry", () => {
       "hrPayslips",
       "hrProfile",
     ]);
+  });
+
+  it("keeps Home, the sidebar and final search dispatch on the same grants", () => {
+    const menus = STATIC_DESTINATIONS.filter((entry) => entry.menu);
+    expect(menus.map((entry) => entry.key)).toEqual(
+      QUICK_MENU_CATALOG.map((entry) => entry.key),
+    );
+    for (const granted of [
+      [],
+      ...QUICK_MENU_PERMISSION_CODES.map((code) => [code]),
+      [...QUICK_MENU_PERMISSION_CODES],
+    ]) {
+      const home = availableQuickMenuKeys(granted);
+      const visible = visibleDesktopNavigation(granted).flatMap((section) =>
+        section.items.map((item) => item.href),
+      );
+      expect(
+        menus
+          .filter((entry) => visible.includes(entry.href))
+          .map((entry) => entry.key),
+      ).toEqual(home);
+      expect(
+        menus
+          .filter((entry) => canOpenTarget({ key: entry.key }, granted))
+          .map((entry) => entry.key),
+      ).toEqual(home);
+    }
   });
 
   it("covers every page key the AI may name, with unique keys and locale-free paths", () => {
@@ -167,6 +200,7 @@ describe("destination registry", () => {
 describe("menu matching", () => {
   const all = [
     ...Object.values(HR_PERMISSION),
+    "masterData.warehouse.read",
     "masterData.storageLayout.read",
     "masterData.storageLayout.manage",
   ];
@@ -221,13 +255,26 @@ describe("menu matching", () => {
     ]);
     expect(keys("วันหยุด", [])).toEqual([]);
     expect(keys("สแกนใบงาน", [HR_PERMISSION.selfAccess])).toEqual([]);
-    expect(keys("เพิ่มอาคาร", ["masterData.storageLayout.read"])).toEqual([
-      "planner.storageLayouts",
-    ]);
+    expect(keys("เพิ่มอาคาร", ["masterData.storageLayout.read"])).toEqual([]);
+    expect(
+      keys("เพิ่มอาคาร", [
+        "masterData.warehouse.read",
+        "masterData.storageLayout.read",
+      ]),
+    ).toEqual(["planner.storageLayouts"]);
   });
 
   it("offers New customer only to members who may read and manage customers", () => {
     expect(keys("เพิ่มลูกค้า", ["masterData.customer.manage"])).not.toContain(
+      "planner.newCustomer",
+    );
+    expect(
+      keys("เพิ่มลูกค้า", [
+        "masterData.warehouse.read",
+        "masterData.customer.manage",
+      ]),
+    ).not.toContain("planner.newCustomer");
+    expect(keys("เพิ่มลูกค้า", ["masterData.customer.read"])).not.toContain(
       "planner.newCustomer",
     );
     expect(

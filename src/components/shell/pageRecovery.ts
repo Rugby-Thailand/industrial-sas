@@ -5,17 +5,16 @@ import {
 } from "@/lib/navigation";
 
 /**
- * The start route: `/[locale]` and the sign-in default open it, and members
- * without storage access are redirected from it to their own first page.
+ * Both the locale landing route and the installed app open Home.
  */
-export const START_HREF = ROUTES.storageLayouts;
+export const START_HREF = ROUTES.dashboard;
 
 export type PageRecovery =
   /** The nearest permitted menu page above the failed one: its place and way out. */
   | { readonly kind: "HUB"; readonly item: NavigationItem }
   /** The page the start route opens for this member, named because they can open it. */
   | { readonly kind: "START"; readonly item: NavigationItem }
-  /** Access is not known yet: the start route, which redirects by permission. */
+  /** Access is not known yet: the common Home route. */
   | { readonly kind: "NEUTRAL"; readonly href: string };
 
 /**
@@ -36,15 +35,11 @@ export function pageRecovery(
   );
   const hub = others.find((item) => item.href === hubHref);
   if (hub !== undefined) return { kind: "HUB", item: hub };
-  if (!settled)
-    return pathname === START_HREF
-      ? undefined
-      : { kind: "NEUTRAL", href: START_HREF };
-  // Where the start route lands this member: Buildings & spots with storage
-  // access, else their first HR page, else the AI usage report.
-  const start =
-    visible.find((item) => item.href === START_HREF) ?? visible.at(0);
-  return start === undefined || start.href === pathname
-    ? undefined
-    : { kind: "START", item: start };
+  if (pathname === START_HREF) return undefined;
+  if (!settled) return { kind: "NEUTRAL", href: START_HREF };
+  if (visible.length === 0) return undefined;
+  return {
+    kind: "START",
+    item: { href: START_HREF, labelKey: "home", permissionCodes: [] },
+  };
 }

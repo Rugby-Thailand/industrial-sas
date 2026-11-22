@@ -6,6 +6,7 @@
 // live in `@/components/shell`.
 import {
   useCallback,
+  useLayoutEffect,
   useRef,
   type CSSProperties,
   type ReactNode,
@@ -15,6 +16,8 @@ import { Menu, PanelLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { NavigationGuardProvider } from "@/components/navigation/NavigationGuardProvider";
+import { useHrAccess } from "@/components/providers/HrAccessProvider";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import {
   NavigationContent,
   NavigationProgressProvider,
@@ -25,6 +28,7 @@ import {
   ConnectionNotice,
   ConnectionStallProvider,
 } from "@/components/shell/ConnectionNotice";
+import { PRIMARY_NAV_ID } from "./useOpenAllMenus";
 import { HrLandingRedirect } from "@/components/shell/HrLandingRedirect";
 import { LocaleSwitcher } from "@/components/shell/LocaleSwitcher";
 import { GlobalSearchProvider } from "@/components/shell/search/GlobalSearchProvider";
@@ -54,10 +58,10 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { ROUTES, isHrPath } from "@/lib/navigation";
+import { guardedNavigate } from "@/lib/navigationGuard";
 import { cn } from "@/lib/utils";
 
 const MAIN_ID = "main-content";
-const NAV_ID = "primary-navigation";
 
 export function DesktopShell({
   children,
@@ -171,7 +175,7 @@ function NavigationDisclosure({
       aria-label={label}
       title={label}
       aria-expanded={expanded}
-      {...(!isMobile || openMobile ? { "aria-controls": NAV_ID } : {})}
+      {...(!isMobile || openMobile ? { "aria-controls": PRIMARY_NAV_ID } : {})}
     >
       {/* A phone opens a drawer menu; the desktop toggle collapses a panel. */}
       {isMobile ? (
@@ -245,16 +249,61 @@ function AppSidebar({
   const searchHandoff = useDrawerSearchHandoff(menuOpener, drawer);
   // This router outlives the drawer's links, which unmount as it closes.
   const router = useRouter();
+  const pathname = usePathname();
+  const workspace = useWorkspace();
+  const hr = useHrAccess();
+  const mounted = useRef(true);
+  const context = useRef({
+    isMobile,
+    pathname,
+    orgId: workspace.organization?.id ?? null,
+    identityKey: hr.identityKey ?? null,
+  });
+  useLayoutEffect(() => {
+    context.current = {
+      isMobile,
+      pathname,
+      orgId: workspace.organization?.id ?? null,
+      identityKey: hr.identityKey ?? null,
+    };
+  });
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // The drawer consumes its own entry first; only then does the route push,
   // so the drawer's native Back cannot restore the origin over it.
   const navigateFromDrawer = useCallback(
-    (href: string) =>
+    (href: string) => {
+      const origin = {
+        pathname: context.current.pathname,
+        windowPathname: window.location.pathname,
+        orgId: context.current.orgId,
+        identityKey: context.current.identityKey,
+      };
+      const isValid = () =>
+        mounted.current &&
+        context.current.isMobile &&
+        context.current.pathname === origin.pathname &&
+        window.location.pathname === origin.windowPathname &&
+        context.current.orgId === origin.orgId &&
+        context.current.identityKey === origin.identityKey;
       // Drawer links render only inside the drawer, so its handle is mounted.
       drawer.current?.complete(() => {
+        if (!isValid()) return;
         // Normally already closed by its own Back; never left open otherwise.
         setOpenMobile(false);
-        router.push(href);
-      }),
+        guardedNavigate(
+          () => {
+            if (!isValid()) return;
+            router.push(href);
+          },
+          { isValid },
+        );
+      });
+    },
     [router, setOpenMobile],
   );
   return (
@@ -297,7 +346,7 @@ function AppSidebar({
         />
       </SidebarHeader>
       <SidebarNavigation
-        id={NAV_ID}
+        id={PRIMARY_NAV_ID}
         collapsed={collapsed}
         {...(isMobile ? { onNavigate: navigateFromDrawer } : {})}
       />

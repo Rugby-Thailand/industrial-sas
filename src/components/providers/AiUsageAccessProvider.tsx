@@ -31,8 +31,10 @@ const AiUsageAccessContext = createContext<AiUsageAccessValue>(UNAVAILABLE);
  */
 export function AiUsageAccessProvider({
   children,
+  allowPartialAccess = false,
 }: {
   readonly children: ReactNode;
+  readonly allowPartialAccess?: boolean;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const queryState = useQuery_experimental({
@@ -46,11 +48,10 @@ export function AiUsageAccessProvider({
     if (isLoading) return { ...UNAVAILABLE, status: "LOADING" };
     if (!isAuthenticated) return UNAVAILABLE;
     if (queryError !== undefined) {
-      // No active organization is a normal signed-in state (the chooser
-      // handles it); any other failure must still reach the error boundary.
-      if (failureCodeOf(queryError) !== "ACTIVE_ORGANIZATION_MISSING")
-        throw queryError;
-      return { ...UNAVAILABLE, status: "NONE" };
+      if (failureCodeOf(queryError) === "ACTIVE_ORGANIZATION_MISSING")
+        return { ...UNAVAILABLE, status: "NONE" };
+      if (allowPartialAccess) return UNAVAILABLE;
+      throw queryError;
     }
     if (outcome === undefined) return { ...UNAVAILABLE, status: "LOADING" };
     if (!outcome.ok) return { ...UNAVAILABLE, status: "NONE" };
@@ -59,7 +60,7 @@ export function AiUsageAccessProvider({
       permissions: outcome.value.permissions,
       organizationName: outcome.value.organizationName,
     };
-  }, [isAuthenticated, isLoading, queryError, outcome]);
+  }, [allowPartialAccess, isAuthenticated, isLoading, queryError, outcome]);
   return (
     <AiUsageAccessContext.Provider value={value}>
       {children}

@@ -21,7 +21,7 @@ vi.mock("convex/react", () => ({
         ? undefined
         : transport.read(getFunctionName(query), args);
     return data === undefined
-      ? { status: "loading" }
+      ? { status: "pending" }
       : { status: "success", data };
   },
   useMutation: () => transport.mutate,

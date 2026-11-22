@@ -80,6 +80,22 @@ test.describe("@prod-safe release smoke", () => {
     expect((await request.get("/th/no-such-page")).status()).toBe(404);
   });
 
+  test("opens the installed app's published launch URL and preserves it through sign-in", async ({
+    request,
+  }) => {
+    const { baseUrl } = inputs();
+    const manifest = await request.get("/manifest.webmanifest");
+    expect(manifest.status()).toBe(200);
+    const { start_url: startUrl } = await manifest.json();
+    expect(startUrl).toBe("/th/dashboard");
+    const launch = await request.get(startUrl, { maxRedirects: 0 });
+    expect(launch.status()).toBe(307);
+    const signIn = new URL(launch.headers().location!, baseUrl);
+    expect(signIn.origin).toBe(new URL(baseUrl).origin);
+    expect(signIn.pathname).toBe("/th/sign-in");
+    expect(signIn.searchParams.get("returnTo")).toBe(startUrl);
+  });
+
   test("ships identity and backend configuration for this target only", async ({
     request,
   }) => {

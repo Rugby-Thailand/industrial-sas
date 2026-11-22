@@ -13,12 +13,15 @@ export function resolveAppAccess(input: {
   return input.orgId === undefined ? "ORGANIZATION_REQUIRED" : "APP";
 }
 
-export async function readAppAccess(): Promise<AppAccess> {
-  const identityConfigured = isClerkConfigured(
+export function clerkIdentityConfigured(): boolean {
+  return isClerkConfigured(
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     process.env.CLERK_SECRET_KEY,
   );
+}
 
+export async function readAppAccess(): Promise<AppAccess> {
+  const identityConfigured = clerkIdentityConfigured();
   if (!identityConfigured) {
     return resolveAppAccess({
       identityConfigured: false,

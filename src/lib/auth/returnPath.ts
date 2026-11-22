@@ -22,7 +22,11 @@ export function plannerReturnPath(
   const root = path.slice(prefix.length - 1);
   if (
     !RETURN_PATH_ROOTS.some(
-      (route) => root === route || root.startsWith(`${route}/`),
+      (route) =>
+        root === route ||
+        (route !== ROUTES.dashboard &&
+          route !== ROUTES.aiUsage &&
+          root.startsWith(`${route}/`)),
     )
   )
     return undefined;
