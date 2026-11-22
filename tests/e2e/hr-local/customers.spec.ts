@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { loadHrEnvironment } from "../../../scripts/lib/hr-e2e-env.mjs";
 import { randomUUID } from "node:crypto";
 
 import { test, expect, convexAs } from "./fixtures";
@@ -183,4 +185,73 @@ test("a reviewer links a captured ticket name and the next ticket uses the saved
   await expect(
     page.getByText(captured, { exact: true }).filter({ visible: true }).first(),
   ).toBeVisible();
+});
+
+test("pausing and resuming automatic linking keeps a deleted ticket out of customer activity", async ({
+  page,
+}) => {
+  const env = loadHrEnvironment();
+  const { warehouseId } = readHrFixture();
+  const name = `Pause rehearsal ${randomUUID()}`;
+  const api = await convexAs(page);
+  const created = await api.mutation("customers/writes:createCustomer", {
+    requestId: randomUUID(),
+    name,
+  });
+  expect(created.value.ok).toBe(true);
+  const customerId = created.value.customerId;
+  const save = async () => {
+    const label = randomUUID();
+    const result = await api.mutation("finishedGoods/jobScans:saveJobScans", {
+      warehouseId,
+      requestId: randomUUID(),
+      locationText: "Dock",
+      items: [
+        {
+          source: "MANUAL",
+          customer: name,
+          factoryOrder: label,
+          productBarcodeText: label,
+        },
+      ],
+    });
+    expect(result.value.written).toBe(true);
+    return result.value.documentId;
+  };
+  const latest = async () => {
+    const result = await api.query(
+      "customers/linking:listCustomerActivitySummaries",
+      { customerIds: [customerId] },
+    );
+    expect(result.ok).toBe(true);
+    return result.value.summaries[0]?.latestJob?.jobScanId;
+  };
+  const pauseFlag = "CUSTOMER_AUTO_LINK_PAUSED";
+  const setMode = (paused: boolean) =>
+    execFileSync(
+      process.execPath,
+      [
+        "node_modules/convex/bin/main.js",
+        "env",
+        ...(paused ? ["set", pauseFlag, "true"] : ["remove", pauseFlag]),
+      ],
+      { env, stdio: "pipe" },
+    );
+  const before = await save();
+  expect(await latest()).toBe(before);
+  setMode(true);
+  try {
+    await save();
+    expect(await latest()).toBe(before);
+    const deleted = await api.mutation(
+      "finishedGoods/jobScans:deleteJobScans",
+      { warehouseId, requestId: randomUUID(), ids: [before] },
+    );
+    expect(deleted.value.written).toBe(true);
+    expect(await latest()).toBeUndefined();
+  } finally {
+    setMode(false);
+  }
+  const resumed = await save();
+  expect(await latest()).toBe(resumed);
 });

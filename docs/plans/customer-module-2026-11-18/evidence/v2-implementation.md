@@ -37,6 +37,27 @@ Measured via `tests/fixtures/query-read-stats.ts` (`measured`) in `tests/integra
 
 The baseline measurement was replayed in an isolated export of `574b9d42` using its `measured` and `seedCustomerSearch` fixtures with 105 active customers. Its 53 existing catalogue integration tests also passed.
 
+To reproduce from the feature checkout, export the original fixture into a temporary directory and attach the measurement to its own test file. Both commits use the same pinned dependencies.
+
+```sh
+baseline_dir=$(mktemp -d)
+git archive 574b9d42 | tar -x -C "$baseline_dir"
+ln -s "$PWD/node_modules" "$baseline_dir/node_modules"
+cat >> "$baseline_dir/tests/integration/customers.integration.test.ts" <<'TEST'
+
+it("measures the v1 unfiltered read budget at the v2 fixture cardinality", async () => {
+  const world = await seedCustomerSearch(() => false, undefined, 105);
+  const { stats } = await measured(world, listCustomersPage, {
+    pageSize: 20, status: "ACTIVE",
+  });
+  const reads = [stats.rangeDocs.customers, stats.rangeDocs.finishedGoodsProducts ?? 0,
+    stats.rangeDocs.finishedGoodsJobScans ?? 0, stats.rangeDocs.warehouses ?? 0];
+  expect(reads).toEqual([20, 0, 0, 0]);
+});
+TEST
+(cd "$baseline_dir" && pnpm exec vitest run tests/integration/customers.integration.test.ts)
+```
+
 Separating `listCustomerActivitySummaries` onto the compact `customerWarehouseActivity` table keeps `listCustomersPage` at **0% read-budget regression** relative to `574b9d42`, while zero-activity customers incur zero extra document reads and the populated 100-customer regression with three warehouse activity rows per customer reads 300 activity documents in 100 index ranges, with zero raw product or scan reads. A customer whose complete summary exceeds the request budget has an unavailable count.
 
 ## 3. Scale & Edge-Case Verification
@@ -63,3 +84,11 @@ The rollout guide documents the production automatic-link pause and grant change
 The same sequence passed on a disposable local Convex deployment with the real deployment environment variable toggled during the rehearsal. The test account could continue saving and deleting tickets while matching was paused.
 
 The real local Clerk and Convex browser suite runs with `pnpm test:e2e:hr:local customers.spec.ts`. Mobile and desktop Chromium each passed the name-only save and reload, refused-edit draft protection, and review → remember alias → next ticket auto-link workflows.
+
+The local rollback rehearsal now runs directly through the isolated HR test harness with a real authenticated caller. Its environment check requires the worktree-owned loopback deployment and refuses production keys. Prepare the local harness as described in `tests/e2e/hr-local/README.md`, then run:
+
+```sh
+pnpm test:e2e:hr:local customers.spec.ts --grep 'pausing and resuming' --project hr-desktop
+```
+
+Recorded on 22 November 2026: `[hr-e2e] passed: 1 passed, 0 failed, 0 skipped`. The case creates a customer, confirms exact linking, changes the deployment flag, saves another ticket, deletes the original, checks the live summary and confirms a new ticket links after resuming.
