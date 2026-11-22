@@ -7816,12 +7816,13 @@
     {
       "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:defaultValues",
       "policy": "presentation",
-      "expectation": "Authoritative form defaults produce same-form dirty/conflict comparisons and saved continuation links. They do not open an editor separate from the existing task form.",
-      "uses": ["branch"],
+      "expectation": "Authoritative form defaults produce same-form dirty/conflict comparisons (including inline ProductCustomerConflictValue formatting) and saved continuation links. They do not open an editor separate from the existing task form.",
+      "uses": ["branch", "return"],
       "render": [
         {
           "shape": "and",
           "truthy": [
+            "ProductCustomerConflictValue",
             "dd",
             "div",
             "div[role=alert]",
@@ -7831,6 +7832,11 @@
             "span",
             "src/components/ui/button#Button"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["ProductCustomerConflictValue", "span"],
           "falsy": []
         },
         {
@@ -7850,18 +7856,31 @@
             "src/i18n/navigation#Link"
           ],
           "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "name": "shows resolved customer names in product conflict diffs only when customer read access is granted"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:confirmedValues",
       "policy": "presentation",
-      "expectation": "The reviewed saved values produce inline conflict comparisons and continuation guidance within the same product task form; Cancel is separately owned.",
-      "uses": ["branch"],
+      "expectation": "The reviewed saved values produce inline conflict comparisons (including inline ProductCustomerConflictValue formatting) and continuation guidance within the same product task form; Cancel is separately owned.",
+      "uses": ["branch", "return"],
       "render": [
         {
           "shape": "and",
           "truthy": [
+            "ProductCustomerConflictValue",
             "dd",
             "div",
             "div[role=alert]",
@@ -7871,6 +7890,11 @@
             "span",
             "src/components/ui/button#Button"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["ProductCustomerConflictValue", "span"],
           "falsy": []
         },
         {
@@ -7890,18 +7914,31 @@
             "src/i18n/navigation#Link"
           ],
           "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "name": "shows resolved customer names in product conflict diffs only when customer read access is granted"
         }
       ]
     },
     {
       "id": "src/features/finishedGoods/ProductScreen.tsx#ProductForm:storageWarning",
       "policy": "presentation",
-      "expectation": "Persistence refusal appears as inline form guidance. The memory draft remains guarded; this flag does not reveal an independent editor.",
-      "uses": ["branch"],
+      "expectation": "Persistence refusal appears as inline form guidance alongside conflict comparisons (including inline ProductCustomerConflictValue formatting). The memory draft remains guarded; this flag does not reveal an independent editor.",
+      "uses": ["branch", "return"],
       "render": [
         {
           "shape": "and",
           "truthy": [
+            "ProductCustomerConflictValue",
             "dd",
             "div",
             "div[role=alert]",
@@ -7911,6 +7948,11 @@
             "span",
             "src/components/ui/button#Button"
           ],
+          "falsy": []
+        },
+        {
+          "shape": "and",
+          "truthy": ["ProductCustomerConflictValue", "span"],
           "falsy": []
         },
         {
@@ -7930,6 +7972,18 @@
             "src/i18n/navigation#Link"
           ],
           "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "name": "shows resolved customer names in product conflict diffs only when customer read access is granted"
         }
       ]
     },
@@ -9255,9 +9309,46 @@
       ]
     },
     {
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerJobsCard:paging",
+      "policy": "presentation",
+      "expectation": "Loads and accumulates scoped job pages in the existing linked jobs table and mobile list. Empty results and the continuation button render inside the same card.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "div",
+            "li",
+            "span",
+            "src/components/ui/TableScroller#TableScroller",
+            "src/components/ui/table#Table",
+            "src/components/ui/table#TableBody",
+            "src/components/ui/table#TableCell",
+            "src/components/ui/table#TableHead",
+            "src/components/ui/table#TableHeader",
+            "src/components/ui/table#TableRow",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "loads linked jobs inline across customer-scoped continuation pages"
+        }
+      ]
+    },
+    {
       "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:pagedCursor",
       "policy": "presentation",
-      "expectation": "Inline cursor state for loading subsequent pages of linked products inside CustomerProductsCard; opens no foreground surface.",
+      "expectation": "Inline cursor state for loading subsequent pages of linked products (including empty-page and denial status) inside CustomerProductsCard; opens no foreground surface.",
       "uses": ["branch"],
       "render": [
         {
@@ -9267,10 +9358,31 @@
         },
         {
           "shape": "conditional",
+          "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
           "truthy": ["p"],
           "falsy": [
             "div",
             "li",
+            "p",
+            "span",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "p",
             "span",
             "src/components/ui/button#Button",
             "src/i18n/navigation#Link",
@@ -9282,14 +9394,18 @@
       "cases": [
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+          "name": "keeps Load more for a scoped empty first slice and accumulates continued product pages"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
         }
       ]
     },
     {
       "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:pagingActive",
       "policy": "presentation",
-      "expectation": "Activates inline pagination inside CustomerProductsCard when the customer has more than the preview cap of linked products; opens no foreground surface.",
+      "expectation": "Activates inline pagination inside CustomerProductsCard (including empty-page and denial status) when the customer has more than the preview cap of linked products; opens no foreground surface.",
       "uses": ["branch"],
       "render": [
         {
@@ -9299,10 +9415,31 @@
         },
         {
           "shape": "conditional",
+          "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
           "truthy": ["p"],
           "falsy": [
             "div",
             "li",
+            "p",
+            "span",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "div",
+            "li",
+            "p",
             "span",
             "src/components/ui/button#Button",
             "src/i18n/navigation#Link",
@@ -9314,32 +9451,98 @@
       "cases": [
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+          "name": "keeps Load more for a scoped empty first slice and accumulates continued product pages"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerProductsCard:earlierPages",
+      "policy": "presentation",
+      "expectation": "Keeps already-loaded linked product pages listed while CustomerProductsCard continues to the next page; opens no foreground surface.",
+      "uses": ["branch"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["li", "span", "src/i18n/navigation#Link", "ul"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": [
+            "div",
+            "li",
+            "p",
+            "span",
+            "src/components/ui/button#Button",
+            "src/i18n/navigation#Link",
+            "ul"
+          ]
+        }
+      ],
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "keeps Load more for a scoped empty first slice and accumulates continued product pages"
         }
       ]
     },
     {
       "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:pagingActive",
       "policy": "presentation",
-      "expectation": "Activates inline pagination inside CustomerAliasesCard when a customer has more than 50 aliases so all aliases remain reachable and removable; opens no foreground surface.",
+      "expectation": "Activates inline pagination inside CustomerAliasesCard (loading/denied status, empty intermediate page, and Previous/Next controls) so all aliases remain reachable and removable; opens no foreground surface.",
       "uses": ["branch"],
       "render": [
         {
           "shape": "conditional",
-          "truthy": [
-            "button",
-            "div",
-            "li",
-            "lucide-react#X",
-            "span",
-            "src/components/ui/button#Button",
-            "ul"
-          ],
+          "truthy": ["button", "li", "lucide-react#X", "span", "ul"],
           "falsy": ["p"]
         },
         {
           "shape": "conditional",
           "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": ["div", "src/components/ui/button#Button"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "li",
+            "lucide-react#X",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": ["button", "li", "lucide-react#X", "p", "span", "ul"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         }
       ],
@@ -9348,31 +9551,59 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
         }
       ]
     },
     {
-      "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:aliasCursor",
+      "id": "src/features/customers/CustomerDetail.tsx#CustomerAliasesCard:aliasCursors",
       "policy": "presentation",
-      "expectation": "Inline cursor state for loading subsequent alias pages inside CustomerAliasesCard; opens no foreground surface.",
+      "expectation": "Inline cursor stack for paging forward and backward through customer aliases (including empty and denied page states) inside CustomerAliasesCard; opens no foreground surface.",
       "uses": ["branch"],
       "render": [
         {
           "shape": "conditional",
-          "truthy": [
-            "button",
-            "div",
-            "li",
-            "lucide-react#X",
-            "span",
-            "src/components/ui/button#Button",
-            "ul"
-          ],
+          "truthy": ["button", "li", "lucide-react#X", "span", "ul"],
           "falsy": ["p"]
         },
         {
           "shape": "conditional",
           "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "li",
+            "lucide-react#X",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": ["button", "li", "lucide-react#X", "p", "span", "ul"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/button#Button"],
           "falsy": []
         }
       ],
@@ -9380,16 +9611,26 @@
       "cases": [
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
-          "name": "paginates customer detail aliases and products, shows alias transport errors, and guards dirty alias drafts"
+          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
         }
       ]
     },
     {
       "id": "src/features/customers/CustomerPicker.tsx#CustomerPicker:search",
       "policy": "presentation",
-      "expectation": "Inline search filter text for CustomerPicker inside product and job-scan forms; filters dropdown options and optional load-more button without opening a foreground surface.",
+      "expectation": "Inline search filter text for CustomerPicker inside product and job-scan forms; filters dropdown options, inline empty-page guidance, and Previous/Next paging buttons without opening a foreground surface.",
       "uses": ["branch"],
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
@@ -9401,15 +9642,29 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "searchable CustomerPicker filters options and loads more customers past the first page"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages CustomerPicker and CustomerPickerDialog forward and backward across empty intermediate pages and resets on search"
         }
       ]
     },
     {
-      "id": "src/features/customers/CustomerPicker.tsx#CustomerPicker:scanCursor",
+      "id": "src/features/customers/CustomerPicker.tsx#CustomerPicker:cursorStack",
       "policy": "presentation",
-      "expectation": "Inline continuation cursor for CustomerPicker to load customers past the first query page; opens no foreground surface.",
+      "expectation": "Inline cursor stack for paging CustomerPicker forward and backward across active customer pages and empty intermediate slices; opens no foreground surface.",
       "uses": ["branch"],
       "render": [
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["p"],
+          "falsy": []
+        },
         {
           "shape": "conditional",
           "truthy": ["src/components/ui/button#Button"],
@@ -9421,13 +9676,17 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "searchable CustomerPicker filters options and loads more customers past the first page"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages CustomerPicker and CustomerPickerDialog forward and backward across empty intermediate pages and resets on search"
         }
       ]
     },
     {
       "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:cursorStack",
       "policy": "presentation",
-      "expectation": "Inline batch pagination cursor stack for loading more unresolved review tickets and returning to the first batch; controls inline batch loading/empty/card presentation without opening any foreground surface.",
+      "expectation": "Pages forward and backward through unresolved review tickets. The list keeps inline loading, access, empty-batch, and retained-command status visible as appropriate.",
       "uses": ["branch", "return"],
       "render": [
         {
@@ -9437,8 +9696,7 @@
             "lucide-react#Link2",
             "lucide-react#Plus",
             "lucide-react#Users",
-            "src/components/ui/button#Button",
-            "src/i18n/navigation#Link"
+            "src/components/ui/button#Button"
           ],
           "falsy": []
         },
@@ -9458,12 +9716,29 @@
         },
         {
           "shape": "conditional",
+          "truthy": ["lucide-react#Link2", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
           "truthy": ["src/components/ui/Notice#Notice"],
           "falsy": ["ReviewGroupCard", "div"]
         },
         {
           "shape": "conditional",
           "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
           "falsy": []
         },
         {
@@ -9497,6 +9772,72 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "paginates review queue batches with scanCursor and keeps the queue open while hasMore is true"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages customer aliases forward and backward, handles empty and denied pages, and steps review batches backward"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewQueueContent:retention",
+      "policy": "presentation",
+      "expectation": "Member/org-scoped unanswered link/skip attempts (frozen command plus attempted group snapshot) that keep the inline review card mounted through live-query removal, reloading and an emptied queue until the server answers; discarded on member/org change or lost review access. A terminal answer removes it and never resurrects a command; opens no foreground surface.",
+      "uses": ["branch", "return"],
+      "render": [
+        {
+          "shape": "conditional",
+          "truthy": [
+            "label",
+            "span",
+            "src/components/ui/CheckboxControl#CheckboxControl"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["lucide-react#Link2", "src/components/ui/button#Button"],
+          "falsy": []
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice"],
+          "falsy": ["ReviewGroupCard", "div"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["src/components/ui/Notice#Notice[role=alert]"],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": []
+        },
+        {
+          "shape": "early-return",
+          "truthy": [
+            "src/components/ui/EmptyState#EmptyState",
+            "src/components/ui/button#Button"
+          ],
+          "falsy": []
+        }
+      ],
+      "tests": ["src/features/customers/CustomerReviewRetry.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerReviewRetry.test.tsx",
+          "name": "keeps a lost-response review retry and its exact command after the live queue drops the committed group, then replays it"
+        },
+        {
+          "file": "src/features/customers/CustomerReviewRetry.test.tsx",
+          "name": "keeps an in-flight review decision mounted when its group disappears and settles it on answer"
+        },
+        {
+          "file": "src/features/customers/CustomerReviewRetry.test.tsx",
+          "name": "discards a retained review retry when %s"
         }
       ]
     },
@@ -9539,9 +9880,9 @@
       ]
     },
     {
-      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewGroupCard:errorCode",
+      "id": "src/features/customers/CustomerReviewQueue.tsx#ReviewGroupCard:errorState",
       "policy": "presentation",
-      "expectation": "Inline error notice for a refused link/skip decision on a review group card; opens no foreground surface.",
+      "expectation": "Inline error notice for a refused link/skip decision (with code and optional field) on a review group card; opens no foreground surface.",
       "uses": ["branch"],
       "render": [
         {
@@ -9555,18 +9896,27 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "links and skips unresolved names on the review queue with remember-alias off by default"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "freezes review link payload and requestId across live subscription updates until retry succeeds"
         }
       ]
     },
     {
       "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:search",
       "policy": "presentation",
-      "expectation": "Search filter text inside the already-audited shared CustomerPickerDialog; filters the inline result list and optional load-more button without adding any foreground.",
+      "expectation": "Search filter text inside the already-audited shared CustomerPickerDialog; filters the inline result list, empty/denied status, and Previous/Next paging buttons without adding any foreground.",
       "uses": ["branch"],
       "render": [
         {
           "shape": "conditional",
           "truthy": ["button", "li", "lucide-react#Check", "span", "ul"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
           "falsy": []
         },
         {
@@ -9574,8 +9924,10 @@
           "truthy": ["p"],
           "falsy": [
             "button",
+            "div",
             "li",
             "lucide-react#Check",
+            "p",
             "span",
             "src/components/ui/button#Button",
             "ul"
@@ -9588,6 +9940,24 @@
           ],
           "falsy": [
             "button",
+            "div",
+            "li",
+            "lucide-react#Check",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/button#Button",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "div",
             "li",
             "lucide-react#Check",
             "p",
@@ -9607,18 +9977,27 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages CustomerPicker and CustomerPickerDialog forward and backward across empty intermediate pages and resets on search"
         }
       ]
     },
     {
-      "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:scanCursor",
+      "id": "src/features/customers/CustomerReviewQueue.tsx#CustomerPickerDialog:cursorStack",
       "policy": "presentation",
-      "expectation": "Inline continuation cursor inside the already-audited shared CustomerPickerDialog to load more customers past the first page; adds no foreground.",
+      "expectation": "Inline cursor stack inside the already-audited shared CustomerPickerDialog to page forward and backward through customers (including empty intermediate and denied states); adds no foreground.",
       "uses": ["branch"],
       "render": [
         {
           "shape": "conditional",
           "truthy": ["button", "li", "lucide-react#Check", "span", "ul"],
+          "falsy": ["p"]
+        },
+        {
+          "shape": "conditional",
+          "truthy": ["div", "src/components/ui/button#Button"],
           "falsy": []
         },
         {
@@ -9626,8 +10005,10 @@
           "truthy": ["p"],
           "falsy": [
             "button",
+            "div",
             "li",
             "lucide-react#Check",
+            "p",
             "span",
             "src/components/ui/button#Button",
             "ul"
@@ -9640,6 +10021,24 @@
           ],
           "falsy": [
             "button",
+            "div",
+            "li",
+            "lucide-react#Check",
+            "p",
+            "span",
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus",
+            "src/components/ui/button#Button",
+            "ul"
+          ]
+        },
+        {
+          "shape": "conditional",
+          "truthy": [
+            "src/components/system/LedgerPanelStatus#LedgerPanelStatus"
+          ],
+          "falsy": [
+            "button",
+            "div",
             "li",
             "lucide-react#Check",
             "p",
@@ -9659,6 +10058,10 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "opens the review customer picker in a shared Dialog dismissed by native Back and selects a custom customer"
+        },
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "pages CustomerPicker and CustomerPickerDialog forward and backward across empty intermediate pages and resets on search"
         }
       ]
     },
@@ -10014,26 +10417,46 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:$navigate:push:$dynamic",
+      "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:$navigate:push:batchPath",
       "intent": "advance",
-      "expectation": "An explicit Load latest/next-batch action advances to the chosen batch; it is separate from guarded Cancel and successful write completion.",
+      "expectation": "An explicit Load latest batch or Review batch action advances to the validated batchPath (preserving cross-warehouse context when active); separate from guarded Cancel and write completion.",
+      "tests": ["src/features/finishedGoods/PackingScreen.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/finishedGoods/PackingScreen.test.tsx",
+          "name": "restores cross-warehouse packing context across product breadcrumb, draft save, batch review, and next batch"
+        }
+      ]
+    },
+    {
+      "id": "src/features/finishedGoods/PackingScreen.tsx#PackingForm:$navigate:push:productPackingPath",
+      "intent": "advance",
+      "expectation": "An explicit Prepare another batch action advances to the validated productPackingPath (preserving cross-warehouse context when active); separate from guarded Cancel and write completion.",
       "tests": ["src/features/finishedGoods/PackingScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/PackingScreen.test.tsx",
           "name": "starts an explicitly requested next batch without reusing the completed batch ID"
+        },
+        {
+          "file": "src/features/finishedGoods/PackingScreen.test.tsx",
+          "name": "restores cross-warehouse packing context across product breadcrumb, draft save, batch review, and next batch"
         }
       ]
     },
     {
-      "id": "src/features/finishedGoods/PackingScreen.tsx#finish:$task:completeTask:$dynamic",
+      "id": "src/features/finishedGoods/PackingScreen.tsx#finish:$task:completeTask:batchPath",
       "intent": "completion",
-      "expectation": "Packing save queues live completion after pending registration settles, consumes its predecessor, and replaces with the validated batch destination.",
+      "expectation": "Packing save queues live completion after pending registration settles, consumes its predecessor, and replaces with the validated batchPath destination (preserving cross-warehouse context when active).",
       "tests": ["src/features/finishedGoods/PackingScreen.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/PackingScreen.test.tsx",
           "name": "saves incomplete dimensions as a server draft and navigates to the same batch"
+        },
+        {
+          "file": "src/features/finishedGoods/PackingScreen.test.tsx",
+          "name": "restores cross-warehouse packing context across product breadcrumb, draft save, batch review, and next batch"
         }
       ]
     },
@@ -10113,14 +10536,18 @@
       ]
     },
     {
-      "id": "src/features/finishedGoods/ProductScreen.tsx#saveValues:$task:completeTask:$dynamic|FG_PATH|measurePath",
+      "id": "src/features/finishedGoods/ProductScreen.tsx#saveValues:$task:completeTask:FG_PATH|measurePath|productPackingPath",
       "intent": "completion",
-      "expectation": "Product mutation navigation uses live op.complete after settlement, consumes the owned task, and replaces with the validated product/packing/unit destination.",
+      "expectation": "Product mutation navigation uses live op.complete after settlement, consumes the owned task, and replaces with the validated FG_PATH, measurePath, or productPackingPath destination (preserving cross-warehouse context when active).",
       "tests": ["src/features/finishedGoods/ProductScreens.test.tsx"],
       "cases": [
         {
           "file": "src/features/finishedGoods/ProductScreens.test.tsx",
           "name": "saves an existing finished good without adding pallets"
+        },
+        {
+          "file": "src/features/finishedGoods/ProductScreens.test.tsx",
+          "name": "syncs cross-warehouse product links into packing and yields when the user switches warehouse"
         }
       ]
     },
@@ -10404,6 +10831,18 @@
         {
           "file": "src/features/customers/CustomerScreens.test.tsx",
           "name": "empty review queue Back to list restores the filtered customer list origin and consumes the task entry"
+        }
+      ]
+    },
+    {
+      "id": "src/features/customers/CustomerReviewQueue.tsx#createCustomerFromReview:$navigate:push:customerNewPath",
+      "intent": "advance",
+      "expectation": "Create new customer stores the raw job-ticket name under an opaque tab-session token and pushes customerNewPath with only the prefill token so Back from the create form returns to the review queue.",
+      "tests": ["src/features/customers/CustomerScreens.test.tsx"],
+      "cases": [
+        {
+          "file": "src/features/customers/CustomerScreens.test.tsx",
+          "name": "creates a new customer from review using an opaque session prefill token without putting the raw name in the URL"
         }
       ]
     }

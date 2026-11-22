@@ -1,5 +1,6 @@
 "use client";
 
+import type { FunctionReturnType } from "convex/server";
 import { useMutation, useQuery } from "convex/react";
 import {
   Archive,
@@ -169,7 +170,6 @@ function CustomerDetailContent({
   readonly customer: CustomerDetailRow;
 }) {
   const t = useTranslations("Customers");
-  const format = useFormatter();
   const { canManage } = useCustomerAccess();
   const { organization, warehouses } = useWorkspace();
   const productScope = JSON.stringify([
@@ -190,10 +190,6 @@ function CustomerDetailContent({
     [address?.province, address?.postcode].filter(Boolean).join(" "),
   ].filter((line): line is string => Boolean(line));
   const showWarehouseSections = activity?.canViewWarehouseData === true;
-  const recentJobsHref =
-    activity && activity.recentJobs.length > 0
-      ? `${ROUTES.jobScanRecords}?warehouseId=${encodeURIComponent(activity.recentJobs[0]!.warehouseId)}`
-      : ROUTES.jobScanRecords;
   return (
     <>
       <PageHeader
@@ -318,99 +314,12 @@ function CustomerDetailContent({
             </DetailCard>
             {showWarehouseSections ? (
               <>
-                <DetailCard
-                  title={t("sectionRecentJobs")}
-                  action={
-                    activity.recentJobs.length > 0 || activity.hasMoreJobs ? (
-                      <Link
-                        href={recentJobsHref}
-                        className="text-sm text-link hover:underline"
-                      >
-                        {t("viewAllJobs")}
-                      </Link>
-                    ) : null
-                  }
-                >
-                  {activity.recentJobs.length === 0 ? (
-                    <p className="text-sm text-muted">
-                      {t(
-                        activity.hasMoreJobs
-                          ? "recentJobsOutsidePreview"
-                          : "noLinkedJobs",
-                      )}
-                    </p>
-                  ) : (
-                    <>
-                      <div className="hidden sm:block">
-                        <TableScroller
-                          label={t("sectionRecentJobs")}
-                          testId="customer-recent-jobs"
-                        >
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>{t("colJobNo")}</TableHead>
-                                <TableHead>{t("colPart")}</TableHead>
-                                <TableHead>{t("colWarehouse")}</TableHead>
-                                <TableHead>{t("colScannedAt")}</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {activity.recentJobs.map((job) => (
-                                <TableRow key={job.jobScanId}>
-                                  <TableCell className="font-mono text-xs text-text">
-                                    {job.factoryOrder}
-                                  </TableCell>
-                                  <TableCell className="text-xs wrap-anywhere text-text">
-                                    {job.partName ?? (
-                                      <span className="text-muted">{DASH}</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted">
-                                    {job.warehouseName}
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted tabular-nums">
-                                    {format.dateTime(job.createdAt, {
-                                      dateStyle: "short",
-                                      timeStyle: "short",
-                                    })}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableScroller>
-                      </div>
-                      <ul
-                        className="divide-y divide-border sm:hidden"
-                        data-testid="customer-recent-jobs-mobile"
-                      >
-                        {activity.recentJobs.map((job) => (
-                          <li
-                            key={job.jobScanId}
-                            className="flex items-baseline justify-between gap-2 py-2 text-sm"
-                          >
-                            <span className="min-w-0">
-                              <span className="block font-mono text-xs font-medium text-text">
-                                {job.factoryOrder}
-                              </span>
-                              <span className="block text-xs wrap-anywhere text-muted">
-                                {[job.partName, job.warehouseName]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </span>
-                            </span>
-                            <span className="shrink-0 text-xs text-muted tabular-nums">
-                              {format.dateTime(job.createdAt, {
-                                dateStyle: "short",
-                              })}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </DetailCard>
+                <CustomerJobsCard
+                  key={`jobs-${productScope}`}
+                  customerId={customer.customerId}
+                  initialJobs={activity.recentJobs}
+                  hasMoreInitial={activity.hasMoreJobs}
+                />
                 <CustomerProductsCard
                   key={productScope}
                   customerId={customer.customerId}
@@ -497,6 +406,160 @@ type LinkedProductItem = {
   readonly customerReference?: string;
   readonly totalQuantity?: number;
 };
+
+type CustomerJobPage = NonNullable<
+  Extract<
+    FunctionReturnType<typeof api.customers.linking.listCustomerJobsPage>,
+    { ok: true }
+  >["value"]
+>;
+type CustomerJob = CustomerJobPage["items"][number];
+
+function mergeJobs(
+  earlier: readonly CustomerJob[],
+  next: readonly CustomerJob[],
+) {
+  const byId = new Map(earlier.map((job) => [job.jobScanId, job]));
+  for (const job of next) byId.set(job.jobScanId, job);
+  return [...byId.values()].sort(
+    (a, b) =>
+      b.createdAt - a.createdAt || a.jobScanId.localeCompare(b.jobScanId),
+  );
+}
+
+function CustomerJobsCard({
+  customerId,
+  initialJobs,
+  hasMoreInitial,
+}: {
+  readonly customerId: Id<"customers">;
+  readonly initialJobs: readonly CustomerJob[];
+  readonly hasMoreInitial: boolean;
+}) {
+  const t = useTranslations("Customers");
+  const format = useFormatter();
+  const [paging, setPaging] = useState<{
+    cursor: string | null;
+    earlier: readonly CustomerJob[];
+  } | null>(null);
+  const outcome = useQuery(
+    api.customers.linking.listCustomerJobsPage,
+    paging
+      ? { customerId, ...(paging.cursor ? { cursor: paging.cursor } : {}) }
+      : "skip",
+  );
+  const page = outcome?.ok ? outcome.value : null;
+  const loading = paging !== null && outcome === undefined;
+  const jobs =
+    (outcome && !outcome.ok) || page?.canViewWarehouseData === false
+      ? []
+      : mergeJobs(
+          initialJobs,
+          mergeJobs(paging?.earlier ?? [], page?.items ?? []),
+        );
+  const hasMore = paging
+    ? loading || Boolean(page && !page.isDone)
+    : hasMoreInitial;
+
+  return (
+    <DetailCard title={t("sectionRecentJobs")}>
+      {jobs.length === 0 ? (
+        <p className="text-sm text-muted">
+          {t(hasMore ? "recentJobsOutsidePreview" : "noLinkedJobs")}
+        </p>
+      ) : (
+        <>
+          <div className="hidden sm:block">
+            <TableScroller
+              label={t("sectionRecentJobs")}
+              testId="customer-recent-jobs"
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("colJobNo")}</TableHead>
+                    <TableHead>{t("colPart")}</TableHead>
+                    <TableHead>{t("colWarehouse")}</TableHead>
+                    <TableHead>{t("colScannedAt")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jobs.map((job) => (
+                    <TableRow key={job.jobScanId}>
+                      <TableCell className="font-mono text-xs text-text">
+                        {job.factoryOrder}
+                      </TableCell>
+                      <TableCell className="text-xs wrap-anywhere text-text">
+                        {job.partName ?? (
+                          <span className="text-muted">{DASH}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted">
+                        {job.warehouseName}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted tabular-nums">
+                        {format.dateTime(job.createdAt, {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableScroller>
+          </div>
+          <ul
+            className="divide-y divide-border sm:hidden"
+            data-testid="customer-recent-jobs-mobile"
+          >
+            {jobs.map((job) => (
+              <li
+                key={job.jobScanId}
+                className="flex items-baseline justify-between gap-2 py-2 text-sm"
+              >
+                <span className="min-w-0">
+                  <span className="block font-mono text-xs font-medium text-text">
+                    {job.factoryOrder}
+                  </span>
+                  <span className="block text-xs wrap-anywhere text-muted">
+                    {[job.partName, job.warehouseName]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs text-muted tabular-nums">
+                  {format.dateTime(job.createdAt, {
+                    dateStyle: "short",
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {hasMore ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={loading}
+          onClick={() => {
+            if (!paging) setPaging({ cursor: null, earlier: [] });
+            else if (page && !page.isDone) {
+              setPaging({
+                cursor: page.continueCursor,
+                earlier: mergeJobs(paging.earlier, page.items),
+              });
+            }
+          }}
+        >
+          {t("viewAllJobs")}
+        </Button>
+      ) : null}
+    </DetailCard>
+  );
+}
 
 function mergeProducts(
   earlier: readonly LinkedProductItem[],
@@ -739,6 +802,8 @@ function CustomerAliasesCard({
         if (!outcome.value.ok) {
           if (outcome.value.code === "DUPLICATE_KEY")
             setError(t("aliasDuplicate"));
+          else if (outcome.value.code === "ALIAS_CONFLICT")
+            setError(t("aliasConflict"));
           else if (outcome.value.code === "ALIAS_CAPACITY")
             setError(t("aliasCapacity"));
           else if (outcome.value.code === "FIELD_INVALID")

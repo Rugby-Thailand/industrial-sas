@@ -16,6 +16,10 @@ import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider"
 const mocks = vi.hoisted(() => ({
   canManage: true,
   actor: "user-a",
+  warehouseId: "warehouse-a",
+  extraWarehouses: [] as { id: string; code: string; name: string }[],
+  selectWarehouse: vi.fn(),
+  queryCalls: [] as { name: string; args: unknown }[],
   status: "ACTIVE",
   unit: "pieces",
   save: vi.fn(),
@@ -34,6 +38,11 @@ vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
   ...(await importOriginal<typeof WorkspaceModule>()),
   useWorkspace: () => ({
     ...finishedGoodsWorkspace,
+    warehouses: [
+      ...finishedGoodsWorkspace.warehouses,
+      ...mocks.extraWarehouses,
+    ],
+    selectWarehouse: mocks.selectWarehouse,
     navigationPermissions: mocks.canManage
       ? finishedGoodsWorkspace.navigationPermissions
       : ["masterData.storageLayout.read"],
@@ -45,8 +54,10 @@ vi.mock("convex/react", () => ({
   useQuery: (
     _ref: Parameters<typeof getFunctionName>[0],
     args: { batchId?: string },
-  ) =>
-    getFunctionName(_ref).endsWith(":replacementLabels")
+  ) => {
+    const name = getFunctionName(_ref);
+    mocks.queryCalls.push({ name, args });
+    return name.endsWith(":replacementLabels")
       ? undefined
       : mocks.deniedRead
         ? queryDenied(mocks.deniedRead)
@@ -69,11 +80,12 @@ vi.mock("convex/react", () => ({
               ...finishedGoodProduct,
               status: mocks.status,
               unit: mocks.unit,
-            }),
+            });
+  },
 }));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
-    children("warehouse-a"),
+    children(mocks.warehouseId),
 }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
@@ -180,9 +192,14 @@ const success = (palletIds: string[] = []) => ({
   },
 });
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   localStorage.clear();
   mocks.canManage = true;
   mocks.actor = "user-a";
+  mocks.warehouseId = "warehouse-a";
+  mocks.extraWarehouses = [];
+  mocks.selectWarehouse.mockReset();
+  mocks.queryCalls = [];
   mocks.status = "ACTIVE";
   mocks.unit = "pieces";
   mocks.batch = null;
@@ -1085,4 +1102,168 @@ it("guards an unsent packing draft when browser storage cannot retain it", () =>
   ).toHaveValue(100);
   expect(leave).not.toHaveBeenCalled();
   storage.mockRestore();
+});
+
+describe("cross-warehouse packing context", () => {
+  it("restores cross-warehouse packing context across product breadcrumb, draft save, batch review, and next batch", async () => {
+    mocks.extraWarehouses = [
+      { id: "warehouse-b", code: "WH-B", name: "Warehouse B" },
+    ];
+    const first = renderWithIntl(
+      <PackingScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+      { locale: "en", workspace: false },
+    );
+    await waitFor(() =>
+      expect(mocks.selectWarehouse).toHaveBeenCalledWith("warehouse-b"),
+    );
+    expect(mocks.queryCalls).toContainEqual({
+      name: "finishedGoods/workflow:getProduct",
+      args: { warehouseId: "warehouse-b", productId: "product-a" },
+    });
+    expect(
+      screen.getByRole("link", { name: "Packaging cartons" }),
+    ).toHaveAttribute(
+      "href",
+      "/finished-goods/products/product-a?warehouseId=warehouse-b",
+    );
+
+    split();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save.mock.calls[0]?.[0]).toMatchObject({
+      warehouseId: "warehouse-b",
+    });
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/finished-goods/batches/batch-a?warehouseId=warehouse-b",
+      ),
+    );
+    first.unmount();
+
+    // Commit from product packing in cross-warehouse context preserves warehouseId on review & product links.
+    localStorage.clear();
+    const committed = renderWithIntl(
+      <PackingScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+      { locale: "en", workspace: false },
+    );
+    prepare();
+    review();
+    confirm();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Storage units created" }),
+      ).toBeVisible(),
+    );
+    expect(mocks.commit.mock.calls[0]?.[0]).toMatchObject({
+      warehouseId: "warehouse-b",
+    });
+    expect(
+      screen.getByRole("link", { name: "Product and batches" }),
+    ).toHaveAttribute(
+      "href",
+      "/finished-goods/products/product-a?warehouseId=warehouse-b",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Review or edit this batch" }),
+    );
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/finished-goods/batches/batch-a?warehouseId=warehouse-b",
+    );
+    committed.unmount();
+
+    // Prepare another batch from a committed batch preserves cross-warehouse packing URL.
+    localStorage.clear();
+    mocks.push.mockReset();
+    mocks.batch = serverBatch("CREATED", 1);
+    renderWithIntl(
+      <PackingScreen batchId="batch-a" requestedWarehouseId="warehouse-b" />,
+      { locale: "en", workspace: false },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Review repacking" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm repacking" }));
+    expect(
+      await screen.findByRole("heading", { name: "Storage units created" }),
+    ).toBeVisible();
+    expect(mocks.commit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        batchId: "batch-a",
+        warehouseId: "warehouse-b",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Prepare another batch" }),
+    );
+    expect(mocks.push).toHaveBeenCalledWith(
+      "/finished-goods/products/product-a/packing?warehouseId=warehouse-b",
+    );
+  });
+
+  it("yields cross-warehouse packing override when the user switches warehouse", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/en/finished-goods/products/product-a/packing?warehouseId=warehouse-b",
+    );
+    mocks.extraWarehouses = [
+      { id: "warehouse-b", code: "WH-B", name: "Warehouse B" },
+    ];
+    const view = renderWithIntl(
+      <PackingScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+      { locale: "en", workspace: false, preserveProviders: true },
+    );
+    await waitFor(() =>
+      expect(mocks.selectWarehouse).toHaveBeenCalledWith("warehouse-b"),
+    );
+
+    // Workspace syncs to warehouse-b, then the user switches to warehouse-a.
+    mocks.warehouseId = "warehouse-b";
+    view.rerender(
+      <PackingScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+    );
+    mocks.queryCalls = [];
+    mocks.warehouseId = "warehouse-a";
+    view.rerender(
+      <PackingScreen
+        productId="product-a"
+        requestedWarehouseId="warehouse-b"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        new URLSearchParams(window.location.search).get("warehouseId"),
+      ).toBeNull(),
+    );
+    expect(mocks.queryCalls).toContainEqual({
+      name: "finishedGoods/workflow:getProduct",
+      args: { warehouseId: "warehouse-a", productId: "product-a" },
+    });
+    expect(
+      screen.getByRole("link", { name: "Packaging cartons" }),
+    ).toHaveAttribute("href", "/finished-goods/products/product-a");
+
+    split();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+    expect(mocks.save.mock.calls[0]?.[0]).toMatchObject({
+      warehouseId: "warehouse-a",
+    });
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/finished-goods/batches/batch-a",
+      ),
+    );
+  });
 });

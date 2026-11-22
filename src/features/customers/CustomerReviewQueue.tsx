@@ -29,7 +29,7 @@ import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 import { useRouter } from "@/i18n/navigation";
 import { customerNewPath, ROUTES } from "@/lib/navigation";
 import { returnFromTask } from "@/lib/taskNavigation";
-import { CustomerGate, useSubmissionIdentity } from "./customerAccess";
+import { CustomerGate } from "./customerAccess";
 import { reviewPrefillScope, saveReviewPrefillName } from "./reviewPrefill";
 
 interface ReviewCandidate {
@@ -79,9 +79,28 @@ export function CustomerReviewQueue() {
   );
 }
 
+/**
+ * An attempted decision with no answer yet: the exact command (for a safe
+ * replay) and the card it was sent from. The queue owns it so the card stays
+ * mounted even after the live query drops a group whose write committed but
+ * whose response was lost. It belongs to one signed-in member and org.
+ */
+interface ReviewAttempt {
+  readonly group: ReviewGroup;
+  readonly command: PendingResolveCommand;
+}
+type ReviewAttempts = Readonly<Record<string, ReviewAttempt>>;
+const NO_ATTEMPTS: ReviewAttempts = {};
+
 function ReviewQueueContent() {
   const t = useTranslations("Customers");
   const router = useRouter();
+  const { userId, orgId } = useAuth();
+  const memberScope = reviewPrefillScope(userId, orgId);
+  const [retention, setRetention] = useState<{
+    readonly scope: string | null;
+    readonly attempts: ReviewAttempts;
+  }>({ scope: memberScope, attempts: NO_ATTEMPTS });
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   const activeCursor = cursorStack.at(-1);
   const outcome = useQuery(
@@ -93,7 +112,40 @@ function ReviewQueueContent() {
     Record<string, ReviewCandidate>
   >({});
 
-  if (outcome === undefined) {
+  // Another member or org never sees, or replays, this member's attempts;
+  // a refused or reduced review grant discards them as well.
+  const accessRevoked =
+    outcome !== undefined &&
+    (!outcome.ok ||
+      !outcome.value.canViewWarehouseData ||
+      !outcome.value.canReview);
+  const attempts =
+    retention.scope === memberScope && memberScope !== null && !accessRevoked
+      ? retention.attempts
+      : NO_ATTEMPTS;
+  if (attempts !== retention.attempts && retention.attempts !== NO_ATTEMPTS)
+    setRetention({ scope: memberScope, attempts: NO_ATTEMPTS });
+  const retainAttempt = (key: string, attempt: ReviewAttempt | null) =>
+    setRetention((current) => {
+      if (current.scope !== memberScope) {
+        return attempt
+          ? { scope: memberScope, attempts: { [key]: attempt } }
+          : current;
+      }
+      if (!attempt) {
+        if (!(key in current.attempts)) return current;
+        const rest = { ...current.attempts };
+        delete rest[key];
+        return { scope: memberScope, attempts: rest };
+      }
+      return {
+        scope: memberScope,
+        attempts: { ...current.attempts, [key]: attempt },
+      };
+    });
+  const retained = Object.entries(attempts);
+
+  if (outcome === undefined && retained.length === 0) {
     return (
       <LedgerPanelStatus
         state={{ kind: "LOADING" }}
@@ -101,7 +153,7 @@ function ReviewQueueContent() {
       />
     );
   }
-  if (!outcome.ok) {
+  if (outcome !== undefined && !outcome.ok) {
     return (
       <LedgerPanelStatus
         state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
@@ -110,7 +162,13 @@ function ReviewQueueContent() {
   }
 
   const { canViewWarehouseData, canReview, groups, hasMore, scanCursor } =
-    outcome.value;
+    outcome?.value ?? {
+      canViewWarehouseData: true,
+      canReview: true,
+      groups: [],
+      hasMore: false,
+      scanCursor: undefined,
+    };
   if (!canViewWarehouseData) {
     return (
       <Notice
@@ -120,7 +178,21 @@ function ReviewQueueContent() {
       />
     );
   }
-  if (groups.length === 0 && !hasMore && cursorStack.length === 0) {
+  // Unanswered attempts stay in place through loading, paging and the live
+  // query dropping their group, so their card keeps the exact command.
+  const liveKeys = new Set(groups.map((group) => group.normalizedName));
+  const displayedGroups = [
+    ...groups,
+    ...retained
+      .filter(([key]) => !liveKeys.has(key))
+      .map(([, attempt]) => attempt.group),
+  ];
+  if (
+    displayedGroups.length === 0 &&
+    !hasMore &&
+    cursorStack.length === 0 &&
+    outcome !== undefined
+  ) {
     return (
       <EmptyState
         title={t("reviewEmptyTitle")}
@@ -143,7 +215,13 @@ function ReviewQueueContent() {
       {!canReview ? (
         <Notice tone="muted" title={t("viewOnly")} testId="review-view-only" />
       ) : null}
-      {groups.length === 0 ? (
+      {outcome === undefined ? (
+        <LedgerPanelStatus
+          state={{ kind: "LOADING" }}
+          label={t("reviewLoading")}
+        />
+      ) : null}
+      {displayedGroups.length === 0 ? (
         <Notice
           tone="muted"
           title={t("reviewEmptyBatch")}
@@ -151,11 +229,18 @@ function ReviewQueueContent() {
         />
       ) : (
         <div className="space-y-4" data-testid="review-queue-list">
-          {groups.map((group) => (
+          {displayedGroups.map((group) => (
             <ReviewGroupCard
               key={group.normalizedName}
               group={group}
               canReview={canReview}
+              pendingCommand={attempts[group.normalizedName]?.command ?? null}
+              onAttempt={(command) =>
+                retainAttempt(
+                  group.normalizedName,
+                  command ? { group, command } : null,
+                )
+              }
               selectedCustomer={selectedByGroup[group.normalizedName]}
               onSelectCustomer={(customer) =>
                 setSelectedByGroup((current) => ({
@@ -238,6 +323,8 @@ function reviewErrorKey({ code, field }: ReviewErrorState) {
     case "REQUEST_ARGUMENT_CONFLICT":
     case "REPLAY_TARGET_MISSING":
       return "reviewErrorStale";
+    case "ALIAS_CONFLICT":
+      return "aliasConflict";
     case "ALIAS_CAPACITY":
       return "aliasCapacity";
     case "ALREADY_RESOLVED":
@@ -265,12 +352,17 @@ function reviewErrorKey({ code, field }: ReviewErrorState) {
 function ReviewGroupCard({
   group,
   canReview,
+  pendingCommand,
+  onAttempt,
   selectedCustomer,
   onSelectCustomer,
   onChooseOther,
 }: {
   readonly group: ReviewGroup;
   readonly canReview: boolean;
+  /** The unanswered command this card must replay verbatim, owned by the queue. */
+  readonly pendingCommand: PendingResolveCommand | null;
+  readonly onAttempt: (command: PendingResolveCommand | null) => void;
   readonly selectedCustomer?: ReviewCandidate | undefined;
   readonly onSelectCustomer: (customer: ReviewCandidate) => void;
   readonly onChooseOther: () => void;
@@ -281,7 +373,6 @@ function ReviewGroupCard({
   const { userId, orgId } = useAuth();
   const headingId = useId();
   const resolve = useMutation(api.customers.linking.resolveUnresolvedScans);
-  const identity = useSubmissionIdentity();
   const operation = useAsyncOperation({
     scope: `customer-review:${group.normalizedName}`,
     describeError: () => "UNKNOWN",
@@ -294,8 +385,6 @@ function ReviewGroupCard({
   // Per plan: a decision applies to the listed tickets only by default.
   const [rememberAlias, setRememberAlias] = useState(false);
   const [errorState, setErrorState] = useState<ReviewErrorState | null>(null);
-  const [pendingCommand, setPendingCommand] =
-    useState<PendingResolveCommand | null>(null);
 
   const visibleCandidates: readonly ReviewCandidate[] = selectedCustomer
     ? activeCandidates.some(
@@ -349,18 +438,13 @@ function ReviewGroupCard({
           : {}),
         scans,
       };
-      const { requestId } = identity.request(
-        JSON.stringify(payload),
-        undefined,
-      );
-      command = { requestId, ...payload };
+      command = { requestId: crypto.randomUUID(), ...payload };
     }
-    setPendingCommand(command);
+    onAttempt(command);
     await operation.run(
       async () => resolve(command),
       (outcome) => {
-        identity.clear();
-        setPendingCommand(null);
+        onAttempt(null);
         if (!outcome || typeof outcome !== "object" || !("ok" in outcome)) {
           setErrorState({ code: "UNKNOWN" });
           return;

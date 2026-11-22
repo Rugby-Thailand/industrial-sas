@@ -67,7 +67,8 @@ export function CustomerPicker({
   const nextCursor = outcome?.ok ? outcome.value.scanCursor : undefined;
   const hasPrevious = cursorStack.length > 0;
   const canNext = Boolean(hasMore && nextCursor);
-  const emptyIntermediatePage = !loading && rows.length === 0 && (hasPrevious || canNext);
+  const emptyIntermediatePage =
+    !loading && rows.length === 0 && (hasPrevious || canNext);
   const options = [
     { value: "", label: unlinkedLabel },
     ...rows.map((customer) => ({

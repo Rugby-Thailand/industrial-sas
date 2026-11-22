@@ -6,6 +6,7 @@ import { fgRefs } from "@/lib/convex/finishedGoodsApi";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type * as ClerkModule from "@clerk/nextjs";
+import type * as WorkspaceModule from "@/components/providers/WorkspaceProvider";
 import { getFunctionName } from "convex/server";
 import { axe } from "jest-axe";
 import type { ComponentProps, ReactNode } from "react";
@@ -13,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearCursorPositions } from "@/hooks/useCursorPagination";
 import { renderWithIntl } from "@tests/fixtures/intl-render";
 import {
+  finishedGoodsWorkspace,
   querySuccess,
   writeFailure,
   writeSuccess,
@@ -23,6 +25,9 @@ import { NavigationGuardProvider } from "@/components/navigation/NavigationGuard
 
 const mocks = vi.hoisted(() => ({
   canManage: true,
+  warehouseId: "warehouse-a",
+  extraWarehouses: [] as { id: string; code: string; name: string }[],
+  selectWarehouse: vi.fn(),
   paginated: false,
   denied: false,
   records: [
@@ -122,9 +127,20 @@ vi.mock("../BarcodeCameraBox", () => ({
     </button>
   ),
 }));
+vi.mock("@/components/providers/WorkspaceProvider", async (importOriginal) => ({
+  ...(await importOriginal<typeof WorkspaceModule>()),
+  useWorkspace: () => ({
+    ...finishedGoodsWorkspace,
+    warehouses: [
+      ...finishedGoodsWorkspace.warehouses,
+      ...mocks.extraWarehouses,
+    ],
+    selectWarehouse: mocks.selectWarehouse,
+  }),
+}));
 vi.mock("@/components/system/QueryGate", () => ({
   QueryGate: ({ children }: { children: (warehouseId: string) => ReactNode }) =>
-    children("warehouse-a"),
+    children(mocks.warehouseId),
 }));
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ children, ...props }: ComponentProps<"a">) => (
@@ -140,6 +156,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   clearCursorPositions();
   mocks.canManage = true;
+  mocks.warehouseId = "warehouse-a";
+  mocks.extraWarehouses = [];
+  mocks.selectWarehouse.mockReset();
   mocks.paginated = false;
   mocks.denied = false;
   mocks.listJobScans = null;
@@ -1264,4 +1283,37 @@ it("a delayed picker focus must not steal a user's newly focused search field", 
     request.mockRestore();
     cancel.mockRestore();
   }
+});
+
+it("honors requestedWarehouseId on job scan records and yields when the user switches warehouse", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/en/finished-goods/scan/records?warehouseId=warehouse-b",
+  );
+  mocks.extraWarehouses = [
+    { id: "warehouse-b", code: "WH-B", name: "Warehouse B" },
+  ];
+  const view = renderWithIntl(
+    <JobScanRecordsScreen requestedWarehouseId="warehouse-b" />,
+    { locale: "en", workspace: false, preserveProviders: true },
+  );
+  await waitFor(() =>
+    expect(mocks.selectWarehouse).toHaveBeenCalledWith("warehouse-b"),
+  );
+  expect(mocks.listCalls.at(-1)).toMatchObject({ warehouseId: "warehouse-b" });
+
+  // Workspace syncs to warehouse-b, then user switches to warehouse-a.
+  mocks.warehouseId = "warehouse-b";
+  view.rerender(<JobScanRecordsScreen requestedWarehouseId="warehouse-b" />);
+  mocks.listCalls = [];
+  mocks.warehouseId = "warehouse-a";
+  view.rerender(<JobScanRecordsScreen requestedWarehouseId="warehouse-b" />);
+
+  await waitFor(() =>
+    expect(
+      new URLSearchParams(window.location.search).get("warehouseId"),
+    ).toBeNull(),
+  );
+  expect(mocks.listCalls.at(-1)).toMatchObject({ warehouseId: "warehouse-a" });
 });
