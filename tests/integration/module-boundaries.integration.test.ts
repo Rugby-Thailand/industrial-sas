@@ -665,6 +665,8 @@ describe("module import boundaries", () => {
     // Internal mutations that write through `ctx.db` or their own tenant
     // database skip `mutationWithOrg`'s writer. Each one is reviewed here.
     const reviewed: Readonly<Record<string, string>> = {
+      "convex/customers/backfill.ts":
+        "applies customer-link and pending-index changes through inventoryWriter and flushes per warehouse page",
       "convex/finishedGoods/moveBuildingMigration.ts":
         "patches only move building-index fields; no projection reads them",
       "convex/finishedGoods/searchIndexBackfill.ts":

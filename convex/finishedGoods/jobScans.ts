@@ -48,6 +48,7 @@ import {
   refreshCustomerLatestJob,
 } from "../customers/activitySummary";
 import {
+  autoLinkPaused,
   resolveExactCustomerMatch,
   type ResolvedExactCustomerMatch,
 } from "../customers/matching";
@@ -419,7 +420,7 @@ export const saveJobScans = mutationWithOrg({
           customerId?: Id<"customers">;
           customerLinkSource?: "AUTO";
         } = {};
-        if (matchText) {
+        if (matchText && !autoLinkPaused()) {
           const key = normalizeCustomerName(matchText);
           let match = customerMatches.get(key);
           if (!match) {
@@ -521,7 +522,11 @@ export const updateJobScan = mutationWithOrg({
       if (error) return failure(error);
       const detailError = jobTicketDetailError(args.fields);
       if (detailError) return failure(detailError.code, detailError.field);
-      const nextCustomerText = args.fields.customer?.trim() || undefined;
+      const submittedCustomerText = args.fields.customer;
+      const nextCustomerText =
+        submittedCustomerText?.trim() === before.customer?.trim()
+          ? before.customer
+          : submittedCustomerText;
       let nextCustomerId: Id<"customers"> | undefined = before.customerId;
       let nextCustomerLinkSource: "AUTO" | "MANUAL" | "UNLINKED" | undefined =
         before.customerLinkSource;
@@ -550,10 +555,9 @@ export const updateJobScan = mutationWithOrg({
         before.customerLinkSource !== "MANUAL" &&
         before.customerLinkSource !== "UNLINKED"
       ) {
-        const match = await resolveExactCustomerMatch(
-          ctx.tenantDb,
-          nextCustomerText,
-        );
+        const match = autoLinkPaused()
+          ? { kind: "UNMATCHED" as const }
+          : await resolveExactCustomerMatch(ctx.tenantDb, nextCustomerText);
         if (match.kind === "MATCHED") {
           nextCustomerId = match.customerId;
           nextCustomerLinkSource = "AUTO";

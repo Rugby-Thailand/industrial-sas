@@ -5,6 +5,10 @@ import {
   normalizeCustomerName,
 } from "../model/customers/customers";
 
+/** Operational pause for automatic assignments. Existing link maintenance stays live. */
+export const autoLinkPaused = () =>
+  process.env.CUSTOMER_AUTO_LINK_PAUSED === "true";
+
 export type ResolvedExactCustomerMatch =
   | { readonly kind: "UNMATCHED" }
   | { readonly kind: "MATCHED"; readonly customerId: Id<"customers"> }

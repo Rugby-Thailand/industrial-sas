@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { api, internal } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
@@ -116,6 +116,68 @@ describe("customer v2 linking model and backend", () => {
       "ไทยรุ่งเรืองบรรจุภัณฑ์",
     );
     expect(compactCustomerStem("Siam Box Co., Ltd.")).toBe("siambox");
+  });
+
+  it("refuses an alias beyond capacity before changing the scan or its searchable names", async () => {
+    const { actorA, warehouses, createCustomer, saveScan } = await setup();
+    const customerId = await createCustomer(
+      actorA,
+      "At capacity",
+      "capacity-customer",
+    );
+    let firstAlias: string | undefined;
+    for (let i = 0; i < 79; i++) {
+      const result = allowed(
+        await actorA.mutation(linking.addCustomerAlias, {
+          customerId,
+          requestId: `capacity-fill-${i}`,
+          alias: String(i).padEnd(200, "a"),
+        }),
+      );
+      expect(result.ok).toBe(true);
+      if (result.ok && !firstAlias) firstAlias = result.aliasId;
+    }
+    const alias = "remaining".padEnd(200, "z");
+    const add = { customerId, alias, requestId: "beyond-capacity" };
+    expect(
+      allowed(await actorA.mutation(linking.addCustomerAlias, add)),
+    ).toMatchObject({ ok: false, code: "ALIAS_CAPACITY" });
+    const jobScanId = await saveScan(
+      actorA,
+      warehouses.alphaA,
+      "capacity-intake",
+      "FO-CAP",
+      alias,
+    );
+    const decision = {
+      action: "LINK" as const,
+      customerId,
+      requestId: "capacity-review",
+      rememberAlias: true,
+      scans: [{ jobScanId, expectedVersion: 1 }],
+    };
+    expect(
+      allowed(await actorA.mutation(linking.resolveUnresolvedScans, decision)),
+    ).toMatchObject({ ok: false, code: "ALIAS_CAPACITY" });
+    expect(
+      allowed(
+        await actorA.mutation(linking.removeCustomerAlias, {
+          aliasId: firstAlias as Id<"customerAliases">,
+          requestId: "capacity-release",
+        }),
+      ).ok,
+    ).toBe(true);
+    expect(
+      allowed(await actorA.mutation(linking.resolveUnresolvedScans, decision)),
+    ).toMatchObject({ ok: true, updatedCount: 1 });
+    expect(
+      allowed(
+        await actorA.query(catalogue.listCustomersPage, {
+          search: alias.slice(0, 10),
+          pageSize: 20,
+        }),
+      ).page.map((row) => row.customerId),
+    ).toEqual([customerId]);
   });
 
   it("auto-links exact active canonical names and approved aliases on scan save while keeping unmatched, ambiguous, archived and blank scans unlinked", async () => {
@@ -726,6 +788,8 @@ describe("customer v2 linking model and backend", () => {
 
     // Mark scanVoided as voided and scanDecided as explicitly UNLINKED.
     await t.run(async (ctx) => {
+      for (const id of [scanMatch1, scanMatch2, scanAmbig, scanUnmatched])
+        await ctx.db.patch(id, { customerReviewPending: undefined });
       await ctx.db.patch(scanVoided, { voided: true });
       await ctx.db.patch(scanDecided, { customerLinkSource: "UNLINKED" });
     });
@@ -776,7 +840,7 @@ describe("customer v2 linking model and backend", () => {
       cursor = step.continueCursor;
     }
     expect(batches).toBeGreaterThanOrEqual(4);
-    expect(totalUpdated).toBe(2);
+    expect(totalUpdated).toBe(4);
 
     const [m1, m2, amb, unm, voi, dec, blk, audits] = await t.run(
       async (ctx) => [
@@ -1350,6 +1414,11 @@ describe("customer v2 linking model and backend", () => {
       aliasId: expect.any(String),
       replayed: false,
     });
+    if (!res1.ok || !res1.aliasId) throw new Error("missing original alias");
+    await actorA.mutation(linking.removeCustomerAlias, {
+      aliasId: res1.aliasId as Id<"customerAliases">,
+      requestId: "retire-before-replay",
+    });
     const resReplay = allowed(
       await actorA.mutation(linking.resolveUnresolvedScans, {
         requestId: "res-valid-group",
@@ -1469,6 +1538,119 @@ describe("customer v2 linking model and backend", () => {
         }),
       ),
     ).toEqual({ ok: false, code: "ACCESS_DENIED", field: "exampleJobScanId" });
+  });
+
+  it.each(["masterData.customer.read", "masterData.storageLayout.read"])(
+    "requires %s to resolve a ticket even when the actor keeps both manage grants",
+    async (permissionCode) => {
+      const { t, actorA, orgA, warehouses, createCustomer, saveScan } =
+        await setup();
+      const customerId = await createCustomer(
+        actorA,
+        "Chosen customer",
+        "manage-only-customer",
+      );
+      const jobScanId = await saveScan(
+        actorA,
+        warehouses.alphaA,
+        "manage-only-ticket",
+        "FO-MANAGE",
+        "Unmatched name",
+      );
+      await t.run(async (ctx) => {
+        const role = await ctx.db
+          .query("roles")
+          .withIndex("by_orgId_key", (q) =>
+            q.eq("orgId", orgA).eq("key", "ORG_ADMIN"),
+          )
+          .unique();
+        const grant = await ctx.db
+          .query("rolePermissions")
+          .withIndex("by_orgId_roleId_permissionCode", (q) =>
+            q
+              .eq("orgId", orgA)
+              .eq("roleId", role!._id)
+              .eq("permissionCode", permissionCode),
+          )
+          .unique();
+        await ctx.db.delete(grant!._id);
+      });
+      expect(
+        allowed(
+          await actorA.mutation(linking.resolveUnresolvedScans, {
+            requestId: "manage-only-resolve",
+            customerId,
+            action: "LINK",
+            scans: [{ jobScanId, expectedVersion: 1 }],
+          }),
+        ),
+      ).toMatchObject({ ok: false, code: "ACCESS_DENIED" });
+      expect(
+        (await t.run((ctx) => ctx.db.get(jobScanId)))?.customerId,
+      ).toBeUndefined();
+    },
+  );
+
+  it("retains accurate activity through a pause, deletion and resumption of automatic linking", async () => {
+    const { t, actorA, warehouses, createCustomer, saveScan } = await setup();
+    const warehouseId = warehouses.alphaA;
+    const name = "Rollback Customer";
+    const customerId = await createCustomer(actorA, name, "rollback-customer");
+    const original = await saveScan(
+      actorA,
+      warehouseId,
+      "before-pause",
+      "FO-BEFORE",
+      name,
+    );
+    try {
+      vi.stubEnv("CUSTOMER_AUTO_LINK_PAUSED", "true");
+      const paused = await saveScan(
+        actorA,
+        warehouseId,
+        "during-pause",
+        "FO-PAUSED",
+        name,
+      );
+      expect(
+        (await t.run((ctx) => ctx.db.get(paused)))?.customerId,
+      ).toBeUndefined();
+      const removed = allowed(
+        await actorA.mutation(jobScans.deleteJobScans, {
+          warehouseId,
+          requestId: "during-pause-delete",
+          ids: [original],
+        }),
+      );
+      expect(removed.written).toBe(true);
+      await expect(
+        t.mutation(internal.customers.backfill.backfillJobScanCustomers, {
+          warehouseId,
+          dryRun: false,
+        }),
+      ).rejects.toThrow("CUSTOMER_AUTO_LINK_PAUSED");
+      const activity = allowed(
+        await actorA.query(linking.listCustomerActivitySummaries, {
+          customerIds: [customerId],
+        }),
+      );
+      expect(activity.summaries[0]?.latestJob).toBeUndefined();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    const resumed = await saveScan(
+      actorA,
+      warehouseId,
+      "after-pause",
+      "FO-RESUMED",
+      name,
+    );
+    const activity = allowed(
+      await actorA.query(linking.listCustomerActivitySummaries, {
+        customerIds: [customerId],
+      }),
+    );
+    expect(activity.summaries[0]?.latestJob?.jobScanId).toBe(resumed);
   });
 
   it("preserves UNLINKED decisions across text edits, refreshes activity on delete, and keeps repeated CLEAR as UNLINKED", async () => {
@@ -1674,19 +1856,17 @@ describe("customer v2 linking model and backend", () => {
 
     // 3. Seed 105 aliases on customer #1 and verify alias #105 matches listCustomersPage AND paginates via listCustomerAliasesPage.
     const firstCustomer = customerIds[0]!;
-    await t.run(async (ctx) => {
-      for (let i = 1; i <= 105; i += 1) {
-        await ctx.db.insert("customerAliases", {
-          orgId: orgA,
-          customerId: firstCustomer,
-          alias: `Shared Prefix Alias ${String(i).padStart(3, "0")}`,
-          normalizedAlias: `shared prefix alias ${String(i).padStart(3, "0")}`,
-          approvedAt: i,
-          approvedByUserId: world.userA,
-        });
-      }
-    });
-    // Adding alias #106 via mutation syncs aliasSearchText across all pages.
+    for (let i = 1; i <= 105; i += 1) {
+      expect(
+        allowed(
+          await actorA.mutation(linking.addCustomerAlias, {
+            requestId: `scale-alias-${i}`,
+            customerId: firstCustomer,
+            alias: `Shared Prefix Alias ${String(i).padStart(3, "0")}`,
+          }),
+        ).ok,
+      ).toBe(true);
+    }
     allowed(
       await actorA.mutation(linking.addCustomerAlias, {
         requestId: "scale-alias-106",
@@ -1743,7 +1923,7 @@ describe("customer v2 linking model and backend", () => {
       status: "ACTIVE",
     });
     expect(page20.value).toMatchObject({ status: "ready" });
-    expect(page20.stats.rangeDocs.customers).toBeLessThanOrEqual(21);
+    expect(page20.stats.rangeDocs.customers).toBe(20);
     expect(page20.stats.rangeDocs.customerAliases ?? 0).toBe(0);
     expect(page20.stats.rangeDocs.finishedGoodsProducts ?? 0).toBe(0);
     expect(page20.stats.rangeDocs.finishedGoodsJobScans ?? 0).toBe(0);

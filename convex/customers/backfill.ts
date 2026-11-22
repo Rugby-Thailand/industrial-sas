@@ -2,11 +2,13 @@ import { v } from "convex/values";
 
 import type { Doc } from "../_generated/dataModel";
 import { internalMutation } from "../_generated/server";
+import { inventoryWriter } from "../lib/inventoryWriter";
 import { createTenantDocumentAccess } from "../lib/tenantDb";
 import { createMutationTenantStorage } from "../lib/tenantStorage";
 import { normalizeCustomerName } from "../model/customers/customers";
 import { recordCustomerJobLink } from "./activitySummary";
 import {
+  autoLinkPaused,
   resolveExactCustomerMatch,
   type ResolvedExactCustomerMatch,
 } from "./matching";
@@ -44,6 +46,8 @@ export const backfillJobScanCustomers = internalMutation({
     continueCursor: v.string(),
   }),
   handler: async (ctx, args) => {
+    if (!args.dryRun && autoLinkPaused())
+      throw new Error("CUSTOMER_AUTO_LINK_PAUSED");
     const batchSize = args.batchSize ?? DEFAULT_BATCH_SIZE;
     if (
       !Number.isInteger(batchSize) ||
@@ -59,10 +63,17 @@ export const backfillJobScanCustomers = internalMutation({
     if (!warehouse) throw new Error("Warehouse not found");
 
     const requestId = `customer-scan-backfill:${args.warehouseId}:${args.cursor ?? "start"}`;
-    const tenantDb = createTenantDocumentAccess(
+    const sourceDb = createTenantDocumentAccess(
       { orgId: warehouse.orgId, requestId },
       createMutationTenantStorage(ctx, requestId),
     );
+
+    const writer = inventoryWriter({
+      db: sourceDb,
+      orgId: warehouse.orgId,
+      scheduler: ctx.scheduler,
+    });
+    const tenantDb = writer.db;
 
     const page = await ctx.db
       .query("finishedGoodsJobScans")
@@ -161,10 +172,12 @@ export const backfillJobScanCustomers = internalMutation({
           await tenantDb.patch("finishedGoodsJobScans", scan._id, {
             customerReviewPending: true,
           });
+          updated += 1;
         }
       }
     }
 
+    await writer.flush();
     return {
       dryRun: args.dryRun,
       matched,

@@ -9,6 +9,7 @@ import {
   checkIdempotency,
   fingerprintArguments,
   resultIdentityDigest,
+  sha256Hex,
   verifiedResultIdentity,
   writeIdempotencyRecord,
 } from "../lib/idempotency";
@@ -20,6 +21,10 @@ import {
   queryWithOrg,
   type TenantFunctionContext,
 } from "../lib/tenantFunctions";
+import {
+  TENANT_INDEX_MAX_PAGE_SIZE,
+  TENANT_INDEX_TIEBREAKER,
+} from "../lib/tenantDb";
 import { writeContextOf } from "../lib/writeEnvelope";
 import { NAVIGATION_PERMISSION } from "../model/authorization/navigationPermissions";
 import {
@@ -28,11 +33,18 @@ import {
   validateCustomerAlias,
 } from "../model/customers/customers";
 import {
-  addCustomerAliasToSearchText,
+  appendSearchableAlias,
   isReviewPendingScan,
   recordCustomerJobLink,
   removeCustomerAliasFromSearchText,
 } from "./activitySummary";
+import {
+  decodeScanCursor,
+  encodeScanCursor,
+  scanVisible,
+  type ScanBudget,
+  type ScanPosition,
+} from "./activityReads";
 import { bumpCustomerCatalogueGeneration } from "./catalogueGeneration";
 import { resolveExactCustomerMatch } from "./matching";
 import {
@@ -60,6 +72,13 @@ const REVIEW_PAGE_SCAN_LIMIT = 50;
 const ACTIVE_CUSTOMER_SAMPLE = 100;
 const MAX_RESOLVE_SCANS = 100;
 const MAX_SUMMARY_CUSTOMERS = 100;
+/** Activity rows one summary request may scan across all its customers. */
+const SUMMARY_READ_BUDGET = 2_000;
+/** Rows read for every customer before continuing busy ones. */
+const SUMMARY_FIRST_SLICE = 10;
+/** Rows one detail section may scan past out-of-scope warehouses. */
+const DETAIL_SCAN_BUDGET = 300;
+const PRODUCTS_PAGE_SCAN_BUDGET = 500;
 const PICKER_DEFAULT_LIMIT = 25;
 const PICKER_SEARCH_PAGE_LIMIT = 100;
 
@@ -195,81 +214,65 @@ async function hydrateLinkedProducts(
 }
 
 interface ReviewScanCursor {
-  readonly w: number;
-  readonly c?: string | undefined;
+  readonly key: string;
+  readonly warehouseId?: string;
+  readonly legacy?: boolean;
+  readonly cursor?: string;
 }
 
 function parseReviewCursor(raw: string): ReviewScanCursor {
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const value = JSON.parse(raw) as Partial<ReviewScanCursor> | null;
     if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      !("w" in parsed) ||
-      typeof parsed.w !== "number" ||
-      !Number.isInteger(parsed.w) ||
-      parsed.w < 0
+      typeof value?.key === "string" &&
+      (value.warehouseId === undefined ||
+        typeof value.warehouseId === "string") &&
+      (value.legacy === undefined || typeof value.legacy === "boolean") &&
+      (value.cursor === undefined ||
+        (typeof value.cursor === "string" &&
+          typeof value.warehouseId === "string"))
     ) {
-      throw new Error("REVIEW_CURSOR_INVALID");
+      return { ...value, key: value.key };
     }
-    const c = "c" in parsed ? parsed.c : undefined;
-    if (c !== undefined && typeof c !== "string") {
-      throw new Error("REVIEW_CURSOR_INVALID");
-    }
-    return { w: parsed.w, ...(c === undefined ? {} : { c }) };
   } catch {
-    throw new Error("REVIEW_CURSOR_INVALID");
+    // Invalid cursors are rejected before reading any scan ranges.
   }
+  throw new Error("REVIEW_CURSOR_INVALID");
 }
 
-/**
- * Fallback probe for pre-backfill legacy scans that do not yet carry
- * `customerReviewPending: true`. Bounded strictly per warehouse.
- */
-async function readLegacyUnresolvedScans(
+function reviewScanRange(
   ctx: TenantFunctionContext,
-  warehouses: readonly Doc<"warehouses">[],
-  budget: number,
+  warehouseId: Id<"warehouses">,
+  legacy: boolean,
 ) {
-  if (warehouses.length === 0) {
-    return { scans: [] as Doc<"finishedGoodsJobScans">[], hasMore: false };
-  }
-  const perWarehouse = Math.max(
-    1,
-    Math.min(100, Math.ceil(budget / warehouses.length) + 1),
+  return ctx.tenantDb.byIndex<Doc<"finishedGoodsJobScans">>(
+    "finishedGoodsJobScans",
+    legacy
+      ? "by_orgId_warehouseId_customerLinkSource_createdAt"
+      : "by_orgId_warehouseId_customerReviewPending_createdAt",
+    [
+      { field: "warehouseId", value: warehouseId },
+      legacy
+        ? { field: "customerLinkSource", value: undefined, missing: true }
+        : { field: "customerReviewPending", value: true },
+    ],
   );
-  const chunks = await Promise.all(
-    warehouses.map((warehouse) =>
-      ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsJobScans">>(
-          "finishedGoodsJobScans",
-          "by_orgId_warehouseId_customerLinkSource_createdAt",
-          [
-            { field: "warehouseId", value: warehouse._id },
-            {
-              field: "customerLinkSource",
-              value: undefined,
-              missing: true,
-            },
-          ],
-        )
-        .take(perWarehouse, "desc"),
-    ),
-  );
-  let hasMore = false;
-  const combined: Doc<"finishedGoodsJobScans">[] = [];
-  for (const rows of chunks) {
-    if (rows.length >= perWarehouse) hasMore = true;
-    for (const scan of rows) {
-      if (isReviewPendingScan(scan)) combined.push(scan);
+}
+
+function collectReviewScans(
+  scans: Doc<"finishedGoodsJobScans">[],
+  rows: readonly Doc<"finishedGoodsJobScans">[],
+  legacy: boolean,
+) {
+  for (const scan of rows) {
+    if (
+      (!legacy || scan.customerReviewPending !== true) &&
+      isReviewPendingScan(scan) &&
+      normalizeCustomerName(scan.customer ?? "")
+    ) {
+      scans.push(scan);
     }
   }
-  combined.sort((a, b) => b.createdAt - a.createdAt);
-  if (combined.length > budget) {
-    hasMore = true;
-    combined.length = budget;
-  }
-  return { scans: combined, hasMore };
 }
 
 async function readPendingScansSummary(
@@ -277,204 +280,92 @@ async function readPendingScansSummary(
   budget: number,
 ) {
   const allowed = await allowedCustomerWarehouses(ctx);
-  if (!allowed.hasWarehouseRead || allowed.warehouses.length === 0) {
-    return {
-      allowed,
-      scans: [] as Doc<"finishedGoodsJobScans">[],
-      hasMore: false,
-    };
-  }
-  const perWarehouse = Math.max(
-    1,
-    Math.min(100, Math.ceil(budget / allowed.warehouses.length) + 1),
-  );
-  const chunks = await Promise.all(
-    allowed.warehouses.map((warehouse) =>
-      ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsJobScans">>(
-          "finishedGoodsJobScans",
-          "by_orgId_warehouseId_customerReviewPending_createdAt",
-          [
-            { field: "warehouseId", value: warehouse._id },
-            { field: "customerReviewPending", value: true },
-          ],
-        )
-        .take(perWarehouse, "desc"),
-    ),
-  );
+  const scans: Doc<"finishedGoodsJobScans">[] = [];
+  if (!allowed.hasWarehouseRead) return { allowed, scans, hasMore: false };
+
+  // Count distinct eligible rows within a fixed read budget, prioritizing the
+  // sparse index. A truncated raw range can still contain eligible legacy rows.
+  let remaining = budget;
   let hasMore = !allowed.complete;
-  const combined: Doc<"finishedGoodsJobScans">[] = [];
-  for (const rows of chunks) {
-    if (rows.length >= perWarehouse) hasMore = true;
-    for (const scan of rows) {
-      if (isReviewPendingScan(scan)) combined.push(scan);
+  for (const legacy of [false, true]) {
+    for (const warehouse of allowed.warehouses) {
+      const limit = Math.min(TENANT_INDEX_MAX_PAGE_SIZE, remaining + 1);
+      const rows = await reviewScanRange(ctx, warehouse._id, legacy).take(
+        limit,
+        "desc",
+      );
+      const count = Math.min(rows.length, remaining);
+      collectReviewScans(scans, rows.slice(0, count), legacy);
+      remaining -= count;
+      if (rows.length === limit) hasMore = true;
     }
   }
-  if (combined.length === 0 && !hasMore) {
-    const legacy = await readLegacyUnresolvedScans(
-      ctx,
-      allowed.warehouses,
-      budget,
-    );
-    return { allowed, scans: legacy.scans, hasMore: legacy.hasMore };
-  }
-  combined.sort((a, b) => b.createdAt - a.createdAt);
-  if (combined.length > budget) {
-    hasMore = true;
-    combined.length = budget;
-  }
-  return { allowed, scans: combined, hasMore };
+  return { allowed, scans, hasMore };
 }
 
-/**
- * Paginate review-pending scans across authorized warehouses using the sparse
- * `customerReviewPending: true` index so blank, voided, and resolved scans
- * never consume read budget or hide older unresolved tickets.
- */
 async function readPendingScansPage(
   ctx: TenantFunctionContext,
   scanCursor: string | undefined,
 ) {
-  const allowed = await allowedCustomerWarehouses(ctx);
-  if (!allowed.hasWarehouseRead || allowed.warehouses.length === 0) {
-    return {
-      allowed,
-      scans: [] as Doc<"finishedGoodsJobScans">[],
-      hasMore: false,
-      scanCursor: undefined as string | undefined,
-    };
-  }
-  const warehouses = [...allowed.warehouses].sort((a, b) =>
-    a._id.localeCompare(b._id),
-  );
-  const start = scanCursor ? parseReviewCursor(scanCursor) : { w: 0 };
-  if (start.w >= warehouses.length) {
-    return {
-      allowed,
-      scans: [] as Doc<"finishedGoodsJobScans">[],
-      hasMore: false,
-      scanCursor: undefined as string | undefined,
-    };
-  }
-
-  let activeWarehouseIdx = start.w;
-  if (start.c === undefined) {
-    // Skip warehouses with zero indexed pending scans without consuming the
-    // single `.page()` call allowed per Convex query.
-    while (activeWarehouseIdx < warehouses.length) {
-      const probe = await ctx.tenantDb
-        .byIndex<Doc<"finishedGoodsJobScans">>(
-          "finishedGoodsJobScans",
-          "by_orgId_warehouseId_customerReviewPending_createdAt",
-          [
-            {
-              field: "warehouseId",
-              value: warehouses[activeWarehouseIdx]!._id,
-            },
-            { field: "customerReviewPending", value: true },
-          ],
-        )
-        .take(1, "desc");
-      if (probe.length > 0) break;
-      activeWarehouseIdx += 1;
-    }
-  }
-
-  if (activeWarehouseIdx >= warehouses.length) {
-    if (!scanCursor) {
-      const legacy = await readLegacyUnresolvedScans(
-        ctx,
-        warehouses,
-        REVIEW_PAGE_SCAN_LIMIT,
-      );
-      return {
-        allowed,
-        scans: legacy.scans,
-        hasMore: legacy.hasMore,
-        scanCursor: undefined as string | undefined,
-      };
-    }
-    return {
-      allowed,
-      scans: [] as Doc<"finishedGoodsJobScans">[],
-      hasMore: false,
-      scanCursor: undefined as string | undefined,
-    };
-  }
-
-  const page = await ctx.tenantDb
-    .byIndex<Doc<"finishedGoodsJobScans">>(
-      "finishedGoodsJobScans",
-      "by_orgId_warehouseId_customerReviewPending_createdAt",
-      [
-        { field: "warehouseId", value: warehouses[activeWarehouseIdx]!._id },
-        { field: "customerReviewPending", value: true },
-      ],
-    )
-    .page({
-      limit: REVIEW_PAGE_SCAN_LIMIT,
-      ...(start.c ? { cursor: start.c } : {}),
-      order: "desc",
-    });
-
-  const collected: Doc<"finishedGoodsJobScans">[] =
-    page.page.filter(isReviewPendingScan);
-  if (!page.isDone) {
-    return {
-      allowed,
-      scans: collected,
-      hasMore: true,
-      scanCursor: JSON.stringify({
-        w: activeWarehouseIdx,
-        c: page.continueCursor,
-      }),
-    };
-  }
-
-  // Current warehouse finished: pack any remaining whole warehouses that fit
-  // into this page's scan budget, stopping cleanly before the first warehouse
-  // that would overflow so continuation never skips or duplicates rows.
-  let remaining = REVIEW_PAGE_SCAN_LIMIT - collected.length;
-  for (let nextW = activeWarehouseIdx + 1; nextW < warehouses.length; nextW++) {
-    const probeLimit = Math.max(1, remaining + 1);
-    const chunk = await ctx.tenantDb
-      .byIndex<Doc<"finishedGoodsJobScans">>(
-        "finishedGoodsJobScans",
-        "by_orgId_warehouseId_customerReviewPending_createdAt",
-        [
-          { field: "warehouseId", value: warehouses[nextW]!._id },
-          { field: "customerReviewPending", value: true },
-        ],
-      )
-      .take(probeLimit, "desc");
-    if (chunk.length === 0) continue;
-    if (remaining > 0 && chunk.length <= remaining) {
-      for (const scan of chunk) {
-        if (isReviewPendingScan(scan)) collected.push(scan);
-      }
-      remaining -= chunk.length;
-      continue;
-    }
-    return {
-      allowed,
-      scans: collected,
-      hasMore: true,
-      scanCursor: JSON.stringify({ w: nextW }),
-    };
-  }
-
-  return {
+  const start =
+    scanCursor === undefined ? undefined : parseReviewCursor(scanCursor);
+  const allowed = await allowedCustomerWarehouses(ctx, start);
+  const scans: Doc<"finishedGoodsJobScans">[] = [];
+  const result = (next?: ReviewScanCursor) => ({
     allowed,
-    scans: collected,
-    hasMore: false,
-    scanCursor: undefined as string | undefined,
-  };
+    scans,
+    hasMore: next !== undefined,
+    scanCursor: next === undefined ? undefined : JSON.stringify(next),
+  });
+  if (!allowed.hasWarehouseRead) return result();
+
+  let remaining = REVIEW_PAGE_SCAN_LIMIT;
+  for (const warehouse of allowed.warehouses) {
+    const key = allowed.orgWide ? warehouse.code : warehouse._id;
+    const resume = start?.warehouseId === warehouse._id && start.key === key;
+    for (const legacy of [false, true]) {
+      if (resume && start.legacy && !legacy) continue;
+      const cursor =
+        resume && start.legacy === legacy ? start.cursor : undefined;
+      const position = { key, warehouseId: warehouse._id, legacy };
+      const range = reviewScanRange(ctx, warehouse._id, legacy);
+      if (cursor === undefined) {
+        const rows = await range.take(remaining + 1, "desc");
+        if (rows.length <= remaining) {
+          collectReviewScans(scans, rows, legacy);
+          remaining -= rows.length;
+          continue;
+        }
+        if (remaining === 0) return result(position);
+      }
+
+      // At most one native pagination call per Convex query. Resume this
+      // range or use bounded takes for any later ranges that fit the budget.
+      const page = await range.page({
+        limit: remaining,
+        ...(cursor === undefined ? {} : { cursor }),
+        order: "desc",
+      });
+      collectReviewScans(scans, page.page, legacy);
+      if (!page.isDone)
+        return result({ ...position, cursor: page.continueCursor });
+
+      // Defer other ranges until the next request if they require pagination.
+      remaining = 0;
+    }
+  }
+  return result(allowed.nextStart);
 }
 
 /**
  * Compact per-page customer activity summary (`linkedProductCount`, `latestJob`)
  * backed by `customerWarehouseActivity` so `listCustomersPage` retains its v1
  * read budget and zero-activity customers cost zero extra document reads.
+ *
+ * Each customer's activity rows (one per warehouse) are read to the end with
+ * keyset continuation before warehouse scope is applied, so a customer active
+ * in many warehouses is never reported as zero. A customer whose rows do not
+ * fit the request's read budget is omitted (unknown), never under-counted.
  */
 export const listCustomerActivitySummaries = queryWithOrg({
   ...readCustomers,
@@ -504,62 +395,105 @@ export const listCustomerActivitySummaries = queryWithOrg({
       };
     }
 
-    const accessCache = new Map<Id<"warehouses">, boolean>();
-    const isAllowedWarehouse = async (
-      warehouseId: Id<"warehouses">,
-    ): Promise<boolean> => {
-      if (allowed.byId.has(warehouseId)) return true;
-      if (allowed.complete) return false;
-      const cached = accessCache.get(warehouseId);
-      if (cached !== undefined) return cached;
-      const ok = await canAccessWarehouse(ctx, warehouseId);
-      accessCache.set(warehouseId, ok);
-      return ok;
+    const budget: ScanBudget = { remaining: SUMMARY_READ_BUDGET };
+    const accessCache = new Map<Id<"warehouses">, Promise<boolean>>();
+    const isAllowedWarehouse = (warehouseId: Id<"warehouses">) => {
+      if (allowed.byId.has(warehouseId)) return Promise.resolve(true);
+      if (allowed.complete) return Promise.resolve(false);
+      let cached = accessCache.get(warehouseId);
+      if (cached === undefined) {
+        // Exact check past the listed scope: a warehouse and a scope row.
+        budget.remaining -= 2;
+        cached = canAccessWarehouse(ctx, warehouseId);
+        accessCache.set(warehouseId, cached);
+      }
+      return cached;
     };
 
-    const summaries = await Promise.all(
+    type ActivityRow = Doc<"customerWarehouseActivity">;
+    const scanCustomer = (
+      customerId: Id<"customers">,
+      stepBudget: ScanBudget,
+      start?: ScanPosition,
+    ) =>
+      scanVisible<ActivityRow, ActivityRow>({
+        readBatch: (bound, limit) =>
+          ctx.tenantDb
+            .byIndex<ActivityRow>(
+              "customerWarehouseActivity",
+              "by_orgId_customerId_warehouseId",
+              [{ field: "customerId", value: customerId }],
+              bound === undefined
+                ? undefined
+                : {
+                    field: "warehouseId",
+                    lower: { value: bound, inclusive: true },
+                  },
+            )
+            .take(limit),
+        key: (row) => row.warehouseId,
+        accept: async (row) =>
+          (await isAllowedWarehouse(row.warehouseId)) ? row : null,
+        want: Number.POSITIVE_INFINITY,
+        budget: stepBudget,
+        start,
+      });
+
+    // First a small slice for every customer (most use few warehouses), then
+    // continue the busy ones while the shared budget lasts.
+    const firstPass = await Promise.all(
       uniqueIds.map(async (customerId) => {
-        const rows = await ctx.tenantDb
-          .byIndex<Doc<"customerWarehouseActivity">>(
-            "customerWarehouseActivity",
-            "by_orgId_customerId_warehouseId",
-            [{ field: "customerId", value: customerId }],
-          )
-          .take(MAX_SUMMARY_CUSTOMERS);
-        let linkedProductCount = 0;
-        let latestJob:
-          | {
-              jobScanId: Id<"finishedGoodsJobScans">;
-              factoryOrder: string;
-              createdAt: number;
-              warehouseId: Id<"warehouses">;
-            }
-          | undefined;
-        for (const row of rows) {
-          if (!(await isAllowedWarehouse(row.warehouseId))) continue;
-          linkedProductCount += row.linkedProductCount;
-          if (
-            row.latestJobScanId !== undefined &&
-            row.latestJobFactoryOrder !== undefined &&
-            row.latestJobCreatedAt !== undefined &&
-            (latestJob === undefined ||
-              row.latestJobCreatedAt > latestJob.createdAt)
-          ) {
-            latestJob = {
-              jobScanId: row.latestJobScanId,
-              factoryOrder: row.latestJobFactoryOrder,
-              createdAt: row.latestJobCreatedAt,
-              warehouseId: row.warehouseId,
-            };
-          }
-        }
-        return {
-          customerId,
-          linkedProductCount,
-          ...(latestJob === undefined ? {} : { latestJob }),
-        };
+        const slice: ScanBudget = { remaining: SUMMARY_FIRST_SLICE };
+        const result = await scanCustomer(customerId, slice);
+        budget.remaining -= SUMMARY_FIRST_SLICE - slice.remaining;
+        return { customerId, result };
       }),
     );
+    const summaries = [];
+    for (const { customerId, result: first } of firstPass) {
+      let rows: ActivityRow[] | null = first.items.map(({ item }) => item);
+      if (!first.done) {
+        const rest =
+          budget.remaining > 0
+            ? await scanCustomer(customerId, budget, first.position)
+            : null;
+        rows = rest?.done
+          ? [...rows, ...rest.items.map(({ item }) => item)]
+          : null;
+      }
+      if (rows === null) continue;
+      let linkedProductCount = 0;
+      let latestJob:
+        | {
+            jobScanId: Id<"finishedGoodsJobScans">;
+            factoryOrder: string;
+            createdAt: number;
+            warehouseId: Id<"warehouses">;
+          }
+        | undefined;
+      for (const row of rows) {
+        linkedProductCount += row.linkedProductCount;
+        if (
+          row.latestJobScanId !== undefined &&
+          row.latestJobFactoryOrder !== undefined &&
+          row.latestJobCreatedAt !== undefined &&
+          (latestJob === undefined ||
+            row.latestJobCreatedAt > latestJob.createdAt)
+        ) {
+          latestJob = {
+            jobScanId: row.latestJobScanId,
+            factoryOrder: row.latestJobFactoryOrder,
+            createdAt: row.latestJobCreatedAt,
+            warehouseId: row.warehouseId,
+          };
+        }
+      }
+      summaries.push({
+        customerId,
+        linkedProductCount,
+        ...(latestJob === undefined ? {} : { latestJob }),
+      });
+    }
 
     return {
       canViewWarehouseData: true,
@@ -621,7 +555,10 @@ export const getCustomerActivity = queryWithOrg({
         approvedAt: row.approvedAt,
       }));
 
-    if (!allowed.hasWarehouseRead || allowed.warehouses.length === 0) {
+    if (
+      !allowed.hasWarehouseRead ||
+      (allowed.complete && allowed.warehouses.length === 0)
+    ) {
       return {
         canViewWarehouseData: allowed.hasWarehouseRead,
         aliases,
@@ -639,51 +576,73 @@ export const getCustomerActivity = queryWithOrg({
     >();
     const usePerWarehouse = allowed.complete && allowed.warehouses.length <= 20;
 
-    const jobScanLimit = RECENT_JOBS_LIMIT + 1;
-    const rawJobs = usePerWarehouse
-      ? (
-          await Promise.all(
-            allowed.warehouses.map((warehouse) =>
-              ctx.tenantDb
-                .byIndex<Doc<"finishedGoodsJobScans">>(
-                  "finishedGoodsJobScans",
-                  "by_orgId_warehouseId_customerId_createdAt",
-                  [
-                    { field: "warehouseId", value: warehouse._id },
-                    { field: "customerId", value: customer._id },
-                  ],
-                )
-                .take(jobScanLimit + 5, "desc"),
-            ),
-          )
-        ).flat()
-      : await ctx.tenantDb
-          .byIndex<Doc<"finishedGoodsJobScans">>(
-            "finishedGoodsJobScans",
-            "by_orgId_customerId_createdAt",
-            [{ field: "customerId", value: customer._id }],
-          )
-          .take(50, "desc");
-
-    const visibleJobs: {
-      scan: Doc<"finishedGoodsJobScans">;
-      warehouseName: string;
-    }[] = [];
-    for (const scan of rawJobs) {
-      if (scan.voided) continue;
-      const warehouseName = await resolveWarehouseName(
-        ctx,
-        allowed,
-        scan.warehouseId,
-        warehouseCache,
+    // Live scans only (the index fixes `voided` as missing), so voided rows
+    // never consume the limit. A complete, small scope reads each warehouse
+    // range exactly; otherwise one customer range is scanned with keyset
+    // continuation, applying warehouse scope per row within a read budget.
+    type JobScan = Doc<"finishedGoodsJobScans">;
+    const jobWant = RECENT_JOBS_LIMIT + 1;
+    const visibleJobs: { scan: JobScan; warehouseName: string }[] = [];
+    let jobsTruncated = false;
+    if (usePerWarehouse) {
+      const perWarehouse = await Promise.all(
+        allowed.warehouses.map(async (warehouse) =>
+          (
+            await ctx.tenantDb
+              .byIndex<JobScan>(
+                "finishedGoodsJobScans",
+                "by_orgId_warehouseId_customerId_voided_createdAt",
+                [
+                  { field: "warehouseId", value: warehouse._id },
+                  { field: "customerId", value: customer._id },
+                  { field: "voided", value: undefined, missing: true },
+                ],
+              )
+              .take(jobWant, "desc")
+          ).map((scan) => ({ scan, warehouseName: warehouse.name })),
+        ),
       );
-      if (warehouseName === null) continue;
-      visibleJobs.push({ scan, warehouseName });
+      visibleJobs.push(...perWarehouse.flat());
+    } else {
+      const jobs = await scanVisible<
+        JobScan,
+        { scan: JobScan; warehouseName: string }
+      >({
+        readBatch: (bound, limit) =>
+          ctx.tenantDb
+            .byIndex<JobScan>(
+              "finishedGoodsJobScans",
+              "by_orgId_customerId_voided_createdAt",
+              [
+                { field: "customerId", value: customer._id },
+                { field: "voided", value: undefined, missing: true },
+              ],
+              bound === undefined
+                ? undefined
+                : {
+                    field: "createdAt",
+                    upper: { value: bound, inclusive: true },
+                  },
+            )
+            .take(limit, "desc"),
+        key: (scan) => scan.createdAt,
+        accept: async (scan) => {
+          const warehouseName = await resolveWarehouseName(
+            ctx,
+            allowed,
+            scan.warehouseId,
+            warehouseCache,
+          );
+          return warehouseName === null ? null : { scan, warehouseName };
+        },
+        want: jobWant,
+        budget: { remaining: DETAIL_SCAN_BUDGET },
+      });
+      visibleJobs.push(...jobs.items.map(({ item }) => item));
+      jobsTruncated = !jobs.done && visibleJobs.length < jobWant;
     }
     visibleJobs.sort((a, b) => b.scan.createdAt - a.scan.createdAt);
-    const hasMoreJobs =
-      visibleJobs.length > RECENT_JOBS_LIMIT ||
-      (!usePerWarehouse && rawJobs.length >= 50);
+    const hasMoreJobs = visibleJobs.length > RECENT_JOBS_LIMIT || jobsTruncated;
     const recentJobs = visibleJobs
       .slice(0, RECENT_JOBS_LIMIT)
       .map(({ scan, warehouseName }) => ({
@@ -699,52 +658,46 @@ export const getCustomerActivity = queryWithOrg({
         ...(scan.customer === undefined ? {} : { capturedName: scan.customer }),
       }));
 
-    const productLimit = LINKED_PRODUCTS_LIMIT + 1;
-    const rawProducts = usePerWarehouse
-      ? (
-          await Promise.all(
-            allowed.warehouses.map((warehouse) =>
-              ctx.tenantDb
-                .byIndex<Doc<"finishedGoodsProducts">>(
-                  "finishedGoodsProducts",
-                  "by_orgId_warehouseId_customerId",
-                  [
-                    { field: "warehouseId", value: warehouse._id },
-                    { field: "customerId", value: customer._id },
-                  ],
-                )
-                .take(productLimit),
-            ),
-          )
-        ).flat()
-      : await ctx.tenantDb
-          .byIndex<Doc<"finishedGoodsProducts">>(
-            "finishedGoodsProducts",
-            "by_orgId_customerId",
-            [{ field: "customerId", value: customer._id }],
-          )
-          .take(productLimit);
-
-    const visibleProducts: {
-      product: Doc<"finishedGoodsProducts">;
-      warehouseName: string;
-    }[] = [];
-    for (const product of rawProducts) {
-      const warehouseName = await resolveWarehouseName(
+    type Product = Doc<"finishedGoodsProducts">;
+    const productWant = LINKED_PRODUCTS_LIMIT + 1;
+    const visibleProducts: { product: Product; warehouseName: string }[] = [];
+    let productsTruncated = false;
+    if (usePerWarehouse) {
+      const perWarehouse = await Promise.all(
+        allowed.warehouses.map(async (warehouse) =>
+          (
+            await ctx.tenantDb
+              .byIndex<Product>(
+                "finishedGoodsProducts",
+                "by_orgId_warehouseId_customerId",
+                [
+                  { field: "warehouseId", value: warehouse._id },
+                  { field: "customerId", value: customer._id },
+                ],
+              )
+              .take(productWant)
+          ).map((product) => ({ product, warehouseName: warehouse.name })),
+        ),
+      );
+      visibleProducts.push(...perWarehouse.flat());
+    } else {
+      const products = await scanCustomerProducts(
         ctx,
         allowed,
-        product.warehouseId,
+        customer._id,
         warehouseCache,
+        productWant,
+        { remaining: DETAIL_SCAN_BUDGET },
       );
-      if (warehouseName === null) continue;
-      visibleProducts.push({ product, warehouseName });
+      visibleProducts.push(...products.items.map(({ item }) => item));
+      productsTruncated =
+        !products.done && visibleProducts.length < productWant;
     }
     visibleProducts.sort((a, b) =>
       a.product.name.localeCompare(b.product.name),
     );
     const hasMoreProducts =
-      visibleProducts.length > LINKED_PRODUCTS_LIMIT ||
-      (!usePerWarehouse && rawProducts.length >= productLimit);
+      visibleProducts.length > LINKED_PRODUCTS_LIMIT || productsTruncated;
     const linkedProducts = await hydrateLinkedProducts(
       ctx,
       visibleProducts.slice(0, LINKED_PRODUCTS_LIMIT),
@@ -845,42 +798,83 @@ export const listCustomerProductsPage = queryWithOrg({
       };
     }
 
-    const page = await ctx.tenantDb
-      .byIndex<Doc<"finishedGoodsProducts">>(
-        "finishedGoodsProducts",
-        "by_orgId_customerId",
-        [{ field: "customerId", value: customer._id }],
-      )
-      .page({ limit, ...(cursor ? { cursor } : {}) });
+    // Scope is applied per row while scanning, so rows in warehouses the
+    // member cannot read never end a page early; one extra visible row
+    // decides `isDone`. A budget-limited page may be short but continues.
+    const start = decodeScanCursor(cursor);
+    const scan = await scanCustomerProducts(
+      ctx,
+      allowed,
+      customer._id,
+      new Map(),
+      limit + 1,
+      { remaining: PRODUCTS_PAGE_SCAN_BUDGET },
+      start,
+    );
+    const pageItems = scan.items.slice(0, limit);
+    const full = scan.items.length > limit;
+    const items = await hydrateLinkedProducts(
+      ctx,
+      pageItems.map(({ item }) => item),
+    );
+    const isDone = scan.done && !full;
+    return {
+      canViewWarehouseData: true,
+      items,
+      isDone,
+      continueCursor: isDone
+        ? ""
+        : encodeScanCursor(
+            full ? pageItems[pageItems.length - 1]!.position : scan.position,
+          ),
+    };
+  },
+});
 
-    const warehouseCache = new Map<
-      Id<"warehouses">,
-      Doc<"warehouses"> | null
-    >();
-    const visible: {
-      product: Doc<"finishedGoodsProducts">;
-      warehouseName: string;
-    }[] = [];
-    for (const product of page.page) {
+/**
+ * Products linked to one customer in creation order, keeping only rows in
+ * warehouses the member may read, from an optional keyset position.
+ */
+function scanCustomerProducts(
+  ctx: TenantFunctionContext,
+  allowed: AllowedCustomerWarehouses,
+  customerId: Id<"customers">,
+  warehouseCache: Map<Id<"warehouses">, Doc<"warehouses"> | null>,
+  want: number,
+  budget: ScanBudget,
+  start?: ScanPosition,
+) {
+  type Product = Doc<"finishedGoodsProducts">;
+  return scanVisible<Product, { product: Product; warehouseName: string }>({
+    readBatch: (bound, limit) =>
+      ctx.tenantDb
+        .byIndex<Product>(
+          "finishedGoodsProducts",
+          "by_orgId_customerId",
+          [{ field: "customerId", value: customerId }],
+          bound === undefined
+            ? undefined
+            : {
+                field: TENANT_INDEX_TIEBREAKER,
+                lower: { value: bound, inclusive: true },
+              },
+        )
+        .take(limit),
+    key: (product) => product._creationTime,
+    accept: async (product) => {
       const warehouseName = await resolveWarehouseName(
         ctx,
         allowed,
         product.warehouseId,
         warehouseCache,
       );
-      if (warehouseName === null) continue;
-      visible.push({ product, warehouseName });
-    }
-    const items = await hydrateLinkedProducts(ctx, visible);
-
-    return {
-      canViewWarehouseData: true,
-      items,
-      isDone: page.isDone,
-      continueCursor: page.continueCursor,
-    };
-  },
-});
+      return warehouseName === null ? null : { product, warehouseName };
+    },
+    want,
+    budget,
+    start,
+  });
+}
 
 export const searchCustomerOptions = queryWithOrg({
   ...readCustomers,
@@ -1011,6 +1005,23 @@ export const addCustomerAlias = mutationWithOrg({
       operation: "customer.alias.add",
       requestId: args.requestId,
     });
+    if (args.exampleJobScanId) {
+      const warehouseGrants = await grantedPermissionsAmong(ctx, [
+        NAVIGATION_PERMISSION.storageLayouts,
+      ]);
+      if (!warehouseGrants.includes(NAVIGATION_PERMISSION.storageLayouts)) {
+        return failure("ACCESS_DENIED", "exampleJobScanId");
+      }
+      const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
+        "finishedGoodsJobScans",
+        args.exampleJobScanId,
+      );
+      if (!scan) return failure("NOT_FOUND", "exampleJobScanId");
+      if (!(await canAccessWarehouse(ctx, scan.warehouseId))) {
+        return failure("ACCESS_DENIED", "exampleJobScanId");
+      }
+    }
+
     const replay = await replayTenantWriteIfPresent({
       ...context,
       fingerprint: args,
@@ -1035,23 +1046,6 @@ export const addCustomerAlias = mutationWithOrg({
     if (!customer) return failure("NOT_FOUND");
     if (customer.status === "ARCHIVED") return failure("CUSTOMER_ARCHIVED");
 
-    if (args.exampleJobScanId) {
-      const warehouseGrants = await grantedPermissionsAmong(ctx, [
-        NAVIGATION_PERMISSION.storageLayouts,
-      ]);
-      if (!warehouseGrants.includes(NAVIGATION_PERMISSION.storageLayouts)) {
-        return failure("ACCESS_DENIED", "exampleJobScanId");
-      }
-      const scan = await ctx.tenantDb.get<Doc<"finishedGoodsJobScans">>(
-        "finishedGoodsJobScans",
-        args.exampleJobScanId,
-      );
-      if (!scan) return failure("NOT_FOUND", "exampleJobScanId");
-      if (!(await canAccessWarehouse(ctx, scan.warehouseId))) {
-        return failure("ACCESS_DENIED", "exampleJobScanId");
-      }
-    }
-
     const existing = await ctx.tenantDb
       .byIndex<Doc<"customerAliases">>(
         "customerAliases",
@@ -1067,6 +1061,12 @@ export const addCustomerAlias = mutationWithOrg({
     const requestHash = await fingerprintArguments(args);
     if (!requestHash.ok) return failure(requestHash.error.code);
 
+    const aliasSearchText = appendSearchableAlias(
+      customer,
+      validated.value.normalizedAlias,
+    );
+    if (aliasSearchText === null) return failure("ALIAS_CAPACITY", "alias");
+
     const aliasId = await ctx.tenantDb.insert("customerAliases", {
       customerId: customer._id,
       alias: validated.value.alias,
@@ -1077,11 +1077,7 @@ export const addCustomerAlias = mutationWithOrg({
       approvedAt: context.now,
       approvedByUserId: context.actorUserId,
     });
-    await addCustomerAliasToSearchText(
-      ctx.tenantDb,
-      customer._id,
-      validated.value.normalizedAlias,
-    );
+    await ctx.tenantDb.patch("customers", customer._id, { aliasSearchText });
 
     await ctx.tenantDb.insert("auditEvents", {
       occurredAt: context.now,
@@ -1218,7 +1214,10 @@ export const reviewSummary = queryWithOrg({
     }
     return {
       canViewWarehouseData: allowed.hasWarehouseRead,
-      canReview: canManageCustomers && allowed.hasWarehouseManage,
+      canReview:
+        canManageCustomers &&
+        allowed.hasWarehouseRead &&
+        allowed.hasWarehouseManage,
       unresolvedNameCount: names.size,
       unresolvedScanCount: scans.length,
       hasMore,
@@ -1287,7 +1286,10 @@ export const listUnresolvedNames = queryWithOrg({
     const canManageCustomers = manageGrants.includes(
       NAVIGATION_PERMISSION.customerManage,
     );
-    const canReview = canManageCustomers && allowed.hasWarehouseManage;
+    const canReview =
+      canManageCustomers &&
+      allowed.hasWarehouseRead &&
+      allowed.hasWarehouseManage;
     if (!allowed.hasWarehouseRead || scans.length === 0) {
       return {
         canViewWarehouseData: allowed.hasWarehouseRead,
@@ -1518,10 +1520,13 @@ export const resolveUnresolvedScans = mutationWithOrg({
     // Authorize warehouse manage permission and exact per-scan warehouse scope
     // BEFORE checking idempotency replay so revoked callers cannot probe or
     // replay earlier receipts.
-    const manageGrants = await grantedPermissionsAmong(ctx, [
+    const required = [
+      NAVIGATION_PERMISSION.customers,
+      NAVIGATION_PERMISSION.storageLayouts,
       NAVIGATION_PERMISSION.storageLayoutManage,
-    ]);
-    if (!manageGrants.includes(NAVIGATION_PERMISSION.storageLayoutManage))
+    ] as const;
+    const grants = await grantedPermissionsAmong(ctx, required);
+    if (!required.every((code) => grants.includes(code)))
       return failure("ACCESS_DENIED");
 
     const seenIds = new Set<string>();
@@ -1560,44 +1565,16 @@ export const resolveUnresolvedScans = mutationWithOrg({
     });
     if (!decision.ok) return failure(decision.error.code);
     if (decision.value.kind === "REPLAY") {
-      const verifiedId = await verifiedResultIdentity(
-        decision.value.record,
-        "finishedGoodsJobScans",
-      );
-      if (!verifiedId || verifiedId !== loadedScans[0]!._id) {
-        return failure("REPLAY_TARGET_MISSING");
-      }
-      let replayedAliasId: string | undefined;
+      const { resultRef, resultHash, status } = decision.value.record;
       if (
-        args.action === "LINK" &&
-        args.rememberAlias === true &&
-        args.customerId
-      ) {
-        const newest = loadedScans.reduce((best, scan) =>
-          scan.createdAt > best.createdAt ? scan : best,
-        );
-        const rawAlias = args.aliasText ?? newest.customer?.trim() ?? "";
-        const normalizedAlias = normalizeCustomerName(rawAlias);
-        if (normalizedAlias) {
-          const existingAlias = await ctx.tenantDb
-            .byIndex<Doc<"customerAliases">>(
-              "customerAliases",
-              "by_orgId_customerId_normalizedAlias",
-              [
-                { field: "customerId", value: args.customerId },
-                { field: "normalizedAlias", value: normalizedAlias },
-              ],
-            )
-            .unique();
-          if (existingAlias) replayedAliasId = existingAlias._id;
-        }
-      }
-      return {
-        ok: true as const,
-        updatedCount: args.scans.length,
-        ...(replayedAliasId === undefined ? {} : { aliasId: replayedAliasId }),
-        replayed: true,
-      };
+        !resultRef ||
+        status !== "SUCCEEDED" ||
+        (await sha256Hex(resultRef)) !== resultHash
+      )
+        return failure("REPLAY_TARGET_MISSING");
+      const receipt: { updatedCount: number; aliasId?: string } =
+        JSON.parse(resultRef);
+      return { ok: true as const, ...receipt, replayed: true };
     }
 
     // Validate every scan's state, version, and single-name group membership
@@ -1667,6 +1644,12 @@ export const resolveUnresolvedScans = mutationWithOrg({
       if (existing) {
         aliasId = existing._id;
       } else {
+        const aliasSearchText = appendSearchableAlias(
+          targetCustomer,
+          validatedAlias.normalizedAlias,
+        );
+        if (aliasSearchText === null)
+          return failure("ALIAS_CAPACITY", "aliasText");
         aliasId = await ctx.tenantDb.insert("customerAliases", {
           customerId: targetCustomer._id,
           alias: validatedAlias.alias,
@@ -1675,11 +1658,9 @@ export const resolveUnresolvedScans = mutationWithOrg({
           approvedAt: context.now,
           approvedByUserId: context.actorUserId,
         });
-        await addCustomerAliasToSearchText(
-          ctx.tenantDb,
-          targetCustomer._id,
-          validatedAlias.normalizedAlias,
-        );
+        await ctx.tenantDb.patch("customers", targetCustomer._id, {
+          aliasSearchText,
+        });
         await bumpCustomerCatalogueGeneration(ctx.tenantDb);
       }
     }
@@ -1733,22 +1714,25 @@ export const resolveUnresolvedScans = mutationWithOrg({
       });
     }
 
-    const firstId = loadedScans[0]!._id;
+    const receipt = {
+      updatedCount: loadedScans.length,
+      ...(aliasId === undefined ? {} : { aliasId }),
+    };
+    const resultRef = JSON.stringify(receipt);
     await writeIdempotencyRecord({
       tenantDb: ctx.tenantDb,
       operation: "customer.review.resolve",
       requestId: context.requestId,
       requestHash: requestHash.value,
-      resultRef: firstId,
-      resultHash: await resultIdentityDigest("finishedGoodsJobScans", firstId),
+      resultRef,
+      resultHash: await sha256Hex(resultRef),
       actorUserId: context.actorUserId,
       now: context.now,
     });
 
     return {
       ok: true as const,
-      updatedCount: loadedScans.length,
-      ...(aliasId === undefined ? {} : { aliasId }),
+      ...receipt,
       replayed: false,
     };
   },

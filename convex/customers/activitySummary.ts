@@ -1,8 +1,5 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import {
-  TENANT_INDEX_MAX_PAGE_SIZE,
-  type TenantDocumentAccess,
-} from "../lib/tenantDb";
+import type { TenantDocumentAccess } from "../lib/tenantDb";
 
 const MAX_ALIAS_SEARCH_TEXT = 16_000;
 
@@ -24,49 +21,15 @@ export function isReviewPendingScan(scan: {
   );
 }
 
-/**
- * Maintain `customers.aliasSearchText` incrementally so `listCustomersPage`
- * matches any alias substring with zero extra reads and without calling
- * `.paginate()` inside mutations (Convex allows at most one paginated query
- * per function).
- */
-export async function addCustomerAliasToSearchText(
-  tenantDb: TenantDocumentAccess,
-  customerId: Id<"customers">,
+/** Alias rows and their search text are written together in each mutation. */
+export function appendSearchableAlias(
+  customer: Doc<"customers">,
   normalizedAlias: string,
-): Promise<void> {
-  const customer = await tenantDb.get<Doc<"customers">>(
-    "customers",
-    customerId,
-  );
-  if (!customer) return;
-
-  const existingLines = customer.aliasSearchText
-    ? customer.aliasSearchText.split("\n").filter(Boolean)
-    : (
-        await tenantDb
-          .byIndex<Doc<"customerAliases">>(
-            "customerAliases",
-            "by_orgId_customerId_normalizedAlias",
-            [{ field: "customerId", value: customerId }],
-          )
-          .take(TENANT_INDEX_MAX_PAGE_SIZE)
-      ).map((row) => row.normalizedAlias);
-
-  const unique = new Set(existingLines);
-  unique.add(normalizedAlias);
-
-  const kept: string[] = [];
-  let totalChars = 0;
-  for (const line of unique) {
-    if (totalChars + line.length + 1 > MAX_ALIAS_SEARCH_TEXT) break;
-    kept.push(line);
-    totalChars += line.length + 1;
-  }
-  const next = kept.length > 0 ? kept.join("\n") : undefined;
-  if (customer.aliasSearchText !== next) {
-    await tenantDb.patch("customers", customerId, { aliasSearchText: next });
-  }
+): string | null {
+  const next = customer.aliasSearchText
+    ? `${customer.aliasSearchText}\n${normalizedAlias}`
+    : normalizedAlias;
+  return next.length <= MAX_ALIAS_SEARCH_TEXT ? next : null;
 }
 
 export async function removeCustomerAliasFromSearchText(
@@ -78,28 +41,14 @@ export async function removeCustomerAliasFromSearchText(
     "customers",
     customerId,
   );
-  if (!customer) return;
-
-  const existingLines = customer.aliasSearchText
-    ? customer.aliasSearchText
-        .split("\n")
-        .filter((line) => line.length > 0 && line !== removedNormalizedAlias)
-    : (
-        await tenantDb
-          .byIndex<Doc<"customerAliases">>(
-            "customerAliases",
-            "by_orgId_customerId_normalizedAlias",
-            [{ field: "customerId", value: customerId }],
-          )
-          .take(TENANT_INDEX_MAX_PAGE_SIZE)
-      )
-        .map((row) => row.normalizedAlias)
-        .filter((line) => line !== removedNormalizedAlias);
-
-  const next = existingLines.length > 0 ? existingLines.join("\n") : undefined;
-  if (customer.aliasSearchText !== next) {
-    await tenantDb.patch("customers", customerId, { aliasSearchText: next });
-  }
+  if (!customer?.aliasSearchText) return;
+  const next = customer.aliasSearchText
+    .split("\n")
+    .filter((line) => line !== removedNormalizedAlias)
+    .join("\n");
+  await tenantDb.patch("customers", customerId, {
+    aliasSearchText: next || undefined,
+  });
 }
 
 async function getActivityRow(
@@ -191,17 +140,19 @@ export async function refreshCustomerLatestJob(
   customerId: Id<"customers">,
 ): Promise<void> {
   const existing = await getActivityRow(tenantDb, warehouseId, customerId);
-  const recent = await tenantDb
+  // Exact in one read: the index fixes `voided` as missing, so any number of
+  // newer voided scans can never hide the latest live one.
+  const [latest] = await tenantDb
     .byIndex<Doc<"finishedGoodsJobScans">>(
       "finishedGoodsJobScans",
-      "by_orgId_warehouseId_customerId_createdAt",
+      "by_orgId_warehouseId_customerId_voided_createdAt",
       [
         { field: "warehouseId", value: warehouseId },
         { field: "customerId", value: customerId },
+        { field: "voided", value: undefined, missing: true },
       ],
     )
-    .take(25, "desc");
-  const latest = recent.find((scan) => !scan.voided);
+    .take(1, "desc");
 
   if (!latest) {
     if (!existing) return;

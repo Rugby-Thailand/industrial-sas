@@ -1435,10 +1435,17 @@ const schema = defineSchema({
      */
     .index("by_orgId_warehouseId_updatedAt", byOrg("warehouseId", "updatedAt"))
     .index("by_orgId_warehouseId", byOrg("warehouseId"))
-    .index("by_orgId_customerId_createdAt", byOrg("customerId", "createdAt"))
+    /**
+     * Customer activity reads only live scans: `voided` is fixed as missing so
+     * voided rows never consume a bounded read. Legacy scans omit `voided`.
+     */
     .index(
-      "by_orgId_warehouseId_customerId_createdAt",
-      byOrg("warehouseId", "customerId", "createdAt"),
+      "by_orgId_customerId_voided_createdAt",
+      byOrg("customerId", "voided", "createdAt"),
+    )
+    .index(
+      "by_orgId_warehouseId_customerId_voided_createdAt",
+      byOrg("warehouseId", "customerId", "voided", "createdAt"),
     )
     .index(
       "by_orgId_warehouseId_customerLinkSource_createdAt",
