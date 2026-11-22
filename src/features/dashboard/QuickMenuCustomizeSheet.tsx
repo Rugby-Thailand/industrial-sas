@@ -31,6 +31,7 @@ export interface QuickMenuEditorProps {
   readonly readRetry?: (() => void) | undefined;
   readonly verify?: (() => void) | undefined;
   readonly resend?: (() => void) | undefined;
+  readonly dismissSuperseded?: (() => void) | undefined;
 }
 
 export function QuickMenuCustomizeSheet(props: QuickMenuEditorProps) {
@@ -66,6 +67,7 @@ function QuickMenuEditor({
   readRetry,
   verify,
   resend,
+  dismissSuperseded,
 }: QuickMenuEditorProps) {
   const t = useTranslations("Home");
   const labels = useTranslations("Navigation");
@@ -205,6 +207,17 @@ function QuickMenuEditor({
                 disabled={pending}
               >
                 {t("resend")}
+              </Button>
+            )}
+            {dismissSuperseded && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={dismissSuperseded}
+              >
+                {t("keepLatest")}
               </Button>
             )}
             {verify && (

@@ -402,6 +402,26 @@ export function DashboardLiveContent() {
     !atLimit &&
     command.pinnedKeys.every((key) => available.includes(key));
 
+  // A save based on an older version can no longer commit. After checking its
+  // receipt the member can release just this command and keep editing.
+  const superseded =
+    !!command &&
+    command.requestId === unconfirmedRequest &&
+    !!snapshot &&
+    !atLimit &&
+    snapshot.version > command.expectedVersion;
+  function dismissSuperseded() {
+    if (!superseded || !command || !snapshotOwner || op.busy) return;
+    try {
+      removeQuickMenuCommand(command);
+      refreshRecovery(snapshotOwner, command);
+      setMessage("");
+      setUnconfirmedRequest(undefined);
+    } catch {
+      setMessage(t("checkError"));
+    }
+  }
+
   function resend() {
     if (!command || !snapshotOwner || !canResend) return;
     setMessage("");
@@ -539,6 +559,7 @@ export function DashboardLiveContent() {
         }
         verify={command ? verify : undefined}
         resend={canResend ? resend : undefined}
+        dismissSuperseded={superseded ? dismissSuperseded : undefined}
       />
     </Sheet>
   );

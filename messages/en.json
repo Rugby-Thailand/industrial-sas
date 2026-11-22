@@ -45,6 +45,7 @@
     "stale": "Quick menus changed while you were editing. Close and reopen the editor to start with the latest menus.",
     "saveError": "Couldn’t save quick menus. Your edits are still here.",
     "resend": "Retry the same save",
+    "keepLatest": "Keep the newer saved menu",
     "verify": "Check save status",
     "checking": "Checking save status…",
     "recovery": "A previous save couldn’t be confirmed. Check its status before saving again.",

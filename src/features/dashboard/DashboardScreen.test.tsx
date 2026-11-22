@@ -494,6 +494,39 @@ describe("Dashboard quick menus", () => {
     ).toBeVisible();
   });
 
+  it("lets a member keep a newer menu after an older save has no receipt", async () => {
+    startAtHome();
+    storeQuickMenuCommand(command);
+    mocks.current = current({
+      ...snapshot,
+      version: command.expectedVersion + 1,
+    });
+    mocks.verify.mockResolvedValue({
+      ok: true,
+      value: { status: "NOT_FOUND" },
+    });
+    renderHome();
+    const editor = await openEditor();
+    expect(
+      within(editor).queryByRole("button", {
+        name: "Keep the newer saved menu",
+      }),
+    ).toBeNull();
+    fireEvent.click(
+      within(editor).getByRole("button", { name: "Check save status" }),
+    );
+    fireEvent.click(
+      await within(editor).findByRole("button", {
+        name: "Keep the newer saved menu",
+      }),
+    );
+    expect(readQuickMenuCommand(clerkScope, actorUserId)).toBeNull();
+    expect(
+      within(editor).getByRole("button", { name: "Unpin Announcements" }),
+    ).toBeEnabled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
   it("uses the original command only after an explicit retry of an unconfirmed save", async () => {
     startAtHome();
     storeQuickMenuCommand(command);
