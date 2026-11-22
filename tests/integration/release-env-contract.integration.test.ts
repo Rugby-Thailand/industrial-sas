@@ -11,6 +11,7 @@ import {
   validateBuildEnvironment,
 } from "../../scripts/release/lib/env-contract.mjs";
 
+import * as envContract from "../../scripts/release/lib/env-contract.mjs";
 import { verifyUploadthingBackendEnvironment } from "../../scripts/release/lib/uploadthing-environment.mjs";
 
 /**
@@ -317,6 +318,28 @@ describe("upload callback release credential parity", () => {
           }),
         }),
       );
+    }
+  });
+  it("refuses a changed manifest destination before sending the deployment key", async () => {
+    const targets = envContract.loadTargets();
+    targets.targets.production.convexDeployment = "changed-deployment-123";
+    const manifest = vi
+      .spyOn(envContract, "loadTargets")
+      .mockReturnValue(targets);
+    const request = vi.fn();
+    try {
+      const env = {
+        ...production,
+        CONVEX_DEPLOY_KEY: "prod:changed-deployment-123|placeholder",
+        NEXT_PUBLIC_CONVEX_SITE_URL:
+          "https://changed-deployment-123.convex.site",
+      };
+      expect(await verifyUploadthingBackendEnvironment(env, request)).toContain(
+        "pinned release endpoint",
+      );
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      manifest.mockRestore();
     }
   });
   it("distinguishes read errors, missing credentials, and a real mismatch", async () => {
