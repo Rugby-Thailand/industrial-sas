@@ -78,6 +78,7 @@ An already open tab is affected on its next server call. After step 1, members w
   ```
 
   Record each `warehouseId` with `legacyRemaining: true`. Backfill also re-resolves already-indexed pending tickets. To link those after customers were added, run it for every listed warehouse, not only the ones with `legacyRemaining: true`.
+
 - **Historical job-scan backfill (per warehouse):** after customer records exist, run a **complete** dry-run pass through `isDone: true` first to inspect warehouse totals, then restart from the beginning for the apply pass:
 
   ```sh
@@ -95,6 +96,7 @@ An already open tab is affected on its next server call. After step 1, members w
   Backfill skips any row that already has a link decision (`AUTO`, `MANUAL`, or `UNLINKED`) and reports it as `skippedDecided`. On apply (`dryRun: false`), exact unique matches link with `customerLinkSource: "AUTO"` and update `customerWarehouseActivity`. Ambiguous, archived, and unmatched named tickets are stamped `customerReviewPending: true` so they appear in the indexed queue. Blank and voided tickets (`skippedBlank`, `skippedVoided`) are stamped `false`, which retires them from the legacy stream without changing their captured text. The `updated` total counts new links and new stamps, so a rerun reports `0`.
 
   The pass is deterministic: it walks the warehouse's scans in a fixed index order, and each batch is one transaction. A stopped run resumes from its last checkpointed cursor, and restarting from the beginning is safe.
+
 - **Versions and open editors:** a classification stamp does not change the ticket's `version` or correction history, so a ticket editor open during backfill still saves. A new automatic link increments `version`. An editor open on that ticket gets `STALE_REVISION` and must reload before saving. A correction that only reclassifies a legacy ticket (no field changed) stamps the classification without recording a correction.
 - **Verify drained:** list the warehouses again. Every warehouse should report `legacyRemaining: false`. Rows saved by an older backend during a rolling deploy show up here; rerun that warehouse's apply pass. The review banner then counts only indexed pending tickets.
 - **Paused auto-link:** while `CUSTOMER_AUTO_LINK_PAUSED` is set, apply runs refuse (`CUSTOMER_AUTO_LINK_PAUSED`) and dry runs still work. Saves and edits during the pause still classify tickets: named ones become pending and blank ones are retired, so the legacy stream does not grow. A captured-name correction on an `AUTO` ticket during the pause removes that link and makes the ticket pending. After resuming, run the apply pass for each affected warehouse to auto-link the tickets that became pending during the pause.
