@@ -21,8 +21,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Link, useRouter } from "@/i18n/navigation";
+import { api } from "../../../convex/_generated/api";
+import { NAVIGATION_PERMISSION } from "../../../convex/model/authorization/navigationPermissions";
 import { CustomerPicker } from "@/features/customers/CustomerPicker";
 import { fgRefs, type Product } from "@/lib/convex/finishedGoodsApi";
+import { useEffectiveWarehouse } from "@/lib/workspace/useEffectiveWarehouse";
 import { ProductBatches } from "./ProductBatches";
 import { optimisticProductDetails } from "./optimisticProductDetails";
 import {
@@ -36,6 +39,7 @@ import {
   Status,
   Steps,
   measurePath,
+  productPackingPath,
   productPath,
   useFGText,
   useDraftKey,
@@ -142,55 +146,77 @@ export function ProductScreen({
   resumePalletId?: string;
   requestedWarehouseId?: string;
 }) {
-  const canManage = useCanManage();
-  const { warehouses } = useWorkspace();
-  const { t } = useFGText();
-  const fgCrumb = useFGCrumb();
   const draftScope = useDraftKey("fg-product");
   if (!draftScope) return <Loading />;
   return (
     <QueryGate scope="WAREHOUSE">
-      {(activeWarehouseId) => {
-        const warehouseId =
-          requestedWarehouseId &&
-          warehouses.some((warehouse) => warehouse.id === requestedWarehouseId)
-            ? requestedWarehouseId
-            : activeWarehouseId;
-        return productId ? (
-          <ProductLoader
-            key={`${draftScope}:${warehouseId}:${productId}`}
-            draftScope={draftScope}
-            warehouseId={warehouseId}
-            productId={productId}
-            {...(resumePalletId ? { resumePalletId } : {})}
-          />
-        ) : canManage ? (
-          <ProductForm
-            key={`${draftScope}:${warehouseId}`}
-            draftScope={draftScope}
-            warehouseId={warehouseId}
-          />
-        ) : (
-          <>
-            <Heading
-              title={t("copy.create-finished-good")}
-              breadcrumbs={[fgCrumb]}
-            />
-            <ViewOnlyNotice />
-          </>
-        );
-      }}
+      {(activeWarehouseId) => (
+        <ProductWarehouseView
+          draftScope={draftScope}
+          activeWarehouseId={activeWarehouseId}
+          {...(productId ? { productId } : {})}
+          {...(resumePalletId ? { resumePalletId } : {})}
+          {...(requestedWarehouseId ? { requestedWarehouseId } : {})}
+        />
+      )}
     </QueryGate>
   );
 }
+
+function ProductWarehouseView({
+  draftScope,
+  activeWarehouseId,
+  productId,
+  resumePalletId,
+  requestedWarehouseId,
+}: {
+  draftScope: string;
+  activeWarehouseId: string;
+  productId?: string;
+  resumePalletId?: string;
+  requestedWarehouseId?: string;
+}) {
+  const canManage = useCanManage();
+  const { t } = useFGText();
+  const fgCrumb = useFGCrumb();
+  const { warehouseId, crossWarehouseId } = useEffectiveWarehouse(
+    activeWarehouseId,
+    requestedWarehouseId,
+  );
+  return productId ? (
+    <ProductLoader
+      key={`${draftScope}:${warehouseId}:${productId}`}
+      draftScope={draftScope}
+      warehouseId={warehouseId}
+      productId={productId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
+      {...(resumePalletId ? { resumePalletId } : {})}
+    />
+  ) : canManage ? (
+    <ProductForm
+      key={`${draftScope}:${warehouseId}`}
+      draftScope={draftScope}
+      warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
+    />
+  ) : (
+    <>
+      <Heading title={t("copy.create-finished-good")} breadcrumbs={[fgCrumb]} />
+      <ViewOnlyNotice />
+    </>
+  );
+}
+
 function ProductLoader({
   draftScope,
   warehouseId,
+  crossWarehouseId,
   productId,
   resumePalletId,
 }: {
   draftScope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   productId: string;
   resumePalletId?: string;
 }) {
@@ -235,6 +261,7 @@ function ProductLoader({
       key={`${draftScope}:${warehouseId}:${productId}:${resumePalletId ?? "new-pallet"}`}
       draftScope={draftScope}
       warehouseId={warehouseId}
+      {...(crossWarehouseId ? { crossWarehouseId } : {})}
       product={result.value}
       {...(resumePalletId ? { resumePalletId } : {})}
     />
@@ -243,16 +270,22 @@ function ProductLoader({
 function ProductForm({
   draftScope,
   warehouseId,
+  crossWarehouseId,
   product,
   resumePalletId,
 }: {
   draftScope: string;
   warehouseId: string;
+  crossWarehouseId?: string;
   product?: Product;
   resumePalletId?: string;
 }) {
   const fgCrumb = useFGCrumb();
   const { t, tr, locale } = useFGText();
+  const { navigationPermissions } = useWorkspace();
+  const canReadCustomers = navigationPermissions.includes(
+    NAVIGATION_PERMISSION.customers,
+  );
   const canManage = useCanManage();
   const router = useRouter();
   const saveProduct = useMutation(fgRefs.saveProduct).withOptimisticUpdate(
@@ -409,7 +442,12 @@ function ProductForm({
           navigationDraft.settle(() =>
             completeTask(
               next && packing
-                ? `${productPath(id)}/packing${product ? `?draft=${crypto.randomUUID()}` : ""}`
+                ? productPackingPath(id, {
+                    ...(product ? { draft: crypto.randomUUID() } : {}),
+                    ...(crossWarehouseId
+                      ? { warehouseId: crossWarehouseId }
+                      : {}),
+                  })
                 : next && resumePalletId
                   ? measurePath(resumePalletId)
                   : FG_PATH,
@@ -495,12 +533,15 @@ function ProductForm({
                 "unit",
                 "storageCondition",
                 "notes",
+                "customerId",
                 "customerReference",
                 "productReference",
               ] as const
             )
               .filter(
-                (field) => latestValues[field] !== form.baseValues?.[field],
+                (field) =>
+                  (field !== "customerId" || canReadCustomers) &&
+                  latestValues[field] !== form.baseValues?.[field],
               )
               .map((field) => (
                 <div key={field}>
@@ -512,19 +553,45 @@ function ProductForm({
                         unit: t("copy.counting-unit-78d38c"),
                         storageCondition: t("copy.storage-condition"),
                         notes: t("copy.storage-notes"),
+                        customerId: t("copy.linked-customer"),
                         customerReference: t("copy.customer-reference"),
                         productReference: t("copy.product-reference"),
                       }[field]
                     }
                   </dt>
                   <dd className="break-words">
-                    {form.baseValues?.[field] || "—"} →{" "}
-                    {latestValues[field] || "—"}
-                    {form[field] !== latestValues[field] && (
-                      <span className="block text-muted">
-                        {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
-                        {form[field] || "—"}
-                      </span>
+                    {field === "customerId" ? (
+                      <>
+                        <ProductCustomerConflictValue
+                          customerId={form.baseValues?.customerId}
+                          unlinkedLabel={t("copy.no-linked-customer")}
+                        />{" "}
+                        →{" "}
+                        <ProductCustomerConflictValue
+                          customerId={latestValues.customerId}
+                          unlinkedLabel={t("copy.no-linked-customer")}
+                        />
+                        {form.customerId !== latestValues.customerId && (
+                          <span className="block text-muted">
+                            {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
+                            <ProductCustomerConflictValue
+                              customerId={form.customerId}
+                              unlinkedLabel={t("copy.no-linked-customer")}
+                            />
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {form.baseValues?.[field] || "—"} →{" "}
+                        {latestValues[field] || "—"}
+                        {form[field] !== latestValues[field] && (
+                          <span className="block text-muted">
+                            {tr("Your draft", "ฉบับร่างของคุณ")}:{" "}
+                            {form[field] || "—"}
+                          </span>
+                        )}
+                      </>
                     )}
                   </dd>
                 </div>
@@ -562,7 +629,7 @@ function ProductForm({
           <ErrorNotice message={op.error} />
           {op.errorCode === "DUPLICATE_KEY" && op.error && duplicateProduct ? (
             <Button asChild variant="outline">
-              <Link href={productPath(duplicateProduct._id)}>
+              <Link href={productPath(duplicateProduct._id, crossWarehouseId)}>
                 {t("copy.open-existing-product")}
               </Link>
             </Button>
@@ -670,7 +737,6 @@ function ProductForm({
                           }}
                           unlinkedLabel={t("copy.no-linked-customer")}
                           searchPlaceholder={t("copy.search-customer")}
-                          loadMoreLabel={t("copy.load-more-customers")}
                           disabled={!canManage || busy}
                           testId="product-customer-picker"
                         />
@@ -821,4 +887,27 @@ function ProductForm({
       ) : null}
     </>
   );
+}
+
+function ProductCustomerConflictValue({
+  customerId,
+  unlinkedLabel,
+}: {
+  readonly customerId: string | undefined;
+  readonly unlinkedLabel: string;
+}) {
+  const outcome = useQuery(
+    api.customers.catalogue.getCustomer,
+    customerId ? { customerId } : "skip",
+  );
+  if (!customerId) return <>{unlinkedLabel}</>;
+  const customer = outcome?.ok ? outcome.value : null;
+  if (
+    customer &&
+    typeof customer.name === "string" &&
+    typeof customer.code === "string"
+  ) {
+    return <>{`${customer.name} (${customer.code})`}</>;
+  }
+  return <>{customerId}</>;
 }

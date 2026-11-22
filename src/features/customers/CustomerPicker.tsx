@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { api } from "../../../convex/_generated/api";
@@ -17,6 +18,8 @@ export interface CustomerPickerProps {
   readonly unlinkedLabel: string;
   readonly searchPlaceholder?: string;
   readonly loadMoreLabel?: string;
+  readonly previousPageLabel?: string;
+  readonly nextPageLabel?: string;
   readonly disabled?: boolean;
   readonly testId?: string;
 }
@@ -33,22 +36,26 @@ export function CustomerPicker({
   unlinkedLabel,
   searchPlaceholder,
   loadMoreLabel,
+  previousPageLabel,
+  nextPageLabel,
   disabled = false,
   testId,
 }: CustomerPickerProps) {
+  const t = useTranslations("Customers");
   const { navigationPermissions } = useWorkspace();
   const canReadCustomers = navigationPermissions.includes(
     NAVIGATION_PERMISSION.customers,
   );
   const [search, setSearch] = useState("");
-  const [scanCursor, setScanCursor] = useState<string | undefined>(undefined);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const activeCursor = cursorStack.at(-1);
   const outcome = useQuery(
     api.customers.linking.searchCustomerOptions,
     canReadCustomers
       ? {
           ...(search.trim() ? { search: search.trim() } : {}),
           ...(value ? { includeCustomerId: value } : {}),
-          ...(scanCursor === undefined ? {} : { scanCursor }),
+          ...(activeCursor === undefined ? {} : { scanCursor: activeCursor }),
         }
       : "skip",
   );
@@ -58,6 +65,9 @@ export function CustomerPicker({
   const rows = outcome?.ok ? outcome.value.items : [];
   const hasMore = Boolean(outcome?.ok && outcome.value.hasMore);
   const nextCursor = outcome?.ok ? outcome.value.scanCursor : undefined;
+  const hasPrevious = cursorStack.length > 0;
+  const canNext = Boolean(hasMore && nextCursor);
+  const emptyIntermediatePage = !loading && rows.length === 0 && (hasPrevious || canNext);
   const options = [
     { value: "", label: unlinkedLabel },
     ...rows.map((customer) => ({
@@ -75,7 +85,7 @@ export function CustomerPicker({
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setScanCursor(undefined);
+            setCursorStack([]);
           }}
           placeholder={searchPlaceholder}
           aria-label={searchPlaceholder}
@@ -94,16 +104,43 @@ export function CustomerPicker({
         pending={loading}
         {...(testId === undefined ? {} : { testId })}
       />
-      {hasMore && nextCursor && loadMoreLabel ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={disabled}
-          onClick={() => setScanCursor(nextCursor)}
+      {emptyIntermediatePage ? (
+        <p
+          className="text-xs text-muted"
+          data-testid={testId ? `${testId}-empty-page` : undefined}
         >
-          {loadMoreLabel}
-        </Button>
+          {t("pickerEmptyPage")}
+        </p>
+      ) : null}
+      {hasPrevious || canNext ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {hasPrevious ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled || loading}
+              onClick={() => setCursorStack((current) => current.slice(0, -1))}
+              data-testid={testId ? `${testId}-previous` : undefined}
+            >
+              {previousPageLabel ?? t("previousPage")}
+            </Button>
+          ) : null}
+          {canNext && nextCursor ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled || loading}
+              onClick={() =>
+                setCursorStack((current) => [...current, nextCursor])
+              }
+              data-testid={testId ? `${testId}-next` : undefined}
+            >
+              {nextPageLabel ?? loadMoreLabel ?? t("nextPage")}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

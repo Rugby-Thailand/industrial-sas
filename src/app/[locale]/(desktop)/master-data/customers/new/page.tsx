@@ -1,22 +1,26 @@
 import { setRequestLocale } from "next-intl/server";
 
 import { NewCustomerForm } from "@/features/customers/CustomerForm";
+import { isReviewPrefillToken } from "@/features/customers/reviewPrefill";
 
 export default async function NewCustomerPage({
   params,
   searchParams,
 }: {
   readonly params: Promise<{ locale: string }>;
-  readonly searchParams?: Promise<{ name?: string | string[] }>;
+  readonly searchParams?: Promise<{ prefill?: string | string[] }>;
 }) {
-  const [{ locale }, query] = await Promise.all([
-    params,
-    searchParams ?? Promise.resolve({} as { name?: string | string[] }),
-  ]);
+  const [{ locale }, query] = await Promise.all([params, searchParams]);
   setRequestLocale(locale);
-  const rawName = Array.isArray(query.name) ? query.name[0] : query.name;
-  const initialName = rawName?.trim().slice(0, 200) || undefined;
+  const rawPrefill = Array.isArray(query?.prefill)
+    ? query.prefill[0]
+    : query?.prefill;
+  const prefillToken = isReviewPrefillToken(rawPrefill)
+    ? rawPrefill
+    : undefined;
   return (
-    <NewCustomerForm {...(initialName === undefined ? {} : { initialName })} />
+    <NewCustomerForm
+      {...(prefillToken === undefined ? {} : { prefillToken })}
+    />
   );
 }

@@ -16,6 +16,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { LedgerPanelStatus } from "@/components/system/LedgerPanelStatus";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -170,6 +171,12 @@ function CustomerDetailContent({
   const t = useTranslations("Customers");
   const format = useFormatter();
   const { canManage } = useCustomerAccess();
+  const { organization, warehouses } = useWorkspace();
+  const productScope = JSON.stringify([
+    customer.customerId,
+    organization?.id,
+    warehouses.map(({ id }) => id),
+  ]);
   const activityOutcome = useQuery(api.customers.linking.getCustomerActivity, {
     customerId: customer.customerId,
   });
@@ -314,7 +321,7 @@ function CustomerDetailContent({
                 <DetailCard
                   title={t("sectionRecentJobs")}
                   action={
-                    activity.recentJobs.length > 0 ? (
+                    activity.recentJobs.length > 0 || activity.hasMoreJobs ? (
                       <Link
                         href={recentJobsHref}
                         className="text-sm text-link hover:underline"
@@ -325,7 +332,13 @@ function CustomerDetailContent({
                   }
                 >
                   {activity.recentJobs.length === 0 ? (
-                    <p className="text-sm text-muted">{t("noLinkedJobs")}</p>
+                    <p className="text-sm text-muted">
+                      {t(
+                        activity.hasMoreJobs
+                          ? "recentJobsOutsidePreview"
+                          : "noLinkedJobs",
+                      )}
+                    </p>
                   ) : (
                     <>
                       <div className="hidden sm:block">
@@ -399,6 +412,7 @@ function CustomerDetailContent({
                   )}
                 </DetailCard>
                 <CustomerProductsCard
+                  key={productScope}
                   customerId={customer.customerId}
                   initialProducts={activity.linkedProducts}
                   hasMoreInitial={activity.hasMoreProducts}
@@ -484,6 +498,17 @@ type LinkedProductItem = {
   readonly totalQuantity?: number;
 };
 
+function mergeProducts(
+  earlier: readonly LinkedProductItem[],
+  next: readonly LinkedProductItem[],
+): readonly LinkedProductItem[] {
+  const seen = new Set(earlier.map((product) => product.productId));
+  return [
+    ...earlier,
+    ...next.filter((product) => !seen.has(product.productId)),
+  ];
+}
+
 function CustomerProductsCard({
   customerId,
   initialProducts,
@@ -497,6 +522,17 @@ function CustomerProductsCard({
   const format = useFormatter();
   const [pagedCursor, setPagedCursor] = useState<string | null>(null);
   const [pagingActive, setPagingActive] = useState(false);
+  // Pages already passed stay listed; only the current page is live.
+  const [earlierPages, setEarlierPages] = useState<
+    readonly LinkedProductItem[]
+  >([]);
+  const [pagingCustomerId, setPagingCustomerId] = useState(customerId);
+  if (pagingCustomerId !== customerId) {
+    setPagingCustomerId(customerId);
+    setPagingActive(false);
+    setPagedCursor(null);
+    setEarlierPages([]);
+  }
   const pageOutcome = useQuery(
     api.customers.linking.listCustomerProductsPage,
     pagingActive
@@ -507,10 +543,23 @@ function CustomerProductsCard({
         }
       : "skip",
   );
+  const loadingPage = pagingActive && pageOutcome === undefined;
+  const pagedDenied =
+    pagingActive && pageOutcome !== undefined && !pageOutcome.ok;
   const paged = pageOutcome?.ok ? pageOutcome.value : null;
-  const products = pagingActive && paged ? paged.items : initialProducts;
+  const products =
+    pagedDenied || paged?.canViewWarehouseData === false
+      ? []
+      : !pagingActive
+        ? initialProducts
+        : paged
+          ? mergeProducts(earlierPages, paged.items)
+          : earlierPages.length > 0
+            ? earlierPages
+            : initialProducts;
+  // A page filtered by warehouse scope may be short or empty yet continue.
   const hasMore = pagingActive
-    ? Boolean(paged && !paged.isDone)
+    ? loadingPage || Boolean(paged && !paged.isDone && paged.continueCursor)
     : hasMoreInitial;
   const title =
     products.length === 0
@@ -521,54 +570,73 @@ function CustomerProductsCard({
 
   return (
     <DetailCard title={title}>
-      {products.length === 0 ? (
+      {pagedDenied ? (
+        <LedgerPanelStatus
+          state={{
+            kind: "DENIED",
+            requestId: pageOutcome.denial.requestId,
+          }}
+        />
+      ) : products.length === 0 && !hasMore ? (
         <p className="text-sm text-muted">{t("noLinkedProducts")}</p>
       ) : (
         <>
-          <ul
-            className="divide-y divide-border"
-            data-testid="customer-linked-products"
-          >
-            {products.map((product) => (
-              <li key={product.productId}>
-                <Link
-                  href={productPath(product.productId, product.warehouseId)}
-                  className="-mx-2 flex min-h-touch items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-raised focus-visible:outline-2 focus-visible:outline-link"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium wrap-anywhere text-text">
-                      {product.name}
+          {products.length > 0 ? (
+            <ul
+              className="divide-y divide-border"
+              data-testid="customer-linked-products"
+            >
+              {products.map((product) => (
+                <li key={product.productId}>
+                  <Link
+                    href={productPath(product.productId, product.warehouseId)}
+                    className="-mx-2 flex min-h-touch items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-raised focus-visible:outline-2 focus-visible:outline-link"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium wrap-anywhere text-text">
+                        {product.name}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        <span className="font-mono">{product.sku}</span>
+                        {product.warehouseName
+                          ? ` · ${product.warehouseName}`
+                          : null}
+                      </span>
                     </span>
-                    <span className="block text-xs text-muted">
-                      <span className="font-mono">{product.sku}</span>
-                      {product.warehouseName
-                        ? ` · ${product.warehouseName}`
-                        : null}
-                    </span>
-                  </span>
-                  {product.totalQuantity !== undefined ? (
-                    <span className="shrink-0 text-xs text-muted tabular-nums">
-                      {t("inStock", {
-                        quantity: format.number(product.totalQuantity),
-                        unit: product.unit,
-                      })}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    {product.totalQuantity !== undefined ? (
+                      <span className="shrink-0 text-xs text-muted tabular-nums">
+                        {t("inStock", {
+                          quantity: format.number(product.totalQuantity),
+                          unit: product.unit,
+                        })}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p
+              className="text-sm text-muted"
+              data-testid="customer-products-empty-page"
+            >
+              {t("productsEmptyPage")}
+            </p>
+          )}
           {hasMore ? (
             <div className="pt-1">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={loadingPage}
                 onClick={() => {
                   if (!pagingActive) {
                     setPagingActive(true);
                     setPagedCursor(null);
-                  } else if (paged && !paged.isDone) {
+                    setEarlierPages([]);
+                  } else if (paged && !paged.isDone && paged.continueCursor) {
+                    setEarlierPages(mergeProducts(earlierPages, paged.items));
                     setPagedCursor(paged.continueCursor);
                   }
                 }}
@@ -610,22 +678,34 @@ function CustomerAliasesCard({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pagingActive, setPagingActive] = useState(false);
-  const [aliasCursor, setAliasCursor] = useState<string | null>(null);
+  const [aliasCursors, setAliasCursors] = useState<string[]>([]);
+  const [pagingCustomerId, setPagingCustomerId] = useState(customerId);
+  if (pagingCustomerId !== customerId) {
+    setPagingCustomerId(customerId);
+    setPagingActive(false);
+    setAliasCursors([]);
+  }
+  const activeAliasCursor = aliasCursors.at(-1);
   const aliasPageOutcome = useQuery(
     api.customers.linking.listCustomerAliasesPage,
     pagingActive
       ? {
           customerId,
           pageSize: 100,
-          ...(aliasCursor ? { cursor: aliasCursor } : {}),
+          ...(activeAliasCursor ? { cursor: activeAliasCursor } : {}),
         }
       : "skip",
   );
+  const loadingPage = pagingActive && aliasPageOutcome === undefined;
+  const aliasPageDenied =
+    pagingActive && aliasPageOutcome !== undefined && !aliasPageOutcome.ok;
   const pagedAliases = aliasPageOutcome?.ok ? aliasPageOutcome.value : null;
-  const visibleAliases =
-    pagingActive && pagedAliases ? pagedAliases.items : aliases;
+  const visibleAliases = pagingActive ? (pagedAliases?.items ?? []) : aliases;
+  const hasPrevious = pagingActive && aliasCursors.length > 0;
   const hasMore = pagingActive
-    ? Boolean(pagedAliases && !pagedAliases.isDone)
+    ? Boolean(
+        pagedAliases && !pagedAliases.isDone && pagedAliases.continueCursor,
+      )
     : hasMoreAliases;
 
   useNavigationDraft({
@@ -659,6 +739,8 @@ function CustomerAliasesCard({
         if (!outcome.value.ok) {
           if (outcome.value.code === "DUPLICATE_KEY")
             setError(t("aliasDuplicate"));
+          else if (outcome.value.code === "ALIAS_CAPACITY")
+            setError(t("aliasCapacity"));
           else if (outcome.value.code === "FIELD_INVALID")
             setError(t("aliasInvalid"));
           else setError(t("errors.UNKNOWN"));
@@ -694,55 +776,97 @@ function CustomerAliasesCard({
 
   return (
     <DetailCard title={t("sectionAliases")}>
-      {visibleAliases.length > 0 ? (
-        <>
-          <ul
-            className="flex flex-wrap gap-2"
-            data-testid="customer-aliases-list"
-          >
-            {visibleAliases.map((item) => (
-              <li
-                key={item.aliasId}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2.5 py-1 text-xs text-text"
-              >
-                <span className="wrap-anywhere">{item.alias}</span>
-                {canEdit ? (
-                  <button
-                    type="button"
-                    disabled={operation.busy}
-                    aria-label={t("aliasRemove", { alias: item.alias })}
-                    onClick={() => void handleRemove(item.aliasId)}
-                    className="-mr-1 inline-flex size-5 items-center justify-center rounded text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-link"
-                  >
-                    <X aria-hidden="true" className="size-3.5" />
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {hasMore ? (
-            <div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (!pagingActive) {
-                    setPagingActive(true);
-                    setAliasCursor(null);
-                  } else if (pagedAliases && !pagedAliases.isDone) {
-                    setAliasCursor(pagedAliases.continueCursor);
-                  }
-                }}
-              >
-                {t("loadMoreAliases")}
-              </Button>
-            </div>
-          ) : null}
-        </>
+      {loadingPage ? (
+        <LedgerPanelStatus state={{ kind: "LOADING" }} label={t("loading")} />
+      ) : aliasPageDenied ? (
+        <LedgerPanelStatus
+          state={{
+            kind: "DENIED",
+            requestId: aliasPageOutcome.denial.requestId,
+          }}
+        />
+      ) : visibleAliases.length > 0 ? (
+        <ul
+          className="flex flex-wrap gap-2"
+          data-testid="customer-aliases-list"
+        >
+          {visibleAliases.map((item) => (
+            <li
+              key={item.aliasId}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2.5 py-1 text-xs text-text"
+            >
+              <span className="wrap-anywhere">{item.alias}</span>
+              {canEdit ? (
+                <button
+                  type="button"
+                  disabled={operation.busy}
+                  aria-label={t("aliasRemove", { alias: item.alias })}
+                  onClick={() => void handleRemove(item.aliasId)}
+                  className="-mr-1 inline-flex size-5 items-center justify-center rounded text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-link"
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : hasPrevious || hasMore ? (
+        <p
+          className="text-sm text-muted"
+          data-testid="customer-aliases-empty-page"
+        >
+          {t("aliasesEmptyPage")}
+        </p>
       ) : (
         <p className="text-sm text-muted">{t("noAliases")}</p>
       )}
+      {!pagingActive && hasMoreAliases ? (
+        <div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setPagingActive(true);
+              setAliasCursors([]);
+            }}
+          >
+            {t("loadMoreAliases")}
+          </Button>
+        </div>
+      ) : pagingActive && (hasPrevious || hasMore) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {hasPrevious ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={loadingPage}
+              onClick={() => setAliasCursors((current) => current.slice(0, -1))}
+              data-testid="customer-aliases-previous"
+            >
+              {t("previousPage")}
+            </Button>
+          ) : null}
+          {hasMore && pagedAliases?.continueCursor ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={loadingPage}
+              onClick={() =>
+                setAliasCursors((current) => [
+                  ...current,
+                  pagedAliases.continueCursor,
+                ])
+              }
+              data-testid="customer-aliases-next"
+            >
+              {t("nextPage")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <p className="text-xs text-muted">{t("aliasHint")}</p>
       {displayError ? (
         <Notice tone="danger" role="alert" title={displayError} />

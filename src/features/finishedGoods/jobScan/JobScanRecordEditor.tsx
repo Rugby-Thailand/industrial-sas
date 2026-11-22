@@ -261,7 +261,6 @@ export function JobScanRecordEditor({
               onChange={setCustomerId}
               unlinkedLabel={t("customerUnlinked")}
               searchPlaceholder={t("customerSearch")}
-              loadMoreLabel={t("customerLoadMore")}
               disabled={op.busy || Boolean(pendingCommand)}
               testId="job-scan-customer-picker"
             />

@@ -1,5 +1,8 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
+
+import type { FunctionArgs } from "convex/server";
 import { useMutation, useQuery } from "convex/react";
 import { Check, Link2, Plus, Search, Users } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -23,10 +26,11 @@ import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/ui/Notice";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAsyncOperation } from "@/hooks/useAsyncOperation";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { customerNewPath, ROUTES } from "@/lib/navigation";
 import { returnFromTask } from "@/lib/taskNavigation";
 import { CustomerGate, useSubmissionIdentity } from "./customerAccess";
+import { reviewPrefillScope, saveReviewPrefillName } from "./reviewPrefill";
 
 interface ReviewCandidate {
   readonly customerId: Id<"customers">;
@@ -167,14 +171,27 @@ function ReviewQueueContent() {
       {hasMore || cursorStack.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 pt-2">
           {cursorStack.length > 0 ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setCursorStack([])}
-            >
-              {t("reviewBackToFirst")}
-            </Button>
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setCursorStack((current) => current.slice(0, -1))
+                }
+                data-testid="review-previous-batch"
+              >
+                {t("previousPage")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setCursorStack([])}
+              >
+                {t("reviewBackToFirst")}
+              </Button>
+            </>
           ) : null}
           {hasMore && scanCursor ? (
             <Button
@@ -205,6 +222,46 @@ function ReviewQueueContent() {
   );
 }
 
+type PendingResolveCommand = FunctionArgs<
+  typeof api.customers.linking.resolveUnresolvedScans
+>;
+
+type ReviewErrorState = {
+  readonly code: string;
+  readonly field?: string;
+};
+
+function reviewErrorKey({ code, field }: ReviewErrorState) {
+  switch (code) {
+    case "STALE_REVISION":
+    case "MIXED_NAME_GROUP":
+    case "REQUEST_ARGUMENT_CONFLICT":
+    case "REPLAY_TARGET_MISSING":
+      return "reviewErrorStale";
+    case "ALIAS_CAPACITY":
+      return "aliasCapacity";
+    case "ALREADY_RESOLVED":
+      return "reviewErrorAlreadyResolved";
+    case "CUSTOMER_ARCHIVED":
+      return "reviewErrorCustomerArchived";
+    case "NOT_FOUND":
+      return field === "customerId"
+        ? "reviewErrorCustomerNotFound"
+        : "reviewErrorScanNotFound";
+    case "FIELD_INVALID":
+      return field === "aliasText"
+        ? "aliasInvalid"
+        : "reviewErrorCustomerInvalid";
+    case "SCAN_GROUP_SIZE_INVALID":
+      return "reviewErrorGroupSize";
+    case "ACCESS_DENIED":
+    case "DENIED":
+      return "reviewErrorDenied";
+    default:
+      return "reviewErrorUnknown";
+  }
+}
+
 function ReviewGroupCard({
   group,
   canReview,
@@ -220,6 +277,8 @@ function ReviewGroupCard({
 }) {
   const t = useTranslations("Customers");
   const format = useFormatter();
+  const router = useRouter();
+  const { userId, orgId } = useAuth();
   const headingId = useId();
   const resolve = useMutation(api.customers.linking.resolveUnresolvedScans);
   const identity = useSubmissionIdentity();
@@ -234,10 +293,9 @@ function ReviewGroupCard({
   );
   // Per plan: a decision applies to the listed tickets only by default.
   const [rememberAlias, setRememberAlias] = useState(false);
-  const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<"LINK" | "SKIP" | null>(
-    null,
-  );
+  const [errorState, setErrorState] = useState<ReviewErrorState | null>(null);
+  const [pendingCommand, setPendingCommand] =
+    useState<PendingResolveCommand | null>(null);
 
   const visibleCandidates: readonly ReviewCandidate[] = selectedCustomer
     ? activeCandidates.some(
@@ -253,6 +311,9 @@ function ReviewGroupCard({
       : undefined;
   const effectiveSelectedId =
     selectedCustomer?.customerId ?? defaultCandidate?.customerId ?? "";
+  const retryingAction =
+    !operation.busy && pendingCommand ? pendingCommand.action : null;
+  const controlsLocked = operation.busy || pendingCommand !== null;
 
   const reasonLabel =
     group.matchKind === "AMBIGUOUS"
@@ -265,55 +326,75 @@ function ReviewGroupCard({
 
   async function submit(action: "LINK" | "SKIP") {
     if (operation.busy) return;
-    if (action === "LINK" && !effectiveSelectedId) return;
-    setErrorCode(null);
-    setPendingAction(action);
-    const scans = group.scans.map(({ jobScanId, version }) => ({
-      jobScanId,
-      expectedVersion: version,
-    }));
-    const payload = {
-      action,
-      ...(action === "LINK"
-        ? {
-            customerId: effectiveSelectedId as Id<"customers">,
-            rememberAlias,
-            ...(rememberAlias ? { aliasText: group.displayName } : {}),
-          }
-        : {}),
-      scans,
-    };
-    const { requestId } = identity.request(JSON.stringify(payload), undefined);
+    if (pendingCommand && pendingCommand.action !== action) return;
+    if (!pendingCommand && action === "LINK" && !effectiveSelectedId) return;
+    setErrorState(null);
+    // Freeze the attempted command until the server answers so a transport
+    // retry replays the exact same requestId, scans, and expected versions
+    // even if live subscriptions update the review group in the meantime.
+    let command = pendingCommand;
+    if (!command) {
+      const scans = group.scans.map(({ jobScanId, version }) => ({
+        jobScanId,
+        expectedVersion: version,
+      }));
+      const payload = {
+        action,
+        ...(action === "LINK"
+          ? {
+              customerId: effectiveSelectedId as Id<"customers">,
+              rememberAlias,
+              ...(rememberAlias ? { aliasText: group.displayName } : {}),
+            }
+          : {}),
+        scans,
+      };
+      const { requestId } = identity.request(
+        JSON.stringify(payload),
+        undefined,
+      );
+      command = { requestId, ...payload };
+    }
+    setPendingCommand(command);
     await operation.run(
-      async () => resolve({ requestId, ...payload }),
+      async () => resolve(command),
       (outcome) => {
         identity.clear();
-        setPendingAction(null);
+        setPendingCommand(null);
         if (!outcome || typeof outcome !== "object" || !("ok" in outcome)) {
-          setErrorCode("UNKNOWN");
+          setErrorState({ code: "UNKNOWN" });
           return;
         }
         if (!outcome.ok) {
-          setErrorCode("DENIED");
+          setErrorState({ code: "DENIED" });
           return;
         }
         if (!outcome.value.ok) {
-          setErrorCode(outcome.value.code);
+          setErrorState({
+            code: outcome.value.code,
+            ...(outcome.value.field === undefined
+              ? {}
+              : { field: outcome.value.field }),
+          });
         }
       },
     );
   }
 
-  const errorMessage =
-    errorCode === "STALE_REVISION" || errorCode === "MIXED_NAME_GROUP"
-      ? t("reviewErrorStale")
-      : errorCode === "ALREADY_RESOLVED"
-        ? t("reviewErrorAlreadyResolved")
-        : errorCode === "ACCESS_DENIED" || errorCode === "DENIED"
-          ? t("reviewErrorDenied")
-          : errorCode || operation.error
-            ? t("reviewErrorUnknown")
-            : null;
+  function createCustomerFromReview() {
+    if (controlsLocked) return;
+    const token = saveReviewPrefillName(
+      group.displayName,
+      reviewPrefillScope(userId, orgId),
+    );
+    router.push(customerNewPath(token ? { prefill: token } : undefined));
+  }
+
+  const errorMessage = retryingAction
+    ? t("reviewRetryNotice")
+    : errorState || operation.error
+      ? t(reviewErrorKey(errorState ?? { code: "UNKNOWN" }))
+      : null;
 
   return (
     <article
@@ -391,7 +472,7 @@ function ReviewGroupCard({
                     name={`customer-${headingId}`}
                     value={candidate.customerId}
                     checked={checked}
-                    disabled={!canReview || operation.busy}
+                    disabled={!canReview || controlsLocked}
                     onChange={() => onSelectCustomer(candidate)}
                     className="mt-1 size-4 accent-primary"
                   />
@@ -410,11 +491,11 @@ function ReviewGroupCard({
           </div>
         ) : null}
 
-        {canReview && effectiveSelectedId ? (
+        {canReview && (effectiveSelectedId || retryingAction === "LINK") ? (
           <label className="flex min-h-touch cursor-pointer items-center gap-2.5 text-sm text-text">
             <CheckboxControl
               checked={rememberAlias}
-              disabled={operation.busy}
+              disabled={controlsLocked}
               onChange={(event) => setRememberAlias(event.target.checked)}
             />
             <span>{t("reviewRememberAlias")}</span>
@@ -427,25 +508,30 @@ function ReviewGroupCard({
 
         {canReview ? (
           <div className="flex flex-wrap items-center gap-2">
-            {effectiveSelectedId ? (
+            {effectiveSelectedId || retryingAction === "LINK" ? (
               <Button
                 type="button"
                 size="sm"
-                disabled={operation.busy}
+                disabled={
+                  operation.busy ||
+                  (pendingCommand !== null && pendingCommand.action !== "LINK")
+                }
                 onClick={() => void submit("LINK")}
                 data-testid="review-link-button"
               >
                 <Link2 aria-hidden="true" className="size-4" />
-                {operation.busy && pendingAction === "LINK"
+                {operation.busy && pendingCommand?.action === "LINK"
                   ? t("reviewLinking")
-                  : t("reviewLinkAction", { count: group.scans.length })}
+                  : retryingAction === "LINK"
+                    ? t("reviewRetryLink")
+                    : t("reviewLinkAction", { count: group.scans.length })}
               </Button>
             ) : null}
             <Button
               type="button"
               size="sm"
               variant="outline"
-              disabled={operation.busy}
+              disabled={controlsLocked}
               onClick={onChooseOther}
             >
               <Users aria-hidden="true" className="size-4" />
@@ -453,23 +539,32 @@ function ReviewGroupCard({
                 ? t("reviewChooseOther")
                 : t("reviewChooseCustomer")}
             </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={customerNewPath(group.displayName)}>
-                <Plus aria-hidden="true" className="size-4" />
-                {t("reviewCreateCustomer")}
-              </Link>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={controlsLocked}
+              onClick={createCustomerFromReview}
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              {t("reviewCreateCustomer")}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              disabled={operation.busy}
+              disabled={
+                operation.busy ||
+                (pendingCommand !== null && pendingCommand.action !== "SKIP")
+              }
               onClick={() => void submit("SKIP")}
               data-testid="review-skip-button"
             >
-              {operation.busy && pendingAction === "SKIP"
+              {operation.busy && pendingCommand?.action === "SKIP"
                 ? t("reviewSkipping")
-                : t("reviewSkip")}
+                : retryingAction === "SKIP"
+                  ? t("reviewRetrySkip")
+                  : t("reviewSkip")}
             </Button>
           </div>
         ) : null}
@@ -489,20 +584,26 @@ function CustomerPickerDialog({
 }) {
   const t = useTranslations("Customers");
   const [search, setSearch] = useState("");
-  const [scanCursor, setScanCursor] = useState<string | undefined>(undefined);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const activeCursor = cursorStack.at(-1);
   const outcome = useQuery(
     api.customers.linking.searchCustomerOptions,
     group
-      ? { search, ...(scanCursor === undefined ? {} : { scanCursor }) }
+      ? {
+          search,
+          ...(activeCursor === undefined ? {} : { scanCursor: activeCursor }),
+        }
       : "skip",
   );
   const options = outcome?.ok ? outcome.value.items : [];
   const hasMore = Boolean(outcome?.ok && outcome.value.hasMore);
   const nextCursor = outcome?.ok ? outcome.value.scanCursor : undefined;
+  const hasPrevious = cursorStack.length > 0;
+  const canNext = Boolean(hasMore && nextCursor);
 
   function resetAndClose() {
     setSearch("");
-    setScanCursor(undefined);
+    setCursorStack([]);
     onClose();
   }
 
@@ -532,7 +633,7 @@ function CustomerPickerDialog({
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
-                setScanCursor(undefined);
+                setCursorStack([]);
               }}
               placeholder={t("reviewPickerSearch")}
               aria-label={t("reviewPickerSearch")}
@@ -544,7 +645,11 @@ function CustomerPickerDialog({
               state={{ kind: "LOADING" }}
               label={t("loading")}
             />
-          ) : options.length === 0 && !hasMore ? (
+          ) : !outcome.ok ? (
+            <LedgerPanelStatus
+              state={{ kind: "DENIED", requestId: outcome.denial.requestId }}
+            />
+          ) : options.length === 0 && !canNext && !hasPrevious ? (
             <p className="py-4 text-center text-sm text-muted">
               {t("reviewPickerEmpty")}
             </p>
@@ -559,7 +664,7 @@ function CustomerPickerDialog({
                         className="flex min-h-touch w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
                         onClick={() => {
                           setSearch("");
-                          setScanCursor(undefined);
+                          setCursorStack([]);
                           onSelect(customer);
                         }}
                       >
@@ -582,16 +687,43 @@ function CustomerPickerDialog({
                     </li>
                   ))}
                 </ul>
-              ) : null}
-              {hasMore && nextCursor ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setScanCursor(nextCursor)}
+              ) : (
+                <p
+                  className="py-4 text-center text-sm text-muted"
+                  data-testid="review-picker-empty-page"
                 >
-                  {t("reviewPickerLoadMore")}
-                </Button>
+                  {t("pickerEmptyPage")}
+                </p>
+              )}
+              {hasPrevious || canNext ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {hasPrevious ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setCursorStack((current) => current.slice(0, -1))
+                      }
+                      data-testid="review-picker-previous"
+                    >
+                      {t("previousPage")}
+                    </Button>
+                  ) : null}
+                  {canNext && nextCursor ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setCursorStack((current) => [...current, nextCursor])
+                      }
+                      data-testid="review-picker-next"
+                    >
+                      {t("nextPage")}
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
             </>
           )}

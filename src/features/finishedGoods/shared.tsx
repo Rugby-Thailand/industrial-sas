@@ -25,6 +25,7 @@ import { useAsyncOperation } from "@/hooks/useAsyncOperation";
 export {
   FG_PATH,
   productPath,
+  productPackingPath,
   unitCorrectionPath,
   batchPath,
   palletPath,

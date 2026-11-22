@@ -120,16 +120,20 @@ function CatalogueContent() {
   const reviewHasMore = Boolean(review?.ok && review.value.hasMore);
   return (
     <div className="space-y-4">
-      {unresolvedScans > 0 ? (
+      {unresolvedScans > 0 || reviewHasMore ? (
         <Notice
           tone="accent"
-          title={t(
-            reviewHasMore ? "reviewBannerTitleMore" : "reviewBannerTitle",
-            {
-              names: unresolvedNames,
-              scans: unresolvedScans,
-            },
-          )}
+          title={
+            unresolvedScans === 0
+              ? t("reviewTitle")
+              : t(
+                  reviewHasMore ? "reviewBannerTitleMore" : "reviewBannerTitle",
+                  {
+                    names: unresolvedNames,
+                    scans: unresolvedScans,
+                  },
+                )
+          }
           testId="customer-review-banner"
         >
           <div className="mt-2">
