@@ -801,7 +801,7 @@ const BROWSER_STEPS = Object.freeze([
     "clean tree",
     (step) => runOf(step).includes("ci:clean-tree"),
     {
-      run: "pnpm ci:clean-tree",
+      run: 'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" pnpm ci:clean-tree',
       if: "${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success')) }}",
     },
   ],

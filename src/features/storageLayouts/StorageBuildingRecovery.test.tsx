@@ -1,10 +1,4 @@
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { getFunctionName } from "convex/server";
 import type { ComponentProps } from "react";
@@ -189,11 +183,8 @@ describe("building and review recovery states", () => {
     expect(screen.getByTestId("building-not-found")).toHaveTextContent(
       "WH-A · North",
     );
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "ย้อนกลับ" }));
-      await new Promise((resolve) => setTimeout(resolve, 30));
-    });
-    expect(href()).toBe(origin);
+    fireEvent.click(screen.getByRole("button", { name: "ย้อนกลับ" }));
+    await waitFor(() => expect(href()).toBe(origin));
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 

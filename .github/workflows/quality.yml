@@ -189,7 +189,10 @@ jobs:
         run: node scripts/ci/prepare-browser-suite.mjs --suite=navigation
       - name: Clean tree after build
         if: ${{ !cancelled() && ((matrix.suite == 'smoke' && steps.smoke-preparation.outcome == 'success') || (startsWith(matrix.suite, 'navigation-') && steps.navigation-preparation.outcome == 'success')) }}
-        run: pnpm ci:clean-tree
+        # The container runs as root against the runner-owned checkout.
+        run: >-
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory
+          GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" pnpm ci:clean-tree
       - name: Install Playwright Chromium
         id: browsers
         if: ${{ matrix.suite == 'workspace-1' || matrix.suite == 'workspace-2' }}
