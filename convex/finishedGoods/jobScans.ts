@@ -64,11 +64,6 @@ const batchFormat = v.union(
 const READ = "masterData.storageLayout.read";
 const MANAGE = "masterData.storageLayout.manage";
 const TABLE = "finishedGoodsJobScans";
-export const JOB_TICKET_RATE_LIMIT = Object.freeze({
-  key: "finishedGoods.jobTicket.ai",
-  limit: 20,
-  windowMs: 10 * 60_000,
-});
 const DEFAULT_MODEL = "openai/gpt-6-luna";
 const MAX_ITEMS = MAX_JOB_SCAN_ITEMS;
 const LIST_LIMIT = 300;
@@ -149,6 +144,7 @@ const extractionOutcome = v.union(
       ),
     }),
   }),
+  // Keep the legacy outcome in client types for backend rollbacks.
   v.object({
     ok: v.literal(false),
     error: v.object({ code: v.literal("RATE_LIMITED") }),
@@ -197,7 +193,6 @@ async function mapLocation(
 
 /** Reads a job ticket photo with OpenRouter. Sample extraction requires explicit local opt-in. */
 export const extractJobTicket = actionWithOrg({
-  rateLimit: JOB_TICKET_RATE_LIMIT,
   args: { warehouseId: v.id("warehouses"), imageUrl: v.string() },
   returns: extractionOutcome,
   permissionCode: MANAGE,
@@ -212,12 +207,6 @@ export const extractJobTicket = actionWithOrg({
       args.imageUrl.length > 4_000_000
     )
       return { ok: false as const, error: { code: "IMAGE_URL_INVALID" } };
-    if (ctx.quota === undefined || !ctx.quota.allowed)
-      return {
-        ok: false as const,
-        error: { code: "RATE_LIMITED" },
-        retryAfterMs: ctx.quota?.retryAfterMs ?? JOB_TICKET_RATE_LIMIT.windowMs,
-      };
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
     if (!apiKey) {
       if (

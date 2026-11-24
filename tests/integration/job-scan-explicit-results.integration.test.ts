@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../convex/_generated/api";
 import * as commands from "../../convex/finishedGoods/commands";
-import { JOB_TICKET_RATE_LIMIT } from "../../convex/finishedGoods/jobScans";
 import {
   createConvexTenantWorld,
   seedConvexAuthorization,
@@ -210,13 +209,12 @@ describe("registered job-scan result contracts", () => {
         raw: expect.any(String),
       },
     });
-    // Extraction is an action without replay receipts; each invocation is a
-    // new quota-accounted request, even for an identical image.
+    // Each extraction gets its own request ID, even for an identical image.
     const next = await client.action(scans.extractJobTicket, args);
     expect(next.requestId).not.toBe(result.requestId);
   });
 
-  it("validates extraction refusals including the rate-limit-only retry field", async () => {
+  it("validates invalid images and unavailable extraction", async () => {
     const { client, warehouseId } = await world();
     vi.stubEnv("OPENROUTER_API_KEY", "");
     vi.stubEnv("JOB_SCAN_DEMO_AI", "0");
@@ -229,20 +227,14 @@ describe("registered job-scan result contracts", () => {
       ok: true,
       value: { ok: false, error: { code: "IMAGE_URL_INVALID" } },
     });
-    const args = { warehouseId, imageUrl: "https://example.test/ticket.jpg" };
-    for (let i = 1; i < JOB_TICKET_RATE_LIMIT.limit; i++) {
-      expect(await client.action(scans.extractJobTicket, args)).toMatchObject({
-        ok: true,
-        value: { ok: false, error: { code: "AI_UNAVAILABLE" } },
-      });
-    }
-    expect(await client.action(scans.extractJobTicket, args)).toMatchObject({
+    expect(
+      await client.action(scans.extractJobTicket, {
+        warehouseId,
+        imageUrl: "https://example.test/ticket.jpg",
+      }),
+    ).toMatchObject({
       ok: true,
-      value: {
-        ok: false,
-        error: { code: "RATE_LIMITED" },
-        retryAfterMs: expect.any(Number),
-      },
+      value: { ok: false, error: { code: "AI_UNAVAILABLE" } },
     });
   });
 
